@@ -14,23 +14,35 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _messageController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _messageController.dispose();
+    super.dispose();
+  }
+
   Future<void> _sendTestData() async {
-
-    // Platform messages may fail, so we use a try/catch PlatformException.
     try {
-      final result = await Future.wait([
-        HomeWidget.saveWidgetData('title', 'Title'),
-        HomeWidget.saveWidgetData('message', 'Message'),
+      return Future.wait([
+        HomeWidget.saveWidgetData('title', _titleController.text),
+        HomeWidget.saveWidgetData('message', _messageController.text),
       ]);
+    } on PlatformException catch (exception) {
+      debugPrint('Error Sending Data. $exception');
+    }
+  }
 
-        HomeWidget.updateWidget('HomeWidgetExampleProvider');
-
+  Future<void> _updateWidget() async {
+    try {
+      return HomeWidget.updateWidget('HomeWidgetExampleProvider');
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
     }
@@ -44,9 +56,22 @@ class _MyAppState extends State<MyApp> {
           title: const Text('Plugin example app'),
         ),
         body: Center(
-          child: RaisedButton(
-            onPressed: _sendTestData,
-              child: Text('Home Widget Test')),
+          child: Column(
+            children: [
+              TextField(
+                controller: _titleController,
+              ),
+              TextField(
+                controller: _messageController,
+              ),
+              RaisedButton(
+                onPressed: _sendTestData,
+                  child: Text('Save Data')),
+              RaisedButton(
+                  onPressed: _updateWidget,
+                  child: Text('Update Data')),
+            ],
+          ),
         ),
       ),
     );
