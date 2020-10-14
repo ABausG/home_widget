@@ -58,7 +58,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler {
       intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
       context.sendBroadcast(intent)
       } catch (classException : ClassNotFoundException) {
-        result.error("-3", "No Widget found with Name $className. Argument 'Name' must be the same as your AppWidgetProvider you wich to update", classException)
+        result.error("-3", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
       }
     } else if(call.method == "setAppGroupId") {
       result.success(true)
