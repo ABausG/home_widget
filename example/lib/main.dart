@@ -20,6 +20,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    HomeWidget.setAppGroupId('YOUR_APP_GROUP_ID');
   }
 
   @override
@@ -64,12 +65,9 @@ class _MyAppState extends State<MyApp> {
               TextField(
                 controller: _messageController,
               ),
+              RaisedButton(onPressed: _sendTestData, child: Text('Save Data')),
               RaisedButton(
-                onPressed: _sendTestData,
-                  child: Text('Save Data')),
-              RaisedButton(
-                  onPressed: _updateWidget,
-                  child: Text('Update Data')),
+                  onPressed: _updateWidget, child: Text('Update Data')),
             ],
           ),
         ),

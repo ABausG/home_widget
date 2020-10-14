@@ -37,7 +37,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler {
         prefs.putString(id, data)
         result.success(prefs.commit())
       } else {
-        result.error("1", "InvalidArguments saveWidgetData must be called with id and data", IllegalArgumentException())
+        result.error("-1", "InvalidArguments saveWidgetData must be called with id and data", IllegalArgumentException())
       }
     } else if (call.method == "getWidgetData") {
       if (call.hasArgument("id")) {
@@ -46,7 +46,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler {
         val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
         result.success(prefs.getString(id, defaultValue))
       } else {
-        result.error("2", "InvalidArguments getWidgetData must be called with id", IllegalArgumentException())
+        result.error("-2", "InvalidArguments getWidgetData must be called with id", IllegalArgumentException())
       }
     } else if (call.method == "updateWidget") {
       val className = call.argument<String>("name")
@@ -58,9 +58,11 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler {
       intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
       context.sendBroadcast(intent)
       } catch (classException : ClassNotFoundException) {
-        result.error("3", "No Widget found with Name $className. Argument 'Name' must be the same as your AppWidgetProvider you wich to update", classException)
+        result.error("-3", "No Widget found with Name $className. Argument 'Name' must be the same as your AppWidgetProvider you wich to update", classException)
       }
-    }  else
+    } else if(call.method == "setAppGroupId") {
+      result.success(true)
+    } else
     {
       result.notImplemented()
     }
@@ -74,6 +76,5 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler {
     private const val PREFERENCES = "HomeWidgetPreferences"
 
     fun getData(context: Context) : SharedPreferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-    
   }
 }
