@@ -30,12 +30,11 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  Future<void> _sendTestData() async {
+  Future<void> _sendData() async {
     try {
       return Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
-        HomeWidget.saveWidgetData<int>('number', 3),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
@@ -50,16 +49,20 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<void> _logData() async {
+  Future<void> _loadData() async {
     try {
       return Future.wait([
-        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title').then((value) => debugPrint('Title $value')),
-        HomeWidget.getWidgetData<String>('message', defaultValue: 'Default Message').then((value) => debugPrint('Message $value')),
-        HomeWidget.getWidgetData<int>('number',).then((value) => debugPrint('Number $value')),
+        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title').then((value) => _titleController.text = value),
+        HomeWidget.getWidgetData<String>('message', defaultValue: 'Default Message').then((value) => _messageController.text = value),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
     }
+  }
+
+  Future<void> _sendAndUpdate() async {
+    await _sendData();
+    await _updateWidget();
   }
 
   @override
@@ -67,22 +70,25 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('HomeWidget Example'),
         ),
         body: Center(
           child: Column(
             children: [
               TextField(
+                decoration: InputDecoration(
+                  hintText: 'Title',
+                ),
                 controller: _titleController,
               ),
               TextField(
+                decoration: InputDecoration(
+                  hintText: 'Body',
+                ),
                 controller: _messageController,
               ),
-              RaisedButton(onPressed: _sendTestData, child: Text('Save Data')),
-              RaisedButton(
-                  onPressed: _updateWidget, child: Text('Update Data')),
-              RaisedButton(
-                  onPressed: _logData, child: Text('Get Data')),
+              RaisedButton(onPressed: _sendAndUpdate, child: Text('Send Data to Widget')),
+              RaisedButton(onPressed: _loadData, child: Text('Load Data')),
             ],
           ),
         ),
