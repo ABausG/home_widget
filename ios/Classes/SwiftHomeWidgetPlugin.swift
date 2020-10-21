@@ -31,7 +31,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin {
             }
             if let myArgs = args as? [String: Any],
                let id = myArgs["id"] as? String,
-               let data = myArgs["data"] as? String {
+               let data = myArgs["data"] {
                 let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
                 preferences?.setValue(data, forKey: id)
                 result(preferences?.synchronize() == true)
@@ -47,9 +47,10 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin {
                 return
             }
             if let myArgs = args as? [String: Any],
-               let id = myArgs["id"] as? String {
+               let id = myArgs["id"] as? String,
+               let defaultValue = myArgs["defaultValue"] {
                 let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
-                result(preferences?.value(forKey: id))
+                result(preferences?.value(forKey: id) ?? defaultValue)
             } else {
                 result(FlutterError(code: "-2", message: "InvalidArguments getWidgetData must be called with id", details: nil))
             }

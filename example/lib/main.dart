@@ -20,7 +20,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    HomeWidget.setAppGroupId('YOUR_APP_GROUP_ID');
+    HomeWidget.setAppGroupId('group.de.zweidenker.homeWidgetExample');
   }
 
   @override
@@ -33,8 +33,9 @@ class _MyAppState extends State<MyApp> {
   Future<void> _sendTestData() async {
     try {
       return Future.wait([
-        HomeWidget.saveWidgetData('title', _titleController.text),
-        HomeWidget.saveWidgetData('message', _messageController.text),
+        HomeWidget.saveWidgetData<String>('title', _titleController.text),
+        HomeWidget.saveWidgetData<String>('message', _messageController.text),
+        HomeWidget.saveWidgetData<int>('number', 3),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
@@ -45,7 +46,19 @@ class _MyAppState extends State<MyApp> {
     try {
       return HomeWidget.updateWidget('HomeWidgetExampleProvider');
     } on PlatformException catch (exception) {
-      debugPrint('Error Sending Data. $exception');
+      debugPrint('Error Updating Widget. $exception');
+    }
+  }
+
+  Future<void> _logData() async {
+    try {
+      return Future.wait([
+        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title').then((value) => debugPrint('Title $value')),
+        HomeWidget.getWidgetData<String>('message', defaultValue: 'Default Message').then((value) => debugPrint('Message $value')),
+        HomeWidget.getWidgetData<int>('number',).then((value) => debugPrint('Number $value')),
+      ]);
+    } on PlatformException catch (exception) {
+      debugPrint('Error Getting Data. $exception');
     }
   }
 
@@ -68,6 +81,8 @@ class _MyAppState extends State<MyApp> {
               RaisedButton(onPressed: _sendTestData, child: Text('Save Data')),
               RaisedButton(
                   onPressed: _updateWidget, child: Text('Update Data')),
+              RaisedButton(
+                  onPressed: _logData, child: Text('Get Data')),
             ],
           ),
         ),

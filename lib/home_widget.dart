@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 class HomeWidget {
   static const MethodChannel _channel = const MethodChannel('home_widget');
 
-  static Future<bool> saveWidgetData(String id, String data) async {
+  static Future<bool> saveWidgetData<T>(String id, T data) async {
     return await _channel.invokeMethod<bool>('saveWidgetData', {
       'id': id,
       'data': data,
@@ -18,8 +18,8 @@ class HomeWidget {
     });
   }
 
-  static Future<String> getWidgetData(String id, {String defaultValue}) {
-    return _channel.invokeMethod<String>('getWidgetData', {
+  static Future<T> getWidgetData<T>(String id, {T defaultValue}) {
+    return _channel.invokeMethod<T>('getWidgetData', {
       'id': id,
       'defaultValue': defaultValue,
     });

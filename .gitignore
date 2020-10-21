@@ -127,3 +127,4 @@ app.*.symbols
 !/dev/ci/**/Gemfile.lock
 .gradle
 *.xcworkspacedata
+*.jar
