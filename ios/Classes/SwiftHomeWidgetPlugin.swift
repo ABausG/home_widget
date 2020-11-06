@@ -66,7 +66,6 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin {
                 } else {
                     result(FlutterError(code: "-4", message: "Widgets are only available on iOS 14.0 and above", details: nil))
                 }
-                print("Update Widget \(name)")
             } else {
                 result(FlutterError(code: "-3", message: "InvalidArguments updateWidget must be called with name", details: nil))
             }

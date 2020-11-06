@@ -18,6 +18,6 @@ void main() {
   });
 
   test('getTest', () async {
-    expect(await HomeWidget.getWidgetData('GetTes'), 'Test');
+    expect(await HomeWidget.getWidgetData('GetTest'), 'Test');
   });
 }
