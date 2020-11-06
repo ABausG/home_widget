@@ -1,8 +1,8 @@
 name: home_widget
 description: A plugin to make it easier to create HomeScreen Widgets
 version: 0.0.1
-author: Anton Borries
 homepage: https://antonborri.es
+repository: https://github.com/ABausG/home_widget
 
 environment:
   sdk: ">=2.7.0 <3.0.0"

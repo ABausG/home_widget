@@ -20,7 +20,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    HomeWidget.setAppGroupId('group.de.zweidenker.homeWidgetExample');
+    HomeWidget.setAppGroupId('YOUR_GROUP_ID');
   }
 
   @override

@@ -1,15 +1,96 @@
 # home_widget
 
-A new flutter plugin project.
+HomeWidget is a Plugin to make it easier to create HomeScreen Widgets on Android and iOS.
+HomeWidget does *not* allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However it provides a unified Interface for sending data, retrieving data and updating the Widgets
 
-## Getting Started
+## Platform Setup
 
-This project is a starting point for a Flutter
-[plug-in package](https://flutter.dev/developing-packages/),
-a specialized package that includes platform-specific implementation code for
-Android and/or iOS.
+<details><summary>Android</summary>
+### Create Widget Layout inside `android/app/res/layout`
 
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### Create Widget Configuration into `android/app/res/xml`
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:updatePeriodMillis="86400000"
+    android:initialLayout="@layout/example_layout"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen">
+</appwidget-provider>
+```
+
+### Add WidgetReceiver to AndroidManifest
+```xml
+<receiver android:name="HomeWidgetExampleProvider" >
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+    </intent-filter>
+    <meta-data android:name="android.appwidget.provider"
+        android:resource="@xml/home_widget_example" />
+</receiver>
+```
+
+### Write your WidgetProvider
+For convenience you can extend from (android/src/main/kotlin/es.antonborri/home_widget/HomeWidgetProvider.kt)[HomeWidgetProvider] which gives you access to a SharedPreferences Object with the Data in the `onUpdate` method.
+If you don't want to use the convenience Method you can access the Data using
+```kotlin
+import es.antonborri.home_widget.HomeWidgetPlugin
+...
+HomeWidgetPlugin.getData(context)
+```
+which will give you access to the same SharedPreferences
+
+### More Information
+For more Information on how to create and configure Android Widgets checkout (https://developer.android.com/guide/topics/appwidgets)[this guide] on the Android Developers Page.
+
+</details>
+
+<details><summary>iOS</summary>
+### Add a Widget to your App in Xcode
+Add a widget extension `File > Target > Widget Extension`
+
+### Add GroupId
+You need to add a groupId to the App and the Widget Extension
+*Note: in order to add groupIds you need a paid Apple Developer Account*
+Go to your (https://developer.apple.com/account/resources/identifiers/list/applicationGroup)[Apple Developer Account] and add a new group
+Add this group to you Runner and the Widget Extension inside XCode `Signing & Capabilities > App Groups > +`
+(To swap between your App and the Extension change the Target)
+
+### Write your Widget
+Check the (example/ios/HomeWidgetExample/HomeWidgetExample.swift)[exampleApp] for an Implementation of a Widget
+A more detailed overview on how to write Widgets for iOS 14 can fbe found on the (https://developer.apple.com/documentation/swiftui/widget)[Apple Developer documentation]
+In order to access the Data send with Flutter can be access with
+```swift
+let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
+```
+</details>
+
+## Usage
+
+### Setup
+For iOS you need to call `HomeWidget.setAppGroupId('YOUR_GROUP_ID');`
+Without this you won't be able to share data between your App and the Widget and calls to `saveWidgetData` and `getWidgetData` will return an error
+
+### Save Data
+In order to save Data call `HomeWidget.saveWidgetData<String>('id', data)`
+
+### Update a Widget
+In order to force a reload of the HomeScreenWidget you need to call
+```dart
+HomeWidget.updateWidget(
+    name: 'HomeWidgetExampleProvider',
+    androidName: 'HomeWidgetExampleProvider',
+    iOSName: 'HomeWidgetExample');
+```
+
+The name for Android will be chosen by checking `androidName` if that was not provided it will fallback to `name`.
+This Name needs to be equal to the Classname of the (###-write-your-widgetProvider)[WidgetProvider]
+
+The name for iOS will be chosen by checking `iOSName` if that was not provided it will fallback to `name`.
+This name needs to be equal to the Kind specified in you Widget
+
+### Retrieve Data
+To retrieve the current Data saved in the Widget call `HomeWidget.getWidgetData<String>('id', defaultValue: data)`
 
