@@ -43,7 +43,7 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _updateWidget() async {
     try {
-      return HomeWidget.updateWidget('HomeWidgetExampleProvider');
+      return HomeWidget.updateWidget(name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
     } on PlatformException catch (exception) {
       debugPrint('Error Updating Widget. $exception');
     }

@@ -59,7 +59,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler {
                 }
             }
             "updateWidget" -> {
-                val className = call.argument<String>("name")
+                val className = call.argument<String>("android") ?: call.argument<String>("name")
                 try {
                     val javaClass = Class.forName("${context.getPackageName()}.${className}")
                     val intent = Intent(context, javaClass)

@@ -12,9 +12,11 @@ class HomeWidget {
     });
   }
 
-  static Future<bool> updateWidget(String name) async {
+  static Future<bool> updateWidget({String name, String androidName, String iOSName}) async {
     return _channel.invokeMethod('updateWidget', {
       'name': name,
+      'android': androidName,
+      'ios': iOSName,
     });
   }
 

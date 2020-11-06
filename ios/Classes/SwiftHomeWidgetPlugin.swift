@@ -60,7 +60,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin {
                 return
             }
             if let myArgs = args as? [String: Any],
-               let name = myArgs["name"] as? String{
+               let name = (myArgs["ios"] ?? myArgs["name"]) as? String{
                 if #available(iOS 14.0, *) {
                     WidgetCenter.shared.reloadTimelines(ofKind:name)
                 } else {

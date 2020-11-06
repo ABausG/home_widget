@@ -57,7 +57,7 @@ struct HomeWidgetExampleEntryView : View {
 
 @main
 struct HomeWidgetExample: Widget {
-    let kind: String = "HomeWidgetExampleProvider"
+    let kind: String = "HomeWidgetExample"
     
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
