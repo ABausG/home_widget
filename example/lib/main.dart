@@ -43,7 +43,8 @@ class _MyAppState extends State<MyApp> {
 
   Future<void> _updateWidget() async {
     try {
-      return HomeWidget.updateWidget(name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
+      return HomeWidget.updateWidget(
+          name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
     } on PlatformException catch (exception) {
       debugPrint('Error Updating Widget. $exception');
     }
@@ -52,8 +53,11 @@ class _MyAppState extends State<MyApp> {
   Future<void> _loadData() async {
     try {
       return Future.wait([
-        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title').then((value) => _titleController.text = value),
-        HomeWidget.getWidgetData<String>('message', defaultValue: 'Default Message').then((value) => _messageController.text = value),
+        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
+            .then((value) => _titleController.text = value),
+        HomeWidget.getWidgetData<String>('message',
+                defaultValue: 'Default Message')
+            .then((value) => _messageController.text = value),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
@@ -87,7 +91,9 @@ class _MyAppState extends State<MyApp> {
                 ),
                 controller: _messageController,
               ),
-              RaisedButton(onPressed: _sendAndUpdate, child: Text('Send Data to Widget')),
+              RaisedButton(
+                  onPressed: _sendAndUpdate,
+                  child: Text('Send Data to Widget')),
               RaisedButton(onPressed: _loadData, child: Text('Load Data')),
             ],
           ),

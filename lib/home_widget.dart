@@ -22,7 +22,8 @@ class HomeWidget {
   ///
   /// The name of the Android Widget must match the classname of the WidgetProvider
   /// The name of the iOS Widget must match the kind specified when creating the Widget
-  static Future<bool> updateWidget({String name, String androidName, String iOSName}) async {
+  static Future<bool> updateWidget(
+      {String name, String androidName, String iOSName}) async {
     return _channel.invokeMethod('updateWidget', {
       'name': name,
       'android': androidName,
@@ -43,6 +44,6 @@ class HomeWidget {
   /// Required on iOS to set the AppGroupId [groupId] in order to ensure
   /// communication between the App and the Widget Extension
   static Future<bool> setAppGroupId(String groupId) {
-    return _channel.invokeMethod('setAppGroupId', {'groupId' : groupId});
+    return _channel.invokeMethod('setAppGroupId', {'groupId': groupId});
   }
 }
