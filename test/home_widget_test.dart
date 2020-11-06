@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget.dart';
 
 void main() {
-  const MethodChannel channel = MethodChannel('home_widget');
+  const channel = MethodChannel('home_widget');
 
   TestWidgetsFlutterBinding.ensureInitialized();
 

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 
 class HomeWidget {
-  static const MethodChannel _channel = const MethodChannel('home_widget');
+  static const MethodChannel _channel = MethodChannel('home_widget');
 
   static Future<bool> saveWidgetData<T>(String id, T data) async {
     return await _channel.invokeMethod<bool>('saveWidgetData', {
