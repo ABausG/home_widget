@@ -5,6 +5,9 @@
 HomeWidget is a Plugin to make it easier to create HomeScreen Widgets on Android and iOS.
 HomeWidget does **not** allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However it provides a unified Interface for sending data, retrieving data and updating the Widgets
 
+<img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_ios.png?raw=true" width="25%">
+<img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_android.png?raw=true" width="25%">
+
 ## Platform Setup
 As stated there needs to be some platform specific setup. Check below on how to add support for Android and iOS
 
@@ -51,12 +54,12 @@ For more Information on how to create and configure Android Widgets checkout (ht
 
 </details>
 
-<details><summary>iOS
+<details><summary>iOS</summary>
 
 ### Add a Widget to your App in Xcode
 Add a widget extension by going `File > Target > Widget Extension`
 
-![Widget Extension](.github/assets/widget_extension.png)
+![Widget Extension](https://github.com/ABausG/home_widget/blob/main/.github/assets/widget_extension.png?raw=true)
 
 
 ### Add GroupId
@@ -67,7 +70,7 @@ You need to add a groupId to the App and the Widget Extension
 Go to your [Apple Developer Account](https://developer.apple.com/account/resources/identifiers/list/applicationGroup) and add a new group
 Add this group to you Runner and the Widget Extension inside XCode `Signing & Capabilities > App Groups > +`
 
-![Build Targets](.github/assets/target.png)
+![Build Targets](https://github.com/ABausG/home_widget/blob/main/.github/assets/target.png?raw=true)
 
 (To swap between your App and the Extension change the Target)
 
