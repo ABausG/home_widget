@@ -79,14 +79,16 @@ This step is optional, this will sync the widget extension build version with yo
 
 ![Build Phases](https://github.com/ABausG/home_widget/blob/main/.github/assets/build_phases.png?raw=true)
 
-In your Widget Extension target go to `Build Phases > + > New Run Script Phase` and add the following script:
-```swift
-infoPlistPath="${TARGET_BUILD_DIR}/${EXECUTABLE_FOLDER_PATH}/Info.plist"
-PLISTBUDDY="/usr/libexec/PlistBuddy"
-buildNumber=$(git rev-list HEAD | wc -l | tr -d ' ')
-$PLISTBUDDY -c "Set :CFBundleVersion $buildNumber" "${infoPlistPath}"
-
+In your Runner (app) target go to `Build Phases > + > New Run Script Phase` and add the following script:
+```bash
+generatedPath="$SRCROOT/Flutter/Generated.xcconfig"
+versionNumber=$(grep FLUTTER_BUILD_NAME $generatedPath | cut -d '=' -f2)
+buildNumber=$(grep FLUTTER_BUILD_NUMBER $generatedPath | cut -d '=' -f2)
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "$SRCROOT/HomeExampleWidget/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $versionNumber" "$SRCROOT/HomeExampleWidget/Info.plist"
 ```
+
+Replace `HomeExampleWidget` with the name of the widget extension folder that you have created.
 
 
 ### Write your Widget
