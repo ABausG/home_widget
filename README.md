@@ -74,6 +74,21 @@ Add this group to you Runner and the Widget Extension inside XCode `Signing & Ca
 
 (To swap between your App and the Extension change the Target)
 
+### Sync CFBundleVersion (optional)
+This step is optional, this will sync the widget extension build version with your app version so you don't get warnings of mismatch version from App Store Connect when uploading your app.
+
+![Build Phases](https://github.com/ABausG/home_widget/blob/main/.github/assets/build_phases.png?raw=true)
+
+In your Widget Extension target go to `Build Phases > + > New Run Script Phase` and add the following script:
+```swift
+infoPlistPath="${TARGET_BUILD_DIR}/${EXECUTABLE_FOLDER_PATH}/Info.plist"
+PLISTBUDDY="/usr/libexec/PlistBuddy"
+buildNumber=$(git rev-list HEAD | wc -l | tr -d ' ')
+$PLISTBUDDY -c "Set :CFBundleVersion $buildNumber" "${infoPlistPath}"
+
+```
+
+
 ### Write your Widget
 Check the [Example App](example/ios/HomeWidgetExample/HomeWidgetExample.swift) for an Implementation of a Widget
 A more detailed overview on how to write Widgets for iOS 14 can fbe found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget)
