@@ -44,7 +44,8 @@ struct HomeWidgetExampleEntryView : View {
             Text(entry.title).bold().font(/*@START_MENU_TOKEN@*/.title/*@END_MENU_TOKEN@*/)
             Text(entry.message).font(.body)
         }
-        )}
+        )
+    }
 }
 
 @main
