@@ -62,7 +62,9 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin {
             if let myArgs = args as? [String: Any],
                let name = (myArgs["ios"] ?? myArgs["name"]) as? String{
                 if #available(iOS 14.0, *) {
-                    WidgetCenter.shared.reloadTimelines(ofKind:name)
+                    #if arch(arm64) || arch(i386) || arch(x86_64)
+                        WidgetCenter.shared.reloadTimelines(ofKind:name)
+                    #endif
                 } else {
                     result(FlutterError(code: "-4", message: "Widgets are only available on iOS 14.0 and above", details: nil))
                 }
