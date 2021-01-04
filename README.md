@@ -7,7 +7,7 @@ HomeWidget does **not** allow writing Widgets with Flutter itself. It still requ
 
 | iOS | Android |
 | ----- | ----- |
-| <img src=".github/assets/demo_ios.png?raw=true" width="500px"> | <img src=".github/assets/demo_android.png?raw=true" width="608px">|
+| <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_ios.png?raw=true" width="500px"> | <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_android.png?raw=true" width="608px">|
 
 ## Platform Setup
 As stated there needs to be some platform specific setup. Check below on how to add support for Android and iOS
