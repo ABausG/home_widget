@@ -1,3 +1,9 @@
+## 0.0.2
+
+* Background Updates
+    * Add Paragraph on explaining background updates
+    * Extend example to include background updates using [flutter_workmanager](https://pub.dev/packages/workmanager)
+
 ## 0.0.1+4
 
 * Use absolute Image path to show images on pub.dev

@@ -1,10 +1,32 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:workmanager/workmanager.dart';
+
+void callbackDispatcher() {
+  Workmanager.executeTask((taskName, inputData) {
+    debugPrint("Native called background task: $taskName");
+
+    final now = DateTime.now();
+    return Future.wait<bool>([
+      HomeWidget.saveWidgetData('title', 'Updated from Background'),
+      HomeWidget.saveWidgetData('message',
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}'),
+      HomeWidget.updateWidget(
+          name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample'),
+    ]).then((value) {
+      return !value.contains(false);
+    });
+  });
+}
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  Workmanager.initialize(callbackDispatcher, isInDebugMode: kDebugMode);
   runApp(MyApp());
 }
 
@@ -69,6 +91,15 @@ class _MyAppState extends State<MyApp> {
     await _updateWidget();
   }
 
+  void _startBackgroundUpdate() {
+    Workmanager.registerPeriodicTask('1', 'widgetBackgroundUpdate',
+        frequency: Duration(minutes: 15));
+  }
+
+  void _stopBackgroundUpdate() {
+    Workmanager.cancelByUniqueName('1');
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -95,6 +126,16 @@ class _MyAppState extends State<MyApp> {
                   onPressed: _sendAndUpdate,
                   child: Text('Send Data to Widget')),
               RaisedButton(onPressed: _loadData, child: Text('Load Data')),
+              if (Platform.isAndroid)
+                RaisedButton(
+                  onPressed: _startBackgroundUpdate,
+                  child: Text('Update in background'),
+                ),
+              if (Platform.isAndroid)
+                RaisedButton(
+                  onPressed: _stopBackgroundUpdate,
+                  child: Text('Stop updating in background'),
+                )
             ],
           ),
         ),

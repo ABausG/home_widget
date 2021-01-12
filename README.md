@@ -41,7 +41,7 @@ As stated there needs to be some platform specific setup. Check below on how to 
 ```
 
 ### Write your WidgetProvider
-For convenience you can extend from [HomeWidgetProvider](android/src/main/kotlin/es.antonborri/home_widget/HomeWidgetProvider.kt) which gives you access to a SharedPreferences Object with the Data in the `onUpdate` method.
+For convenience you can extend from [HomeWidgetProvider](android/src/main/kotlin/es/antonborri/home_widget/HomeWidgetProvider.kt) which gives you access to a SharedPreferences Object with the Data in the `onUpdate` method.
 If you don't want to use the convenience Method you can access the Data using
 ```kotlin
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -123,7 +123,8 @@ In order to force a reload of the HomeScreenWidget you need to call
 HomeWidget.updateWidget(
     name: 'HomeWidgetExampleProvider',
     androidName: 'HomeWidgetExampleProvider',
-    iOSName: 'HomeWidgetExample');
+    iOSName: 'HomeWidgetExample',
+);
 ```
 
 The name for Android will be chosen by checking `androidName` if that was not provided it will fallback to `name`.
@@ -135,3 +136,15 @@ This name needs to be equal to the Kind specified in you Widget
 ### Retrieve Data
 To retrieve the current Data saved in the Widget call `HomeWidget.getWidgetData<String>('id', defaultValue: data)`
 
+### Background Update
+As the methods of HomeWidget are static it is possible to use HomeWidget in the background to update the Widget even when the App is in the background.
+
+The example App is using the [flutter_workmanager](https://pub.dev/packages/workmanager) plugin to achieve this.
+Please follow the Setup Instructions for flutter_workmanager (or your preferred background code execution plugin). Most notably make sure that Plugins get registered in iOS in order to be able to communicate with the HomeWidget Plugin.
+In case of flutter_workmanager this achieved by adding:
+```swift
+WorkmanagerPlugin.setPluginRegistrantCallback { registry in
+        GeneratedPluginRegistrant.register(with: registry)
+    }
+```
+to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)

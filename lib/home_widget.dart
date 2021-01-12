@@ -8,8 +8,8 @@ class HomeWidget {
   /// Save [data] to the Widget Storage
   ///
   /// Returns whether the data was saved or not
-  static Future<bool> saveWidgetData<T>(String id, T data) async {
-    return await _channel.invokeMethod<bool>('saveWidgetData', {
+  static Future<bool> saveWidgetData<T>(String id, T data) {
+    return _channel.invokeMethod<bool>('saveWidgetData', {
       'id': id,
       'data': data,
     });
@@ -23,7 +23,7 @@ class HomeWidget {
   /// The name of the Android Widget must match the classname of the WidgetProvider
   /// The name of the iOS Widget must match the kind specified when creating the Widget
   static Future<bool> updateWidget(
-      {String name, String androidName, String iOSName}) async {
+      {String name, String androidName, String iOSName}) {
     return _channel.invokeMethod('updateWidget', {
       'name': name,
       'android': androidName,
