@@ -1,4 +1,8 @@
-## 0.0.2
+## 0.1.0 - Nullsafety
+
+* Migrate HomeWidget to nullsafety.
+
+## 0.0.2 - Background Updates
 
 * Background Updates
     * Add Paragraph on explaining background updates

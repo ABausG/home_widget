@@ -122,17 +122,21 @@ class _MyAppState extends State<MyApp> {
                 ),
                 controller: _messageController,
               ),
-              RaisedButton(
-                  onPressed: _sendAndUpdate,
-                  child: Text('Send Data to Widget')),
-              RaisedButton(onPressed: _loadData, child: Text('Load Data')),
+              ElevatedButton(
+                onPressed: _sendAndUpdate,
+                child: Text('Send Data to Widget'),
+              ),
+              ElevatedButton(
+                onPressed: _loadData,
+                child: Text('Load Data'),
+              ),
               if (Platform.isAndroid)
-                RaisedButton(
+                ElevatedButton(
                   onPressed: _startBackgroundUpdate,
                   child: Text('Update in background'),
                 ),
               if (Platform.isAndroid)
-                RaisedButton(
+                ElevatedButton(
                   onPressed: _stopBackgroundUpdate,
                   child: Text('Stop updating in background'),
                 )
