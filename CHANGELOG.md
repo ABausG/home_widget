@@ -1,13 +1,21 @@
+## 0.1.1+1
+
+* Also allow older Flutter Versions
+
+## 0.1.1
+
+* Flutter 2
+
 ## 0.1.0+1
 
 * More general Dart SDK Fixes Pub Score
 * Add Pub Score and Like Badges
 
-## 0.1.0- Nullsafety
+## 0.1.0
 
 * Migrate HomeWidget to nullsafety.
 
-## 0.0.2 - Background Updates
+## 0.0.2
 
 * Background Updates
     * Add Paragraph on explaining background updates
@@ -32,6 +40,6 @@
 
 * Add Images to README
 
-## 0.0.1 - Initial Release
+## 0.0.1
 
 * Initial Release of HomeWidget
