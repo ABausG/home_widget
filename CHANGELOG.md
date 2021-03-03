@@ -1,4 +1,9 @@
-## 0.1.0 - Nullsafety
+## 0.1.0+1
+
+* More general Dart SDK Fixes Pub Score
+* Add Pub Score and Like Badges
+
+## 0.1.0- Nullsafety
 
 * Migrate HomeWidget to nullsafety.
 
@@ -27,6 +32,6 @@
 
 * Add Images to README
 
-## 0.0.1
+## 0.0.1 - Initial Release
 
 * Initial Release of HomeWidget
