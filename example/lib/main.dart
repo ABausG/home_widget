@@ -9,7 +9,7 @@ import 'package:workmanager/workmanager.dart';
 
 void callbackDispatcher() {
   Workmanager.executeTask((taskName, inputData) {
-    debugPrint("Native called background task: $taskName");
+    debugPrint('Native called background task: $taskName');
 
     final now = DateTime.now();
     return Future.wait<bool>([

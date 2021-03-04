@@ -1,10 +1,10 @@
 name: home_widget
 description: A plugin to provide a common interface for creating HomeScreen Widgets for Android and iOS.
-version: 0.1.1+1
+version: 0.1.1+2
 repository: https://github.com/ABausG/home_widget
 
 environment:
-  sdk: '>=2.12.0 <3.0.0'
+  sdk: '>=2.12.0-0 <3.0.0'
   flutter: ">=1.17.0"
 
 dependencies:

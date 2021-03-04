@@ -1,3 +1,9 @@
+## 0.1.1+2
+
+* Set sdk bound correctly
+* Woraround for analysis_options import error
+* Cleanup Example
+
 ## 0.1.1+1
 
 * Also allow older Flutter Versions
