@@ -140,7 +140,76 @@ Please follow the Setup Instructions for flutter_workmanager (or your preferred 
 In case of flutter_workmanager this achieved by adding:
 ```swift
 WorkmanagerPlugin.setPluginRegistrantCallback { registry in
-        GeneratedPluginRegistrant.register(with: registry)
-    }
+    GeneratedPluginRegistrant.register(with: registry)
+}
 ```
 to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)
+
+### Clicking
+To detect if the App was initially started by clicking the Widget you can call `HomeWidget.initiallyLaunchedFromHomeWidget()` if the App was already running in the Background you can receive these Events by listening to `HomeWidget.widgetClicked`. Both methods will provide Uris so you can easily send back data from the Widget to the App to for example navigate to a content page.
+
+In order for these methods to work you need to follow these steps:
+
+#### iOS
+Add `.widgetUrl` to your WidgetComponent
+```swift
+Text(entry.message)
+    .font(.body)
+    .widgetURL(URL(string: "homeWidgetExample://message?message=\(entry.message)&homeWidget"))
+```
+In order to only detect Widget Links you need to add the queryParameter`homeWidget` to the URL
+
+#### Android
+Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
+```
+<intent-filter>
+    <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+</intent-filter>
+```
+
+In your WidgetProvider add a PendingIntent to your View using `HomeWidgetLaunchIntent.getActivity`
+```kotlin
+val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
+        context,
+        MainActivity::class.java,
+        Uri.parse("homeWidgetExample://message?message=$message"))
+setOnClickPendingIntent(R.id.widget_message, pendingIntentWithData)
+```
+
+### Background Click
+
+Android allows interactive elements in HomeScreenWidgets. This allows to for example add a refresh button on a widget.
+With home_widget you can use this by following these steps:
+
+#### Android/Native Part
+1. Add the necessary Receiver and Service to you `AndroidManifest.xml` file
+    ```
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver">
+        <intent-filter>
+            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+        </intent-filter>
+    </receiver>
+    <service android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
+        android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
+   ```
+2. Add a `HomeWidgetBackgroundIntent.getBroadcast` PendingIntent to the View you want to add a click listener to
+    ```kotlin
+    val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(
+        context,
+        Uri.parse("homeWidgetExample://titleClicked")
+    )
+    setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
+    ```
+
+#### Dart
+4. Write a **static** function that takes a Uri as an argument. This will get called when a user clicks on the View
+    ```dart
+    void backgroundCallback(Uri data) {
+      // do something with data
+      ...
+    }
+    ```
+5. Register the callback function by calling
+    ```dart
+    HomeWidget.registerBackgroundCallback(backgroundCallback);
+    ```

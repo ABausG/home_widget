@@ -1,3 +1,9 @@
+## 0.1.2
+
+* Add Click Listeners
+  * Detect if App was launched via a view from the HomeScreen Widget
+  * Execute Background Dart Code when clicking on a view in HomeScreen Widget [Android only]
+
 ## 0.1.1+2
 
 * Set sdk bound correctly
