@@ -137,7 +137,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        context.unregisterReceiver(receiver)
+        unregisterReceiver()
         activity = null
     }
 
@@ -147,7 +147,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onDetachedFromActivity() {
-        context.unregisterReceiver(receiver)
+        unregisterReceiver()
         activity = null
     }
 
@@ -156,6 +156,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     override fun onCancel(arguments: Any?) {
+        unregisterReceiver()
         receiver = null
     }
 
@@ -167,6 +168,16 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
             }
 
+        }
+    }
+
+    private fun unregisterReceiver() {
+        try {
+            if (receiver != null) {
+                context.unregisterReceiver(receiver)
+            }
+        } catch (e: IllegalArgumentException) {
+            // Receiver not registered
         }
     }
 

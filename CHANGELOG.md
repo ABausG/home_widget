@@ -1,3 +1,7 @@
+## 0.1.2+1
+
+* Fix [#19](https://github.com/ABausG/home_widget/issues/19) Receiver not registered bug
+
 ## 0.1.2
 
 * Add Click Listeners
