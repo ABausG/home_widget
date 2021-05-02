@@ -2,24 +2,35 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:home_widget_example/coin_value.dart';
 import 'package:workmanager/workmanager.dart';
+import 'coin_value.dart';
+import 'package:intl/intl.dart';
 
 /// Used for Background Updates using Workmanager Plugin
 void callbackDispatcher() {
-  Workmanager.executeTask((taskName, inputData) {
+  Workmanager.executeTask((taskName, inputData) async {
     final now = DateTime.now();
+
+
+    final response = await Dio().get('https://api.bithumb.com/public/ticker/ALL_KRW');
+
+    var coinValue = CoinValue.fromJson(response.data);
+
+
     return Future.wait<bool>([
       HomeWidget.saveWidgetData(
         'title',
-        'Updated from Background',
+        'BitCoin:KRW ${coinValue.data.btc.maxPrice}\n${coinValue.data.btc.unitsTraded}',
       ),
       HomeWidget.saveWidgetData(
         'message',
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}',
       ),
       HomeWidget.updateWidget(
         name: 'HomeWidgetExampleProvider',
@@ -36,6 +47,7 @@ void backgroundCallback(Uri data) async {
   print(data);
 
   if (data.host == 'titleclicked') {
+    /*
     final greetings = [
       'Hello',
       'Hallo',
@@ -47,8 +59,16 @@ void backgroundCallback(Uri data) async {
       'xin chào'
     ];
     final selectedGreeting = greetings[Random().nextInt(greetings.length)];
+     */
 
-    await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
+    final now = DateTime.now();
+
+    final response = await Dio().get('https://api.bithumb.com/public/ticker/ALL_KRW');
+
+    var coinValue = CoinValue.fromJson(response.data);
+
+    await HomeWidget.saveWidgetData<String>('title', 'BitCoin:KRW ${coinValue.data.btc.maxPrice}\n${coinValue.data.btc.unitsTraded}');
+    await HomeWidget.saveWidgetData('message', '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}',);
     await HomeWidget.updateWidget(
         name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
   }
