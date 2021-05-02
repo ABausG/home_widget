@@ -27,7 +27,7 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                         context,
                         Uri.parse("homeWidgetExample://titleClicked")
                 )
-                setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
+                setOnClickPendingIntent(R.id.refresh, backgroundIntent)
 
                 val message = widgetData.getString("message", null)
                 setTextViewText(R.id.widget_message, message
