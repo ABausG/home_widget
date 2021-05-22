@@ -2,6 +2,7 @@ name: home_widget_example
 description: Demonstrates how to use the home_widget plugin.
 
 publish_to: 'none'
+version: 1.0.00+1000
 
 environment:
   sdk: ">=2.7.0 <3.0.0"
