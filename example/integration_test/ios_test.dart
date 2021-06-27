@@ -10,7 +10,7 @@ void main() {
       expect(() async => await HomeWidget.saveWidgetData('AnyId', null), throwsException);
     });
   });
-  
+
   group('With Group Id', () {
     final testData = <String, dynamic>{
       'stringKey': 'stringValue',
