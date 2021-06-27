@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
@@ -11,12 +10,14 @@ const backgroundChannel = MethodChannel('home_widget/background');
 
 void main() {
   testWidgets('Callback Dispatcher calls callbacks', (tester) async {
-    final callbackHandle = PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
+    final callbackHandle =
+        PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
     final testUri = 'homeWidget://homeWidgetTest';
 
     backgroundChannel.setMockMethodCallHandler((call) {
-      if(call.method == 'HomeWidget.backgroundInitialized') {
-        emitEvent(backgroundChannel.codec.encodeMethodCall(MethodCall('', [callbackHandle, testUri])));
+      if (call.method == 'HomeWidget.backgroundInitialized') {
+        emitEvent(backgroundChannel.codec
+            .encodeMethodCall(MethodCall('', [callbackHandle, testUri])));
       }
     });
 
@@ -32,7 +33,7 @@ void emitEvent(ByteData? event) {
   backgroundChannel.binaryMessenger.handlePlatformMessage(
     backgroundChannel.name,
     event,
-        (ByteData? reply) {},
+    (ByteData? reply) {},
   );
 }
 

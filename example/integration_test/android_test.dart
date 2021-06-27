@@ -17,13 +17,13 @@ void main() {
 
   setUpAll(() {
     // Clear all Data
-    for(final key in testData.keys) {
+    for (final key in testData.keys) {
       HomeWidget.saveWidgetData(key, null);
     }
   });
 
   group('Test Data operations', () {
-    for(final testSet in testData.entries) {
+    for (final testSet in testData.entries) {
       testWidgets('Test ${testSet.value?.runtimeType}', (tester) async {
         // Save Data
         await HomeWidget.saveWidgetData(testSet.key, testSet.value);
@@ -34,7 +34,8 @@ void main() {
     }
 
     testWidgets('Returns default Value', (tester) async {
-      final returnValue = await HomeWidget.getWidgetData(defaultValue.key, defaultValue: defaultValue.value);
+      final returnValue = await HomeWidget.getWidgetData(defaultValue.key,
+          defaultValue: defaultValue.value);
 
       expect(returnValue, defaultValue.value);
     });

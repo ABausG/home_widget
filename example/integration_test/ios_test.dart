@@ -6,8 +6,9 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Need Group Id', () {
-    testWidgets('Save Data needs GroupId', (tester)  async {
-      expect(() async => await HomeWidget.saveWidgetData('AnyId', null), throwsException);
+    testWidgets('Save Data needs GroupId', (tester) async {
+      expect(() async => await HomeWidget.saveWidgetData('AnyId', null),
+          throwsException);
     });
   });
 
