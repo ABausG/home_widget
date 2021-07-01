@@ -34,7 +34,7 @@ jobs:
           with:
             channel: stable
       - name: run tests
-          uses: reactivecircus/android-emulator-runner@v2
-          with:
-            api-level: 29
-            script: ./gradlew connectedCheck
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          script: ./gradlew connectedCheck
