@@ -27,9 +27,6 @@ jobs:
   android:
     name: Android Integration Tests
     runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: example
 
     steps:
       - uses: actions/checkout@v2
@@ -40,4 +37,5 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
+          working-directory: example
           script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/android_test.dart -d emulator-5554
