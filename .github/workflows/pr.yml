@@ -33,9 +33,38 @@ jobs:
       - uses: subosito/flutter-action@v1.4.0
         with:
           channel: stable
-      - name: run tests
+      - name: Run Android Integration Tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
           working-directory: example
           script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/android_test.dart -d emulator-5554
+
+  # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
+  # by @kate_sheremet
+  ios:
+    strategy:
+      matrix:
+        device:
+          - "iPhone 12 Pro Max (14.5)"
+      fail-fast: false
+    runs-on: macOS-latest
+    steps:
+      - name: "List all simulators"
+        run: "xcrun instruments -s"
+      - name: "Start Simulator"
+        run: |
+          UDID=$(
+            xcrun instruments -s |
+            awk \
+              -F ' *[][]' \
+              -v 'device=${{ matrix.device }}' \
+              '$1 == device { print $2 }'
+          )
+          xcrun simctl boot "${UDID:?No Simulator with this name found}"
+      - uses: actions/checkout@v2
+      - uses: subosito/flutter-action@v1
+        with:
+          channel: stable
+      - name: "Run iOS integration tests"
+        run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/ios_test.dart -d emulator-5554
