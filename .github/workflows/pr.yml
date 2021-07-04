@@ -53,7 +53,7 @@ jobs:
     steps:
       - name: "Start Simulator"
         run: |
-          UDID=$(
+           echo $(
             xcrun xctrace list devices |
             awk \
               -F '( |\\()' \
