@@ -54,9 +54,8 @@ jobs:
       - name: "List all simulators"
         run: xcrun xctrace list devices
       - name: "Start Simulator"
-        run: |
+        run: >
           UDID=$(xcrun xctrace list devices | awk -F '( |\\()' -v 'device=${{ matrix.device }}' 'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}')
-          wait
           echo Simulator UDID: $UDID
           xcrun simctl boot "${UDID:?No Simulator with this name found}"
       - uses: actions/checkout@v2
