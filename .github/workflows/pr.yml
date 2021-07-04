@@ -69,3 +69,4 @@ jobs:
           channel: stable
       - name: "Run iOS integration tests"
         run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/ios_test.dart -d ${{steps.udid.outputs.UDID}}
+        working-directory: example
