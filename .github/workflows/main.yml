@@ -1,6 +1,9 @@
-name: Check Pull Requests
+name: Analyze and Test
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
 
 jobs:
