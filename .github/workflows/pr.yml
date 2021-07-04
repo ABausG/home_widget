@@ -43,10 +43,11 @@ jobs:
   # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
   # by @kate_sheremet
   ios:
+    name: iOS Integration Tests
     strategy:
       matrix:
         device:
-          - "iPhone 12 Pro Max (14.5)"
+          - "iPhone 12 Pro Max (14.4)"
       fail-fast: false
     runs-on: macOS-latest
     steps:
