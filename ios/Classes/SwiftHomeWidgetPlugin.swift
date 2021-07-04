@@ -37,7 +37,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             guard let args = call.arguments else {
                 return
             }
-            if let myArgs = args as? [String: Any],
+            if let myArgs = args as? [String: Any?],
                let groupId = myArgs["groupId"] as? String{
                 SwiftHomeWidgetPlugin.groupId = groupId
                 result(true)
@@ -52,12 +52,16 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             guard let args = call.arguments else {
                 return
             }
-            if let myArgs = args as? [String: Any],
+            if let myArgs = args as? [String: Any?],
                let id = myArgs["id"] as? String,
                let data = myArgs["data"] {
                 let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
-                preferences?.setValue(data, forKey: id)
-                result(preferences?.synchronize() == true)
+                if(data != nil) {
+                    preferences?.setValue(data, forKey: id)
+                } else {
+                    preferences?.removeObject(forKey: id)
+                }
+                result(true)
             } else {
                 result(FlutterError(code: "-1", message: "InvalidArguments saveWidgetData must be called with id and data", details: nil))
             }
@@ -69,7 +73,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             guard let args = call.arguments else {
                 return
             }
-            if let myArgs = args as? [String: Any],
+            if let myArgs = args as? [String: Any?],
                let id = myArgs["id"] as? String,
                let defaultValue = myArgs["defaultValue"] {
                 let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
@@ -82,7 +86,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             guard let args = call.arguments else {
                 return
             }
-            if let myArgs = args as? [String: Any],
+            if let myArgs = args as? [String: Any?],
                let name = (myArgs["ios"] ?? myArgs["name"]) as? String{
                 if #available(iOS 14.0, *) {
                     #if arch(arm64) || arch(i386) || arch(x86_64)

@@ -43,6 +43,16 @@ void main() {
         });
       }
 
+      testWidgets('Delte Value successful', (tester) async {
+        final initialData = await HomeWidget.getWidgetData(testData.keys.first);
+        expect(initialData, testData.values.first);
+
+        await HomeWidget.saveWidgetData(testData.values.first, null);
+
+        final deletedData = await HomeWidget.getWidgetData(testData.keys.first);
+        expect(deletedData, testData.values.first);
+      });
+
       testWidgets('Returns default Value', (tester) async {
         final returnValue = await HomeWidget.getWidgetData(defaultValue.key,
             defaultValue: defaultValue.value);
