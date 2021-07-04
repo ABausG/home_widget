@@ -50,12 +50,10 @@ jobs:
       fail-fast: false
     runs-on: macOS-latest
     steps:
-      - name: "List all simulators"
-        run: "xcrun instruments -s"
       - name: "Start Simulator"
         run: |
           UDID=$(
-            xcrun instruments -s |
+            xcrun xctrace list devices |
             awk \
               -F ' *[][]' \
               -v 'device=${{ matrix.device }}' \
