@@ -51,13 +51,15 @@ jobs:
       fail-fast: false
     runs-on: macOS-latest
     steps:
+      - name: "List all simulators"
+        run: xcrun xctrace list devices
       - name: "Start Simulator"
         run: |
-           echo $(
+          UDID=$(
             xcrun xctrace list devices |
             awk \
               -F '( |\\()' \
-              -v 'device=${{ matrix.device }}' \
+              -v 'device=iPhone 12 Pro Max (14.4)' \
               'length($0) == length(device)+39 && substr($0,0,length(device)) == device {print substr($NF,0, length($NF) - 1)}'
           )
           echo Simulator UDID: $UDID
