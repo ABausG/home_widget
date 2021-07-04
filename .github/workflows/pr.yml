@@ -55,13 +55,20 @@ jobs:
         run: xcrun xctrace list devices
       - name: "Start Simulator"
         run: |
+          echo $(
+              xcrun xctrace list devices | \
+              awk \
+                -F '( |\\()' \
+                -v 'device=iPhone 12 Pro Max (14.5)' \
+                'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print "!!!";print substr($NF,0, length($NF) - 1)}'
+            )
           UDID=$(
-            xcrun xctrace list devices | \
-            awk \
-              -F '( |\\()' \
-              -v 'device=iPhone 12 Pro Max (14.4)' \
-              'length($0) == length(device)+39 && substr($0,0,length(device)) == device {print substr($NF,0, length($NF) - 1)}'
-          )
+              xcrun xctrace list devices | \
+              awk \
+                -F '( |\\()' \
+                -v 'device=iPhone 12 Pro Max (14.5)' \
+                'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}'
+            )
           echo Simulator UDID: $UDID
           xcrun simctl boot "${UDID:?No Simulator with this name found}"
       - uses: actions/checkout@v2
