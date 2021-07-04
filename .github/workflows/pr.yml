@@ -56,7 +56,7 @@ jobs:
       - name: "Start Simulator"
         run: |
           UDID=$(
-            xcrun xctrace list devices |
+            xcrun xctrace list devices | \
             awk \
               -F '( |\\()' \
               -v 'device=iPhone 12 Pro Max (14.4)' \
