@@ -53,7 +53,9 @@ jobs:
     steps:
       - name: Set Simulator Id
         run: |
-          echo "::set-output name=UDID::$(xcrun xctrace list devices 2>&1 | awk -F '( |\\()' -v 'device=${{ matrix.device }}' 'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}')"
+          DEVICEID=$(xcrun xctrace list devices 2>&1 | awk -F '( |\\()' -v 'device=${{ matrix.device }}' 'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}')
+          echo Device Id: $DEVICEID
+          echo "::set-output name=UDID::$DEVICEID"
         id: udid
       - name: "Start Simulator"
         run: |
