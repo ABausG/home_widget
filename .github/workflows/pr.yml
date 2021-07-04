@@ -51,13 +51,14 @@ jobs:
       fail-fast: false
     runs-on: macOS-latest
     steps:
-      - name: "List all simulators"
-        run: xcrun xctrace list devices
+      - name: Set Simulator Id
+        run: |
+          echo "::set-output name=UDID::$(xcrun xctrace list devices | awk -F '( |\\()' -v 'device=${{ matrix.device }}' 'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}')"
+        id: udid
       - name: "Start Simulator"
-        run: >
-          UDID=$(xcrun xctrace list devices | awk -F '( |\\()' -v 'device=${{ matrix.device }}' 'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}')
-          echo Simulator UDID: $UDID
-          xcrun simctl boot "${UDID:?No Simulator with this name found}"
+        run: |
+          echo Simulator UDID: ${{steps.udid.outpurs.UDID}}
+          xcrun simctl boot "${{steps.udid.outpurs.UDID}}"
       - uses: actions/checkout@v2
       - uses: subosito/flutter-action@v1
         with:
