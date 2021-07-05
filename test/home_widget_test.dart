@@ -46,7 +46,7 @@ void main() {
   });
 
   test('getWidgetData', () async {
-    final dataId = 'TestId';
+    const dataId = 'TestId';
     expect(await HomeWidget.getWidgetData(dataId), 'TestData');
     final arguments = await passedArguments.future;
 
@@ -54,8 +54,8 @@ void main() {
   });
 
   test('getWidgetData passes Default Value', () async {
-    final dataId = 'TestId';
-    final defaultValue = 'Default Value';
+    const dataId = 'TestId';
+    const defaultValue = 'Default Value';
     await HomeWidget.getWidgetData(dataId, defaultValue: defaultValue);
     final arguments = await passedArguments.future;
 
@@ -63,8 +63,8 @@ void main() {
   });
 
   test('saveWidgetData', () async {
-    final id = 'TestId';
-    final value = 'Test Value';
+    const id = 'TestId';
+    const value = 'Test Value';
     expect(await HomeWidget.saveWidgetData(id, value), true);
     final arguments = await passedArguments.future;
 
@@ -112,7 +112,7 @@ void main() {
   });
 
   test('Set Group Id', () async {
-    final appGroup = 'Default Value';
+    const appGroup = 'Default Value';
     await HomeWidget.setAppGroupId(appGroup);
     final arguments = await passedArguments.future;
 

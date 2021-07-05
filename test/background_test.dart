@@ -12,7 +12,7 @@ void main() {
   testWidgets('Callback Dispatcher calls callbacks', (tester) async {
     final callbackHandle =
         PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
-    final testUri = 'homeWidget://homeWidgetTest';
+    const testUri = 'homeWidget://homeWidgetTest';
 
     backgroundChannel.setMockMethodCallHandler((call) {
       if (call.method == 'HomeWidget.backgroundInitialized') {
