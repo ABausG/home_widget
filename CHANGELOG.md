@@ -1,3 +1,9 @@
+## 0.1.3
+
+* Add GitHub Actions, Tests and Integration Tests to ensure further quality
+* Fix double and null handling on Android
+* Fix HomeWidget.updateWidget not completing on Android [#26](https://github.com/ABausG/home_widget/issues/26)
+
 ## 0.1.2+1
 
 * Fix [#19](https://github.com/ABausG/home_widget/issues/19) Receiver not registered bug
@@ -5,13 +11,13 @@
 ## 0.1.2
 
 * Add Click Listeners
-  * Detect if App was launched via a view from the HomeScreen Widget
+  * Detect if App has been launched via a view from the HomeScreen Widget
   * Execute Background Dart Code when clicking on a view in HomeScreen Widget [Android only]
 
 ## 0.1.1+2
 
 * Set sdk bound correctly
-* Woraround for analysis_options import error
+* Workaround for analysis_options import error
 * Cleanup Example
 
 ## 0.1.1+1
