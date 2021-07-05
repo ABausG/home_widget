@@ -7,14 +7,14 @@
 ![Build](https://github.com/abausg/home_widget/actions/workflows/main.yml/badge.svg?branch=main)
 
 HomeWidget is a Plugin to make it easier to create HomeScreen Widgets on Android and iOS.
-HomeWidget does **not** allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However it provides a unified Interface for sending data, retrieving data and updating the Widgets
+HomeWidget does **not** allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However, it provides a unified Interface for sending data, retrieving data and updating the Widgets
 
 | iOS | Android |
 | ----- | ----- |
 | <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_ios.png?raw=true" width="500px"> | <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_android.png?raw=true" width="608px">|
 
 ## Platform Setup
-As stated there needs to be some platform specific setup. Check below on how to add support for Android and iOS
+In order to work correctly there needs to be some platform specific setup. Check below on how to add support for Android and iOS
 
 <details><summary>Android</summary>
 
@@ -45,8 +45,8 @@ As stated there needs to be some platform specific setup. Check below on how to 
 ```
 
 ### Write your WidgetProvider
-For convenience you can extend from [HomeWidgetProvider](android/src/main/kotlin/es/antonborri/home_widget/HomeWidgetProvider.kt) which gives you access to a SharedPreferences Object with the Data in the `onUpdate` method.
-If you don't want to use the convenience Method you can access the Data using
+For convenience, you can extend from [HomeWidgetProvider](android/src/main/kotlin/es/antonborri/home_widget/HomeWidgetProvider.kt) which gives you access to a SharedPreferences Object with the Data in the `onUpdate` method.
+In case you don't want to use the convenience Method you can access the Data using
 ```kotlin
 import es.antonborri.home_widget.HomeWidgetPlugin
 ...
@@ -77,10 +77,10 @@ Add this group to you Runner and the Widget Extension inside XCode `Signing & Ca
 
 ![Build Targets](https://github.com/ABausG/home_widget/blob/main/.github/assets/target.png?raw=true)
 
-(To swap between your App and the Extension change the Target)
+(To swap between your App, and the Extension change the Target)
 
 ### Sync CFBundleVersion (optional)
-This step is optional, this will sync the widget extension build version with your app version so you don't get warnings of mismatch version from App Store Connect when uploading your app.
+This step is optional, this will sync the widget extension build version with your app version, so you don't get warnings of mismatch version from App Store Connect when uploading your app.
 
 ![Build Phases](https://github.com/ABausG/home_widget/blob/main/.github/assets/build_phases.png?raw=true)
 
@@ -98,7 +98,7 @@ Replace `HomeExampleWidget` with the name of the widget extension folder that yo
 
 ### Write your Widget
 Check the [Example App](example/ios/HomeWidgetExample/HomeWidgetExample.swift) for an Implementation of a Widget
-A more detailed overview on how to write Widgets for iOS 14 can fbe found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget)
+A more detailed overview on how to write Widgets for iOS 14 can fbe found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget).
 In order to access the Data send with Flutter can be access with
 ```swift
 let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
@@ -108,7 +108,7 @@ let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
 ## Usage
 
 ### Setup
-For iOS you need to call `HomeWidget.setAppGroupId('YOUR_GROUP_ID');`
+For iOS, you need to call `HomeWidget.setAppGroupId('YOUR_GROUP_ID');`
 Without this you won't be able to share data between your App and the Widget and calls to `saveWidgetData` and `getWidgetData` will return an error
 
 ### Save Data
@@ -125,7 +125,7 @@ HomeWidget.updateWidget(
 ```
 
 The name for Android will be chosen by checking `androidName` if that was not provided it will fallback to `name`.
-This Name needs to be equal to the Classname of the [WidgetProvider](#-write-your-widgetprovider)
+This Name needs to be equal to the Classname of the [WidgetProvider](#Write-your-Widget)
 
 The name for iOS will be chosen by checking `iOSName` if that was not provided it will fallback to `name`.
 This name needs to be equal to the Kind specified in you Widget
@@ -147,7 +147,7 @@ WorkmanagerPlugin.setPluginRegistrantCallback { registry in
 to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)
 
 ### Clicking
-To detect if the App was initially started by clicking the Widget you can call `HomeWidget.initiallyLaunchedFromHomeWidget()` if the App was already running in the Background you can receive these Events by listening to `HomeWidget.widgetClicked`. Both methods will provide Uris so you can easily send back data from the Widget to the App to for example navigate to a content page.
+To detect if the App has been initially started by clicking the Widget you can call `HomeWidget.initiallyLaunchedFromHomeWidget()` if the App was already running in the Background you can receive these Events by listening to `HomeWidget.widgetClicked`. Both methods will provide Uris, so you can easily send back data from the Widget to the App to for example navigate to a content page.
 
 In order for these methods to work you need to follow these steps:
 
