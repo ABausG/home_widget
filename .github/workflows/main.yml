@@ -23,6 +23,8 @@ jobs:
         run: flutter analyze
       - name: Format
         run: flutter format . --set-exit-if-changed
+      - name: Publishability
+        run: flutter pub publish --dry-run
       - name: Test
         run: flutter test --coverage
       - uses: VeryGoodOpenSource/very_good_coverage@v1.1.1
