@@ -1,4 +1,4 @@
-name: Analyze and Test
+name: Build
 
 on:
   push:

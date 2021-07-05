@@ -3,7 +3,8 @@
 [![Pub](https://img.shields.io/pub/v/home_widget.svg)](https://pub.dartlang.org/packages/home_widget)
 [![likes](https://badges.bar/home_widget/likes)](https://pub.dev/packages/home_widget/score)
 [![popularity](https://badges.bar/home_widget/popularity)](https://pub.dev/packages/home_widget/score)
-[![pub points](https://badges.bar/home_widget/pub%20points)](https://pub.dev/packages/home_widget/score) 
+[![pub points](https://badges.bar/home_widget/pub%20points)](https://pub.dev/packages/home_widget/score)
+![Build](https://github.com/abausg/home_widget/actions/workflows/main.yml/badge.svg?branch=main)
 
 HomeWidget is a Plugin to make it easier to create HomeScreen Widgets on Android and iOS.
 HomeWidget does **not** allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However it provides a unified Interface for sending data, retrieving data and updating the Widgets
