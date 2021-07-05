@@ -40,7 +40,7 @@ class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentSe
                 val callbackHandle = HomeWidgetPlugin.getDispatcherHandle(context)
 
                 if (callbackHandle == 0L) {
-                    Log.e(TAG, "No callbackHandle saved. Did you call HomeWidgetPlugin.registerBackgroundCallback?")
+                    Log.e(TAG, "No callbackHandle saved. Did you call HomeWidget.registerBackgroundCallback?")
                 }
 
                 val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)

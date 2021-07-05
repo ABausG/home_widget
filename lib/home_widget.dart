@@ -69,7 +69,7 @@ class HomeWidget {
         .map<Uri?>(_handleReceivedData);
   }
 
-  static Uri? _handleReceivedData(dynamic? value) {
+  static Uri? _handleReceivedData(dynamic value) {
     if (value != null) {
       if (value is String) {
         try {

@@ -41,14 +41,17 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     val id = call.argument<String>("id")
                     val data = call.argument<Any>("data")
                     val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
-                    when (data) {
-                        is Boolean -> prefs.putBoolean(id, data)
-                        is Float -> prefs.putFloat(id, data)
-                        is String -> prefs.putString(id, data)
-                        is Double -> prefs.putLong(id, data.toLong())
-                        is Long -> prefs.putLong(id, data)
-                        is Int -> prefs.putInt(id, data)
-                        else -> result.error("-10", "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long", IllegalArgumentException())
+                    if(data != null) {
+                        when (data) {
+                            is Boolean -> prefs.putBoolean(id, data)
+                            is Float -> prefs.putFloat(id, data)
+                            is String -> prefs.putString(id, data)
+                            is Double -> prefs.putLong(id, java.lang.Double.doubleToRawLongBits(data))
+                            is Int -> prefs.putInt(id, data)
+                            else -> result.error("-10", "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long", IllegalArgumentException())
+                        }
+                    } else {
+                        prefs.remove(id);
                     }
                     result.success(prefs.commit())
                 } else {
@@ -63,7 +66,12 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
 
                     val value = prefs.all[id] ?: defaultValue
-                    result.success(value)
+
+                    if(value is Long) {
+                        result.success(java.lang.Double.longBitsToDouble(value))
+                    } else {
+                        result.success(value)
+                    }
                 } else {
                     result.error("-2", "InvalidArguments getWidgetData must be called with id", IllegalArgumentException())
                 }
@@ -77,6 +85,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     val ids: IntArray = AppWidgetManager.getInstance(context.applicationContext).getAppWidgetIds(ComponentName(context, javaClass))
                     intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
                     context.sendBroadcast(intent)
+                    result.success(true)
                 } catch (classException: ClassNotFoundException) {
                     result.error("-3", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
                 }

@@ -1,0 +1,77 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: subosito/flutter-action@v1.4.0
+        with:
+          channel: stable
+      - name: Get Packages
+        run: flutter pub get
+      - name: Analyze
+        run: flutter analyze
+      - name: Format
+        run: flutter format . --set-exit-if-changed
+      - name: Publishability
+        run: flutter pub publish --dry-run
+      - name: Test
+        run: flutter test --coverage
+      - uses: VeryGoodOpenSource/very_good_coverage@v1.1.1
+
+  android:
+    name: Android Integration Tests
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: subosito/flutter-action@v1.4.0
+        with:
+          channel: stable
+      - name: Run Android Integration Tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          working-directory: example
+          script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/android_test.dart -d emulator-5554
+
+  # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
+  # by @kate_sheremet
+  ios:
+    name: iOS Integration Tests
+    strategy:
+      matrix:
+        device:
+          - "iPhone 12 Pro Max (14.4)"
+      fail-fast: false
+    runs-on: macOS-latest
+    steps:
+      - name: List Available Devices
+        run: xcrun xctrace list devices 2>&1
+      - name: Set Simulator Id
+        run: |
+          echo "::set-output name=UDID::$(xcrun xctrace list devices 2>&1 |
+          awk -F '( |\\()' \
+          -v 'device=${{ matrix.device }}' \
+          'length($0) == length(device)+39 && substr($0,0,length(device)) == device { print substr($NF,0, length($NF) - 1)}')"
+        id: udid
+      - name: "Start Simulator"
+        run: |
+          xcrun simctl boot "${{steps.udid.outputs.UDID}}"
+      - uses: actions/checkout@v2
+      - uses: subosito/flutter-action@v1
+        with:
+          channel: stable
+      - name: "Run iOS integration tests"
+        run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/ios_test.dart -d ${{steps.udid.outputs.UDID}}
+        working-directory: example
