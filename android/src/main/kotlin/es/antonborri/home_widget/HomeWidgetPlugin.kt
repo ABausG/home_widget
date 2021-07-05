@@ -85,6 +85,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     val ids: IntArray = AppWidgetManager.getInstance(context.applicationContext).getAppWidgetIds(ComponentName(context, javaClass))
                     intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
                     context.sendBroadcast(intent)
+                    result.success(true)
                 } catch (classException: ClassNotFoundException) {
                     result.error("-3", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
                 }

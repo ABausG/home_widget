@@ -50,4 +50,12 @@ void main() {
       expect(returnValue, defaultValue.value);
     });
   });
+
+  testWidgets('Update Widget completes', (tester) async {
+    final returnValue = await HomeWidget.updateWidget(
+      name: 'HomeWidgetExampleProvider',
+    ).timeout(Duration(seconds: 5));
+
+    expect(returnValue, true);
+  });
 }
