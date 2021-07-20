@@ -101,8 +101,8 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 }
             }
             "registerBackgroundCallback" -> {
-                val dispatcher = (call.arguments as Iterable<*>).toList()[0] as Long
-                val callback = (call.arguments as Iterable<*>).toList()[1] as Long
+                val dispatcher = (call.arguments as Iterable<*>).toList()[0].toString().toLong()
+                val callback = (call.arguments as Iterable<*>).toList()[1].toString().toLong()
                 saveCallbackHandle(context, dispatcher, callback)
                 return result.success(true)
             }
