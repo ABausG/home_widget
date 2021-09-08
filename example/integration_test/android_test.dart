@@ -58,4 +58,10 @@ void main() {
 
     expect(returnValue, true);
   });
+
+  testWidgets('Register Background Callback', (tester) async {
+    await HomeWidget.registerBackgroundCallback(backgroundCallback);
+  });
 }
+
+void backgroundCallback(Uri uri) {}
