@@ -134,8 +134,9 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
     public func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey : Any] = [:]) -> Bool {
         if(isWidgetUrl(url: url)) {
             latestUrl = url
+            return true
         }
-        return true
+        return false
     }
     
     private func isWidgetUrl(url: URL) -> Bool {
