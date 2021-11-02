@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 
 object HomeWidgetLaunchIntent {
 
@@ -15,7 +16,12 @@ object HomeWidgetLaunchIntent {
         intent.data = uri
         intent.action = HOME_WIDGET_LAUNCH_ACTION
 
-        return PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= 23) {
+            flags = flags or PendingIntent.FLAG_IMMUTABLE
+        }
+
+        return PendingIntent.getActivity(context, 0, intent, flags)
     }
 }
 
@@ -28,6 +34,11 @@ object HomeWidgetBackgroundIntent {
         intent.data = uri
         intent.action = HOME_WIDGET_BACKGROUND_ACTION
 
-        return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT)
+        var flags = PendingIntent.FLAG_UPDATE_CURRENT
+        if (Build.VERSION.SDK_INT >= 23) {
+            flags = flags or PendingIntent.FLAG_IMMUTABLE
+        }
+
+        return PendingIntent.getBroadcast(context, 0, intent, flags)
     }
 }
