@@ -40,7 +40,7 @@ jobs:
           channel: stable
       - uses: actions/setup-java@v2
         with:
-          distribution: 'adopt'
+          distribution: 'temurin'
           java-version: '11'
       - name: Run Android Integration Tests
         uses: reactivecircus/android-emulator-runner@v2
