@@ -42,7 +42,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          ndk: 23.1.7779620
+          ndk: 22.0.7026061
           working-directory: example
           script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/android_test.dart -d emulator-5554
 
