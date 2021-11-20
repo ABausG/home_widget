@@ -38,6 +38,10 @@ jobs:
       - uses: subosito/flutter-action@v1.4.0
         with:
           channel: stable
+      - uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '11'
       - name: Run Android Integration Tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
