@@ -27,7 +27,7 @@ jobs:
         run: flutter pub publish --dry-run
       - name: Test
         run: flutter test --coverage
-      - uses: VeryGoodOpenSource/very_good_coverage@v1
+      - uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
 
   android:
     name: Android Integration Tests
