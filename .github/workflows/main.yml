@@ -31,6 +31,7 @@ jobs:
 
   android:
     name: Android Integration Tests
+    needs: quality
     runs-on: macos-latest
 
     steps:
@@ -53,6 +54,7 @@ jobs:
   # by @kate_sheremet
   ios:
     name: iOS Integration Tests
+    needs: quality
     strategy:
       matrix:
         device:
