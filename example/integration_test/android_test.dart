@@ -33,7 +33,7 @@ void main() {
       });
     }
 
-    testWidgets('Delte Value successful', (tester) async {
+    testWidgets('Delete Value successful', (tester) async {
       final initialData = await HomeWidget.getWidgetData(testData.keys.first);
       expect(initialData, testData.values.first);
 
@@ -61,6 +61,13 @@ void main() {
 
   testWidgets('Register Background Callback', (tester) async {
     await HomeWidget.registerBackgroundCallback(backgroundCallback);
+  });
+
+  testWidgets(
+      'Initially Launched completes and returns null if not launched from widget',
+      (tester) async {
+    final retrievedData = await HomeWidget.initiallyLaunchedFromHomeWidget();
+    expect(retrievedData, isNull);
   });
 }
 
