@@ -16,8 +16,10 @@ void main() {
 
     backgroundChannel.setMockMethodCallHandler((call) {
       if (call.method == 'HomeWidget.backgroundInitialized') {
-        emitEvent(backgroundChannel.codec
-            .encodeMethodCall(MethodCall('', [callbackHandle, testUri])));
+        emitEvent(
+          backgroundChannel.codec
+              .encodeMethodCall(MethodCall('', [callbackHandle, testUri])),
+        );
       }
     });
 

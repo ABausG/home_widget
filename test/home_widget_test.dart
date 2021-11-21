@@ -74,9 +74,13 @@ void main() {
 
   test('updateWidget', () async {
     expect(
-        await HomeWidget.updateWidget(
-            name: 'name', androidName: 'androidName', iOSName: 'iOSName'),
-        true);
+      await HomeWidget.updateWidget(
+        name: 'name',
+        androidName: 'androidName',
+        iOSName: 'iOSName',
+      ),
+      true,
+    );
 
     final arguments = await passedArguments.future;
 
@@ -137,19 +141,22 @@ void main() {
     test('Send Uris to Stream', () async {
       updateChannel.binaryMessenger.setMockMessageHandler(updateChannel.name,
           (message) async {
-        emitEvent(updateChannel.codec
-            .encodeSuccessEnvelope('homeWidget://homeWidgetTest'));
+        emitEvent(
+          updateChannel.codec
+              .encodeSuccessEnvelope('homeWidget://homeWidgetTest'),
+        );
         emitEvent(updateChannel.codec.encodeSuccessEnvelope(2));
         emitEvent(updateChannel.codec.encodeSuccessEnvelope(null));
       });
 
       final expectation = expectLater(
-          HomeWidget.widgetClicked,
-          emitsInOrder([
-            Uri.parse('homeWidget://homeWidgetTest'),
-            Uri(),
-            null,
-          ]));
+        HomeWidget.widgetClicked,
+        emitsInOrder([
+          Uri.parse('homeWidget://homeWidgetTest'),
+          Uri(),
+          null,
+        ]),
+      );
 
       await expectation;
     });
