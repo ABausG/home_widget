@@ -104,9 +104,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
                 result(notInitializedError)
                 return
             }
-            if(initialUrl != nil) {
-                result(initialUrl?.absoluteString)
-            }
+            result(initialUrl?.absoluteString)
         } else {
             result(FlutterMethodNotImplemented)
         }

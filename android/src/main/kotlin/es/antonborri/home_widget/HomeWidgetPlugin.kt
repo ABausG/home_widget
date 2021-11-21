@@ -95,7 +95,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             }
             "initiallyLaunchedFromHomeWidget" -> {
                 return if (activity?.intent?.action?.equals(HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) == true) {
-                    result.success(activity?.intent?.data?.toString() ?: true)
+                    result.success(activity?.intent?.data?.toString() ?: "")
                 } else {
                     result.success(null)
                 }

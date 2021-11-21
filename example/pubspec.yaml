@@ -15,8 +15,6 @@ dependencies:
       ref: 1c4e162ea4e71855856fb9e55a1545b3dae9a25d
 
   home_widget:
-    # When depending on this package from a real application you should use:
-    #   home_widget: ^x.y.z
     path: ../
 
   cupertino_icons: ^0.1.3

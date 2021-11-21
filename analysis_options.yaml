@@ -3,3 +3,4 @@ include: package:flutter_lints/flutter.yaml
 linter:
   rules:
     - public_member_api_docs
+    - require_trailing_commas

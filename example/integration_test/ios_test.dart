@@ -69,5 +69,16 @@ void main() {
 
       expect(returnValue, true);
     });
+
+    group('Initially Launched', () {
+      testWidgets(
+          'Initially Launched completes and returns null if not launched from widget',
+          (tester) async {
+        await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+        final retrievedData =
+            await HomeWidget.initiallyLaunchedFromHomeWidget();
+        expect(retrievedData, isNull);
+      });
+    });
   });
 }
