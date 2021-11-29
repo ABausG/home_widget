@@ -28,6 +28,10 @@ jobs:
       - name: Test
         run: flutter test --coverage
       - uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   android:
     name: Android Integration Tests
