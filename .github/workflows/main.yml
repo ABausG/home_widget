@@ -52,7 +52,7 @@ jobs:
         with:
           api-level: 29
           working-directory: example
-          script: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/android_test.dart -d emulator-5554
+          script: flutter test integration_test/android_test.dart -d emulator-5554
 
   # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
   # by @kate_sheremet
@@ -83,5 +83,5 @@ jobs:
         with:
           channel: stable
       - name: "Run iOS integration tests"
-        run: flutter drive --driver=test_driver/integration_test.dart --target=integration_test/ios_test.dart -d ${{steps.udid.outputs.UDID}}
+        run: flutter test integration_test/ios_test.dart -d ${{steps.udid.outputs.UDID}}
         working-directory: example
