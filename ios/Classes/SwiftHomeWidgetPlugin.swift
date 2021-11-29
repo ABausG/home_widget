@@ -105,6 +105,8 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
                 return
             }
             result(initialUrl?.absoluteString)
+        } else if call.method == "registerBackgroundCallback" {
+            result(nil)
         } else {
             result(FlutterMethodNotImplemented)
         }
