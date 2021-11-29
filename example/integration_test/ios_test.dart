@@ -81,16 +81,15 @@ void main() {
       });
 
       group('Register Backgorund Callback', () {
-          testWidgets(
-            'RegisterBackgroundCallback completes without error', (tester) async {
-            await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
-            final registerCallbackResult = await HomeWidget.registerBackgroundCallback(backgroundCallback);
-            expect(registerCallbackResult, isNull);
-          }
-          );
+        testWidgets('RegisterBackgroundCallback completes without error',
+            (tester) async {
+          await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+          final registerCallbackResult =
+              await HomeWidget.registerBackgroundCallback(backgroundCallback);
+          expect(registerCallbackResult, isNull);
+        });
       });
     });
-
   });
 }
 
