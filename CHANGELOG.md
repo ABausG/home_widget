@@ -1,3 +1,7 @@
+## 0.1.5
+
+* Fix MissingPluginException for `registerBackgroundCallback` on iOS [#39](https://github.com/ABausG/home_widget/issues/39)
+
 ## 0.1.4
 
 * Fix `HomeWidget.updateWidget` not completing on iOS [#26](https://github.com/ABausG/home_widget/issues/26)
