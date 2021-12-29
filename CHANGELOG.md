@@ -1,3 +1,7 @@
+## 0.1.6
+
+* Allow the specification of fully qualified android name 
+
 ## 0.1.5
 
 * Fix MissingPluginException for `registerBackgroundCallback` on iOS [#39](https://github.com/ABausG/home_widget/issues/39)
