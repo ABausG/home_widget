@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -140,6 +139,7 @@ void main() {
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
       updateChannel.binaryMessenger.setMockMessageHandler(updateChannel.name,
+          // ignore: body_might_complete_normally_nullable
           (message) async {
         emitEvent(
           updateChannel.codec
