@@ -11,8 +11,8 @@ dependencies:
     sdk: flutter
   workmanager:
     git:
-      url: https://github.com/fluttercommunity/flutter_workmanager
-      ref: 1c4e162ea4e71855856fb9e55a1545b3dae9a25d
+      url: https://github.com/sunalwaysknows/flutter_workmanager
+      ref: f37742bcf612c51e9571d623138a21a90a5992ea
 
   home_widget:
     path: ../
