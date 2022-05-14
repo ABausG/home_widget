@@ -14,6 +14,7 @@ void main() {
         PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
     const testUri = 'homeWidget://homeWidgetTest';
 
+    // ignore: body_might_complete_normally_nullable
     backgroundChannel.setMockMethodCallHandler((call) {
       if (call.method == 'HomeWidget.backgroundInitialized') {
         emitEvent(
