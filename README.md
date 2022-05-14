@@ -19,9 +19,9 @@ In order to work correctly there needs to be some platform specific setup. Check
 
 <details><summary>Android</summary>
 
-### Create Widget Layout inside `android/app/res/layout`
+### Create Widget Layout inside `android/app/src/main/res/layout`
 
-### Create Widget Configuration into `android/app/res/xml`
+### Create Widget Configuration into `android/app/src/main/res/xml`
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
