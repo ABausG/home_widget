@@ -122,10 +122,12 @@ HomeWidget.updateWidget(
     name: 'HomeWidgetExampleProvider',
     androidName: 'HomeWidgetExampleProvider',
     iOSName: 'HomeWidgetExample',
+    qualifiedAndroidName: 'com.example.app.HomeWidgetExampleProvider',
 );
 ```
 
-The name for Android will be chosen by checking `androidName` if that was not provided it will fallback to `name`.
+The name for Android will be chosen by checking `qualifiedAndroidName`, falling back to `<packageName>.androidName` and if that was not provided it 
+will fallback to `<packageName>.name`.
 This Name needs to be equal to the Classname of the [WidgetProvider](#Write-your-Widget)
 
 The name for iOS will be chosen by checking `iOSName` if that was not provided it will fallback to `name`.

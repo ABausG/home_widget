@@ -77,6 +77,7 @@ void main() {
         name: 'name',
         androidName: 'androidName',
         iOSName: 'iOSName',
+        qualifiedAndroidName: 'com.example.androidName',
       ),
       true,
     );
@@ -86,6 +87,7 @@ void main() {
     expect(arguments['name'], 'name');
     expect(arguments['android'], 'androidName');
     expect(arguments['ios'], 'iOSName');
+    expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
   });
 
   group('initiallyLaunchedFromHomeWidget', () {

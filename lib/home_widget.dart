@@ -22,20 +22,23 @@ class HomeWidget {
 
   /// Updates the HomeScreen Widget
   ///
-  /// Android Widgets will look for [androidName] and then for [name]
+  /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
   /// iOS Widgets will look for [iOSName] and then for [name]
   ///
-  /// The name of the Android Widget must match the classname of the WidgetProvider
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
   /// The name of the iOS Widget must match the kind specified when creating the Widget
   static Future<bool?> updateWidget({
     String? name,
     String? androidName,
     String? iOSName,
+    String? qualifiedAndroidName,
   }) {
     return _channel.invokeMethod('updateWidget', {
       'name': name,
       'android': androidName,
       'ios': iOSName,
+      'qualifiedAndroidName': qualifiedAndroidName,
     });
   }
 
