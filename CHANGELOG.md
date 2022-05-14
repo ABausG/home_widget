@@ -1,6 +1,16 @@
 ## 0.1.6
 
-* Allow the specification of fully qualified android name 
+* Allow the specification of fully qualified android name [#62](https://github.com/ABausG/home_widget/pull/62) by [
+  NicolaVerbeeck](https://github.com/NicolaVerbeeck)
+
+### Fixes
+* Fix paths in README [#73](https://github.com/ABausG/home_widget/pull/73) by [
+  AndyRusso](https://github.com/AndyRusso)
+* Migrate example to Android embedding v2 [#80](https://github.com/ABausG/home_widget/pull/80) by [
+  ronnieeeeee](https://github.com/ronnieeeeee)
+* Fix onNewIntent in Flutter 3 [#84](https://github.com/ABausG/home_widget/pull/84) by [
+  josepedromonteiro](https://github.com/josepedromonteiro) and [
+  stepushchik-denis-gismart](https://github.com/stepushchik-denis-gismart)
 
 ## 0.1.5
 
