@@ -10,7 +10,7 @@ import 'package:workmanager/workmanager.dart';
 
 /// Used for Background Updates using Workmanager Plugin
 void callbackDispatcher() {
-  Workmanager.executeTask((taskName, inputData) {
+  Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
     return Future.wait<bool>([
       HomeWidget.saveWidgetData(
@@ -56,7 +56,7 @@ void backgroundCallback(Uri data) async {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager.initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
   runApp(MaterialApp(home: MyApp()));
 }
 
@@ -145,12 +145,12 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _startBackgroundUpdate() {
-    Workmanager.registerPeriodicTask('1', 'widgetBackgroundUpdate',
+    Workmanager().registerPeriodicTask('1', 'widgetBackgroundUpdate',
         frequency: Duration(minutes: 15));
   }
 
   void _stopBackgroundUpdate() {
-    Workmanager.cancelByUniqueName('1');
+    Workmanager().cancelByUniqueName('1');
   }
 
   @override
