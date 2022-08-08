@@ -56,7 +56,7 @@ HomeWidgetPlugin.getData(context)
 which will give you access to the same SharedPreferences
 
 ### More Information
-For more Information on how to create and configure Android Widgets checkout (https://developer.android.com/guide/topics/appwidgets)[this guide] on the Android Developers Page.
+For more Information on how to create and configure Android Widgets checkout [this guide](https://developer.android.com/guide/topics/appwidgets) on the Android Developers Page.
 
 </details>
 
