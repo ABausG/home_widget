@@ -214,7 +214,7 @@ With home_widget you can use this by following these steps:
       ...
     }
     ```
-   @pragma('vm:entry-point') must be placed above the callback function to avoid tree shaking in release mode for Android.
+   `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode for Android.
 
 5. Register the callback function by calling
     ```dart
