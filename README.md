@@ -63,7 +63,7 @@ For more Information on how to create and configure Android Widgets, check out [
 <details><summary>iOS</summary>
 
 ### Add a Widget to your App in Xcode
-Add a widget extension by going `File > Target > Widget Extension`
+Add a widget extension by going `File > New > Target > Widget Extension`
 
 ![Widget Extension](https://github.com/ABausG/home_widget/blob/main/.github/assets/widget_extension.png?raw=true)
 
