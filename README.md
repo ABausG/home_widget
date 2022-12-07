@@ -99,7 +99,7 @@ Replace `HomeExampleWidget` with the name of the widget extension folder that yo
 
 ### Write your Widget
 Check the [Example App](example/ios/HomeWidgetExample/HomeWidgetExample.swift) for an Implementation of a Widget.
-A more detailed overview on how to write Widgets for iOS 14 can fbe found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget).
+A more detailed overview on how to write Widgets for iOS 14 can be found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget).
 In order to access the Data send with Flutter can be access with
 ```swift
 let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
