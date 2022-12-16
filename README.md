@@ -56,7 +56,7 @@ HomeWidgetPlugin.getData(context)
 which will give you access to the same SharedPreferences
 
 ### More Information
-For more Information on how to create and configure Android Widgets checkout (https://developer.android.com/guide/topics/appwidgets)[this guide] on the Android Developers Page.
+For more Information on how to create and configure Android Widgets checkout [this guide](https://developer.android.com/guide/topics/appwidgets) on the Android Developers Page.
 
 </details>
 
@@ -99,7 +99,7 @@ Replace `HomeExampleWidget` with the name of the widget extension folder that yo
 
 ### Write your Widget
 Check the [Example App](example/ios/HomeWidgetExample/HomeWidgetExample.swift) for an Implementation of a Widget
-A more detailed overview on how to write Widgets for iOS 14 can fbe found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget).
+A more detailed overview on how to write Widgets for iOS 14 can be found on the [Apple Developer documentation](https://developer.apple.com/documentation/swiftui/widget).
 In order to access the Data send with Flutter can be access with
 ```swift
 let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
@@ -126,7 +126,7 @@ HomeWidget.updateWidget(
 );
 ```
 
-The name for Android will be chosen by checking `qualifiedAndroidName`, falling back to `<packageName>.androidName` and if that was not provided it 
+The name for Android will be chosen by checking `qualifiedAndroidName`, falling back to `<packageName>.androidName` and if that was not provided it
 will fallback to `<packageName>.name`.
 This Name needs to be equal to the Classname of the [WidgetProvider](#Write-your-Widget)
 
