@@ -1,18 +1,18 @@
 # Home Widget
 
 [![Pub](https://img.shields.io/pub/v/home_widget.svg)](https://pub.dartlang.org/packages/home_widget)
-[![likes](https://badges.bar/home_widget/likes)](https://pub.dev/packages/home_widget/score)
-[![popularity](https://badges.bar/home_widget/popularity)](https://pub.dev/packages/home_widget/score)
-[![pub points](https://badges.bar/home_widget/pub%20points)](https://pub.dev/packages/home_widget/score)
+[![likes](https://img.shields.io/pub/likes/home_widget)](https://pub.dev/packages/home_widget/score)
+[![popularity](https://img.shields.io/pub/popularity/home_widget)](https://pub.dev/packages/home_widget/score)
+[![pub points](https://img.shields.io/pub/points/home_widget)](https://pub.dev/packages/home_widget/score)
 [![Build](https://github.com/abausg/home_widget/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/ABausG/home_widget/actions/workflows/main.yml?query=branch%3Amain)
 [![codecov](https://codecov.io/gh/ABausG/home_widget/branch/main/graph/badge.svg?token=ZXTZOL6KFO)](https://codecov.io/gh/ABausG/home_widget)
 
 HomeWidget is a Plugin to make it easier to create HomeScreen Widgets on Android and iOS.
 HomeWidget does **not** allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However, it provides a unified Interface for sending data, retrieving data and updating the Widgets
 
-| iOS | Android |
-| ----- | ----- |
-| <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_ios.png?raw=true" width="500px"> | <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_android.png?raw=true" width="608px">|
+| iOS                                                                                                            |  Android                                                                                                           |
+|----------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------|
+| <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_ios.png?raw=true" width="500px"> | <img src="https://github.com/ABausG/home_widget/blob/main/.github/assets/demo_android.png?raw=true" width="608px"> |
 
 ## Platform Setup
 In order to work correctly there needs to be some platform specific setup. Check below on how to add support for Android and iOS

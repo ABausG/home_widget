@@ -1,16 +1,17 @@
+## 0.2.0
+* Fix missing `@pragma("vm:entry-point")` for Background Callbacks [#99](https://github.com/ABausG/home_widget/pull/99) by [linziyou0601](https://github.com/linziyou0601)
+* Update HomeWidgetBackgroundService.kt [#98](https://github.com/ABausG/home_widget/pull/98) by [roly151](https://github.com/roly151)
+* README Improvements by [aaronkelton](https://github.com/aaronkelton) and [hadysata](https://github.com/hadysata)
+
 ## 0.1.6
 
-* Allow the specification of fully qualified android name [#62](https://github.com/ABausG/home_widget/pull/62) by [
-  NicolaVerbeeck](https://github.com/NicolaVerbeeck)
+* Allow the specification of fully qualified android name [#62](https://github.com/ABausG/home_widget/pull/62) by [NicolaVerbeeck](https://github.com/NicolaVerbeeck)
 
 ### Fixes
-* Fix paths in README [#73](https://github.com/ABausG/home_widget/pull/73) by [
-  AndyRusso](https://github.com/AndyRusso)
-* Migrate example to Android embedding v2 [#80](https://github.com/ABausG/home_widget/pull/80) by [
-  ronnieeeeee](https://github.com/ronnieeeeee)
-* Fix onNewIntent in Flutter 3 [#84](https://github.com/ABausG/home_widget/pull/84) by [
-  josepedromonteiro](https://github.com/josepedromonteiro) and [
-  stepushchik-denis-gismart](https://github.com/stepushchik-denis-gismart)
+* Fix paths in README [#73](https://github.com/ABausG/home_widget/pull/73) by [AndyRusso](https://github.com/AndyRusso)
+* Migrate example to Android embedding v2 [#80](https://github.com/ABausG/home_widget/pull/80) by [ronnieeeeee](https://github.com/ronnieeeeee)
+* Fix onNewIntent in Flutter 3 [#84](https://github.com/ABausG/home_widget/pull/84) by [josepedromonteiro](https://github.com/josepedromonteiro) and [
+stepushchik-denis-gismart](https://github.com/stepushchik-denis-gismart)
 
 ## 0.1.5
 
@@ -19,12 +20,9 @@
 ## 0.1.4
 
 * Fix `HomeWidget.updateWidget` not completing on iOS [#26](https://github.com/ABausG/home_widget/issues/26)
-* Fix casting Error on Registering Background Callback [#31](https://github.com/ABausG/home_widget/pull/31) by [
-  aljkor](https://github.com/aljkor)
-* Fix collision for Deeplinks [#42](https://github.com/ABausG/home_widget/pull/42) by [
-  mgonzalezc](https://github.com/mgonzalezc)
-* Make Android PendingIntents immutable for Android 12 [#49](https://github.com/ABausG/home_widget/pull/49) by [
-    mgonzalezc](https://github.com/mgonzalezc)
+* Fix casting Error on Registering Background Callback [#31](https://github.com/ABausG/home_widget/pull/31) by [aljkor](https://github.com/aljkor)
+* Fix collision for Deeplinks [#42](https://github.com/ABausG/home_widget/pull/42) by [mgonzalezc](https://github.com/mgonzalezc)
+* Make Android PendingIntents immutable for Android 12 [#49](https://github.com/ABausG/home_widget/pull/49) by [mgonzalezc](https://github.com/mgonzalezc)
 * Update Gradle Versions and target Android SDK 31
 * Fix Issues rrelating to `initiallyLaunchedFromHomeWidget`
   * [#48](https://github.com/ABausG/home_widget/issues/48) Call not completing on iOS
@@ -72,8 +70,8 @@
 ## 0.0.2
 
 * Background Updates
-    * Add Paragraph on explaining background updates
-    * Extend example to include background updates using [flutter_workmanager](https://pub.dev/packages/workmanager)
+  * Add Paragraph on explaining background updates
+  * Extend example to include background updates using [flutter_workmanager](https://pub.dev/packages/workmanager)
 
 ## 0.0.1+4
 

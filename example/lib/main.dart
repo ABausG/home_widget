@@ -32,6 +32,7 @@ void callbackDispatcher() {
 }
 
 /// Called when Doing Background Work initiated from Widget
+@pragma("vm:entry-point")
 void backgroundCallback(Uri data) async {
   print(data);
 
