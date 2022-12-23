@@ -43,9 +43,11 @@ class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentSe
                     Log.e(TAG, "No callbackHandle saved. Did you call HomeWidget.registerBackgroundCallback?")
                 }
 
+                engine = FlutterEngine(context)
+                
                 val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
 
-                engine = FlutterEngine(context)
+                
 
                 val callback = DartExecutor.DartCallback(
                         context.assets,
