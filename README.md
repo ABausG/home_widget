@@ -208,11 +208,14 @@ With home_widget you can use this by following these steps:
 #### Dart
 4. Write a **static** function that takes a Uri as an argument. This will get called when a user clicks on the View
     ```dart
+    @pragma("vm:entry-point")
     void backgroundCallback(Uri data) {
       // do something with data
       ...
     }
     ```
+   `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode for Android.
+
 5. Register the callback function by calling
     ```dart
     HomeWidget.registerBackgroundCallback(backgroundCallback);
