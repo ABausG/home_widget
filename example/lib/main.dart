@@ -9,6 +9,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Used for Background Updates using Workmanager Plugin
+@pragma("vm:entry-point")
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
