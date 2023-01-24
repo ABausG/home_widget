@@ -1,3 +1,6 @@
+## 0.2.0+1
+* Fix example annotation [#115](https://github.com/ABausG/home_widget/pull/115) by [ColinSchmale](https://github.com/ColinSchmale)
+
 ## 0.2.0
 * Fix missing `@pragma("vm:entry-point")` for Background Callbacks [#99](https://github.com/ABausG/home_widget/pull/99) by [linziyou0601](https://github.com/linziyou0601)
 * Update HomeWidgetBackgroundService.kt [#98](https://github.com/ABausG/home_widget/pull/98) by [roly151](https://github.com/roly151)
