@@ -38,13 +38,13 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
                 return
             }
             if let myArgs = args as? [String: Any?],
-               let groupId = myArgs["groupId"] as? String{
+               let groupId = myArgs["groupId"] as? String {
                 SwiftHomeWidgetPlugin.groupId = groupId
                 result(true)
             } else {
                 result(FlutterError(code: "-6", message: "InvalidArguments setAppGroupId must be called with a group id", details: nil))
             }
-        }else if call.method == "saveWidgetData" {
+        } else if call.method == "saveWidgetData" {
             if (SwiftHomeWidgetPlugin.groupId == nil) {
                 result(notInitializedError)
                 return
@@ -82,7 +82,6 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
                 result(FlutterError(code: "-2", message: "InvalidArguments getWidgetData must be called with id", details: nil))
             }
         } else if call.method == "updateWidget" {
-
             guard let args = call.arguments else {
                 return
             }
