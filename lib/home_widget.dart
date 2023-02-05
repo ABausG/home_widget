@@ -42,6 +42,28 @@ class HomeWidget {
     });
   }
 
+  /// Counts the number of widgets on the home screen
+  ///
+  /// Android widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
+  /// iOS widgets will look for [iOSName] and then for [name]
+  ///
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
+  /// The name of the iOS widget must match the kind specified when creating the widget
+  static Future<int?> getWidgetCount({
+    String? name,
+    String? androidName,
+    String? iOSName,
+    String? qualifiedAndroidName,
+  }) {
+    return _channel.invokeMethod('getWidgetCount', {
+      'name': name,
+      'android': androidName,
+      'ios': iOSName,
+      'qualifiedAndroidName': qualifiedAndroidName,
+    });
+  }
+
   /// Returns Data saved with [saveWidgetData]
   /// [id] of Data Saved
   /// [defaultValue] value to use if no data was found

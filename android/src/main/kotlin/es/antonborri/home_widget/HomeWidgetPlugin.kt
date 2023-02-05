@@ -91,6 +91,17 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     result.error("-3", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
                 }
             }
+            "getWidgetCount" -> {
+                val qualifiedName = call.argument<String>("qualifiedAndroidName")
+                val className = call.argument<String>("android") ?: call.argument<String>("name")
+                try {
+                    val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
+                    val ids: IntArray = AppWidgetManager.getInstance(context.applicationContext).getAppWidgetIds(ComponentName(context, javaClass))
+                    result.success(ids.size)
+                } catch (classException: ClassNotFoundException) {
+                    result.error("-3", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to count", classException)
+                }
+            }
             "setAppGroupId" -> {
                 result.success(true)
             }
