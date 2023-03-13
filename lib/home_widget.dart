@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
+import 'package:flutter/rendering.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
 
 /// A Flutter Plugin to simplify setting up and communicating with HomeScreenWidgets
 class HomeWidget {
@@ -96,5 +99,39 @@ class HomeWidget {
       PluginUtilities.getCallbackHandle(callback)?.toRawHandle()
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
+  }
+
+  /// Generate a screenshot based on the build context of a widget.
+  /// This method renders the widget to an image (png) file with the provided filename.
+  /// The png file is saved to the App Group container and the full path is returned as a string.
+  /// The filename is optionally saved to UserDefaults using the provided key.
+  static Future<String?> renderFlutterWidget(
+    String appGroupId,
+    BuildContext context,
+    String filename,
+    String? key,
+  ) async {
+    // Get the render object for the widget
+    final RenderRepaintBoundary boundary =
+        context.findRenderObject() as RenderRepaintBoundary;
+
+    // Create a screenshot of the widget
+    final image = await boundary.toImage(
+        pixelRatio: MediaQuery.of(context).devicePixelRatio);
+    final byteData = await image.toByteData(format: ImageByteFormat.png);
+
+    // Save the screenshot to a file in the app group container
+    final PathProviderFoundation provider = PathProviderFoundation();
+    try {
+      final String? directory = await provider.getContainerPath(
+        appGroupIdentifier: appGroupId!,
+      );
+      final String path = '$directory/$filename.png';
+      final File file = File(path);
+      await file.writeAsBytes(byteData!.buffer.asUint8List());
+      return path;
+    } catch (e) {
+      throw Exception('Failed to save screenshot to app group container: $e');
+    }
   }
 }
