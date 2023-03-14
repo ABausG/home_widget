@@ -124,7 +124,7 @@ class HomeWidget {
     final PathProviderFoundation provider = PathProviderFoundation();
     try {
       final String? directory = await provider.getContainerPath(
-        appGroupIdentifier: appGroupId!,
+        appGroupIdentifier: appGroupId,
       );
       final String path = '$directory/$filename.png';
       final File file = File(path);
@@ -132,9 +132,9 @@ class HomeWidget {
 
       // Save the filename to UserDefaults if a key was provided
       if (key != null) {
-        await _channel.invokeMethod('saveUserDefaults', {
-          'key': key,
-          'value': filename,
+        _channel.invokeMethod<bool>('saveWidgetData', {
+          'id': key,
+          'data': '$filename.png',
         });
       }
       return path;
