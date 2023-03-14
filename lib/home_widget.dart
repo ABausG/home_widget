@@ -129,6 +129,14 @@ class HomeWidget {
       final String path = '$directory/$filename.png';
       final File file = File(path);
       await file.writeAsBytes(byteData!.buffer.asUint8List());
+
+      // Save the filename to UserDefaults if a key was provided
+      if (key != null) {
+        await _channel.invokeMethod('saveUserDefaults', {
+          'key': key,
+          'value': filename,
+        });
+      }
       return path;
     } catch (e) {
       throw Exception('Failed to save screenshot to app group container: $e');
