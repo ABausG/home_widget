@@ -29,10 +29,14 @@ object HomeWidgetLaunchIntent {
 object HomeWidgetBackgroundIntent {
     private const val HOME_WIDGET_BACKGROUND_ACTION = "es.antonborri.home_widget.action.BACKGROUND"
 
-    fun getBroadcast(context: Context, uri: Uri? = null): PendingIntent {
+    @JvmOverloads
+    fun getBroadcast(context: Context, uri: Uri? = null, toast: String? = null): PendingIntent {
         val intent = Intent(context, HomeWidgetBackgroundReceiver::class.java)
         intent.data = uri
         intent.action = HOME_WIDGET_BACKGROUND_ACTION
+        if (toast != null) {
+            intent.putExtra("toast", toast)
+        }
 
         var flags = PendingIntent.FLAG_UPDATE_CURRENT
         if (Build.VERSION.SDK_INT >= 23) {
