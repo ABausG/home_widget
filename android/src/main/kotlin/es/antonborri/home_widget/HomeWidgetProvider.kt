@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Bundle
 
 abstract class HomeWidgetProvider : AppWidgetProvider() {
 
@@ -14,13 +13,4 @@ abstract class HomeWidgetProvider : AppWidgetProvider() {
     }
 
     abstract fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences)
-
-    override fun onAppWidgetOptionsChanged(
-        context: Context?,
-        appWidgetManager: AppWidgetManager?,
-        appWidgetId: Int,
-        newOptions: Bundle?
-    ) {
-        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-    }
 }
