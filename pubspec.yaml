@@ -10,6 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # TO DO: replace with latest version after PR is merged
+  # path_provider_foundation: ^2.1.1
+  path_provider_foundation:
+    path: ../../packages/packages/path_provider/path_provider_foundation
 
 dev_dependencies:
   flutter_test:

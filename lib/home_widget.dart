@@ -13,6 +13,9 @@ class HomeWidget {
   static const MethodChannel _channel = MethodChannel('home_widget');
   static const EventChannel _eventChannel = EventChannel('home_widget/updates');
 
+  /// The AppGroupId used for iOS Widgets
+  static String? groupId;
+
   /// Save [data] to the Widget Storage
   ///
   /// Returns whether the data was saved or not
@@ -58,6 +61,7 @@ class HomeWidget {
   /// Required on iOS to set the AppGroupId [groupId] in order to ensure
   /// communication between the App and the Widget Extension
   static Future<bool?> setAppGroupId(String groupId) {
+    HomeWidget.groupId = groupId;
     return _channel.invokeMethod('setAppGroupId', {'groupId': groupId});
   }
 
@@ -105,12 +109,56 @@ class HomeWidget {
   /// This method renders the widget to an image (png) file with the provided filename.
   /// The png file is saved to the App Group container and the full path is returned as a string.
   /// The filename is optionally saved to UserDefaults using the provided key.
+//   static Future<String?> renderFlutterWidget(
+//     String appGroupId,
+//     BuildContext context,
+//     String filename,
+//     String? key,
+//   ) async {
+//     // Get the render object for the widget
+//     final RenderRepaintBoundary boundary =
+//         context.findRenderObject() as RenderRepaintBoundary;
+
+//     // Create a screenshot of the widget
+//     final image = await boundary.toImage(
+//         pixelRatio: MediaQuery.of(context).devicePixelRatio);
+//     final byteData = await image.toByteData(format: ImageByteFormat.png);
+
+//     // Save the screenshot to a file in the app group container
+//     final PathProviderFoundation provider = PathProviderFoundation();
+//     try {
+//       final String? directory = await provider.getContainerPath(
+//         appGroupIdentifier: appGroupId,
+//       );
+//       final String path = '$directory/$filename.png';
+//       final File file = File(path);
+//       await file.writeAsBytes(byteData!.buffer.asUint8List());
+
+//       // Save the filename to UserDefaults if a key was provided
+//       if (key != null) {
+//         _channel.invokeMethod<bool>('saveWidgetData', {
+//           'id': key,
+//           'data': path,
+//         });
+//       }
+//       return path;
+//     } catch (e) {
+//       throw Exception('Failed to save screenshot to app group container: $e');
+//     }
+//   }
+// }
+
   static Future<String?> renderFlutterWidget(
-    String appGroupId,
     BuildContext context,
     String filename,
     String? key,
   ) async {
+    // Check if appGroupId has been set
+    if (HomeWidget.groupId == null) {
+      throw Exception(
+          'appGroupId has not been set. Use setAppGroupId() first.');
+    }
+
     // Get the render object for the widget
     final RenderRepaintBoundary boundary =
         context.findRenderObject() as RenderRepaintBoundary;
@@ -124,7 +172,7 @@ class HomeWidget {
     final PathProviderFoundation provider = PathProviderFoundation();
     try {
       final String? directory = await provider.getContainerPath(
-        appGroupIdentifier: appGroupId,
+        appGroupIdentifier: HomeWidget.groupId!,
       );
       final String path = '$directory/$filename.png';
       final File file = File(path);
@@ -134,7 +182,7 @@ class HomeWidget {
       if (key != null) {
         _channel.invokeMethod<bool>('saveWidgetData', {
           'id': key,
-          'data': '$filename.png',
+          'data': path,
         });
       }
       return path;
