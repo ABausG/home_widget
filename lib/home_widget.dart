@@ -110,7 +110,7 @@ class HomeWidget {
   /// This method renders the widget to an image (png) file with the provided filename.
   /// The png file is saved to the App Group container and the full path is returned as a string.
   /// The filename is optionally saved to UserDefaults using the provided key.
-static Future<String?> renderFlutterWidget(
+  static Future<String?> renderFlutterWidget(
     BuildContext context,
     String filename,
     String? key,
@@ -153,5 +153,4 @@ static Future<String?> renderFlutterWidget(
       throw Exception('Failed to save screenshot to app group container: $e');
     }
   }
-
-  
+}
