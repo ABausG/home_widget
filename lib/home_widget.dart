@@ -123,7 +123,7 @@ class HomeWidget {
     // Create a screenshot of the widget
     final image = await boundary.toImage(
         pixelRatio: MediaQuery.of(context).devicePixelRatio);
-    final byteData = await image.toByteData(format: ImageByteFormat.png);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
     // Save the screenshot to a file in the app group container
     final PathProviderFoundation provider = PathProviderFoundation();
