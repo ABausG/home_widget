@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
 import 'package:flutter/rendering.dart';
@@ -110,47 +111,150 @@ class HomeWidget {
   /// This method renders the widget to an image (png) file with the provided filename.
   /// The png file is saved to the App Group container and the full path is returned as a string.
   /// The filename is optionally saved to UserDefaults using the provided key.
-  static Future<String?> renderFlutterWidget(
-    BuildContext context,
-    String filename,
-    String? key,
-  ) async {
-    // Check if appGroupId has been set
-    if (HomeWidget.groupId == null) {
-      throw Exception(
-          'appGroupId has not been set. Use setAppGroupId() first.');
-    }
+  // static Future<String?> renderFlutterWidget(
+  //   BuildContext context,
+  //   String filename,
+  //   String? key,
+  // ) async {
+  //   // Check if appGroupId has been set
+  //   if (HomeWidget.groupId == null) {
+  //     throw Exception(
+  //         'appGroupId has not been set. Use setAppGroupId() first.');
+  //   }
 
-    // Get the render object for the widget
-    final RenderRepaintBoundary boundary =
-        context.findRenderObject() as RenderRepaintBoundary;
+  //   // Get the render object for the widget
+  //   final RenderRepaintBoundary boundary =
+  //       context.findRenderObject() as RenderRepaintBoundary;
 
-    // Create a screenshot of the widget
-    final image = await boundary.toImage(
-        pixelRatio: MediaQuery.of(context).devicePixelRatio);
-    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+  //   // Create a screenshot of the widget
+  //   final image = await boundary.toImage(
+  //       pixelRatio: MediaQuery.of(context).devicePixelRatio);
+  //   final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
-    // Save the screenshot to a file in the app group container
-    final PathProviderFoundation provider = PathProviderFoundation();
+  //   // Save the screenshot to a file in the app group container
+  //   final PathProviderFoundation provider = PathProviderFoundation();
+  //   try {
+  //     final String? directory = await provider.getContainerPath(
+  //       appGroupIdentifier: HomeWidget.groupId!,
+  //     );
+  //     final String path = '$directory/$filename.png';
+  //     final File file = File(path);
+  //     await file.writeAsBytes(byteData!.buffer.asUint8List());
+  //     print("path: $path");
+
+  //     // Save the filename to UserDefaults if a key was provided
+  //     if (key != null) {
+  //       _channel.invokeMethod<bool>('saveWidgetData', {
+  //         'id': key,
+  //         'data': path,
+  //       });
+  //     }
+  //     return path;
+  //   } catch (e) {
+  //     throw Exception('Failed to save screenshot to app group container: $e');
+  //   }
+  // }
+
+  static Future renderFlutterWidget(
+    Widget widget, {
+    String fileName = 'screenshot',
+    String key = 'filename',
+    double? pixelRatio,
+    Size? logicalSize,
+  }) async {
+    /// finding the widget in the current context by the key.
+    final RenderRepaintBoundary repaintBoundary = RenderRepaintBoundary();
+
+    /// create a new pipeline owner
+    final PipelineOwner pipelineOwner = PipelineOwner();
+
+    /// create a new build owner
+    final BuildOwner buildOwner = BuildOwner(focusManager: FocusManager());
+
+    // Size logicalSize = ui.window.physicalSize / ui.window.devicePixelRatio;
+    // pixelRatio ??= ui.window.devicePixelRatio;
     try {
-      final String? directory = await provider.getContainerPath(
-        appGroupIdentifier: HomeWidget.groupId!,
+      final RenderView renderView = RenderView(
+        view: ui.PlatformDispatcher.instance.implicitView!,
+        child: RenderPositionedBox(
+            alignment: Alignment.center, child: repaintBoundary),
+        configuration: ViewConfiguration(
+          size: logicalSize ?? Size.zero,
+          devicePixelRatio: 1.0,
+        ),
       );
-      final String path = '$directory/$filename.png';
-      final File file = File(path);
-      await file.writeAsBytes(byteData!.buffer.asUint8List());
-      print("path: $path");
 
-      // Save the filename to UserDefaults if a key was provided
-      if (key != null) {
-        _channel.invokeMethod<bool>('saveWidgetData', {
-          'id': key,
-          'data': path,
-        });
+      /// setting the rootNode to the renderview of the widget
+      pipelineOwner.rootNode = renderView;
+
+      /// setting the renderView to prepareInitialFrame
+      renderView.prepareInitialFrame();
+
+      /// setting the rootElement with the widget that has to be captured
+      final RenderObjectToWidgetElement<RenderBox> rootElement =
+          RenderObjectToWidgetAdapter<RenderBox>(
+        container: repaintBoundary,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Column(
+            // image is center aligned
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              widget,
+            ],
+          ),
+        ),
+      ).attachToRenderTree(buildOwner);
+
+      ///adding the rootElement to the buildScope
+      buildOwner.buildScope(rootElement);
+
+      ///adding the rootElement to the buildScope
+      buildOwner.buildScope(rootElement);
+
+      /// finialize the buildOwner
+      buildOwner.finalizeTree();
+
+      ///Flush Layout
+      pipelineOwner.flushLayout();
+
+      /// Flush Compositing Bits
+      pipelineOwner.flushCompositingBits();
+
+      /// Flush paint
+      pipelineOwner.flushPaint();
+
+      final ui.Image image =
+          await repaintBoundary.toImage(pixelRatio: pixelRatio!);
+
+      /// The raw image is converted to byte data.
+      final ByteData? byteData =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+
+      final PathProviderFoundation provider = PathProviderFoundation();
+
+      try {
+        final String? directory = await provider.getContainerPath(
+          appGroupIdentifier: HomeWidget.groupId!,
+        );
+        final String path = '$directory/$fileName.png';
+        final File file = File(path);
+        await file.writeAsBytes(byteData!.buffer.asUint8List());
+        print("path: $path");
+
+        // Save the filename to UserDefaults if a key was provided
+        if (key != null) {
+          _channel.invokeMethod<bool>('saveWidgetData', {
+            'id': key,
+            'data': path,
+          });
+        }
+        return path;
+      } catch (e) {
+        throw Exception('Failed to save screenshot to app group container: $e');
       }
-      return path;
     } catch (e) {
-      throw Exception('Failed to save screenshot to app group container: $e');
+      print(e);
     }
   }
 }
