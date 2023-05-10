@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
 import 'package:flutter/rendering.dart';
@@ -107,54 +106,10 @@ class HomeWidget {
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
 
-  /// Generate a screenshot based on the build context of a widget.
+  /// Generate a screenshot based on a given widget.
   /// This method renders the widget to an image (png) file with the provided filename.
   /// The png file is saved to the App Group container and the full path is returned as a string.
-  /// The filename is optionally saved to UserDefaults using the provided key.
-  // static Future<String?> renderFlutterWidget(
-  //   BuildContext context,
-  //   String filename,
-  //   String? key,
-  // ) async {
-  //   // Check if appGroupId has been set
-  //   if (HomeWidget.groupId == null) {
-  //     throw Exception(
-  //         'appGroupId has not been set. Use setAppGroupId() first.');
-  //   }
-
-  //   // Get the render object for the widget
-  //   final RenderRepaintBoundary boundary =
-  //       context.findRenderObject() as RenderRepaintBoundary;
-
-  //   // Create a screenshot of the widget
-  //   final image = await boundary.toImage(
-  //       pixelRatio: MediaQuery.of(context).devicePixelRatio);
-  //   final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-
-  //   // Save the screenshot to a file in the app group container
-  //   final PathProviderFoundation provider = PathProviderFoundation();
-  //   try {
-  //     final String? directory = await provider.getContainerPath(
-  //       appGroupIdentifier: HomeWidget.groupId!,
-  //     );
-  //     final String path = '$directory/$filename.png';
-  //     final File file = File(path);
-  //     await file.writeAsBytes(byteData!.buffer.asUint8List());
-  //     print("path: $path");
-
-  //     // Save the filename to UserDefaults if a key was provided
-  //     if (key != null) {
-  //       _channel.invokeMethod<bool>('saveWidgetData', {
-  //         'id': key,
-  //         'data': path,
-  //       });
-  //     }
-  //     return path;
-  //   } catch (e) {
-  //     throw Exception('Failed to save screenshot to app group container: $e');
-  //   }
-  // }
-
+  /// The filename is saved to UserDefaults using the provided key.
   static Future renderFlutterWidget(
     Widget widget, {
     String fileName = 'screenshot',
@@ -171,8 +126,6 @@ class HomeWidget {
     /// create a new build owner
     final BuildOwner buildOwner = BuildOwner(focusManager: FocusManager());
 
-    // Size logicalSize = ui.window.physicalSize / ui.window.devicePixelRatio;
-    // pixelRatio ??= ui.window.devicePixelRatio;
     try {
       final RenderView renderView = RenderView(
         view: ui.PlatformDispatcher.instance.implicitView!,
@@ -237,24 +190,22 @@ class HomeWidget {
         final String? directory = await provider.getContainerPath(
           appGroupIdentifier: HomeWidget.groupId!,
         );
-        final String path = '$directory/$fileName.png';
+        final String path = '$directory/homeWidget/$fileName.png';
         final File file = File(path);
         await file.writeAsBytes(byteData!.buffer.asUint8List());
-        print("path: $path");
 
         // Save the filename to UserDefaults if a key was provided
-        if (key != null) {
-          _channel.invokeMethod<bool>('saveWidgetData', {
-            'id': key,
-            'data': path,
-          });
-        }
+        _channel.invokeMethod<bool>('saveWidgetData', {
+          'id': key,
+          'data': path,
+        });
+
         return path;
       } catch (e) {
         throw Exception('Failed to save screenshot to app group container: $e');
       }
     } catch (e) {
-      print(e);
+      throw Exception('Failed to render the widget: $e');
     }
   }
 }
