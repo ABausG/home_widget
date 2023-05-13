@@ -1,3 +1,7 @@
+## 0.2.1
+* Update Gradle and Kotlin Versions
+* Update to support Flutter 3.10
+
 ## 0.2.0+1
 * Fix example annotation [#115](https://github.com/ABausG/home_widget/pull/115) by [ColinSchmale](https://github.com/ColinSchmale)
 
