@@ -71,4 +71,4 @@ void main() {
   });
 }
 
-void backgroundCallback(Uri uri) {}
+void backgroundCallback(Uri? uri) {}

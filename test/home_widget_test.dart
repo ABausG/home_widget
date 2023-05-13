@@ -21,7 +21,9 @@ void main() {
   setUp(() {
     launchUri = null;
     passedArguments = Completer();
-    channel.setMockMethodCallHandler((MethodCall methodCall) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+    // ignore: body_might_complete_normally_nullable
+        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
       passedArguments.complete(methodCall.arguments);
       switch (methodCall.method) {
         case 'saveWidgetData':
@@ -41,7 +43,8 @@ void main() {
   });
 
   tearDown(() {
-    channel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   test('getWidgetData', () async {
@@ -140,9 +143,10 @@ void main() {
 
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
-      updateChannel.binaryMessenger.setMockMessageHandler(updateChannel.name,
-          // ignore: body_might_complete_normally_nullable
-          (message) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(updateChannel.name,
+              // ignore: body_might_complete_normally_nullable
+              (message) async {
         emitEvent(
           updateChannel.codec
               .encodeSuccessEnvelope('homeWidget://homeWidgetTest'),
@@ -166,7 +170,8 @@ void main() {
 }
 
 void emitEvent(ByteData? event) {
-  updateChannel.binaryMessenger.handlePlatformMessage(
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .handlePlatformMessage(
     updateChannel.name,
     event,
     (ByteData? reply) {},
