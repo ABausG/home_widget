@@ -26,7 +26,7 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Format
-        run: flutter format . --set-exit-if-changed
+        run: dart format . --set-exit-if-changed
       - name: Publishability
         run: flutter pub publish --dry-run
       - name: Test

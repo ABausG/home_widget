@@ -13,7 +13,7 @@ import 'package:workmanager/workmanager.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
-    return Future.wait<bool>([
+    return Future.wait<bool?>([
       HomeWidget.saveWidgetData(
         'title',
         'Updated from Background',
@@ -34,10 +34,10 @@ void callbackDispatcher() {
 
 /// Called when Doing Background Work initiated from Widget
 @pragma("vm:entry-point")
-void backgroundCallback(Uri data) async {
+void backgroundCallback(Uri? data) async {
   print(data);
 
-  if (data.host == 'titleclicked') {
+  if (data?.host == 'titleclicked') {
     final greetings = [
       'Hello',
       'Hallo',
@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  Future<void> _sendData() async {
+  Future _sendData() async {
     try {
       return Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
@@ -103,7 +103,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<void> _updateWidget() async {
+  Future _updateWidget() async {
     try {
       return HomeWidget.updateWidget(
           name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
@@ -112,14 +112,14 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<void> _loadData() async {
+  Future _loadData() async {
     try {
       return Future.wait([
         HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
-            .then((value) => _titleController.text = value),
+            .then((value) => _titleController.text = value ?? ''),
         HomeWidget.getWidgetData<String>('message',
                 defaultValue: 'Default Message')
-            .then((value) => _messageController.text = value),
+            .then((value) => _messageController.text = value ?? ''),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
@@ -135,7 +135,7 @@ class _MyAppState extends State<MyApp> {
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_launchedFromWidget);
   }
 
-  void _launchedFromWidget(Uri uri) {
+  void _launchedFromWidget(Uri? uri) {
     if (uri != null) {
       showDialog(
           context: context,

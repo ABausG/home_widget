@@ -14,10 +14,12 @@ void main() {
         PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
     const testUri = 'homeWidget://homeWidgetTest';
 
-    // ignore: body_might_complete_normally_nullable
-    backgroundChannel.setMockMethodCallHandler((call) {
+    tester.binding.defaultBinaryMessenger
+        // ignore: body_might_complete_normally_nullable
+        .setMockMethodCallHandler(backgroundChannel, (call) {
       if (call.method == 'HomeWidget.backgroundInitialized') {
         emitEvent(
+          tester,
           backgroundChannel.codec
               .encodeMethodCall(MethodCall('', [callbackHandle, testUri])),
         );
@@ -32,8 +34,8 @@ void main() {
   });
 }
 
-void emitEvent(ByteData? event) {
-  backgroundChannel.binaryMessenger.handlePlatformMessage(
+void emitEvent(WidgetTester tester, ByteData? event) {
+  tester.binding.defaultBinaryMessenger.handlePlatformMessage(
     backgroundChannel.name,
     event,
     (ByteData? reply) {},
