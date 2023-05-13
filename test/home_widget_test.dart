@@ -22,7 +22,7 @@ void main() {
     launchUri = null;
     passedArguments = Completer();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-    // ignore: body_might_complete_normally_nullable
+        // ignore: body_might_complete_normally_nullable
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
       passedArguments.complete(methodCall.arguments);
       switch (methodCall.method) {
