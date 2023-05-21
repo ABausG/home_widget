@@ -97,6 +97,12 @@ class _MyAppState extends State<MyApp> {
       return Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
+        HomeWidget.renderFlutterWidget(
+          Icon(Icons.flutter_dash, size: 200,),
+          logicalSize: Size(200, 200),
+          fileName: 'dashIcon',
+          key: 'icon',
+        ),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
 import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
 
 /// A Flutter Plugin to simplify setting up and communicating with HomeScreenWidgets
@@ -180,20 +181,27 @@ class HomeWidget {
       pipelineOwner.flushPaint();
 
       final ui.Image image =
-          await repaintBoundary.toImage(pixelRatio: pixelRatio!);
+          await repaintBoundary.toImage(pixelRatio: pixelRatio ?? 1.0);
 
       /// The raw image is converted to byte data.
       final ByteData? byteData =
           await image.toByteData(format: ui.ImageByteFormat.png);
 
-      final PathProviderFoundation provider = PathProviderFoundation();
-
       try {
-        final String? directory = await provider.getContainerPath(
-          appGroupIdentifier: HomeWidget.groupId!,
-        );
+        late final String? directory;
+        try {
+          final PathProviderFoundation provider = PathProviderFoundation();
+          directory = await provider.getContainerPath(
+            appGroupIdentifier: HomeWidget.groupId!,
+          );
+        } on UnsupportedError catch (_) {
+          directory = (await getApplicationSupportDirectory()).path;
+        }
         final String path = '$directory/homeWidget/$fileName.png';
         final File file = File(path);
+        if (! await file.exists()) {
+          file.create(recursive: true);
+        }
         await file.writeAsBytes(byteData!.buffer.asUint8List());
 
         // Save the filename to UserDefaults if a key was provided

@@ -24,4 +24,10 @@
         android:layout_height="wrap_content"
         android:textSize="18sp"
         tools:text="Message" />
+
+    <ImageView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:id="@+id/widget_img"
+        android:visibility="gone"/>
 </LinearLayout>
