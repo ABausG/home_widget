@@ -92,7 +92,7 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  Future<List<bool?>?> _sendData() async {
+  Future _sendData() async {
     try {
       return Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
@@ -103,7 +103,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<bool?> _updateWidget() async {
+  Future _updateWidget() async {
     try {
       return HomeWidget.updateWidget(
           name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
@@ -112,14 +112,14 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<List<void>?> _loadData() async {
+  Future _loadData() async {
     try {
       return Future.wait([
         HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
-            .then((value) => _titleController.text = value!),
+            .then((value) => _titleController.text = value ?? ''),
         HomeWidget.getWidgetData<String>('message',
                 defaultValue: 'Default Message')
-            .then((value) => _messageController.text = value!),
+            .then((value) => _messageController.text = value ?? ''),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');

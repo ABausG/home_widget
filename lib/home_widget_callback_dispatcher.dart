@@ -6,10 +6,10 @@ import 'package:flutter/services.dart';
 /// Dispatcher used for calling dart code from Native Code while in the background
 @pragma("vm:entry-point")
 void callbackDispatcher() {
-  const _backgroundChannel = MethodChannel('home_widget/background');
+  const backgroundChannel = MethodChannel('home_widget/background');
   WidgetsFlutterBinding.ensureInitialized();
 
-  _backgroundChannel.setMethodCallHandler((call) async {
+  backgroundChannel.setMethodCallHandler((call) async {
     final args = call.arguments;
 
     final callback = PluginUtilities.getCallbackFromHandle(
@@ -23,5 +23,5 @@ void callbackDispatcher() {
     callback?.call(uri);
   });
 
-  _backgroundChannel.invokeMethod('HomeWidget.backgroundInitialized');
+  backgroundChannel.invokeMethod('HomeWidget.backgroundInitialized');
 }
