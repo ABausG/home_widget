@@ -10,6 +10,7 @@ import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
 import 'package:mocktail/mocktail.dart';
+
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
@@ -189,15 +190,18 @@ void main() {
           Expanded(
             child: ColoredBox(
               color: Colors.red,
-            ),),
+            ),
+          ),
           Expanded(
             child: ColoredBox(
               color: Colors.green,
-            ),),
+            ),
+          ),
           Expanded(
             child: ColoredBox(
               color: Colors.blue,
-            ),),
+            ),
+          ),
         ],
       ),
     );
@@ -225,18 +229,17 @@ void main() {
       await IOOverrides.runZoned(
         () async {
           await tester.runAsync(() async {
-            final path =await HomeWidget.renderFlutterWidget(
+            final path = await HomeWidget.renderFlutterWidget(
               targetWidget,
               logicalSize: size,
             );
             final expectedPath = '${directory.path}/home_widget/screenshot.png';
-          expect(path, equals(expectedPath));
+            expect(path, equals(expectedPath));
 
             final arguments = await passedArguments.future;
             expect(arguments['id'], 'filename');
             expect(arguments['data'], expectedPath);
           });
-
         },
         createFile: (path) {
           when(() => file.path).thenReturn(path);
@@ -247,15 +250,67 @@ void main() {
       final bytes = await byteCompleter.future;
 
       await tester.pumpWidgetBuilder(
-          Image.memory(
-            bytes,
-            width: size.height,
-            height: size.height,
-          ),
-          surfaceSize: size,);
+        Image.memory(
+          bytes,
+          width: size.height,
+          height: size.height,
+        ),
+        surfaceSize: size,
+      );
 
       await tester.pumpAndSettle();
       await screenMatchesGolden(tester, 'render-flutter-widget');
+    });
+
+    testGoldens('Error rendering Flutter Widget throws', (tester) async {
+      final file = MockFile();
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(
+            () async {
+              expect(
+                () async => await HomeWidget.renderFlutterWidget(
+                  Builder(builder: (_) => const SizedBox()),
+                  logicalSize: Size.zero,
+                ),
+                throwsException,
+              );
+            },
+          );
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    testGoldens('Error saving Widget throws', (tester) async {
+      final file = MockFile();
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any()))
+          .thenAnswer((invocation) => Future.error('Error'));
+
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            expect(
+              () async => await HomeWidget.renderFlutterWidget(
+                targetWidget,
+                logicalSize: size,
+              ),
+              throwsException,
+            );
+          });
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
     });
   });
 }
