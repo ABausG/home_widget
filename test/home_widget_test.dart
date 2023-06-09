@@ -1,11 +1,19 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
+import 'package:mocktail/mocktail.dart';
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+import 'mocks.dart';
 
 const updateChannel = MethodChannel('home_widget/updates');
 
@@ -165,6 +173,89 @@ void main() {
       );
 
       await expectation;
+    });
+  });
+
+  group('Render Flutter Widget', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final directory = Directory('app/directory');
+
+    const size = Size(200, 200);
+    final targetWidget = SizedBox.fromSize(
+      size: size,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ColoredBox(
+              color: Colors.red,
+            ),),
+          Expanded(
+            child: ColoredBox(
+              color: Colors.green,
+            ),),
+          Expanded(
+            child: ColoredBox(
+              color: Colors.blue,
+            ),),
+        ],
+      ),
+    );
+
+    setUp(() {
+      final pathProvider = MockPathProvider();
+      when(() => pathProvider.getApplicationSupportPath())
+          .thenAnswer((invocation) async => directory.path);
+      PathProviderPlatform.instance = pathProvider;
+    });
+
+    testGoldens('Render Flutter Widget', (tester) async {
+      final byteCompleter = Completer<Uint8List>();
+      final file = MockFile();
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        byteCompleter
+            .complete(Uint8List.fromList(invocation.positionalArguments.first));
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            final path =await HomeWidget.renderFlutterWidget(
+              targetWidget,
+              logicalSize: size,
+            );
+            final expectedPath = '${directory.path}/home_widget/screenshot.png';
+          expect(path, equals(expectedPath));
+
+            final arguments = await passedArguments.future;
+            expect(arguments['id'], 'filename');
+            expect(arguments['data'], expectedPath);
+          });
+
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+
+      final bytes = await byteCompleter.future;
+
+      await tester.pumpWidgetBuilder(
+          Image.memory(
+            bytes,
+            width: size.height,
+            height: size.height,
+          ),
+          surfaceSize: size,);
+
+      await tester.pumpAndSettle();
+      await screenMatchesGolden(tester, 'render-flutter-widget');
     });
   });
 }
