@@ -349,7 +349,7 @@ To retrieve the image and display it in a widget, you can use the following Swif
                val views = RemoteViews(context.packageName, R.layout.news_widget).apply {
                    // Get chart image and put it in the widget, if it exists
                    val imageName = widgetData.getString("filename", null)
-                   val imageFile = File("${context.filesDir.path}/${imageName}")
+                   val imageFile = File("${imageName}")
                    val imageExists = imageFile.exists()
                    if (imageExists) {
                       val myBitmap: Bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
