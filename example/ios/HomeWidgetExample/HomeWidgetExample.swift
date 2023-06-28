@@ -42,7 +42,7 @@ struct HomeWidgetExampleEntryView : View {
     
     init(entry: Provider.Entry) {
         self.entry = entry
-        iconPath = data?.string(forKey: "icon")
+        iconPath = data?.string(forKey: "dashIcon")
         
     }
     

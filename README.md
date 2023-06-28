@@ -254,40 +254,36 @@ between your Flutter app and the home screen widget.
 ```dart
 var path = await HomeWidget.renderFlutterWidget(
   const LineChart(),
-  fileName: 'screenshot',
-  key: 'filename',
-  logicalSize: _globalKey.currentContext!.size,
-  pixelRatio:
-      MediaQuery.of(_globalKey.currentContext!).devicePixelRatio,
+  key: 'lineChart',
+  logicalSize: Size(width: 400, height: 400),
 );
 ```
-- `LineChart()` is the widget that will be rendered as an image. 
-- `fileName` is the name of the png file
-- `key` is the key in the key/value storage on the device that stores the name of the file for easy retrieval on the native side
+- `LineChart()` is the widget that will be rendered as an image.
+- `key` is the key in the key/value storage on the device that stores the path of the file for easy retrieval on the native side
 
 #### iOS 
 To retrieve the image and display it in a widget, you can use the following SwiftUI code:
 
-1. In your `TimelineEntry` struct add the `filename` property:
+1. In your `TimelineEntry` struct add a property to retrieve the path:
     ```swift
     struct MyEntry: TimelineEntry {
         …
-        let filename: String
+        let lineChartPath: String
     }
     ```
 
-2. Get the filename from the `UserDefaults` in `getSnapshot`:
+2. Get the path from the `UserDefaults` in `getSnapshot`:
     ```swift
    func getSnapshot(
         ...
-        let filename = userDefaults?.string(forKey: "filename") ?? "No screenshot available"
+        let lineChartPath = userDefaults?.string(forKey: "lineChart") ?? "No screenshot available"
     ```
 3. Create a `View` to display the chart and resize the image based on the `displaySize` of the widget:
     ```swift
     struct WidgetEntryView : View {
       …
        var ChartImage: some View {
-            if let uiImage = UIImage(contentsOfFile: entry.filename) {
+            if let uiImage = UIImage(contentsOfFile: entry.lineChartPath) {
                 let image = Image(uiImage: uiImage)
                     .resizable()
                     .frame(width: entry.displaySize.height*0.5, height: entry.displaySize.height*0.5, alignment: .center)
@@ -335,7 +331,7 @@ To retrieve the image and display it in a widget, you can use the following Swif
            android:visibility="visible"
            tools:visibility="visible" />
     ```
-2. Update your Kotlin code to get the chart image and put it into the widget, if it exists. 
+2. Update your Kotlin code to get the chart image and put it into the widget, if it exists.
     ```kotlin
     class NewsWidget : AppWidgetProvider() {
        override fun onUpdate(
@@ -348,14 +344,14 @@ To retrieve the image and display it in a widget, you can use the following Swif
                val widgetData = HomeWidgetPlugin.getData(context)
                val views = RemoteViews(context.packageName, R.layout.news_widget).apply {
                    // Get chart image and put it in the widget, if it exists
-                   val imageName = widgetData.getString("filename", null)
-                   val imageFile = File("${imageName}")
+                   val imagePath = widgetData.getString("lineChart", null)
+                   val imageFile = File(imagePath)
                    val imageExists = imageFile.exists()
                    if (imageExists) {
                       val myBitmap: Bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
                       setImageViewBitmap(R.id.widget_image, myBitmap)
                    } else {
-                      println("image not found!, looked @: ${context.filesDir.path}/${imageName}")
+                      println("image not found!, looked @: $imagePath")
                    }
                    // End new code
                }

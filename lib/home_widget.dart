@@ -113,10 +113,9 @@ class HomeWidget {
   /// The filename is saved to UserDefaults using the provided key.
   static Future renderFlutterWidget(
     Widget widget, {
-    String fileName = 'screenshot',
-    String key = 'filename',
-    double? pixelRatio,
-    Size? logicalSize,
+    required String key,
+    Size logicalSize = const Size(200, 200),
+    double pixelRatio = 1,
   }) async {
     /// finding the widget in the current context by the key.
     final RenderRepaintBoundary repaintBoundary = RenderRepaintBoundary();
@@ -135,7 +134,7 @@ class HomeWidget {
           child: repaintBoundary,
         ),
         configuration: ViewConfiguration(
-          size: logicalSize ?? Size.zero,
+          size: logicalSize,
           devicePixelRatio: 1.0,
         ),
       );
@@ -181,7 +180,7 @@ class HomeWidget {
       pipelineOwner.flushPaint();
 
       final ui.Image image =
-          await repaintBoundary.toImage(pixelRatio: pixelRatio ?? 1.0);
+          await repaintBoundary.toImage(pixelRatio: pixelRatio);
 
       /// The raw image is converted to byte data.
       final ByteData? byteData =
@@ -204,7 +203,7 @@ class HomeWidget {
         } on UnsupportedError catch (_) {
           directory = (await getApplicationSupportDirectory()).path;
         }
-        final String path = '$directory/home_widget/$fileName.png';
+        final String path = '$directory/home_widget/$key.png';
         final File file = File(path);
         if (!await file.exists()) {
           file.create(recursive: true);

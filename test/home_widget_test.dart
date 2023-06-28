@@ -231,6 +231,7 @@ void main() {
           await tester.runAsync(() async {
             final path = await HomeWidget.renderFlutterWidget(
               targetWidget,
+              key: 'screenshot',
               logicalSize: size,
             );
             final expectedPath = '${directory.path}/home_widget/screenshot.png';
@@ -272,6 +273,7 @@ void main() {
                 () async => await HomeWidget.renderFlutterWidget(
                   Builder(builder: (_) => const SizedBox()),
                   logicalSize: Size.zero,
+                  key: 'screenshot',
                 ),
                 throwsException,
               );
@@ -301,6 +303,7 @@ void main() {
               () async => await HomeWidget.renderFlutterWidget(
                 targetWidget,
                 logicalSize: size,
+                key: 'screenshot',
               ),
               throwsException,
             );
