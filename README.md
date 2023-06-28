@@ -220,3 +220,147 @@ With home_widget you can use this by following these steps:
     ```dart
     HomeWidget.registerBackgroundCallback(backgroundCallback);
     ```
+    
+### Using images of Flutter widgets
+
+In some cases, you may not want to rewrite UI code in the native frameworks for your widgets. 
+For example, say you have a chart in your Flutter app configured with `CustomPaint`:
+
+```dart
+class LineChart extends StatelessWidget {
+  const LineChart({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: LineChartPainter(),
+      child: const SizedBox(
+        height: 200,
+        width: 200,
+      ),
+    );
+  }
+}
+```
+
+<img width="300" alt="Screenshot 2023-06-07 at 12 33 44 PM" src="https://github.com/ABausG/home_widget/assets/21065911/55619584-bc85-4e7e-9fad-17afde2f74df">
+
+Rewriting the code to create this chart on both Android and iOS might be time consuming. 
+Instead, you can generate a png file of the Flutter widget and save it to a shared container 
+between your Flutter app and the home screen widget. 
+
+```dart
+var path = await HomeWidget.renderFlutterWidget(
+  const LineChart(),
+  fileName: 'screenshot',
+  key: 'filename',
+  logicalSize: _globalKey.currentContext!.size,
+  pixelRatio:
+      MediaQuery.of(_globalKey.currentContext!).devicePixelRatio,
+);
+```
+- `LineChart()` is the widget that will be rendered as an image. 
+- `fileName` is the name of the png file
+- `key` is the key in the key/value storage on the device that stores the name of the file for easy retrieval on the native side
+
+#### iOS 
+To retrieve the image and display it in a widget, you can use the following SwiftUI code:
+
+1. In your `TimelineEntry` struct add the `filename` property:
+    ```swift
+    struct MyEntry: TimelineEntry {
+        …
+        let filename: String
+    }
+    ```
+
+2. Get the filename from the `UserDefaults` in `getSnapshot`:
+    ```swift
+   func getSnapshot(
+        ...
+        let filename = userDefaults?.string(forKey: "filename") ?? "No screenshot available"
+    ```
+3. Create a `View` to display the chart and resize the image based on the `displaySize` of the widget:
+    ```swift
+    struct WidgetEntryView : View {
+      …
+       var ChartImage: some View {
+            if let uiImage = UIImage(contentsOfFile: entry.filename) {
+                let image = Image(uiImage: uiImage)
+                    .resizable()
+                    .frame(width: entry.displaySize.height*0.5, height: entry.displaySize.height*0.5, alignment: .center)
+                return AnyView(image)
+            }
+            print("The image file could not be loaded")
+            return AnyView(EmptyView())
+        }
+    …
+    }
+    ```
+    
+4. Display the chart in the body of the widget's `View`:
+    ```swift
+    VStack {
+            Text(entry.title)
+            Text(entry.description)
+            ChartImage
+        }
+    ```
+
+<img width="522" alt="Screenshot 2023-06-07 at 12 57 28 PM" src="https://github.com/ABausG/home_widget/assets/21065911/f7dcdea0-605a-4662-a03a-158831a4e946">
+
+#### Android
+
+1. Add an image UI element to your xml file:
+    ```xml
+    <ImageView
+           android:id="@+id/widget_image"
+           android:layout_width="200dp"
+           android:layout_height="200dp"
+           android:layout_below="@+id/headline_description"
+           android:layout_alignBottom="@+id/headline_title"
+           android:layout_alignParentStart="true"
+           android:layout_alignParentLeft="true"
+           android:layout_marginStart="8dp"
+           android:layout_marginLeft="8dp"
+           android:layout_marginTop="6dp"
+           android:layout_marginBottom="-134dp"
+           android:layout_weight="1"
+           android:adjustViewBounds="true"
+           android:background="@android:color/white"
+           android:scaleType="fitCenter"
+           android:src="@android:drawable/star_big_on"
+           android:visibility="visible"
+           tools:visibility="visible" />
+    ```
+2. Update your Kotlin code to get the chart image and put it into the widget, if it exists. 
+    ```kotlin
+    class NewsWidget : AppWidgetProvider() {
+       override fun onUpdate(
+           context: Context,
+           appWidgetManager: AppWidgetManager,
+           appWidgetIds: IntArray,
+       ) {
+           for (appWidgetId in appWidgetIds) {
+               // Get reference to SharedPreferences
+               val widgetData = HomeWidgetPlugin.getData(context)
+               val views = RemoteViews(context.packageName, R.layout.news_widget).apply {
+                   // Get chart image and put it in the widget, if it exists
+                   val imageName = widgetData.getString("filename", null)
+                   val imageFile = File("${imageName}")
+                   val imageExists = imageFile.exists()
+                   if (imageExists) {
+                      val myBitmap: Bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
+                      setImageViewBitmap(R.id.widget_image, myBitmap)
+                   } else {
+                      println("image not found!, looked @: ${context.filesDir.path}/${imageName}")
+                   }
+                   // End new code
+               }
+               appWidgetManager.updateAppWidget(appWidgetId, views)
+           }
+       }
+    }
+    ```
