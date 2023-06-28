@@ -8,6 +8,6 @@ import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 class MockFile extends Mock implements File {}
 
-class MockPathProvider  extends Mock with MockPlatformInterfaceMixin implements PathProviderPlatform {
-
-}
+class MockPathProvider extends Mock
+    with MockPlatformInterfaceMixin
+    implements PathProviderPlatform {}

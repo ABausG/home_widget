@@ -192,7 +192,9 @@ class HomeWidget {
         try {
           // coverage:ignore-start
           if (Platform.environment.containsKey('FLUTTER_TEST')) {
-            throw UnsupportedError('Tests should always use default Path provider for easier mocking');
+            throw UnsupportedError(
+                'Tests should always use default Path provider for easier mocking',
+            );
           }
           final PathProviderFoundation provider = PathProviderFoundation();
           directory = await provider.getContainerPath(
@@ -204,7 +206,7 @@ class HomeWidget {
         }
         final String path = '$directory/home_widget/$fileName.png';
         final File file = File(path);
-        if (! await file.exists()) {
+        if (!await file.exists()) {
           file.create(recursive: true);
         }
         await file.writeAsBytes(byteData!.buffer.asUint8List());

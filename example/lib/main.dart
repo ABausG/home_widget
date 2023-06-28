@@ -98,7 +98,10 @@ class _MyAppState extends State<MyApp> {
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
         HomeWidget.renderFlutterWidget(
-          Icon(Icons.flutter_dash, size: 200,),
+          Icon(
+            Icons.flutter_dash,
+            size: 200,
+          ),
           logicalSize: Size(200, 200),
           fileName: 'dashIcon',
           key: 'icon',
