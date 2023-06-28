@@ -128,3 +128,6 @@ app.*.symbols
 .gradle
 *.xcworkspacedata
 *.jar
+
+# don't check in golden failure output
+**/failures/*.png

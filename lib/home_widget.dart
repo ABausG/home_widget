@@ -190,14 +190,21 @@ class HomeWidget {
       try {
         late final String? directory;
         try {
+          // coverage:ignore-start
+          if (Platform.environment.containsKey('FLUTTER_TEST')) {
+            throw UnsupportedError(
+              'Tests should always use default Path provider for easier mocking',
+            );
+          }
           final PathProviderFoundation provider = PathProviderFoundation();
           directory = await provider.getContainerPath(
             appGroupIdentifier: HomeWidget.groupId!,
           );
+          // coverage:ignore-end
         } on UnsupportedError catch (_) {
           directory = (await getApplicationSupportDirectory()).path;
         }
-        final String path = '$directory/homeWidget/$fileName.png';
+        final String path = '$directory/home_widget/$fileName.png';
         final File file = File(path);
         if (!await file.exists()) {
           file.create(recursive: true);
