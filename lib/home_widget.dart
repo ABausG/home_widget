@@ -206,7 +206,7 @@ class HomeWidget {
         final String path = '$directory/home_widget/$key.png';
         final File file = File(path);
         if (!await file.exists()) {
-          file.create(recursive: true);
+          await file.create(recursive: true);
         }
         await file.writeAsBytes(byteData!.buffer.asUint8List());
 
