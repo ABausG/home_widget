@@ -238,7 +238,7 @@ void main() {
             expect(path, equals(expectedPath));
 
             final arguments = await passedArguments.future;
-            expect(arguments['id'], 'filename');
+            expect(arguments['id'], 'screenshot');
             expect(arguments['data'], expectedPath);
           });
         },
