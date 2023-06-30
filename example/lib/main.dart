@@ -103,8 +103,7 @@ class _MyAppState extends State<MyApp> {
             size: 200,
           ),
           logicalSize: Size(200, 200),
-          fileName: 'dashIcon',
-          key: 'icon',
+          key: 'dashIcon',
         ),
       ]);
     } on PlatformException catch (exception) {

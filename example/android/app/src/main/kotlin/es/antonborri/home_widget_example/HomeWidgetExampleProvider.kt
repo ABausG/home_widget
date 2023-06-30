@@ -35,7 +35,7 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                 setTextViewText(R.id.widget_message, message
                         ?: "No Message Set")
                 // Show Images saved with `renderFlutterWidget`
-                val image = widgetData.getString("icon", null)
+                val image = widgetData.getString("dashIcon", null)
                 if (image != null) {
                  setImageViewBitmap(R.id.widget_img, BitmapFactory.decodeFile(image))
                  setViewVisibility(R.id.widget_img, View.VISIBLE)
