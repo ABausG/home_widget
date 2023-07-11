@@ -30,7 +30,7 @@ void main() {
   setUp(() {
     launchUri = null;
     passedArguments = Completer();
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
         // ignore: body_might_complete_normally_nullable
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
       passedArguments.complete(methodCall.arguments);
@@ -52,7 +52,7 @@ void main() {
   });
 
   tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, null);
   });
 
@@ -152,7 +152,7 @@ void main() {
 
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
           .setMockMessageHandler(updateChannel.name,
               // ignore: body_might_complete_normally_nullable
               (message) async {
@@ -184,9 +184,9 @@ void main() {
     const size = Size(200, 200);
     final targetWidget = SizedBox.fromSize(
       size: size,
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+        children: const [
           Expanded(
             child: ColoredBox(
               color: Colors.red,
@@ -319,7 +319,7 @@ void main() {
 }
 
 void emitEvent(ByteData? event) {
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+  TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger
       .handlePlatformMessage(
     updateChannel.name,
     event,

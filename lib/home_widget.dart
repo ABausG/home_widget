@@ -128,7 +128,7 @@ class HomeWidget {
 
     try {
       final RenderView renderView = RenderView(
-        view: ui.PlatformDispatcher.instance.implicitView!,
+        window: ui.PlatformDispatcher.instance.views.first,
         child: RenderPositionedBox(
           alignment: Alignment.center,
           child: repaintBoundary,
