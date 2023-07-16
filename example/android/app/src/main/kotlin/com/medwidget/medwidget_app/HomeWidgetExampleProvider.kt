@@ -7,10 +7,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
-//import com.medwidget.home_widget.HomeWidgetBackgroundIntent
-//import com.medwidget.home_widget.HomeWidgetLaunchIntent
-//import com.medwidget.home_widget.HomeWidgetProvider
-
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider

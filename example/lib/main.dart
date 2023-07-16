@@ -16,7 +16,7 @@ void callbackDispatcher() {
     return Future.wait<bool?>([
       HomeWidget.saveWidgetData(
         'title',
-        'Updated from Background',
+        'meds awaiting',
       ),
       HomeWidget.saveWidgetData(
         'message',
@@ -39,14 +39,9 @@ void backgroundCallback(Uri? data) async {
 
   if (data?.host == 'titleclicked') {
     final greetings = [
-      'Hello',
-      'Hallo',
-      'Bonjour',
-      'Hola',
-      'Ciao',
-      '哈洛',
-      '안녕하세요',
-      'xin chào'
+      'take your meds',
+      'meds pending',
+      'medicine required',
     ];
     final selectedGreeting = greetings[Random().nextInt(greetings.length)];
 
@@ -58,7 +53,7 @@ void backgroundCallback(Uri? data) async {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  Workmanager().initialize(callbackDispatcher, isInDebugMode: false);
   runApp(MaterialApp(home: MyApp()));
 }
 
@@ -92,6 +87,62 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
+  Future _sendReminder() async {
+    try {
+      return Future.wait([
+        HomeWidget.saveWidgetData<String>('title', 'morning meds due'),
+        HomeWidget.saveWidgetData<String>('message', "take your abilify."),
+        HomeWidget.renderFlutterWidget(
+          Icon(
+            Icons.access_time,
+            size: 240,
+          ),
+          logicalSize: Size(240, 240),
+          key: 'dashIcon',
+        ),
+      ]);
+    } on PlatformException catch (exception) {
+      debugPrint('Error Sending Data. $exception');
+    }
+  }
+
+  Future _sendForgot() async {
+    try {
+      return Future.wait([
+        HomeWidget.saveWidgetData<String>('title', 'meds forgot.'),
+        HomeWidget.saveWidgetData<String>('message', "meds at.."),
+        HomeWidget.renderFlutterWidget(
+          Icon(
+            Icons.stop_circle,
+            size: 240,
+          ),
+          logicalSize: Size(240, 240),
+          key: 'dashIcon',
+        ),
+      ]);
+    } on PlatformException catch (exception) {
+      debugPrint('Error Sending Data. $exception');
+    }
+  }
+
+  Future _sendTaken() async {
+    try {
+      return Future.wait([
+        HomeWidget.saveWidgetData<String>('title', 'meds taken.'),
+        HomeWidget.saveWidgetData<String>('message', "took the meds at.."),
+        HomeWidget.renderFlutterWidget(
+          Icon(
+            Icons.stop_circle,
+            size: 240,
+          ),
+          logicalSize: Size(240, 240),
+          key: 'dashIcon',
+        ),
+      ]);
+    } on PlatformException catch (exception) {
+      debugPrint('Error Sending Data. $exception');
+    }
+  }
   Future _sendData() async {
     try {
       return Future.wait([
@@ -100,9 +151,9 @@ class _MyAppState extends State<MyApp> {
         HomeWidget.renderFlutterWidget(
           Icon(
             Icons.flutter_dash,
-            size: 200,
+            size: 240,
           ),
-          logicalSize: Size(200, 200),
+          logicalSize: Size(240, 240),
           key: 'dashIcon',
         ),
       ]);
@@ -123,14 +174,44 @@ class _MyAppState extends State<MyApp> {
   Future _loadData() async {
     try {
       return Future.wait([
-        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
-            .then((value) => _titleController.text = value ?? ''),
+        HomeWidget.getWidgetData<String>('title', defaultValue: 'Take your meds')
+            .then((value) => _titleController.text = value ?? 'Take your meds'),
         HomeWidget.getWidgetData<String>('message',
-                defaultValue: 'Default Message')
-            .then((value) => _messageController.text = value ?? ''),
+                defaultValue: 'I DID  I FORGOT')
+            .then((value) => _messageController.text = value ?? 'I DID I FORGOT'),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
+    }
+  }
+
+  Future<void> _sendReminderAndUpdate() async {
+    await _sendReminder();
+    await _updateWidget();
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else if (Platform.isIOS) {
+      exit(0);
+    }
+  }
+
+  Future<void> _sendForgotAndUpdate() async {
+    await _sendForgot();
+    await _updateWidget();
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else if (Platform.isIOS) {
+      exit(0);
+    }
+  }
+
+  Future<void> _sendTakenAndUpdate() async {
+    await _sendTaken();
+    await _updateWidget();
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else if (Platform.isIOS) {
+      exit(0);
     }
   }
 
@@ -165,13 +246,41 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('HomeWidget Example'),
-      ),
+    return SafeArea(
+   child: 
+   
+   Scaffold(
+      appBar: null, /*AppBar(
+        title: const Text('medwidget - 1 meds'),
+      ),*/
       body: Center(
         child: Column(
           children: [
+            Text("take your morning meds"),
+            Row(children: [
+            ElevatedButton(
+              onPressed: _sendTakenAndUpdate,
+              child: Text('taken'),
+            ),
+            SizedBox(width: 16),
+            ElevatedButton(
+              onPressed: _sendForgotAndUpdate,
+              child: Text('forgot'),
+            ),
+            ElevatedButton(
+  onPressed: _sendReminderAndUpdate
+  /* () {
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else if (Platform.isIOS) {
+      exit(0);
+    }
+  }*/,
+  child: Text("close app")
+)
+            
+
+            ],),
             TextField(
               decoration: InputDecoration(
                 hintText: 'Title',
@@ -209,6 +318,7 @@ class _MyAppState extends State<MyApp> {
           ],
         ),
       ),
+    ),
     );
   }
 }
