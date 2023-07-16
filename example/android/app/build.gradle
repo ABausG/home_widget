@@ -38,7 +38,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "es.antonborri.home_widget_example"
+        applicationId "com.medwidget.medwidget_app"
         minSdkVersion 16
         targetSdkVersion 33
         versionCode flutterVersionCode.toInteger()

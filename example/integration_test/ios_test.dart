@@ -25,7 +25,7 @@ void main() {
 
     setUpAll(() async {
       // Add Group Id
-      await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+      await HomeWidget.setAppGroupId('group.com.medwidget.integrationtest');
       // Clear all Data
       for (final key in testData.keys) {
         await HomeWidget.saveWidgetData(key, null);
@@ -74,7 +74,7 @@ void main() {
       testWidgets(
           'Initially Launched completes and returns null if not launched from widget',
           (tester) async {
-        await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+        await HomeWidget.setAppGroupId('group.com.medwidget.integrationtest');
         final retrievedData =
             await HomeWidget.initiallyLaunchedFromHomeWidget();
         expect(retrievedData, isNull);
@@ -83,7 +83,7 @@ void main() {
       group('Register Backgorund Callback', () {
         testWidgets('RegisterBackgroundCallback completes without error',
             (tester) async {
-          await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+          await HomeWidget.setAppGroupId('group.com.medwidget.integrationtest');
           final registerCallbackResult =
               await HomeWidget.registerBackgroundCallback(backgroundCallback);
           expect(registerCallbackResult, isNull);

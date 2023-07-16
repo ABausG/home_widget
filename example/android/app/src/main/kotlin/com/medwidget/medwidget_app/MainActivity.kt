@@ -1,4 +1,4 @@
-package es.antonborri.home_widget_example
+package com.medwidget.medwidget_app
 
 import io.flutter.embedding.android.FlutterActivity
 
