@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'database_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -67,12 +68,24 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _messageController = TextEditingController();
   TimeOfDay? _selectedTime;
   DateTime? _selectedDate;
+  List<DateTime> _storedDates = [];
+  DateTime? _lastStoredDateTime;
 
   @override
   void initState() {
     super.initState();
+    List<DateTime> _storedDates = [];
+    _loadStoredDates();
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     HomeWidget.registerBackgroundCallback(backgroundCallback);
+  }
+
+  Future<void> _loadStoredDates() async {
+    final List<DateTime> storedDates = await DatabaseHelper().getStoredDates();
+    setState(() {
+      _storedDates = storedDates;
+      _lastStoredDateTime = _storedDates.isNotEmpty ? _storedDates.last : null;
+    });
   }
 
   @override
@@ -99,6 +112,26 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _selectedTime = pickedTime;
       });
+          DateTime selectedDateTime;
+    if (_selectedDate != null) {
+      selectedDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+    } else {
+      selectedDateTime = DateTime(
+        DateTime.now().year,
+        DateTime.now().month,
+        DateTime.now().day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+    }
+       DatabaseHelper().insertDateTime(selectedDateTime);
+    _loadStoredDates();
     }
   }
 
@@ -114,6 +147,8 @@ Future<void> _showDatePicker() async {
       setState(() {
         _selectedDate = pickedDate;
       });
+      DatabaseHelper().insertDateTime(pickedDate);
+    _loadStoredDates();
     }
   }
 
@@ -329,6 +364,7 @@ Future<void> _showDatePicker() async {
               ? 'Selected Date: ${_selectedDate!.toString()}'
               : 'Select Date'), // Update button text
         ),
+
             TextField(
               decoration: InputDecoration(
                 hintText: 'Title',
@@ -362,7 +398,64 @@ Future<void> _showDatePicker() async {
               ElevatedButton(
                 onPressed: _stopBackgroundUpdate,
                 child: Text('Stop updating in background'),
-              )
+              ),
+
+Text(
+              _lastStoredDateTime != null
+                  ? 'Last Stored DateTime: $_lastStoredDateTime'
+                  : 'No stored DateTime',
+              style: TextStyle(fontSize: 20),
+            ),
+Expanded(
+          child: FutureBuilder<DateTime?>(
+            future: DatabaseHelper().getLastStoredDateTime(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              }
+              final lastDateTime = snapshot.data;
+              return Center(
+                child: Text(
+                  lastDateTime != null
+                      ? 'Last Stored DateTime: $lastDateTime'
+                      : 'No stored DateTime',
+                  style: TextStyle(fontSize: 20),
+                ),
+              );
+            },
+          ),
+        ),
+
+Expanded(
+            child: ListView.builder(
+              itemCount: _storedDates.length,
+              itemBuilder: (context, index) {
+                final storedDateTime = _storedDates[index];
+                final reversedIndex = _storedDates.length - index - 1;
+                final reversedDateTime = _storedDates[reversedIndex];
+                return ListTile(
+                  title: Text(reversedDateTime.toString()),
+                );
+              },
+            ),
+),
+
+
+/*
+              Expanded(
+            child: 
+ListView.builder(
+        itemCount: _storedDates.length,
+        itemBuilder: (context, index) {
+          final date = _storedDates[index];
+          return ListTile(
+            title: Text(date.toString()),
+          );
+        },
+),
+              ),
+*/
+
           ],
         ),
       ),

@@ -18,6 +18,7 @@ dependencies:
     path: ../
 
   cupertino_icons: ^1.0.5
+  sqflite: ^2.2.8+4
 
 dev_dependencies:
   integration_test:
