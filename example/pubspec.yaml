@@ -19,6 +19,7 @@ dependencies:
 
   cupertino_icons: ^1.0.5
   sqflite: ^2.2.8+4
+  flutter_local_notifications: ^15.1.0+1
 
 dev_dependencies:
   integration_test:
