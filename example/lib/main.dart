@@ -65,6 +65,8 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
+  TimeOfDay? _selectedTime;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -86,6 +88,35 @@ class _MyAppState extends State<MyApp> {
     _messageController.dispose();
     super.dispose();
   }
+
+  Future<void> _showTimePicker() async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (pickedTime != null && pickedTime != _selectedTime) {
+      setState(() {
+        _selectedTime = pickedTime;
+      });
+    }
+  }
+
+Future<void> _showDatePicker() async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (pickedDate != null && pickedDate != _selectedDate) {
+      setState(() {
+        _selectedDate = pickedDate;
+      });
+    }
+  }
+
 
   Future _sendReminder() async {
     try {
@@ -281,6 +312,23 @@ class _MyAppState extends State<MyApp> {
             
 
             ],),
+            ElevatedButton(
+          onPressed: () {
+            _showTimePicker();
+          },
+          child: 
+          Text(_selectedTime != null
+              ? 'Selected Time: ${_selectedTime!.format(context)}'
+              : 'Select Time'), // Update button text
+        ),
+        ElevatedButton(
+          onPressed: () {
+            _showDatePicker();
+          },
+          child: Text(_selectedDate != null
+              ? 'Selected Date: ${_selectedDate!.toString()}'
+              : 'Select Date'), // Update button text
+        ),
             TextField(
               decoration: InputDecoration(
                 hintText: 'Title',
