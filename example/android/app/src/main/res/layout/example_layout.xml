@@ -10,6 +10,11 @@
     android:padding="8dp"
     android:id="@+id/widget_container">
 
+    <ImageView
+        android:layout_width="64dp"
+        android:layout_height="64dp"
+        android:id="@+id/widget_img"
+        android:visibility="gone"/>
     <TextView
         android:id="@+id/widget_title"
         android:layout_width="match_parent"
@@ -25,9 +30,4 @@
         android:textSize="18sp"
         tools:text="Message" />
 
-    <ImageView
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:id="@+id/widget_img"
-        android:visibility="gone"/>
 </LinearLayout>
