@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+//import 'dart:js_interop';
 import 'dart:math';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 
 import 'database_helper.dart';
 import 'package:flutter/foundation.dart';
@@ -8,21 +11,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:duration/duration.dart';
+import 'package:duration/locale.dart';
+
+// alan sdk key - medwidget
+//567aae2456b47dec4300cfee9f26137b2e956eca572e1d8b807a3e2338fdd0dc/stage
 
 /// Used for Background Updates using Workmanager Plugin
 @pragma("vm:entry-point")
 void callbackDispatcher() {
-  Workmanager().executeTask((taskName, inputData) {
+  Workmanager().executeTask((taskName, inputData) async {
     final now = DateTime.now();
-    return Future.wait<bool?>([
-      HomeWidget.saveWidgetData(
+    await DatabaseHelper().setConfig(
+            'lastExecuteDate', DateTime.now().toString());
+    final String? lastTakenDateTimeStr =
+        await DatabaseHelper().getConfigValue('lastTakenDate');
+    if (lastTakenDateTimeStr != null && lastTakenDateTimeStr.length>0) {
+      await HomeWidget.saveWidgetData(
         'title',
-        'meds awaiting',
+        '${lastTakenDateTimeStr}',
+      );
+    }
+    //final tit=await HomeWidget.getWidgetData<String>('title', defaultValue: 'wud u get ur meds');
+    return Future.wait<bool?>([
+      /*HomeWidget.saveWidgetData(
+        'title',
+        '${tit}',
       ),
       HomeWidget.saveWidgetData(
         'message',
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-      ),
+      ),*/
       HomeWidget.updateWidget(
         name: 'HomeWidgetExampleProvider',
         iOSName: 'HomeWidgetExample',
@@ -38,7 +57,7 @@ void callbackDispatcher() {
 void backgroundCallback(Uri? data) async {
   print(data);
 
-  if (data?.host == 'titleclicked') {
+  //if (data?.host == 'titleclicked') {
     final greetings = [
       'take your meds',
       'meds pending',
@@ -49,7 +68,7 @@ void backgroundCallback(Uri? data) async {
     await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
     await HomeWidget.updateWidget(
         name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
-  }
+  //}
 }
 
 void main() {
@@ -64,21 +83,75 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   TimeOfDay? _selectedTime;
   DateTime? _selectedDate;
   List<DateTime> _storedDates = [];
   DateTime? _lastStoredDateTime;
+   DateTime? _lastTakenDateTime;
+    DateTime? _lastForgottenDateTime;
 
   @override
   void initState() {
     super.initState();
     List<DateTime> _storedDates = [];
     _loadStoredDates();
+    _initializeSelectedDate();
+    _initializeSelectedTime();
+    _initializeLastTakenDate();
+    _initializeLastForgottenDateTime();
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     HomeWidget.registerBackgroundCallback(backgroundCallback);
+     initPlatformState();
   }
+   
+     Future<void> _initializeLastTakenDate() async {
+    final String? lastTakenDateTimeStr =
+        await DatabaseHelper().getConfigValue('lastTakenDate');
+    if (lastTakenDateTimeStr != null && lastTakenDateTimeStr.length>0) {
+      setState(() {
+        _lastTakenDateTime = DateTime.parse(lastTakenDateTimeStr);
+      });
+    }
+  }
+
+   Future<void> _initializeSelectedTime() async {
+    final String? ret =
+        await DatabaseHelper().getConfigValue('startTime');
+    if (ret != null) {
+          final timeComponents = ret.split(':');
+    if (timeComponents.length == 2) {
+      final hour = int.tryParse(timeComponents[0]);
+      final minute = int.tryParse(timeComponents[1]);
+      if (hour != null && minute != null) {
+        print(ret);
+        setState(() {
+          _selectedTime = TimeOfDay(hour: hour, minute: minute);
+        });
+      }
+    }
+    }
+  }
+
+   Future<void> _initializeSelectedDate() async {
+    final String? lastStoredDateTimeStr =
+        await DatabaseHelper().getConfigValue('lastStoredDate');
+    if (lastStoredDateTimeStr != null) {
+      setState(() {
+        _selectedDate = DateTime.parse(lastStoredDateTimeStr);
+      });
+    }
+  }
+
+void initPlatformState() async {
+  var initializationSettingsAndroid = AndroidInitializationSettings('ic_launcher');
+  var initializationSettingsIOS = null; // IOSInitializationSettings();
+  var initializationSettings = InitializationSettings(android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+}
 
   Future<void> _loadStoredDates() async {
     final List<DateTime> storedDates = await DatabaseHelper().getStoredDates();
@@ -130,8 +203,11 @@ class _MyAppState extends State<MyApp> {
         pickedTime.minute,
       );
     }
-       DatabaseHelper().insertDateTime(selectedDateTime);
-    _loadStoredDates();
+       String selectedTimeString =
+    '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
+       await DatabaseHelper().setConfig(
+            'startTime', selectedTimeString);
+            print(selectedTimeString);
     }
   }
 
@@ -148,6 +224,8 @@ Future<void> _showDatePicker() async {
         _selectedDate = pickedDate;
       });
       DatabaseHelper().insertDateTime(pickedDate);
+       await DatabaseHelper().setConfig(
+            'lastStoredDate', pickedDate.toString());
     _loadStoredDates();
     }
   }
@@ -155,27 +233,81 @@ Future<void> _showDatePicker() async {
 
   Future _sendReminder() async {
     try {
+      if(_lastTakenDateTime?.day!=DateTime.now().day) {
       return Future.wait([
-        HomeWidget.saveWidgetData<String>('title', 'morning meds due'),
-        HomeWidget.saveWidgetData<String>('message', "take your abilify."),
+        HomeWidget.saveWidgetData<String>('title', 'meds due'),
+        HomeWidget.saveWidgetData<String>('message', "last taken ${_lastTakenDateTime??''}\nlast forgotten ${_lastForgottenDateTime??''}\n"),
         HomeWidget.renderFlutterWidget(
           Icon(
-            Icons.access_time,
+            Icons.medication,
             size: 240,
           ),
           logicalSize: Size(240, 240),
           key: 'dashIcon',
         ),
       ]);
+
+      } else {
+    final nice = [
+      'nice job',
+      'way to go',
+      'rock on',
+      'keep it up',
+      'good',
+      'nice',
+    ];
+    final selectedNice = nice[Random().nextInt(nice.length)];
+    final selectedNice2 = nice[Random().nextInt(nice.length)];
+    final take = [
+      'taken',
+      '',
+      'done',
+      'got it',
+      'conquered',
+      'smashed it',
+      'completed',
+      'compliant',
+      'took'
+    ];
+    final selectedTaken = take[Random().nextInt(take.length)];
+    final around = [
+      'around',
+      'circa',
+      'sometime',
+    ];
+    final selectedAround = around[Random().nextInt(around.length)];
+      final d = _lastTakenDateTime?.difference(DateTime.now())??Duration.zero;
+      final duration = printDuration(d);
+      DateFormat dateFormat = DateFormat('h:mm a');
+      String formattedTime = dateFormat.format(_lastTakenDateTime??DateTime.now());
+      final forgottenStr = _lastForgottenDateTime!=null?"days since last forgot: ":"";
+      return Future.wait([
+        HomeWidget.saveWidgetData<String>('title', '$selectedNice'),
+        HomeWidget.saveWidgetData<String>('message', "$selectedNice2\n$selectedTaken $formattedTime $selectedAround ${duration} ago\n$forgottenStr${_lastForgottenDateTime?.difference(DateTime.now()).inDays??''}\n"),
+        HomeWidget.renderFlutterWidget(
+          Icon(
+            Icons.medical_information,
+            size: 240,
+          ),
+          logicalSize: Size(240, 240),
+          key: 'dashIcon',
+        ),
+      ]);
+
+      }
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
     }
   }
 
   Future _sendForgot() async {
+    await DatabaseHelper().setConfig(
+          'lastForgottenDate', DateTime.now().toString());
+    final String? lastForgotten =
+        await DatabaseHelper().getConfigValue('lastForgottenDate');
     try {
       return Future.wait([
-        HomeWidget.saveWidgetData<String>('title', 'meds forgot.'),
+        HomeWidget.saveWidgetData<String>('title', 'meds forgot. ${lastForgotten}'),
         HomeWidget.saveWidgetData<String>('message', "meds at.."),
         HomeWidget.renderFlutterWidget(
           Icon(
@@ -193,9 +325,11 @@ Future<void> _showDatePicker() async {
 
   Future _sendTaken() async {
     try {
+      await DatabaseHelper().setConfig(
+          'lastTakenDate', DateTime.now().toString());
       return Future.wait([
         HomeWidget.saveWidgetData<String>('title', 'meds taken.'),
-        HomeWidget.saveWidgetData<String>('message', "took the meds at.."),
+        HomeWidget.saveWidgetData<String>('message', "${DateTime.now().toIso8601String()}"),
         HomeWidget.renderFlutterWidget(
           Icon(
             Icons.stop_circle,
@@ -241,10 +375,10 @@ Future<void> _showDatePicker() async {
     try {
       return Future.wait([
         HomeWidget.getWidgetData<String>('title', defaultValue: 'Take your meds')
-            .then((value) => _titleController.text = value ?? 'Take your meds'),
+            .then((value) => _titleController.text = value ?? ''),
         HomeWidget.getWidgetData<String>('message',
                 defaultValue: 'I DID  I FORGOT')
-            .then((value) => _messageController.text = value ?? 'I DID I FORGOT'),
+            .then((value) => _messageController.text = value ?? ''),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
@@ -284,6 +418,11 @@ Future<void> _showDatePicker() async {
   Future<void> _sendAndUpdate() async {
     await _sendData();
     await _updateWidget();
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else if (Platform.isIOS) {
+      exit(0);
+    }
   }
 
   void _checkForWidgetLaunch() {
@@ -291,7 +430,7 @@ Future<void> _showDatePicker() async {
   }
 
   void _launchedFromWidget(Uri? uri) {
-    if (uri != null) {
+    if (uri != null && uri.toString().length>0) {
       showDialog(
           context: context,
           builder: (buildContext) => AlertDialog(
@@ -302,12 +441,46 @@ Future<void> _showDatePicker() async {
   }
 
   void _startBackgroundUpdate() {
+
+
+    Workmanager().cancelByUniqueName('1');
     Workmanager().registerPeriodicTask('1', 'widgetBackgroundUpdate',
-        frequency: Duration(minutes: 15));
+        frequency: Duration(minutes: 15),
+        inputData: {
+    'int': 1,
+    'bool': true,
+    'double': 1.0,
+    'string': 'string',
+    'array': [1, 2, 3],
+    });
+    if (Platform.isAndroid) {
+      SystemNavigator.pop();
+    } else if (Platform.isIOS) {
+      exit(0);
+    }
   }
 
   void _stopBackgroundUpdate() {
     Workmanager().cancelByUniqueName('1');
+  }
+
+    Future<void> _initializeLastForgottenDateTime() async {
+    final String? lastForgottenDateTimeStr =
+        await DatabaseHelper().getConfigValue('lastForgottenDate');
+    if (lastForgottenDateTimeStr != null && lastForgottenDateTimeStr.length>0) {
+      setState(() {
+        _lastForgottenDateTime = DateTime.parse(lastForgottenDateTimeStr);
+      });
+    }
+  }
+
+  Future<void> _undoTakenAndForget() async {
+    await DatabaseHelper().setConfig('lastForgottenDate', '');
+    await DatabaseHelper().setConfig('lastTakenDate', '');
+    setState(() {
+    _lastForgottenDateTime=null;
+    _lastTakenDateTime=null;
+    });
   }
 
   @override
@@ -333,15 +506,13 @@ Future<void> _showDatePicker() async {
               onPressed: _sendForgotAndUpdate,
               child: Text('forgot'),
             ),
+            SizedBox(width: 16),
             ElevatedButton(
-  onPressed: _sendReminderAndUpdate
-  /* () {
-    if (Platform.isAndroid) {
-      SystemNavigator.pop();
-    } else if (Platform.isIOS) {
-      exit(0);
-    }
-  }*/,
+              onPressed: _undoTakenAndForget,
+              child: Text('undo'),
+            ),
+            ElevatedButton(
+  onPressed: _sendReminderAndUpdate,
   child: Text("close app")
 )
             
@@ -400,12 +571,29 @@ Future<void> _showDatePicker() async {
                 child: Text('Stop updating in background'),
               ),
 
+                      Center(
+            child: Text(
+              _lastTakenDateTime != null
+                  ? 'Last Taken: $_lastTakenDateTime'
+                  : 'No taken date',
+              style: TextStyle(fontSize: 20),
+            ),
+          ),
+                    Center(
+            child: Text(
+              _lastForgottenDateTime != null
+                  ? 'Last Forgotten: $_lastForgottenDateTime'
+                  : 'No forgotten date',
+              style: TextStyle(fontSize: 20),
+            ),
+          ),
 Text(
               _lastStoredDateTime != null
                   ? 'Last Stored DateTime: $_lastStoredDateTime'
                   : 'No stored DateTime',
               style: TextStyle(fontSize: 20),
             ),
+            /*
 Expanded(
           child: FutureBuilder<DateTime?>(
             future: DatabaseHelper().getLastStoredDateTime(),
@@ -425,7 +613,7 @@ Expanded(
             },
           ),
         ),
-
+*/
 Expanded(
             child: ListView.builder(
               itemCount: _storedDates.length,
@@ -433,8 +621,11 @@ Expanded(
                 final storedDateTime = _storedDates[index];
                 final reversedIndex = _storedDates.length - index - 1;
                 final reversedDateTime = _storedDates[reversedIndex];
+                final formattedDateTime =
+                  DateFormat('MMM dd, h:mm a').format(reversedDateTime);
                 return ListTile(
-                  title: Text(reversedDateTime.toString()),
+                  title: Text(formattedDateTime),
+                  //subtitle: Text('Count: ${_storedDates.length}'),
                 );
               },
             ),
