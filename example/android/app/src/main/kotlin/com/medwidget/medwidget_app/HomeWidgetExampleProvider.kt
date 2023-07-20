@@ -25,9 +25,10 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                 // Swap Title Text by calling Dart Code in the Background
                 setTextViewText(R.id.widget_title, widgetData.getString("title", null)
                         ?: "No Title Set")
+                val taken=widgetData.getString("lastTakenDate", null)
                 val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(
                         context,
-                        Uri.parse("homeWidgetExample://titleClicked")
+                        Uri.parse("homeWidgetExample://titleClicked?takenDate=$taken")
                 )
                 setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
 

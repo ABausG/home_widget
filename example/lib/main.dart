@@ -32,6 +32,8 @@ void callbackDispatcher() {
         DateTime lastTaken = DateTime.parse(lastTakenDateTimeStr);
         if(lastTaken.day==DateTime.now().day) {
       await HomeWidget.saveWidgetData('message','meds taken');
+      var medstaken = await HomeWidget.getWidgetData("medsTakenIcon");
+      await HomeWidget.saveWidgetData('dashIcon',medstaken);
         } else {
       await HomeWidget.saveWidgetData('message','meds due');
         }
@@ -41,10 +43,13 @@ void callbackDispatcher() {
       );*/
     } else {
       await HomeWidget.saveWidgetData('message','meds due');
+      await HomeWidget.saveWidgetData('title','meds due');
+      var medsdue = await HomeWidget.getWidgetData("medsDueIcon");
+      await HomeWidget.saveWidgetData('dashIcon',medsdue);
     }
     final msg=await HomeWidget.getWidgetData<String>('message');
     return Future.wait<bool?>([
-     // HomeWidget.saveWidgetData('message','$msg (${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')})',),
+      HomeWidget.saveWidgetData('message','$msg (${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')})',),
       HomeWidget.updateWidget( name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample',),
     ]).then((value) {
       return !value.contains(false);
@@ -58,12 +63,34 @@ void backgroundCallback(Uri? data) async {
   print(data);
 
   if (data?.host == 'titleclicked') {
+    final String? lastTakenDateTimeStr = await DatabaseHelper().getConfigValue('lastTakenDate');
+    final title=await HomeWidget.getWidgetData<String>('title');
+    final msg=await HomeWidget.getWidgetData<String>('message');
     final greetings = [
       'take your meds',
       'meds pending',
       'medicine required',
     ];
-    final selectedGreeting = greetings[Random().nextInt(greetings.length)];
+    var selectedGreeting = "meds due";
+    if(lastTakenDateTimeStr!.length>0) {
+    DateFormat dateFormat = DateFormat('h:mm a');
+    final last = DateTime.parse(lastTakenDateTimeStr);
+    String formattedTime = dateFormat.format(last);
+    selectedGreeting = "${formattedTime}"; //greetings[Random().nextInt(greetings.length)];
+    await HomeWidget.saveWidgetData<String>('message', formattedTime);
+      var medstaken = await HomeWidget.getWidgetData("medsTakenIcon");
+      await HomeWidget.saveWidgetData('dashIcon',medstaken);
+    } else {
+      final taken=DateTime.now();
+      await DatabaseHelper().setConfig('lastTakenDate', taken.toString());
+      await HomeWidget.saveWidgetData<String>('lastTakenDate', taken.toString());
+      selectedGreeting = "meds taken"; //greetings[Random().nextInt(greetings.length)];
+    DateFormat dateFormat = DateFormat('h:mm a');
+    String formattedTime = dateFormat.format(taken);
+    await HomeWidget.saveWidgetData<String>('message', formattedTime);
+      var medstaken = await HomeWidget.getWidgetData("medsTakenIcon");
+      await HomeWidget.saveWidgetData('dashIcon',medstaken);
+    }
 
     await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
     await HomeWidget.updateWidget(name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
@@ -355,12 +382,14 @@ String generateMessage()
 }
 
   Future _sendReminder() async {
+    await HomeWidget.renderFlutterWidget(Icon(Icons.check, size: 200,), logicalSize: Size(200, 200), key: 'medsTakenIcon',);
     try {
       if(_lastTakenDateTime?.day!=DateTime.now().day) {
       return Future.wait([
         _isSimpleMode?HomeWidget.saveWidgetData<String>('title', ''):HomeWidget.saveWidgetData<String>('title', 'meds due'),
         _isSimpleMode?HomeWidget.saveWidgetData<String>('message', ''):HomeWidget.saveWidgetData<String>('message', ""),//"last taken ${_lastTakenDateTime??''}\nlast forgotten ${_lastForgottenDateTime??''}\n"),
         HomeWidget.renderFlutterWidget( Icon(Icons.medication, size: 100,), logicalSize: Size(100, 100), key: 'dashIcon',),
+        HomeWidget.renderFlutterWidget( Icon(Icons.medication, size: 100,), logicalSize: Size(100, 100), key: 'medsDueIcon',),
       ]);
 
       } else {
@@ -403,9 +432,11 @@ String generateMessage()
 
   Future _sendTaken() async {
     try {
-      await DatabaseHelper().setConfig('lastTakenDate', DateTime.now().toString());
+      _lastTakenDateTime=DateTime.now();
+      await DatabaseHelper().setConfig('lastTakenDate', _lastTakenDateTime.toString());
       String msg = generateMessage();
       return Future.wait([
+        HomeWidget.saveWidgetData<String>('lastTakenDate', _lastTakenDateTime.toString()),
         _isSimpleMode?HomeWidget.saveWidgetData<String>('title', ''): HomeWidget.saveWidgetData<String>('title', 'meds taken.'),
         _isSimpleMode?HomeWidget.saveWidgetData<String>('message', ''):HomeWidget.saveWidgetData<String>('message', msg), //"${DateTime.now().toIso8601String()}"),
         HomeWidget.renderFlutterWidget( Icon( Icons.check, size: 200,), logicalSize: Size(200, 200), key: 'dashIcon',),
