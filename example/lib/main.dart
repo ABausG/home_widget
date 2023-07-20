@@ -4,6 +4,10 @@ import 'dart:io';
 import 'dart:math';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/src/date_time.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import 'database_helper.dart';
 import 'package:flutter/foundation.dart';
@@ -21,31 +25,27 @@ import 'package:duration/locale.dart';
 @pragma("vm:entry-point")
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) async {
+    final String? lastTakenDateTimeStr = await DatabaseHelper().getConfigValue('lastTakenDate');
     final now = DateTime.now();
-    await DatabaseHelper().setConfig(
-            'lastExecuteDate', DateTime.now().toString());
-    final String? lastTakenDateTimeStr =
-        await DatabaseHelper().getConfigValue('lastTakenDate');
+    final bool simpleMode = await DatabaseHelper().getConfigValue('simpleMode')=='1';
     if (lastTakenDateTimeStr != null && lastTakenDateTimeStr.length>0) {
-      await HomeWidget.saveWidgetData(
+        DateTime lastTaken = DateTime.parse(lastTakenDateTimeStr);
+        if(lastTaken.day==DateTime.now().day) {
+      await HomeWidget.saveWidgetData('message','meds taken');
+        } else {
+      await HomeWidget.saveWidgetData('message','meds due');
+        }
+      /*await HomeWidget.saveWidgetData(
         'title',
         '${lastTakenDateTimeStr}',
-      );
+      );*/
+    } else {
+      await HomeWidget.saveWidgetData('message','meds due');
     }
-    //final tit=await HomeWidget.getWidgetData<String>('title', defaultValue: 'wud u get ur meds');
+    final msg=await HomeWidget.getWidgetData<String>('message');
     return Future.wait<bool?>([
-      /*HomeWidget.saveWidgetData(
-        'title',
-        '${tit}',
-      ),
-      HomeWidget.saveWidgetData(
-        'message',
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-      ),*/
-      HomeWidget.updateWidget(
-        name: 'HomeWidgetExampleProvider',
-        iOSName: 'HomeWidgetExample',
-      ),
+     // HomeWidget.saveWidgetData('message','$msg (${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')})',),
+      HomeWidget.updateWidget( name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample',),
     ]).then((value) {
       return !value.contains(false);
     });
@@ -57,7 +57,7 @@ void callbackDispatcher() {
 void backgroundCallback(Uri? data) async {
   print(data);
 
-  //if (data?.host == 'titleclicked') {
+  if (data?.host == 'titleclicked') {
     final greetings = [
       'take your meds',
       'meds pending',
@@ -66,9 +66,8 @@ void backgroundCallback(Uri? data) async {
     final selectedGreeting = greetings[Random().nextInt(greetings.length)];
 
     await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
-    await HomeWidget.updateWidget(
-        name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
-  //}
+    await HomeWidget.updateWidget(name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
+  }
 }
 
 void main() {
@@ -87,27 +86,76 @@ class _MyAppState extends State<MyApp> {
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
-  TimeOfDay? _selectedTime;
+  bool _isSimpleMode = false;
+  TimeOfDay? _selectedNightStartTime;
+  TimeOfDay? _selectedMorningStartTime;
   DateTime? _selectedDate;
   List<DateTime> _storedDates = [];
   DateTime? _lastStoredDateTime;
    DateTime? _lastTakenDateTime;
     DateTime? _lastForgottenDateTime;
+    String _message="msg test";
+    String _title="title";
+    String _iconpath="";
 
   @override
   void initState() {
     super.initState();
     List<DateTime> _storedDates = [];
     _loadStoredDates();
+    _initializeSelectedNightStartTime();
     _initializeSelectedDate();
+print('dude Start Time: $_selectedMorningStartTime');
     _initializeSelectedTime();
+print('dude Start Time: $_selectedMorningStartTime');
     _initializeLastTakenDate();
     _initializeLastForgottenDateTime();
+    _loadSimpleModeState();
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     HomeWidget.registerBackgroundCallback(backgroundCallback);
      initPlatformState();
+     initTimeZone();
+print('dude Start Time: $_selectedMorningStartTime');
+     Future.delayed(Duration(seconds: 10), () {
+    scheduleMorningStartNotification();
+  });
+     Future.delayed(Duration(seconds: 1), () {
+      _loadData();
+    });
+     //_loadData();
+  }
+
+  void initTimeZone() async {
+  tz.initializeTimeZones();
+  final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+  tz.setLocalLocation(tz.getLocation(timeZoneName));
+}
+
+
+  Future<void> _loadSimpleModeState() async {
+    final String? simpleModeValueStr = await DatabaseHelper().getConfigValue('simpleMode');
+    if (simpleModeValueStr != null) {
+      setState(() {
+        _isSimpleMode = simpleModeValueStr == '1';
+      });
+    }
   }
    
+     Future<void> _initializeSelectedNightStartTime() async {
+    final String? ret = await DatabaseHelper().getConfigValue('nightStartTime');
+    if (ret != null) {
+      final timeComponents = ret.split(':');
+      if (timeComponents.length == 2) {
+        final hour = int.tryParse(timeComponents[0]);
+        final minute = int.tryParse(timeComponents[1]);
+        if (hour != null && minute != null) {
+          setState(() {
+            _selectedNightStartTime = TimeOfDay(hour: hour, minute: minute);
+          });
+        }
+      }
+    }
+  }
      Future<void> _initializeLastTakenDate() async {
     final String? lastTakenDateTimeStr =
         await DatabaseHelper().getConfigValue('lastTakenDate');
@@ -120,7 +168,7 @@ class _MyAppState extends State<MyApp> {
 
    Future<void> _initializeSelectedTime() async {
     final String? ret =
-        await DatabaseHelper().getConfigValue('startTime');
+        await DatabaseHelper().getConfigValue('morningStartTime');
     if (ret != null) {
           final timeComponents = ret.split(':');
     if (timeComponents.length == 2) {
@@ -128,11 +176,14 @@ class _MyAppState extends State<MyApp> {
       final minute = int.tryParse(timeComponents[1]);
       if (hour != null && minute != null) {
         print(ret);
+         _selectedMorningStartTime = TimeOfDay(hour: hour, minute: minute);
         setState(() {
-          _selectedTime = TimeOfDay(hour: hour, minute: minute);
+          _selectedMorningStartTime = TimeOfDay(hour: hour, minute: minute);
         });
       }
     }
+    } else {
+      print("db failed");
     }
   }
 
@@ -152,6 +203,39 @@ void initPlatformState() async {
   var initializationSettings = InitializationSettings(android: initializationSettingsAndroid, iOS: initializationSettingsIOS);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
+
+Future<void> scheduleMorningStartNotification() async {
+  TimeOfDay tmp = _selectedMorningStartTime?? TimeOfDay(hour: 8, minute: 0);
+print('Morning Start Time: $_selectedMorningStartTime');
+  var androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    'morning_start_channel_id',
+    'Morning Start Channel',
+    importance: Importance.max,
+    priority: Priority.high,
+  );
+ // var iOSPlatformChannelSpecifics = IOSNotificationDetails();
+  var platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics, iOS: null);
+
+  var now = DateTime.now();
+  var morningStartTime = DateTime(now.year, now.month, now.day, tmp.hour, tmp.minute);
+  // Check if the morning start time has already passed for today; if yes, schedule it for the next day
+  if (morningStartTime.isBefore(now)) {
+    morningStartTime = morningStartTime.add(Duration(days: 1));
+  }
+print('Morning Start Time: $morningStartTime');
+  // Schedule the notification
+  await flutterLocalNotificationsPlugin.zonedSchedule(
+    0, // Unique ID for the notification
+    'Good morning!',
+    'Time to start your day!',
+    TZDateTime.from(morningStartTime, tz.local),
+    platformChannelSpecifics,
+    androidAllowWhileIdle: true,
+    uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+    matchDateTimeComponents: DateTimeComponents.time,
+  );
+}
+
 
   Future<void> _loadStoredDates() async {
     final List<DateTime> storedDates = await DatabaseHelper().getStoredDates();
@@ -175,15 +259,15 @@ void initPlatformState() async {
     super.dispose();
   }
 
-  Future<void> _showTimePicker() async {
+  Future<void> _showMorningTimePicker() async {
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (pickedTime != null && pickedTime != _selectedTime) {
+    if (pickedTime != null && pickedTime != _selectedMorningStartTime) {
       setState(() {
-        _selectedTime = pickedTime;
+        _selectedMorningStartTime = pickedTime;
       });
           DateTime selectedDateTime;
     if (_selectedDate != null) {
@@ -205,9 +289,9 @@ void initPlatformState() async {
     }
        String selectedTimeString =
     '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
-       await DatabaseHelper().setConfig(
-            'startTime', selectedTimeString);
+      await DatabaseHelper().setConfig('morningStartTime', selectedTimeString);
             print(selectedTimeString);
+      scheduleMorningStartNotification();
     }
   }
 
@@ -230,24 +314,8 @@ Future<void> _showDatePicker() async {
     }
   }
 
-
-  Future _sendReminder() async {
-    try {
-      if(_lastTakenDateTime?.day!=DateTime.now().day) {
-      return Future.wait([
-        HomeWidget.saveWidgetData<String>('title', 'meds due'),
-        HomeWidget.saveWidgetData<String>('message', "last taken ${_lastTakenDateTime??''}\nlast forgotten ${_lastForgottenDateTime??''}\n"),
-        HomeWidget.renderFlutterWidget(
-          Icon(
-            Icons.medication,
-            size: 240,
-          ),
-          logicalSize: Size(240, 240),
-          key: 'dashIcon',
-        ),
-      ]);
-
-      } else {
+String generateMessage()
+{
     final nice = [
       'nice job',
       'way to go',
@@ -274,24 +342,42 @@ Future<void> _showDatePicker() async {
       'around',
       'circa',
       'sometime',
+      'about',
     ];
     final selectedAround = around[Random().nextInt(around.length)];
-      final d = _lastTakenDateTime?.difference(DateTime.now())??Duration.zero;
+      final d =DateTime.now().difference(_lastTakenDateTime??DateTime.now());
       final duration = printDuration(d);
       DateFormat dateFormat = DateFormat('h:mm a');
       String formattedTime = dateFormat.format(_lastTakenDateTime??DateTime.now());
       final forgottenStr = _lastForgottenDateTime!=null?"days since last forgot: ":"";
+      final widgetUpdateStr = "widget updated ${dateFormat.format(DateTime.now())}";
+      return "$selectedNice2\n$selectedTaken $formattedTime $selectedAround ${duration} ago\n$forgottenStr${_lastForgottenDateTime?.difference(DateTime.now()).inDays??''}\n$widgetUpdateStr";
+}
+
+  Future _sendReminder() async {
+    try {
+      if(_lastTakenDateTime?.day!=DateTime.now().day) {
       return Future.wait([
-        HomeWidget.saveWidgetData<String>('title', '$selectedNice'),
-        HomeWidget.saveWidgetData<String>('message', "$selectedNice2\n$selectedTaken $formattedTime $selectedAround ${duration} ago\n$forgottenStr${_lastForgottenDateTime?.difference(DateTime.now()).inDays??''}\n"),
-        HomeWidget.renderFlutterWidget(
-          Icon(
-            Icons.medical_information,
-            size: 240,
-          ),
-          logicalSize: Size(240, 240),
-          key: 'dashIcon',
-        ),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('title', ''):HomeWidget.saveWidgetData<String>('title', 'meds due'),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('message', ''):HomeWidget.saveWidgetData<String>('message', ""),//"last taken ${_lastTakenDateTime??''}\nlast forgotten ${_lastForgottenDateTime??''}\n"),
+        HomeWidget.renderFlutterWidget( Icon(Icons.medication, size: 100,), logicalSize: Size(100, 100), key: 'dashIcon',),
+      ]);
+
+      } else {
+    final nice = [
+      'nice job',
+      'way to go',
+      'rock on',
+      'keep it up',
+      'good',
+      'nice',
+    ];
+    final selectedNice = nice[Random().nextInt(nice.length)];
+      String msg = generateMessage();
+      return Future.wait([
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('title', ''):HomeWidget.saveWidgetData<String>('title', '$selectedNice'),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('message', ''):HomeWidget.saveWidgetData<String>('message', msg), //"$selectedNice2\n$selectedTaken $formattedTime $selectedAround ${duration} ago\n$forgottenStr${_lastForgottenDateTime?.difference(DateTime.now()).inDays??''}\n$widgetUpdateStr"),
+        HomeWidget.renderFlutterWidget(Icon(Icons.check, size: 200,), logicalSize: Size(200, 200), key: 'dashIcon',),
       ]);
 
       }
@@ -303,20 +389,12 @@ Future<void> _showDatePicker() async {
   Future _sendForgot() async {
     await DatabaseHelper().setConfig(
           'lastForgottenDate', DateTime.now().toString());
-    final String? lastForgotten =
-        await DatabaseHelper().getConfigValue('lastForgottenDate');
     try {
+      String msg = generateMessage();
       return Future.wait([
-        HomeWidget.saveWidgetData<String>('title', 'meds forgot. ${lastForgotten}'),
-        HomeWidget.saveWidgetData<String>('message', "meds at.."),
-        HomeWidget.renderFlutterWidget(
-          Icon(
-            Icons.stop_circle,
-            size: 240,
-          ),
-          logicalSize: Size(240, 240),
-          key: 'dashIcon',
-        ),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('title', ''):HomeWidget.saveWidgetData<String>('title', 'meds forgotten'),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('message', ''):HomeWidget.saveWidgetData<String>('message', msg),
+        HomeWidget.renderFlutterWidget( Icon( Icons.alarm_sharp, size: 200,), logicalSize: Size(200, 200), key: 'dashIcon',),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
@@ -325,19 +403,12 @@ Future<void> _showDatePicker() async {
 
   Future _sendTaken() async {
     try {
-      await DatabaseHelper().setConfig(
-          'lastTakenDate', DateTime.now().toString());
+      await DatabaseHelper().setConfig('lastTakenDate', DateTime.now().toString());
+      String msg = generateMessage();
       return Future.wait([
-        HomeWidget.saveWidgetData<String>('title', 'meds taken.'),
-        HomeWidget.saveWidgetData<String>('message', "${DateTime.now().toIso8601String()}"),
-        HomeWidget.renderFlutterWidget(
-          Icon(
-            Icons.stop_circle,
-            size: 240,
-          ),
-          logicalSize: Size(240, 240),
-          key: 'dashIcon',
-        ),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('title', ''): HomeWidget.saveWidgetData<String>('title', 'meds taken.'),
+        _isSimpleMode?HomeWidget.saveWidgetData<String>('message', ''):HomeWidget.saveWidgetData<String>('message', msg), //"${DateTime.now().toIso8601String()}"),
+        HomeWidget.renderFlutterWidget( Icon( Icons.check, size: 200,), logicalSize: Size(200, 200), key: 'dashIcon',),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
@@ -351,9 +422,9 @@ Future<void> _showDatePicker() async {
         HomeWidget.renderFlutterWidget(
           Icon(
             Icons.flutter_dash,
-            size: 240,
+            size: 200,
           ),
-          logicalSize: Size(240, 240),
+          logicalSize: Size(200, 200),
           key: 'dashIcon',
         ),
       ]);
@@ -374,11 +445,12 @@ Future<void> _showDatePicker() async {
   Future _loadData() async {
     try {
       return Future.wait([
-        HomeWidget.getWidgetData<String>('title', defaultValue: 'Take your meds')
-            .then((value) => _titleController.text = value ?? ''),
-        HomeWidget.getWidgetData<String>('message',
-                defaultValue: 'I DID  I FORGOT')
-            .then((value) => _messageController.text = value ?? ''),
+        HomeWidget.getWidgetData<String>('title', defaultValue: '')
+            .then((value) => _title=_titleController.text = value ?? '').whenComplete(() => setState((){})),
+        HomeWidget.getWidgetData<String>('message', defaultValue: '')
+            .then((value) => _message=_messageController.text = value ?? '').whenComplete(() => setState((){})),
+        HomeWidget.getWidgetData<String>('dashIcon')
+            .then((value) =>  _iconpath=value??"" ).whenComplete(() => setState((){})),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
@@ -431,12 +503,22 @@ Future<void> _showDatePicker() async {
 
   void _launchedFromWidget(Uri? uri) {
     if (uri != null && uri.toString().length>0) {
+  if (uri?.path.contains('meds%%20due')==true) {
+      showDialog(
+          context: context,
+          builder: (buildContext) => AlertDialog(
+                title: Text('Meds due'),
+                content: Text('Here is the URI: $uri'),
+              ));
+
+  } else {
       showDialog(
           context: context,
           builder: (buildContext) => AlertDialog(
                 title: Text('App started from HomeScreenWidget'),
-                content: Text('Here is the URI: $uri'),
+                content: Text('Here is the URI: $uri\n ${uri.path}'),
               ));
+  }
     }
   }
 
@@ -492,11 +574,17 @@ Future<void> _showDatePicker() async {
       appBar: null, /*AppBar(
         title: const Text('medwidget - 1 meds'),
       ),*/
-      body: Center(
+      body:
+         Center(
         child: Column(
           children: [
-            Text("take your morning meds"),
+            Text(_title,style: TextStyle(fontSize: 34),),
+            _iconpath.length>0?Image.file(File(_iconpath)):Container(),
+            Text(_message),
             Row(children: [
+            SizedBox(width: 16),
+            SizedBox(width: 16),
+            SizedBox(width: 16),
             ElevatedButton(
               onPressed: _sendTakenAndUpdate,
               child: Text('taken'),
@@ -511,22 +599,42 @@ Future<void> _showDatePicker() async {
               onPressed: _undoTakenAndForget,
               child: Text('undo'),
             ),
+            SizedBox(width: 16),
             ElevatedButton(
   onPressed: _sendReminderAndUpdate,
-  child: Text("close app")
+  child: Text("close")
 )
             
 
             ],),
+
+           Switch(
+    value: _isSimpleMode, // Step 1: Update the variable name in the widget
+    onChanged: (value) {
+      setState(() {
+        _isSimpleMode = value; // Step 1: Update the variable name in the callback
+      });
+      int simpleModeValue = _isSimpleMode ? 1 : 0;
+
+      // Save the simple mode value to the database
+      DatabaseHelper().setConfig('simpleMode', simpleModeValue.toString());
+    },
+  ),
             ElevatedButton(
           onPressed: () {
-            _showTimePicker();
+            _showMorningTimePicker();
           },
           child: 
-          Text(_selectedTime != null
-              ? 'Selected Time: ${_selectedTime!.format(context)}'
-              : 'Select Time'), // Update button text
+          Text(_selectedMorningStartTime != null
+              ? 'Morning Start Time: ${_selectedMorningStartTime!.format(context)}'
+              : 'Morning Start Time'),
         ),
+          ElevatedButton(
+    onPressed: _showNightStartTimePicker,
+    child: Text(_selectedNightStartTime != null
+        ? 'Night Start Time: ${_selectedNightStartTime!.format(context)}'
+        : 'Night Start Time'),
+  ),
         ElevatedButton(
           onPressed: () {
             _showDatePicker();
@@ -650,7 +758,28 @@ ListView.builder(
           ],
         ),
       ),
-    ),
+   ),
     );
   }
+
+  Future<void> _showNightStartTimePicker() async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: _selectedNightStartTime ?? TimeOfDay.now(),
+    );
+
+    if (pickedTime != null && pickedTime != _selectedNightStartTime) {
+      setState(() {
+        _selectedNightStartTime = pickedTime;
+      });
+
+      // Convert the selected time to a string representation
+      String selectedNightStartTimeString =
+          '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
+
+      // Save the selected time to the database
+      await DatabaseHelper().setConfig('nightStartTime', selectedNightStartTimeString);
+    }
+  }
 }
+
