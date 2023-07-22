@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 //import 'dart:js_interop';
+import 'package:medwidget_app/pages/MyHomePage.dart';
+import 'package:table_calendar/table_calendar.dart';
 import 'dart:math';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +10,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/src/date_time.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'CalendarClient.dart';
 
 import 'database_helper.dart';
 import 'package:flutter/foundation.dart';
@@ -17,6 +20,10 @@ import 'package:home_widget/home_widget.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:duration/duration.dart';
 import 'package:duration/locale.dart';
+import 'pages/complex_example.dart';
+import 'pages/events_example.dart';
+import 'pages/settings_page.dart';
+import 'pages/Home.dart';
 
 // alan sdk key - medwidget
 //567aae2456b47dec4300cfee9f26137b2e956eca572e1d8b807a3e2338fdd0dc/stage
@@ -36,6 +43,9 @@ void callbackDispatcher() {
       await HomeWidget.saveWidgetData('dashIcon',medstaken);
         } else {
       await HomeWidget.saveWidgetData('message','meds due');
+      await HomeWidget.saveWidgetData('title','meds due');
+      var medsdue = await HomeWidget.getWidgetData("medsDueIcon");
+      await HomeWidget.saveWidgetData('dashIcon',medsdue);
         }
       /*await HomeWidget.saveWidgetData(
         'title',
@@ -111,6 +121,11 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
+  final TextEditingController _memoController = TextEditingController();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   bool _isSimpleMode = false;
@@ -132,9 +147,7 @@ class _MyAppState extends State<MyApp> {
     _loadStoredDates();
     _initializeSelectedNightStartTime();
     _initializeSelectedDate();
-print('dude Start Time: $_selectedMorningStartTime');
     _initializeSelectedTime();
-print('dude Start Time: $_selectedMorningStartTime');
     _initializeLastTakenDate();
     _initializeLastForgottenDateTime();
     _loadSimpleModeState();
@@ -142,7 +155,6 @@ print('dude Start Time: $_selectedMorningStartTime');
     HomeWidget.registerBackgroundCallback(backgroundCallback);
      initPlatformState();
      initTimeZone();
-print('dude Start Time: $_selectedMorningStartTime');
      Future.delayed(Duration(seconds: 10), () {
     scheduleMorningStartNotification();
   });
@@ -281,6 +293,7 @@ print('Morning Start Time: $morningStartTime');
 
   @override
   void dispose() {
+    _memoController.dispose();
     _titleController.dispose();
     _messageController.dispose();
     super.dispose();
@@ -598,16 +611,18 @@ String generateMessage()
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-   child: 
-   
-   Scaffold(
+   return Scaffold(
       appBar: null, /*AppBar(
         title: const Text('medwidget - 1 meds'),
       ),*/
       body:
+      SafeArea(
+      child: 
+      SingleChildScrollView(
+        child: 
          Center(
         child: Column(
+          mainAxisSize: MainAxisSize.max,
           children: [
             Text(_title,style: TextStyle(fontSize: 34),),
             _iconpath.length>0?Image.file(File(_iconpath)):Container(),
@@ -638,6 +653,12 @@ String generateMessage()
             
 
             ],),
+            TextField(
+              decoration: InputDecoration(
+                hintText: 'Memo',
+              ),
+              controller: _memoController,
+            ),
 
            Switch(
     value: _isSimpleMode, // Step 1: Update the variable name in the widget
@@ -687,6 +708,16 @@ String generateMessage()
               ),
               controller: _messageController,
             ),
+            ElevatedButton(
+          onPressed: () {
+            // Open the settings page when the "Settings" button is clicked
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SettingsPage()),
+            );
+          },
+          child: Text('Settings'),
+        ),
             ElevatedButton(
               onPressed: _sendAndUpdate,
               child: Text('Send Data to Widget'),
@@ -753,7 +784,36 @@ Expanded(
           ),
         ),
 */
-Expanded(
+            ElevatedButton(
+              child: Text('Animated'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => MyHomePage()),
+              ),
+            ),
+            ElevatedButton(
+              child: Text('Complex'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => TableComplexExample()),
+              ),
+            ),
+            ElevatedButton(
+              child: Text('Events'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => TableEventsExample()),
+              ),
+            ),
+            ElevatedButton(
+              child: Text('Home'),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => Home()),
+              ),
+            ),
+      SizedBox(
+      height: 200, // Replace this with the desired height
             child: ListView.builder(
               itemCount: _storedDates.length,
               itemBuilder: (context, index) {
@@ -769,7 +829,6 @@ Expanded(
               },
             ),
 ),
-
 
 /*
               Expanded(
@@ -788,6 +847,7 @@ ListView.builder(
 
           ],
         ),
+      ),
       ),
    ),
     );

@@ -24,6 +24,10 @@ dependencies:
   intl: ^0.18.1
   timezone: ^0.9.2
   flutter_timezone: ^1.0.7
+  table_calendar: ^3.0.9
+  googleapis_auth: ^1.4.1
+  googleapis: ^11.3.0
+  url_launcher: ^6.1.12
 
 dev_dependencies:
   integration_test:
@@ -32,6 +36,8 @@ dev_dependencies:
     sdk: flutter
 
 flutter:
-
+  assets:
+    - assets/
+    - assets/meds/
   uses-material-design: true
 
