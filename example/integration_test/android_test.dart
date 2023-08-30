@@ -44,8 +44,10 @@ void main() {
     });
 
     testWidgets('Returns default Value', (tester) async {
-      final returnValue = await HomeWidget.getWidgetData(defaultValue.key,
-          defaultValue: defaultValue.value);
+      final returnValue = await HomeWidget.getWidgetData(
+        defaultValue.key,
+        defaultValue: defaultValue.value,
+      );
 
       expect(returnValue, defaultValue.value);
     });
@@ -60,7 +62,9 @@ void main() {
   });
 
   testWidgets('Register Background Callback', (tester) async {
-    await HomeWidget.registerBackgroundCallback(backgroundCallback);
+    final returnValue =
+        await HomeWidget.registerBackgroundCallback(backgroundCallback);
+    expect(returnValue, true);
   });
 
   testWidgets(

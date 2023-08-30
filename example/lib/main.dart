@@ -115,7 +115,9 @@ class _MyAppState extends State<MyApp> {
   Future _updateWidget() async {
     try {
       return HomeWidget.updateWidget(
-          name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
+        name: 'HomeWidgetExampleProvider',
+        iOSName: 'HomeWidgetExample',
+      );
     } on PlatformException catch (exception) {
       debugPrint('Error Updating Widget. $exception');
     }
@@ -126,9 +128,10 @@ class _MyAppState extends State<MyApp> {
       return Future.wait([
         HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
             .then((value) => _titleController.text = value ?? ''),
-        HomeWidget.getWidgetData<String>('message',
-                defaultValue: 'Default Message')
-            .then((value) => _messageController.text = value ?? ''),
+        HomeWidget.getWidgetData<String>(
+          'message',
+          defaultValue: 'Default Message',
+        ).then((value) => _messageController.text = value ?? ''),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
@@ -147,17 +150,21 @@ class _MyAppState extends State<MyApp> {
   void _launchedFromWidget(Uri? uri) {
     if (uri != null) {
       showDialog(
-          context: context,
-          builder: (buildContext) => AlertDialog(
-                title: Text('App started from HomeScreenWidget'),
-                content: Text('Here is the URI: $uri'),
-              ));
+        context: context,
+        builder: (buildContext) => AlertDialog(
+          title: Text('App started from HomeScreenWidget'),
+          content: Text('Here is the URI: $uri'),
+        ),
+      );
     }
   }
 
   void _startBackgroundUpdate() {
-    Workmanager().registerPeriodicTask('1', 'widgetBackgroundUpdate',
-        frequency: Duration(minutes: 15));
+    Workmanager().registerPeriodicTask(
+      '1',
+      'widgetBackgroundUpdate',
+      frequency: Duration(minutes: 15),
+    );
   }
 
   void _stopBackgroundUpdate() {
@@ -206,7 +213,7 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _stopBackgroundUpdate,
                 child: Text('Stop updating in background'),
-              )
+              ),
           ],
         ),
       ),

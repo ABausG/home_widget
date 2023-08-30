@@ -1,3 +1,4 @@
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:integration_test/integration_test.dart';
@@ -7,8 +8,10 @@ void main() {
 
   group('Need Group Id', () {
     testWidgets('Save Data needs GroupId', (tester) async {
-      expect(() async => await HomeWidget.saveWidgetData('AnyId', null),
-          throwsException);
+      expect(
+        () async => await HomeWidget.saveWidgetData('AnyId', null),
+        throwsException,
+      );
     });
   });
 
@@ -54,8 +57,10 @@ void main() {
       });
 
       testWidgets('Returns default Value', (tester) async {
-        final returnValue = await HomeWidget.getWidgetData(defaultValue.key,
-            defaultValue: defaultValue.value);
+        final returnValue = await HomeWidget.getWidgetData(
+          defaultValue.key,
+          defaultValue: defaultValue.value,
+        );
 
         expect(returnValue, defaultValue.value);
       });
@@ -83,10 +88,14 @@ void main() {
       group('Register Backgorund Callback', () {
         testWidgets('RegisterBackgroundCallback completes without error',
             (tester) async {
+          final deviceInfo = await DeviceInfoPlugin().iosInfo;
+          final hasInteractiveWidgets =
+              double.parse(deviceInfo.systemVersion) >= 17.0;
           await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
           final registerCallbackResult =
               await HomeWidget.registerBackgroundCallback(backgroundCallback);
-          expect(registerCallbackResult, isNull);
+          expect(
+              registerCallbackResult, hasInteractiveWidgets ? isTrue : isNull);
         });
       });
     });
