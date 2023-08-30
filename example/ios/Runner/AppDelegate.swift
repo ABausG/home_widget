@@ -1,7 +1,7 @@
-import UIKit
 import Flutter
-import workmanager
+import UIKit
 import home_widget
+import workmanager
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -10,19 +10,19 @@ import home_widget
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
-    
-    UIApplication.shared.setMinimumBackgroundFetchInterval(TimeInterval(60*15))
-    
+
+    UIApplication.shared.setMinimumBackgroundFetchInterval(TimeInterval(60 * 15))
+
     WorkmanagerPlugin.setPluginRegistrantCallback { registry in
-        GeneratedPluginRegistrant.register(with: registry)
+      GeneratedPluginRegistrant.register(with: registry)
     }
-      
-      if #available(iOS 16, *) {
-          HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
-              GeneratedPluginRegistrant.register(with: registry)
-          }
+
+    if #available(iOS 16, *) {
+      HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
+        GeneratedPluginRegistrant.register(with: registry)
       }
-      
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
