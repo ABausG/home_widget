@@ -1,6 +1,7 @@
 import UIKit
 import Flutter
 import workmanager
+import home_widget
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -15,7 +16,13 @@ import workmanager
     WorkmanagerPlugin.setPluginRegistrantCallback { registry in
         GeneratedPluginRegistrant.register(with: registry)
     }
-    
+      
+      if #available(iOS 16, *) {
+          HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
+              GeneratedPluginRegistrant.register(with: registry)
+          }
+      }
+      
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }

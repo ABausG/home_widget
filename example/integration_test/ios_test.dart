@@ -93,4 +93,4 @@ void main() {
   });
 }
 
-void backgroundCallback(Uri? uri) {}
+Future<void> backgroundCallback(Uri? uri) async {}

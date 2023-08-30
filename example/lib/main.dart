@@ -34,9 +34,8 @@ void callbackDispatcher() {
 
 /// Called when Doing Background Work initiated from Widget
 @pragma("vm:entry-point")
-void backgroundCallback(Uri? data) async {
+Future<void> backgroundCallback(Uri? data) async {
   print(data);
-
   if (data?.host == 'titleclicked') {
     final greetings = [
       'Hello',
@@ -46,13 +45,15 @@ void backgroundCallback(Uri? data) async {
       'Ciao',
       '哈洛',
       '안녕하세요',
-      'xin chào'
+      'xin chào',
     ];
     final selectedGreeting = greetings[Random().nextInt(greetings.length)];
-
+    await HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
     await HomeWidget.updateWidget(
-        name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
+      name: 'HomeWidgetExampleProvider',
+      iOSName: 'HomeWidgetExample',
+    );
   }
 }
 

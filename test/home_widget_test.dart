@@ -327,6 +327,6 @@ void emitEvent(ByteData? event) {
   );
 }
 
-void testCallback(Uri? uri) {
+Future<void> testCallback(Uri? uri) async {
   debugPrint('Called TestCallback');
 }

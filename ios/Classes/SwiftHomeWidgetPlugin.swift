@@ -106,7 +106,25 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             }
             result(initialUrl?.absoluteString)
         } else if call.method == "registerBackgroundCallback" {
-            result(nil)
+            if (SwiftHomeWidgetPlugin.groupId == nil) {
+                result(notInitializedError)
+                return
+            }
+            if #available(iOS 16.0, *) {
+                let callbackHandels = call.arguments as! [Int64]
+                let dispatcher = callbackHandels[0]
+                let callback = callbackHandels[1]
+                let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
+                preferences?.setValue(dispatcher, forKey: HomeWidgetBackgroundWorker.dispatcherKey)
+                preferences?.setValue(callback, forKey: HomeWidgetBackgroundWorker.callbackKey)
+                    HomeWidgetBackgroundWorker.setupEngine(dispatcher: dispatcher)
+                
+                result(true)
+                return
+            } else {
+                result(FlutterError(code: "-5", message: "Interactivity is only available on iOS 16.0 (LiveActivity) and iOS 17.0 (Interactive Widgets)", details: nil))
+            }
+            
         } else {
             result(FlutterMethodNotImplemented)
         }
@@ -143,6 +161,5 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
     private func isWidgetUrl(url: URL) -> Bool {
         let components = URLComponents.init(url: url, resolvingAgainstBaseURL: false)
         return components?.queryItems?.contains(where: {(item) in item.name == "homeWidget"}) ?? false
-    
     }
 }

@@ -47,11 +47,18 @@ struct HomeWidgetExampleEntryView : View {
     }
     
     var body: some View {
-        VStack.init(alignment: .leading, spacing: /*@START_MENU_TOKEN@*/nil/*@END_MENU_TOKEN@*/, content: {
-            Text(entry.title).bold().font(/*@START_MENU_TOKEN@*/.title/*@END_MENU_TOKEN@*/)
+        VStack.init(alignment: .center, spacing: /*@START_MENU_TOKEN@*/nil/*@END_MENU_TOKEN@*/, content: {
+            if #available(iOSApplicationExtension 17, *) {
+                Button(intent: BackgroundIntent(url: URL(string: "homeWidgetExample://titleClicked"), appGroup: widgetGroupId)) {
+                                Text(entry.title).bold().font(/*@START_MENU_TOKEN@*/.title/*@END_MENU_TOKEN@*/)
+                            }.buttonStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            Text(entry.title).bold().font(/*@START_MENU_TOKEN@*/.title/*@END_MENU_TOKEN@*/).frame(maxWidth: .infinity, alignment: .leading)
+                        }
             Text(entry.message)
                 .font(.body)
                 .widgetURL(URL(string: "homeWidgetExample://message?message=\(entry.message)&homeWidget"))
+                .frame(maxWidth: .infinity, alignment: .leading)
             if (iconPath != nil) {
                 Image(uiImage: UIImage(contentsOfFile: iconPath!)!).resizable()
                     .scaledToFill()
