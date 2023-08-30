@@ -180,12 +180,27 @@ val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
 setOnClickPendingIntent(R.id.widget_message, pendingIntentWithData)
 ```
 
-### Background Click
+### Interactive Widgets
 
-Android allows interactive elements in HomeScreenWidgets. This allows to for example add a refresh button on a widget.
-With home_widget you can use this by following these steps:
+Android and iOS 17 and above allow widgets to have interactive Elements like Buttons
 
-#### Android/Native Part
+#### Dart
+1. Write a **static** function that takes a Uri as an argument. This will get called when a user clicks on the View
+    ```dart
+    @pragma("vm:entry-point")
+    FutureOr<void> backgroundCallback(Uri data) async {
+      // do something with data
+      ...
+    }
+    ```
+   `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode.
+
+2. Register the callback function by calling
+    ```dart
+    HomeWidget.registerBackgroundCallback(backgroundCallback);
+    ```
+
+#### Android
 1. Add the necessary Receiver and Service to you `AndroidManifest.xml` file
     ```
    <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver">
@@ -205,21 +220,75 @@ With home_widget you can use this by following these steps:
     setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
     ```
 
-#### Dart
-4. Write a **static** function that takes a Uri as an argument. This will get called when a user clicks on the View
-    ```dart
-    @pragma("vm:entry-point")
-    void backgroundCallback(Uri data) {
-      // do something with data
-      ...
+#### iOS
+1. Adjust your Podfile to add `home_widget` as a dependency to your WidgetExtension
+   ```
+   target 'YourWidgetExtension' do
+      use_frameworks!
+      use_modular_headers!
+      
+      pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+   end
+   ```
+2. To be able to use plugins with the Background Callback add this to your AppDelegate's `application` function
+   ```swift
+   if #available(iOS 16, *) {
+    HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
+        GeneratedPluginRegistrant.register(with: registry)
     }
-    ```
-   `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode for Android.
-
-5. Register the callback function by calling
-    ```dart
-    HomeWidget.registerBackgroundCallback(backgroundCallback);
-    ```
+   }
+   ```
+3. Create a custom `AppIntent` in your App Target (Runner) and make sure to select both your App and your WidgetExtension in the Target Membership panel
+   
+   ![Target Membership](https://github.com/ABausG/home_widget/blob/main/.github/assets/target_membership.png?raw=true)
+   
+   In this Intent you should import `home_widget` and call `HomeWidgetBackgroundWorker.run(url: url, appGroup: appGroup!)` in the perform method. `url` and `appGroup` can be either hardcoded or set as parameters from the Widget
+   ```swift
+   import AppIntents
+   import Flutter
+   import Foundation
+   import home_widget
+   
+   @available(iOS 16, *)
+   public struct BackgroundIntent: AppIntent {
+      static public var title: LocalizedStringResource = "HomeWidget Background Intent"
+      
+      @Parameter(title: "Widget URI")
+      var url: URL?
+      
+      @Parameter(title: "AppGroup")
+      var appGroup: String?
+      
+      public init() {}
+      
+      public init(url: URL?, appGroup: String?) {
+         self.url = url
+         self.appGroup = appGroup
+      }
+      
+      public func perform() async throws -> some IntentResult {
+         await HomeWidgetBackgroundWorker.run(url: url, appGroup: appGroup!)
+      
+         return .result()
+      }
+   }   
+   ```
+4. Add a Button to your Widget. This Button might be encapsulated by a Version check. Pass in an instance of the `AppIntent` created in the previous step
+   ```swift
+   Button(
+      intent: BackgroundIntent(
+        url: URL(string: "homeWidgetExample://titleClicked"), appGroup: widgetGroupId)
+    ) {
+      Text(entry.title).bold().font( /*@START_MENU_TOKEN@*/.title /*@END_MENU_TOKEN@*/)
+    }.buttonStyle(.plain)
+   ```
+5. With the current setup the Widget is now Interactive as long as the App is still in the background. If you want to have the Widget be able to wake the App up you need to add the following to your `AppIntent` file
+   ```swift
+   @available(iOS 16, *)
+   @available(iOSApplicationExtension, unavailable)
+   extension BackgroundIntent: ForegroundContinuableIntent {}
+   ```
+   This code tells the system to always perform the Intent in the App and not in a process attached to the Widget. Note however that this will start your Flutter App using the normal main entrypoint meaning your full app might be run in the background. To counter this you should add checks in the very first Widget you build inside `runApp` to only perform necessary calls/setups while the App is launched in the background
     
 ### Using images of Flutter widgets
 
