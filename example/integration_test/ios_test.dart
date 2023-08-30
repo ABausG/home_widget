@@ -95,7 +95,9 @@ void main() {
           final registerCallbackResult =
               await HomeWidget.registerBackgroundCallback(backgroundCallback);
           expect(
-              registerCallbackResult, hasInteractiveWidgets ? isTrue : isNull);
+            registerCallbackResult,
+            hasInteractiveWidgets ? isTrue : isNull,
+          );
         });
       });
     });

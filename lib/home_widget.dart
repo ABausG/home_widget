@@ -99,7 +99,7 @@ class HomeWidget {
   /// Register a callback that gets called when clicked on a specific View in a HomeWidget
   /// supported only on Android
   /// More Info on setting this up in the README
-  static Future<bool?> registerBackgroundCallback(Function(Uri?) callback) {
+  static Future<bool?> registerBackgroundCallback(FutureOr<void> Function(Uri?) callback) {
     final args = <dynamic>[
       ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
       ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),

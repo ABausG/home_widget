@@ -15,7 +15,7 @@ Future<void> callbackDispatcher() async {
 
     final callback = PluginUtilities.getCallbackFromHandle(
       CallbackHandle.fromRawHandle(args[0]),
-    ) as Future<void> Function(Uri?);
+    ) as FutureOr<void> Function(Uri?);
 
     final rawUri = args[1] as String?;
 
