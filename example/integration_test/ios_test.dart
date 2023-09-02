@@ -93,7 +93,7 @@ void main() {
               double.parse(deviceInfo.systemVersion) >= 17.0;
           await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
           final registerCallbackResult =
-              await HomeWidget.registerBackgroundCallback(backgroundCallback);
+              await HomeWidget.registerInteractivityCallback(backgroundCallback);
           expect(
             registerCallbackResult,
             hasInteractiveWidgets ? isTrue : isNull,

@@ -63,7 +63,7 @@ void main() {
 
   testWidgets('Register Background Callback', (tester) async {
     final returnValue =
-        await HomeWidget.registerBackgroundCallback(backgroundCallback);
+        await HomeWidget.registerInteractivityCallback(backgroundCallback);
     expect(returnValue, true);
   });
 

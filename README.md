@@ -155,7 +155,7 @@ Android and iOS (starting with iOS 17) allow widgets to have interactive Element
 
 2. Register the callback function by calling
     ```dart
-    HomeWidget.registerBackgroundCallback(backgroundCallback);
+    HomeWidget.registerInteractivityCallback(backgroundCallback);
     ```
 </details>
 
