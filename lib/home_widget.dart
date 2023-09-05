@@ -102,7 +102,7 @@ class HomeWidget {
   static Future<bool?> registerBackgroundCallback(Function(Uri?) callback) {
     final args = <dynamic>[
       ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle()
+      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
