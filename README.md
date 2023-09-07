@@ -82,7 +82,7 @@ let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
 
 ### Add WidgetReceiver to AndroidManifest
 ```xml
-<receiver android:name="HomeWidgetExampleProvider" >
+<receiver android:name="HomeWidgetExampleProvider" android:exported="true">
     <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
     </intent-filter>
@@ -143,6 +143,7 @@ To retrieve the current Data saved in the Widget call `HomeWidget.getWidgetData<
 Android and iOS (starting with iOS 17) allow widgets to have interactive Elements like Buttons
 
 <details><summary>Dart</summary>
+
 1. Write a **static** function that takes a Uri as an argument. This will get called when a user clicks on the View
     ```dart
     @pragma("vm:entry-point")
@@ -160,14 +161,19 @@ Android and iOS (starting with iOS 17) allow widgets to have interactive Element
 </details>
 
 <details><summary>iOS</summary>
+
 1. Adjust your Podfile to add `home_widget` as a dependency to your WidgetExtension
    ```
-   target 'YourWidgetExtension' do
+   target 'Runner' do
       use_frameworks!
       use_modular_headers!
-
-      pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
-end
+      
+      flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+      
+      target 'HomeWidgetExampleExtension' do
+         inherit! :search_paths
+      end
+   end
    ```
 2. To be able to use plugins with the Background Callback add this to your AppDelegate's `application` function
    ```swift
@@ -231,9 +237,10 @@ end
 </details>
 
 <details><summary>Android</summary>
+
 1. Add the necessary Receiver and Service to you `AndroidManifest.xml` file
     ```
-   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver">
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
         <intent-filter>
             <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
         </intent-filter>
