@@ -1,5 +1,6 @@
 ## 0.4.0-alpha.0
 * Add support for Interactive Widgets on iOS
+* Rename `registerBackgroundCallback` to `registerInteractivityCallback`
 
 ## 0.3.0
 * Add `renderFlutterWidget` method to save a Flutter Widget as an Image [#126](https://github.com/ABausG/home_widget/pull/126) by [leighajarett](https://github.com/leighajarett)
