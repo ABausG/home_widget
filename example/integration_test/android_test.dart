@@ -13,7 +13,7 @@ void main() {
     'nullValueKey': null,
   };
 
-  final defaultValue = MapEntry('defaultKey', 'defaultValue');
+  const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
   setUpAll(() {
     // Clear all Data
@@ -56,7 +56,7 @@ void main() {
   testWidgets('Update Widget completes', (tester) async {
     final returnValue = await HomeWidget.updateWidget(
       name: 'HomeWidgetExampleProvider',
-    ).timeout(Duration(seconds: 5));
+    ).timeout(const Duration(seconds: 5));
 
     expect(returnValue, true);
   });

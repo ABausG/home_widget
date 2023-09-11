@@ -24,7 +24,7 @@ void main() {
       'nullValueKey': null,
     };
 
-    final defaultValue = MapEntry('defaultKey', 'defaultValue');
+    const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
     setUpAll(() async {
       // Add Group Id
@@ -70,7 +70,7 @@ void main() {
       final returnValue = await HomeWidget.updateWidget(
         name: 'HomeWidgetExampleProvider',
         iOSName: 'HomeWidgetExample',
-      ).timeout(Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 5));
 
       expect(returnValue, true);
     });
@@ -93,7 +93,9 @@ void main() {
               double.parse(deviceInfo.systemVersion) >= 17.0;
           await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
           final registerCallbackResult =
-              await HomeWidget.registerInteractivityCallback(backgroundCallback);
+              await HomeWidget.registerInteractivityCallback(
+            interactivityCallback,
+          );
           expect(
             registerCallbackResult,
             hasInteractiveWidgets ? isTrue : isNull,
@@ -104,4 +106,4 @@ void main() {
   });
 }
 
-Future<void> backgroundCallback(Uri? uri) async {}
+Future<void> interactivityCallback(Uri? uri) async {}

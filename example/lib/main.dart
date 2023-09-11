@@ -34,8 +34,7 @@ void callbackDispatcher() {
 
 /// Called when Doing Background Work initiated from Widget
 @pragma("vm:entry-point")
-Future<void> backgroundCallback(Uri? data) async {
-  print(data);
+Future<void> interactiveCallback(Uri? data) async {
   if (data?.host == 'titleclicked') {
     final greetings = [
       'Hello',
@@ -60,12 +59,14 @@ Future<void> backgroundCallback(Uri? data) async {
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
-  runApp(MaterialApp(home: MyApp()));
+  runApp(const MaterialApp(home: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
-  _MyAppState createState() => _MyAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
@@ -76,7 +77,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
-    HomeWidget.registerInteractivityCallback(backgroundCallback);
+    HomeWidget.registerInteractivityCallback(interactiveCallback);
   }
 
   @override
@@ -99,11 +100,11 @@ class _MyAppState extends State<MyApp> {
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
         HomeWidget.renderFlutterWidget(
-          Icon(
+          const Icon(
             Icons.flutter_dash,
             size: 200,
           ),
-          logicalSize: Size(200, 200),
+          logicalSize: const Size(200, 200),
           key: 'dashIcon',
         ),
       ]);
@@ -152,7 +153,7 @@ class _MyAppState extends State<MyApp> {
       showDialog(
         context: context,
         builder: (buildContext) => AlertDialog(
-          title: Text('App started from HomeScreenWidget'),
+          title: const Text('App started from HomeScreenWidget'),
           content: Text('Here is the URI: $uri'),
         ),
       );
@@ -163,7 +164,7 @@ class _MyAppState extends State<MyApp> {
     Workmanager().registerPeriodicTask(
       '1',
       'widgetBackgroundUpdate',
-      frequency: Duration(minutes: 15),
+      frequency: const Duration(minutes: 15),
     );
   }
 
@@ -181,38 +182,38 @@ class _MyAppState extends State<MyApp> {
         child: Column(
           children: [
             TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Title',
               ),
               controller: _titleController,
             ),
             TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Body',
               ),
               controller: _messageController,
             ),
             ElevatedButton(
               onPressed: _sendAndUpdate,
-              child: Text('Send Data to Widget'),
+              child: const Text('Send Data to Widget'),
             ),
             ElevatedButton(
               onPressed: _loadData,
-              child: Text('Load Data'),
+              child: const Text('Load Data'),
             ),
             ElevatedButton(
               onPressed: _checkForWidgetLaunch,
-              child: Text('Check For Widget Launch'),
+              child: const Text('Check For Widget Launch'),
             ),
             if (Platform.isAndroid)
               ElevatedButton(
                 onPressed: _startBackgroundUpdate,
-                child: Text('Update in background'),
+                child: const Text('Update in background'),
               ),
             if (Platform.isAndroid)
               ElevatedButton(
                 onPressed: _stopBackgroundUpdate,
-                child: Text('Stop updating in background'),
+                child: const Text('Stop updating in background'),
               ),
           ],
         ),
