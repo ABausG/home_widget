@@ -138,9 +138,9 @@ void main() {
 
   test('Register Background Callback passes Handles', () async {
     final dispatcherHandle =
-    PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle();
+        PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle();
     final callbackHandle =
-    PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
+        PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
 
     // ignore: deprecated_member_use_from_same_package
     expect(await HomeWidget.registerBackgroundCallback(testCallback), true);
