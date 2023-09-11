@@ -130,7 +130,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         result(notInitializedError)
         return
       }
-      if #available(iOS 16.0, *) {
+      if #available(iOS 17.0, *) {
         let callbackHandels = call.arguments as! [Int64]
         let dispatcher = callbackHandels[0]
         let callback = callbackHandels[1]
@@ -146,7 +146,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
           FlutterError(
             code: "-5",
             message:
-              "Interactivity is only available on iOS 16.0 (LiveActivity) and iOS 17.0 (Interactive Widgets)",
+              "Interactivity is only available on iOS 17.0",
             details: nil))
       }
 
