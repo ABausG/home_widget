@@ -164,20 +164,16 @@ Android and iOS (starting with iOS 17) allow widgets to have interactive Element
 
 1. Adjust your Podfile to add `home_widget` as a dependency to your WidgetExtension
    ```
-   target 'Runner' do
+   target 'YourWidgetExtension' do
       use_frameworks!
       use_modular_headers!
-      
-      flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
-      
-      target 'HomeWidgetExampleExtension' do
-         inherit! :search_paths
-      end
-   end
+
+      pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+end
    ```
 2. To be able to use plugins with the Background Callback add this to your AppDelegate's `application` function
    ```swift
-   if #available(iOS 16, *) {
+   if #available(iOS 17, *) {
     HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
         GeneratedPluginRegistrant.register(with: registry)
     }
