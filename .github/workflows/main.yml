@@ -67,7 +67,7 @@ jobs:
     strategy:
       matrix:
         device:
-          - "iPhone 13"
+          - "iPhone 14"
       fail-fast: false
     runs-on: macos-13
     steps:
