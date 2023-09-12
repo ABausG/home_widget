@@ -17,7 +17,7 @@ import workmanager
       GeneratedPluginRegistrant.register(with: registry)
     }
 
-    if #available(iOS 16, *) {
+    if #available(iOS 17, *) {
       HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
         GeneratedPluginRegistrant.register(with: registry)
       }

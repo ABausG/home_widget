@@ -6,11 +6,10 @@
 //
 
 import AppIntents
-import Flutter
 import Foundation
 import home_widget
 
-@available(iOS 16, *)
+@available(iOS 17, *)
 public struct BackgroundIntent: AppIntent {
   static public var title: LocalizedStringResource = "HomeWidget Background Intent"
 
@@ -36,6 +35,6 @@ public struct BackgroundIntent: AppIntent {
 
 /// This is required if you want to have the widget be interactive even when the app is fully suspended.
 /// Note that this will launch your App so on the Flutter side you should check for the current Lifecycle State before doing heavy tasks
-@available(iOS 16, *)
+@available(iOS 17, *)
 @available(iOSApplicationExtension, unavailable)
 extension BackgroundIntent: ForegroundContinuableIntent {}
