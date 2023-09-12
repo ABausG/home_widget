@@ -1,4 +1,5 @@
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:integration_test/integration_test.dart';
@@ -92,14 +93,24 @@ void main() {
           final hasInteractiveWidgets =
               double.parse(deviceInfo.systemVersion) >= 17.0;
           await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
-          final registerCallbackResult =
-              await HomeWidget.registerInteractivityCallback(
-            interactivityCallback,
-          );
-          expect(
-            registerCallbackResult,
-            hasInteractiveWidgets ? isTrue : isNull,
-          );
+          if (hasInteractiveWidgets) {
+            final registerCallbackResult =
+                await HomeWidget.registerInteractivityCallback(
+              interactivityCallback,
+            );
+
+            expect(
+              registerCallbackResult,
+              isTrue,
+            );
+          } else {
+            expect(
+              () async => await HomeWidget.registerInteractivityCallback(
+                interactivityCallback,
+              ),
+              throwsA(isA<PlatformException>()),
+            );
+          }
         });
       });
     });
