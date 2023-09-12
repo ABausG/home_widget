@@ -15,18 +15,20 @@ void main() {
     const testUri = 'homeWidget://homeWidgetTest';
 
     tester.binding.defaultBinaryMessenger
-        // ignore: body_might_complete_normally_nullable
-        .setMockMethodCallHandler(backgroundChannel, (call) {
+        .setMockMethodCallHandler(backgroundChannel, (call) async {
       if (call.method == 'HomeWidget.backgroundInitialized') {
         emitEvent(
           tester,
           backgroundChannel.codec
               .encodeMethodCall(MethodCall('', [callbackHandle, testUri])),
         );
+        return true;
+      } else {
+        return null;
       }
     });
 
-    callbackDispatcher();
+    await callbackDispatcher();
 
     final receivedUri = await completer.future;
 
@@ -42,6 +44,6 @@ void emitEvent(WidgetTester tester, ByteData? event) {
   );
 }
 
-void testCallback(Uri? uri) {
+Future<void> testCallback(Uri? uri) async {
   completer.complete(uri);
 }
