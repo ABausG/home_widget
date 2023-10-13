@@ -1,3 +1,8 @@
+## 0.3.1
+* Fix `renderFlutterWidget` method causing null check exception when trying to save image widget screenshot [#91](https://github.com/ABausG/home_widget/issues/91) by [milindgoel15](https://github.com/milindgoel15)
+* Add support for AGP 8.0 by [milindgoel15](https://github.com/milindgoel15)
+* Upgrade jvm target compatibility to 17 by [milindgoel15](https://github.com/milindgoel15)
+
 ## 0.3.0
 * Add `renderFlutterWidget` method to save a Flutter Widget as an Image [#126](https://github.com/ABausG/home_widget/pull/126) by [leighajarett](https://github.com/leighajarett)
 
