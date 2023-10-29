@@ -58,7 +58,10 @@ void backgroundCallback(Uri? data) async {
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  if (defaultTargetPlatform != TargetPlatform.macOS) {
+    Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  }
+
   runApp(MaterialApp(home: MyApp()));
 }
 
@@ -74,7 +77,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    HomeWidget.setAppGroupId('YOUR_GROUP_ID');
+    HomeWidget.setAppGroupId('YOUR_APP_GROUP_ID');
     HomeWidget.registerBackgroundCallback(backgroundCallback);
   }
 
