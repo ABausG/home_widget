@@ -4,9 +4,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
-import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
 
@@ -102,7 +102,7 @@ class HomeWidget {
   static Future<bool?> registerBackgroundCallback(Function(Uri?) callback) {
     final args = <dynamic>[
       ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle()
+      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
@@ -188,26 +188,27 @@ class HomeWidget {
 
       try {
         late final String? directory;
-        try {
-          // coverage:ignore-start
-          if (Platform.environment.containsKey('FLUTTER_TEST')) {
-            throw UnsupportedError(
-              'Tests should always use default Path provider for easier mocking',
-            );
-          }
-          if (Platform.isIOS) {
-            final PathProviderFoundation provider = PathProviderFoundation();
-            directory = await provider.getContainerPath(
-              appGroupIdentifier: HomeWidget.groupId!,
-            );
-          }
-          if (Platform.isAndroid) {
-            directory = (await getApplicationSupportDirectory()).path;
-          }
-          // coverage:ignore-end
-        } on UnsupportedError catch (e) {
-          throw Exception('Unsupported error: $e');
+
+        // coverage:ignore-start
+        if (Platform.environment.containsKey('FLUTTER_TEST')) {
+          throw UnsupportedError(
+            'Tests should always use default Path provider for easier mocking',
+          );
         }
+        if (Platform.isIOS) {
+          final PathProviderFoundation provider = PathProviderFoundation();
+          assert(
+            HomeWidget.groupId != null,
+            'No groupId defined. Did you forget to call `HomeWidget.setAppGroupId`',
+          );
+          directory = await provider.getContainerPath(
+            appGroupIdentifier: HomeWidget.groupId!,
+          );
+        } else {
+          directory = (await getApplicationSupportDirectory()).path;
+        }
+        // coverage:ignore-end
+
         final String path = '$directory/home_widget/$key.png';
         final File file = File(path);
         if (!await file.exists()) {
