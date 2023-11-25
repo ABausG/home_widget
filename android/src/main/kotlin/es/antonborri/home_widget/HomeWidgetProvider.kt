@@ -13,4 +13,11 @@ abstract class HomeWidgetProvider : AppWidgetProvider() {
     }
 
     abstract fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences)
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        onDeleted(context, appWidgetIds, HomeWidgetPlugin.getData(context))
+    }
+
+    abstract fun onDeleted(context: Context, appWidgetIds: IntArray, widgetData: SharedPreferences)
 }

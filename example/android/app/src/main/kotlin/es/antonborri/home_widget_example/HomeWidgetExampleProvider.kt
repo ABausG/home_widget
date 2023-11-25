@@ -31,7 +31,7 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                 )
                 setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
 
-                val message = widgetData.getString("message", null)
+                val message = widgetData.getString("message$widgetId", null)
                 setTextViewText(R.id.widget_message, message
                         ?: "No Message Set")
                 // Show Images saved with `renderFlutterWidget`
@@ -43,6 +43,9 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                     setViewVisibility(R.id.widget_img, View.GONE)
                 }
 
+                // Create a unique key
+                val message = widgetData.getString("unique$widgetId", null)
+
                 // Detect App opened via Click inside Flutter
                 val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
                         context,
@@ -52,6 +55,16 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
             }
 
             appWidgetManager.updateAppWidget(widgetId, views)
+        }
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray, widgetData: SharedPreferences) {
+        // Deletes orphaned keys
+        appWidgetIds.forEach { widgetId ->
+            val editor = widgetData.edit()
+            editor.remove("unique$widgetId")
+            editor.apply()
+            println("deleted!")
         }
     }
 }
