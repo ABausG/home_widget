@@ -31,7 +31,7 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                 )
                 setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
 
-                val message = widgetData.getString("message$widgetId", null)
+                val message = widgetData.getString("message", null)
                 setTextViewText(R.id.widget_message, message
                         ?: "No Message Set")
                 // Show Images saved with `renderFlutterWidget`
