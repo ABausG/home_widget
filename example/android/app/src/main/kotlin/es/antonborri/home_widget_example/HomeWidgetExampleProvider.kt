@@ -44,7 +44,7 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                 }
 
                 // Create a unique key
-                val message = widgetData.getString("unique$widgetId", null)
+                val unique = widgetData.getString("unique$widgetId", null)
 
                 // Detect App opened via Click inside Flutter
                 val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
