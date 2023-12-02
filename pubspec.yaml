@@ -10,15 +10,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: ^2.0.15
-  path_provider_foundation: ^2.2.3
+  path_provider: ^2.1.1
+  path_provider_foundation: ^2.3.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.1
+  flutter_lints: ^3.0.1
   golden_toolkit: ^0.15.0
-  mocktail: ^0.3.0
+  mocktail: ^1.0.1
   path_provider_platform_interface:
   plugin_platform_interface:
 

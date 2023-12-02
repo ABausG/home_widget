@@ -181,7 +181,7 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     final directory = Directory('app/directory');
 
-    const size = Size(200, 200);
+    const size = Size(201, 201);
     final targetWidget = SizedBox.fromSize(
       size: size,
       child: const Column(
