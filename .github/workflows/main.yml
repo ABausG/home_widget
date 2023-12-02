@@ -14,7 +14,7 @@ concurrency:
 jobs:
   quality:
     name: Quality Checks
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
@@ -32,6 +32,14 @@ jobs:
         run: flutter pub publish --dry-run
       - name: Test
         run: flutter test --coverage
+      - name: Archieve Golden Failures
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Golden failures
+          retention-days: 2
+          path: |
+            **/test/**/failures/**/*.*
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
