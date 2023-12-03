@@ -1,8 +1,8 @@
 ## 0.3.1
-* Fix `renderFlutterWidget` method causing null check exception when trying to save image widget screenshot [#91](https://github.com/ABausG/home_widget/issues/91) by [milindgoel15](https://github.com/milindgoel15)
-* Add support for AGP 8.0 by [milindgoel15](https://github.com/milindgoel15)
-* Upgrade jvm target compatibility to 17 by [milindgoel15](https://github.com/milindgoel15)
-* Upgrade compileSdk to API 34 by [milindgoel15](https://github.com/milindgoel15)
+* fix: Fix Null Pointer when Saving `renderFlutterWidget` by [milindgoel15](https://github.com/milindgoel15) in [#182](https://github.com/ABausG/home_widget/pull/182)
+* fix: Update Gradle to 8 by [milindgoel15](https://github.com/milindgoel15) in [#155](https://github.com/ABausG/home_widget/pull/155)
+* docs: Fix syntax error in readme code example by [mattrltrent](https://github.com/mattrltrent) in [#154](https://github.com/ABausG/home_widget/pull/154)
+* fix: Handle null check on Android when checking CallbackInformation by [eliasto](https://github.com/eliasto) in [#172](https://github.com/ABausG/home_widget/pull/172)
 
 ## 0.3.0
 * Add `renderFlutterWidget` method to save a Flutter Widget as an Image [#126](https://github.com/ABausG/home_widget/pull/126) by [leighajarett](https://github.com/leighajarett)
