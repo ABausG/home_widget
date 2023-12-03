@@ -45,7 +45,7 @@ class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentSe
 
                 engine = FlutterEngine(context)
                 
-                val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle)
+                val callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle) ?: return
 
                 
 
