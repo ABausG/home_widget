@@ -290,7 +290,7 @@ between your Flutter app and the home screen widget.
 var path = await HomeWidget.renderFlutterWidget(
   const LineChart(),
   key: 'lineChart',
-  logicalSize: Size(width: 400, height: 400),
+  logicalSize: const Size(400, 400),
 );
 ```
 - `LineChart()` is the widget that will be rendered as an image.
