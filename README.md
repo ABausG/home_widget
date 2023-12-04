@@ -445,3 +445,12 @@ WorkmanagerPlugin.setPluginRegistrantCallback { registry in
 }
 ```
 to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)
+
+
+---
+
+## Resources, Articles, Talks
+Please add to this list if you have interesting and helpful resources
+- [Google Codelab](https://codelabs.developers.google.com/flutter-home-screen-widgets#0)
+- [Interactive HomeScreen Widgets with Flutter using home_widget](https://medium.com/p/83cb0706a417)
+- [iOS Lockscreen Widgets with Flutter and home_widget](https://medium.com/p/0dfecc18cfa0)
