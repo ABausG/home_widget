@@ -1,3 +1,8 @@
+## 0.4.0
+* Add support for Interactive Widgets on iOS
+* Rename `registerBackgroundCallback` to `registerInteractivityCallback`
+* Restructure README
+
 ## 0.3.1
 * fix: Fix Null Pointer when Saving `renderFlutterWidget` by [milindgoel15](https://github.com/milindgoel15) in [#182](https://github.com/ABausG/home_widget/pull/182)
 * fix: Update Gradle to 8 by [milindgoel15](https://github.com/milindgoel15) in [#155](https://github.com/ABausG/home_widget/pull/155)

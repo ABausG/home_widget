@@ -75,14 +75,19 @@ jobs:
     strategy:
       matrix:
         device:
-          - "iPhone 13"
+          - "iPhone 14"
       fail-fast: false
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v2
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+      - name: Download iOS 17
+        run: xcodebuild -downloadPlatform ios
       - uses: subosito/flutter-action@v1
         with:
-          channel: stable
+          channel: beta
       - uses: futureware-tech/simulator-action@v1
         id: simulator
         with:
