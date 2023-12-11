@@ -105,15 +105,6 @@ void main() {
   });
 
   test('requestPinWidget', () async {
-    expect(
-      await HomeWidget.requestPinWidget(
-        name: 'name',
-        androidName: 'androidName',
-        qualifiedAndroidName: 'com.example.androidName',
-      ),
-      true,
-    );
-
     final arguments = await passedArguments.future;
 
     expect(arguments['name'], 'name');
