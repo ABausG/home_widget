@@ -110,7 +110,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
             }
             "requestPinWidget" -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                    return result.success()
+                    return result.success(null)
                 }
                 val qualifiedName = call.argument<String>("qualifiedAndroidName")
                 val className = call.argument<String>("android") ?: call.argument<String>("name")
@@ -125,7 +125,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         appWidgetManager.requestPinAppWidget(myProvider, null, null)
                     }
 
-                    return result.success()
+                    return result.success(null)
                 } catch (classException: ClassNotFoundException) {
                     result.error("-4", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
                 }
