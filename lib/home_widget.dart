@@ -57,10 +57,7 @@ class HomeWidget {
   ///
   /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider.
   /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name.
-  ///
-  /// Returns true if the plugin requested the system to pin the home widget.
-  /// If requesting was not possible, returns false.
-  static Future<bool?> requestPinWidget({
+  static Future<void> requestPinWidget({
     String? name,
     String? androidName,
     // String? iOSName,
