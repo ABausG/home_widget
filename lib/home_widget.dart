@@ -50,20 +50,23 @@ class HomeWidget {
     });
   }
 
-  /// Pins the HomeScreen Widget
+  /// Pins the HomeScreen Widget.
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
-  /// There is no iOS alternative
+  /// There is no iOS alternative.
   ///
-  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
-  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
-  static Future<bool?> pinWidget({
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider.
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name.
+  ///
+  /// Returns true if the plugin requested the system to pin the home widget.
+  /// If requesting was not possible, returns false.
+  static Future<bool?> requestPinWidget({
     String? name,
     String? androidName,
     // String? iOSName,
     String? qualifiedAndroidName,
   }) {
-    return _channel.invokeMethod('pinWidget', {
+    return _channel.invokeMethod('requestPinWidget', {
       'name': name,
       'android': androidName,
       // 'ios': iOSName,
@@ -90,16 +93,12 @@ class HomeWidget {
 
   /// Checks if the App was initially launched via the Widget
   static Future<Uri?> initiallyLaunchedFromHomeWidget() {
-    return _channel
-        .invokeMethod<String>('initiallyLaunchedFromHomeWidget')
-        .then(_handleReceivedData);
+    return _channel.invokeMethod<String>('initiallyLaunchedFromHomeWidget').then(_handleReceivedData);
   }
 
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
-    return _eventChannel
-        .receiveBroadcastStream()
-        .map<Uri?>(_handleReceivedData);
+    return _eventChannel.receiveBroadcastStream().map<Uri?>(_handleReceivedData);
   }
 
   static Uri? _handleReceivedData(dynamic value) {
@@ -178,8 +177,7 @@ class HomeWidget {
       renderView.prepareInitialFrame();
 
       /// setting the rootElement with the widget that has to be captured
-      final RenderObjectToWidgetElement<RenderBox> rootElement =
-          RenderObjectToWidgetAdapter<RenderBox>(
+      final RenderObjectToWidgetElement<RenderBox> rootElement = RenderObjectToWidgetAdapter<RenderBox>(
         container: repaintBoundary,
         child: Directionality(
           textDirection: TextDirection.ltr,
@@ -211,12 +209,10 @@ class HomeWidget {
       /// Flush paint
       pipelineOwner.flushPaint();
 
-      final ui.Image image =
-          await repaintBoundary.toImage(pixelRatio: pixelRatio);
+      final ui.Image image = await repaintBoundary.toImage(pixelRatio: pixelRatio);
 
       /// The raw image is converted to byte data.
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
       try {
         late final String? directory;

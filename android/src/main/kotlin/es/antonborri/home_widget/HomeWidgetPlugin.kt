@@ -108,7 +108,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 saveCallbackHandle(context, dispatcher, callback)
                 return result.success(true)
             }
-            "pinWidget" -> {
+            "requestPinWidget" -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                     return result.success(false)
                 }

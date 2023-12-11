@@ -446,6 +446,10 @@ WorkmanagerPlugin.setPluginRegistrantCallback { registry in
 ```
 to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)
 
+### Request Pin Widget
+Requests pin of HomeWidget to home screen directly from the app.
+
+This method is only supported on [Android, API 26+](https://developer.android.com/develop/ui/views/appwidgets/configuration#pin).
 
 ---
 
