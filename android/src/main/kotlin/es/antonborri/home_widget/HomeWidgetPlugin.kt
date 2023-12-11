@@ -3,6 +3,7 @@ package es.antonborri.home_widget
 import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.content.*
+import android.os.Build
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -106,6 +107,30 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 val callback = ((call.arguments as Iterable<*>).toList()[1] as Number).toLong()
                 saveCallbackHandle(context, dispatcher, callback)
                 return result.success(true)
+            }
+            "pinWidget" -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                    return result.success(false)
+                }
+                val qualifiedName = call.argument<String>("qualifiedAndroidName")
+                val className = call.argument<String>("android") ?: call.argument<String>("name")
+
+                try {
+                    val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
+                    val myProvider = ComponentName(context, javaClass)
+
+                    val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
+
+                    if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                        appWidgetManager.requestPinAppWidget(myProvider, null, null)
+
+                        return result.success(true)
+                    }
+
+                    return result.success(false)
+                } catch (classException: ClassNotFoundException) {
+                    result.error("-4", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
+                }
             }
             else -> {
                 result.notImplemented()

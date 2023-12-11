@@ -50,6 +50,27 @@ class HomeWidget {
     });
   }
 
+  /// Pins the HomeScreen Widget
+  ///
+  /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
+  /// There is no iOS alternative
+  ///
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
+  static Future<bool?> pinWidget({
+    String? name,
+    String? androidName,
+    // String? iOSName,
+    String? qualifiedAndroidName,
+  }) {
+    return _channel.invokeMethod('pinWidget', {
+      'name': name,
+      'android': androidName,
+      // 'ios': iOSName,
+      'qualifiedAndroidName': qualifiedAndroidName,
+    });
+  }
+
   /// Returns Data saved with [saveWidgetData]
   /// [id] of Data Saved
   /// [defaultValue] value to use if no data was found

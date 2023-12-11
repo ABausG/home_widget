@@ -149,8 +149,10 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
               "Interactivity is only available on iOS 17.0",
             details: nil))
       }
-
-    } else {
+    } else if call.method == "pinWidget" {
+      result(false)
+    }
+    else {
       result(FlutterMethodNotImplemented)
     }
   }
