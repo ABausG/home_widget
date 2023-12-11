@@ -150,7 +150,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             details: nil))
       }
     } else if call.method == "requestPinWidget" {
-      result()
+      result(nil)
     }
     else {
       result(FlutterMethodNotImplemented)
