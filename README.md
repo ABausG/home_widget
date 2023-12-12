@@ -449,7 +449,20 @@ to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)
 ### Request Pin Widget
 Requests pin of HomeWidget to home screen directly from the app.
 
+```dart
+HomeWidget.requestPinWidget(
+    name: 'HomeWidgetExampleProvider',
+    androidName: 'HomeWidgetExampleProvider',
+    qualifiedAndroidName: 'com.example.app.HomeWidgetExampleProvider',
+);
+```
+
 This method is only supported on [Android, API 26+](https://developer.android.com/develop/ui/views/appwidgets/configuration#pin).
+If you want to check whether it is supported on current device, use:
+
+```dart
+HomeWidget.isRequestPinWidgetSupported();
+```
 
 ---
 

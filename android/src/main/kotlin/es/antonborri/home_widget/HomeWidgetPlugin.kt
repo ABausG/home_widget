@@ -108,10 +108,19 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                 saveCallbackHandle(context, dispatcher, callback)
                 return result.success(true)
             }
+            "isRequestPinWidgetSupported" -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+                    return result.success(false)
+                }
+
+                val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
+                return result.success(appWidgetManager.isRequestPinAppWidgetSupported)
+            }
             "requestPinWidget" -> {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                     return result.success(null)
                 }
+
                 val qualifiedName = call.argument<String>("qualifiedAndroidName")
                 val className = call.argument<String>("android") ?: call.argument<String>("name")
 

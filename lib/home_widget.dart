@@ -50,6 +50,11 @@ class HomeWidget {
     });
   }
 
+  /// Determines whether pinning HomeScreen Widget is supported.
+  static Future<bool?> isRequestPinWidgetSupported() {
+    return _channel.invokeMethod('isRequestPinWidgetSupported');
+  }
+
   /// Pins the HomeScreen Widget.
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
