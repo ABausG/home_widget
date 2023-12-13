@@ -87,7 +87,7 @@ jobs:
         run: xcodebuild -downloadPlatform ios
       - uses: subosito/flutter-action@v1
         with:
-          channel: beta
+          channel: stable
       - uses: futureware-tech/simulator-action@v1
         id: simulator
         with:
