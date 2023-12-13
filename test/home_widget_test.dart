@@ -49,6 +49,8 @@ void main() {
           return true;
         case 'requestPinWidget':
           return true;
+        case 'isRequestPinWidgetSupported':
+          return true;
       }
     });
   });
@@ -102,6 +104,17 @@ void main() {
     expect(arguments['android'], 'androidName');
     expect(arguments['ios'], 'iOSName');
     expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
+  test('isRequestPinWidgetSupported', () async {
+    expect(
+      await HomeWidget.isRequestPinWidgetSupported(),
+      true,
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments, isNull);
   });
 
   test('requestPinWidget', () async {
