@@ -47,7 +47,7 @@ void main() {
         });
       }
 
-      testWidgets('Delte Value successful', (tester) async {
+      testWidgets('Delete Value successful', (tester) async {
         final initialData = await HomeWidget.getWidgetData(testData.keys.first);
         expect(initialData, testData.values.first);
 
@@ -91,7 +91,7 @@ void main() {
             (tester) async {
           final deviceInfo = await DeviceInfoPlugin().iosInfo;
           final hasInteractiveWidgets =
-              double.parse(deviceInfo.systemVersion) >= 17.0;
+              double.parse(deviceInfo.systemVersion.split('.').first) >= 17.0;
           await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
           if (hasInteractiveWidgets) {
             final registerCallbackResult =
