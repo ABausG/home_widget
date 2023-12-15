@@ -48,7 +48,7 @@ void main() {
         case 'registerBackgroundCallback':
           return true;
         case 'requestPinWidget':
-          return true;
+          return null;
         case 'isRequestPinWidgetSupported':
           return true;
       }
