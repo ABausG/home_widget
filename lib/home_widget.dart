@@ -55,7 +55,9 @@ class HomeWidget {
     return _channel.invokeMethod('isRequestPinWidgetSupported');
   }
 
-  /// Pins the HomeScreen Widget.
+  /// Requests to Pin (Add) the HomeScreenWidget to the User's Home Screen
+  ///
+  /// This is supported only on some Android Launchers and only with Android API 26+
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
   /// There is no iOS alternative.
