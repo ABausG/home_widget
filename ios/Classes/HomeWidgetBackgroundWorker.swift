@@ -32,12 +32,12 @@ public struct HomeWidgetBackgroundWorker {
   static public func run(url: URL?, appGroup: String) async {
     if isSetupCompleted {
       let preferences = UserDefaults.init(suiteName: appGroup)
-
       let dispatcher = preferences?.object(forKey: dispatcherKey) as! Int64
       NSLog("Dispatcher: \(dispatcher)")
-      queue.append((url, appGroup))
-    } else {
+
       await sendEvent(url: url, appGroup: appGroup)
+    } else {
+      queue.append((url, appGroup))
     }
   }
 
