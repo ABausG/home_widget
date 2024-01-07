@@ -1,3 +1,6 @@
+## 0.4.1
+* Fix First Background on iOS being ignored by [mchudy](https://github.com/mchudy) in [#188](https://github.com/ABausG/home_widget/pull/188)
+
 ## 0.4.0
 * Add support for Interactive Widgets on iOS
 * Rename `registerBackgroundCallback` to `registerInteractivityCallback`
