@@ -66,6 +66,8 @@ let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
 
 ### Create Widget Layout inside `android/app/src/main/res/layout`
 
+This file contains the 
+
 ### Create Widget Configuration into `android/app/src/main/res/xml`
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -109,8 +111,10 @@ For more Information on how to create and configure Android Widgets, check out [
 
 ### Setup
 <details><summary>iOS</summary>
+    
 For iOS, you need to call `HomeWidget.setAppGroupId('YOUR_GROUP_ID');`
 Without this you won't be able to share data between your App and the Widget and calls to `saveWidgetData` and `getWidgetData` will return an error
+
 </details>
 
 ### Save Data
