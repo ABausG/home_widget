@@ -20,7 +20,7 @@ In order to work correctly there needs to be some platform specific setup. Check
 <details><summary>iOS</summary>
 
 ### Add a Widget to your App in Xcode
-Add a widget extension by going `File > New > Target > Widget Extension`
+Add a widget extension by going <kbd>File</kbd> > <kbd>New</kbd> > <kbd>Target</kbd> > <kbd>Widget Extension</kbd>
 
 ![Widget Extension](https://github.com/ABausG/home_widget/blob/main/.github/assets/widget_extension.png?raw=true)
 
@@ -31,7 +31,7 @@ You need to add a groupId to the App and the Widget Extension
 **Note: in order to add groupIds you need a paid Apple Developer Account**
 
 Go to your [Apple Developer Account](https://developer.apple.com/account/resources/identifiers/list/applicationGroup) and add a new group
-Add this group to you Runner and the Widget Extension inside XCode `Signing & Capabilities > App Groups > +`
+Add this group to you Runner and the Widget Extension inside XCode <kbd>Signing & Capabilities</kbd> > <kbd>App Groups</kbd> > <kbd>+</kbd>
 
 ![Build Targets](https://github.com/ABausG/home_widget/blob/main/.github/assets/target.png?raw=true)
 
@@ -42,7 +42,7 @@ This step is optional, this will sync the widget extension build version with yo
 
 ![Build Phases](https://github.com/ABausG/home_widget/blob/main/.github/assets/build_phases.png?raw=true)
 
-In your Runner (app) target go to `Build Phases > + > New Run Script Phase` and add the following script:
+In your Runner (app) target go to <kbd>Build Phases</kbd> > <kbd>+</kbd> > <kbd>New Run Script Phase</kbd> and add the following script:
 ```bash
 generatedPath="$SRCROOT/Flutter/Generated.xcconfig"
 versionNumber=$(grep FLUTTER_BUILD_NAME $generatedPath | cut -d '=' -f2)
@@ -163,13 +163,13 @@ Android and iOS (starting with iOS 17) allow widgets to have interactive Element
 <details><summary>iOS</summary>
 
 1. Adjust your Podfile to add `home_widget` as a dependency to your WidgetExtension
-   ```
+   ```rb
    target 'YourWidgetExtension' do
       use_frameworks!
       use_modular_headers!
 
       pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
-end
+   end
    ```
 2. To be able to use plugins with the Background Callback add this to your AppDelegate's `application` function
    ```swift
