@@ -30,12 +30,11 @@ You need to add a groupId to the App and the Widget Extension
 
 **Note: in order to add groupIds you need a paid Apple Developer Account**
 
-Go to your [Apple Developer Account](https://developer.apple.com/account/resources/identifiers/list/applicationGroup) and add a new group
-Add this group to you Runner and the Widget Extension inside XCode <kbd>Signing & Capabilities</kbd> > <kbd>App Groups</kbd> > <kbd>+</kbd>
+Go to your [Apple Developer Account](https://developer.apple.com/account/resources/identifiers/list/applicationGroup) and add a new group.
+Add this group to your Runner and the Widget Extension inside XCode: <kbd>Signing & Capabilities</kbd> > <kbd>App Groups</kbd> > <kbd>+</kbd>.
+(To swap between your App, and the Extension change the Target)
 
 ![Build Targets](https://github.com/ABausG/home_widget/blob/main/.github/assets/target.png?raw=true)
-
-(To swap between your App, and the Extension change the Target)
 
 ### Sync CFBundleVersion (optional)
 This step is optional, this will sync the widget extension build version with your app version, so you don't get warnings of mismatch version from App Store Connect when uploading your app.
