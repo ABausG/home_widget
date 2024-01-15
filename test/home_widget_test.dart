@@ -47,6 +47,10 @@ void main() {
           return Future.value(launchUri);
         case 'registerBackgroundCallback':
           return true;
+        case 'requestPinWidget':
+          return null;
+        case 'isRequestPinWidgetSupported':
+          return true;
       }
     });
   });
@@ -99,6 +103,31 @@ void main() {
     expect(arguments['name'], 'name');
     expect(arguments['android'], 'androidName');
     expect(arguments['ios'], 'iOSName');
+    expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
+  test('isRequestPinWidgetSupported', () async {
+    expect(
+      await HomeWidget.isRequestPinWidgetSupported(),
+      true,
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments, isNull);
+  });
+
+  test('requestPinWidget', () async {
+    await HomeWidget.requestPinWidget(
+      name: 'name',
+      androidName: 'androidName',
+      qualifiedAndroidName: 'com.example.androidName',
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments['name'], 'name');
+    expect(arguments['android'], 'androidName');
     expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
   });
 

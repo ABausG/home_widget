@@ -446,6 +446,23 @@ WorkmanagerPlugin.setPluginRegistrantCallback { registry in
 ```
 to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)
 
+### Request Pin Widget
+Requests to Pin (Add) the Widget to the users HomeScreen by pinning it to the users HomeScreen.
+
+```dart
+HomeWidget.requestPinWidget(
+    name: 'HomeWidgetExampleProvider',
+    androidName: 'HomeWidgetExampleProvider',
+    qualifiedAndroidName: 'com.example.app.HomeWidgetExampleProvider',
+);
+```
+
+This method is only supported on [Android, API 26+](https://developer.android.com/develop/ui/views/appwidgets/configuration#pin).
+If you want to check whether it is supported on current device, use:
+
+```dart
+HomeWidget.isRequestPinWidgetSupported();
+```
 
 ---
 
