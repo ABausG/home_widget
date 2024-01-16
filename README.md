@@ -104,6 +104,22 @@ which will give you access to the same SharedPreferences
 ### More Information
 For more Information on how to create and configure Android Widgets, check out [this guide](https://developer.android.com/develop/ui/views/appwidgets) on the Android Developers Page.
 
+### Jetpack Glance
+In Jetpack Glance, you have to write your receiver (== provider), that returns a widget.
+Add it to AndroidManifest the same way as written above for android widgets.
+
+```kotlin
+class MyReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget get() = MyWidget()
+}
+```
+
+If you need to access HomeWidget shared preferences, use this:
+
+```kotlin
+HomeWidgetPlugin.getData(context)
+```
+
 </details>
 
 ## Usage
@@ -134,6 +150,58 @@ This Name needs to be equal to the Classname of the [WidgetProvider](#Write-your
 
 The name for iOS will be chosen by checking `iOSName` if that was not provided it will fallback to `name`.
 This name needs to be equal to the Kind specified in you Widget
+
+#### Android
+Calling `HomeWidget.updateWidget` only notifies the specified provider.
+To update widgets using this provider,
+update them from the provider like this:
+
+```kotlin
+class HomeWidgetExampleProvider : HomeWidgetProvider() {
+
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray, widgetData: SharedPreferences) {
+        appWidgetIds.forEach { widgetId ->
+            val views = RemoteViews(context.packageName, R.layout.example_layout).apply {
+                // ...
+            }
+
+            // Update widget.
+            appWidgetManager.updateAppWidget(widgetId, views)
+        }
+    }
+}
+```
+
+#### Jetpack Glance
+Updating widgets in Jetpack Glance is a bit more tricky,
+widgets are only updated when their state changes,
+therefore simple update will not refresh them.
+To update them, you have to fake state update like this:
+
+```kotlin
+class MyWidgetReceiver : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget get() = MyWidget()
+
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+
+        runBlocking {
+            appWidgetIds.forEach {
+                val glanceId = GlanceAppWidgetManager(context).getGlanceIdBy(it)
+                MyWidget().apply {
+                    // Must update widget state otherwise it update has no effect for some reason.
+                    updateAppWidgetState(context, glanceId) { prefs ->
+                        prefs[stringPreferencesKey("___FAKE_UPDATE___")] = Random.nextULong().toString()
+                    }
+
+                    // Update widget.
+                    update(context, glanceId)
+                }
+            }
+        }
+    }
+}
+```
 
 ### Retrieve Data
 To retrieve the current Data saved in the Widget call `HomeWidget.getWidgetData<String>('id', defaultValue: data)`
@@ -431,6 +499,43 @@ val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
         Uri.parse("homeWidgetExample://message?message=$message"))
 setOnClickPendingIntent(R.id.widget_message, pendingIntentWithData)
 ```
+
+#### Jetpack Glance
+Create an `ActionCallback`:
+
+```kotlin
+class OpenAppAction : ActionCallback {
+    companion object {
+        const val MESSAGE_KEY = "OpenAppActionMessageKey"
+    }
+
+    override suspend fun onAction(
+        context: Context, glanceId: GlanceId, parameters: ActionParameters
+    ) {
+        val message = parameters[ActionParameters.Key<String>(MESSAGE_KEY)]
+
+        val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
+            context, MainActivity::class.java, Uri.parse("homeWidgetExample://message?message=$message")
+        )
+
+        pendingIntentWithData.send()
+    }
+}
+```
+
+and use it like this:
+
+```kotlin
+Button(
+    text = "Open App",
+    onClick = actionRunCallback<OpenConfigurationAction>(
+        actionParametersOf(
+            ActionParameters.Key<String>(OpenAppAction.MESSAGE_KEY) to "your message"
+        )
+    )
+)
+```
+
 </details>
 
 ### Background Update
