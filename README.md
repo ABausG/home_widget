@@ -66,8 +66,6 @@ let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
 
 ### Create Widget Layout inside `android/app/src/main/res/layout`
 
-This file contains the 
-
 ### Create Widget Configuration into `android/app/src/main/res/xml`
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
