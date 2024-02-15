@@ -529,7 +529,7 @@ and use it like this:
 ```kotlin
 Button(
     text = "Open App",
-    onClick = actionRunCallback<OpenConfigurationAction>(
+    onClick = actionRunCallback<OpenAppAction>(
         actionParametersOf(
             ActionParameters.Key<String>(OpenAppAction.MESSAGE_KEY) to "your message"
         )
