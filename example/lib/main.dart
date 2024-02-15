@@ -10,7 +10,7 @@ import 'package:workmanager/workmanager.dart';
 
 /// Used for Background Updates using Workmanager Plugin
 @pragma("vm:entry-point")
-void callbackDispatcher() {
+void callbackDispatcher() async {
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
     return Future.wait<bool?>([
@@ -22,11 +22,17 @@ void callbackDispatcher() {
         'message',
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
       ),
-      HomeWidget.updateWidget(
-        name: 'HomeWidgetExampleProvider',
-        iOSName: 'HomeWidgetExample',
-      ),
-    ]).then((value) {
+    ]).then((value) async {
+      Future.wait<bool?>([
+        HomeWidget.updateWidget(
+          name: 'HomeWidgetExampleProvider',
+          iOSName: 'HomeWidgetExample',
+        ),
+        HomeWidget.updateWidget(
+          qualifiedAndroidName:
+              'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+        )
+      ]);
       return !value.contains(false);
     });
   });
@@ -52,6 +58,10 @@ Future<void> interactiveCallback(Uri? data) async {
     await HomeWidget.updateWidget(
       name: 'HomeWidgetExampleProvider',
       iOSName: 'HomeWidgetExample',
+    );
+    await HomeWidget.updateWidget(
+      qualifiedAndroidName:
+          'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
     );
   }
 }
@@ -115,10 +125,16 @@ class _MyAppState extends State<MyApp> {
 
   Future _updateWidget() async {
     try {
-      return HomeWidget.updateWidget(
-        name: 'HomeWidgetExampleProvider',
-        iOSName: 'HomeWidgetExample',
-      );
+      return Future.wait([
+        HomeWidget.updateWidget(
+          name: 'HomeWidgetExampleProvider',
+          iOSName: 'HomeWidgetExample',
+        ),
+        HomeWidget.updateWidget(
+          qualifiedAndroidName:
+              'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+        ),
+      ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Updating Widget. $exception');
     }

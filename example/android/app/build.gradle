@@ -37,12 +37,19 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "es.antonborri.home_widget_example"
         minSdkVersion 23
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.4"
     }
 
     buildTypes {
@@ -52,6 +59,7 @@ android {
             signingConfig signingConfigs.debug
         }
     }
+    namespace 'es.antonborri.home_widget_example'
 }
 
 flutter {
@@ -60,4 +68,5 @@ flutter {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+    implementation 'androidx.glance:glance-appwidget:1.0.0'
 }
