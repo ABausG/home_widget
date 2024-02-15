@@ -303,7 +303,7 @@ Android and iOS (starting with iOS 17) allow widgets to have interactive Element
 
 <details><summary>Android</summary>
 
-1. Add the necessary Receiver and Service to you `AndroidManifest.xml` file
+1. Add the necessary Receiver and Service to your `AndroidManifest.xml` file
     ```
    <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
         <intent-filter>
