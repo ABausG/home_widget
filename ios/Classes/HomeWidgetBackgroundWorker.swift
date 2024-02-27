@@ -9,7 +9,7 @@ import Flutter
 import Foundation
 import Swift
 
-@available(iOS 17, *)
+@available(iOS 13.0.0, *)
 public struct HomeWidgetBackgroundWorker {
 
   static let dispatcherKey: String = "home_widget.internal.background.dispatcher"

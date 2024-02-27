@@ -130,7 +130,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         result(notInitializedError)
         return
       }
-      if #available(iOS 17.0, *) {
+      if #available(iOS 13.0, *) {
         let callbackHandels = call.arguments as! [Int64]
         let dispatcher = callbackHandels[0]
         let callback = callbackHandels[1]
