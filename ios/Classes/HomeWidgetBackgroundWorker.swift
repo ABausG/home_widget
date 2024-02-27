@@ -30,6 +30,7 @@ public struct HomeWidgetBackgroundWorker {
   /// The url you provide will be used as arguments in the callback function in dart
   /// The AppGroup is necessary to retrieve the dart callbacks
   static public func run(url: URL?, appGroup: String) async {
+    print("isSetupCompleted \(isSetupCompleted)")
     isSetupCompleted = true
     if isSetupCompleted {
       let preferences = UserDefaults.init(suiteName: appGroup)
