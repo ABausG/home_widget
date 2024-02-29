@@ -84,9 +84,13 @@ public struct HomeWidgetBackgroundWorker {
   }
 
   static func sendEvent(url: URL?, appGroup: String) async {
+    print("url \(url) appGroup \(appGroup)")
     DispatchQueue.main.async {
       let preferences = UserDefaults.init(suiteName: appGroup)
       let callback = preferences?.object(forKey: callbackKey) as! Int64
+      print("url init")
+      let isHaveChannel = channel != nil
+      print("isHaveChannel \(isHaveChannel)")
 
       channel?.invokeMethod(
         "",
