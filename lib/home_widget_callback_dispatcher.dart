@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
@@ -5,23 +6,26 @@ import 'package:flutter/services.dart';
 
 /// Dispatcher used for calling dart code from Native Code while in the background
 @pragma("vm:entry-point")
-void callbackDispatcher() {
-  const _backgroundChannel = MethodChannel('home_widget/background');
+Future<void> callbackDispatcher() async {
+  const backgroundChannel = MethodChannel('home_widget/background');
   WidgetsFlutterBinding.ensureInitialized();
 
-  _backgroundChannel.setMethodCallHandler((call) async {
+  backgroundChannel.setMethodCallHandler((call) async {
     final args = call.arguments;
 
     final callback = PluginUtilities.getCallbackFromHandle(
       CallbackHandle.fromRawHandle(args[0]),
-    );
+    ) as FutureOr<void> Function(Uri?);
 
-    final rawUri = args[1] as String;
+    final rawUri = args[1] as String?;
 
-    final uri = Uri.parse(rawUri);
+    Uri? uri;
+    if (rawUri != null) {
+      uri = Uri.parse(rawUri);
+    }
 
-    callback?.call(uri);
+    await callback.call(uri);
   });
 
-  _backgroundChannel.invokeMethod('HomeWidget.backgroundInitialized');
+  await backgroundChannel.invokeMethod('HomeWidget.backgroundInitialized');
 }

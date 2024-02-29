@@ -1,11 +1,20 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
+import 'package:mocktail/mocktail.dart';
+
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+
+import 'mocks.dart';
 
 const updateChannel = MethodChannel('home_widget/updates');
 
@@ -21,7 +30,9 @@ void main() {
   setUp(() {
     launchUri = null;
     passedArguments = Completer();
-    channel.setMockMethodCallHandler((MethodCall methodCall) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        // ignore: body_might_complete_normally_nullable
+        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
       passedArguments.complete(methodCall.arguments);
       switch (methodCall.method) {
         case 'saveWidgetData':
@@ -36,12 +47,17 @@ void main() {
           return Future.value(launchUri);
         case 'registerBackgroundCallback':
           return true;
+        case 'requestPinWidget':
+          return null;
+        case 'isRequestPinWidgetSupported':
+          return true;
       }
     });
   });
 
   tearDown(() {
-    channel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   test('getWidgetData', () async {
@@ -90,6 +106,31 @@ void main() {
     expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
   });
 
+  test('isRequestPinWidgetSupported', () async {
+    expect(
+      await HomeWidget.isRequestPinWidgetSupported(),
+      true,
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments, isNull);
+  });
+
+  test('requestPinWidget', () async {
+    await HomeWidget.requestPinWidget(
+      name: 'name',
+      androidName: 'androidName',
+      qualifiedAndroidName: 'com.example.androidName',
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments['name'], 'name');
+    expect(arguments['android'], 'androidName');
+    expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
   group('initiallyLaunchedFromHomeWidget', () {
     test('Valid Uri String gets parsed', () async {
       launchUri = 'homeWidget://homeWidgetTest';
@@ -130,7 +171,22 @@ void main() {
     final callbackHandle =
         PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
 
+    // ignore: deprecated_member_use_from_same_package
     expect(await HomeWidget.registerBackgroundCallback(testCallback), true);
+
+    final argument = await passedArguments.future;
+
+    expect(argument[0], dispatcherHandle);
+    expect(argument[1], callbackHandle);
+  });
+
+  test('Register Interactivity Callback passes Handles', () async {
+    final dispatcherHandle =
+        PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle();
+    final callbackHandle =
+        PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
+
+    expect(await HomeWidget.registerInteractivityCallback(testCallback), true);
 
     final argument = await passedArguments.future;
 
@@ -140,9 +196,10 @@ void main() {
 
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
-      updateChannel.binaryMessenger.setMockMessageHandler(updateChannel.name,
-          // ignore: body_might_complete_normally_nullable
-          (message) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(updateChannel.name,
+              // ignore: body_might_complete_normally_nullable
+              (message) async {
         emitEvent(
           updateChannel.codec
               .encodeSuccessEnvelope('homeWidget://homeWidgetTest'),
@@ -163,16 +220,157 @@ void main() {
       await expectation;
     });
   });
+
+  group('Render Flutter Widget', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final directory = Directory('app/directory');
+
+    const size = Size(201, 201);
+    final targetWidget = SizedBox.fromSize(
+      size: size,
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: ColoredBox(
+              color: Colors.red,
+            ),
+          ),
+          Expanded(
+            child: ColoredBox(
+              color: Colors.green,
+            ),
+          ),
+          Expanded(
+            child: ColoredBox(
+              color: Colors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    setUp(() {
+      final pathProvider = MockPathProvider();
+      when(() => pathProvider.getApplicationSupportPath())
+          .thenAnswer((invocation) async => directory.path);
+      PathProviderPlatform.instance = pathProvider;
+    });
+
+    testGoldens('Render Flutter Widget', (tester) async {
+      final byteCompleter = Completer<Uint8List>();
+      final file = MockFile();
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        byteCompleter
+            .complete(Uint8List.fromList(invocation.positionalArguments.first));
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            final path = await HomeWidget.renderFlutterWidget(
+              targetWidget,
+              key: 'screenshot',
+              logicalSize: size,
+            );
+            final expectedPath = '${directory.path}/home_widget/screenshot.png';
+            expect(path, equals(expectedPath));
+
+            final arguments = await passedArguments.future;
+            expect(arguments['id'], 'screenshot');
+            expect(arguments['data'], expectedPath);
+          });
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+
+      final bytes = await byteCompleter.future;
+
+      await tester.pumpWidgetBuilder(
+        Image.memory(
+          bytes,
+          width: size.height,
+          height: size.height,
+        ),
+        surfaceSize: size,
+      );
+
+      await tester.pumpAndSettle();
+      await screenMatchesGolden(tester, 'render-flutter-widget');
+    });
+
+    testGoldens('Error rendering Flutter Widget throws', (tester) async {
+      final file = MockFile();
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(
+            () async {
+              expect(
+                () async => await HomeWidget.renderFlutterWidget(
+                  Builder(builder: (_) => const SizedBox()),
+                  logicalSize: Size.zero,
+                  key: 'screenshot',
+                ),
+                throwsException,
+              );
+            },
+          );
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    testGoldens('Error saving Widget throws', (tester) async {
+      final file = MockFile();
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any()))
+          .thenAnswer((invocation) => Future.error('Error'));
+
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            expect(
+              () async => await HomeWidget.renderFlutterWidget(
+                targetWidget,
+                logicalSize: size,
+                key: 'screenshot',
+              ),
+              throwsException,
+            );
+          });
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+  });
 }
 
 void emitEvent(ByteData? event) {
-  updateChannel.binaryMessenger.handlePlatformMessage(
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .handlePlatformMessage(
     updateChannel.name,
     event,
     (ByteData? reply) {},
   );
 }
 
-void testCallback(Uri? uri) {
+Future<void> testCallback(Uri? uri) async {
   debugPrint('Called TestCallback');
 }

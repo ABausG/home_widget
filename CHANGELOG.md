@@ -1,3 +1,24 @@
+## 0.4.1
+* Fix First Background on iOS being ignored by [mchudy](https://github.com/mchudy) in [#188](https://github.com/ABausG/home_widget/pull/188)
+
+## 0.4.0
+* Add support for Interactive Widgets on iOS
+* Rename `registerBackgroundCallback` to `registerInteractivityCallback`
+* Restructure README
+
+## 0.3.1
+* fix: Fix Null Pointer when Saving `renderFlutterWidget` by [milindgoel15](https://github.com/milindgoel15) in [#182](https://github.com/ABausG/home_widget/pull/182)
+* fix: Update Gradle to 8 by [milindgoel15](https://github.com/milindgoel15) in [#155](https://github.com/ABausG/home_widget/pull/155)
+* docs: Fix syntax error in readme code example by [mattrltrent](https://github.com/mattrltrent) in [#154](https://github.com/ABausG/home_widget/pull/154)
+* fix: Handle null check on Android when checking CallbackInformation by [eliasto](https://github.com/eliasto) in [#172](https://github.com/ABausG/home_widget/pull/172)
+
+## 0.3.0
+* Add `renderFlutterWidget` method to save a Flutter Widget as an Image [#126](https://github.com/ABausG/home_widget/pull/126) by [leighajarett](https://github.com/leighajarett)
+
+## 0.2.1
+* Update Gradle and Kotlin Versions
+* Update to support Flutter 3.10
+
 ## 0.2.0+1
 * Fix example annotation [#115](https://github.com/ABausG/home_widget/pull/115) by [ColinSchmale](https://github.com/ColinSchmale)
 

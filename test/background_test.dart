@@ -14,17 +14,21 @@ void main() {
         PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
     const testUri = 'homeWidget://homeWidgetTest';
 
-    // ignore: body_might_complete_normally_nullable
-    backgroundChannel.setMockMethodCallHandler((call) {
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(backgroundChannel, (call) async {
       if (call.method == 'HomeWidget.backgroundInitialized') {
         emitEvent(
+          tester,
           backgroundChannel.codec
               .encodeMethodCall(MethodCall('', [callbackHandle, testUri])),
         );
+        return true;
+      } else {
+        return null;
       }
     });
 
-    callbackDispatcher();
+    await callbackDispatcher();
 
     final receivedUri = await completer.future;
 
@@ -32,14 +36,14 @@ void main() {
   });
 }
 
-void emitEvent(ByteData? event) {
-  backgroundChannel.binaryMessenger.handlePlatformMessage(
+void emitEvent(WidgetTester tester, ByteData? event) {
+  tester.binding.defaultBinaryMessenger.handlePlatformMessage(
     backgroundChannel.name,
     event,
     (ByteData? reply) {},
   );
 }
 
-void testCallback(Uri? uri) {
+Future<void> testCallback(Uri? uri) async {
   completer.complete(uri);
 }

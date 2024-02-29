@@ -13,7 +13,7 @@ import 'package:workmanager/workmanager.dart';
 void callbackDispatcher() {
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
-    return Future.wait<bool>([
+    return Future.wait<bool?>([
       HomeWidget.saveWidgetData(
         'title',
         'Updated from Background',
@@ -34,10 +34,8 @@ void callbackDispatcher() {
 
 /// Called when Doing Background Work initiated from Widget
 @pragma("vm:entry-point")
-void backgroundCallback(Uri data) async {
-  print(data);
-
-  if (data.host == 'titleclicked') {
+Future<void> interactiveCallback(Uri? data) async {
+  if (data?.host == 'titleclicked') {
     final greetings = [
       'Hello',
       'Hallo',
@@ -46,25 +44,29 @@ void backgroundCallback(Uri data) async {
       'Ciao',
       '哈洛',
       '안녕하세요',
-      'xin chào'
+      'xin chào',
     ];
     final selectedGreeting = greetings[Random().nextInt(greetings.length)];
-
+    await HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
     await HomeWidget.updateWidget(
-        name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
+      name: 'HomeWidgetExampleProvider',
+      iOSName: 'HomeWidgetExample',
+    );
   }
 }
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
-  runApp(MaterialApp(home: MyApp()));
+  runApp(const MaterialApp(home: MyApp()));
 }
 
 class MyApp extends StatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   @override
-  _MyAppState createState() => _MyAppState();
+  State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
@@ -75,7 +77,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
-    HomeWidget.registerBackgroundCallback(backgroundCallback);
+    HomeWidget.registerInteractivityCallback(interactiveCallback);
   }
 
   @override
@@ -92,34 +94,45 @@ class _MyAppState extends State<MyApp> {
     super.dispose();
   }
 
-  Future<void> _sendData() async {
+  Future _sendData() async {
     try {
       return Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
+        HomeWidget.renderFlutterWidget(
+          const Icon(
+            Icons.flutter_dash,
+            size: 200,
+          ),
+          logicalSize: const Size(200, 200),
+          key: 'dashIcon',
+        ),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Sending Data. $exception');
     }
   }
 
-  Future<void> _updateWidget() async {
+  Future _updateWidget() async {
     try {
       return HomeWidget.updateWidget(
-          name: 'HomeWidgetExampleProvider', iOSName: 'HomeWidgetExample');
+        name: 'HomeWidgetExampleProvider',
+        iOSName: 'HomeWidgetExample',
+      );
     } on PlatformException catch (exception) {
       debugPrint('Error Updating Widget. $exception');
     }
   }
 
-  Future<void> _loadData() async {
+  Future _loadData() async {
     try {
       return Future.wait([
         HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
-            .then((value) => _titleController.text = value),
-        HomeWidget.getWidgetData<String>('message',
-                defaultValue: 'Default Message')
-            .then((value) => _messageController.text = value),
+            .then((value) => _titleController.text = value ?? ''),
+        HomeWidget.getWidgetData<String>(
+          'message',
+          defaultValue: 'Default Message',
+        ).then((value) => _messageController.text = value ?? ''),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Getting Data. $exception');
@@ -135,20 +148,24 @@ class _MyAppState extends State<MyApp> {
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_launchedFromWidget);
   }
 
-  void _launchedFromWidget(Uri uri) {
+  void _launchedFromWidget(Uri? uri) {
     if (uri != null) {
       showDialog(
-          context: context,
-          builder: (buildContext) => AlertDialog(
-                title: Text('App started from HomeScreenWidget'),
-                content: Text('Here is the URI: $uri'),
-              ));
+        context: context,
+        builder: (buildContext) => AlertDialog(
+          title: const Text('App started from HomeScreenWidget'),
+          content: Text('Here is the URI: $uri'),
+        ),
+      );
     }
   }
 
   void _startBackgroundUpdate() {
-    Workmanager().registerPeriodicTask('1', 'widgetBackgroundUpdate',
-        frequency: Duration(minutes: 15));
+    Workmanager().registerPeriodicTask(
+      '1',
+      'widgetBackgroundUpdate',
+      frequency: const Duration(minutes: 15),
+    );
   }
 
   void _stopBackgroundUpdate() {
@@ -165,39 +182,39 @@ class _MyAppState extends State<MyApp> {
         child: Column(
           children: [
             TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Title',
               ),
               controller: _titleController,
             ),
             TextField(
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 hintText: 'Body',
               ),
               controller: _messageController,
             ),
             ElevatedButton(
               onPressed: _sendAndUpdate,
-              child: Text('Send Data to Widget'),
+              child: const Text('Send Data to Widget'),
             ),
             ElevatedButton(
               onPressed: _loadData,
-              child: Text('Load Data'),
+              child: const Text('Load Data'),
             ),
             ElevatedButton(
               onPressed: _checkForWidgetLaunch,
-              child: Text('Check For Widget Launch'),
+              child: const Text('Check For Widget Launch'),
             ),
             if (Platform.isAndroid)
               ElevatedButton(
                 onPressed: _startBackgroundUpdate,
-                child: Text('Update in background'),
+                child: const Text('Update in background'),
               ),
             if (Platform.isAndroid)
               ElevatedButton(
                 onPressed: _stopBackgroundUpdate,
-                child: Text('Stop updating in background'),
-              )
+                child: const Text('Stop updating in background'),
+              ),
           ],
         ),
       ),

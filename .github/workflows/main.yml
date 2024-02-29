@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
   pull_request:
 
 concurrency:
@@ -26,16 +27,24 @@ jobs:
       - name: Analyze
         run: flutter analyze
       - name: Format
-        run: flutter format . --set-exit-if-changed
+        run: dart format . --set-exit-if-changed
       - name: Publishability
         run: flutter pub publish --dry-run
       - name: Test
         run: flutter test --coverage
-      - uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
+      - name: Archieve Golden Failures
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Golden failures
+          retention-days: 2
+          path: |
+            **/test/**/failures/**/*.*
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+      - uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
 
   android:
     name: Android Integration Tests
@@ -66,11 +75,16 @@ jobs:
     strategy:
       matrix:
         device:
-          - "iPhone 13"
+          - "iPhone 14"
       fail-fast: false
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v2
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+      - name: Download iOS 17
+        run: xcodebuild -downloadPlatform ios
       - uses: subosito/flutter-action@v1
         with:
           channel: stable

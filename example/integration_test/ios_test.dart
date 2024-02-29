@@ -1,3 +1,5 @@
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:integration_test/integration_test.dart';
@@ -7,8 +9,10 @@ void main() {
 
   group('Need Group Id', () {
     testWidgets('Save Data needs GroupId', (tester) async {
-      expect(() async => await HomeWidget.saveWidgetData('AnyId', null),
-          throwsException);
+      expect(
+        () async => await HomeWidget.saveWidgetData('AnyId', null),
+        throwsException,
+      );
     });
   });
 
@@ -21,7 +25,7 @@ void main() {
       'nullValueKey': null,
     };
 
-    final defaultValue = MapEntry('defaultKey', 'defaultValue');
+    const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
     setUpAll(() async {
       // Add Group Id
@@ -43,7 +47,7 @@ void main() {
         });
       }
 
-      testWidgets('Delte Value successful', (tester) async {
+      testWidgets('Delete Value successful', (tester) async {
         final initialData = await HomeWidget.getWidgetData(testData.keys.first);
         expect(initialData, testData.values.first);
 
@@ -54,8 +58,10 @@ void main() {
       });
 
       testWidgets('Returns default Value', (tester) async {
-        final returnValue = await HomeWidget.getWidgetData(defaultValue.key,
-            defaultValue: defaultValue.value);
+        final returnValue = await HomeWidget.getWidgetData(
+          defaultValue.key,
+          defaultValue: defaultValue.value,
+        );
 
         expect(returnValue, defaultValue.value);
       });
@@ -65,7 +71,7 @@ void main() {
       final returnValue = await HomeWidget.updateWidget(
         name: 'HomeWidgetExampleProvider',
         iOSName: 'HomeWidgetExample',
-      ).timeout(Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 5));
 
       expect(returnValue, true);
     });
@@ -83,14 +89,32 @@ void main() {
       group('Register Backgorund Callback', () {
         testWidgets('RegisterBackgroundCallback completes without error',
             (tester) async {
+          final deviceInfo = await DeviceInfoPlugin().iosInfo;
+          final hasInteractiveWidgets =
+              double.parse(deviceInfo.systemVersion.split('.').first) >= 17.0;
           await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
-          final registerCallbackResult =
-              await HomeWidget.registerBackgroundCallback(backgroundCallback);
-          expect(registerCallbackResult, isNull);
+          if (hasInteractiveWidgets) {
+            final registerCallbackResult =
+                await HomeWidget.registerInteractivityCallback(
+              interactivityCallback,
+            );
+
+            expect(
+              registerCallbackResult,
+              isTrue,
+            );
+          } else {
+            expect(
+              () async => await HomeWidget.registerInteractivityCallback(
+                interactivityCallback,
+              ),
+              throwsA(isA<PlatformException>()),
+            );
+          }
         });
       });
     });
   });
 }
 
-void backgroundCallback(Uri uri) {}
+Future<void> interactivityCallback(Uri? uri) async {}
