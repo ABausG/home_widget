@@ -124,6 +124,26 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _getWidgetCount() async {
+    try {
+      int? count = await HomeWidget.getWidgetCount(
+        name: 'HomeWidgetExampleProvider',
+        iOSName: 'HomeWidgetExample',
+      );
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (buildContext) => AlertDialog(
+            title: const Text('Widget Count'),
+            content: Text('Number of widgets: $count'),
+          ),
+        );
+      }
+    } on PlatformException catch (exception) {
+      debugPrint('Error Getting Widget Count. $exception');
+    }
+  }
+
   Future _loadData() async {
     try {
       return Future.wait([
@@ -204,6 +224,10 @@ class _MyAppState extends State<MyApp> {
             ElevatedButton(
               onPressed: _checkForWidgetLaunch,
               child: const Text('Check For Widget Launch'),
+            ),
+            ElevatedButton(
+              onPressed: _getWidgetCount,
+              child: const Text('Get Widget Count'),
             ),
             if (Platform.isAndroid)
               ElevatedButton(
