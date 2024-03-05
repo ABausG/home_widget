@@ -68,8 +68,8 @@ public struct HomeWidgetBackgroundWorker {
   public static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "HomeWidget.backgroundInitialized":
+      isSetupCompleted = true
       while !queue.isEmpty {
-        isSetupCompleted = true
         let entry = queue.removeFirst()
         Task {
           await sendEvent(url: entry.0, appGroup: entry.1)
