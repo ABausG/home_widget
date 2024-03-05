@@ -40,6 +40,7 @@ android {
         applicationId "es.antonborri.home_widget_example"
         minSdkVersion 23
         targetSdkVersion 34
+        multiDexEnabled true
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -53,6 +54,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            minifyEnabled true
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
@@ -69,4 +73,6 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation 'androidx.glance:glance-appwidget:1.0.0'
+    implementation "androidx.work:work-runtime-ktx:2.8.1"
+    implementation "androidx.multidex:multidex:2.0.1"
 }

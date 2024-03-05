@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.glance.action.Action
+import androidx.glance.appwidget.action.actionStartActivity
 
 object HomeWidgetLaunchIntent {
 
@@ -23,6 +25,14 @@ object HomeWidgetLaunchIntent {
 
         return PendingIntent.getActivity(context, 0, intent, flags)
     }
+}
+
+inline fun <reified T : Activity> actionStartActivity(context: Context, uri: Uri? = null): Action {
+    val intent = Intent(context, T::class.java)
+    intent.data = uri
+    intent.action = HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION
+
+    return actionStartActivity(intent)
 }
 
 

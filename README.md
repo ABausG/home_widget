@@ -527,13 +527,15 @@ class OpenAppAction : ActionCallback {
 and use it like this:
 
 ```kotlin
-Button(
-    text = "Open App",
-    onClick = actionRunCallback<OpenAppAction>(
-        actionParametersOf(
-            ActionParameters.Key<String>(OpenAppAction.MESSAGE_KEY) to "your message"
-        )
-    )
+Text(
+     message,
+     style = TextStyle(fontSize = 18.sp),
+     modifier = GlanceModifier.clickable(
+          onClick = actionStartActivity<MainActivity>(
+               context,
+               Uri.parse("homeWidgetExample://message?message=$message")
+          )
+     )
 )
 ```
 
