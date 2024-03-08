@@ -23,6 +23,7 @@ void main() {
       'boolKey': true,
       'floatingNumberKey': 12.1,
       'nullValueKey': null,
+      'uint8ListKey': Uint8List.fromList([]),
     };
 
     const defaultValue = MapEntry('defaultKey', 'defaultValue');
