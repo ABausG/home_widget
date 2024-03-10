@@ -51,6 +51,8 @@ void main() {
           return null;
         case 'isRequestPinWidgetSupported':
           return true;
+        case 'getInstalledWidgets':
+          return null;
       }
     });
   });
@@ -129,6 +131,10 @@ void main() {
     expect(arguments['name'], 'name');
     expect(arguments['android'], 'androidName');
     expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
+  test('getInstalledWidgets', () async {
+    expect(await HomeWidget.getInstalledWidgets(), []);
   });
 
   group('initiallyLaunchedFromHomeWidget', () {
