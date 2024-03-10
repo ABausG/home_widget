@@ -157,8 +157,28 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
       result(false)
     } else if call.method == "requestPinWidget" {
       result(nil)
-    }
-    else {
+    } else if call.method == "getInstalledWidgets" {
+      if #available(iOS 14.0, *) {
+        #if arch(arm64) || arch(i386) || arch(x86_64)
+          WidgetCenter.shared.getCurrentConfigurations { result2 in
+            switch result2 {
+            case let .success(widgets):
+              let widgetInfoList = widgets.map { widget in
+                  return ["family": "\(widget.family)", "kind": widget.kind]
+              }
+              result(widgetInfoList)
+            case let .failure(error):
+              result(FlutterError(code: "-8", message: "Failed to get installed widgets: \(error.localizedDescription)", details: nil))
+            }
+          }
+        #endif
+      } else {
+        result(
+          FlutterError(
+            code: "-4", message: "Widgets are only available on iOS 14.0 and above", details: nil)
+        )
+      }
+    } else {
       result(FlutterMethodNotImplemented)
     }
   }
