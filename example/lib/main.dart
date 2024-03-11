@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:home_widget/home_widget_info.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Used for Background Updates using Workmanager Plugin
@@ -176,6 +177,18 @@ class _MyAppState extends State<MyApp> {
     try {
       final widgets = await HomeWidget.getInstalledWidgets();
       if (!mounted) return;
+
+      String getText(HomeWidgetInfo widget) {
+        if (Platform.isIOS) {
+          return 'iOS Family: ${widget.family}, iOS Kind: ${widget.kind}';
+        } else if (Platform.isAndroid) {
+          return 'Android Widget id: ${widget.widgetId}, '
+              'Android Class Name: ${widget.androidClassName}, '
+              'Android Label: ${widget.label}';
+        }
+        return "";
+      }
+
       await showDialog(
         context: context,
         builder: (buildContext) => AlertDialog(
@@ -187,11 +200,7 @@ class _MyAppState extends State<MyApp> {
               const Divider(),
               for (final widget in widgets)
                 Text(
-                  '- iOS Family: ${widget.family}, '
-                  'iOS Kind: ${widget.kind}, '
-                  'Android Widget id: ${widget.widgetId}, '
-                  'Android Class Name: ${widget.androidClassName}, '
-                  'Android Label: ${widget.label}',
+                  getText(widget),
                 ),
             ],
           ),

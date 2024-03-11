@@ -272,10 +272,12 @@ class HomeWidget {
   /// currently pinned on the home screen.
   /// Returns an empty list if no widgets are pinned.
   static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {
-    final List<dynamic>? result = await _channel.invokeMethod('getInstalledWidgets');
+    final List<dynamic>? result =
+        await _channel.invokeMethod('getInstalledWidgets');
     return result
             ?.map(
-              (widget) => HomeWidgetInfo.fromMap(widget.cast<String, dynamic>()),
+              (widget) =>
+                  HomeWidgetInfo.fromMap(widget.cast<String, dynamic>()),
             )
             .toList() ??
         [];

@@ -16,7 +16,13 @@ class HomeWidgetInfo {
   String? label;
 
   /// Constructs a [HomeWidgetInfo] object.
-  HomeWidgetInfo({this.family, this.kind, this.widgetId, this.androidClassName, this.label});
+  HomeWidgetInfo({
+    this.family,
+    this.kind,
+    this.widgetId,
+    this.androidClassName,
+    this.label,
+  });
 
   /// Constructs a [HomeWidgetInfo] object from a map.
   ///
