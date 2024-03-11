@@ -181,12 +181,11 @@ class _MyAppState extends State<MyApp> {
       String getText(HomeWidgetInfo widget) {
         if (Platform.isIOS) {
           return 'Family: ${widget.family}, Kind: ${widget.kind}';
-        } else if (Platform.isAndroid) {
+        } else {
           return 'Widget id: ${widget.widgetId}, '
               'Class Name: ${widget.androidClassName}, '
               'Label: ${widget.label}';
         }
-        return "";
       }
 
       await showDialog(
