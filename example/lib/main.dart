@@ -180,11 +180,11 @@ class _MyAppState extends State<MyApp> {
 
       String getText(HomeWidgetInfo widget) {
         if (Platform.isIOS) {
-          return 'iOS Family: ${widget.family}, iOS Kind: ${widget.kind}';
+          return 'Family: ${widget.family}, Kind: ${widget.kind}';
         } else if (Platform.isAndroid) {
-          return 'Android Widget id: ${widget.widgetId}, '
-              'Android Class Name: ${widget.androidClassName}, '
-              'Android Label: ${widget.label}';
+          return 'Widget id: ${widget.widgetId}, '
+              'Class Name: ${widget.androidClassName}, '
+              'Label: ${widget.label}';
         }
         return "";
       }
