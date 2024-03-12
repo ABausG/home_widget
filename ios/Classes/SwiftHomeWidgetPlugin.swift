@@ -63,7 +63,11 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
       {
         let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
         if data != nil {
-          preferences?.setValue(data, forKey: id)
+          if let binaryData = data as? FlutterStandardTypedData {
+            preferences?.setValue(Data(binaryData.data), forKey: id)
+          } else {
+            preferences?.setValue(data, forKey: id)
+          }
         } else {
           preferences?.removeObject(forKey: id)
         }
