@@ -62,7 +62,86 @@ let data = UserDefaults.init(suiteName:"YOUR_GROUP_ID")
 ```
 </details>
 
-<details><summary>Android</summary>
+<details><summary>Android (Jetpack Glance)</summary>
+
+### Add Jetpack Glance as a dependency to you app's Gradle File
+```groovy
+implementation 'androidx.glance:glance-appwidget:LATEST-VERSION'
+```
+
+### Create Widget Configuration into `android/app/src/main/res/xml`
+```xml
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="10000">
+</appwidget-provider>
+```
+
+### Add WidgetReceiver to AndroidManifest
+```xml
+<receiver android:name=".glance.HomeWidgetReceiver"
+          android:exported="true">
+   <intent-filter>
+      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+   </intent-filter>
+   <meta-data
+           android:name="android.appwidget.provider"
+           android:resource="@xml/home_widget_glance_example" />
+</receiver>
+```
+
+### Create WidgetReceiver
+
+To get automatic Updates you should extend from [HomeWidgetGlanceWidgetReceiver](android/src/main/kotlin/es/antonborri/home_widget/HomeWidgetGlanceWidgetReceiver.kt)
+
+Your Receiver should then look like this
+
+```kotlin
+package es.antonborri.home_widget_example.glance
+
+import HomeWidgetGlanceWidgetReceiver
+
+class HomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<HomeWidgetGlanceAppWidget>() {
+    override val glanceAppWidget = HomeWidgetGlanceAppWidget()
+}
+```
+
+### Build Your AppWidget
+
+```kotlin
+
+class HomeWidgetGlanceAppWidget : GlanceAppWidget() {
+
+    /**
+     * Needed for Updating
+     */
+    override val stateDefinition = HomeWidgetGlanceStateDefinition()
+
+    override suspend fun provideGlance(context: Context, id: GlanceId) {
+        provideContent {
+            GlanceContent(context, currentState())
+        }
+    }
+
+    @Composable
+    private fun GlanceContent(context: Context, currentState: HomeWidgetGlanceState) {
+        // Use data to access the data you save with 
+        val data = currentState.preferences
+       
+
+        // Build Your Composable Widget
+       Column(
+         ...
+    }
+
+```
+
+</details>
+
+<details><summary>Android (XML)</summary>
 
 ### Create Widget Layout inside `android/app/src/main/res/layout`
 
@@ -103,22 +182,6 @@ which will give you access to the same SharedPreferences
 ### More Information
 For more Information on how to create and configure Android Widgets, check out [this guide](https://developer.android.com/develop/ui/views/appwidgets) on the Android Developers Page.
 
-### Jetpack Glance
-In Jetpack Glance, you have to write your receiver (== provider), that returns a widget.
-Add it to AndroidManifest the same way as written above for android widgets.
-
-```kotlin
-class MyReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget get() = MyWidget()
-}
-```
-
-If you need to access HomeWidget shared preferences, use this:
-
-```kotlin
-HomeWidgetPlugin.getData(context)
-```
-
 </details>
 
 ## Usage
@@ -145,14 +208,17 @@ HomeWidget.updateWidget(
 );
 ```
 
-The name for Android will be chosen by checking `qualifiedAndroidName`, falling back to `<packageName>.androidName` and if that was not provided it 
-will fallback to `<packageName>.name`.
+The name for Android will be chosen by checking `qualifiedAndroidName`, falling back to `<packageName>.androidName` and if that was not provided it will fallback to `<packageName>.name`.
 This Name needs to be equal to the Classname of the [WidgetProvider](#Write-your-Widget)
 
 The name for iOS will be chosen by checking `iOSName` if that was not provided it will fallback to `name`.
 This name needs to be equal to the Kind specified in you Widget
 
-#### Android
+#### Android (Jetpack Glance)
+
+If you followed the guide and use `HomeWidgetGlanceWidgetReceiver` as your Receiver, `HomeWidgetGlanceStateDefinition` as the AppWidgetStateDefinition, `currentState()` in the composable view and `currentState.preferences` for data access. No further work is necessary.
+
+#### Android (XML)
 Calling `HomeWidget.updateWidget` only notifies the specified provider.
 To update widgets using this provider,
 update them from the provider like this:
@@ -173,36 +239,6 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
 }
 ```
 
-#### Jetpack Glance
-Updating widgets in Jetpack Glance is a bit more tricky,
-widgets are only updated when their state changes,
-therefore simple update will not refresh them.
-To update them, you have to fake state update like this:
-
-```kotlin
-class MyWidgetReceiver : GlanceAppWidgetReceiver() {
-    override val glanceAppWidget: GlanceAppWidget get() = MyWidget()
-
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        super.onUpdate(context, appWidgetManager, appWidgetIds)
-
-        runBlocking {
-            appWidgetIds.forEach {
-                val glanceId = GlanceAppWidgetManager(context).getGlanceIdBy(it)
-                MyWidget().apply {
-                    // Must update widget state otherwise it update has no effect for some reason.
-                    updateAppWidgetState(context, glanceId) { prefs ->
-                        prefs[stringPreferencesKey("___FAKE_UPDATE___")] = Random.nextULong().toString()
-                    }
-
-                    // Update widget.
-                    update(context, glanceId)
-                }
-            }
-        }
-    }
-}
-```
 
 ### Retrieve Data
 To retrieve the current Data saved in the Widget call `HomeWidget.getWidgetData<String>('id', defaultValue: data)`
@@ -301,7 +337,40 @@ Android and iOS (starting with iOS 17) allow widgets to have interactive Element
    This code tells the system to always perform the Intent in the App and not in a process attached to the Widget. Note however that this will start your Flutter App using the normal main entrypoint meaning your full app might be run in the background. To counter this you should add checks in the very first Widget you build inside `runApp` to only perform necessary calls/setups while the App is launched in the background
 </details>
 
-<details><summary>Android</summary>
+
+<details><summary>Android Jetpack Glance</summary>
+
+1. Add the necessary Receiver and Service to your `AndroidManifest.xml` file
+    ```
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
+        <intent-filter>
+            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+        </intent-filter>
+    </receiver>
+    <service android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
+        android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
+   ```
+2. Create a custom Action
+   ```kotlin
+   class InteractiveAction : ActionCallback {
+        override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+         val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(context, Uri.parse("homeWidgetExample://titleClicked"))
+         backgroundIntent.send()
+       }
+   }
+   ```
+3. Add the Action as a modifier to a view
+   ```kotlin
+   Text(
+        title,
+        style = TextStyle(fontSize = 36.sp, fontWeight = FontWeight.Bold),
+        modifier = GlanceModifier.clickable(onClick = actionRunCallback<InteractiveAction>()),
+   )
+   ```
+
+</details>
+
+<details><summary>Android XML </summary>
 
 1. Add the necessary Receiver and Service to your `AndroidManifest.xml` file
     ```
@@ -413,7 +482,25 @@ To retrieve the image and display it in a widget, you can use the following Swif
 <img width="522" alt="Screenshot 2023-06-07 at 12 57 28 PM" src="https://github.com/ABausG/home_widget/assets/21065911/f7dcdea0-605a-4662-a03a-158831a4e946">
 </details>
 
-<details><summary>Android</summary>
+<details><summary>Android (Jetpack Glance)</summary>
+
+```kotlin
+// Access data
+val data = currentState.preferences
+
+// Get Path
+val imagePath = data.getString("lineChart", null)
+
+// Add Image to Compose Tree
+imagePath?.let {
+   val bitmap = BitmapFactory.decodeFile(it)
+   Image(androidx.glance.ImageProvider(bitmap), null)
+}
+```
+
+</details>
+
+<details><summary>Android (XML)</summary>
 
 1. Add an image UI element to your xml file:
     ```xml
@@ -485,6 +572,7 @@ In order to only detect Widget Links you need to add the queryParameter`homeWidg
 </details>
 
 <details><summary>Android</summary>
+
 Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
 ```
 <intent-filter>
@@ -492,6 +580,22 @@ Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
 </intent-filter>
 ```
 
+#### Jetpack Glance
+Add the following modifier to your Widget (import from HomeWidget)
+```kotlin
+Text(
+   message,
+   style = TextStyle(fontSize = 18.sp),
+   modifier = GlanceModifier.clickable(
+     onClick = actionStartActivity<MainActivity>(
+       context,
+       Uri.parse("homeWidgetExample://message?message=$message")
+     )
+   )
+)
+```
+
+#### XML
 In your WidgetProvider add a PendingIntent to your View using `HomeWidgetLaunchIntent.getActivity`
 ```kotlin
 val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
@@ -499,44 +603,6 @@ val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
         MainActivity::class.java,
         Uri.parse("homeWidgetExample://message?message=$message"))
 setOnClickPendingIntent(R.id.widget_message, pendingIntentWithData)
-```
-
-#### Jetpack Glance
-Create an `ActionCallback`:
-
-```kotlin
-class OpenAppAction : ActionCallback {
-    companion object {
-        const val MESSAGE_KEY = "OpenAppActionMessageKey"
-    }
-
-    override suspend fun onAction(
-        context: Context, glanceId: GlanceId, parameters: ActionParameters
-    ) {
-        val message = parameters[ActionParameters.Key<String>(MESSAGE_KEY)]
-
-        val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
-            context, MainActivity::class.java, Uri.parse("homeWidgetExample://message?message=$message")
-        )
-
-        pendingIntentWithData.send()
-    }
-}
-```
-
-and use it like this:
-
-```kotlin
-Text(
-     message,
-     style = TextStyle(fontSize = 18.sp),
-     modifier = GlanceModifier.clickable(
-          onClick = actionStartActivity<MainActivity>(
-               context,
-               Uri.parse("homeWidgetExample://message?message=$message")
-          )
-     )
-)
 ```
 
 </details>
