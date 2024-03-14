@@ -1,6 +1,7 @@
 package es.antonborri.home_widget
 
 import android.app.Activity
+import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -21,7 +22,14 @@ object HomeWidgetLaunchIntent {
             flags = flags or PendingIntent.FLAG_IMMUTABLE
         }
 
-        return PendingIntent.getActivity(context, 0, intent, flags)
+        if (Build.VERSION.SDK_INT < 34) {
+            return PendingIntent.getActivity(context, 0, intent, flags)
+        }
+
+        val options = ActivityOptions.makeBasic()
+        options.pendingIntentBackgroundActivityStartMode = ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+
+        return PendingIntent.getActivity(context, 0, intent, flags, options.toBundle())
     }
 }
 
