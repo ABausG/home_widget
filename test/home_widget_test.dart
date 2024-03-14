@@ -64,13 +64,14 @@ void main() {
 
   test('getWidgetCount', () async {
     expect(
-        await HomeWidget.getWidgetCount(
-          name: 'name',
-          androidName: 'androidName',
-          iOSName: 'iOSName',
-          qualifiedAndroidName: 'com.example.androidName',
-        ),
-        1);
+      await HomeWidget.getWidgetCount(
+        name: 'name',
+        androidName: 'androidName',
+        iOSName: 'iOSName',
+        qualifiedAndroidName: 'com.example.androidName',
+      ),
+      1,
+    );
     final arguments = await passedArguments.future;
 
     expect(arguments['name'], 'name');
