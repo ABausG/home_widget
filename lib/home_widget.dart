@@ -80,6 +80,10 @@ class HomeWidget {
 
   /// Counts the number of widgets on the home screen
   ///
+  /// Note: This method will return the number of distinct size widgets on iOS.
+  ///       So if you have multiple square sized widgets and multiple rectangle
+  ///       sized widgets, it will still return 2.
+  ///
   /// Android widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
   /// iOS widgets will look for [iOSName] and then for [name]
   ///
