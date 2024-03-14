@@ -39,6 +39,8 @@ void main() {
           return true;
         case 'getWidgetData':
           return 'TestData';
+        case 'getWidgetCount':
+          return 1;
         case 'updateWidget':
           return true;
         case 'setAppGroupId':
@@ -60,6 +62,23 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
+  test('getWidgetCount', () async {
+    expect(
+        await HomeWidget.getWidgetCount(
+          name: 'name',
+          androidName: 'androidName',
+          iOSName: 'iOSName',
+          qualifiedAndroidName: 'com.example.androidName',
+        ),
+        1);
+    final arguments = await passedArguments.future;
+
+    expect(arguments['name'], 'name');
+    expect(arguments['android'], 'androidName');
+    expect(arguments['ios'], 'iOSName');
+    expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
   test('getWidgetData', () async {
     const dataId = 'TestId';
     expect(await HomeWidget.getWidgetData(dataId), 'TestData');
@@ -77,7 +96,7 @@ void main() {
     expect(arguments['defaultValue'], defaultValue);
   });
 
-  test('saveWidgetData', () async {
+  test('W', () async {
     const id = 'TestId';
     const value = 'Test Value';
     expect(await HomeWidget.saveWidgetData(id, value), true);
