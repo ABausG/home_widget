@@ -97,7 +97,7 @@ void main() {
     expect(arguments['defaultValue'], defaultValue);
   });
 
-  test('W', () async {
+  test('saveWidgetData', () async {
     const id = 'TestId';
     const value = 'Test Value';
     expect(await HomeWidget.saveWidgetData(id, value), true);
