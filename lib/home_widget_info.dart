@@ -41,4 +41,25 @@ class HomeWidgetInfo {
   String toString() {
     return 'HomeWidgetInfo{family: $family, kind: $kind, widgetId: $widgetId, androidClassName: $androidClassName, label: $label}';
   }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is HomeWidgetInfo &&
+        other.family == family &&
+        other.kind == kind &&
+        other.widgetId == widgetId &&
+        other.androidClassName == androidClassName &&
+        other.label == label;
+  }
+
+  @override
+  int get hashCode {
+    return family.hashCode ^
+        kind.hashCode ^
+        widgetId.hashCode ^
+        androidClassName.hashCode ^
+        label.hashCode;
+  }
 }

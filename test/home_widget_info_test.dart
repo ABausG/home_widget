@@ -34,5 +34,36 @@ void main() {
         'HomeWidgetInfo{family: systemSmall, kind: ParkingWidget, widgetId: 1, androidClassName: com.example.MyWidget, label: My Widget}',
       );
     });
+
+    test('HomeWidgetInfo equality', () {
+      final info1 = HomeWidgetInfo(
+        family: 'medium',
+        kind: 'anotherKind',
+        widgetId: 1,
+        androidClassName: 'com.example.AnotherWidget',
+        label: 'Another Widget',
+      );
+
+      final info2 = HomeWidgetInfo(
+        family: 'medium',
+        kind: 'anotherKind',
+        widgetId: 1,
+        androidClassName: 'com.example.AnotherWidget',
+        label: 'Another Widget',
+      );
+
+      final info3 = HomeWidgetInfo(
+        family: 'systemSmall',
+        kind: 'ParkingWidget',
+        widgetId: 1,
+        androidClassName: 'com.example.MyWidget',
+        label: 'My Widget',
+      );
+
+      expect(info1 == info2, true);
+      expect(info1.hashCode, equals(info2.hashCode));
+      expect(info1 == info3, false);
+      expect(info1.hashCode, isNot(equals(info3.hashCode)));
+    });
   });
 }
