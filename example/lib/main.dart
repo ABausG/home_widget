@@ -83,11 +83,14 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
 
+  bool _isRequestPinWidgetSupported = false;
+
   @override
   void initState() {
     super.initState();
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     HomeWidget.registerInteractivityCallback(interactiveCallback);
+    _checkPinability();
   }
 
   @override
@@ -188,6 +191,16 @@ class _MyAppState extends State<MyApp> {
     Workmanager().cancelByUniqueName('1');
   }
 
+  Future<void> _checkPinability() async {
+    final isRequestPinWidgetSupported =
+        await HomeWidget.isRequestPinWidgetSupported();
+    if (mounted) {
+      setState(() {
+        _isRequestPinWidgetSupported = isRequestPinWidgetSupported ?? false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -230,6 +243,14 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _stopBackgroundUpdate,
                 child: const Text('Stop updating in background'),
+              ),
+            if (_isRequestPinWidgetSupported)
+              ElevatedButton(
+                onPressed: () => HomeWidget.requestPinWidget(
+                  qualifiedAndroidName:
+                      'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+                ),
+                child: const Text('Pin Widget'),
               ),
           ],
         ),

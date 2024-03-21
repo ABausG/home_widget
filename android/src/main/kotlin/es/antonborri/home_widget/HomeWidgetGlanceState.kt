@@ -1,5 +1,6 @@
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Environment
 import androidx.datastore.core.DataStore
 import androidx.glance.state.GlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -16,7 +17,7 @@ class HomeWidgetGlanceStateDefinition : GlanceStateDefinition<HomeWidgetGlanceSt
     }
 
     override fun getLocation(context: Context, fileKey: String): File {
-        throw NotImplementedError("Not needed for HomeWidgetGlanceStateDefinition")
+        return Environment.getDataDirectory()
     }
 
 }
