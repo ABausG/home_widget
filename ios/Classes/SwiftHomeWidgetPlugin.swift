@@ -20,6 +20,12 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
   private let notInitializedError = FlutterError(
     code: "-7", message: "AppGroupId not set. Call setAppGroupId first", details: nil)
 
+  private static func isRunningInAppExtension() -> Bool {
+    let bundleURL = Bundle.main.bundleURL
+    let bundlePathExtension = bundleURL.pathExtension
+    return bundlePathExtension == "appex"
+  }
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = SwiftHomeWidgetPlugin()
 
@@ -30,7 +36,14 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
       name: "home_widget/updates", binaryMessenger: registrar.messenger())
     eventChannel.setStreamHandler(instance)
 
-    registrar.addApplicationDelegate(instance)
+    guard isRunningInAppExtension() == false else {
+      return
+    }
+
+    let selector = NSSelectorFromString("addApplicationDelegate:")
+    if registrar.responds(to: selector) {
+      registrar.perform(selector, with: instance)
+    }
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
