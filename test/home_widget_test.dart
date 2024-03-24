@@ -8,8 +8,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:home_widget/home_widget_callback_dispatcher.dart';
-import 'package:home_widget/home_widget_info.dart';
 import 'package:mocktail/mocktail.dart';
 
 // ignore: depend_on_referenced_packages

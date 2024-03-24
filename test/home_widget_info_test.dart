@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:home_widget/home_widget_info.dart';
+import 'package:home_widget/home_widget.dart';
 
 void main() {
   group('HomeWidgetInfo', () {
