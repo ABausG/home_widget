@@ -1,3 +1,18 @@
+## 0.5.0
+**Breaking Changes**
+* The package now uses a library pattern so you should only import `'package:home_widget/home_widget.dart'`
+
+**New Features**
+* Jetpack Glance Support
+* Support `requestPinWidget` on Android
+* Support getting Information about Widgets Users have currently added to their Home and Lock Screens
+* Support saving `Uint8List` on iOS
+
+**Fixes**
+* iOS Background Work not working when App was fully closed
+* Launching the App on Android 14+
+* iOS not compiling when using interactive Widgets with Flutter 3.19+
+
 ## 0.4.1
 * Fix First Background on iOS being ignored by [mchudy](https://github.com/mchudy) in [#188](https://github.com/ABausG/home_widget/pull/188)
 
