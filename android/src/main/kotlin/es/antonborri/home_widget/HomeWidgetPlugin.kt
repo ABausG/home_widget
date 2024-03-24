@@ -195,7 +195,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     }
 
     companion object {
-        private const val PREFERENCES = "HomeWidgetPreferences"
+        internal const val PREFERENCES = "HomeWidgetPreferences"
 
         private const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
         private const val CALLBACK_DISPATCHER_HANDLE = "callbackDispatcherHandle"
