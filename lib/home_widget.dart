@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
+import 'package:home_widget/home_widget_info.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path_provider_foundation/path_provider_foundation.dart';
 
@@ -115,7 +116,7 @@ class HomeWidget {
         try {
           return Uri.parse(value);
         } on FormatException {
-          debugPrint('Received Data($value) is not parsebale into an Uri');
+          debugPrint('Received Data($value) is not parsable into an Uri');
         }
       }
       return Uri();
@@ -206,7 +207,7 @@ class HomeWidget {
       ///adding the rootElement to the buildScope
       buildOwner.buildScope(rootElement);
 
-      /// finialize the buildOwner
+      /// finalize the buildOwner
       buildOwner.finalizeTree();
 
       ///Flush Layout
@@ -263,5 +264,22 @@ class HomeWidget {
     } catch (e) {
       throw Exception('Failed to render the widget: $e');
     }
+  }
+
+  /// On iOS, returns a list of [HomeWidgetInfo] for each type of widget currently installed,
+  /// regardless of the number of instances.
+  /// On Android, returns a list of [HomeWidgetInfo] for each instance of each widget
+  /// currently pinned on the home screen.
+  /// Returns an empty list if no widgets are pinned.
+  static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {
+    final List<dynamic>? result =
+        await _channel.invokeMethod('getInstalledWidgets');
+    return result
+            ?.map(
+              (widget) =>
+                  HomeWidgetInfo.fromMap(widget.cast<String, dynamic>()),
+            )
+            .toList() ??
+        [];
   }
 }

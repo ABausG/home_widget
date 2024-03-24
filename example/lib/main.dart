@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:home_widget/home_widget_info.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Used for Background Updates using Workmanager Plugin
@@ -28,10 +29,11 @@ void callbackDispatcher() async {
           name: 'HomeWidgetExampleProvider',
           iOSName: 'HomeWidgetExample',
         ),
-        HomeWidget.updateWidget(
-          qualifiedAndroidName:
-              'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-        )
+        if (Platform.isAndroid)
+          HomeWidget.updateWidget(
+            qualifiedAndroidName:
+                'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+          ),
       ]);
       return !value.contains(false);
     });
@@ -59,10 +61,12 @@ Future<void> interactiveCallback(Uri? data) async {
       name: 'HomeWidgetExampleProvider',
       iOSName: 'HomeWidgetExample',
     );
-    await HomeWidget.updateWidget(
-      qualifiedAndroidName:
-          'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-    );
+    if (Platform.isAndroid) {
+      await HomeWidget.updateWidget(
+        qualifiedAndroidName:
+            'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+      );
+    }
   }
 }
 
@@ -133,10 +137,11 @@ class _MyAppState extends State<MyApp> {
           name: 'HomeWidgetExampleProvider',
           iOSName: 'HomeWidgetExample',
         ),
-        HomeWidget.updateWidget(
-          qualifiedAndroidName:
-              'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-        ),
+        if (Platform.isAndroid)
+          HomeWidget.updateWidget(
+            qualifiedAndroidName:
+                'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+          ),
       ]);
     } on PlatformException catch (exception) {
       debugPrint('Error Updating Widget. $exception');
@@ -191,6 +196,43 @@ class _MyAppState extends State<MyApp> {
     Workmanager().cancelByUniqueName('1');
   }
 
+  Future<void> _getInstalledWidgets() async {
+    try {
+      final widgets = await HomeWidget.getInstalledWidgets();
+      if (!mounted) return;
+
+      String getText(HomeWidgetInfo widget) {
+        if (Platform.isIOS) {
+          return 'iOS Family: ${widget.iOSFamily}, iOS Kind: ${widget.iOSKind}';
+        } else {
+          return 'Android Widget id: ${widget.androidWidgetId}, '
+              'Android Class Name: ${widget.androidClassName}, '
+              'Android Label: ${widget.androidLabel}';
+        }
+      }
+
+      await showDialog(
+        context: context,
+        builder: (buildContext) => AlertDialog(
+          title: const Text('Installed Widgets'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Number of widgets: ${widgets.length}'),
+              const Divider(),
+              for (final widget in widgets)
+                Text(
+                  getText(widget),
+                ),
+            ],
+          ),
+        ),
+      );
+    } on PlatformException catch (exception) {
+      debugPrint('Error getting widget information. $exception');
+    }
+  }
+
   Future<void> _checkPinability() async {
     final isRequestPinWidgetSupported =
         await HomeWidget.isRequestPinWidgetSupported();
@@ -208,51 +250,58 @@ class _MyAppState extends State<MyApp> {
         title: const Text('HomeWidget Example'),
       ),
       body: Center(
-        child: Column(
-          children: [
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Title',
-              ),
-              controller: _titleController,
-            ),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Body',
-              ),
-              controller: _messageController,
-            ),
-            ElevatedButton(
-              onPressed: _sendAndUpdate,
-              child: const Text('Send Data to Widget'),
-            ),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('Load Data'),
-            ),
-            ElevatedButton(
-              onPressed: _checkForWidgetLaunch,
-              child: const Text('Check For Widget Launch'),
-            ),
-            if (Platform.isAndroid)
-              ElevatedButton(
-                onPressed: _startBackgroundUpdate,
-                child: const Text('Update in background'),
-              ),
-            if (Platform.isAndroid)
-              ElevatedButton(
-                onPressed: _stopBackgroundUpdate,
-                child: const Text('Stop updating in background'),
-              ),
-            if (_isRequestPinWidgetSupported)
-              ElevatedButton(
-                onPressed: () => HomeWidget.requestPinWidget(
-                  qualifiedAndroidName:
-                      'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Title',
                 ),
-                child: const Text('Pin Widget'),
+                controller: _titleController,
               ),
-          ],
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Body',
+                ),
+                controller: _messageController,
+              ),
+              ElevatedButton(
+                onPressed: _sendAndUpdate,
+                child: const Text('Send Data to Widget'),
+              ),
+              ElevatedButton(
+                onPressed: _loadData,
+                child: const Text('Load Data'),
+              ),
+              ElevatedButton(
+                onPressed: _checkForWidgetLaunch,
+                child: const Text('Check For Widget Launch'),
+              ),
+              if (Platform.isAndroid)
+                ElevatedButton(
+                  onPressed: _startBackgroundUpdate,
+                  child: const Text('Update in background'),
+                ),
+              if (Platform.isAndroid)
+                ElevatedButton(
+                  onPressed: _stopBackgroundUpdate,
+                  child: const Text('Stop updating in background'),
+                ),
+              ElevatedButton(
+                onPressed: _getInstalledWidgets,
+                child: const Text('Get Installed Widgets'),
+              ),
+              if (_isRequestPinWidgetSupported)
+                ElevatedButton(
+                  onPressed: () => HomeWidget.requestPinWidget(
+                    qualifiedAndroidName:
+                        'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+                  ),
+                  child: const Text('Pin Widget'),
+                ),
+            ],
+          ),
         ),
       ),
     );

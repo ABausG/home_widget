@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:home_widget/home_widget_callback_dispatcher.dart';
+import 'package:home_widget/home_widget_info.dart';
 import 'package:mocktail/mocktail.dart';
 
 // ignore: depend_on_referenced_packages
@@ -358,6 +359,49 @@ void main() {
           return file;
         },
       );
+    });
+  });
+
+  group('getInstalledWidgets', () {
+    test(
+        'returns a list of HomeWidgetInfo objects when method channel provides data',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        switch (methodCall.method) {
+          case 'getInstalledWidgets':
+            return [
+              {"id": "widget1", "name": "Widget One"},
+              {"id": "widget2", "name": "Widget Two"},
+            ];
+          default:
+            return null;
+        }
+      });
+
+      final expectedWidgets = [
+        HomeWidgetInfo.fromMap({"id": "widget1", "name": "Widget One"}),
+        HomeWidgetInfo.fromMap({"id": "widget2", "name": "Widget Two"}),
+      ];
+
+      final widgets = await HomeWidget.getInstalledWidgets();
+
+      expect(widgets, equals(expectedWidgets));
+    });
+
+    test('returns an empty list when method channel returns null', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          // ignore: body_might_complete_normally_nullable
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        switch (methodCall.method) {
+          case 'getInstalledWidgets':
+            return null;
+        }
+      });
+
+      final widgets = await HomeWidget.getInstalledWidgets();
+
+      expect(widgets, isEmpty);
     });
   });
 }

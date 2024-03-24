@@ -2,9 +2,13 @@ package es.antonborri.home_widget
 
 import android.app.Activity
 import android.appwidget.AppWidgetManager
-import android.content.*
+import android.appwidget.AppWidgetProviderInfo
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
-import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -26,7 +30,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
     private var activity: Activity? = null
     private var receiver: BroadcastReceiver? = null
 
-    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "home_widget")
         channel.setMethodCallHandler(this)
 
@@ -35,7 +39,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         context = flutterPluginBinding.applicationContext
     }
 
-    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+    override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "saveWidgetData" -> {
                 if (call.hasArgument("id") && call.hasArgument("data")) {
@@ -52,7 +56,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                             else -> result.error("-10", "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long", IllegalArgumentException())
                         }
                     } else {
-                        prefs.remove(id);
+                        prefs.remove(id)
                     }
                     result.success(prefs.commit())
                 } else {
@@ -139,13 +143,54 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     result.error("-4", "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update", classException)
                 }
             }
+            "getInstalledWidgets" -> {
+                try {
+                    val pinnedWidgetInfoList = getInstalledWidgets(context)
+                    result.success(pinnedWidgetInfoList)
+                } catch (e: Exception) {
+                    result.error("-5", "Failed to get installed widgets: ${e.message}", null)
+                }
+            }
             else -> {
                 result.notImplemented()
             }
         }
     }
 
-    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    private fun getInstalledWidgets(context: Context): List<Map<String, Any>> {
+        val pinnedWidgetInfoList = mutableListOf<Map<String, Any>>()
+        val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
+        val installedProviders = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            appWidgetManager.getInstalledProvidersForPackage(context.packageName, null)
+        } else {
+            appWidgetManager.installedProviders.filter { it.provider.packageName == context.packageName }
+        }
+        for (provider in installedProviders) {
+            val widgetIds = appWidgetManager.getAppWidgetIds(provider.provider)
+            for (widgetId in widgetIds) {
+                val widgetInfo = appWidgetManager.getAppWidgetInfo(widgetId)
+                pinnedWidgetInfoList.add(widgetInfoToMap(widgetId, widgetInfo))
+            }
+        }
+        return pinnedWidgetInfoList
+    }
+
+    private fun widgetInfoToMap(widgetId: Int, widgetInfo: AppWidgetProviderInfo): Map<String, Any> {
+        val label = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            widgetInfo.loadLabel(context.packageManager).toString()
+        } else {
+            @Suppress("DEPRECATION")
+            widgetInfo.label
+        }
+
+        return mapOf(
+            WIDGET_INFO_KEY_WIDGET_ID to widgetId,
+            WIDGET_INFO_KEY_ANDROID_CLASS_NAME to widgetInfo.provider.shortClassName,
+            WIDGET_INFO_KEY_LABEL to label
+        )
+    }
+
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
     }
 
@@ -155,6 +200,10 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         private const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
         private const val CALLBACK_DISPATCHER_HANDLE = "callbackDispatcherHandle"
         private const val CALLBACK_HANDLE = "callbackHandle"
+
+        private const val WIDGET_INFO_KEY_WIDGET_ID = "widgetId"
+        private const val WIDGET_INFO_KEY_ANDROID_CLASS_NAME = "androidClassName"
+        private const val WIDGET_INFO_KEY_LABEL = "label"
 
         private fun saveCallbackHandle(context: Context, dispatcher: Long, handle: Long) {
             context.getSharedPreferences(INTERNAL_PREFERENCES, Context.MODE_PRIVATE)
