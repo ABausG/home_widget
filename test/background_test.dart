@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:home_widget/home_widget_callback_dispatcher.dart';
+import 'package:home_widget/home_widget.dart';
 
 Completer<Uri> completer = Completer();
 const backgroundChannel = MethodChannel('home_widget/background');
