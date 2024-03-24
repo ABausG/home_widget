@@ -73,6 +73,11 @@ void main() {
     final retrievedData = await HomeWidget.initiallyLaunchedFromHomeWidget();
     expect(retrievedData, isNull);
   });
+
+  testWidgets('Get Installed Widgets returns empty list', (tester) async {
+    final retrievedData = await HomeWidget.getInstalledWidgets();
+    expect(retrievedData, isEmpty);
+  });
 }
 
 Future<void> backgroundCallback(Uri? uri) async {}

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:home_widget/home_widget_info.dart';
 import 'package:workmanager/workmanager.dart';
 
 /// Used for Background Updates using Workmanager Plugin
@@ -172,6 +173,43 @@ class _MyAppState extends State<MyApp> {
     Workmanager().cancelByUniqueName('1');
   }
 
+  Future<void> _getInstalledWidgets() async {
+    try {
+      final widgets = await HomeWidget.getInstalledWidgets();
+      if (!mounted) return;
+
+      String getText(HomeWidgetInfo widget) {
+        if (Platform.isIOS) {
+          return 'iOS Family: ${widget.iOSFamily}, iOS Kind: ${widget.iOSKind}';
+        } else {
+          return 'Android Widget id: ${widget.androidWidgetId}, '
+              'Android Class Name: ${widget.androidClassName}, '
+              'Android Label: ${widget.androidLabel}';
+        }
+      }
+
+      await showDialog(
+        context: context,
+        builder: (buildContext) => AlertDialog(
+          title: const Text('Installed Widgets'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Number of widgets: ${widgets.length}'),
+              const Divider(),
+              for (final widget in widgets)
+                Text(
+                  getText(widget),
+                ),
+            ],
+          ),
+        ),
+      );
+    } on PlatformException catch (exception) {
+      debugPrint('Error getting widget information. $exception');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -179,43 +217,50 @@ class _MyAppState extends State<MyApp> {
         title: const Text('HomeWidget Example'),
       ),
       body: Center(
-        child: Column(
-          children: [
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Title',
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Title',
+                ),
+                controller: _titleController,
               ),
-              controller: _titleController,
-            ),
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Body',
+              TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Body',
+                ),
+                controller: _messageController,
               ),
-              controller: _messageController,
-            ),
-            ElevatedButton(
-              onPressed: _sendAndUpdate,
-              child: const Text('Send Data to Widget'),
-            ),
-            ElevatedButton(
-              onPressed: _loadData,
-              child: const Text('Load Data'),
-            ),
-            ElevatedButton(
-              onPressed: _checkForWidgetLaunch,
-              child: const Text('Check For Widget Launch'),
-            ),
-            if (Platform.isAndroid)
               ElevatedButton(
-                onPressed: _startBackgroundUpdate,
-                child: const Text('Update in background'),
+                onPressed: _sendAndUpdate,
+                child: const Text('Send Data to Widget'),
               ),
-            if (Platform.isAndroid)
               ElevatedButton(
-                onPressed: _stopBackgroundUpdate,
-                child: const Text('Stop updating in background'),
+                onPressed: _loadData,
+                child: const Text('Load Data'),
               ),
-          ],
+              ElevatedButton(
+                onPressed: _checkForWidgetLaunch,
+                child: const Text('Check For Widget Launch'),
+              ),
+              if (Platform.isAndroid)
+                ElevatedButton(
+                  onPressed: _startBackgroundUpdate,
+                  child: const Text('Update in background'),
+                ),
+              if (Platform.isAndroid)
+                ElevatedButton(
+                  onPressed: _stopBackgroundUpdate,
+                  child: const Text('Stop updating in background'),
+                ),
+              ElevatedButton(
+                onPressed: _getInstalledWidgets,
+                child: const Text('Get Installed Widgets'),
+              ),
+            ],
+          ),
         ),
       ),
     );
