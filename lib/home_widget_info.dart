@@ -1,27 +1,27 @@
 /// Represents information about the pinned home widget.
 class HomeWidgetInfo {
   /// Only iOS. The size of the widget: small, medium, or large.
-  String? family;
+  String? iOSFamily;
 
   /// Only iOS. The string specified during creation of the widget’s configuration.
-  String? kind;
+  String? iOSKind;
 
   /// Only Android. Unique identifier for each instance of the widget, used for tracking individual widget usage.
-  int? widgetId;
+  int? androidWidgetId;
 
   /// Only Android. The [androidClassName] parameter represents the class name of the widget.
   String? androidClassName;
 
   /// Only Android. Loads the localized label to display to the user in the AppWidget picker.
-  String? label;
+  String? androidLabel;
 
   /// Constructs a [HomeWidgetInfo] object.
   HomeWidgetInfo({
-    this.family,
-    this.kind,
-    this.widgetId,
+    this.iOSFamily,
+    this.iOSKind,
+    this.androidWidgetId,
     this.androidClassName,
-    this.label,
+    this.androidLabel,
   });
 
   /// Constructs a [HomeWidgetInfo] object from a map.
@@ -29,17 +29,17 @@ class HomeWidgetInfo {
   /// The [data] parameter is a map that contains the widget information.
   factory HomeWidgetInfo.fromMap(Map<String, dynamic> data) {
     return HomeWidgetInfo(
-      family: data['family'] as String?,
-      kind: data['kind'] as String?,
-      widgetId: data['widgetId'] as int?,
+      iOSFamily: data['family'] as String?,
+      iOSKind: data['kind'] as String?,
+      androidWidgetId: data['widgetId'] as int?,
       androidClassName: data['androidClassName'] as String?,
-      label: data['label'] as String?,
+      androidLabel: data['label'] as String?,
     );
   }
 
   @override
   String toString() {
-    return 'HomeWidgetInfo{family: $family, kind: $kind, widgetId: $widgetId, androidClassName: $androidClassName, label: $label}';
+    return 'HomeWidgetInfo{iOSFamily: $iOSFamily, iOSKind: $iOSKind, androidWidgetId: $androidWidgetId, androidClassName: $androidClassName, androidLabel: $androidLabel}';
   }
 
   @override
@@ -47,19 +47,19 @@ class HomeWidgetInfo {
     if (identical(this, other)) return true;
 
     return other is HomeWidgetInfo &&
-        other.family == family &&
-        other.kind == kind &&
-        other.widgetId == widgetId &&
+        other.iOSFamily == iOSFamily &&
+        other.iOSKind == iOSKind &&
+        other.androidWidgetId == androidWidgetId &&
         other.androidClassName == androidClassName &&
-        other.label == label;
+        other.androidLabel == androidLabel;
   }
 
   @override
   int get hashCode {
-    return family.hashCode ^
-        kind.hashCode ^
-        widgetId.hashCode ^
+    return iOSFamily.hashCode ^
+        iOSKind.hashCode ^
+        androidWidgetId.hashCode ^
         androidClassName.hashCode ^
-        label.hashCode;
+        androidLabel.hashCode;
   }
 }

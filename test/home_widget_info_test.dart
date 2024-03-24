@@ -14,50 +14,50 @@ void main() {
 
       final info = HomeWidgetInfo.fromMap(data);
 
-      expect(info.family, 'medium');
-      expect(info.kind, 'anotherKind');
+      expect(info.iOSFamily, 'medium');
+      expect(info.iOSKind, 'anotherKind');
       expect(info.androidClassName, 'com.example.AnotherWidget');
-      expect(info.label, 'Another Widget');
+      expect(info.androidLabel, 'Another Widget');
     });
 
     test('HomeWidgetInfo toString', () {
       final homeWidgetInfo = HomeWidgetInfo(
-        family: 'systemSmall',
-        kind: 'ParkingWidget',
-        widgetId: 1,
+        iOSFamily: 'systemSmall',
+        iOSKind: 'ParkingWidget',
+        androidWidgetId: 1,
         androidClassName: 'com.example.MyWidget',
-        label: 'My Widget',
+        androidLabel: 'My Widget',
       );
 
       expect(
         homeWidgetInfo.toString(),
-        'HomeWidgetInfo{family: systemSmall, kind: ParkingWidget, widgetId: 1, androidClassName: com.example.MyWidget, label: My Widget}',
+        'HomeWidgetInfo{iOSFamily: systemSmall, iOSKind: ParkingWidget, androidWidgetId: 1, androidClassName: com.example.MyWidget, androidLabel: My Widget}',
       );
     });
 
     test('HomeWidgetInfo equality', () {
       final info1 = HomeWidgetInfo(
-        family: 'medium',
-        kind: 'anotherKind',
-        widgetId: 1,
+        iOSFamily: 'medium',
+        iOSKind: 'anotherKind',
+        androidWidgetId: 1,
         androidClassName: 'com.example.AnotherWidget',
-        label: 'Another Widget',
+        androidLabel: 'Another Widget',
       );
 
       final info2 = HomeWidgetInfo(
-        family: 'medium',
-        kind: 'anotherKind',
-        widgetId: 1,
+        iOSFamily: 'medium',
+        iOSKind: 'anotherKind',
+        androidWidgetId: 1,
         androidClassName: 'com.example.AnotherWidget',
-        label: 'Another Widget',
+        androidLabel: 'Another Widget',
       );
 
       final info3 = HomeWidgetInfo(
-        family: 'systemSmall',
-        kind: 'ParkingWidget',
-        widgetId: 1,
+        iOSFamily: 'systemSmall',
+        iOSKind: 'ParkingWidget',
+        androidWidgetId: 1,
         androidClassName: 'com.example.MyWidget',
-        label: 'My Widget',
+        androidLabel: 'My Widget',
       );
 
       expect(info1 == info2, true);
