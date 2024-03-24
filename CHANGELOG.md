@@ -1,3 +1,6 @@
+## 0.6.0
+* Require Flutter 3.20+ due to changes in `ViewConfiguration`
+
 ## 0.5.0
 **Breaking Changes**
 * The package now uses a library pattern so you should only import `'package:home_widget/home_widget.dart'`
