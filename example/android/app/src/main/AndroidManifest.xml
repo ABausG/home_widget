@@ -44,6 +44,7 @@
         </receiver>
 
         <receiver android:name=".glance.HomeWidgetReceiver"
+                  android:label="Glance"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
