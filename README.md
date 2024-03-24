@@ -571,7 +571,7 @@ Text(entry.message)
 In order to only detect Widget Links you need to add the queryParameter`homeWidget` to the URL
 </details>
 
-<details><summary>Android</summary>
+<details><summary>Android Jetpack Glance</summary>
 
 Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
 ```
@@ -580,7 +580,6 @@ Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
 </intent-filter>
 ```
 
-#### Jetpack Glance
 Add the following modifier to your Widget (import from HomeWidget)
 ```kotlin
 Text(
@@ -595,7 +594,17 @@ Text(
 )
 ```
 
-#### XML
+</details>
+
+<details><summary>Android XML</summary>
+
+Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
+```
+<intent-filter>
+    <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+</intent-filter>
+```
+
 In your WidgetProvider add a PendingIntent to your View using `HomeWidgetLaunchIntent.getActivity`
 ```kotlin
 val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
