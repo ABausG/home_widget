@@ -83,16 +83,17 @@ public struct HomeWidgetBackgroundWorker {
   }
 
   static func sendEvent(url: URL?, appGroup: String) async {
-    DispatchQueue.main.async {
-      let preferences = UserDefaults.init(suiteName: appGroup)
-      let callback = preferences?.object(forKey: callbackKey) as! Int64
-
-      channel?.invokeMethod(
-        "",
-        arguments: [
-          callback,
-          url?.absoluteString,
-        ])
+    guard let _channel = channel else {
+      return
+    }
+    let preferences = UserDefaults.init(suiteName: appGroup)
+    guard let _callback = preferences?.object(forKey: callbackKey) as? Int64 else {
+      return
+    }
+    await withCheckedContinuation { continuation in
+      _channel.invokeMethod("", arguments: [_callback, url?.absoluteString]) { _ in
+        continuation.resume()
+      }
     }
   }
 }
