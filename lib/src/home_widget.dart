@@ -97,16 +97,12 @@ class HomeWidget {
 
   /// Checks if the App was initially launched via the Widget
   static Future<Uri?> initiallyLaunchedFromHomeWidget() {
-    return _channel
-        .invokeMethod<String>('initiallyLaunchedFromHomeWidget')
-        .then(_handleReceivedData);
+    return _channel.invokeMethod<String>('initiallyLaunchedFromHomeWidget').then(_handleReceivedData);
   }
 
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
-    return _eventChannel
-        .receiveBroadcastStream()
-        .map<Uri?>(_handleReceivedData);
+    return _eventChannel.receiveBroadcastStream().map<Uri?>(_handleReceivedData);
   }
 
   static Uri? _handleReceivedData(dynamic value) {
@@ -173,7 +169,12 @@ class HomeWidget {
           child: repaintBoundary,
         ),
         configuration: ViewConfiguration(
-          size: logicalSize,
+          logicalConstraints: BoxConstraints(
+            minWidth: logicalSize.width,
+            maxWidth: logicalSize.width,
+            minHeight: logicalSize.height,
+            maxHeight: logicalSize.height,
+          ),
           devicePixelRatio: 1.0,
         ),
       );
@@ -185,8 +186,7 @@ class HomeWidget {
       renderView.prepareInitialFrame();
 
       /// setting the rootElement with the widget that has to be captured
-      final RenderObjectToWidgetElement<RenderBox> rootElement =
-          RenderObjectToWidgetAdapter<RenderBox>(
+      final RenderObjectToWidgetElement<RenderBox> rootElement = RenderObjectToWidgetAdapter<RenderBox>(
         container: repaintBoundary,
         child: Directionality(
           textDirection: TextDirection.ltr,
@@ -218,12 +218,10 @@ class HomeWidget {
       /// Flush paint
       pipelineOwner.flushPaint();
 
-      final ui.Image image =
-          await repaintBoundary.toImage(pixelRatio: pixelRatio);
+      final ui.Image image = await repaintBoundary.toImage(pixelRatio: pixelRatio);
 
       /// The raw image is converted to byte data.
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
 
       try {
         late final String? directory;
@@ -271,12 +269,10 @@ class HomeWidget {
   /// currently pinned on the home screen.
   /// Returns an empty list if no widgets are pinned.
   static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {
-    final List<dynamic>? result =
-        await _channel.invokeMethod('getInstalledWidgets');
+    final List<dynamic>? result = await _channel.invokeMethod('getInstalledWidgets');
     return result
             ?.map(
-              (widget) =>
-                  HomeWidgetInfo.fromMap(widget.cast<String, dynamic>()),
+              (widget) => HomeWidgetInfo.fromMap(widget.cast<String, dynamic>()),
             )
             .toList() ??
         [];
