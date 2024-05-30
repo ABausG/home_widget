@@ -91,8 +91,10 @@ public struct HomeWidgetBackgroundWorker {
       return
     }
     await withCheckedContinuation { continuation in
-      _channel.invokeMethod("", arguments: [_callback, url?.absoluteString]) { _ in
-        continuation.resume()
+      DispatchQueue.main.async {
+        _channel.invokeMethod("", arguments: [_callback, url?.absoluteString]) { _ in
+          continuation.resume()
+        }
       }
     }
   }
