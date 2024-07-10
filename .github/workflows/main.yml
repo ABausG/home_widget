@@ -59,17 +59,11 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
-      - uses: actions/setup-java@v2
+      - uses: malinskiy/action-android/emulator-run-cmd@release/0.1.7
         with:
-          distribution: 'temurin'
-          java-version: '19'
-      - name: Run Android Integration Tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 34
-          arch: arm64-v8a
-          working-directory: example
-          script: flutter test integration_test/android_test.dart -d emulator-5554
+          cmd: flutter test integration_test/android_test.dart -d emulator-5554
+          api: 29
+          tag: default
 
   # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
   # by @kate_sheremet
