@@ -68,6 +68,7 @@ jobs:
           api: 29
           tag: default
           abi: x86
+          bootTimeout: 720
 
   # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
   # by @kate_sheremet
