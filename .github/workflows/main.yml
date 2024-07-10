@@ -64,7 +64,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: hannesa2/action-android/emulator-run-cmd@release/0.1.16.7
+      - uses: hannesa2/action-android/emulator-run-cmd@0.1.16.9
         with:
           cmd: flutter test integration_test/android_test.dart -d emulator-5554
           api: 29
