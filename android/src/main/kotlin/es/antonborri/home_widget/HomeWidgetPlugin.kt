@@ -84,7 +84,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                         when (prefs.getString(ACTUAL_WIDGET_DATA_TYPE, "Double")) {
                             "Double" -> result.success(java.lang.Double.longBitsToDouble(value))
                             "Long" -> result.success(value)
-                            else -> result.error("-11", "Unexpected behavior value is not Double or Long.")
+                            else -> result.error("-11", "Unexpected behavior value is not Double or Long.", IllegalArgumentException())
                         }
                     } else {
                         result.success(value)
