@@ -25,7 +25,7 @@ void main() {
 
   group('Test Data operations', () {
     for (final testSet in testData.entries) {
-      testWidgets('Test ${testSet.value?.runtimeType}', (tester) async {
+      testWidgets('Test ${testSet.key}', (tester) async {
         // Save Data
         await HomeWidget.saveWidgetData(testSet.key, testSet.value);
 
