@@ -51,10 +51,16 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                             is Boolean -> prefs.putBoolean(id, data)
                             is Float -> prefs.putFloat(id, data)
                             is String -> prefs.putString(id, data)
-                            is Double -> prefs.putLong(id, java.lang.Double.doubleToRawLongBits(data))
                             is Int -> prefs.putInt(id, data)
-                            is Long -> prefs.putLong(id, data)
-                            else -> result.error("-10", "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Int, Long", IllegalArgumentException())
+                            is Double -> {
+                                prefs.putString(ACTUAL_WIDGET_DATA_TYPE, "Double")
+                                prefs.putLong(id, java.lang.Double.doubleToRawLongBits(data))
+                            }
+                            is Long -> {
+                                prefs.putString(ACTUAL_WIDGET_DATA_TYPE, "Long")
+                                prefs.putLong(id, data)
+                            }
+                            else -> result.error("-10", "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Int, Double, Long", IllegalArgumentException())
                         }
                     } else {
                         prefs.remove(id)
@@ -74,7 +80,13 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     val value = prefs.all[id] ?: defaultValue
 
                     if(value is Long) {
-                        result.success(java.lang.Double.longBitsToDouble(value))
+                        // The reason for falling back to Double is that it was supported before Long.
+                        var actualType = prefs.getString(ACTUAL_WIDGET_DATA_TYPE, "Double")
+                        when (actualType) {
+                            "Double" -> result.success(java.lang.Double.longBitsToDouble(value))
+                            "Long" -> result.success(value)
+                            else -> result.error("-11", "Unexpected behavior value is not Double or Long.")
+                        }
                     } else {
                         result.success(value)
                     }
@@ -205,6 +217,10 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         private const val WIDGET_INFO_KEY_WIDGET_ID = "widgetId"
         private const val WIDGET_INFO_KEY_ANDROID_CLASS_NAME = "androidClassName"
         private const val WIDGET_INFO_KEY_LABEL = "label"
+
+        // For example, both Double and Long are saved in SharedPreferences with putLong,
+        // and this Key is used to distinguish between them when retrieving.
+        private const val ACTUAL_WIDGET_DATA_TYPE = "actualWidgetDataType"
 
         private fun saveCallbackHandle(context: Context, dispatcher: Long, handle: Long) {
             context.getSharedPreferences(INTERNAL_PREFERENCES, Context.MODE_PRIVATE)
