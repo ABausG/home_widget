@@ -81,8 +81,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
                     if(value is Long) {
                         // The reason for falling back to Double is that it was supported before Long.
-                        var actualType = prefs.getString(ACTUAL_WIDGET_DATA_TYPE, "Double")
-                        when (actualType) {
+                        when (prefs.getString(ACTUAL_WIDGET_DATA_TYPE, "Double")) {
                             "Double" -> result.success(java.lang.Double.longBitsToDouble(value))
                             "Long" -> result.success(value)
                             else -> result.error("-11", "Unexpected behavior value is not Double or Long.")
