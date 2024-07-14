@@ -10,6 +10,7 @@ void main() {
     'intKey': 12,
     'boolKey': true,
     'floatingNumberKey': 12.1,
+    'longKey': 8640000000000000,
     'nullValueKey': null,
   };
 
