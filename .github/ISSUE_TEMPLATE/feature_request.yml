@@ -31,7 +31,6 @@ body:
      label: Which Platform would be improved?
      multiple: true
      options:
-       - Flutter
        - Android
        - iOS
   - type: checkboxes

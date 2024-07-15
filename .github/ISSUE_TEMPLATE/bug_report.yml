@@ -41,7 +41,6 @@ body:
       label: On which Platform do you experience this issue?
       multiple: true
       options:
-        - Flutter
         - Android
         - iOS
     validations:
