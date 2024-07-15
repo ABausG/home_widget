@@ -1,0 +1,61 @@
+name: Bug Report
+about: You discovered a Bug in your Homescreen Widget / in the home_widget Plugin
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        When reporting a bug, please read this complete template and fill in all the questions in order to get a better response! Before filing a bug please make sure you read the documentation, check for related issues and discussions.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Tell us, what happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What do you expect?
+      description: Also tell us, what behavior did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: If you have any debug / error logging, please fill it here within the code block below
+      render: shell
+
+  - type: textarea
+    attributes:
+      label: Execute in a terminal and put output into the code block below
+      value: 'Output of: flutter doctor -v'
+
+  - type: dropdown
+    id: affected-platforms
+    attributes:
+      label: On which Platform do you experience this issue?
+      multiple: true
+      options:
+        - Flutter
+        - Android
+        - iOS
+    validations:
+      required: true
+
+  - type: textarea
+    id: other-information
+    attributes:
+      label: Other information
+      description: Do you have any other useful information about this bug report? Please write it down here
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Are you interested in working on a PR for this?
+      options:
+        - label: I want to work on this
