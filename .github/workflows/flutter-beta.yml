@@ -84,7 +84,7 @@ jobs:
         device:
           - "iPhone 14"
       fail-fast: false
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v2
       - uses: maxim-lobanov/setup-xcode@v1
