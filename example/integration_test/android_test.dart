@@ -10,7 +10,9 @@ void main() {
     'intKey': 12,
     'boolKey': true,
     'floatingNumberKey': 12.1,
+    'largeDoubleKey': double.infinity,
     'nullValueKey': null,
+    'longKey': DateTime(0).millisecondsSinceEpoch,
   };
 
   const defaultValue = MapEntry('defaultKey', 'defaultValue');
@@ -24,7 +26,7 @@ void main() {
 
   group('Test Data operations', () {
     for (final testSet in testData.entries) {
-      testWidgets('Test ${testSet.value?.runtimeType}', (tester) async {
+      testWidgets('Test ${testSet.key}', (tester) async {
         // Save Data
         await HomeWidget.saveWidgetData(testSet.key, testSet.value);
 
