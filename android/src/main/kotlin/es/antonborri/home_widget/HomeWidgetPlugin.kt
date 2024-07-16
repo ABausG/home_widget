@@ -29,6 +29,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
     private var activity: Activity? = null
     private var receiver: BroadcastReceiver? = null
+    private val doubleLongPrefix : String = "home_widget.double."
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "home_widget")
@@ -38,7 +39,6 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
         eventChannel.setStreamHandler(this)
         context = flutterPluginBinding.applicationContext
     }
-
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "saveWidgetData" -> {
@@ -46,17 +46,20 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
                     val id = call.argument<String>("id")
                     val data = call.argument<Any>("data")
                     val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit()
-                    if(data != null) {
+                    if (data != null) {
+                        prefs.putBoolean("$doubleLongPrefix$id", data is Double)
                         when (data) {
                             is Boolean -> prefs.putBoolean(id, data)
                             is Float -> prefs.putFloat(id, data)
                             is String -> prefs.putString(id, data)
                             is Double -> prefs.putLong(id, java.lang.Double.doubleToRawLongBits(data))
                             is Int -> prefs.putInt(id, data)
+                            is Long -> prefs.putLong(id, data)
                             else -> result.error("-10", "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long", IllegalArgumentException())
                         }
                     } else {
                         prefs.remove(id)
+                        prefs.remove("$doubleLongPrefix$id")
                     }
                     result.success(prefs.commit())
                 } else {
@@ -72,7 +75,7 @@ class HomeWidgetPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
 
                     val value = prefs.all[id] ?: defaultValue
 
-                    if(value is Long) {
+                    if(value is Long && prefs.getBoolean("$doubleLongPrefix$id", false)) {
                         result.success(java.lang.Double.longBitsToDouble(value))
                     } else {
                         result.success(value)
