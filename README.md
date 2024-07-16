@@ -44,10 +44,29 @@ This step is optional, this will sync the widget extension build version with yo
 In your Runner (app) target go to <kbd>Build Phases</kbd> > <kbd>+</kbd> > <kbd>New Run Script Phase</kbd> and add the following script:
 ```bash
 generatedPath="$SRCROOT/Flutter/Generated.xcconfig"
-versionNumber=$(grep FLUTTER_BUILD_NAME $generatedPath | cut -d '=' -f2)
-buildNumber=$(grep FLUTTER_BUILD_NUMBER $generatedPath | cut -d '=' -f2)
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "$SRCROOT/HomeExampleWidget/Info.plist"
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $versionNumber" "$SRCROOT/HomeExampleWidget/Info.plist"
+
+# Read and trim versionNumber and buildNumber
+versionNumber=$(grep FLUTTER_BUILD_NAME "$generatedPath" | cut -d '=' -f2 | xargs)
+buildNumber=$(grep FLUTTER_BUILD_NUMBER "$generatedPath" | cut -d '=' -f2 | xargs)
+
+infoPlistPath="$SRCROOT/HomeExampleWidget/Info.plist"
+
+# Check and add CFBundleVersion if it does not exist
+/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$infoPlistPath" 2>/dev/null
+if [ $? != 0 ]; then
+    /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $buildNumber" "$infoPlistPath"
+else
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "$infoPlistPath"
+fi
+
+# Check and add CFBundleShortVersionString if it does not exist
+/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$infoPlistPath" 2>/dev/null
+if [ $? != 0 ]; then
+    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $versionNumber" "$infoPlistPath"
+else
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $versionNumber" "$infoPlistPath"
+fi
+
 ```
 
 Replace `HomeExampleWidget` with the name of the widget extension folder that you have created.
