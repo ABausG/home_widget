@@ -12,7 +12,7 @@ void main() {
     'floatingNumberKey': 12.1,
     'largeDoubleKey': double.infinity,
     'nullValueKey': null,
-    'longKey': DateTime(0).millisecondsSinceEpoch,
+    'longKey': DateTime(2024).millisecondsSinceEpoch,
   };
 
   const defaultValue = MapEntry('defaultKey', 'defaultValue');
