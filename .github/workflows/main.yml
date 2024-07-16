@@ -92,8 +92,6 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest
-      - name: Download iOS 17
-        run: xcodebuild -downloadPlatform ios
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
