@@ -34,60 +34,65 @@ import es.antonborri.home_widget_example.MainActivity
 
 class HomeWidgetGlanceAppWidget : GlanceAppWidget() {
 
-    /**
-     * Needed for Updating
-     */
-    override val stateDefinition = HomeWidgetGlanceStateDefinition()
+  /** Needed for Updating */
+  override val stateDefinition = HomeWidgetGlanceStateDefinition()
 
-    override suspend fun provideGlance(context: Context, id: GlanceId) {
-        provideContent {
-            GlanceContent(context, currentState())
-        }
-    }
+  override suspend fun provideGlance(context: Context, id: GlanceId) {
+    provideContent { GlanceContent(context, currentState()) }
+  }
 
-    @Composable
-    private fun GlanceContent(context: Context, currentState: HomeWidgetGlanceState) {
-        val data = currentState.preferences
-        val imagePath = data.getString("dashIcon", null)
+  @Composable
+  private fun GlanceContent(context: Context, currentState: HomeWidgetGlanceState) {
+    val data = currentState.preferences
+    val imagePath = data.getString("dashIcon", null)
 
-        val title = data.getString("title", "")!!
-        val message = data.getString("message", "")!!
+    val title = data.getString("title", "")!!
+    val message = data.getString("message", "")!!
 
-        Box(modifier = GlanceModifier.background(Color.White).padding(16.dp).clickable(onClick = actionStartActivity<MainActivity>(context))) {
-            Column(
-                    modifier = GlanceModifier.fillMaxSize(),
-                    verticalAlignment = Alignment.Vertical.Top,
-                    horizontalAlignment = Alignment.Horizontal.Start,
-            ) {
-                Text("Glance")
-                Text(
-                        title,
-                        style = TextStyle(fontSize = 36.sp, fontWeight = FontWeight.Bold),
-                        modifier = GlanceModifier.clickable(onClick = actionRunCallback<InteractiveAction>()),
-                )
-                Text(
-                        message,
-                        style = TextStyle(fontSize = 18.sp),
-                        modifier = GlanceModifier.clickable(
-                                onClick = actionStartActivity<MainActivity>(
-                                        context,
-                                        Uri.parse("homeWidgetExample://message?message=$message")
-                                )
-                        )
-                )
-                imagePath?.let {
-                    val bitmap = BitmapFactory.decodeFile(it)
-                    Image(androidx.glance.ImageProvider(bitmap), null)
-                }
+    Box(
+        modifier =
+            GlanceModifier.background(Color.White)
+                .padding(16.dp)
+                .clickable(onClick = actionStartActivity<MainActivity>(context))) {
+          Column(
+              modifier = GlanceModifier.fillMaxSize(),
+              verticalAlignment = Alignment.Vertical.Top,
+              horizontalAlignment = Alignment.Horizontal.Start,
+          ) {
+            Text("Glance")
+            Text(
+                title,
+                style = TextStyle(fontSize = 36.sp, fontWeight = FontWeight.Bold),
+                modifier =
+                    GlanceModifier.clickable(onClick = actionRunCallback<InteractiveAction>()),
+            )
+            Text(
+                message,
+                style = TextStyle(fontSize = 18.sp),
+                modifier =
+                    GlanceModifier.clickable(
+                        onClick =
+                            actionStartActivity<MainActivity>(
+                                context,
+                                Uri.parse("homeWidgetExample://message?message=$message"))))
+            imagePath?.let {
+              val bitmap = BitmapFactory.decodeFile(it)
+              Image(androidx.glance.ImageProvider(bitmap), null)
             }
+          }
         }
-    }
+  }
 }
 
 class InteractiveAction : ActionCallback {
-    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(context, Uri.parse("homeWidgetExample://titleClicked"))
-        backgroundIntent.send()
-    }
+  override suspend fun onAction(
+      context: Context,
+      glanceId: GlanceId,
+      parameters: ActionParameters
+  ) {
+    val backgroundIntent =
+        HomeWidgetBackgroundIntent.getBroadcast(
+            context, Uri.parse("homeWidgetExample://titleClicked"))
+    backgroundIntent.send()
+  }
 }
-
