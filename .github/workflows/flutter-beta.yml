@@ -26,12 +26,13 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: beta
-      - name: Get Packages
-        run: flutter pub get
+      - uses: bluefireteam/melos-action@v3
+      - name: Bootstrap
+        run: melos bootstrap
       - name: Analyze
-        run: flutter analyze
+        run: melos analyze
       - name: Format
-        run: dart format . --set-exit-if-changed
+        run: melos format:all
       - name: Publishability
         run: flutter pub publish --dry-run
       - name: Test

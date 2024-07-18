@@ -2,3 +2,26 @@ name: home_widget
 
 packages:
   - packages/**
+
+scripts:
+  format:all:
+    description: Format Dart, Kotlin, and Swift Files
+    steps:
+      - format:dart
+      - format:kotlin
+      - format:swift
+
+  format:dart:
+    description: Format Dart Files
+    run: |
+      dart format . --set-exit-if-changed
+
+  format:kotlin:
+    description: Format Kotlin Files
+    run: ktfmt . --set-exit-if-changed
+
+  format:swift:
+    description: Format Swift Files
+    run: |
+      swift-format -r -i -p .
+      swift-format lint -r -s .
