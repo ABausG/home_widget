@@ -27,8 +27,6 @@ jobs:
         with:
           channel: beta
       - uses: bluefireteam/melos-action@v3
-      - name: Bootstrap
-        run: melos bootstrap
       - name: Analyze
         run: melos analyze
       - name: Install Formatters
