@@ -50,17 +50,21 @@ struct HomeWidgetExampleEntryView: View {
 
   var body: some View {
     VStack.init(
-      alignment: .center, spacing: /*@START_MENU_TOKEN@*/ nil /*@END_MENU_TOKEN@*/,
+      alignment: .center,
+      spacing: nil,
       content: {
         if #available(iOSApplicationExtension 17, *) {
           Button(
             intent: BackgroundIntent(
               url: URL(string: "homeWidgetExample://titleClicked"), appGroup: widgetGroupId)
           ) {
-            Text(entry.title).bold().font( /*@START_MENU_TOKEN@*/.title /*@END_MENU_TOKEN@*/)
+            Text(entry.title).bold().font(
+              .title)
           }.buttonStyle(.plain).frame(maxWidth: .infinity, alignment: .leading)
         } else {
-          Text(entry.title).bold().font( /*@START_MENU_TOKEN@*/.title /*@END_MENU_TOKEN@*/).frame(
+          Text(entry.title).bold().font(
+            .title
+          ).frame(
             maxWidth: .infinity, alignment: .leading)
         }
         Text(entry.message)

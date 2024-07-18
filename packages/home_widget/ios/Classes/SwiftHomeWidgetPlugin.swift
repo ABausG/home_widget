@@ -175,13 +175,17 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         #if arch(arm64) || arch(i386) || arch(x86_64)
           WidgetCenter.shared.getCurrentConfigurations { result2 in
             switch result2 {
-            case let .success(widgets):
+            case .success(let widgets):
               let widgetInfoList = widgets.map { widget in
-                  return ["family": "\(widget.family)", "kind": widget.kind]
+                return ["family": "\(widget.family)", "kind": widget.kind]
               }
               result(widgetInfoList)
-            case let .failure(error):
-              result(FlutterError(code: "-8", message: "Failed to get installed widgets: \(error.localizedDescription)", details: nil))
+            case .failure(let error):
+              result(
+                FlutterError(
+                  code: "-8",
+                  message: "Failed to get installed widgets: \(error.localizedDescription)",
+                  details: nil))
             }
           }
         #endif
