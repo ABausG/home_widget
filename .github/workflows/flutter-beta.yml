@@ -50,7 +50,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           path: ./packages/home_widget/coverage/lcov.info
-      - uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
 
   android:
     name: Android Integration Tests
