@@ -33,6 +33,8 @@ jobs:
         run: melos bootstrap
       - name: Analyze
         run: melos analyze
+      - name: Install Formatters
+        run: brew install swift-format ktfmt
       - name: Format
         run: melos format:all
       - name: Publishability
