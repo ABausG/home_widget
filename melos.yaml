@@ -1,0 +1,4 @@
+name: home_widget
+
+packages:
+  - packages/**
