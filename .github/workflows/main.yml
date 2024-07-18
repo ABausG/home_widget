@@ -18,6 +18,9 @@ jobs:
   quality:
     name: Quality Checks
     runs-on: ubuntu-latest
+    defaults:
+        run:
+            working-directory: packages/home_widget
 
     steps:
       - uses: actions/checkout@v2
@@ -53,6 +56,9 @@ jobs:
     name: Android Integration Tests
     needs: quality
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/home_widget
 
     steps:
       - uses: actions/checkout@v2
@@ -87,6 +93,9 @@ jobs:
           - "iPhone 14"
       fail-fast: false
     runs-on: macos-14
+    defaults:
+      run:
+        working-directory: packages/home_widget
     steps:
       - uses: actions/checkout@v2
       - uses: maxim-lobanov/setup-xcode@v1
