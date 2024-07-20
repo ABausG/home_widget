@@ -1,6 +1,7 @@
 name: Build
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -17,7 +18,10 @@ concurrency:
 jobs:
   quality:
     name: Quality Checks
-    runs-on: ubuntu-latest
+    runs-on: macos-14
+    defaults:
+        run:
+            working-directory: packages/home_widget
 
     steps:
       - uses: actions/checkout@v2
@@ -25,12 +29,13 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
-      - name: Get Packages
-        run: flutter pub get
+      - uses: bluefireteam/melos-action@v3
       - name: Analyze
-        run: flutter analyze
+        run: melos analyze
+      - name: Install Formatters
+        run: brew install swift-format ktfmt
       - name: Format
-        run: dart format . --set-exit-if-changed
+        run: melos format:all
       - name: Publishability
         run: flutter pub publish --dry-run
       - name: Test
@@ -47,11 +52,10 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      - uses: VeryGoodOpenSource/very_good_coverage@v1.2.0
+          path: ./packages/home_widget/coverage/lcov.info
 
   android:
     name: Android Integration Tests
-    needs: quality
     runs-on: ubuntu-latest
 
     steps:
@@ -59,6 +63,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+      - uses: bluefireteam/melos-action@v3
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -73,20 +78,22 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          working-directory: example
           script: flutter test integration_test/android_test.dart -d emulator-5554
+          working-directory: packages/home_widget/example
 
   # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
   # by @kate_sheremet
   ios:
     name: iOS Integration Tests
-    needs: quality
     strategy:
       matrix:
         device:
           - "iPhone 14"
       fail-fast: false
     runs-on: macos-14
+    defaults:
+      run:
+        working-directory: packages/home_widget/example
     steps:
       - uses: actions/checkout@v2
       - uses: maxim-lobanov/setup-xcode@v1
@@ -95,10 +102,10 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+      - uses: bluefireteam/melos-action@v3
       - uses: futureware-tech/simulator-action@v1
         id: simulator
         with:
           model: ${{ matrix.device }}
       - name: "Run iOS integration tests"
         run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}}
-        working-directory: example
