@@ -53,7 +53,6 @@ jobs:
 
   android:
     name: Android Integration Tests
-    needs: quality
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -85,7 +84,6 @@ jobs:
   # by @kate_sheremet
   ios:
     name: iOS Integration Tests
-    needs: quality
     strategy:
       matrix:
         device:
