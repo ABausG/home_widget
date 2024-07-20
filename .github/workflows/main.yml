@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: packages/home_widget
+        working-directory: ./packages/home_widget/example
 
     steps:
       - uses: actions/checkout@v2
@@ -80,7 +80,6 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          working-directory: example
           script: flutter test integration_test/android_test.dart -d emulator-5554
 
   # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
@@ -96,7 +95,7 @@ jobs:
     runs-on: macos-14
     defaults:
       run:
-        working-directory: packages/home_widget
+        working-directory: ./packages/home_widget/example
     steps:
       - uses: actions/checkout@v2
       - uses: maxim-lobanov/setup-xcode@v1
@@ -111,4 +110,3 @@ jobs:
           model: ${{ matrix.device }}
       - name: "Run iOS integration tests"
         run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}}
-        working-directory: example
