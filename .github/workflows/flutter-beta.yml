@@ -1,6 +1,7 @@
 name: Build Flutter Beta
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - flutter-beta
