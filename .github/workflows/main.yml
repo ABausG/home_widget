@@ -66,6 +66,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+      - uses: bluefireteam/melos-action@v3
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -104,6 +105,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+      - uses: bluefireteam/melos-action@v3
       - uses: futureware-tech/simulator-action@v1
         id: simulator
         with:
