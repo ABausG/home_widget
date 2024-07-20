@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./packages/home_widget/example
+        working-directory: packages/home_widget/example
 
     steps:
       - uses: actions/checkout@v2
@@ -93,7 +93,7 @@ jobs:
     runs-on: macos-14
     defaults:
       run:
-        working-directory: ./packages/home_widget/example
+        working-directory: packages/home_widget/example
     steps:
       - uses: actions/checkout@v2
       - uses: maxim-lobanov/setup-xcode@v1
