@@ -4,6 +4,11 @@ version: 0.6.0
 repository: https://github.com/ABausG/home_widget
 funding:
   - https://github.com/sponsors/ABausG/
+topics:
+  - home-screen-widget
+  - native
+  - android
+  - ios
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
