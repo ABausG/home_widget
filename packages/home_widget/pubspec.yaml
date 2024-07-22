@@ -9,6 +9,11 @@ topics:
   - native
   - android
   - ios
+screenshots:
+  - description: 'iOS Counter HomeScreen Widget'
+    path: pub/screenshots/ios-counter.gif
+  - description: 'Android HomeScreen Widget'
+    path: pub/screenshots/android.png
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
