@@ -237,6 +237,15 @@ This name needs to be equal to the Kind specified in you Widget
 
 If you followed the guide and use `HomeWidgetGlanceWidgetReceiver` as your Receiver, `HomeWidgetGlanceStateDefinition` as the AppWidgetStateDefinition, `currentState()` in the composable view and `currentState.preferences` for data access. No further work is necessary.
 
+However, make sure the update is calling the receiver, not the widget.
+```dart
+HomeWidget.updateWidget(
+    name: 'HomeWidgetReceiver',
+    androidName: 'HomeWidgetReceiver',,
+    qualifiedAndroidName: 'com.example.app.HomeWidgetReceiver',
+);
+```
+
 #### Android (XML)
 Calling `HomeWidget.updateWidget` only notifies the specified provider.
 To update widgets using this provider,
