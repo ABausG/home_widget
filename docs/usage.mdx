@@ -1,0 +1,57 @@
+---
+title: Usage
+description: How to use home_widget in Flutter
+nextTitle: iOS Setup
+next: /setup/ios
+---
+
+# Usage
+
+
+By default home_widget uses UserDefaults on iOS and SharedPreferences on Android to store data.previous
+In this section it is explained how to save and read data from the Flutter App as well as how to access data from your Homescreen Widgets
+
+## Save Data
+
+In order to save Data call
+```dart
+HomeWidget.saveWidgetData<String>('id', data);
+```
+
+## Read Data
+
+To retrieve the current Data saved in the Widget call
+```dart
+HomeWidget.getWidgetData<String>('id', defaultValue: data);
+```
+
+## Update Widget
+
+In order to initiate a reload of the HomeScreenWidget you need to call
+```dart
+HomeWidget.updateWidget(
+    name: 'HomeWidgetExampleProvider',
+    androidName: 'HomeWidgetExampleProvider',
+    iOSName: 'HomeWidgetExample',
+    qualifiedAndroidName: 'com.example.app.HomeWidgetExampleProvider',
+);
+```
+
+<Info>
+Not all the arguments are required. Depending on your setup you might need to call different arguments of the function.
+For iOS either `name` or `iOSName` must match the `kind` that is defined for the Widget
+For Android either `name` or `androidName` must the class Name of your Widget <b>Receiver</b>. Alternatively you can point to the receivers full class using `qualifiedAndroidName`
+</Info>
+
+## Background Update
+As the methods of HomeWidget are static it is possible to use HomeWidget in the background to update the Widget even when the App is in the background.
+
+The example App is using the [flutter_workmanager](https://pub.dev/packages/workmanager) plugin to achieve this.
+Please follow the Setup Instructions for flutter_workmanager (or your preferred background code execution plugin). Most notably make sure that Plugins get registered in iOS in order to be able to communicate with the HomeWidget Plugin.
+In case of flutter_workmanager this achieved by adding:
+```swift
+WorkmanagerPlugin.setPluginRegistrantCallback { registry in
+    GeneratedPluginRegistrant.register(with: registry)
+}
+```
+to [AppDelegate.swift](example/ios/Runner/AppDelegate.swift)

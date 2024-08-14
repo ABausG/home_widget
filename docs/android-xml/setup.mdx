@@ -1,0 +1,96 @@
+---
+title: Android XML Setup
+description: Setup home_widget and Widgets with Android XML
+---
+
+# Android XML Setup
+
+## Necessary Files
+
+### Widget Configuration
+In `android/app/src/main/res/xml` you need to create a configuration file.
+In here you can configure properties used for things like size constraints and preview layouts.
+```xml
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="10000">
+</appwidget-provider>
+```
+For more Information on the possible contents of this File check the official Android Documentation [here](https://developer.android.com/develop/ui/views/appwidgets#AppWidgetProviderInfo)
+
+
+### Widget Layout
+Create Widget Layout inside `android/app/src/main/res/layout`
+
+This file contains the Layout of your Widget. Note that this can only use RemoteViews to build the Layout.
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="8dp">
+        <TextView
+            android:id="@+id/text_counter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="0"
+            android:textAppearance="@android:style/TextAppearance.Material.Large" />
+</LinearLayout>
+```
+
+### WidgetProvider
+The `WidgetProvider` is used to bind Data to the Layout.
+For convenience, you can extend from `HomeWidgetProvider` which gives you access to a SharedPreferences Object with the Data in the `onUpdate` method.
+
+```kotlin
+// Remember to set a package in order for home_widget to find the Provider
+package es.antonborri.home_widget_counter
+
+class CounterWidgetProvider : HomeWidgetProvider() {
+    override fun onUpdate(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetIds: IntArray,
+            widgetData: SharedPreferences) {
+        appWidgetIds.forEach { widgetId ->
+            val views = RemoteViews(context.packageName, R.layout.counter_widget).apply {
+                val count = widgetData.getInt("counter", 0)
+                setTextViewText(R.id.text_counter, count.toString())
+            }
+            // This line is important to trigger the update
+            appWidgetManager.updateAppWidget(widgetId, views)
+        }
+    }
+}
+```
+
+In case you don't want to use the convenience Method you can access the Data using
+```kotlin
+import es.antonborri.home_widget.HomeWidgetPlugin
+...
+HomeWidgetPlugin.getData(context)
+```
+which will give you access to the same SharedPreferences
+
+### Add WidgetReceiver to AndroidManifest
+```xml
+<receiver android:name="HomeWidgetExampleProvider" android:exported="true">
+    <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+    </intent-filter>
+    <meta-data android:name="android.appwidget.provider"
+        android:resource="@xml/home_widget_example" />
+</receiver>
+```
+
+## More Information
+For more Information on how to create and configure Android Widgets, check out [this guide](https://developer.android.com/develop/ui/views/appwidgets) on the Android Developers Page.

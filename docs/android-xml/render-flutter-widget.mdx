@@ -1,0 +1,58 @@
+---
+title: Render Flutter Widget
+description: Render Flutter Widgets in Android XML Widgets
+---
+
+# Render Flutter Widgets
+
+1. Add an image UI element to your xml file:
+    ```xml
+    <ImageView
+           android:id="@+id/widget_image"
+           android:layout_width="200dp"
+           android:layout_height="200dp"
+           android:layout_below="@+id/headline_description"
+           android:layout_alignBottom="@+id/headline_title"
+           android:layout_alignParentStart="true"
+           android:layout_alignParentLeft="true"
+           android:layout_marginStart="8dp"
+           android:layout_marginLeft="8dp"
+           android:layout_marginTop="6dp"
+           android:layout_marginBottom="-134dp"
+           android:layout_weight="1"
+           android:adjustViewBounds="true"
+           android:background="@android:color/white"
+           android:scaleType="fitCenter"
+           android:src="@android:drawable/star_big_on"
+           android:visibility="visible"
+           tools:visibility="visible" />
+    ```
+2. Update your Kotlin code to get the chart image and put it into the widget, if it exists.
+    ```kotlin
+    class NewsWidget : AppWidgetProvider() {
+       override fun onUpdate(
+           context: Context,
+           appWidgetManager: AppWidgetManager,
+           appWidgetIds: IntArray,
+       ) {
+           for (appWidgetId in appWidgetIds) {
+               // Get reference to SharedPreferences
+               val widgetData = HomeWidgetPlugin.getData(context)
+               val views = RemoteViews(context.packageName, R.layout.news_widget).apply {
+                   // Get chart image and put it in the widget, if it exists
+                   val imagePath = widgetData.getString("lineChart", null)
+                   val imageFile = File(imagePath)
+                   val imageExists = imageFile.exists()
+                   if (imageExists) {
+                      val myBitmap: Bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
+                      setImageViewBitmap(R.id.widget_image, myBitmap)
+                   } else {
+                      println("image not found!, looked @: $imagePath")
+                   }
+                   // End new code
+               }
+               appWidgetManager.updateAppWidget(appWidgetId, views)
+           }
+       }
+    }
+    ```
