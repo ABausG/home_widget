@@ -53,6 +53,10 @@ Here is how you can help.
 - Update the documentation
 - Implement new features by making a pull-request
 
+## Show your Widgets
+
+Have you added HomeScreen Widgets to your App? Feel free to share them in the [Github Discussions](https://github.com/ABausG/home_widget/discussions/categories/show-and-tell)
+
 ## Sponsors
 
 I develop this package in my free time. If you or your Company benefits from home_widget it would mean a lot to me if you consider supporting me on [Github Sponsors](https://github.com/sponsors/abausg)
@@ -61,9 +65,3 @@ I develop this package in my free time. If you or your Company benefits from hom
     <img alt="Github Sponsors of ABausG" src="https://raw.githubusercontent.com/ABausG/sponsorkit/main/sponsorkit/sponsors.svg"/>
   </a>
 </p>
-
-## Resources, Articles, Talks
-Please add to this list if you have interesting and helpful resources
-- [Google Codelab](https://codelabs.developers.google.com/flutter-home-screen-widgets#0)
-- [Interactive HomeScreen Widgets with Flutter using home_widget](https://medium.com/p/83cb0706a417)
-- [iOS Lockscreen Widgets with Flutter and home_widget](https://medium.com/p/0dfecc18cfa0)
