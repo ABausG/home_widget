@@ -32,7 +32,7 @@ void main() {
 
     setUpAll(() async {
       // Add Group Id
-      await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+      await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
       // Clear all Data
       for (final key in testData.keys) {
         await HomeWidget.saveWidgetData(key, null);
@@ -83,7 +83,7 @@ void main() {
       testWidgets(
           'Initially Launched completes and returns null if not launched from widget',
           (tester) async {
-        await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+        await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
         final retrievedData =
             await HomeWidget.initiallyLaunchedFromHomeWidget();
         expect(retrievedData, isNull);
@@ -95,7 +95,7 @@ void main() {
           final deviceInfo = await DeviceInfoPlugin().iosInfo;
           final hasInteractiveWidgets =
               double.parse(deviceInfo.systemVersion.split('.').first) >= 17.0;
-          await HomeWidget.setAppGroupId('group.es.antonborri.integrationtest');
+          await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
           if (hasInteractiveWidgets) {
             final registerCallbackResult =
                 await HomeWidget.registerInteractivityCallback(

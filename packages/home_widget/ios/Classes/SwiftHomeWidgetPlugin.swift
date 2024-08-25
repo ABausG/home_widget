@@ -148,9 +148,9 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         return
       }
       if #available(iOS 17.0, *) {
-        let callbackHandels = call.arguments as! [Int64]
-        let dispatcher = callbackHandels[0]
-        let callback = callbackHandels[1]
+        let callbackHandles = call.arguments as! [Int64]
+        let dispatcher = callbackHandles[0]
+        let callback = callbackHandles[1]
         let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
         preferences?.setValue(dispatcher, forKey: HomeWidgetBackgroundWorker.dispatcherKey)
         preferences?.setValue(callback, forKey: HomeWidgetBackgroundWorker.callbackKey)
