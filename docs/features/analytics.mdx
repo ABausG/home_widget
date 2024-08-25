@@ -2,3 +2,17 @@
 title: Analytics
 description: Check which Widgets Users have currently installed
 ---
+
+# Analytics
+
+Sometimes it can be useful to know which Widgets your Users have currently installed.
+
+Using home_widget you can check which Widgets a User currently has added to their HomeScreen
+
+```dart
+final List<HomeWidgetInfo> info = await HomeWidget.getInstalledWidgets();
+```
+
+This will give you respective Information about the Widgets a User has currently installed with respective platform specific Widget Information filled.
+
+<Info>Note that each combination of `iOSFamily`(Size) and `iOSKind`(Widget Type) will only appear once in the list due to limitations of iOS.</Info>
