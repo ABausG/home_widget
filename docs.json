@@ -9,7 +9,16 @@
     ],
     [
       "Usage",
-      "/usage"
+      [
+        [
+          "Sync Data",
+          "/usage/sync-data"
+        ],
+        [
+          "Update Widget",
+          "/usage/update-widget"
+        ]
+      ]
     ],
     [
       "Platform Setup",
