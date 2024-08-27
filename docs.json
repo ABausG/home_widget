@@ -59,6 +59,10 @@
         [
           "Pin Widget (Android)",
           "/features/pin-widget"
+        ],
+        [
+          "Background Updates",
+          "/features/background-updates"
         ]
       ]
     ],
