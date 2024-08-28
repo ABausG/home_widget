@@ -5,16 +5,16 @@ description: Create Widgets for the iOS Lock Screen
 
 # iOS Lock Screen Widgets
 
-On iOS Lock Screen Widgets are a great way to show information to your Users without them having to unlock their device.
+On iOS, Lock Screen Widgets are a great way to show information to your users without them having to unlock their device.
 
-<!-- cspell: disable -->>
+<!-- cspell: disable -->
 <center>
 <Image width="500px" src="/assets/lockscreen.webp"/>
 </center>
-<!-- cspell: enable -->>
+<!-- cspell: enable -->
 
 ## Supported Families
-Technically this works by adding another `family` to your Widgets configuration.
+Technically, this works by adding another `family` to your widget's configuration.
 
 ```swift
 var body: some WidgetConfiguration {
@@ -30,7 +30,7 @@ var body: some WidgetConfiguration {
 
 ## Adjust Layout
 
-To adjust the layout of the Widget you can check which Family/Size is currently requested in the Widget's layout code
+To adjust the layout of the widget, you can check which family/size is currently requested in the widget's layout code.
 
 ```swift
 struct LockScreenWidgetView: View {
@@ -49,9 +49,6 @@ struct LockScreenWidgetView: View {
 }
 ```
 
+For more information on accessory widgets, check out the [official Apple Documentation](https://developer.apple.com/design/human-interface-guidelines/widgets#Interface-design).
 
-For more Information on Accessory Widgets check out the [official Apple Documentation](https://developer.apple.com/design/human-interface-guidelines/widgets#Interface-design)
-
-Also a full guide on how to add a Lock Screen Widget using home_widget can be found in this [article](https://medium.com/@ABausG/ios-lockscreen-widgets-with-flutter-and-home-widget-0dfecc18cfa0).
-
-
+A full guide on how to add a Lock Screen Widget using home_widget can also be found in this [article](https://medium.com/@ABausG/ios-lockscreen-widgets-with-flutter-and-home-widget-0dfecc18cfa0).
