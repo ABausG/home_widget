@@ -1,0 +1,127 @@
+---
+title: Android Setup
+description: Setup home_widget on Android for your Flutter App using Jetpack Glance
+previousTitle: iOS Setup
+previous: /setup/ios
+---
+
+
+# Android Setup
+
+Learn how to setup home_widget on Android for your Flutter App using Jetpack Glance.
+
+<Info>
+If you are looking for support for Android XML Widgets, please refer to the [Android XML](/android-xml/overview) section.
+</Info>
+
+## Dependencies
+
+### Jetpack Glance
+
+Add Jetpack Glance as a dependency to you app's Gradle File
+```groovy
+implementation 'androidx.glance:glance-appwidget:LATEST-VERSION'
+```
+
+### Compose Support
+Enable Compose Support in your apps `build.gradle`
+```groovy
+android {
+    ...
+    buildFeatures {
+        compose true
+    }
+}
+```
+
+## Necessary Files
+
+For the correct setup of HomeScreenWidgets you need to create a series of files.
+
+### Widget Configuration
+In `android/app/src/main/res/xml` you need to create a configuration file.
+In here you can configure properties used for things like size constraints and preview layouts.
+```xml
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="10000">
+</appwidget-provider>
+```
+For more Information on the possible contents of this File check the official Android Documentation [here](https://developer.android.com/develop/ui/views/appwidgets#AppWidgetProviderInfo)
+
+### AppWidget
+
+The `GlanceAppWidget` is the file in which you define your Widget's layout. Should look something like this
+
+```kotlin
+// Other imports...
+import HomeWidgetGlanceState
+import HomeWidgetGlanceStateDefinition
+
+class AppWidget : GlanceAppWidget() {
+
+  override val stateDefinition: GlanceStateDefinition<*>?
+    get() = HomeWidgetGlanceStateDefinition()
+
+  override suspend fun provideGlance(context: Context, id: GlanceId) {
+    provideContent {
+      GlanceContent(context, currentState())
+    }
+  }
+
+  @Composable
+  private fun GlanceContent(context: Context, currentState: HomeWidgetGlanceState) {
+    val prefs = currentState.preferences
+    val counter = prefs.getInt("counter", 0)
+    Box(modifier = GlanceModifier.background(Color.White).padding(16.dp)) {
+      Column() {
+        Text(
+            counter.toString()
+        )
+      }
+    }
+  }
+}
+```
+
+Note the override for the `stateDefinition` this is what enables home_widget to update the Widget.
+```kotlin
+override val stateDefinition: GlanceStateDefinition<*>?
+  get() = HomeWidgetGlanceStateDefinition()
+```
+
+### WidgetReceiver
+
+To get automatic Updates you should extend from [HomeWidgetGlanceWidgetReceiver](android/src/main/kotlin/es/antonborri/home_widget/HomeWidgetGlanceWidgetReceiver.kt)
+
+Your Receiver should then look like this, using the previously define `AppWidget` as the generic type.
+
+```kotlin
+// Remember to set a package in order for home_widget to find the Receiver
+package es.antonborri.home_widget_example.glance
+
+import HomeWidgetGlanceWidgetReceiver
+
+class HomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<HomeWidgetGlanceAppWidget>() {
+    override val glanceAppWidget = HomeWidgetGlanceAppWidget()
+}
+```
+
+
+### Register Widget in AndroidManifest.xml
+
+Tie everything together by registering the Widget in your `AndroidManifest.xml`
+```xml
+<receiver android:name=".glance.HomeWidgetReceiver"
+          android:exported="true">
+   <intent-filter>
+      <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+   </intent-filter>
+   <meta-data
+           android:name="android.appwidget.provider"
+           android:resource="@xml/home_widget_glance_example" />
+</receiver>
+```

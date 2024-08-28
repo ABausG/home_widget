@@ -1,0 +1,22 @@
+---
+title: Detect Clicks
+description: Detecting Clicks on Android Widgets
+---
+
+# Detect Clicks on with Android XML Widgets
+
+Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
+```
+<intent-filter>
+    <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+</intent-filter>
+```
+
+In your WidgetProvider add a PendingIntent to your View using `HomeWidgetLaunchIntent.getActivity`
+```kotlin
+val pendingIntentWithData = HomeWidgetLaunchIntent.getActivity(
+        context,
+        MainActivity::class.java,
+        Uri.parse("homeWidgetExample://message?message=$message"))
+setOnClickPendingIntent(R.id.widget_message, pendingIntentWithData)
+```

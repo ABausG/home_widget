@@ -1,0 +1,66 @@
+---
+title: Detect Clicks
+description: Detect Clicks on Widgets from inside your App
+---
+
+# Detect Clicks
+
+home_widget offers functionality to check if your App was launched by clicking on an element in the HomeScreen Widget.
+
+<Info>
+Note that this is not for Interactive Widgets. For this please check the relevant documentation [here](/features/interactive-widgets).
+</Info>
+
+To detect this in your App there are two methods:
+
+For when your App is started from the very background check:
+```dart
+HomeWidget.initiallyLaunchedFromHomeWidget();
+```
+this will return a `Future<Uri?>` with the Uri that was used to start the App.
+
+When your App is already running all Widget clicks are broadcast to a Stream provided via:
+
+```dart
+HomeWidget.widgetClicked;
+````
+which is a `Stream<Uri?>` that you can listen to to detect App Launches from the Widget.title
+
+
+## Platform Setup
+
+In the following section you can learn how to add the necessary configurations to your native Widgets in order for clicks to bet detectable by home_widget.title
+
+### iOS
+
+Add `.widgetUrl` to your WidgetComponent
+```swift
+Text(entry.message)
+    .font(.body)
+    .widgetURL(URL(string: "homeWidgetExample://message?message=\(entry.message)&homeWidget"))
+```
+In order to only detect Widget Links you need to add the queryParameter`homeWidget` to the URL
+
+### Android
+
+
+Add an `IntentFilter` to the `Activity` Section in your `AndroidManifest`
+```
+<intent-filter>
+    <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+</intent-filter>
+```
+
+Add the following modifier to your Widget (import from HomeWidget)
+```kotlin
+Text(
+   message,
+   style = TextStyle(fontSize = 18.sp),
+   modifier = GlanceModifier.clickable(
+     onClick = actionStartActivity<MainActivity>(
+       context,
+       Uri.parse("homeWidgetExample://message?message=$message")
+     )
+   )
+)
+```

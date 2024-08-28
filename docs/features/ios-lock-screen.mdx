@@ -1,0 +1,54 @@
+---
+title: iOS Lock Screen Widgets
+description: Create Widgets for the iOS Lock Screen
+---
+
+# iOS Lock Screen Widgets
+
+On iOS, Lock Screen Widgets are a great way to show information to your users without them having to unlock their device.
+
+<!-- cspell: disable -->
+<center>
+<Image width="500px" src="/assets/lockscreen.webp"/>
+</center>
+<!-- cspell: enable -->
+
+## Supported Families
+Technically, this works by adding another `family` to your widget's configuration.
+
+```swift
+var body: some WidgetConfiguration {
+  ...
+  .description("Lock Screen Widgets")
+  .supportedFamilies([
+      .systemSmall,
+      .systemMedium,
+      // Accessory Widgets are available on the Lock Screen only
+      .accessoryCircular
+  ])
+```
+
+## Adjust Layout
+
+To adjust the layout of the widget, you can check which family/size is currently requested in the widget's layout code.
+
+```swift
+struct LockScreenWidgetView: View {
+  var entry: Provider.Entry
+
+  // Detect the current Family
+  @Environment(\.widgetFamily) var family
+
+  var body: some View {
+    if family == .accessoryCircular {
+      // Return Widget for Circular Lock Screen Widget
+    } else {
+     // Build Widget for other families
+    }
+  }
+}
+```
+
+For more information on accessory widgets, check out the [official Apple Documentation](https://developer.apple.com/design/human-interface-guidelines/widgets#Interface-design).
+
+A full guide on how to add a Lock Screen Widget using home_widget can also be found in this [article](https://medium.com/@ABausG/ios-lockscreen-widgets-with-flutter-and-home-widget-0dfecc18cfa0).

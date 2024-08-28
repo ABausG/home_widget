@@ -1,0 +1,130 @@
+---
+title: iOS Setup
+description: Setup home_widget on iOS for your Flutter App
+nextTitle: Android Setup
+next: /setup/android
+---
+
+# iOS Setup
+
+On iOS Widgets are an App Extension.
+The following steps explain how to add the correct App Extension, how to do the basic configuration to read/display data you send from your App in the Widget and how to setup GroupIds to ensure the correct communication between your App and the Widget.
+
+
+## Add a Widget to your App in Xcode
+Add a widget extension by going <kbd>File</kbd> > <kbd>New</kbd> > <kbd>Target</kbd> > <kbd>Widget Extension</kbd>
+
+![Widget Extension](https://github.com/ABausG/home_widget/blob/main/.github/assets/widget_extension.png?raw=true)
+
+The generated Widget code includes the following classes:
+- `TimelineProvider` - Provides a Timeline of entries at which the System will update the Widget automatically
+- `TimelineEntry` - Represents the Data Object used to build the Widget. The `data` field is necessary and defines the point in time at which the Timeline would update
+- `View` - The Widget itself, which is built with SwiftUI
+- `Widget` - Configuration: Make note of the `kind` you set in the Configuration as this is what's needed to update the Widget from Flutter
+
+## Configure Widget
+
+### Widget
+In the Widget Configuration it is important to set the `kind` to the same value as the `name`/`iOSName` in the `updateWidget` function in Flutter
+
+### TimelineEntry / TimelineProvider
+Adjust the `TimelineEntry` to match your desired Data Structure you need to build your Widget. This entry is what is passed to the actual `View` to build the Widget.TimelineEntry
+
+```swift
+struct CounterEntry: TimelineEntry {
+    let date: Date
+    let counter: Int
+}
+```
+
+Adjust the `TimelineProvider` to build a timeline (can be single entry if all updating is always handled from Flutter) where you create a `TimelineEntry` based on the Data stored with `HomeWidget.saveWidgetData`
+```swift
+struct Provider: TimelineProvider {
+    func placeholder(in context: Context) -> SimpleEntry {
+        SimpleEntry(date: Date(), counter: 0)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
+        let prefs = UserDefaults(suiteName: "group.YOUR_GROUP_ID")
+        let counter = prefs?.integer(forKey: "counter")
+        let entry = CounterEntry(date: Date(), counter: counter ?? 0)
+        completion(entry)
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
+        getSnapshot(in: context) { (entry) in
+            let timeline = Timeline(entries: [entry], policy: .atEnd)
+            completion(timeline)
+        }
+    }
+}
+```
+
+
+### View
+In the View you build your Layout of the Widget. Using the `TimelineEntry` you can access the Data you stored in `UserDefaults` and build your Widget accordingly
+
+```swift
+struct WidgetEntryView : View {
+    var entry: Provider.Entry
+
+    var body: some View {
+        VStack {
+            Text(entry.counter.description)
+        }
+    }
+}
+```
+
+For more Information on how to build Widgets in iOS, check out the [Apple Documentation](https://developer.apple.com/documentation/swiftui/widget)
+
+## GroupId
+home_widget syncs data between your App and the Widget using App Groups.
+
+**Note: in order to add groupIds you need a paid Apple Developer Account**
+
+Go to your [Apple Developer Account](https://developer.apple.com/account/resources/identifiers/list/applicationGroup) and add a new group.
+Add this group to your Runner and the Widget Extension inside XCode: <kbd>Signing & Capabilities</kbd> > <kbd>App Groups</kbd> > <kbd>+</kbd>.
+
+To swap between your App, and the Extension change the Target)
+![Build Targets](https://github.com/ABausG/home_widget/blob/main/.github/assets/target.png?raw=true)
+
+### Setup in Flutter
+
+For iOS, you need to call `HomeWidget.setAppGroupId('YOUR_GROUP_ID');`
+Without this you won't be able to share data between your App and the Widget and calls to `saveWidgetData` and `getWidgetData` will return an error
+
+## Sync CFBundleVersion (optional)
+This step is optional, this will sync the widget extension build version with your app version, so you don't get warnings of mismatch version from App Store Connect when uploading your app.
+
+![Build Phases](https://github.com/ABausG/home_widget/blob/main/.github/assets/build_phases.png?raw=true)
+
+In your Runner (app) target go to <kbd>Build Phases</kbd> > <kbd>+</kbd> > <kbd>New Run Script Phase</kbd> and add the following script:
+```bash
+generatedPath="$SRCROOT/Flutter/Generated.xcconfig"
+
+# Read and trim versionNumber and buildNumber
+versionNumber=$(grep FLUTTER_BUILD_NAME "$generatedPath" | cut -d '=' -f2 | xargs)
+buildNumber=$(grep FLUTTER_BUILD_NUMBER "$generatedPath" | cut -d '=' -f2 | xargs)
+
+infoPlistPath="$SRCROOT/HomeExampleWidget/Info.plist"
+
+# Check and add CFBundleVersion if it does not exist
+/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$infoPlistPath" 2>/dev/null
+if [ $? != 0 ]; then
+    /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $buildNumber" "$infoPlistPath"
+else
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "$infoPlistPath"
+fi
+
+# Check and add CFBundleShortVersionString if it does not exist
+/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$infoPlistPath" 2>/dev/null
+if [ $? != 0 ]; then
+    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $versionNumber" "$infoPlistPath"
+else
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $versionNumber" "$infoPlistPath"
+fi
+
+```
+
+Replace `HomeExampleWidget` with the name of the widget extension folder that you have created.

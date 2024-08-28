@@ -1,0 +1,66 @@
+version: "0.2"
+ignorePaths:
+    [
+        "**/coverage",
+        "**/*.xcscheme",
+        "**/*.storyboard",
+        "**/GeneratedPluginRegistrant.m",
+        "**/GeneratedPluginRegistrant.java",
+        "**/*.pbxproj",
+        "**/*.xcconfig",
+        "**/**/*.podspec",
+        "**/Info.plist",
+        "**/*.xcassets",
+        "**/*.xcworkspace",
+        "**/*.xcodeproj",
+        "**/Pods/Target Support Files/",
+        "**/Pods/Local Podspecs",
+        "**/gradlew",
+        "**/gradlew.bat",
+        "**/gradle-wrapper.properties",
+        "**/AppFrameworkInfo.plist",
+        "**/gradle.properties",
+        "cspell.yaml",
+        "**/build.gradle",
+        "**/proguard-rules.pro",
+    ]
+dictionaries:
+  - names
+dictionaryDefinitions:
+  - name: names
+    path: .cspell/names_dictionary.txt
+words:
+    - antonborries
+    - Borries
+    - abausg
+    - antonborri
+    - mocktail
+    - Goldens
+    - cupertino
+    - workmanager
+    - cocoapods
+    - renderview
+    - appex
+    - pinability
+    - chào
+    - titleclicked
+    - NSURL
+    - xcconfig
+    - podhelper
+    - podfile
+    - realpath
+    - appwidget
+    - Millis # abbreviation for Milliseconds
+    - androidx
+    - Jetpack
+    - kotlinx
+    - lateinit
+    - prefs # short for preferences
+    - mipmap # android image format
+    - nullsafety
+    - Deeplinks
+    - Deque
+    - ktfmt
+    - libexec
+    - SRCROOT
+    - Codelab

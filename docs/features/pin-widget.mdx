@@ -1,0 +1,29 @@
+---
+title: Pin Widgets (Android)
+description: Use Pin Widget to add widgets directly to the HomeScreen on Android.
+---
+
+# Pin Widgets
+
+On Android, you can initiate an action to pin a widget to the HomeScreen, allowing your users to directly add your widget to their HomeScreen.
+
+<!-- cspell: disable -->
+<center>
+<Image width="500px" src="/assets/pin-widget.gif"/>
+</center>
+<!-- cspell: enable -->
+
+```dart
+HomeWidget.requestPinWidget(
+    name: 'HomeWidgetExampleProvider',
+    androidName: 'HomeWidgetExampleProvider',
+    qualifiedAndroidName: 'com.example.app.HomeWidgetExampleProvider',
+);
+```
+
+This method is only supported on [Android API 26+](https://developer.android.com/develop/ui/views/appwidgets/configuration#pin).
+If you want to check whether it is supported on the current device, use:
+
+```dart
+HomeWidget.isRequestPinWidgetSupported();
+```

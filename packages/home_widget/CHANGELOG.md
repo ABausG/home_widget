@@ -66,7 +66,7 @@ stepushchik-denis-gismart](https://github.com/stepushchik-denis-gismart)
 * Fix collision for Deeplinks [#42](https://github.com/ABausG/home_widget/pull/42) by [mgonzalezc](https://github.com/mgonzalezc)
 * Make Android PendingIntents immutable for Android 12 [#49](https://github.com/ABausG/home_widget/pull/49) by [mgonzalezc](https://github.com/mgonzalezc)
 * Update Gradle Versions and target Android SDK 31
-* Fix Issues rrelating to `initiallyLaunchedFromHomeWidget`
+* Fix Issues relating to `initiallyLaunchedFromHomeWidget`
   * [#48](https://github.com/ABausG/home_widget/issues/48) Call not completing on iOS
   * [#40](https://github.com/ABausG/home_widget/issues/40) Cast exception on Android for cases launched from Widget but without data Uri
 

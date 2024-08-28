@@ -1,0 +1,27 @@
+---
+title: Read and write Data
+description: Read and write Data
+---
+
+# Read and Write Data
+
+By default home_widget uses UserDefaults on iOS and SharedPreferences on Android to store data.
+In this section it is explained how to save and read data from the Flutter App as well as how to access data from your HomeScreen Widgets
+
+## Save Data
+
+In order to save Data call
+```dart
+HomeWidget.saveWidgetData<String>('id', data);
+```
+
+## Read Data
+
+To retrieve the current Data saved in the Widget call
+```dart
+HomeWidget.getWidgetData<String>('id', defaultValue: data);
+```
+
+Check out the platform documentation of
+[iOS](/setup/ios#timelineentry--timelineprovider) and [Android](/setup/android#appwidget) <!-- cspell: disable-line -->
+to see how to access this data in your widget.

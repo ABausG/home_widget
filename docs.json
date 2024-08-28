@@ -1,0 +1,95 @@
+{
+  "name": "home_widget",
+  "theme": "##567acb",
+  "twitter": "abausg",
+  "sidebar": [
+    [
+      "Overview",
+      "/"
+    ],
+    [
+      "Usage",
+      [
+        [
+          "Sync Data",
+          "/usage/sync-data"
+        ],
+        [
+          "Update Widget",
+          "/usage/update-widget"
+        ]
+      ]
+    ],
+    [
+      "Platform Setup",
+      [
+        [
+          "iOS",
+          "/setup/ios"
+        ],
+        [
+          "Android",
+          "/setup/android"
+        ]
+      ]
+    ],
+    [
+      "Features",
+      [
+        [
+          "Render Flutter Widgets",
+          "/features/render-flutter-widgets"
+        ],
+        [
+          "Interactive Widgets",
+          "/features/interactive-widgets"
+        ],
+        [
+          "Detect Clicks",
+          "/features/detect-clicks"
+        ],
+        [
+          "Analytics",
+          "/features/analytics"
+        ],
+        [
+          "iOS Lock Screen Widgets",
+          "/features/ios-lock-screen"
+        ],
+        [
+          "Pin Widget (Android)",
+          "/features/pin-widget"
+        ],
+        [
+          "Background Updates",
+          "/features/background-updates"
+        ]
+      ]
+    ],
+    [
+      "Android XML",
+      [
+        [
+          "Overview",
+          "/android-xml/overview"
+        ],
+        [
+          "Setup",
+          "/android-xml/setup"
+        ],
+        [
+          "Render Flutter Widgets",
+          "/android-xml/render-flutter-widgets"
+        ],
+        [
+          "Interactive Widgets",
+          "/android-xml/interactive-widgets"
+        ],
+        [
+          "Detect Clicks",
+          "/android-xml/detect-clicks"
+        ]
+      ]
+    ]
+  ]
+}

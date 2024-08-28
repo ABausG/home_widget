@@ -1,0 +1,36 @@
+---
+title: Update Widget
+description: How to Update a native Widget from Flutter
+nextTitle: iOS Setup
+next: /setup/android
+---
+
+# Update Widget
+
+In order to initiate a reload of the HomeScreenWidget you need to call
+```dart
+HomeWidget.updateWidget(
+    name: 'HomeWidgetExampleProvider',
+    androidName: 'HomeWidgetExampleProvider',
+    iOSName: 'HomeWidgetExample',
+    qualifiedAndroidName: 'com.example.app.HomeWidgetExampleProvider',
+);
+```
+
+<Info>
+<b>Not</b> all the arguments are required. Depending on your setup you might need to call different arguments of the function.
+For iOS either `name` or `iOSName` must match the `kind` that is defined for the Widget
+For Android either `name` or `androidName` must the class Name of your Widget <b>Receiver</b>. Alternatively you can point to the receivers full class using `qualifiedAndroidName`
+</Info>
+
+
+#### Android Glance
+
+To ensure your Android Glance Widget is getting updated you need to add the following snippet to your Android Glance Widget. Please also make sure you read the full documentation on [Android Glance](/setup/android) to ensure you have the correct setup.
+
+```kotlin
+override val stateDefinition: GlanceStateDefinition<*>?
+  get() = HomeWidgetGlanceStateDefinition()
+```
+
+
