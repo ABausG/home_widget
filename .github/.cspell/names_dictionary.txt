@@ -16,3 +16,5 @@ stepushchik # github.com/stepushchik-denis-gismart
 gismart # github.com/stepushchik-denis-gismart
 aljkor # github.com/aljkor
 mgonzalezc # github.com/mgonzalezc
+subosito # github.com/subosito
+bluefireteam # github.com/bluefireteam
