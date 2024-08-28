@@ -7,7 +7,7 @@ packages:
 
 command:
   version:
-    includeScopes: false
+    branch: main
 
 scripts:
   format:all:
