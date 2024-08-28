@@ -1,7 +1,13 @@
 name: home_widget
 
+repository: https://github.com/abausg/home_widget
+
 packages:
   - packages/**
+
+command:
+  version:
+    includeScopes: false
 
 scripts:
   format:all:
