@@ -1,5 +1,5 @@
 name: Bug Report
-about: You discovered a Bug in your Homescreen Widget / in the home_widget Plugin
+description: You discovered a Bug in your Homescreen Widget / in the home_widget Plugin
 labels: ["bug"]
 
 body:
