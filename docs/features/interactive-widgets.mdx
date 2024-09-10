@@ -17,7 +17,7 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
 1. Write a **static** function that takes a Uri as an argument. This will get called when a user clicks on the View
     ```dart
     @pragma("vm:entry-point")
-    FutureOr<void> backgroundCallback(Uri data) async {
+    FutureOr<void> backgroundCallback(Uri? data) async {
       // do something with data
       ...
     }
