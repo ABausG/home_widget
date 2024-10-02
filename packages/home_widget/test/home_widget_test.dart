@@ -61,7 +61,7 @@ void main() {
 
   test('getWidgetData', () async {
     const dataId = 'TestId';
-    expect(await HomeWidget.getWidgetData(dataId), 'TestData');
+    expect(await HomeWidget.getWidgetData<String>(dataId), 'TestData');
     final arguments = await passedArguments.future;
 
     expect(arguments['id'], dataId);
@@ -264,8 +264,11 @@ void main() {
       when(() => file.create(recursive: true))
           .thenAnswer((invocation) async => file);
       when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
-        byteCompleter
-            .complete(Uint8List.fromList(invocation.positionalArguments.first));
+        byteCompleter.complete(
+          Uint8List.fromList(
+            invocation.positionalArguments.first as List<int>,
+          ),
+        );
         return file;
       });
 
