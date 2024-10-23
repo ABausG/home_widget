@@ -15,6 +15,10 @@ class HomeWidgetInfo {
   /// Only Android. Loads the localized label to display to the user in the AppWidget picker.
   String? androidLabel;
 
+  /// Only iOS. The configuration of the widget if setup as a configurable widget.
+  /// In case `WidgetConfigurationIntent` is used, the configuration needs to passed to the Widget
+  Map<String, dynamic>? configuration;
+
   /// Constructs a [HomeWidgetInfo] object.
   HomeWidgetInfo({
     this.iOSFamily,
@@ -22,6 +26,7 @@ class HomeWidgetInfo {
     this.androidWidgetId,
     this.androidClassName,
     this.androidLabel,
+    this.configuration,
   });
 
   /// Constructs a [HomeWidgetInfo] object from a map.
@@ -34,12 +39,15 @@ class HomeWidgetInfo {
       androidWidgetId: data['widgetId'] as int?,
       androidClassName: data['androidClassName'] as String?,
       androidLabel: data['label'] as String?,
+      configuration: ((data['configuration'] as Map<dynamic, dynamic>?)
+            ?..removeWhere((key, _) => key is! String))
+          ?.cast<String, dynamic>(),
     );
   }
 
   @override
   String toString() {
-    return 'HomeWidgetInfo{iOSFamily: $iOSFamily, iOSKind: $iOSKind, androidWidgetId: $androidWidgetId, androidClassName: $androidClassName, androidLabel: $androidLabel}';
+    return 'HomeWidgetInfo{iOSFamily: $iOSFamily, iOSKind: $iOSKind, androidWidgetId: $androidWidgetId, androidClassName: $androidClassName, androidLabel: $androidLabel, configuration: $configuration}';
   }
 
   @override
