@@ -47,7 +47,7 @@ class HomeWidgetInfo {
 
   @override
   String toString() {
-    return 'HomeWidgetInfo{iOSFamily: $iOSFamily, iOSKind: $iOSKind, androidWidgetId: $androidWidgetId, androidClassName: $androidClassName, androidLabel: $androidLabel, configuration: $configuration}';
+    return 'HomeWidgetInfo{iOSFamily: $iOSFamily, iOSKind: $iOSKind, androidWidgetId: $androidWidgetId, androidClassName: $androidClassName, androidLabel: $androidLabel, configuration: $configuration)';
   }
 
   @override
@@ -59,7 +59,8 @@ class HomeWidgetInfo {
         other.iOSKind == iOSKind &&
         other.androidWidgetId == androidWidgetId &&
         other.androidClassName == androidClassName &&
-        other.androidLabel == androidLabel;
+        other.androidLabel == androidLabel &&
+        other.configuration == configuration;
   }
 
   @override
@@ -68,6 +69,7 @@ class HomeWidgetInfo {
         iOSKind.hashCode ^
         androidWidgetId.hashCode ^
         androidClassName.hashCode ^
-        androidLabel.hashCode;
+        androidLabel.hashCode ^
+        configuration.hashCode;
   }
 }
