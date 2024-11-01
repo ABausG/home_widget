@@ -140,8 +140,10 @@ class HomeWidget {
     FutureOr<void> Function(Uri?) callback,
   ) {
     final args = <dynamic>[
-      ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
+      if(ui.PluginUtilities.getCallbackHandle(callbackDispatcher) ! = null)
+         ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
+      if(ui.PluginUtilities.getCallbackHandle(callback) ! = null)
+         ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
