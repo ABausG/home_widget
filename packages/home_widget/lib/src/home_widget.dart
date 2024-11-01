@@ -136,14 +136,10 @@ class HomeWidget {
   /// Register a callback that gets called when clicked on a specific View in a HomeWidget
   /// This enables having Interactive Widgets that can call Dart Code
   /// More Info on setting this up in the README
-  static Future<bool?> registerInteractivityCallback(
-    FutureOr<void> Function(Uri?) callback,
-  ) {
-    final args = <dynamic>[
-      if(ui.PluginUtilities.getCallbackHandle(callbackDispatcher) ! = null)
-         ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      if(ui.PluginUtilities.getCallbackHandle(callback) ! = null)
-         ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
+  static Future<bool?> registerInteractivityCallback(FutureOr<void> Function(Uri?) callback) {
+    final args = <int>[
+      ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle() ?? 0,
+      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle() ?? 1,
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
