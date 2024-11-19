@@ -109,6 +109,7 @@ class HomeWidgetPlugin :
               AppWidgetManager.getInstance(context.applicationContext)
                   .getAppWidgetIds(ComponentName(context, javaClass))
           intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+          intent.putExtra("isManualUpdate", true)
           context.sendBroadcast(intent)
           result.success(true)
         } catch (classException: ClassNotFoundException) {
