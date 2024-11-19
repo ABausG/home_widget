@@ -34,10 +34,6 @@ class HomeWidgetPlugin :
   private var receiver: BroadcastReceiver? = null
   private val doubleLongPrefix: String = "home_widget.double."
 
-  companion object {
-    const val TRIGGERED_FROM_HOME_WIDGET = "triggeredFromHomeWidget"
-  }
-
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "home_widget")
     channel.setMethodCallHandler(this)
@@ -239,6 +235,8 @@ class HomeWidgetPlugin :
     private const val WIDGET_INFO_KEY_WIDGET_ID = "widgetId"
     private const val WIDGET_INFO_KEY_ANDROID_CLASS_NAME = "androidClassName"
     private const val WIDGET_INFO_KEY_LABEL = "label"
+
+    const val TRIGGERED_FROM_HOME_WIDGET = "triggeredFromHomeWidget"
 
     private fun saveCallbackHandle(context: Context, dispatcher: Long, handle: Long) {
       context
