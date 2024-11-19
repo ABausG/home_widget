@@ -34,6 +34,10 @@ class HomeWidgetPlugin :
   private var receiver: BroadcastReceiver? = null
   private val doubleLongPrefix: String = "home_widget.double."
 
+  companion object {
+    const val TRIGGERED_FROM_HOME_WIDGET = "triggeredFromHomeWidget"
+  }
+
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "home_widget")
     channel.setMethodCallHandler(this)
@@ -109,7 +113,7 @@ class HomeWidgetPlugin :
               AppWidgetManager.getInstance(context.applicationContext)
                   .getAppWidgetIds(ComponentName(context, javaClass))
           intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-          intent.putExtra("isManualUpdate", true)
+          intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
           context.sendBroadcast(intent)
           result.success(true)
         } catch (classException: ClassNotFoundException) {
