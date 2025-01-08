@@ -33,8 +33,6 @@ object HomeWidgetLaunchIntent {
     }
 
     val options = ActivityOptions.makeBasic()
-    options.pendingIntentBackgroundActivityStartMode =
-        ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
 
     return PendingIntent.getActivity(context, 0, intent, flags, options.toBundle())
   }
