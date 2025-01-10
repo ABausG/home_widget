@@ -11,6 +11,8 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3A273F912D21AD7A00574BA7 /* AppIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABA07592CC99AAB003690EA /* AppIntent.swift */; };
+		3A273F932D3195C000574BA7 /* Intents.intentdefinition in Sources */ = {isa = PBXBuildFile; fileRef = 3A273F922D3195C000574BA7 /* Intents.intentdefinition */; };
+		3A273F942D3195C000574BA7 /* Intents.intentdefinition in Sources */ = {isa = PBXBuildFile; fileRef = 3A273F922D3195C000574BA7 /* Intents.intentdefinition */; };
 		3ABA07512CC99AAB003690EA /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3ABA07502CC99AAB003690EA /* WidgetKit.framework */; };
 		3ABA07532CC99AAB003690EA /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3ABA07522CC99AAB003690EA /* SwiftUI.framework */; };
 		3ABA07562CC99AAB003690EA /* ConfigurableWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3ABA07552CC99AAB003690EA /* ConfigurableWidgetBundle.swift */; };
@@ -74,6 +76,7 @@
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3A273F8F2D2025E200574BA7 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		3A273F902D20267100574BA7 /* ConfigurableWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ConfigurableWidgetExtension.entitlements; sourceTree = "<group>"; };
+		3A273F922D3195C000574BA7 /* Intents.intentdefinition */ = {isa = PBXFileReference; lastKnownFileType = file.intentdefinition; path = Intents.intentdefinition; sourceTree = "<group>"; };
 		3ABA074E2CC99AAB003690EA /* ConfigurableWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ConfigurableWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		3ABA07502CC99AAB003690EA /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		3ABA07522CC99AAB003690EA /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -172,6 +175,7 @@
 				3ABA07592CC99AAB003690EA /* AppIntent.swift */,
 				3ABA075B2CC99AAC003690EA /* Assets.xcassets */,
 				3ABA075D2CC99AAC003690EA /* Info.plist */,
+				3A273F922D3195C000574BA7 /* Intents.intentdefinition */,
 			);
 			path = ConfigurableWidget;
 			sourceTree = "<group>";
@@ -473,6 +477,7 @@
 			files = (
 				3ABA07582CC99AAB003690EA /* ConfigurableWidget.swift in Sources */,
 				3ABA07562CC99AAB003690EA /* ConfigurableWidgetBundle.swift in Sources */,
+				3A273F942D3195C000574BA7 /* Intents.intentdefinition in Sources */,
 				3ABA075A2CC99AAB003690EA /* AppIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -483,6 +488,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+				3A273F932D3195C000574BA7 /* Intents.intentdefinition in Sources */,
 				3A273F912D21AD7A00574BA7 /* AppIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -670,7 +676,7 @@
 				INFOPLIST_FILE = ConfigurableWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ConfigurableWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -712,7 +718,7 @@
 				INFOPLIST_FILE = ConfigurableWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ConfigurableWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -751,7 +757,7 @@
 				INFOPLIST_FILE = ConfigurableWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ConfigurableWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

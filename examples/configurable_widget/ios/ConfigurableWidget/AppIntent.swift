@@ -8,7 +8,7 @@
 import AppIntents
 import WidgetKit
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
   static var title: LocalizedStringResource = "Configuration"
   static var description = IntentDescription("This is an example widget.")
@@ -27,7 +27,7 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
 
 // Make Entity Codable so home_widget
 // That way home_widget can best extract the values from a configuration
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct PunctuationEntity: AppEntity, Codable {
   let id: String
 
@@ -39,7 +39,7 @@ struct PunctuationEntity: AppEntity, Codable {
   }
 }
 
-@available(iOS 16.0, *)
+@available(iOS 17.0, *)
 struct PunctuationQuery: EntityQuery {
 
   func punctuations() -> [PunctuationEntity] {
