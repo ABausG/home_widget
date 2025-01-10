@@ -5,12 +5,12 @@
 //  Created by Anton Borries on 23.10.24.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 @main
 struct ConfigurableWidgetBundle: WidgetBundle {
-    var body: some Widget {
-        ConfigurableWidget()
-    }
+  var body: some Widget {
+    ConfigurableWidget()
+  }
 }

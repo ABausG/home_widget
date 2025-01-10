@@ -1,0 +1,228 @@
+---
+title: Configurable Widgets
+description: Create configurable Widgets and connect them to your Flutter App
+---
+
+# Configurable Widgets
+
+Sometimes you want to give your users the ability to configure their HomeScreenWidgets to their liking.
+For example a weather widget that can show the weather for different locations or a todo list that can show different lists.
+
+## iOS
+
+On iOS there are two ways to make your App Configurable.
+The new and recommended way by Apple is to use [WidgetConfigurationIntent](#widgetconfigurationintent)
+you can also use the old way using [SiriKit Intents](#sirikit-intents)
+or use a mixed mode for maximum capability using `WidgetConfigurationIntent` when available (> iOS 17) and fallback to `SiriKit` on older devices. More Info on this [here](#using-both-for-maximum-compatibility).
+
+### WidgetConfigurationIntent
+
+If you create a new Widget add an extension by going <kbd>File</kbd> > <kbd>New</kbd> > <kbd>Target</kbd> > <kbd>Widget Extension</kbd>
+This time checking the box for <kbd>Include Configuration App Intent</kbd>
+![Setting up the Extension with Configuration Intent](/assets/create-widget-extension-ios-with-configuration.webp)
+
+The generated Widget code includes the following classes:
+- `AppIntentTimelineProvider` - Provides a Timeline of entries at which the System will update the Widget automatically using an AppIntent for configuration
+- `TimelineEntry` - Represents the Data Object used to build the Widget. The `date` field is necessary and defines the point in time at which the Timeline would update
+- `View` - The Widget itself, which is built with SwiftUI
+- `Widget` - Configuration: Make note of the `kind` you set in the Configuration as this is what's needed to update the Widget from Flutter.
+
+In a separate file there is a `WidgetConfigurationIntent` defined that will determine the configuration options of the Widget in `AppIntent.swift`.
+
+#### Adjusting the Configuration Intent
+
+You can add fields that appear in the configuration by changing the generated `ConfigurationAppIntent` class.
+
+```swift
+@Parameter(title: "Name", default: "World")
+var name: String
+```
+
+You can access the fields of the configuration when building the Widget UI
+
+```swift
+struct ConfigurableWidgetEntryView : View {
+    var entry: Provider.Entry
+
+    var body: some View {
+        VStack {
+            Text("Hello")
+            Text(entry.configuration.name)
+        }
+    }
+}
+```
+
+<div align="center" class="justify-center flex" style={{ gap: '8px', alignItems: 'center' }}>
+<Image src="/assets/configurable/ios/widget-with-name-configuration.webp"/>
+<Video src="/assets/configurable/ios/world-to-flutter.mp4"/>
+</div>
+#### Getting Data from Flutter to the Configuration
+
+You can store data from Flutter for the Widget using `HomeWidget.saveWidgetData` to use it as options in the configuration panel.
+
+```dart
+final punctuations = [
+      '!',
+      '!!!',
+      '.',
+      '?',
+      // Wave Emoji
+      '\u{1F44B}',
+];
+await HomeWidget.saveWidgetData(
+    'punctuations',
+    jsonEncode(punctuations),
+);
+```
+
+#### Use Values from Flutter as Options in Customize Panel
+
+In XCode and Swift add an `AppEntity` and matching `EntityQuery`
+
+
+```swift
+
+  @Parameter(title: "Punctuation")
+  var punctuation: PunctuationEntity
+}
+
+// Make Entity Codable so home_widget
+// That way home_widget can best extract the values from a configuration
+struct PunctuationEntity: AppEntity, Codable {
+
+  let id: String
+
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "Punctuation"
+  static var defaultQuery = PunctuationQuery()
+
+  var displayRepresentation: DisplayRepresentation {
+    DisplayRepresentation(title: "\(id)")
+  }
+}
+
+struct PunctuationQuery: EntityQuery {
+
+  func punctuations() -> [PunctuationEntity] {
+    let userDefaults = UserDefaults(suiteName: "YOUR_APP_GROUP")
+
+    do {
+      let jsonPunctuations = (userDefaults?.string(forKey: "punctuations") ?? "[\"!\"]").data(
+        using: .utf8)!
+      let stringArray = try JSONDecoder().decode([String].self, from: jsonPunctuations)
+      return stringArray.map { punctuation in
+        PunctuationEntity(id: punctuation)
+
+      }
+    } catch {
+      return [PunctuationEntity(id: "!")]
+    }
+
+  }
+
+  func entities(for identifiers: [PunctuationEntity.ID]) async throws -> [PunctuationEntity] {
+    let results = punctuations().filter { identifiers.contains($0.id) }
+    return results
+  }
+
+  func suggestedEntities() async throws -> [PunctuationEntity] {
+    return punctuations()
+  }
+
+  func defaultResult() async -> PunctuationEntity? {
+    try? await suggestedEntities().first
+  }
+
+}
+```
+
+Now you can access this new parameter in your Widget Code
+
+```swift
+struct ConfigurableWidgetEntryView: View {
+  var entry: Provider.Entry
+
+  var body: some View {
+    VStack {
+      Text("Hello")
+      Text(entry.configuration.name)
+      Text(entry.configuration.punctuation.id) // [!code highlight]
+    }
+  }
+}
+```
+
+
+#### Seeing Configuration in Flutter
+
+You need to let home_widget know about the relation of the Intent and the `kind` (what you need for updating the widget).
+
+##### Add `Runner` as a Target of the Widget
+
+Open the Intent Swift File and in the Details Pane enable the `Target Membership` for the `Runner` Target
+
+![Enable Target Membership for Runner](/assets/configurable/ios/app-intent-target-membership.webp)
+
+##### Register Configuration in AppDelegate
+
+In your `AppDelegate.swift` register the Configuration Intent together with the `kind` of your Widget
+
+```swift
+import Flutter
+import UIKit
+import home_widget // [!code ++]
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    if #available(iOS 17.0, *) { // [!code ++]
+      HomeWidgetPlugin.setConfigurationLookup(to: [ // [!code ++]
+        "ConfigurableWidget": ConfigurationAppIntent.self // [!code ++]
+      ]) // [!code ++]
+    } // [!code ++]
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+
+```
+
+To get the configuration a user made to a Widget you can use `HomeWidget.getInstalledWidgets()`.
+
+```dart
+final configuration = await HomeWidget.getInstalledWidgets();
+```
+
+this will give you a list of `HomeWidgetInfo` in there there is a `Map<String, dynamic>? configuration`.
+
+<Warning>
+On iOS Simulators `HomeWidget.getInstalledWidgets()` will always return an empty list.
+
+To fully test this you should test on a real iOS Device
+</Warning>
+
+For our Greeting Example the Configuration would be:
+
+```dart
+{
+  "name": "Documentation",
+  "punctuation": {
+    "id": "!!!"
+  }
+}
+```
+
+<div align="center" class="justify-center flex" style={{ gap: '8px', alignItems: 'center' }}>
+<Image src="/assets/configurable/ios/configured-widgets.webp"/>
+<Image src="/assets/configurable/ios/configuration-in-flutter.webp"/>
+</div>
+
+### SiriKit Intents
+
+#### Getting Data from Flutter to the Configuration
+#### Seeing Configuration in Flutter
+
+### Using both for maximum compatibility

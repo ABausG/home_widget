@@ -1,7 +1,14 @@
 {
   "name": "home_widget",
-  "theme": "##567acb",
-  "twitter": "abausg",
+  "theme": "#567acb",
+  "content": {
+    "headerDepth": 4
+  },
+  "social": {
+    "x": "@abausg",
+    "github": "abausg",
+    "linkedin": "/in/abausg"
+  },
   "sidebar": [
     [
       "Overview",
@@ -51,6 +58,10 @@
         [
           "Analytics",
           "/features/analytics"
+        ],
+        [
+          "Configurable Widgets",
+          "/features/configurable-widgets"
         ],
         [
           "iOS Lock Screen Widgets",
