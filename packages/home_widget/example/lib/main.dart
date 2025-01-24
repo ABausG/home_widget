@@ -11,8 +11,10 @@ import 'package:workmanager/workmanager.dart';
 /// Used for Background Updates using Workmanager Plugin
 @pragma("vm:entry-point")
 void callbackDispatcher() async {
+  // Executes background tasks
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
+    // Save current time to widget data
     return Future.wait<bool?>([
       HomeWidget.saveWidgetData(
         'title',
@@ -23,17 +25,8 @@ void callbackDispatcher() async {
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
       ),
     ]).then((value) async {
-      Future.wait<bool?>([
-        HomeWidget.updateWidget(
-          name: 'HomeWidgetExampleProvider',
-          iOSName: 'HomeWidgetExample',
-        ),
-        if (Platform.isAndroid)
-          HomeWidget.updateWidget(
-            qualifiedAndroidName:
-                'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-          ),
-      ]);
+      // Update the widget after saving data
+      await _updateHomeWidget();
       return !value.contains(false);
     });
   });
@@ -43,6 +36,7 @@ void callbackDispatcher() async {
 @pragma("vm:entry-point")
 Future<void> interactiveCallback(Uri? data) async {
   if (data?.host == 'titleclicked') {
+    // List of greetings to choose from
     final greetings = [
       'Hello',
       'Hallo',
@@ -53,25 +47,40 @@ Future<void> interactiveCallback(Uri? data) async {
       '안녕하세요',
       'xin chào',
     ];
+    // Select a random greeting
     final selectedGreeting = greetings[Random().nextInt(greetings.length)];
     await HomeWidget.setAppGroupId('YOUR_GROUP_ID');
+    // Save the selected greeting to widget data
     await HomeWidget.saveWidgetData<String>('title', selectedGreeting);
-    await HomeWidget.updateWidget(
-      name: 'HomeWidgetExampleProvider',
-      iOSName: 'HomeWidgetExample',
-    );
-    if (Platform.isAndroid) {
-      await HomeWidget.updateWidget(
-        qualifiedAndroidName:
-            'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-      );
-    }
+    // Update the widget after saving data
+    await _updateHomeWidget();
+  }
+}
+
+/// Updates the home widget
+Future<void> _updateHomeWidget() async {
+  try {
+    await Future.wait([
+      HomeWidget.updateWidget(
+        name: 'HomeWidgetExampleProvider',
+        iOSName: 'HomeWidgetExample',
+      ),
+      if (Platform.isAndroid)
+        HomeWidget.updateWidget(
+          qualifiedAndroidName: 'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+        ),
+    ]);
+  } on PlatformException catch (exception) {
+    debugPrint('Error Updating Widget. $exception');
   }
 }
 
 void main() {
+  // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
+  // Initialize Workmanager for background tasks
   Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  // Run the main application
   runApp(const MaterialApp(home: MyApp()));
 }
 
@@ -91,28 +100,35 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    // Set the app group ID for HomeWidget
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
+    // Register callback for widget interactivity
     HomeWidget.registerInteractivityCallback(interactiveCallback);
+    // Check if pinning widgets is supported
     _checkPinability();
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    // Check if the app was launched from a widget
     _checkForWidgetLaunch();
+    // Listen for widget click events
     HomeWidget.widgetClicked.listen(_launchedFromWidget);
   }
 
   @override
   void dispose() {
+    // Dispose controllers to free resources
     _titleController.dispose();
     _messageController.dispose();
     super.dispose();
   }
 
-  Future _sendData() async {
+  /// Sends data to the widget
+  Future<void> _sendData() async {
     try {
-      return Future.wait([
+      await Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
         HomeWidget.renderFlutterWidget(
@@ -129,27 +145,16 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future _updateWidget() async {
-    try {
-      return Future.wait([
-        HomeWidget.updateWidget(
-          name: 'HomeWidgetExampleProvider',
-          iOSName: 'HomeWidgetExample',
-        ),
-        if (Platform.isAndroid)
-          HomeWidget.updateWidget(
-            qualifiedAndroidName:
-                'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-          ),
-      ]);
-    } on PlatformException catch (exception) {
-      debugPrint('Error Updating Widget. $exception');
-    }
+  /// Sends data and updates the widget
+  Future<void> _sendAndUpdate() async {
+    await _sendData();
+    await _updateHomeWidget();
   }
 
-  Future _loadData() async {
+  /// Loads data from the widget
+  Future<void> _loadData() async {
     try {
-      return Future.wait([
+      await Future.wait([
         HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
             .then((value) => _titleController.text = value ?? ''),
         HomeWidget.getWidgetData<String>(
@@ -162,15 +167,12 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  Future<void> _sendAndUpdate() async {
-    await _sendData();
-    await _updateWidget();
-  }
-
+  /// Checks if the app was launched from a widget
   void _checkForWidgetLaunch() {
     HomeWidget.initiallyLaunchedFromHomeWidget().then(_launchedFromWidget);
   }
 
+  /// Handles the event when the app is launched from a widget
   void _launchedFromWidget(Uri? uri) {
     if (uri != null) {
       showDialog(
@@ -183,6 +185,7 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  /// Starts background updates for the widget
   void _startBackgroundUpdate() {
     Workmanager().registerPeriodicTask(
       '1',
@@ -191,10 +194,12 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  /// Stops background updates for the widget
   void _stopBackgroundUpdate() {
     Workmanager().cancelByUniqueName('1');
   }
 
+  /// Retrieves and displays installed widgets
   Future<void> _getInstalledWidgets() async {
     try {
       final widgets = await HomeWidget.getInstalledWidgets();
@@ -232,9 +237,9 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  /// Checks if pinning widgets is supported
   Future<void> _checkPinability() async {
-    final isRequestPinWidgetSupported =
-        await HomeWidget.isRequestPinWidgetSupported();
+    final isRequestPinWidgetSupported = await HomeWidget.isRequestPinWidgetSupported();
     if (mounted) {
       setState(() {
         _isRequestPinWidgetSupported = isRequestPinWidgetSupported ?? false;
@@ -279,16 +284,16 @@ class _MyAppState extends State<MyApp> {
                   onPressed: _checkForWidgetLaunch,
                   child: const Text('Check For Widget Launch'),
                 ),
-                if (Platform.isAndroid)
+                if (Platform.isAndroid) ...[
                   ElevatedButton(
                     onPressed: _startBackgroundUpdate,
                     child: const Text('Update in background'),
                   ),
-                if (Platform.isAndroid)
                   ElevatedButton(
                     onPressed: _stopBackgroundUpdate,
                     child: const Text('Stop updating in background'),
                   ),
+                ],
                 ElevatedButton(
                   onPressed: _getInstalledWidgets,
                   child: const Text('Get Installed Widgets'),
@@ -296,8 +301,7 @@ class _MyAppState extends State<MyApp> {
                 if (_isRequestPinWidgetSupported)
                   ElevatedButton(
                     onPressed: () => HomeWidget.requestPinWidget(
-                      qualifiedAndroidName:
-                          'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+                      qualifiedAndroidName: 'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
                     ),
                     child: const Text('Pin Widget'),
                   ),
