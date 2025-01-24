@@ -67,7 +67,8 @@ Future<void> _updateHomeWidget() async {
       ),
       if (Platform.isAndroid)
         HomeWidget.updateWidget(
-          qualifiedAndroidName: 'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+          qualifiedAndroidName:
+              'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
         ),
     ]);
   } on PlatformException catch (exception) {
@@ -239,7 +240,8 @@ class _MyAppState extends State<MyApp> {
 
   /// Checks if pinning widgets is supported
   Future<void> _checkPinability() async {
-    final isRequestPinWidgetSupported = await HomeWidget.isRequestPinWidgetSupported();
+    final isRequestPinWidgetSupported =
+        await HomeWidget.isRequestPinWidgetSupported();
     if (mounted) {
       setState(() {
         _isRequestPinWidgetSupported = isRequestPinWidgetSupported ?? false;
@@ -301,7 +303,8 @@ class _MyAppState extends State<MyApp> {
                 if (_isRequestPinWidgetSupported)
                   ElevatedButton(
                     onPressed: () => HomeWidget.requestPinWidget(
-                      qualifiedAndroidName: 'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+                      qualifiedAndroidName:
+                          'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
                     ),
                     child: const Text('Pin Widget'),
                   ),
