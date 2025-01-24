@@ -248,58 +248,61 @@ class _MyAppState extends State<MyApp> {
       appBar: AppBar(
         title: const Text('HomeWidget Example'),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Title',
-                ),
-                controller: _titleController,
-              ),
-              TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Body',
-                ),
-                controller: _messageController,
-              ),
-              ElevatedButton(
-                onPressed: _sendAndUpdate,
-                child: const Text('Send Data to Widget'),
-              ),
-              ElevatedButton(
-                onPressed: _loadData,
-                child: const Text('Load Data'),
-              ),
-              ElevatedButton(
-                onPressed: _checkForWidgetLaunch,
-                child: const Text('Check For Widget Launch'),
-              ),
-              if (Platform.isAndroid)
-                ElevatedButton(
-                  onPressed: _startBackgroundUpdate,
-                  child: const Text('Update in background'),
-                ),
-              if (Platform.isAndroid)
-                ElevatedButton(
-                  onPressed: _stopBackgroundUpdate,
-                  child: const Text('Stop updating in background'),
-                ),
-              ElevatedButton(
-                onPressed: _getInstalledWidgets,
-                child: const Text('Get Installed Widgets'),
-              ),
-              if (_isRequestPinWidgetSupported)
-                ElevatedButton(
-                  onPressed: () => HomeWidget.requestPinWidget(
-                    qualifiedAndroidName:
-                        'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+      body: SingleChildScrollView(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Title',
                   ),
-                  child: const Text('Pin Widget'),
+                  controller: _titleController,
                 ),
-            ],
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: 'Body',
+                  ),
+                  controller: _messageController,
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: _sendAndUpdate,
+                  child: const Text('Send Data to Widget'),
+                ),
+                ElevatedButton(
+                  onPressed: _loadData,
+                  child: const Text('Load Data'),
+                ),
+                ElevatedButton(
+                  onPressed: _checkForWidgetLaunch,
+                  child: const Text('Check For Widget Launch'),
+                ),
+                if (Platform.isAndroid)
+                  ElevatedButton(
+                    onPressed: _startBackgroundUpdate,
+                    child: const Text('Update in background'),
+                  ),
+                if (Platform.isAndroid)
+                  ElevatedButton(
+                    onPressed: _stopBackgroundUpdate,
+                    child: const Text('Stop updating in background'),
+                  ),
+                ElevatedButton(
+                  onPressed: _getInstalledWidgets,
+                  child: const Text('Get Installed Widgets'),
+                ),
+                if (_isRequestPinWidgetSupported)
+                  ElevatedButton(
+                    onPressed: () => HomeWidget.requestPinWidget(
+                      qualifiedAndroidName:
+                          'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+                    ),
+                    child: const Text('Pin Widget'),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
