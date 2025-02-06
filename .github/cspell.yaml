@@ -24,7 +24,7 @@ ignorePaths:
         "cspell.yaml",
         "**/build.gradle",
         "**/proguard-rules.pro",
-        ".github/**",
+        "**/.github/**",
     ]
 dictionaries:
   - names
@@ -66,3 +66,4 @@ words:
     - libexec
     - SRCROOT
     - Codelab
+    - pubspec
