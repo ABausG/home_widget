@@ -18,7 +18,7 @@ concurrency:
 jobs:
   quality:
     name: Quality Checks
-    runs-on: macos-14
+    runs-on: macos-15
     defaults:
         run:
             working-directory: packages/home_widget
@@ -90,7 +90,7 @@ jobs:
         device:
           - "iPhone 15"
       fail-fast: false
-    runs-on: macos-14
+    runs-on: macos-15
     defaults:
       run:
         working-directory: packages/home_widget/example
