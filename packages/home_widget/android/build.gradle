@@ -29,7 +29,7 @@ android {
     if (project.android.hasProperty("namespace")) {
         namespace 'es.antonborri.home_widget'
     }
-    compileSdk 34
+    compileSdk 35
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
