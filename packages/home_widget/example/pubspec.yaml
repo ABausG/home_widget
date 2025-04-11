@@ -9,7 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  workmanager: ^0.5.2
+  workmanager:
+    git:
+      url: https://github.com/fluttercommunity/flutter_workmanager.git
+      path: workmanager
+      ref: main
 
   home_widget:
     path: ../
