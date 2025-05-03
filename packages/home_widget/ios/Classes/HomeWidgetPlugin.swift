@@ -194,7 +194,9 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                 var intent: Any?
                 if widget.configuration != nil {
                   intent = widget.configuration
-                } else if #available(iOS 17.0, *), let intentType = HomeWidgetPlugin.configurationLookup[widget.kind] {
+                } else if #available(iOS 17.0, *),
+                  let intentType = HomeWidgetPlugin.configurationLookup[widget.kind]
+                {
                   intent = widget.widgetConfigurationIntent(of: intentType)
 
                 }
@@ -202,7 +204,9 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
                 if let intent = intent {
 
                   var intentData: [String: Any?] = [:]
-                  if #available(iOS 17.0, *), let configurationIntent = intent as? (any WidgetConfigurationIntent) {
+                  if #available(iOS 17.0, *),
+                    let configurationIntent = intent as? (any WidgetConfigurationIntent)
+                  {
                     let mirror = Mirror(reflecting: configurationIntent)
                     for (name, value) in mirror.children {
                       if let name {
