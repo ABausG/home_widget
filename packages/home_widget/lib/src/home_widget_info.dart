@@ -47,7 +47,14 @@ class HomeWidgetInfo {
 
   @override
   String toString() {
-    return 'HomeWidgetInfo{iOSFamily: $iOSFamily, iOSKind: $iOSKind, androidWidgetId: $androidWidgetId, androidClassName: $androidClassName, androidLabel: $androidLabel, configuration: $configuration)';
+    return 'HomeWidgetInfo('
+        'iOSFamily: $iOSFamily, '
+        'iOSKind: $iOSKind, '
+        'androidWidgetId: $androidWidgetId, '
+        'androidClassName: $androidClassName, '
+        'androidLabel: $androidLabel, '
+        'configuration: $configuration'
+        ')';
   }
 
   @override

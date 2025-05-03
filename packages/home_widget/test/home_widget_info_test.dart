@@ -23,6 +23,21 @@ void main() {
       expect(info.configuration, {'config': 'value'});
     });
 
+    test('handle configuration', () {
+      final data = {
+        'family': 'medium',
+        'kind': 'anotherKind',
+        'widgetId': 1,
+        'androidClassName': 'com.example.AnotherWidget',
+        'label': 'Another Widget',
+        'configuration': {'config': 'value'},
+      };
+
+      final info = HomeWidgetInfo.fromMap(data);
+
+      expect(info.configuration, {'config': 'value'});
+    });
+
     test('HomeWidgetInfo toString', () {
       final homeWidgetInfo = HomeWidgetInfo(
         iOSFamily: 'systemSmall',
@@ -35,7 +50,7 @@ void main() {
 
       expect(
         homeWidgetInfo.toString(),
-        'HomeWidgetInfo{iOSFamily: systemSmall, iOSKind: ParkingWidget, androidWidgetId: 1, androidClassName: com.example.MyWidget, androidLabel: My Widget, configuration: {config: example})',
+        'HomeWidgetInfo(iOSFamily: systemSmall, iOSKind: ParkingWidget, androidWidgetId: 1, androidClassName: com.example.MyWidget, androidLabel: My Widget, configuration: {config: example})',
       );
     });
 
