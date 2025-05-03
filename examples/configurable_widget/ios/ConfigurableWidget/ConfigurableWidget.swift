@@ -61,7 +61,9 @@ struct IntentProvider: IntentTimelineProvider {
     let currentDate = Date()
     for hourOffset in 0..<5 {
       let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-      let entry = SimpleEntry(date: entryDate, name: configuration.Name)
+      let entry = SimpleEntry(
+        date: entryDate, name: configuration.Name,
+        punctuation: configuration.Punctuation?.identifier)
       entries.append(entry)
     }
 
@@ -95,7 +97,7 @@ struct ConfigurableWidget: Widget {
   let kind: String = "ConfigurableWidget"
 
   var body: some WidgetConfiguration {
-   /*  if #available(iOS 17.0, *) {
+   if #available(iOS 17.0, *) {
       return AppIntentConfiguration(
         kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()
       ) {
@@ -103,14 +105,14 @@ struct ConfigurableWidget: Widget {
         ConfigurableWidgetEntryView(entry: entry)
           .containerBackground(.fill.tertiary, for: .widget)
       }
-    } else { */
+    } else {
       return IntentConfiguration(
         kind: kind,
         intent: GreetingIntentIntent.self,
         provider: IntentProvider()
       ) { entry in
         ConfigurableWidgetEntryView(entry: entry)
-      //}
+      }
     }
   }
 }

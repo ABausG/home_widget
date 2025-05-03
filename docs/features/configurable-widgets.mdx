@@ -62,7 +62,7 @@ you can also provide backgwards compatibility using [SiriKit Intents](#sirikit-i
         </div>
 
     </Step>
-    
+
     <Step title="Getting Data from Flutter to the Configuration">
 
         You can store data from Flutter for the Widget using `HomeWidget.saveWidgetData` to use it as options in the configuration panel.
@@ -212,12 +212,12 @@ you can also provide backgwards compatibility using [SiriKit Intents](#sirikit-i
 
         For our Greeting Example the Configuration would be:
 
-        ```dart
+        ```json
         {
-        "name": "Documentation",
-        "punctuation": {
-            "id": "!!!"
-        }
+            "name": "Documentation",
+            "punctuation": {
+                "id": "!!!"
+            }
         }
         ```
 
@@ -312,27 +312,101 @@ Before iOS 17 SiriKit Intents where used to build configurable widgets. You can 
     var body: some WidgetConfiguration {
         if #available(iOS 17.0, *) { // [!code ++]
         AppIntentConfiguration( // [!code --]
-        return AppIntentConfiguration( // [!code ++]
-            kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()
-        ) {
-            entry in
-            ConfigurableWidgetEntryView(entry: entry)
-            .containerBackground(.fill.tertiary, for: .widget)
-        } // [!code ++]
+            return AppIntentConfiguration( // [!code ++]
+                kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()
+            ) {
+                entry in
+                ConfigurableWidgetEntryView(entry: entry)
+                .containerBackground(.fill.tertiary, for: .widget)
+            }
         } else { // [!code ++]
-        return IntentConfiguration( // [!code ++]
-            kind: kind, // [!code ++]
-            intent: GreetingIntentIntent.self, // [!code ++]
-            provider: IntentProvider() // [!code ++]
-        ) { entry in // [!code ++]
-            ConfigurableWidgetEntryView(entry: entry) // [!code ++]
-        } // [!code ++]
+            return IntentConfiguration( // [!code ++]
+                kind: kind, // [!code ++]
+                intent: GreetingIntentIntent.self, // [!code ++]
+                provider: IntentProvider() // [!code ++]
+            ) { entry in // [!code ++]
+                ConfigurableWidgetEntryView(entry: entry) // [!code ++]
+            } // [!code ++]
         } // [!code ++]
     }
     ```
     </Step>
+
     <Step title="Getting Data from Flutter to the Configuration">
+        With SiriKit Intents you need to add a new `IntentHandler` that can handle using Data you send from home_widget.
+
+        For this add a new `Intents Extension` to your App. Using <kbd>File</kbd> > <kbd>New</kbd> > <kbd>Target</kbd> > <kbd>Intents Extension</kbd>
+
+        <Image src="/assets/configurable/ios/siri-intents-extension.webp"/>
+
+        In your SiriKit Intents definition add the newly created Extension as a Target
+        
+        <Image src="/assets/configurable/ios/siri-extension-target-membership.webp"/>
+
+        In the same configurations file add a new Type and configure it to the options you need.
+
+        <Image src="/assets/configurable/ios/siri-new-type.webp"/>
+
+        <Image src="/assets/configurable/ios/siri-created-type.webp"/>
+
+        Create a Field that uses this new type. Ensuring to enable <i>Options are provided dynamically</i>
+
+        <Image src="/assets/configurable/ios/siri-select-type.webp"/>
+        
+        <Image src="/assets/configurable/ios/siri-extension-dynamic-option.webp"/>
+
+        Implement the `IntentHandler` to handle the new Intent
+
+        ```swift
+        import Intents
+
+        class IntentHandler: INExtension, GreetingIntentIntentHandling {
+        
+        func providePunctuationOptionsCollection(for intent: GreetingIntentIntent) async throws -> INObjectCollection<Punctuation> {
+            let userDefaults = UserDefaults(suiteName: "YOUR_APP_GROUP")
+            
+            do {
+                let jsonPunctuations = (userDefaults?.string(forKey: "punctuations") ?? "[\"!\"]").data(using: .utf8)!
+                let stringArray = try JSONDecoder().decode([String].self, from: jsonPunctuations)
+                let items = stringArray.map { punctuation in
+                    Punctuation(identifier: punctuation, display: punctuation)
+                }
+                return INObjectCollection(items: items)
+                
+            } catch {
+                return INObjectCollection(items: [Punctuation(identifier: "!", display: "!")])
+            }
+        }
+        }
+        ```
+
     </Step>
     <Step title="Seeing Configuration in Flutter">
+    Similar to the `WidgetConfigurationIntent` you can use `HomeWidget.getInstalledWidgets()` to get the configuration of the Widget.
+
+    ```dart
+    final configuration = await HomeWidget.getInstalledWidgets();
+    ```
+
+    this will give you a list of `HomeWidgetInfo` in there there is a `Map<String, dynamic>? configuration`.
+
+
+    For our Greeting Example the Configuration would be:
+
+    ```json
+    {
+        "Name": "Siri",
+        "Punctuation": {
+            "identifier": "👋",
+            "displayString": "👋"
+        }
+    }
+    ```
+
+    <div align="center" class="justify-center flex" style={{ gap: '8px', alignItems: 'center' }}>
+            <Image src="/assets/configurable/ios/siri-configured-example.webp"/>
+            <Image src="/assets/configurable/ios/siri-configuration-in-flutter.webp"/>
+        </div>
+    
     </Step>
 </Steps>
