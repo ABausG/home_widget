@@ -131,4 +131,5 @@ app.*.symbols
 
 # don't check in golden failure output
 **/failures/*.png
+pubspec_overrides.yaml
 .cxx
