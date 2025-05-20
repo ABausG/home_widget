@@ -29,7 +29,7 @@ android {
     if (project.android.hasProperty("namespace")) {
         namespace 'es.antonborri.home_widget'
     }
-    compileSdk 34
+    compileSdk 35
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
@@ -51,5 +51,5 @@ android {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    implementation 'androidx.glance:glance-appwidget:1.0.0'
+    implementation "androidx.glance:glance-appwidget:1.+"
 }
