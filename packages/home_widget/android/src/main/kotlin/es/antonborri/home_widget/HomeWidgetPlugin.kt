@@ -109,6 +109,7 @@ class HomeWidgetPlugin :
               AppWidgetManager.getInstance(context.applicationContext)
                   .getAppWidgetIds(ComponentName(context, javaClass))
           intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+          intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
           context.sendBroadcast(intent)
           result.success(true)
         } catch (classException: ClassNotFoundException) {
@@ -234,6 +235,8 @@ class HomeWidgetPlugin :
     private const val WIDGET_INFO_KEY_WIDGET_ID = "widgetId"
     private const val WIDGET_INFO_KEY_ANDROID_CLASS_NAME = "androidClassName"
     private const val WIDGET_INFO_KEY_LABEL = "label"
+
+    const val TRIGGERED_FROM_HOME_WIDGET = "triggeredFromHomeWidget"
 
     private fun saveCallbackHandle(context: Context, dispatcher: Long, handle: Long) {
       context
