@@ -154,8 +154,11 @@ class HomeWidget {
     Widget widget, {
     required String key,
     Size logicalSize = const Size(200, 200),
-    double pixelRatio = 1,
+    double? pixelRatio,
   }) async {
+    pixelRatio ??=
+        PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1;
+
     /// finding the widget in the current context by the key.
     final RenderRepaintBoundary repaintBoundary = RenderRepaintBoundary();
 
@@ -174,7 +177,7 @@ class HomeWidget {
         ),
         configuration: ViewConfiguration(
           logicalConstraints: BoxConstraints.tight(logicalSize),
-          devicePixelRatio: 1.0,
+          devicePixelRatio: pixelRatio,
         ),
       );
 
@@ -193,9 +196,7 @@ class HomeWidget {
           child: Column(
             // image is center aligned
             mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              widget,
-            ],
+            children: [widget],
           ),
         ),
       ).attachToRenderTree(buildOwner);
