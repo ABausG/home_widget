@@ -9,7 +9,9 @@ void main() {
   runApp(const MainApp());
 }
 
+/// Send a List of possible punctuations to the widget.
 Future<void> _initPunctuations() async {
+  // Needed for communication between the app and the widget
   await HomeWidget.setAppGroupId('group.es.antonborri.configurableWidget');
   final punctuations = [
     '!',
@@ -19,6 +21,7 @@ Future<void> _initPunctuations() async {
     // Wave Emoji
     '\u{1F44B}',
   ];
+  // Save the punctuations to the widget
   await HomeWidget.saveWidgetData(
     'punctuations',
     jsonEncode(punctuations),
@@ -41,6 +44,7 @@ class _MainAppState extends State<MainApp> {
     _getInstalledWidgets();
   }
 
+  /// Get the list of installed widgets and their configurations.
   Future<void> _getInstalledWidgets() async {
     final installedWidgets = await HomeWidget.getInstalledWidgets();
     if (mounted) {
