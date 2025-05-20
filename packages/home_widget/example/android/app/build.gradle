@@ -23,10 +23,20 @@ if (flutterVersionName == null) {
 }
 
 android {
-    compileSdkVersion 34
+    compileSdkVersion 35
+    ndkVersion = "26.3.11579264"
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+
+    kotlin {
+        jvmToolchain(21)
     }
 
     lintOptions {
@@ -36,7 +46,7 @@ android {
     defaultConfig {
         applicationId "es.antonborri.home_widget_example"
         minSdkVersion 23
-        targetSdkVersion 34
+        targetSdkVersion 35
         multiDexEnabled true
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

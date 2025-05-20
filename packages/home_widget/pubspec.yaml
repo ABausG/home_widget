@@ -14,7 +14,6 @@ screenshots:
     path: pub/screenshots/ios-counter.gif
   - description: 'Android HomeScreen Widget'
     path: pub/screenshots/android.png
-issue_tracker: https://github.com/ABausG/home_widget/issues
 documentation: https://docs.page/ABausG/home_widget
 
 environment:

@@ -44,6 +44,7 @@ void emitEvent(WidgetTester tester, ByteData? event) {
   );
 }
 
+@pragma('vm:entry-point')
 Future<void> testCallback(Uri? uri) async {
   completer.complete(uri);
 }
