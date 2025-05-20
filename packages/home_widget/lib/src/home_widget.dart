@@ -150,7 +150,10 @@ class HomeWidget {
   /// This method renders the widget to an image (png) file with the provided filename.
   /// The png file is saved to the App Group container and the full path is returned as a string.
   /// The filename is saved to UserDefaults using the provided key.
-  static Future renderFlutterWidget(
+  ///
+  /// This method can throw in case the widget could not be converted to an
+  /// image or if the image could not be saved to a file.
+  static Future<String> renderFlutterWidget(
     Widget widget, {
     required String key,
     Size logicalSize = const Size(200, 200),
@@ -272,13 +275,11 @@ class HomeWidget {
   /// currently pinned on the home screen.
   /// Returns an empty list if no widgets are pinned.
   static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {
-    final List<dynamic>? result =
-        await _channel.invokeMethod('getInstalledWidgets');
+    final result =
+        await _channel.invokeMethod('getInstalledWidgets') as List<dynamic>?;
     return result
-            ?.map(
-              (widget) =>
-                  HomeWidgetInfo.fromMap(widget.cast<String, dynamic>()),
-            )
+            ?.map((widget) => (widget as Map).cast<String, dynamic>())
+            .map(HomeWidgetInfo.fromMap)
             .toList() ??
         [];
   }
