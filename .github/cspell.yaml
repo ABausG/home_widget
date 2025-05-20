@@ -25,6 +25,7 @@ ignorePaths:
         "**/build.gradle",
         "**/proguard-rules.pro",
         "**/.github/**",
+        "**/.gitignore",
     ]
 dictionaries:
   - names
