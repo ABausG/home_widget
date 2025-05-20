@@ -2,7 +2,7 @@
 
 [![Pub](https://img.shields.io/pub/v/home_widget.svg)](https://pub.dartlang.org/packages/home_widget)
 [![likes](https://img.shields.io/pub/likes/home_widget)](https://pub.dev/packages/home_widget/score)
-[![popularity](https://img.shields.io/pub/popularity/home_widget)](https://pub.dev/packages/home_widget/score)
+[![downloads](https://img.shields.io/pub/dm/home_widget)](https://pub.dev/packages/home_widget/score)
 [![pub points](https://img.shields.io/pub/points/home_widget)](https://pub.dev/packages/home_widget/score)
 [![Build](https://github.com/abausg/home_widget/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/ABausG/home_widget/actions/workflows/main.yml?query=branch%3Amain)
 [![codecov](https://codecov.io/gh/ABausG/home_widget/branch/main/graph/badge.svg?token=ZXTZOL6KFO)](https://codecov.io/gh/ABausG/home_widget)
