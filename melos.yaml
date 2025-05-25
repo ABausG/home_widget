@@ -4,6 +4,7 @@ repository: https://github.com/abausg/home_widget
 
 packages:
   - packages/**
+  - examples/**
 
 command:
   version:

@@ -1,8 +1,20 @@
+import AppIntents
 import Flutter
+import Intents
 import UIKit
 import WidgetKit
 
-public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+
+  @available(iOS 17.0, *)
+  private static var configurationLookup: [String: any WidgetConfigurationIntent.Type] = [:]
+
+  @available(iOS 17.0, *)
+  public static func setConfigurationLookup(
+    to configuration: [String: any WidgetConfigurationIntent.Type]
+  ) {
+    configurationLookup = configuration
+  }
 
   private static var groupId: String?
 
@@ -27,7 +39,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
   }
 
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let instance = SwiftHomeWidgetPlugin()
+    let instance = HomeWidgetPlugin()
 
     let channel = FlutterMethodChannel(name: "home_widget", binaryMessenger: registrar.messenger())
     registrar.addMethodCallDelegate(instance, channel: channel)
@@ -54,7 +66,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
       if let myArgs = args as? [String: Any?],
         let groupId = myArgs["groupId"] as? String
       {
-        SwiftHomeWidgetPlugin.groupId = groupId
+        HomeWidgetPlugin.groupId = groupId
         result(true)
       } else {
         result(
@@ -63,7 +75,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             details: nil))
       }
     } else if call.method == "saveWidgetData" {
-      if SwiftHomeWidgetPlugin.groupId == nil {
+      if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)
         return
       }
@@ -74,7 +86,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         let id = myArgs["id"] as? String,
         let data = myArgs["data"]
       {
-        let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
+        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
         if data != nil {
           if let binaryData = data as? FlutterStandardTypedData {
             preferences?.setValue(Data(binaryData.data), forKey: id)
@@ -92,7 +104,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             details: nil))
       }
     } else if call.method == "getWidgetData" {
-      if SwiftHomeWidgetPlugin.groupId == nil {
+      if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)
         return
       }
@@ -103,7 +115,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         let id = myArgs["id"] as? String,
         let defaultValue = myArgs["defaultValue"]
       {
-        let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
+        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
         result(preferences?.value(forKey: id) ?? defaultValue)
       } else {
         result(
@@ -137,13 +149,13 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             details: nil))
       }
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
-      if SwiftHomeWidgetPlugin.groupId == nil {
+      if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)
         return
       }
       result(initialUrl?.absoluteString)
     } else if call.method == "registerBackgroundCallback" {
-      if SwiftHomeWidgetPlugin.groupId == nil {
+      if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)
         return
       }
@@ -151,7 +163,7 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
         let callbackHandles = call.arguments as! [Int64]
         let dispatcher = callbackHandles[0]
         let callback = callbackHandles[1]
-        let preferences = UserDefaults.init(suiteName: SwiftHomeWidgetPlugin.groupId)
+        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
         preferences?.setValue(dispatcher, forKey: HomeWidgetBackgroundWorker.dispatcherKey)
         preferences?.setValue(callback, forKey: HomeWidgetBackgroundWorker.callbackKey)
         HomeWidgetBackgroundWorker.setupEngine(dispatcher: dispatcher)
@@ -177,7 +189,145 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
             switch result2 {
             case .success(let widgets):
               let widgetInfoList = widgets.map { widget in
-                return ["family": "\(widget.family)", "kind": widget.kind]
+                var configuration: [String: Any] = [String: Any]()
+
+                var intent: Any?
+                if widget.configuration != nil {
+                  intent = widget.configuration
+                } else if #available(iOS 17.0, *),
+                  let intentType = HomeWidgetPlugin.configurationLookup[widget.kind]
+                {
+                  intent = widget.widgetConfigurationIntent(of: intentType)
+
+                }
+
+                if let intent = intent {
+
+                  var intentData: [String: Any?] = [:]
+                  if #available(iOS 17.0, *),
+                    let configurationIntent = intent as? (any WidgetConfigurationIntent)
+                  {
+                    let mirror = Mirror(reflecting: configurationIntent)
+                    for (name, value) in mirror.children {
+                      if let name {
+                        intentData[name] = value
+                      }
+                    }
+                  } else if let configurationIntent = intent as? INIntent {
+                    let intentClass: AnyClass = type(of: configurationIntent)
+
+                    var count: UInt32 = 0
+                    if let properties = class_copyPropertyList(intentClass, &count) {
+                      for i in 0..<count {
+                        let property = property_getName(properties[Int(i)])
+                        if let propertyName = String(utf8String: property) {
+
+                          let value = configurationIntent.value(forKey: propertyName)
+                          intentData[propertyName] = value
+                        }
+
+                      }
+                      free(properties)
+                    }
+                  }
+                  if !intentData.isEmpty {
+
+                    for (internalPropertyName, rawValue) in intentData {
+                      let propertyName =
+                        internalPropertyName.hasPrefix("_") == true
+                        ? String(internalPropertyName.dropFirst())
+                        : internalPropertyName
+
+                      let value: Any?
+
+                      if let intentParameter = rawValue as? _AnyIntentParameter {
+                        // Get the wrapped value from the IntentParameter. Used for WidgetConfigurationIntent
+                        value = intentParameter.anyWrappedValue
+                      } else {
+                        // Use rawValue if it is not an IntentParameter
+                        value = rawValue
+                      }
+                      switch value {
+                      case is NSNull:
+                        configuration[propertyName] = NSNull()
+
+                      case let boolValue as Bool:
+                        configuration[propertyName] = boolValue
+
+                      case let intValue as Int32:
+                        configuration[propertyName] = NSNumber(value: intValue)
+
+                      case let intValue as Int:
+                        configuration[propertyName] = NSNumber(value: intValue)
+
+                      case let doubleValue as Double:
+                        configuration[propertyName] = NSNumber(value: doubleValue)
+
+                      case let stringValue as String:
+                        configuration[propertyName] = stringValue
+
+                      case let dataValue as Data:
+                        configuration[propertyName] = FlutterStandardTypedData(bytes: dataValue)
+
+                      case let arrayValue as [Any]:
+                        configuration[propertyName] = arrayValue
+
+                      case let dictionaryValue as [String: Any]:
+                        configuration[propertyName] = dictionaryValue
+
+                      case let dateValue as Date:
+                        let dateFormatter = ISO8601DateFormatter()
+                        configuration[propertyName] = dateFormatter.string(from: dateValue)
+
+                      case let urlValue as URL:
+                        configuration[propertyName] = urlValue.absoluteString
+
+                      // Handle Codable types by trying to convert to a dictionary
+                      case let codableValue as (any Codable):
+                        let encoder = JSONEncoder()
+                        do {
+                          let data = try encoder.encode(codableValue)
+                          if let jsonObject = try JSONSerialization.jsonObject(
+                            with: data, options: []) as? [String: Any]
+                          {
+                            configuration[propertyName] = jsonObject
+                          }
+                        } catch {
+                          if let value = value {
+                            configuration[propertyName] = "\(value)"
+                          } else {
+                            configuration[propertyName] = nil
+                          }
+
+                        }
+
+                      case let inObject as INObject:
+                        configuration[propertyName] = [
+                          "identifier": inObject.identifier,
+                          "displayString": inObject.displayString,
+                        ]
+
+                      default:
+                        if let value = value {
+                          configuration[propertyName] = "\(value)"
+                        } else {
+                          configuration[propertyName] = nil
+                        }
+                      }
+                    }
+                  }
+                }
+
+                var resultMap: [String: Any] = [
+                  "family": "\(widget.family)",
+                  "kind": widget.kind,
+                ]
+
+                if !configuration.isEmpty {
+                  resultMap["configuration"] = configuration
+                }
+
+                return resultMap
               }
               result(widgetInfoList)
             case .failure(let error):
@@ -238,5 +388,17 @@ public class SwiftHomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandle
   private func isWidgetUrl(url: URL) -> Bool {
     let components = URLComponents.init(url: url, resolvingAgainstBaseURL: false)
     return components?.queryItems?.contains(where: { (item) in item.name == "homeWidget" }) ?? false
+  }
+}
+
+protocol _AnyIntentParameter {
+
+  var anyWrappedValue: Any { get }
+}
+
+@available(iOS 16.0, *)
+extension IntentParameter: _AnyIntentParameter {
+  var anyWrappedValue: Any {
+    return wrappedValue
   }
 }
