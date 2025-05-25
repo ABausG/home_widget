@@ -26,6 +26,7 @@ ignorePaths:
         "**/proguard-rules.pro",
         "**/.github/**",
         "**/.gitignore",
+        "**/*.intentdefinition"
     ]
 dictionaries:
   - names
@@ -68,3 +69,8 @@ words:
     - SRCROOT
     - Codelab
     - pubspec
+    - Siri
+    - objc
+    - typealias
+    - xcodeproj
+    - pbxproj
