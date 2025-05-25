@@ -65,6 +65,31 @@ you can also provide backgwards compatibility using [SiriKit Intents](#sirikit-i
 
     <Step title="Getting Data from Flutter to the Configuration">
 
+        #### App Groups
+        In order for sending Data from your Flutter App to the Widget we need to use [App Groups](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.application-groups).
+        <Info>App Groups require a paid Apple Developer Account</Info>
+
+        ##### Create a new App Group
+        Visit the [Apple Developer Portal](https://developer.apple.com/account/resources/identifiers/applicationGroup/add/) and create a new App Group.
+        
+        ##### Enable App Groups in XCode
+        Add the App Group capability to <b>both the App Target (Runner) and your Widget Extension</b> in XCode.
+        ![Enable App Groups in XCode](/assets/configurable/ios/app-group.webp)
+
+        ##### Register App Group in Flutter
+        In your Flutter code register the App Group with `home_widget`
+
+        ```dart
+        import 'package:home_widget/home_widget.dart';
+        void main() {
+            WidgetFlutterBinding.ensureInitialized();
+            HomeWidget.setAppGroupId('group.YOUR_APP_GROUP_ID');
+            runApp(MyApp());
+        }
+        ```
+
+        #### Send Data
+
         You can store data from Flutter for the Widget using `HomeWidget.saveWidgetData` to use it as options in the configuration panel.
 
         ```dart
