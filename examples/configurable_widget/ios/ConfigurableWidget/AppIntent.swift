@@ -19,10 +19,6 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
 
   @Parameter(title: "Punctuation")
   var punctuation: PunctuationEntity
-
-  func perform() async throws -> Never {
-    return Never()
-  }
 }
 
 // Make Entity Codable so home_widget
