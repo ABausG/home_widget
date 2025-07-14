@@ -51,8 +51,8 @@ struct CounterEntry: TimelineEntry {
 Adjust the `TimelineProvider` to build a timeline (can be single entry if all updating is always handled from Flutter) where you create a `TimelineEntry` based on the Data stored with `HomeWidget.saveWidgetData`
 ```swift
 struct Provider: TimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), counter: 0)
+    func placeholder(in context: Context) -> CounterEntry {
+        CounterEntry(date: Date(), counter: 0)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
