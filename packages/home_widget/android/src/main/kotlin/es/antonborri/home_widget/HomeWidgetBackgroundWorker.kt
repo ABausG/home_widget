@@ -1,10 +1,15 @@
 package es.antonborri.home_widget
 
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.work.CoroutineWorker
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -99,8 +104,8 @@ class HomeWidgetBackgroundWorker(
 
     companion object {
         private const val TAG = "HomeWidgetWorker"
-        const val DATA_KEY = "uri_data"
-        const val UNIQUE_WORK_NAME = "home_widget_background"
+        private const val DATA_KEY = "uri_data"
+        private const val UNIQUE_WORK_NAME = "home_widget_background"
         private const val CHANNEL_NAME = "home_widget/background"
 
         @Volatile
@@ -108,5 +113,22 @@ class HomeWidgetBackgroundWorker(
         private val queue = ArrayDeque<List<Any>>()
         private val serviceStarted = AtomicBoolean(false)
         private val mainHandler = Handler(Looper.getMainLooper())
+
+        fun enqueueWork(context: Context, work: Intent) {
+            val data = Data.Builder()
+                .putString(DATA_KEY, work.data?.toString() ?: "")
+                .build()
+
+            val workRequest = OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>()
+                .setInputData(data)
+                .build()
+
+            WorkManager.getInstance(context)
+                .enqueueUniqueWork(
+                    UNIQUE_WORK_NAME,
+                    ExistingWorkPolicy.APPEND,
+                    workRequest
+                )
+        }
     }
 }
