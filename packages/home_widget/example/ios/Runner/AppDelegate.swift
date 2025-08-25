@@ -3,7 +3,7 @@ import UIKit
 import home_widget
 import workmanager
 
-@main
+@UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
