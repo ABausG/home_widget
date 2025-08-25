@@ -75,7 +75,7 @@ jobs:
       - name: Run Android Integration Tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 34
           script: flutter test integration_test/android_test.dart -d emulator-5554
           working-directory: packages/home_widget/example
 
