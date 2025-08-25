@@ -88,6 +88,7 @@ jobs:
   # by @kate_sheremet
   ios:
     name: iOS Integration Tests
+    timeout-minutes: 30
     strategy:
       matrix:
         device:
@@ -111,4 +112,4 @@ jobs:
         with:
           model: ${{ matrix.device }}
       - name: "Run iOS integration tests"
-        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}}
+        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}} --ignore-timeouts

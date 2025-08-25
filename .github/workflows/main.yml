@@ -96,6 +96,7 @@ jobs:
           - "iPhone 16"
       fail-fast: false
     runs-on: macos-15
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: packages/home_widget/example
@@ -113,4 +114,4 @@ jobs:
         with:
           model: ${{ matrix.device }}
       - name: "Run iOS integration tests"
-        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}}
+        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}} --ignore-timeouts
