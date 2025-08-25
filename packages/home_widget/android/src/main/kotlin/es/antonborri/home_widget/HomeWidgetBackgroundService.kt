@@ -14,6 +14,14 @@ import io.flutter.view.FlutterCallbackInformation
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
+@Deprecated(
+    message = "This class uses the deprecated JobIntentService. Use HomeWidgetBackgroundWorker instead.",
+    replaceWith = ReplaceWith(
+        "HomeWidgetBackgroundWorker",
+        "es.antonborri.home_widget.HomeWidgetBackgroundWorker"
+    ),
+    level = DeprecationLevel.WARNING
+)
 class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentService() {
 
   private val queue = ArrayDeque<List<Any>>()
