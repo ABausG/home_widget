@@ -86,7 +86,7 @@ jobs:
     strategy:
       matrix:
         device:
-          - "iPhone 14"
+          - "iPhone 16"
       fail-fast: false
     runs-on: macos-14
     defaults:
