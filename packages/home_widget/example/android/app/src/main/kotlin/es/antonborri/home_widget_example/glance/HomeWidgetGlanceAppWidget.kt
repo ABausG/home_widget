@@ -1,7 +1,5 @@
 package es.antonborri.home_widget_example.glance
 
-import HomeWidgetGlanceState
-import HomeWidgetGlanceStateDefinition
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -29,6 +27,8 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
+import es.antonborri.home_widget.HomeWidgetGlanceState
+import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.actionStartActivity
 import es.antonborri.home_widget_example.MainActivity
 
