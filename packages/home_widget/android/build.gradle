@@ -52,6 +52,6 @@ android {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "androidx.glance:glance-appwidget:1.+"
-    implementation "androidx.work:work-runtime-ktx:2.10.0"
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3"
+    implementation "androidx.work:work-runtime-ktx:2.+"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.+"
 }
