@@ -13,7 +13,7 @@ class HomeWidgetGlanceState(val preferences: SharedPreferences)
 class HomeWidgetGlanceStateDefinition : GlanceStateDefinition<HomeWidgetGlanceState> {
   override suspend fun getDataStore(
       context: Context,
-      fileKey: String
+      fileKey: String,
   ): DataStore<HomeWidgetGlanceState> {
     val preferences =
         context.getSharedPreferences(HomeWidgetPlugin.PREFERENCES, Context.MODE_PRIVATE)

@@ -52,7 +52,8 @@ class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentSe
             DartExecutor.DartCallback(
                 context.assets,
                 FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-                callbackInfo)
+                callbackInfo,
+            )
         engine?.dartExecutor?.executeDartCallback(callback)
       }
     }
