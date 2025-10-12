@@ -93,7 +93,7 @@ jobs:
     strategy:
       matrix:
         device:
-          - "iPhone 16"
+          - "iPhone 16 Pro"
         xcode-version:
           - "16.4"
       fail-fast: false
@@ -117,4 +117,4 @@ jobs:
           model: ${{ matrix.device }}
           wait_for_boot: true
       - name: "Run iOS integration tests"
-        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}} --ignore-timeouts
+        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}} --ignore-timeouts -v
