@@ -6,8 +6,16 @@ description: How to create interactive Widgets with home_widget and Android XML 
 # Interactive Widgets
 
 Follow the necessary steps to set up everything on the Flutter Side as described [here](/features/interactive-widgets#flutter-setup).
-    
-1. Add a `HomeWidgetBackgroundIntent.getBroadcast` PendingIntent to the View you want to add a click listener to
+
+1. Add the necessary Receiver and Service to your `AndroidManifest.xml` file
+    ```xml
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
+        <intent-filter>
+            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+        </intent-filter>
+    </receiver>
+    ```
+2. Add a `HomeWidgetBackgroundIntent.getBroadcast` PendingIntent to the View you want to add a click listener to
     ```kotlin
     val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(
         context,
@@ -15,14 +23,8 @@ Follow the necessary steps to set up everything on the Flutter Side as described
     )
     setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
     ```
-
 <Accordion title="Previous version required the Background Service to be registered in the Android Manifest. Starting with version 0.8.1 this is no longer necessary.">
 ```xml
-   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
-        <intent-filter>
-            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
-        </intent-filter>
-    </receiver>
     <service android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
         android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
 ```
