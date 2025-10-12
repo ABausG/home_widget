@@ -59,7 +59,8 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     val callbackHandle = HomeWidgetPlugin.getDispatcherHandle(context)
     if (callbackHandle == 0L) {
       throw IllegalStateException(
-          "No callbackHandle saved. Did you call HomeWidget.registerBackgroundCallback?")
+          "No callbackHandle saved. Did you call HomeWidget.registerBackgroundCallback?"
+      )
     }
 
     val callbackInfo =
@@ -72,7 +73,8 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
           DartExecutor.DartCallback(
               context.assets,
               FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-              callbackInfo)
+              callbackInfo,
+          )
       engine?.dartExecutor?.executeDartCallback(callback)
     }
   }

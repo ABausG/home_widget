@@ -19,8 +19,11 @@ import java.util.concurrent.atomic.AtomicBoolean
         "This class uses the deprecated JobIntentService. Use HomeWidgetBackgroundWorker instead. If encountered in the Android Manifest you can remove this service entry",
     replaceWith =
         ReplaceWith(
-            "HomeWidgetBackgroundWorker", "es.antonborri.home_widget.HomeWidgetBackgroundWorker"),
-    level = DeprecationLevel.WARNING)
+            "HomeWidgetBackgroundWorker",
+            "es.antonborri.home_widget.HomeWidgetBackgroundWorker",
+        ),
+    level = DeprecationLevel.WARNING,
+)
 class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentService() {
 
   private val queue = ArrayDeque<List<Any>>()
@@ -59,7 +62,8 @@ class HomeWidgetBackgroundService : MethodChannel.MethodCallHandler, JobIntentSe
             DartExecutor.DartCallback(
                 context.assets,
                 FlutterInjector.instance().flutterLoader().findAppBundlePath(),
-                callbackInfo)
+                callbackInfo,
+            )
         engine?.dartExecutor?.executeDartCallback(callback)
       }
     }
