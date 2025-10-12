@@ -111,9 +111,10 @@ jobs:
         with:
           channel: stable
       - uses: bluefireteam/melos-action@v3
-      - uses: futureware-tech/simulator-action@v1
+      - uses: futureware-tech/simulator-action@v4
         id: simulator
         with:
           model: ${{ matrix.device }}
+          wait-for-boot: true
       - name: "Run iOS integration tests"
         run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}} --ignore-timeouts
