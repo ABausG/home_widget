@@ -104,17 +104,7 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
 
 ## Android Setup
 
-1. Add the necessary Receiver and Service to your `AndroidManifest.xml` file
-    ```
-   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
-        <intent-filter>
-            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
-        </intent-filter>
-    </receiver>
-    <service android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
-        android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
-   ```
-2. Create a custom Action
+1. Create a custom Action
    ```kotlin
    class InteractiveAction : ActionCallback {
         override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
@@ -123,7 +113,7 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
        }
    }
    ```
-3. Add the Action as a modifier to a view
+2. Add the Action as a modifier to a view
    ```kotlin
    Text(
         title,
@@ -131,6 +121,18 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
         modifier = GlanceModifier.clickable(onClick = actionRunCallback<InteractiveAction>()),
    )
    ```
+
+<Accordion title="Previous version required the Background Service to be registered in the Android Manifest. Starting with version 0.8.1 this is no longer necessary.">
+```xml
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
+        <intent-filter>
+            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+        </intent-filter>
+    </receiver>
+    <service android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
+        android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
+```
+</Accordion>
 
 ## Example Blog Article
 
