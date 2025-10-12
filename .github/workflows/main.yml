@@ -117,4 +117,4 @@ jobs:
           model: ${{ matrix.device }}
           wait_for_boot: true
       - name: "Run iOS integration tests"
-        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}} --ignore-timeouts -v
+        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}}
