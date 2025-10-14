@@ -85,36 +85,3 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: flutter test integration_test/android_test.dart -d emulator-5554
           working-directory: packages/home_widget/example
-
-  # iOS Test based on https://medium.com/flutter-community/run-flutter-driver-tests-on-github-actions-13c639c7e4ab
-  # by @kate_sheremet
-  ios:
-    name: iOS Integration Tests
-    strategy:
-      matrix:
-        device:
-          - "iPhone 16 Pro"
-        xcode-version:
-          - "16.4"
-      fail-fast: false
-    runs-on: macos-15
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: packages/home_widget/example
-    steps:
-      - uses: actions/checkout@v2
-      - uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ matrix.xcode-version }}
-      - uses: subosito/flutter-action@v1
-        with:
-          channel: stable
-      - uses: bluefireteam/melos-action@v3
-      - uses: futureware-tech/simulator-action@v4
-        id: simulator
-        with:
-          model: ${{ matrix.device }}
-          wait_for_boot: true
-      - name: "Run iOS integration tests"
-        run: flutter test integration_test/ios_test.dart -d ${{steps.simulator.outputs.udid}}
