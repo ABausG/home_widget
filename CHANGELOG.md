@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-10-14
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`home_widget` - `v0.8.0+1`](#home_widget---v0801)
+
+---
+
+#### `home_widget` - `v0.8.0+1`
+
+ - **FIX**: Use WorkManager for Interactivity on Android. Improves reliability of clicks ([#361](https://github.com/abausg/home_widget/issues/361)). ([b25f8733](https://github.com/abausg/home_widget/commit/b25f87336913844d92ba6484c3516680beb6a3a2))
+
+
 ## 2025-05-25
 
 ### Changes
