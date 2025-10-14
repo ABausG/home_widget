@@ -1,4 +1,4 @@
-## 0.8.0+1
+## 0.8.1
 
  - **FIX**: Use WorkManager for Interactivity on Android. Improves reliability of clicks ([#361](https://github.com/abausg/home_widget/issues/361)). ([b25f8733](https://github.com/abausg/home_widget/commit/b25f87336913844d92ba6484c3516680beb6a3a2))
 
