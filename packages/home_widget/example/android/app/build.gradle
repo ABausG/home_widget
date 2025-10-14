@@ -1,6 +1,7 @@
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    id "org.jetbrains.kotlin.plugin.compose"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -23,8 +24,8 @@ if (flutterVersionName == null) {
 }
 
 android {
-    compileSdkVersion 35
-    ndkVersion = "26.3.11579264"
+    compileSdkVersion = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
@@ -45,8 +46,8 @@ android {
 
     defaultConfig {
         applicationId "es.antonborri.home_widget_example"
-        minSdkVersion 23
-        targetSdkVersion 35
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
         multiDexEnabled true
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
