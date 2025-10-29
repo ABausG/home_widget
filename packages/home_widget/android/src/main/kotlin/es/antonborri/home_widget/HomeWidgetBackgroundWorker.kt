@@ -9,6 +9,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import io.flutter.FlutterInjector
@@ -111,11 +112,17 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     private val serviceStarted = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    fun enqueueWork(context: Context, work: Intent) {
+    fun enqueueWork(context: Context, work: Intent, expedited: Boolean = false) {
       val data = Data.Builder().putString(DATA_KEY, work.data?.toString() ?: "").build()
 
-      val workRequest =
-          OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>().setInputData(data).build()
+      val workRequestBuilder = OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>()
+          .setInputData(data)
+
+      if (expedited) {
+        workRequestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+      }
+
+      val workRequest = workRequestBuilder.build()
 
       WorkManager.getInstance(context)
           .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.APPEND, workRequest)
