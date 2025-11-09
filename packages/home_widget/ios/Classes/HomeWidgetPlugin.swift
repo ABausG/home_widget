@@ -134,7 +134,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let iosValue = myArgs["ios"]
         let nameValue = myArgs["name"]
         let widgetName: String?
-        
+
         if let iosString = iosValue as? String {
           widgetName = iosString
         } else if let nameString = nameValue as? String {
@@ -142,7 +142,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         } else {
           widgetName = nil
         }
-        
+
         if let name = widgetName {
           if #available(iOS 14.0, *) {
             #if arch(arm64) || arch(i386) || arch(x86_64)
@@ -152,7 +152,8 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
           } else {
             result(
               FlutterError(
-                code: "-4", message: "Widgets are only available on iOS 14.0 and above", details: nil)
+                code: "-4", message: "Widgets are only available on iOS 14.0 and above",
+                details: nil)
             )
           }
         } else {

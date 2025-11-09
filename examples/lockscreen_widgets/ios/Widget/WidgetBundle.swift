@@ -5,12 +5,12 @@
 //  Created by Anton Borries on 09.11.25.
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 @main
 struct LockScreenWidgetBundle: WidgetBundle {
-    var body: some Widget {
-        LockScreenWidget()
-    }
+  var body: some Widget {
+    LockScreenWidget()
+  }
 }
