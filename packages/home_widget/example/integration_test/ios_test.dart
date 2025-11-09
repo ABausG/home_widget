@@ -79,6 +79,24 @@ void main() {
       expect(returnValue, true);
     });
 
+    group('Update Widget with single arguments', () {
+      testWidgets('Update Widget with name only', (tester) async {
+        final returnValue = await HomeWidget.updateWidget(
+          name: 'HomeWidgetExample',
+        ).timeout(const Duration(seconds: 5));
+
+        expect(returnValue, true);
+      });
+
+      testWidgets('Update Widget with iOSName only', (tester) async {
+        final returnValue = await HomeWidget.updateWidget(
+          iOSName: 'HomeWidgetExample',
+        ).timeout(const Duration(seconds: 5));
+
+        expect(returnValue, true);
+      });
+    });
+
     group('Initially Launched', () {
       testWidgets(
           'Initially Launched completes and returns null if not launched from widget',

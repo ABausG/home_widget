@@ -128,19 +128,38 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       guard let args = call.arguments else {
         return
       }
-      if let myArgs = args as? [String: Any?],
-        let name = (myArgs["ios"] ?? myArgs["name"]) as? String
-      {
-        if #available(iOS 14.0, *) {
-          #if arch(arm64) || arch(i386) || arch(x86_64)
-            WidgetCenter.shared.reloadTimelines(ofKind: name)
-            result(true)
-          #endif
+      if let myArgs = args as? [String: Any?] {
+        // Check ios first, then fall back to name
+        // Handle NSNull explicitly since nil-coalescing doesn't work with NSNull
+        let iosValue = myArgs["ios"]
+        let nameValue = myArgs["name"]
+        let widgetName: String?
+        
+        if let iosString = iosValue as? String {
+          widgetName = iosString
+        } else if let nameString = nameValue as? String {
+          widgetName = nameString
+        } else {
+          widgetName = nil
+        }
+        
+        if let name = widgetName {
+          if #available(iOS 14.0, *) {
+            #if arch(arm64) || arch(i386) || arch(x86_64)
+              WidgetCenter.shared.reloadTimelines(ofKind: name)
+              result(true)
+            #endif
+          } else {
+            result(
+              FlutterError(
+                code: "-4", message: "Widgets are only available on iOS 14.0 and above", details: nil)
+            )
+          }
         } else {
           result(
             FlutterError(
-              code: "-4", message: "Widgets are only available on iOS 14.0 and above", details: nil)
-          )
+              code: "-3", message: "InvalidArguments updateWidget must be called with name",
+              details: nil))
         }
       } else {
         result(
