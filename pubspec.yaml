@@ -19,6 +19,9 @@ melos:
     version:
       branch: main
   scripts:
+    analyze:
+      description: Analyze all packages with dart analyze
+      run: melos exec -- dart analyze
     format:all:
       description: Format Dart, Kotlin, and Swift Files
       steps:
