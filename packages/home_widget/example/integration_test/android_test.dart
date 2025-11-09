@@ -63,6 +63,33 @@ void main() {
     expect(returnValue, true);
   });
 
+  group('Update Widget with single arguments', () {
+    testWidgets('Update Widget with name only', (tester) async {
+      final returnValue = await HomeWidget.updateWidget(
+        name: 'HomeWidgetExampleProvider',
+      ).timeout(const Duration(seconds: 5));
+
+      expect(returnValue, true);
+    });
+
+    testWidgets('Update Widget with androidName only', (tester) async {
+      final returnValue = await HomeWidget.updateWidget(
+        androidName: 'HomeWidgetExampleProvider',
+      ).timeout(const Duration(seconds: 5));
+
+      expect(returnValue, true);
+    });
+
+    testWidgets('Update Widget with qualifiedAndroidName only', (tester) async {
+      final returnValue = await HomeWidget.updateWidget(
+        qualifiedAndroidName:
+            'es.antonborri.home_widget_example.HomeWidgetExampleProvider',
+      ).timeout(const Duration(seconds: 5));
+
+      expect(returnValue, true);
+    });
+  });
+
   testWidgets('Register Background Callback', (tester) async {
     final returnValue =
         await HomeWidget.registerInteractivityCallback(backgroundCallback);
