@@ -106,6 +106,28 @@ For iOS, you need to call `HomeWidget.setAppGroupId('YOUR_GROUP_ID');`
 Without this you won't be able to share data between your App and the Widget and calls to `saveWidgetData` and `getWidgetData` will return an error
 
 
+## Troubleshooting
+
+<Accordion title="Fix Build Cycle Error with Thin Binary">
+If you encounter a build cycle error related to the "Thin Binary" script phase when building your app with a widget extension, you need to reorder the build phases in Xcode.
+
+The error typically looks like:
+```
+Cycle details:
+→ Target 'Runner' has copy command from '.../WidgetExtension.appex' to '.../Runner.app/PlugIns/WidgetExtension.appex'
+○ That command depends on command in Target 'Runner': script phase "Thin Binary"
+```
+
+To fix this:
+
+1. In Xcode, select your **Runner** target
+2. Go to <kbd>Build Phases</kbd>
+3. Find the **"Thin Binary"** script phase
+4. Drag it to the **bottom** of the build phases list (it should be the last phase)
+
+The "Thin Binary" script phase should run after all other build phases, including the copy phase that embeds the widget extension into your app bundle.
+</Accordion>
+
 ## Bonus
 
 <Accordion title="Sync CFBundleVersion (optional)">
