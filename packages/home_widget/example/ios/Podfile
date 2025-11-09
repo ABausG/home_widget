@@ -38,14 +38,6 @@ target 'Runner' do
     use_modular_headers!
     inherit! :search_paths
   end
-
-  target 'HomeWidgetExampleExtension' do
-    use_frameworks!
-    use_modular_headers!
-    inherit! :search_paths
-
-    pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
-  end
 end
 
 post_install do |installer|
