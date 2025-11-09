@@ -78,6 +78,15 @@
       ]
     ],
     [
+      "Migrations",
+      [
+        [
+          "Swift Package Manager",
+          "/migrations/swift-package-manager"
+        ]
+      ]
+    ],
+    [
       "Android XML",
       [
         [
