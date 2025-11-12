@@ -1,6 +1,42 @@
 name: home_widget_workspace
+publish_to: none
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-dependencies:
-  melos: ^6.1.0
+  sdk: ^3.9.0
+
+workspace:
+  - packages/home_widget
+  - packages/home_widget/example
+  - examples/configurable_widget
+  - examples/lockscreen_widgets
+
+dev_dependencies:
+  melos: ^7.0.0
+
+melos:
+  repository: https://github.com/abausg/home_widget
+  command:
+    version:
+      branch: main
+  scripts:
+    analyze:
+      description: Analyze all packages with dart analyze
+      run: melos exec -- dart analyze
+    format:all:
+      description: Format Dart, Kotlin, and Swift Files
+      steps:
+        - format:dart
+        - format:kotlin
+        - format:swift
+    format:dart:
+      description: Format Dart Files
+      run: |
+        dart format . --set-exit-if-changed
+    format:kotlin:
+      description: Format Kotlin Files
+      run: ktfmt . --set-exit-if-changed
+    format:swift:
+      description: Format Swift Files
+      run: |
+        swift-format -r -i -p .
+        swift-format lint -r -s .

@@ -1,4 +1,4 @@
-library home_widget;
+library;
 
 export 'package:home_widget/src/home_widget.dart';
 export 'package:home_widget/src/home_widget_callback_dispatcher.dart';
