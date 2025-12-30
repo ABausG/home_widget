@@ -4,6 +4,7 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
 import 'commands/create_command.dart';
+import 'util/cli_io.dart';
 import 'util/exit_codes.dart';
 
 /// Runs the CLI and returns a process exit code.
@@ -21,34 +22,34 @@ Future<int> runCli(List<String> args) async {
   try {
     results = runner.argParser.parse(args);
   } on FormatException catch (e) {
-    stderr.writeln(e.message);
-    stderr.writeln('');
-    stderr.writeln(_usage(runner));
+    cliIO.writelnErr(e.message);
+    cliIO.writelnErr();
+    cliIO.writelnErr(_usage(runner));
     return ExitCodes.usage;
   }
 
   // Handle global flags (before command parsing).
   if (results['version'] == true) {
     // Keeping version handling simple for now; will be wired to pubspec later.
-    stdout.writeln('home_widget_cli 0.1.0');
+    cliIO.writelnOut('home_widget_cli 0.1.0');
     return ExitCodes.success;
   }
 
   try {
     return await runner.run(args) ?? ExitCodes.success;
   } on UsageException catch (e) {
-    stderr.writeln(e.message);
-    stderr.writeln('');
-    stderr.writeln(e.usage);
+    cliIO.writelnErr(e.message);
+    cliIO.writelnErr();
+    cliIO.writelnErr(e.usage);
     return ExitCodes.usage;
   } on FileSystemException catch (e) {
-    stderr.writeln('File system error: ${e.message}');
+    cliIO.writelnErr('File system error: ${e.message}');
     if (e.path != null) {
-      stderr.writeln('Path: ${e.path}');
+      cliIO.writelnErr('Path: ${e.path}');
     }
     return ExitCodes.osFile;
   } catch (e) {
-    stderr.writeln('Unexpected error: $e');
+    cliIO.writelnErr('Unexpected error: $e');
     return ExitCodes.software;
   }
 }

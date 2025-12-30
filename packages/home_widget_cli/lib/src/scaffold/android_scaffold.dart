@@ -5,7 +5,11 @@ import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
 import '../util/android_package.dart';
+import '../util/cli_io.dart';
+import '../util/compose_kotlin_compat.dart';
 import '../util/fs.dart';
+import '../util/gradle_utils.dart';
+import '../util/kotlin_version_detector.dart';
 import '../util/naming.dart';
 import '../util/xml_utils.dart';
 
@@ -21,7 +25,7 @@ final class AndroidWidgetScaffold {
   Future<void> run() async {
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
-      stderr.writeln(
+      cliIO.writelnErr(
         'Warning: android/app/ not found. Skipping Android scaffolding.',
       );
       return;
@@ -246,6 +250,23 @@ Future<void> _ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
       ) ??
       fallbackGlanceVersion;
 
+  final kotlinVersion = tryDetectAndroidKotlinVersion(projectRoot);
+  final composeCompilerVersion =
+      kotlinVersion == null ? null : composeCompilerForKotlin(kotlinVersion);
+  if (kotlinVersion != null && composeCompilerVersion == null) {
+    final major = int.tryParse(kotlinVersion.split('.').first);
+    // The official table currently covers Kotlin 1.x. For Kotlin 2.x, Compose
+    // compiler integration is handled differently and the extension version is
+    // often not required/used.
+    if (major == null || major < 2) {
+      cliIO.writelnErr(
+        'Warning: Detected Kotlin $kotlinVersion, but could not determine a '
+        'compatible Compose compiler version from the compatibility table. '
+        'Skipping composeOptions.kotlinCompilerExtensionVersion insertion.',
+      );
+    }
+  }
+
   final gradleGroovy = File(
     p.join(projectRoot.path, 'android', 'app', 'build.gradle'),
   );
@@ -257,12 +278,20 @@ Future<void> _ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
     final original = gradleGroovy.readAsStringSync();
     var updated = original;
 
-    updated = _gradleEnsureGlanceDependencyGroovy(updated, glanceVersion);
-    updated = _gradleEnsureComposeEnabledGroovy(updated);
+    updated = ensureGlanceDependency(
+      updated,
+      dialect: GradleDialect.groovy,
+      glanceVersion: glanceVersion,
+    );
+    updated = ensureComposeEnabled(
+      updated,
+      dialect: GradleDialect.groovy,
+      kotlinCompilerExtensionVersion: composeCompilerVersion,
+    );
 
     if (updated != original) {
       gradleGroovy.writeAsStringSync(updated);
-      stdout.writeln('Updated: ${gradleGroovy.path}');
+      cliIO.writelnOut('Updated: ${gradleGroovy.path}');
     }
     return;
   }
@@ -271,104 +300,28 @@ Future<void> _ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
     final original = gradleKts.readAsStringSync();
     var updated = original;
 
-    updated = _gradleEnsureGlanceDependencyKts(updated, glanceVersion);
-    updated = _gradleEnsureComposeEnabledKts(updated);
+    updated = ensureGlanceDependency(
+      updated,
+      dialect: GradleDialect.kts,
+      glanceVersion: glanceVersion,
+    );
+    updated = ensureComposeEnabled(
+      updated,
+      dialect: GradleDialect.kts,
+      kotlinCompilerExtensionVersion: composeCompilerVersion,
+    );
 
     if (updated != original) {
       gradleKts.writeAsStringSync(updated);
-      stdout.writeln('Updated: ${gradleKts.path}');
+      cliIO.writelnOut('Updated: ${gradleKts.path}');
     }
     return;
   }
 
-  stderr.writeln(
+  cliIO.writelnErr(
     'Warning: Could not find android/app/build.gradle(.kts); skipping Gradle '
     'Glance setup.',
   );
-}
-
-String _gradleEnsureGlanceDependencyGroovy(String input, String glanceVersion) {
-  if (input.contains('androidx.glance:glance-appwidget')) return input;
-
-  final lines = input.split('\n');
-  final depsStart = lines.indexWhere((l) => l.trim() == 'dependencies {');
-  if (depsStart == -1) return input;
-
-  // Insert right after `dependencies {`.
-  final indent = _leadingWhitespace(lines[depsStart]);
-  lines.insert(
-    depsStart + 1,
-    "${indent}    implementation 'androidx.glance:glance-appwidget:$glanceVersion'",
-  );
-  return lines.join('\n');
-}
-
-String _gradleEnsureComposeEnabledGroovy(String input) {
-  // We consider it enabled if the file already mentions compose true or compose = true.
-  if (RegExp(r'\bcompose\s*(=)?\s*true\b').hasMatch(input)) return input;
-
-  final lines = input.split('\n');
-  final androidStart =
-      lines.indexWhere((l) => RegExp(r'^\s*android\s*\{').hasMatch(l));
-  if (androidStart == -1) return input;
-
-  final androidEnd = _findMatchingBlockEnd(lines, androidStart);
-  if (androidEnd == null) return input;
-
-  final insertAt = androidEnd; // right before closing brace
-  final baseIndent = _leadingWhitespace(lines[androidStart]);
-  lines.insertAll(insertAt, [
-    '$baseIndent    buildFeatures {',
-    '$baseIndent        compose true',
-    '$baseIndent    }',
-    '',
-    '$baseIndent    composeOptions {',
-    '$baseIndent        kotlinCompilerExtensionVersion = "1.5.4"',
-    '$baseIndent    }',
-  ]);
-  return lines.join('\n');
-}
-
-String _gradleEnsureGlanceDependencyKts(String input, String glanceVersion) {
-  if (input.contains('androidx.glance:glance-appwidget')) return input;
-
-  final lines = input.split('\n');
-  final depsStart = lines.indexWhere((l) => l.trim() == 'dependencies {');
-  if (depsStart == -1) return input;
-
-  final indent = _leadingWhitespace(lines[depsStart]);
-  lines.insert(
-    depsStart + 1,
-    '${indent}    implementation("androidx.glance:glance-appwidget:$glanceVersion")',
-  );
-  return lines.join('\n');
-}
-
-String _gradleEnsureComposeEnabledKts(String input) {
-  if (RegExp(r'\bcompose\s*=\s*true\b').hasMatch(input) ||
-      RegExp(r'\bcompose\s+true\b').hasMatch(input)) {
-    return input;
-  }
-
-  final lines = input.split('\n');
-  final androidStart =
-      lines.indexWhere((l) => RegExp(r'^\s*android\s*\{').hasMatch(l));
-  if (androidStart == -1) return input;
-
-  final androidEnd = _findMatchingBlockEnd(lines, androidStart);
-  if (androidEnd == null) return input;
-
-  final baseIndent = _leadingWhitespace(lines[androidStart]);
-  lines.insertAll(androidEnd, [
-    '$baseIndent    buildFeatures {',
-    '$baseIndent        compose = true',
-    '$baseIndent    }',
-    '',
-    '$baseIndent    composeOptions {',
-    '$baseIndent        kotlinCompilerExtensionVersion = "1.5.4"',
-    '$baseIndent    }',
-  ]);
-  return lines.join('\n');
 }
 
 Future<void> _ensureAndroidManifestReceiver(
@@ -388,7 +341,7 @@ Future<void> _ensureAndroidManifestReceiver(
     ),
   );
   if (!manifestFile.existsSync()) {
-    stderr.writeln(
+    cliIO.writelnErr(
       'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
       'manifest wiring.',
     );
@@ -399,7 +352,7 @@ Future<void> _ensureAndroidManifestReceiver(
 
   final manifestXml = tryParseXmlFile(manifestFile);
   if (manifestXml == null) {
-    stderr.writeln(
+    cliIO.writelnErr(
       'Warning: Could not parse AndroidManifest.xml as XML; skipping manifest '
       'wiring.',
     );
@@ -412,7 +365,7 @@ Future<void> _ensureAndroidManifestReceiver(
       .firstWhere((e) => e != null, orElse: () => null);
 
   if (application == null) {
-    stderr.writeln(
+    cliIO.writelnErr(
       'Warning: Could not find <application> in AndroidManifest.xml; skipping '
       'manifest wiring.',
     );
@@ -438,7 +391,7 @@ Future<void> _ensureAndroidManifestReceiver(
   );
 
   writeXmlFile(manifestFile, manifestXml);
-  stdout.writeln('Updated: ${manifestFile.path}');
+  cliIO.writelnOut('Updated: ${manifestFile.path}');
 }
 
 bool _androidApplicationHasWidgetReceiver(
@@ -459,9 +412,8 @@ bool _androidApplicationHasWidgetReceiver(
   });
   if (hasReceiverName) return true;
 
-  final hasProviderMeta = application
-      .findAllElements('meta-data')
-      .any((e) => e.getAttribute('android:resource') == '@xml/$providerInfoName');
+  final hasProviderMeta = application.findAllElements('meta-data').any(
+      (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName');
   return hasProviderMeta;
 }
 
@@ -507,35 +459,6 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
       ),
     ],
   );
-}
-
-String _leadingWhitespace(String line) {
-  final match = RegExp(r'^\s*').firstMatch(line);
-  return match?.group(0) ?? '';
-}
-
-int? _findMatchingBlockEnd(List<String> lines, int startLineIdx) {
-  // Start scanning at startLineIdx and count braces to find the closing brace
-  // that matches the opening `... {` on the same line.
-  var braceBalance = 0;
-  var started = false;
-
-  for (var i = startLineIdx; i < lines.length; i++) {
-    final line = lines[i];
-    for (var j = 0; j < line.length; j++) {
-      final ch = line[j];
-      if (ch == '{') {
-        braceBalance++;
-        started = true;
-      } else if (ch == '}') {
-        braceBalance--;
-        if (started && braceBalance == 0) {
-          return i; // index of the closing brace line
-        }
-      }
-    }
-  }
-  return null;
 }
 
 Future<String?> _tryResolveLatestAndroidxReleaseVersion({

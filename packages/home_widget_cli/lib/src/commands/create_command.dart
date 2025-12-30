@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../scaffold/scaffold.dart';
+import '../util/cli_io.dart';
 import '../util/exit_codes.dart';
 import '../util/naming.dart';
 
@@ -62,7 +63,7 @@ class CreateCommand extends Command<int> {
         iosFlag || (!androidFlag && !iosFlag && iosDir.existsSync());
 
     if (!androidFlag && !iosFlag && !shouldAndroid && !shouldIos) {
-      stdout.writeln(
+      cliIO.writelnOut(
         'No platform selected and no android/ or ios/ folder detected in '
         '${cwd.path}. Nothing to do.',
       );
@@ -70,13 +71,13 @@ class CreateCommand extends Command<int> {
     }
 
     if (shouldAndroid && !androidDir.existsSync()) {
-      stderr.writeln(
+      cliIO.writelnErr(
         'Warning: requested Android scaffolding but no android/ folder exists '
         'in ${cwd.path}. Skipping Android.',
       );
     }
     if (shouldIos && !iosDir.existsSync()) {
-      stderr.writeln(
+      cliIO.writelnErr(
         'Warning: requested iOS scaffolding but no ios/ folder exists in '
         '${cwd.path}. Skipping iOS.',
       );
@@ -97,7 +98,9 @@ class CreateCommand extends Command<int> {
 
     await _ensureFlutterHomeWidgetDependency(cwd);
 
-    stdout.writeln('Done. Created placeholder structure for $widgetClassName.');
+    cliIO.writelnOut(
+      'Done. Created placeholder structure for $widgetClassName.',
+    );
     return ExitCodes.success;
   }
 }
@@ -105,7 +108,7 @@ class CreateCommand extends Command<int> {
 Future<void> _ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
   final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
   if (!pubspec.existsSync()) {
-    stderr.writeln(
+    cliIO.writelnErr(
       'Warning: pubspec.yaml not found in ${projectRoot.path}; skipping '
       '`flutter pub add home_widget`.',
     );
@@ -126,16 +129,16 @@ Future<void> _ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
   );
 
   if (result.stdout != null && result.stdout.toString().trim().isNotEmpty) {
-    stdout.write(result.stdout);
-    if (!result.stdout.toString().endsWith('\n')) stdout.writeln();
+    cliIO.writeOut(result.stdout.toString());
+    if (!result.stdout.toString().endsWith('\n')) cliIO.writelnOut();
   }
   if (result.stderr != null && result.stderr.toString().trim().isNotEmpty) {
-    stderr.write(result.stderr);
-    if (!result.stderr.toString().endsWith('\n')) stderr.writeln();
+    cliIO.writeErr(result.stderr.toString());
+    if (!result.stderr.toString().endsWith('\n')) cliIO.writelnErr();
   }
 
   if (result.exitCode != 0) {
-    stderr.writeln(
+    cliIO.writelnErr(
       'Warning: failed to run `flutter pub add home_widget` (exit code '
       '${result.exitCode}). You can run it manually in your project root.',
     );
@@ -146,17 +149,17 @@ String _promptForIosAppGroupId() {
   const defaultValue = 'YOUR_APP_GROUP_ID';
 
   if (!stdin.hasTerminal) {
-    stderr.writeln(
+    cliIO.writelnErr(
       'Note: stdin is not interactive; using default iOS App Group ID: '
       '$defaultValue',
     );
     return defaultValue;
   }
 
-  stdout.writeln(
+  cliIO.writelnOut(
     'Enter iOS App Group ID (optional). Press Enter to use "$defaultValue".',
   );
-  stdout.write('App Group ID [$defaultValue]: ');
+  cliIO.writeOut('App Group ID [$defaultValue]: ');
   final input = stdin.readLineSync();
   final trimmed = input?.trim();
   if (trimmed == null || trimmed.isEmpty) return defaultValue;

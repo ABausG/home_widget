@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../util/cli_io.dart';
 import '../util/fs.dart';
 
 final class IosWidgetScaffold {
@@ -14,7 +15,7 @@ final class IosWidgetScaffold {
   Future<void> run({required String appGroupId}) async {
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
-      stderr.writeln('Warning: ios/ not found. Skipping iOS scaffolding.');
+      cliIO.writelnErr('Warning: ios/ not found. Skipping iOS scaffolding.');
       return;
     }
 
