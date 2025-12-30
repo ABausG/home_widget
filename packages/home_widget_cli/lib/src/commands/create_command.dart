@@ -29,6 +29,14 @@ class CreateCommand extends Command<int> {
         'ios',
         negatable: false,
         help: 'Create iOS widget placeholder structure.',
+      )
+      ..addOption(
+        'ios-app-group-id',
+        help:
+            'iOS App Group ID to write into entitlements and widget placeholder '
+            'code. If omitted and stdin is interactive, the CLI will prompt. '
+            'If omitted and stdin is non-interactive, it defaults to '
+            '"YOUR_APP_GROUP_ID".',
       );
   }
 
@@ -92,7 +100,9 @@ class CreateCommand extends Command<int> {
       await scaffold.createAndroid();
     }
     if (shouldIos && iosDir.existsSync()) {
-      final appGroupId = _promptForIosAppGroupId();
+      final appGroupId = _resolveIosAppGroupId(
+        fromArgs: argResults?['ios-app-group-id'] as String?,
+      );
       await scaffold.createIos(appGroupId: appGroupId);
     }
 
@@ -145,8 +155,11 @@ Future<void> _ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
   }
 }
 
-String _promptForIosAppGroupId() {
+String _resolveIosAppGroupId({required String? fromArgs}) {
   const defaultValue = 'YOUR_APP_GROUP_ID';
+
+  final trimmedArg = fromArgs?.trim();
+  if (trimmedArg != null && trimmedArg.isNotEmpty) return trimmedArg;
 
   if (!stdin.hasTerminal) {
     cliIO.writelnErr(

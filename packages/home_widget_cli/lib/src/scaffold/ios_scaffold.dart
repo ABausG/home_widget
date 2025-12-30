@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../util/cli_io.dart';
+import '../util/entitlements.dart';
 import '../util/fs.dart';
+import '../util/xcode_pbxproj_patcher.dart';
 
 final class IosWidgetScaffold {
   IosWidgetScaffold({required this.projectRoot, required this.widgetClassName});
@@ -19,8 +21,17 @@ final class IosWidgetScaffold {
       return;
     }
 
-    // We only create a folder that could later be added as a Widget Extension
-    // target in Xcode.
+    final xcodeproj = File(
+      p.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'),
+    );
+    if (!xcodeproj.existsSync()) {
+      cliIO.writelnErr(
+        'Warning: ios/Runner.xcodeproj/project.pbxproj not found. '
+        'Skipping iOS Widget Extension target wiring.',
+      );
+    }
+
+    // Create the Widget Extension folder and files.
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
     await ensureDir(extensionDir);
 
@@ -29,6 +40,9 @@ final class IosWidgetScaffold {
       p.join(extensionDir.path, 'WidgetBundle.swift'),
     );
     final infoPlist = File(p.join(extensionDir.path, 'Info.plist'));
+    final extensionEntitlements = File(
+      p.join(iosDir.path, '$widgetClassName.entitlements'),
+    );
 
     await writeFileIfMissing(
       widgetSwift,
@@ -40,8 +54,31 @@ final class IosWidgetScaffold {
     );
     await writeFileIfMissing(
       infoPlist,
-      _iosInfoPlistPlaceholder(widgetClassName),
+      _iosInfoPlistPlaceholder(),
     );
+
+    // Ensure App Group entitlement is present for the extension and Runner.
+    await ensureAppGroupEntitlement(
+      entitlementsFile: extensionEntitlements,
+      appGroupId: appGroupId.trim().isEmpty ? 'YOUR_APP_GROUP_ID' : appGroupId,
+    );
+
+    final runnerEntitlements = File(
+      p.join(iosDir.path, 'Runner', 'Runner.entitlements'),
+    );
+    // Flutter templates usually have this file; if not, we still create it.
+    await ensureAppGroupEntitlement(
+      entitlementsFile: runnerEntitlements,
+      appGroupId: appGroupId.trim().isEmpty ? 'YOUR_APP_GROUP_ID' : appGroupId,
+    );
+
+    // Patch the Xcode project so the extension can actually be built.
+    if (xcodeproj.existsSync()) {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: xcodeproj,
+        widgetClassName: widgetClassName,
+      );
+    }
   }
 }
 
@@ -52,8 +89,8 @@ String _iosWidgetSwiftPlaceholder(
   return '''
 // GENERATED PLACEHOLDER by home_widget_cli
 //
-// This file is a placeholder SwiftUI widget. Add this folder as a Widget
-// Extension target in Xcode and wire up App Groups + home_widget data reading.
+// This file is a placeholder SwiftUI widget. The CLI also wires up a Widget
+// Extension target in `ios/Runner.xcodeproj` so you can build right away.
 //
 // App Group ID used here: $appGroupId
 
@@ -118,15 +155,17 @@ struct ${widgetClassName}Bundle: WidgetBundle {
 ''';
 }
 
-String _iosInfoPlistPlaceholder(String widgetClassName) {
-  // Minimal placeholder, not a complete extension plist.
+String _iosInfoPlistPlaceholder() {
   return '''
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleDisplayName</key>
-  <string>$widgetClassName</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.widgetkit-extension</string>
+	</dict>
 </dict>
 </plist>
 ''';

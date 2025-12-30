@@ -540,4 +540,64 @@ void main() {
       timeout: const Timeout(Duration(minutes: 5)),
     );
   });
+
+  test(
+    'create --ios produces a buildable iOS app (includes Widget Extension target)',
+    () async {
+      // This is an end-to-end sanity check. It can be slow and requires a macOS
+      // host with Xcode + CocoaPods.
+      final shouldRun = Platform.isMacOS &&
+          (Platform.environment['HW_CLI_IOS_BUILD_TESTS'] == '1' ||
+              Platform.environment['CI'] == 'true');
+      if (!shouldRun) {
+        // Avoid hard failures on dev machines.
+        return;
+      }
+
+      Future<bool> hasTool(String tool, List<String> args) async {
+        final r = await Process.run(tool, args, runInShell: true);
+        return r.exitCode == 0;
+      }
+
+      if (!await hasTool('xcodebuild', ['-version'])) return;
+      if (!await hasTool('pod', ['--version'])) return;
+
+      final project = await TestFlutterProject.create(includeAndroid: false);
+      project.useAsCwd();
+
+      final code = await runCli(['create', '--ios', 'Example']);
+      expect(code, 0);
+
+      final widgetClassName = 'ExampleHomeWidget';
+      expectIosScaffold(
+          projectRoot: project.root, widgetClassName: widgetClassName);
+
+      final pbxproj = File(
+        p.join(
+          project.root.path,
+          'ios',
+          'Runner.xcodeproj',
+          'project.pbxproj',
+        ),
+      );
+      expect(pbxproj.existsSync(), isTrue);
+      final pbxText = await pbxproj.readAsString();
+      expect(pbxText, contains('name = $widgetClassName;'));
+      expect(pbxText, contains('$widgetClassName.appex'));
+
+      final build = await Process.run(
+        'flutter',
+        ['build', 'ios', '--no-codesign'],
+        workingDirectory: project.root.path,
+        runInShell: true,
+      );
+      expect(
+        build.exitCode,
+        0,
+        reason:
+            'flutter build ios failed.\nSTDOUT:\n${build.stdout}\n\nSTDERR:\n${build.stderr}',
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 25)),
+  );
 }

@@ -12,6 +12,46 @@ library;
 
 enum GradleDialect { groovy, kts }
 
+String ensureKotlinComposeCompilerPlugin(
+  String input, {
+  required GradleDialect dialect,
+  required String kotlinVersion,
+}) {
+  // Idempotency.
+  if (input.contains('org.jetbrains.kotlin.plugin.compose')) return input;
+
+  final lines = input.split('\n');
+  final pluginsStart = _indexWhere(lines, RegExp(r'^\s*plugins\s*\{'));
+  if (pluginsStart == -1) return input;
+
+  final pluginsEnd = _findMatchingBlockEnd(lines, pluginsStart);
+  if (pluginsEnd == null) return input;
+
+  final indent = _leadingWhitespace(lines[pluginsStart]);
+  final pluginLine = switch (dialect) {
+    GradleDialect.groovy =>
+      "${indent}    id 'org.jetbrains.kotlin.plugin.compose' version '$kotlinVersion'",
+    GradleDialect.kts =>
+      '${indent}    id("org.jetbrains.kotlin.plugin.compose") version "$kotlinVersion"',
+  };
+
+  // Insert after the Kotlin Android plugin if present, otherwise right after
+  // `plugins {`.
+  var insertAt = pluginsStart + 1;
+  for (var i = pluginsStart + 1; i < pluginsEnd; i++) {
+    final l = lines[i];
+    if (l.contains('org.jetbrains.kotlin.android') ||
+        l.contains('"kotlin-android"') ||
+        l.contains("id 'kotlin-android'")) {
+      insertAt = i + 1;
+      break;
+    }
+  }
+
+  lines.insert(insertAt, pluginLine);
+  return lines.join('\n');
+}
+
 String ensureGlanceDependency(
   String input, {
   required GradleDialect dialect,

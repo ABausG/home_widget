@@ -253,12 +253,14 @@ Future<void> _ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
   final kotlinVersion = tryDetectAndroidKotlinVersion(projectRoot);
   final composeCompilerVersion =
       kotlinVersion == null ? null : composeCompilerForKotlin(kotlinVersion);
+  final kotlinMajor = kotlinVersion == null
+      ? null
+      : int.tryParse(kotlinVersion.split('.').first);
   if (kotlinVersion != null && composeCompilerVersion == null) {
-    final major = int.tryParse(kotlinVersion.split('.').first);
     // The official table currently covers Kotlin 1.x. For Kotlin 2.x, Compose
     // compiler integration is handled differently and the extension version is
     // often not required/used.
-    if (major == null || major < 2) {
+    if (kotlinMajor == null || kotlinMajor < 2) {
       cliIO.writelnErr(
         'Warning: Detected Kotlin $kotlinVersion, but could not determine a '
         'compatible Compose compiler version from the compatibility table. '
@@ -278,6 +280,13 @@ Future<void> _ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
     final original = gradleGroovy.readAsStringSync();
     var updated = original;
 
+    if (kotlinMajor != null && kotlinMajor >= 2) {
+      updated = ensureKotlinComposeCompilerPlugin(
+        updated,
+        dialect: GradleDialect.groovy,
+        kotlinVersion: kotlinVersion!,
+      );
+    }
     updated = ensureGlanceDependency(
       updated,
       dialect: GradleDialect.groovy,
@@ -300,6 +309,13 @@ Future<void> _ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
     final original = gradleKts.readAsStringSync();
     var updated = original;
 
+    if (kotlinMajor != null && kotlinMajor >= 2) {
+      updated = ensureKotlinComposeCompilerPlugin(
+        updated,
+        dialect: GradleDialect.kts,
+        kotlinVersion: kotlinVersion!,
+      );
+    }
     updated = ensureGlanceDependency(
       updated,
       dialect: GradleDialect.kts,
