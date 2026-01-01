@@ -62,11 +62,6 @@ void main() {
           .existsSync(),
       isTrue,
     );
-    expect(
-      File(p.join(kotlinDir.path, '${widgetClassName}Provider.kt'))
-          .existsSync(),
-      isTrue,
-    );
 
     final providerInfo = File(
       p.join(

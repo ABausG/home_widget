@@ -78,6 +78,9 @@ final class IosWidgetScaffold {
         pbxprojFile: xcodeproj,
         widgetClassName: widgetClassName,
       );
+
+      // Ensure Runner is signed with Runner/Runner.entitlements (App Groups apply).
+      await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
     }
   }
 }

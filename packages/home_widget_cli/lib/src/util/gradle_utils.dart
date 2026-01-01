@@ -61,12 +61,41 @@ String ensureGlanceDependency(
 
   final lines = input.split('\n');
   final depsStart = _indexWhere(lines, RegExp(r'^\s*dependencies\s*\{'));
-  final indent = depsStart == -1 ? '' : _leadingWhitespace(lines[depsStart]);
+  // Determine indentation for the dependency line:
+  // - If we have a dependencies block, try to infer the indentation used inside
+  //   that block.
+  // - Otherwise fall back to 4 spaces inside a newly created block.
+  String depsBlockIndent = '';
+  String depsItemIndent = '    ';
+  if (depsStart != -1) {
+    depsBlockIndent = _leadingWhitespace(lines[depsStart]);
+    final depsEnd = _findMatchingBlockEnd(lines, depsStart);
+    if (depsEnd != null) {
+      for (var i = depsStart + 1; i < depsEnd; i++) {
+        final l = lines[i];
+        if (l.trim().isEmpty) continue;
+        // First non-empty line within the block determines indentation.
+        final leading = _leadingWhitespace(l);
+        if (leading.length > depsBlockIndent.length) {
+          depsItemIndent = leading;
+        } else {
+          depsItemIndent = '$depsBlockIndent    ';
+        }
+        break;
+      }
+      // If the block was empty, use one indent level deeper than the block.
+      depsItemIndent =
+          depsItemIndent.isEmpty ? '$depsBlockIndent    ' : depsItemIndent;
+    } else {
+      depsItemIndent = '$depsBlockIndent    ';
+    }
+  }
+
   final depLine = switch (dialect) {
     GradleDialect.groovy =>
-      "${indent}    implementation 'androidx.glance:glance-appwidget:$glanceVersion'",
+      "${depsItemIndent}implementation 'androidx.glance:glance-appwidget:$glanceVersion'",
     GradleDialect.kts =>
-      '${indent}    implementation("androidx.glance:glance-appwidget:$glanceVersion")',
+      '${depsItemIndent}implementation("androidx.glance:glance-appwidget:$glanceVersion")',
   };
 
   if (depsStart == -1) {
@@ -77,14 +106,15 @@ String ensureGlanceDependency(
     lines.addAll([
       '',
       'dependencies {',
-      depLine.trimLeft(),
+      '    ${depLine.trimLeft()}',
       '}',
     ]);
   } else {
     // Insert right after `dependencies {`.
     lines.insert(depsStart + 1, depLine);
   }
-  return lines.join('\n');
+  final out = lines.join('\n');
+  return out.endsWith('\n') ? out : '$out\n';
 }
 
 String ensureComposeEnabled(

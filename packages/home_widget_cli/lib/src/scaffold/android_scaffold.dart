@@ -54,9 +54,6 @@ final class AndroidWidgetScaffold {
     final receiverFile = File(
       p.join(kotlinDir.path, '${widgetClassName}Receiver.kt'),
     );
-    final providerFile = File(
-      p.join(kotlinDir.path, '${widgetClassName}Provider.kt'),
-    );
 
     // `@xml/<name>` used in AndroidManifest receiver meta-data.
     final providerInfoName = toSnakeCase(widgetClassName);
@@ -78,14 +75,6 @@ final class AndroidWidgetScaffold {
     await writeFileIfMissing(
       receiverFile,
       _androidGlanceReceiverPlaceholder(
-        packageName: packageName,
-        widgetClassName: widgetClassName,
-      ),
-    );
-
-    await writeFileIfMissing(
-      providerFile,
-      _androidHomeWidgetProviderPlaceholder(
         packageName: packageName,
         widgetClassName: widgetClassName,
       ),
@@ -123,11 +112,12 @@ String _androidGlanceWidgetPlaceholder({
 // Data access (via home_widget):
 // - This widget uses HomeWidgetGlanceStateDefinition(), so you can access the
 //   SharedPreferences via:
-//     val prefs = currentState<HomeWidgetGlanceState>().preferences
+//     val prefs = currentState().preferences
 //     val counter = prefs.getInt("counter", 0)
 
 package $packageName
 
+import androidx.compose.runtime.Composable
 import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.glance.GlanceId
@@ -135,8 +125,9 @@ import androidx.glance.GlanceModifier
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
+import androidx.glance.currentState
 import androidx.glance.layout.Box
-import androidx.glance.state.currentState
+import androidx.glance.layout.fillMaxSize
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
@@ -145,13 +136,17 @@ class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
-    provideContent {
-      // Example:
-      // val prefs = currentState<HomeWidgetGlanceState>().preferences
-      // val counter = prefs.getInt("counter", 0)
-      Box(modifier = GlanceModifier.background(Color.White)) {
-        Text(text = "$widgetClassName (placeholder)")
-      }
+    provideContent { WidgetContent(context, currentState()) }
+  }
+
+  @Composable
+  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+    // Example to access data from SharedPrefernces:
+    // Counter would be the "key" you stored via HomeWidget on Flutter
+    // val prefs = currentState.preferences
+    // val counter = prefs.getInt("counter", 0)
+    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {
+      Text(text = "$widgetClassName (placeholder)")
     }
   }
 }
@@ -178,43 +173,6 @@ import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
 class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassName>() {
   override val glanceAppWidget = $widgetClassName()
-}
-''';
-}
-
-String _androidHomeWidgetProviderPlaceholder({
-  required String packageName,
-  required String widgetClassName,
-}) {
-  return '''
-// GENERATED PLACEHOLDER by home_widget_cli
-//
-// Alternative (non-Glance) widget base class:
-// If you prefer classic RemoteViews widgets (XML layouts), extend HomeWidgetProvider
-// for easier data access:
-//
-//   override fun onUpdate(..., widgetData: SharedPreferences) {
-//     val counter = widgetData.getInt("counter", 0)
-//   }
-
-package $packageName
-
-import android.appwidget.AppWidgetManager
-import android.content.Context
-import android.content.SharedPreferences
-import es.antonborri.home_widget.HomeWidgetProvider
-
-class ${widgetClassName}Provider : HomeWidgetProvider() {
-  override fun onUpdate(
-      context: Context,
-      appWidgetManager: AppWidgetManager,
-      appWidgetIds: IntArray,
-      widgetData: SharedPreferences,
-  ) {
-    // TODO: Implement RemoteViews update here if you are not using Glance.
-    // Example:
-    // val counter = widgetData.getInt("counter", 0)
-  }
 }
 ''';
 }
@@ -474,6 +432,7 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
         const [],
       ),
     ],
+    false,
   );
 }
 

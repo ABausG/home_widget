@@ -15,12 +15,21 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 }) async {
   final text = await pbxprojFile.readAsString();
 
+  final hasFileSystemSynchronizedSections =
+      text.contains('/* Begin PBXFileSystemSynchronizedRootGroup section */') &&
+          text.contains(
+            '/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */',
+          );
+
   // Idempotency: if a target with this name already exists, do nothing.
   if (RegExp(
     r'isa\s*=\s*PBXNativeTarget;[\s\S]*?\n\s*name\s*=\s*' +
         RegExp.escape(widgetClassName) +
         r';',
   ).hasMatch(text)) {
+    // Even if the Widget Extension target already exists, the Runner target may
+    // still be missing the entitlements build setting (App Groups won't apply).
+    await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
     return;
   }
 
@@ -50,6 +59,10 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
     '\t\t${ids.embedBuildFileId} /* ${widgetClassName}.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ${ids.productFileRefId} /* ${widgetClassName}.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };',
     '\t\t${ids.widgetKitBuildFileId} /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ${ids.widgetKitFileRefId} /* WidgetKit.framework */; };',
     '\t\t${ids.swiftUIBuildFileId} /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ${ids.swiftUIFileRefId} /* SwiftUI.framework */; };',
+    if (!hasFileSystemSynchronizedSections)
+      '\t\t${ids.widgetSwiftBuildFileId} /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = ${ids.widgetSwiftFileRefId} /* Widget.swift */; };',
+    if (!hasFileSystemSynchronizedSections)
+      '\t\t${ids.widgetBundleSwiftBuildFileId} /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ${ids.widgetBundleSwiftFileRefId} /* WidgetBundle.swift */; };',
   ].join('\n');
 
   final pbxContainerProxy = '''
@@ -60,7 +73,8 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\tremoteGlobalIDString = ${ids.targetId};
 \t\t\tremoteInfo = $widgetClassName;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final pbxCopyPhase = '''
 \t\t${ids.copyFilesPhaseId} /* Embed Foundation Extensions */ = {
@@ -74,16 +88,24 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\tname = "Embed Foundation Extensions";
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final pbxFileReferences = <String>[
     '\t\t${ids.productFileRefId} /* ${widgetClassName}.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ${widgetClassName}.appex; sourceTree = BUILT_PRODUCTS_DIR; };',
     '\t\t${ids.widgetKitFileRefId} /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };',
     '\t\t${ids.swiftUIFileRefId} /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };',
     '\t\t${ids.entitlementsFileRefId} /* $widgetClassName.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = $widgetClassName.entitlements; sourceTree = "<group>"; };',
+    if (!hasFileSystemSynchronizedSections)
+      '\t\t${ids.widgetSwiftFileRefId} /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };',
+    if (!hasFileSystemSynchronizedSections)
+      '\t\t${ids.widgetBundleSwiftFileRefId} /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };',
+    if (!hasFileSystemSynchronizedSections)
+      '\t\t${ids.infoPlistFileRefId} /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };',
   ].join('\n');
 
-  final fsExceptionSet = '''
+  final fsExceptionSet = hasFileSystemSynchronizedSections
+      ? '''
 \t\t${ids.fsExceptionId} /* Exceptions for "$widgetClassName" folder in "$widgetClassName" target */ = {
 \t\t\tisa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 \t\t\tmembershipExceptions = (
@@ -91,9 +113,12 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t);
 \t\t\ttarget = ${ids.targetId} /* $widgetClassName */;
 \t\t};
-'''.trimRight();
+'''
+          .trimRight()
+      : null;
 
-  final fsRootGroup = '''
+  final fsRootGroup = hasFileSystemSynchronizedSections
+      ? '''
 \t\t${ids.fsRootGroupId} /* $widgetClassName */ = {
 \t\t\tisa = PBXFileSystemSynchronizedRootGroup;
 \t\t\texceptions = (
@@ -106,7 +131,25 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\tpath = $widgetClassName;
 \t\t\tsourceTree = "<group>";
 \t\t};
-'''.trimRight();
+'''
+          .trimRight()
+      : null;
+
+  final widgetGroup = !hasFileSystemSynchronizedSections
+      ? '''
+\t\t${ids.widgetGroupId} /* $widgetClassName */ = {
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+\t\t\t\t${ids.widgetSwiftFileRefId} /* Widget.swift */,
+\t\t\t\t${ids.widgetBundleSwiftFileRefId} /* WidgetBundle.swift */,
+\t\t\t\t${ids.infoPlistFileRefId} /* Info.plist */,
+\t\t\t);
+\t\t\tpath = $widgetClassName;
+\t\t\tsourceTree = "<group>";
+\t\t};
+'''
+          .trimRight()
+      : null;
 
   final extFrameworkPhase = '''
 \t\t${ids.frameworksPhaseId} /* Frameworks */ = {
@@ -118,17 +161,21 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final extSourcesPhase = '''
 \t\t${ids.sourcesPhaseId} /* Sources */ = {
 \t\t\tisa = PBXSourcesBuildPhase;
 \t\t\tbuildActionMask = 2147483647;
 \t\t\tfiles = (
+\t\t\t\t${!hasFileSystemSynchronizedSections ? '${ids.widgetSwiftBuildFileId} /* Widget.swift in Sources */,' : ''}
+\t\t\t\t${!hasFileSystemSynchronizedSections ? '${ids.widgetBundleSwiftBuildFileId} /* WidgetBundle.swift in Sources */,' : ''}
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final extResourcesPhase = '''
 \t\t${ids.resourcesPhaseId} /* Resources */ = {
@@ -138,7 +185,8 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final extTarget = '''
 \t\t${ids.targetId} /* $widgetClassName */ = {
@@ -153,15 +201,18 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t);
 \t\t\tdependencies = (
 \t\t\t);
+\t\t\t${hasFileSystemSynchronizedSections ? '''
 \t\t\tfileSystemSynchronizedGroups = (
 \t\t\t\t${ids.fsRootGroupId} /* $widgetClassName */,
 \t\t\t);
+''' : ''}
 \t\t\tname = $widgetClassName;
 \t\t\tproductName = $widgetClassName;
 \t\t\tproductReference = ${ids.productFileRefId} /* ${widgetClassName}.appex */;
 \t\t\tproductType = "com.apple.product-type.app-extension";
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final targetDependency = '''
 \t\t${ids.targetDependencyId} /* PBXTargetDependency */ = {
@@ -169,16 +220,19 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\ttarget = ${ids.targetId} /* $widgetClassName */;
 \t\t\ttargetProxy = ${ids.containerProxyId} /* PBXContainerItemProxy */;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final xcBuildConfigs = '''
 \t\t${ids.configDebugId} /* Debug */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
+\t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = $widgetClassName.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
+\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tINFOPLIST_FILE = $widgetClassName/Info.plist;
 \t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = $widgetClassName;
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = (
@@ -198,10 +252,12 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t${ids.configReleaseId} /* Release */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
+\t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = $widgetClassName.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
+\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tINFOPLIST_FILE = $widgetClassName/Info.plist;
 \t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = $widgetClassName;
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = (
@@ -221,10 +277,12 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t${ids.configProfileId} /* Profile */ = {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
+\t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = $widgetClassName.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
+\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tINFOPLIST_FILE = $widgetClassName/Info.plist;
 \t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = $widgetClassName;
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = (
@@ -242,7 +300,8 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t};
 \t\t\tname = Profile;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   final configList = '''
 \t\t${ids.configListId} /* Build configuration list for PBXNativeTarget "$widgetClassName" */ = {
@@ -255,7 +314,8 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\tdefaultConfigurationIsVisible = 0;
 \t\t\tdefaultConfigurationName = Release;
 \t\t};
-'''.trimRight();
+'''
+      .trimRight();
 
   // Apply section inserts.
   var updated = text;
@@ -279,16 +339,21 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
     section: 'PBXFileReference',
     content: pbxFileReferences,
   );
-  updated = _insertIntoSection(
-    updated,
-    section: 'PBXFileSystemSynchronizedBuildFileExceptionSet',
-    content: fsExceptionSet,
-  );
-  updated = _insertIntoSection(
-    updated,
-    section: 'PBXFileSystemSynchronizedRootGroup',
-    content: fsRootGroup,
-  );
+  if (hasFileSystemSynchronizedSections) {
+    updated = _insertIntoSection(
+      updated,
+      section: 'PBXFileSystemSynchronizedBuildFileExceptionSet',
+      content: fsExceptionSet!,
+    );
+    updated = _insertIntoSection(
+      updated,
+      section: 'PBXFileSystemSynchronizedRootGroup',
+      content: fsRootGroup!,
+    );
+  } else {
+    updated =
+        _insertIntoSection(updated, section: 'PBXGroup', content: widgetGroup!);
+  }
   updated = _insertIntoSection(
     updated,
     section: 'PBXFrameworksBuildPhase',
@@ -326,11 +391,10 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   );
 
   // Patch "Runner" target: embed extension + target dependency.
-  updated = _patchNativeTargetListAddId(
+  updated = _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
     updated,
-    targetId: runnerTargetId,
-    listKey: 'buildPhases',
-    idToAdd: '${ids.copyFilesPhaseId} /* Embed Foundation Extensions */',
+    runnerTargetId: runnerTargetId,
+    embedCopyPhaseId: ids.copyFilesPhaseId,
   );
   updated = _patchNativeTargetListAddId(
     updated,
@@ -363,7 +427,9 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   updated = _patchGroupChildrenAddId(
     updated,
     groupId: mainGroupId,
-    idToAdd: '${ids.fsRootGroupId} /* $widgetClassName */',
+    idToAdd: hasFileSystemSynchronizedSections
+        ? '${ids.fsRootGroupId} /* $widgetClassName */'
+        : '${ids.widgetGroupId} /* $widgetClassName */',
   );
 
   // Ensure Runner embeds the extension product (copy phase exists already now)
@@ -377,6 +443,203 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
       'Added Widget Extension target "$widgetClassName" (bundle id: $extBundleId).',
     );
   }
+
+  // Ensure the main app target is actually signed with Runner/Runner.entitlements.
+  // Without this, the App Group entitlement won't be applied even if the file exists.
+  await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
+}
+
+/// Ensures the Runner target uses `Runner/Runner.entitlements` for code signing.
+///
+/// The iOS scaffolder creates `ios/Runner/Runner.entitlements`, but Xcode only
+/// applies it if `CODE_SIGN_ENTITLEMENTS` is set for the Runner target configs.
+Future<void> ensureRunnerEntitlementsInXcodeProject({
+  required File pbxprojFile,
+}) async {
+  var text = await pbxprojFile.readAsString();
+
+  const desiredLine =
+      '\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;';
+  if (text.contains(desiredLine)) return;
+
+  final configBlockRe = RegExp(
+    r'(\t\t[0-9A-F]{24} /\* (?:Debug|Release|Profile) \*/ = \{\n'
+    r'\t\t\tisa = XCBuildConfiguration;\n'
+    r'(?:\t\t\tbaseConfigurationReference = [^\n]*\n)?'
+    r'\t\t\tbuildSettings = \{\n)'
+    r'([\s\S]*?)'
+    r'(\n\t\t\t\};\n\t\t\tname = (?:Debug|Release|Profile);\n\t\t\};)',
+  );
+
+  var didChange = false;
+  text = text.replaceAllMapped(configBlockRe, (m) {
+    final header = m.group(1)!;
+    var settings = m.group(2)!;
+    final footer = m.group(3)!;
+
+    if (!settings.contains('INFOPLIST_FILE = Runner/Info.plist;')) {
+      return m.group(0)!;
+    }
+
+    // If some other entitlements line exists, replace it; otherwise insert.
+    final existingEntitlementsRe = RegExp(
+      r'^\t\t\t\tCODE_SIGN_ENTITLEMENTS = [^;]+;$',
+      multiLine: true,
+    );
+    if (existingEntitlementsRe.hasMatch(settings)) {
+      settings = settings.replaceAll(existingEntitlementsRe, desiredLine);
+      didChange = true;
+      return '$header$settings$footer';
+    }
+
+    final anchor = 'INFOPLIST_FILE = Runner/Info.plist;\n';
+    if (settings.contains(anchor)) {
+      settings = settings.replaceFirst(anchor, '$anchor$desiredLine\n');
+      didChange = true;
+      return '$header$settings$footer';
+    }
+
+    return m.group(0)!;
+  });
+
+  if (!didChange) {
+    // Don't fail the whole command, but let the user know scaffolding might
+    // require manual intervention for non-standard pbxproj layouts.
+    cliIO.writelnErr(
+      'Warning: Could not auto-set CODE_SIGN_ENTITLEMENTS for Runner in '
+      '${pbxprojFile.path}. You may need to set it manually to Runner/Runner.entitlements.',
+    );
+    return;
+  }
+
+  await pbxprojFile.writeAsString(text);
+  cliIO.writelnOut('Updated Xcode project: ${pbxprojFile.path}');
+  cliIO.writelnOut('Ensured Runner uses Runner/Runner.entitlements.');
+}
+
+String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
+  String pbxproj, {
+  required String runnerTargetId,
+  required String embedCopyPhaseId,
+}) {
+  // We must avoid an Xcode build cycle:
+  // - If "Thin Binary" runs before embedding the extension, Xcode can detect a
+  //   copy-phase ↔ script-phase cycle.
+  //
+  // This matches the ordering used by our examples:
+  // - "Embed Foundation Extensions" should run before "[CP] Embed Pods Frameworks"
+  // - "Thin Binary" should be last
+  const thinBinaryComment = '/* Thin Binary */';
+  const embedPodsComment = '/* [CP] Embed Pods Frameworks */';
+
+  final idWithComment = '$embedCopyPhaseId /* Embed Foundation Extensions */';
+
+  final targetBlockRegex = RegExp(
+    r'^\s*' +
+        RegExp.escape(runnerTargetId) +
+        r' /\* .*? \*/ = \{[\s\S]*?\n\s*\};\s*$',
+    multiLine: true,
+  );
+  final block = targetBlockRegex.firstMatch(pbxproj)?.group(0);
+  if (block == null) return pbxproj;
+
+  final listRegex = RegExp(
+    r'(^\s*buildPhases\s*=\s*\(\s*$)([\s\S]*?)(^\s*\);\s*$)',
+    multiLine: true,
+  );
+  final m = listRegex.firstMatch(block);
+  if (m == null) return pbxproj;
+
+  final before = m.group(1)!;
+  final inner = m.group(2)!;
+  final after = m.group(3)!;
+
+  // Split into lines but keep original formatting as much as possible.
+  final lines = inner.split('\n');
+
+  bool isEmbedLine(String line) => line.contains(embedCopyPhaseId);
+  bool isEmbedPodsLine(String line) => line.contains(embedPodsComment);
+  bool isThinBinaryLine(String line) => line.contains(thinBinaryComment);
+
+  String? embedLine;
+  String? thinLine;
+
+  final remaining = <String>[];
+  for (final line in lines) {
+    if (embedLine == null && isEmbedLine(line)) {
+      embedLine = line.trim().isEmpty ? null : line;
+      continue;
+    }
+    if (thinLine == null && isThinBinaryLine(line)) {
+      thinLine = line.trim().isEmpty ? null : line;
+      continue;
+    }
+    remaining.add(line);
+  }
+
+  // Choose indentation based on existing list entries; fallback to 4 tabs which
+  // matches typical pbxproj formatting.
+  final indent = remaining.firstWhere(
+    (l) => l.trim().isNotEmpty,
+    orElse: () => '\t\t\t\t',
+  );
+  final indentPrefix =
+      RegExp(r'^\s*').firstMatch(indent)?.group(0) ?? '\t\t\t\t';
+
+  embedLine ??= '$indentPrefix$idWithComment,';
+
+  // Insert embedLine before "[CP] Embed Pods Frameworks" if present, else before
+  // Thin Binary if present, else append.
+  final rebuilt = <String>[];
+  var insertedEmbed = false;
+  for (final line in remaining) {
+    if (!insertedEmbed &&
+        line.trim().isNotEmpty &&
+        (isEmbedPodsLine(line) || isThinBinaryLine(line))) {
+      rebuilt.add(embedLine);
+      insertedEmbed = true;
+    }
+    rebuilt.add(line);
+  }
+  if (!insertedEmbed) {
+    // Append before trailing empty line (if any)
+    if (rebuilt.isNotEmpty && rebuilt.last.trim().isEmpty) {
+      rebuilt.insert(rebuilt.length - 1, embedLine);
+    } else {
+      rebuilt.add(embedLine);
+    }
+  }
+
+  // Ensure Thin Binary is last (if it exists in the list).
+  if (thinLine != null) {
+    // Remove any other Thin Binary occurrences (just in case).
+    rebuilt.removeWhere((l) => isThinBinaryLine(l));
+
+    // Append it at the end, but preserve a trailing empty line if present.
+    if (rebuilt.isNotEmpty && rebuilt.last.trim().isEmpty) {
+      rebuilt.insert(rebuilt.length - 1, thinLine);
+    } else {
+      rebuilt.add(thinLine);
+    }
+  }
+
+  final newInner = rebuilt.join('\n');
+  final newBlock = block.replaceRange(m.start, m.end, '$before$newInner$after');
+  var out = pbxproj.replaceFirst(block, newBlock);
+
+  // If the embed phase didn't exist at all, ensure it’s also present in buildPhases.
+  // (The list rewrite above already inserted it, but this is extra safety if the
+  // list parsing ever fails in some edge case.)
+  if (!out.contains(idWithComment)) {
+    out = _patchNativeTargetListAddId(
+      out,
+      targetId: runnerTargetId,
+      listKey: 'buildPhases',
+      idToAdd: '$idWithComment',
+    );
+  }
+
+  return out;
 }
 
 final class _WidgetExtensionIds {
@@ -385,6 +648,17 @@ final class _WidgetExtensionIds {
         productFileRefId = xcodeObjectId('fileref:product:$widgetClassName'),
         entitlementsFileRefId =
             xcodeObjectId('fileref:entitlements:$widgetClassName'),
+        widgetGroupId = xcodeObjectId('group:$widgetClassName'),
+        widgetSwiftFileRefId =
+            xcodeObjectId('fileref:Widget.swift:$widgetClassName'),
+        widgetBundleSwiftFileRefId =
+            xcodeObjectId('fileref:WidgetBundle.swift:$widgetClassName'),
+        infoPlistFileRefId =
+            xcodeObjectId('fileref:Info.plist:$widgetClassName'),
+        widgetSwiftBuildFileId =
+            xcodeObjectId('buildfile:Widget.swift:$widgetClassName'),
+        widgetBundleSwiftBuildFileId =
+            xcodeObjectId('buildfile:WidgetBundle.swift:$widgetClassName'),
         sourcesPhaseId = xcodeObjectId('phase:sources:$widgetClassName'),
         frameworksPhaseId = xcodeObjectId('phase:frameworks:$widgetClassName'),
         resourcesPhaseId = xcodeObjectId('phase:resources:$widgetClassName'),
@@ -393,8 +667,10 @@ final class _WidgetExtensionIds {
         containerProxyId = xcodeObjectId('proxy:$widgetClassName'),
         targetDependencyId = xcodeObjectId('dep:$widgetClassName'),
         swiftUIFileRefId = xcodeObjectId('fileref:SwiftUI:$widgetClassName'),
-        widgetKitFileRefId = xcodeObjectId('fileref:WidgetKit:$widgetClassName'),
-        swiftUIBuildFileId = xcodeObjectId('buildfile:SwiftUI:$widgetClassName'),
+        widgetKitFileRefId =
+            xcodeObjectId('fileref:WidgetKit:$widgetClassName'),
+        swiftUIBuildFileId =
+            xcodeObjectId('buildfile:SwiftUI:$widgetClassName'),
         widgetKitBuildFileId =
             xcodeObjectId('buildfile:WidgetKit:$widgetClassName'),
         fsExceptionId = xcodeObjectId('fsex:$widgetClassName'),
@@ -407,6 +683,12 @@ final class _WidgetExtensionIds {
   final String targetId;
   final String productFileRefId;
   final String entitlementsFileRefId;
+  final String widgetGroupId;
+  final String widgetSwiftFileRefId;
+  final String widgetBundleSwiftFileRefId;
+  final String infoPlistFileRefId;
+  final String widgetSwiftBuildFileId;
+  final String widgetBundleSwiftBuildFileId;
   final String sourcesPhaseId;
   final String frameworksPhaseId;
   final String resourcesPhaseId;
@@ -438,22 +720,69 @@ String? _findProjectFieldId(String pbxproj, String fieldName) {
   final projectObjectId = _findProjectObjectId(pbxproj);
   if (projectObjectId == null) return null;
 
-  // Extract the PBXProject block for safer parsing.
-  final projectBlock = RegExp(
-    r'^\s*' +
-        RegExp.escape(projectObjectId) +
-        r' /\* Project object \*/ = \{[\s\S]*?\n\s*\};\s*$',
-    multiLine: true,
-  ).firstMatch(pbxproj)?.group(0);
+  // Extract the PBXProject object block.
+  //
+  // IMPORTANT: A PBXProject object contains nested `{}` (e.g. `attributes = { ... };`)
+  // so a non-greedy regex like `{[\s\S]*?\n\s*\};` will stop at the *first* `};`
+  // and truncate the object. We therefore use simple brace matching to find the
+  // correct end of the PBXProject object.
+  final projectBlock = _extractPbxObjectBlock(
+    pbxproj,
+    objectId: projectObjectId,
+    expectedComment: 'Project object',
+  );
   if (projectBlock == null) return null;
 
   final m = RegExp(
-    r'^\s*' +
-        RegExp.escape(fieldName) +
-        r'\s*=\s*([A-F0-9]{24})',
+    r'^\s*' + RegExp.escape(fieldName) + r'\s*=\s*([A-F0-9]{24})',
     multiLine: true,
   ).firstMatch(projectBlock);
   return m?.group(1);
+}
+
+String? _extractPbxObjectBlock(
+  String pbxproj, {
+  required String objectId,
+  String? expectedComment,
+}) {
+  // Try the common "id /* Comment */ = {" form first.
+  final withCommentNeedle =
+      expectedComment == null ? null : '$objectId /* $expectedComment */ = {';
+  var startIdx =
+      withCommentNeedle == null ? -1 : pbxproj.indexOf(withCommentNeedle);
+
+  // Fall back to "id = {" form (rare, but safe).
+  if (startIdx == -1) {
+    final withoutCommentNeedle = '$objectId = {';
+    startIdx = pbxproj.indexOf(withoutCommentNeedle);
+  }
+  if (startIdx == -1) return null;
+
+  // Find the first `{` for the object, then scan until its matching `}`.
+  final braceStart = pbxproj.indexOf('{', startIdx);
+  if (braceStart == -1) return null;
+
+  var depth = 0;
+  for (var i = braceStart; i < pbxproj.length; i++) {
+    final ch = pbxproj.codeUnitAt(i);
+    if (ch == 0x7B) {
+      // {
+      depth++;
+    } else if (ch == 0x7D) {
+      // }
+      depth--;
+      if (depth == 0) {
+        // Include trailing `;` if present (Xcode uses `};`).
+        var end = i + 1;
+        if (end < pbxproj.length && pbxproj.codeUnitAt(end) == 0x3B) {
+          // ;
+          end++;
+        }
+        return pbxproj.substring(startIdx, end);
+      }
+    }
+  }
+  return null;
 }
 
 String? _findTargetIdByName(String pbxproj, String name) {
@@ -530,8 +859,7 @@ String _patchNativeTargetListAddId(
   // Insert at end of list.
   final insertion = inner.endsWith('\n') ? '' : '\n';
   final newInner = '$inner$insertion\t\t\t\t$idToAdd,\n';
-  final newBlock =
-      block.replaceRange(m.start, m.end, '$before$newInner$after');
+  final newBlock = block.replaceRange(m.start, m.end, '$before$newInner$after');
   return pbxproj.replaceFirst(block, newBlock);
 }
 
@@ -540,13 +868,11 @@ String _patchProjectTargetsListAddId(
   required String projectObjectId,
   required String idToAdd,
 }) {
-  final projectBlockRegex = RegExp(
-    r'^\s*' +
-        RegExp.escape(projectObjectId) +
-        r' /\* Project object \*/ = \{[\s\S]*?\n\s*\};\s*$',
-    multiLine: true,
+  final block = _extractPbxObjectBlock(
+    pbxproj,
+    objectId: projectObjectId,
+    expectedComment: 'Project object',
   );
-  final block = projectBlockRegex.firstMatch(pbxproj)?.group(0);
   if (block == null) return pbxproj;
   if (block.contains(idToAdd.split(' ').first)) return pbxproj;
 
@@ -563,8 +889,7 @@ String _patchProjectTargetsListAddId(
 
   final insertion = inner.endsWith('\n') ? '' : '\n';
   final newInner = '$inner$insertion\t\t\t\t$idToAdd,\n';
-  final newBlock =
-      block.replaceRange(m.start, m.end, '$before$newInner$after');
+  final newBlock = block.replaceRange(m.start, m.end, '$before$newInner$after');
   return pbxproj.replaceFirst(block, newBlock);
 }
 
@@ -574,9 +899,7 @@ String _patchGroupChildrenAddId(
   required String idToAdd,
 }) {
   final groupBlockRegex = RegExp(
-    r'^\s*' +
-        RegExp.escape(groupId) +
-        r'\s*=\s*\{[\s\S]*?\n\s*\};\s*$',
+    r'^\s*' + RegExp.escape(groupId) + r'\s*=\s*\{[\s\S]*?\n\s*\};\s*$',
     multiLine: true,
   );
   final block = groupBlockRegex.firstMatch(pbxproj)?.group(0);
@@ -595,9 +918,6 @@ String _patchGroupChildrenAddId(
   final after = m.group(3)!;
   final insertion = inner.endsWith('\n') ? '' : '\n';
   final newInner = '$inner$insertion\t\t\t\t$idToAdd,\n';
-  final newBlock =
-      block.replaceRange(m.start, m.end, '$before$newInner$after');
+  final newBlock = block.replaceRange(m.start, m.end, '$before$newInner$after');
   return pbxproj.replaceFirst(block, newBlock);
 }
-
-
