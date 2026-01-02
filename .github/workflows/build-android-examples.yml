@@ -9,6 +9,8 @@ on:
     paths:
       - 'packages/home_widget/lib/**'
       - 'packages/home_widget/android/**'
+      - 'examples/**'
+      - 'packages/home_widget/example/**'
       - '.github/workflows/build-android-examples.yml'
 
 concurrency:

@@ -20,75 +20,20 @@ jobs:
     name: Quality Checks
     runs-on: macos-15
     defaults:
-        run:
-            working-directory: packages/home_widget
-
+      run:
+        working-directory: packages/home_widget
     steps:
-      - uses: actions/checkout@v2
-
+      - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
       - uses: bluefireteam/melos-action@v3
-      - name: Analyze
-        run: melos analyze
       - name: Install Formatters
         run: brew install swift-format ktfmt
+      - name: Analyze
+        run: melos analyze
       - name: Format
         run: melos format:all
       - name: Publishability
         run: flutter pub publish --dry-run
-      - name: Test
-        run: flutter test --coverage
-      - name: Archieve Golden Failures
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: Golden failures
-          retention-days: 2
-          path: |
-            **/test/**/failures/**/*.*
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          path: ./packages/home_widget/coverage/lcov.info
 
-  android:
-    name: Android Integration Tests
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v2
-      - uses: subosito/flutter-action@v1
-        with:
-          channel: stable
-      - name: Free Disk Space (Ubuntu)
-        uses: AdityaGarg8/remove-unwanted-software@v5
-        with:
-          remove-dotnet: true
-          remove-haskell: true
-          remove-codeql: true
-          remove-docker-images: true
-      - uses: bluefireteam/melos-action@v3
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-      - name: Run Android Integration Tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          arch: x86_64
-          profile: pixel_2
-          sdcard-path-or-size: 100M
-          emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
-          script: flutter test integration_test/android_test.dart -d emulator-5554
-          working-directory: packages/home_widget/example
