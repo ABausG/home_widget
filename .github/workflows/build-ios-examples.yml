@@ -1,0 +1,54 @@
+name: Build iOS Examples
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'packages/home_widget/lib/**'
+      - 'packages/home_widget/ios/**'
+      - '.github/workflows/build-ios-examples.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover-examples:
+    name: Discover iOS Examples
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v1
+        with:
+          channel: stable
+      - uses: bluefireteam/melos-action@v3
+      - name: Discover iOS examples
+        id: set-matrix
+        run: |
+          examples=$(melos list --dir-exists="ios" --ignore="home_widget" --json | jq -r '.[].name' | jq -R -s -c 'split("\n") | map(select(. != ""))')
+          echo "matrix={\"example\":$examples}" >> $GITHUB_OUTPUT
+
+  build-examples:
+    name: Build iOS Examples
+    needs: discover-examples
+    runs-on: macos-15
+    strategy:
+      matrix: ${{ fromJson(needs.discover-examples.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+      - uses: subosito/flutter-action@v1
+        with:
+          channel: stable
+      - uses: bluefireteam/melos-action@v3
+      - name: Build iOS Example
+        run: melos exec --package="${{ matrix.example }}" -- flutter build ios --release --no-codesign
+

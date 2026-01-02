@@ -40,3 +40,9 @@ melos:
       run: |
         swift-format -r -i -p .
         swift-format lint -r -s .
+    build:android:examples:
+      description: Build Android examples
+      run: melos exec --dir-exists="android" -- flutter build apk --release
+    build:ios:examples:
+      description: Build iOS examples
+      run: melos exec --dir-exists="ios" -- flutter build ios --release --no-codesign
