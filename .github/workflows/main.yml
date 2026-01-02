@@ -63,6 +63,13 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+      - name: Free Disk Space (Ubuntu)
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-dotnet: true
+          remove-haskell: true
+          remove-codeql: true
+          remove-docker-images: true
       - uses: bluefireteam/melos-action@v3
       - name: Enable KVM
         run: |
@@ -79,9 +86,9 @@ jobs:
         with:
           api-level: 33
           arch: x86_64
-          profile: Nexus 6
+          profile: pixel_2
           sdcard-path-or-size: 100M
           emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot
           script: flutter test integration_test/android_test.dart -d emulator-5554
           working-directory: packages/home_widget/example
