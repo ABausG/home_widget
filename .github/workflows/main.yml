@@ -82,6 +82,6 @@ jobs:
           profile: Nexus 6
           sdcard-path-or-size: 100M
           emulator-boot-timeout: 900
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot -partition-size 4096
           script: flutter test integration_test/android_test.dart -d emulator-5554
           working-directory: packages/home_widget/example
