@@ -28,6 +28,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+          cache: true
       - uses: bluefireteam/melos-action@v3
       - name: Discover iOS examples
         id: set-matrix
@@ -50,6 +51,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+          cache: true
       - uses: bluefireteam/melos-action@v3
       - name: Build iOS Example
         run: melos exec --package="${{ matrix.example }}" -- flutter build ios --release --no-codesign

@@ -27,6 +27,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+          cache: true
       - uses: bluefireteam/melos-action@v3
       - name: Install Formatters
         run: brew install swift-format ktfmt

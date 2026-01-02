@@ -25,6 +25,7 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: stable
+          cache: true
       - name: Free Disk Space (Ubuntu)
         uses: AdityaGarg8/remove-unwanted-software@v5
         with:
