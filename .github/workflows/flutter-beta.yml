@@ -61,6 +61,13 @@ jobs:
       - uses: subosito/flutter-action@v1
         with:
           channel: beta
+      - name: Free Disk Space (Ubuntu)
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-dotnet: true
+          remove-haskell: true
+          remove-codeql: true
+          remove-docker-images: true
       - uses: bluefireteam/melos-action@v3
       - name: Enable KVM
         run: |
