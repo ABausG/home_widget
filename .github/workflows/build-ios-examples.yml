@@ -54,5 +54,7 @@ jobs:
           cache: true
       - uses: bluefireteam/melos-action@v3
       - name: Build iOS Example
-        run: melos exec --package="${{ matrix.example }}" -- flutter build ios --release --no-codesign
+        env:
+          MELOS_PACKAGES: ${{ matrix.example }}
+        run: melos run build:ios:examples --no-select
 

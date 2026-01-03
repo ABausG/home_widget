@@ -42,7 +42,13 @@ melos:
         swift-format lint -r -s .
     build:android:examples:
       description: Build Android examples
-      run: melos exec --dir-exists="android" --ignore="home_widget" -- flutter build apk --release
+      exec: flutter build apk --release
+      packageFilters:
+        dirExists: android
+        ignore: home_widget
     build:ios:examples:
       description: Build iOS examples
-      run: melos exec --dir-exists="ios" --ignore="home_widget" -- flutter build ios --release --no-codesign
+      exec: flutter build ios --release --no-codesign
+      packageFilters:
+        dirExists: ios
+        ignore: home_widget

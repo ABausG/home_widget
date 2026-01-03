@@ -63,5 +63,7 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
       - name: Build Android Example
-        run: melos exec --package="${{ matrix.example }}" -- flutter build apk --release
+        env:
+          MELOS_PACKAGES: ${{ matrix.example }}
+        run: melos run build:android:examples --no-select
 
