@@ -15,9 +15,7 @@ let package = Package(
     targets: [
         .target(
             name: "home_widget",
-            dependencies: [],
-            resources: [
-                 ]
+            dependencies: []
         )
     ]
 )
