@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-01-04
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`home_widget` - `v0.9.0`](#home_widget---v090)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `home_widget` - `v0.9.0`
+
+ - **FIX**: Fix Xcode 26 support for interactive Widgets ([#391](https://github.com/abausg/home_widget/issues/391)). ([35047c6a](https://github.com/abausg/home_widget/commit/35047c6af5f2847652a51eb760c0d2ff70953259))
+ - **FIX**: Fix iOS Widget Updating using only `name` parameter ([#381](https://github.com/abausg/home_widget/issues/381)). ([77919dbb](https://github.com/abausg/home_widget/commit/77919dbb464c238149cb7662c9c8bfd47b7f11f9))
+ - **BREAKING** **FIX**: Add missing package name to HomeWidget Glance files ([#365](https://github.com/abausg/home_widget/issues/365)). ([caf6a1fe](https://github.com/abausg/home_widget/commit/caf6a1fe4d120b3b26b2b6d7aa1b008420790365))
+ - **BREAKING** **FEAT**: Add support for Swift Package Manager ([#393](https://github.com/abausg/home_widget/issues/393)). ([8d3c1ddf](https://github.com/abausg/home_widget/commit/8d3c1ddf4c7b383d4b2028160771828eb9a0033e))
+ - **BREAKING** **CHORE**: Upgrade to melos 7.0.0 ([#382](https://github.com/abausg/home_widget/issues/382)). ([66bffb17](https://github.com/abausg/home_widget/commit/66bffb17909890c3a70050488725d75c8aee46db))
+
+
 ## 2025-10-14
 
 ### Changes
