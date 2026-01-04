@@ -4,7 +4,9 @@ description: Demonstrates how to use the home_widget plugin.
 publish_to: 'none'
 
 environment:
-  sdk: ">=2.12.0 <4.0.0"
+  sdk: ">=3.5.0 <4.0.0"
+
+resolution: workspace
 
 dependency_overrides:
   workmanager:
@@ -17,14 +19,11 @@ dependencies:
   flutter:
     sdk: flutter
   workmanager: ^0.5.2
-
   home_widget:
-    path: ../
-
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
-  flutter_lints: ^2.0.1
+  flutter_lints: ^5.0.0
   device_info_plus: ^9.0.3
   integration_test:
     sdk: flutter
