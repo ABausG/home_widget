@@ -10,7 +10,7 @@ abstract class HomeWidgetProvider : AppWidgetProvider() {
   override fun onUpdate(
       context: Context,
       appWidgetManager: AppWidgetManager,
-      appWidgetIds: IntArray
+      appWidgetIds: IntArray,
   ) {
     super.onUpdate(context, appWidgetManager, appWidgetIds)
     onUpdate(context, appWidgetManager, appWidgetIds, HomeWidgetPlugin.getData(context))
@@ -20,6 +20,6 @@ abstract class HomeWidgetProvider : AppWidgetProvider() {
       context: Context,
       appWidgetManager: AppWidgetManager,
       appWidgetIds: IntArray,
-      widgetData: SharedPreferences
+      widgetData: SharedPreferences,
   )
 }

@@ -5,6 +5,7 @@
 [![downloads](https://img.shields.io/pub/dm/home_widget)](https://pub.dev/packages/home_widget/score)
 [![pub points](https://img.shields.io/pub/points/home_widget)](https://pub.dev/packages/home_widget/score)
 [![Build](https://github.com/abausg/home_widget/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/ABausG/home_widget/actions/workflows/main.yml?query=branch%3Amain)
+[![Codemagic iOS Integration Tests](https://api.codemagic.io/apps/68dc0fab9b1f2358cb1af76b/68dc0fab9b1f2358cb1af76a/status_badge.svg)](https://codemagic.io/app/68dc0fab9b1f2358cb1af76b/68dc0fab9b1f2358cb1af76a/latest_build)
 [![codecov](https://codecov.io/gh/ABausG/home_widget/branch/main/graph/badge.svg?token=ZXTZOL6KFO)](https://codecov.io/gh/ABausG/home_widget)
 [![GitHub-sponsors](https://img.shields.io/badge/Sponsor-30363D?style=flat&logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/abausg)
 

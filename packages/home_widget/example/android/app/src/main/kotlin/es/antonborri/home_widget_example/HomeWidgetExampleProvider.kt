@@ -17,7 +17,7 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
       context: Context,
       appWidgetManager: AppWidgetManager,
       appWidgetIds: IntArray,
-      widgetData: SharedPreferences
+      widgetData: SharedPreferences,
   ) {
     appWidgetIds.forEach { widgetId ->
       val views =
@@ -29,10 +29,14 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
 
             // Swap Title Text by calling Dart Code in the Background
             setTextViewText(
-                R.id.widget_title, widgetData.getString("title", null) ?: "No Title Set")
+                R.id.widget_title,
+                widgetData.getString("title", null) ?: "No Title Set",
+            )
             val backgroundIntent =
                 HomeWidgetBackgroundIntent.getBroadcast(
-                    context, Uri.parse("homeWidgetExample://titleClicked"))
+                    context,
+                    Uri.parse("homeWidgetExample://titleClicked"),
+                )
             setOnClickPendingIntent(R.id.widget_title, backgroundIntent)
 
             val message = widgetData.getString("message", null)
@@ -51,7 +55,8 @@ class HomeWidgetExampleProvider : HomeWidgetProvider() {
                 HomeWidgetLaunchIntent.getActivity(
                     context,
                     MainActivity::class.java,
-                    Uri.parse("homeWidgetExample://message?message=$message"))
+                    Uri.parse("homeWidgetExample://message?message=$message"),
+                )
             setOnClickPendingIntent(R.id.widget_message, pendingIntentWithData)
           }
 

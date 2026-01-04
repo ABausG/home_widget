@@ -15,7 +15,7 @@ abstract class HomeWidgetGlanceWidgetReceiver<T : GlanceAppWidget> : GlanceAppWi
   override fun onUpdate(
       context: Context,
       appWidgetManager: AppWidgetManager,
-      appWidgetIds: IntArray
+      appWidgetIds: IntArray,
   ) {
     super.onUpdate(context, appWidgetManager, appWidgetIds)
     runBlocking {
@@ -27,9 +27,10 @@ abstract class HomeWidgetGlanceWidgetReceiver<T : GlanceAppWidget> : GlanceAppWi
             updateAppWidgetState<HomeWidgetGlanceState>(
                 context = context,
                 this.stateDefinition as HomeWidgetGlanceStateDefinition,
-                glanceId) { currentState ->
-                  currentState
-                }
+                glanceId,
+            ) { currentState ->
+              currentState
+            }
           }
           // Update widget.
           update(context, glanceId)

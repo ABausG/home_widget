@@ -14,11 +14,8 @@ object HomeWidgetLaunchIntent {
 
   const val HOME_WIDGET_LAUNCH_ACTION = "es.antonborri.home_widget.action.LAUNCH"
 
-  fun <T> getActivity(
-      context: Context,
-      activityClass: Class<T>,
-      uri: Uri? = null
-  ): PendingIntent where T : Activity {
+  fun <T> getActivity(context: Context, activityClass: Class<T>, uri: Uri? = null): PendingIntent
+      where T : Activity {
     val intent = Intent(context, activityClass)
     intent.data = uri
     intent.action = HOME_WIDGET_LAUNCH_ACTION
@@ -35,7 +32,8 @@ object HomeWidgetLaunchIntent {
     val options = ActivityOptions.makeBasic()
     if (Build.VERSION.SDK_INT >= 35) {
       options.setPendingIntentCreatorBackgroundActivityStartMode(
-          ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+          ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+      )
     } else if (Build.VERSION.SDK_INT >= 34) {
       options.pendingIntentBackgroundActivityStartMode =
           ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
