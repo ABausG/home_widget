@@ -1,0 +1,35 @@
+---
+title: Swift Package Manager
+description: Migrate the iOS integration of home_widget to Swift Package Manager
+---
+
+# Swift Package Manager Migration
+
+If you are using [Swift Package Manager for your Flutter App](https://docs.flutter.dev/packages-and-plugins/swift-package-manager/for-app-developers) and are using home_widget for an interactive widget you can migrate to Swift Package Manager by following these steps.
+
+<Steps>
+  <Step title="Remove Podfile adjustment">
+    If you previously added `home_widget` to your Podfile for the WidgetExtension, remove it:
+
+    ```rb
+    target 'YourWidgetExtension' do
+       use_frameworks!
+       use_modular_headers!
+
+       pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios' # [!code --]
+    end
+    ```
+
+    After removing the entry, run `pod install` once so CocoaPods updates its lock file.
+  </Step>
+
+  <Step title="Add frameworks">
+    If you integrate plugins with Swift Package Manager, make sure your WidgetExtension links against the generated Flutter plugin package:
+
+    1. Open your Flutter project's `Runner.xcworkspace` in Xcode and select your WidgetExtension target.
+    2. On the `General` tab, locate the `Frameworks and Libraries` section and click the `+` button.
+       ![Add dependency to the widget target](/assets/swift-package-manager/add-framework.png)
+    3. In the picker that appears, choose `FlutterGeneratedPluginSwiftPackage` and confirm. If it is not available you need to run `flutter pub get`
+       ![Select the FlutterGeneratedPluginSwiftPackage entry](/assets/swift-package-manager/select-generated-flutter-plugin.png)
+  </Step>
+</Steps>
