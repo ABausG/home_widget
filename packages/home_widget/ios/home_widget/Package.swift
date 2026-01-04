@@ -4,18 +4,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "home_widget",
-    platforms: [
-        .iOS("14.0")
-    ],
-    products: [
-        .library(name: "home-widget", targets: ["home_widget"])
-    ],
-    dependencies: [],
-    targets: [
-        .target(
-            name: "home_widget",
-            dependencies: []
-        )
-    ]
+  name: "home_widget",
+  platforms: [
+    .iOS("14.0")
+  ],
+  products: [
+    .library(name: "home-widget", targets: ["home_widget"])
+  ],
+  dependencies: [],
+  targets: [
+    .target(
+      name: "home_widget",
+      dependencies: []
+    )
+  ]
 )
