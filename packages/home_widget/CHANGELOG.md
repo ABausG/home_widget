@@ -1,6 +1,6 @@
 ## 0.9.0
 
-> Note: This release has breaking changes.
+> Note: This release has breaking changes. See the [migration guide](https://docs.page/ABausG/home_widget/migrations/0.9.0) for details on how to migrate.
 
  - **FIX**: Fix Xcode 26 support for interactive Widgets ([#391](https://github.com/abausg/home_widget/issues/391)). ([35047c6a](https://github.com/abausg/home_widget/commit/35047c6af5f2847652a51eb760c0d2ff70953259))
  - **FIX**: Fix iOS Widget Updating using only `name` parameter ([#381](https://github.com/abausg/home_widget/issues/381)). ([77919dbb](https://github.com/abausg/home_widget/commit/77919dbb464c238149cb7662c9c8bfd47b7f11f9))
