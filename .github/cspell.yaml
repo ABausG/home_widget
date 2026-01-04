@@ -74,6 +74,7 @@ words:
     - typealias
     - xcodeproj
     - pbxproj
+    - xcworkspace
     - Codemagic
     - lockscreen
     - codesign
