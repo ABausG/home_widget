@@ -1,3 +1,13 @@
+## 0.9.0
+
+> Note: This release has breaking changes. See the [migration guide](https://docs.page/ABausG/home_widget/migrations/0.9.0) for details on how to migrate.
+
+ - **FIX**: Fix Xcode 26 support for interactive Widgets ([#391](https://github.com/abausg/home_widget/issues/391)). ([35047c6a](https://github.com/abausg/home_widget/commit/35047c6af5f2847652a51eb760c0d2ff70953259))
+ - **FIX**: Fix iOS Widget Updating using only `name` parameter ([#381](https://github.com/abausg/home_widget/issues/381)). ([77919dbb](https://github.com/abausg/home_widget/commit/77919dbb464c238149cb7662c9c8bfd47b7f11f9))
+ - **BREAKING** **FIX**: Add missing package name to HomeWidget Glance files ([#365](https://github.com/abausg/home_widget/issues/365)). ([caf6a1fe](https://github.com/abausg/home_widget/commit/caf6a1fe4d120b3b26b2b6d7aa1b008420790365))
+ - **BREAKING** **FEAT**: Add support for Swift Package Manager ([#393](https://github.com/abausg/home_widget/issues/393)). ([8d3c1ddf](https://github.com/abausg/home_widget/commit/8d3c1ddf4c7b383d4b2028160771828eb9a0033e))
+ - **BREAKING** **CHORE**: Upgrade to melos 7.0.0 ([#382](https://github.com/abausg/home_widget/issues/382)). ([66bffb17](https://github.com/abausg/home_widget/commit/66bffb17909890c3a70050488725d75c8aee46db))
+
 ## 0.8.1
 
  - **FIX**: Use WorkManager for Interactivity on Android. Improves reliability of clicks ([#361](https://github.com/abausg/home_widget/issues/361)). ([b25f8733](https://github.com/abausg/home_widget/commit/b25f87336913844d92ba6484c3516680beb6a3a2))
