@@ -435,3 +435,28 @@ Before iOS 17 SiriKit Intents where used to build configurable widgets. You can 
     
     </Step>
 </Steps>
+
+
+## Android
+
+Android widgets can be made configurable by adding the following fields to your widget XML's `<appwidget-provider>` element, where
+`com.example.app` is your app's package name:
+
+```
+android:widgetFeatures="reconfigurable"
+android:configure="com.example.app.MainActivity"
+```
+
+This will enable the "Settings" option in the menu when you long-press the widget.
+
+You will also need to add an intent filter to the `<activity>` element in AndroidManifest.xml:
+
+```
+<intent-filter>
+	<action android:name="android.intent.action.APPWIDGET_CONFIGURE"/>
+</intent-filter>
+```
+
+You can then detect whether the app was launched from the widget settings menu item by calling
+`HomeWidget.initiallyLaunchedFromHomeWidgetConfigure()`. If the app was launched by a widget configuration request, the returned `Future`
+will resolve to the corresponding widget ID (as a string). Otherwise, it will resolve to `null`.
