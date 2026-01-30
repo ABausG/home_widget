@@ -136,6 +136,16 @@ class HomeWidgetPlugin :
           result.success(null)
         }
       }
+      "initiallyLaunchedFromHomeWidgetConfigure" -> {
+        return if (
+            activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) ==
+                true
+        ) {
+          result.success(activity?.intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID).toString() ?: null)
+        } else {
+          result.success(null)
+        }
+      }
       "registerBackgroundCallback" -> {
         val dispatcher = ((call.arguments as Iterable<*>).toList()[0] as Number).toLong()
         val callback = ((call.arguments as Iterable<*>).toList()[1] as Number).toLong()

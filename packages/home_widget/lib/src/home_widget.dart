@@ -102,6 +102,12 @@ class HomeWidget {
         .then(_handleReceivedData);
   }
 
+  /// Checks if the App was initially launched via the Widget configure action
+  static Future<String?> initiallyLaunchedFromHomeWidgetConfigure() {
+    return _channel
+        .invokeMethod<String>('initiallyLaunchedFromHomeWidgetConfigure');
+  }
+
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
     return _eventChannel
