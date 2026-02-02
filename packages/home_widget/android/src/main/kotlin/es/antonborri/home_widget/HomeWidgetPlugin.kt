@@ -137,14 +137,16 @@ class HomeWidgetPlugin :
         }
       }
       "initiallyLaunchedFromHomeWidgetConfigure" -> {
-        return if (
+        if (
             activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) ==
                 true
         ) {
-          result.success(activity?.intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID).toString() ?: null)
-        } else {
-          result.success(null)
+		  val id = activity?.intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
+		  if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+			  return result.success(id.toString())
+		  }
         }
+        return result.success(null)
       }
       "registerBackgroundCallback" -> {
         val dispatcher = ((call.arguments as Iterable<*>).toList()[0] as Number).toLong()
