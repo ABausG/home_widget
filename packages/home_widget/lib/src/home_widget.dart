@@ -108,6 +108,12 @@ class HomeWidget {
         .invokeMethod<String>('initiallyLaunchedFromHomeWidgetConfigure');
   }
 
+  /// Ends the Widget configure action
+  static Future<void> finishHomeWidgetConfigure() {
+    return _channel
+        .invokeMethod<void>('finishHomeWidgetConfigure');
+  }
+
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
     return _eventChannel

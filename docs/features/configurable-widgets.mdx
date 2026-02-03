@@ -461,4 +461,6 @@ You can then detect whether the app was launched from the widget settings menu i
 `HomeWidget.initiallyLaunchedFromHomeWidgetConfigure()`. If the app was launched by a widget configuration request, the returned `Future`
 will resolve to the corresponding widget ID (as a string). Otherwise, it will resolve to `null`.
 
+Once the widget configuration is saved, call `HomeWidget.finishHomeWidgetConfigure()`. This will end the widget configuration activity.
+
 For more information, see the [Android documentation](https://developer.android.com/develop/ui/views/appwidgets/configuration).
