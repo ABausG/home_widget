@@ -459,8 +459,10 @@ You will also need to add an intent filter to the `<activity>` element in Androi
 
 You can then detect whether the app was launched from the widget settings menu item by calling
 `HomeWidget.initiallyLaunchedFromHomeWidgetConfigure()`. If the app was launched by a widget configuration request, the returned `Future`
-will resolve to the corresponding widget ID (as a string). Otherwise, it will resolve to `null`.
+will resolve to the corresponding widget ID (as a string). Otherwise, it will resolve to `null`. If a widget configuration request was
+detected, this method will also set the default Activity result to `RESULT_CANCELED`.
 
-Once the widget configuration is saved, call `HomeWidget.finishHomeWidgetConfigure()`. This will end the widget configuration activity.
+Once the widget configuration is saved, call `HomeWidget.finishHomeWidgetConfigure()`. This will end the widget configuration activity
+and return `RESULT_OK`.
 
 For more information, see the [Android documentation](https://developer.android.com/develop/ui/views/appwidgets/configuration).

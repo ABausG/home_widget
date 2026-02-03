@@ -143,6 +143,7 @@ class HomeWidgetPlugin :
         ) {
 		  val id = activity?.intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
 		  if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+			  activity!!.setResult(Activity.RESULT_CANCELED);
 			  return result.success(id.toString())
 		  }
         }
