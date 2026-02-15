@@ -1,5 +1,6 @@
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_cli/src/models/widget_node.dart'; // NEW
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
@@ -160,6 +161,46 @@ void main() {
       expect(ios.supportedFamilies, hasLength(2));
       expect(ios.supportedFamilies, contains(HWWidgetFamily.systemSmall));
       expect(ios.supportedFamilies, contains(HWWidgetFamily.systemMedium));
+    });
+
+    test('parses widget tree from widgetBuilder override', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+        
+        @HomeWidget(name: 'TreeWidget')
+        class TreeWidget extends HomeWidgetBuilder {
+          @override
+          HWWidget get widgetBuilder => const HWText.fixed("Hello");
+        }
+      ''';
+
+      final spec = await parseSchemaSource(source);
+      expect(spec, isNotNull);
+      expect(spec!.widgetTree, isNotNull);
+      expect(spec.widgetTree, isA<TextNode>());
+      final text = spec.widgetTree as TextNode;
+      expect(text.content, isA<StaticValue>());
+      expect((text.content as StaticValue).value, 'Hello');
+    });
+
+    test('parses widget tree from widgetBuilder override with block body',
+        () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+        
+        @HomeWidget(name: 'TreeWidget')
+        class TreeWidget extends HomeWidgetBuilder {
+          @override
+          HWWidget get widgetBuilder {
+            return const HWText.fixed("Hello");
+          }
+        }
+      ''';
+
+      final spec = await parseSchemaSource(source);
+      expect(spec, isNotNull);
+      expect(spec!.widgetTree, isNotNull);
+      expect(spec.widgetTree, isA<TextNode>());
     });
   });
 }

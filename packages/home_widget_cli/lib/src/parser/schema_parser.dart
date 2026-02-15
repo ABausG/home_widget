@@ -3,6 +3,8 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
+import '../models/widget_node.dart';
+import 'widget_tree_parser.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s.
 Future<WidgetSpec?> parseSchemaSource(
@@ -29,14 +31,15 @@ WidgetSpec? _parseClass(ClassDeclaration classDecl) {
     if (metadata.name.name == 'HomeWidget') {
       final args = metadata.arguments;
       if (args != null) {
-        return _extractWidgetSpec(classDecl.name.lexeme, args);
+        return _extractWidgetSpec(classDecl, args);
       }
     }
   }
   return null;
 }
 
-WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
+WidgetSpec _extractWidgetSpec(ClassDeclaration classDecl, ArgumentList args) {
+  final className = classDecl.name.lexeme;
   String? name;
   String? description;
   String? dartOutput;
@@ -117,6 +120,35 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
     );
   }
 
+  WidgetNode? widgetTree;
+  // Find widgetBuilder getter or method
+  for (final member in classDecl.members) {
+    if (member is MethodDeclaration && member.name.lexeme == 'widgetBuilder') {
+      final body = member.body;
+      Expression? expression;
+
+      if (body is ExpressionFunctionBody) {
+        expression = body.expression;
+      } else if (body is BlockFunctionBody) {
+        // Look for return statement
+        for (final stmt in body.block.statements) {
+          if (stmt is ReturnStatement) {
+            expression = stmt.expression;
+            break;
+          }
+        }
+      }
+
+      if (expression != null) {
+        widgetTree = parseWidgetExpression(
+          expression,
+          dataFields: dataFields,
+        );
+      }
+      break;
+    }
+  }
+
   return WidgetSpec(
     data: HomeWidget(
       name: name,
@@ -128,6 +160,7 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
     className: className,
     dataFields: dataFields,
     interactivity: interactivity,
+    widgetTree: widgetTree,
   );
 }
 

@@ -12,6 +12,7 @@ import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
 import '../util/xml_utils.dart';
+import 'kotlin_widget_emitter.dart';
 
 /// Generates Android Glance widget files from a [WidgetSpec].
 class AndroidGenerator {
@@ -115,22 +116,42 @@ class AndroidGenerator {
       buffer.writeln('}');
       dataClassContent = buffer.toString();
 
-      final bodyBuffer = StringBuffer();
-      bodyBuffer.writeln('    val prefs = currentState.preferences');
-      bodyBuffer
-          .writeln('    val widgetData = $className.fromPreferences(prefs)');
-      bodyBuffer.writeln(
-        '    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
-      );
-      bodyBuffer.writeln('      androidx.glance.layout.Column {');
-      bodyBuffer.writeln('        Text(text = "$widgetClassName")');
-      for (final field in spec.dataFields) {
+      if (spec.widgetTree == null) {
+        final bodyBuffer = StringBuffer();
+        bodyBuffer.writeln('    val prefs = currentState.preferences');
+        bodyBuffer
+            .writeln('    val widgetData = $className.fromPreferences(prefs)');
         bodyBuffer.writeln(
-          '        Text(text = "${field.key}: \${widgetData.${field.key} ?: "-"}")',
+          '    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
         );
+        bodyBuffer.writeln('      androidx.glance.layout.Column {');
+        bodyBuffer.writeln('        Text(text = "$widgetClassName")');
+        for (final field in spec.dataFields) {
+          bodyBuffer.writeln(
+            '        Text(text = "${field.key}: \${widgetData.${field.key} ?: "-"}")',
+          );
+        }
+        bodyBuffer.writeln('      }');
+        bodyBuffer.writeln('    }');
+        contentBody = bodyBuffer.toString();
       }
-      bodyBuffer.writeln('      }');
-      bodyBuffer.writeln('    }');
+    }
+
+    if (spec.widgetTree != null) {
+      final bodyBuffer = StringBuffer();
+      if (spec.dataFields.isNotEmpty) {
+        final className = '${spec.className}Data';
+        bodyBuffer.writeln('    val prefs = currentState.preferences');
+        bodyBuffer
+            .writeln('    val widgetData = $className.fromPreferences(prefs)');
+      }
+      bodyBuffer.writeln(
+        emitKotlinWidgetBody(
+          spec.widgetTree!,
+          dataExpr: 'widgetData',
+          indent: 1, // inside WidgetContent method
+        ),
+      );
       contentBody = bodyBuffer.toString();
     }
 

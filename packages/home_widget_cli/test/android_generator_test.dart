@@ -4,6 +4,7 @@ import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
+import 'package:home_widget_cli/src/models/widget_node.dart'; // NEW
 import 'package:test/test.dart';
 
 void main() {
@@ -143,5 +144,43 @@ void main() {
       contains('name="v2_widget_home_widget_description"'),
     );
     expect(stringsContent, contains('>A v2 widget description<'));
+    expect(stringsContent, contains('>A v2 widget description<'));
+  });
+
+  test('generates Kotlin widget with widget tree', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TreeWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.tree'),
+      ),
+      className: 'TreeWidget',
+      dataFields: [
+        DataFieldSpec(key: 'title', type: HWDataFieldType.string),
+      ],
+      widgetTree: TextNode(
+        content: DataRefValue(key: 'title', type: HWDataFieldType.string),
+      ),
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/tree/TreeWidgetHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    // Should use the emitter output with widgetData variable
+    expect(content, contains('Text(text = widgetData.title ?: "")'));
+    // Should NOT contain placeholder
+    expect(
+      content,
+      isNot(contains('Text(text = "TreeWidgetHomeWidget")')),
+    );
   });
 }

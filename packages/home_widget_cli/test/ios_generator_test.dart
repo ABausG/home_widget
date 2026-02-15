@@ -4,6 +4,7 @@ import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
+import 'package:home_widget_cli/src/models/widget_node.dart'; // NEW
 import 'package:test/test.dart';
 
 void main() {
@@ -127,5 +128,39 @@ void main() {
       content,
       contains('.supportedFamilies([.systemSmall, .systemMedium])'),
     );
+  });
+
+  test('generates Swift widget with widget tree', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TreeWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.tree'),
+      ),
+      className: 'TreeWidget',
+      dataFields: [
+        DataFieldSpec(key: 'title', type: HWDataFieldType.string),
+      ],
+      widgetTree: TextNode(
+        content: DataRefValue(key: 'title', type: HWDataFieldType.string),
+      ),
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/TreeWidgetHomeWidget/Widget.swift',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    // Should use the emitter output
+    expect(content, contains('Text(entry.data.title ?? "")'));
+    // Should NOT contain placeholder VStack
+    expect(content, isNot(contains('VStack {')));
   });
 }

@@ -9,6 +9,7 @@ import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
 import '../util/xcode_pbxproj_patcher.dart';
+import 'swift_widget_emitter.dart';
 
 /// Generates iOS WidgetKit extension files from a [WidgetSpec].
 class IosGenerator {
@@ -129,16 +130,26 @@ $loadDataLogic
     completion(Timeline(entries: [${widgetClassName}Entry(date: Date(), data: data)], policy: .atEnd))
 ''';
 
-      final viewBuffer = StringBuffer();
-      viewBuffer.writeln('    VStack {');
-      viewBuffer.writeln('      Text("$widgetClassName")');
-      for (final field in spec.dataFields) {
-        viewBuffer.writeln(
-          '      Text("${field.key}: \\(entry.data.${field.key}?.description ?? "-")")',
-        );
+      if (spec.widgetTree == null) {
+        final viewBuffer = StringBuffer();
+        viewBuffer.writeln('    VStack {');
+        viewBuffer.writeln('      Text("$widgetClassName")');
+        for (final field in spec.dataFields) {
+          viewBuffer.writeln(
+            '      Text("${field.key}: \\(entry.data.${field.key}?.description ?? "-")")',
+          );
+        }
+        viewBuffer.writeln('    }');
+        entryViewBody = viewBuffer.toString();
       }
-      viewBuffer.writeln('    }');
-      entryViewBody = viewBuffer.toString();
+    }
+
+    if (spec.widgetTree != null) {
+      entryViewBody = emitSwiftWidgetBody(
+        spec.widgetTree!,
+        dataExpr: 'entry.data',
+        indent: 2,
+      );
     }
 
     String? supportedFamilies;

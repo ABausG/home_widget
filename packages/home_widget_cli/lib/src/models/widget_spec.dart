@@ -1,4 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'widget_node.dart';
 
 /// Specification for interactivity callback configuration.
 class InteractivitySpec {
@@ -26,12 +27,16 @@ class WidgetSpec {
   /// The interactivity configuration.
   final InteractivitySpec? interactivity;
 
+  /// The widget tree definition (if any).
+  final WidgetNode? widgetTree;
+
   /// Creates a new [WidgetSpec].
   const WidgetSpec({
     required this.data,
     required this.className,
     this.dataFields = const [],
     this.interactivity,
+    this.widgetTree,
   });
   @override
   bool operator ==(Object other) =>
@@ -40,14 +45,16 @@ class WidgetSpec {
           data == other.data &&
           className == other.className &&
           dataFields == other.dataFields &&
-          interactivity == other.interactivity;
+          interactivity == other.interactivity &&
+          widgetTree == other.widgetTree;
 
   @override
   int get hashCode =>
       data.hashCode ^
       className.hashCode ^
       dataFields.hashCode ^
-      interactivity.hashCode;
+      interactivity.hashCode ^
+      widgetTree.hashCode;
 }
 
 /// Specification for a single data field in a widget.
