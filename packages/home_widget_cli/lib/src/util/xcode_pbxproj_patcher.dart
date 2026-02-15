@@ -517,6 +517,77 @@ Future<void> ensureRunnerEntitlementsInXcodeProject({
   logger.info('Ensured Runner uses Runner/Runner.entitlements.');
 }
 
+/// Ensures that the Runner target's `IPHONEOS_DEPLOYMENT_TARGET` is at least
+/// [minimumVersion] (defaults to `14.0`).
+///
+/// The `home_widget` plugin requires iOS 14.0+. If the app targets an older
+/// version, `pod install` will fail. This function bumps the deployment target
+/// in all Runner build configurations when it is below the minimum.
+Future<void> ensureMinimumDeploymentTargetInXcodeProject({
+  required File pbxprojFile,
+  double minimumVersion = 14.0,
+}) async {
+  var text = await pbxprojFile.readAsString();
+
+  final configBlockRe = RegExp(
+    r'(\t\t[0-9A-F]{24} /\* (?:Debug|Release|Profile) \*/ = \{\n'
+    r'\t\t\tisa = XCBuildConfiguration;\n'
+    r'(?:\t\t\tbaseConfigurationReference = [^\n]*\n)?'
+    r'\t\t\tbuildSettings = \{\n)'
+    r'([\s\S]*?)'
+    r'(\n\t\t\t\};\n\t\t\tname = (?:Debug|Release|Profile);\n\t\t\};)',
+  );
+
+  var didChange = false;
+  text = text.replaceAllMapped(configBlockRe, (m) {
+    final header = m.group(1)!;
+    var settings = m.group(2)!;
+    final footer = m.group(3)!;
+
+    // Only patch Runner configs (identified by the Runner Info.plist).
+    if (!settings.contains('INFOPLIST_FILE = Runner/Info.plist;')) {
+      return m.group(0)!;
+    }
+
+    final deployTargetRe = RegExp(
+      r'^\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = ([\d.]+);$',
+      multiLine: true,
+    );
+    final match = deployTargetRe.firstMatch(settings);
+
+    if (match != null) {
+      final currentVersion = double.tryParse(match.group(1)!) ?? 0.0;
+      if (currentVersion < minimumVersion) {
+        settings = settings.replaceFirst(
+          deployTargetRe,
+          '\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = $minimumVersion;',
+        );
+        didChange = true;
+      }
+    } else {
+      // No IPHONEOS_DEPLOYMENT_TARGET at all – insert it after INFOPLIST_FILE.
+      const anchor = 'INFOPLIST_FILE = Runner/Info.plist;\n';
+      if (settings.contains(anchor)) {
+        settings = settings.replaceFirst(
+          anchor,
+          '$anchor\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = $minimumVersion;\n',
+        );
+        didChange = true;
+      }
+    }
+
+    return '$header$settings$footer';
+  });
+
+  if (!didChange) return;
+
+  await pbxprojFile.writeAsString(text);
+  logger.info('Updated Xcode project: ${pbxprojFile.path}');
+  logger.info(
+    'Ensured Runner IPHONEOS_DEPLOYMENT_TARGET >= $minimumVersion.',
+  );
+}
+
 String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
   String pbxproj, {
   required String runnerTargetId,

@@ -190,6 +190,9 @@ $loadDataLogic
 
       // Ensure Runner is signed with Runner/Runner.entitlements (App Groups apply).
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
+
+      // Ensure Runner's deployment target is at least 14.0 (required by home_widget).
+      await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
       logger.success('Updated: ${xcodeproj.path}');
     }
   }
