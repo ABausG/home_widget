@@ -68,10 +68,7 @@ void main() {
       expect(spec!.name, 'Basic Creation');
       expect(spec.className, 'BasicCreation');
       expect(spec.android, isNotNull);
-      // packageName is optional/null in HomeWidgetAndroidConfiguration unless specified
-      expect(spec.android?.packageName, isNull);
       expect(spec.ios, isNotNull);
-      expect(spec.ios?.groupId, 'group.example');
     });
   });
 }

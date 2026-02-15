@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:path/path.dart' as p;
 
 import '../scaffold/scaffold.dart';
 import '../util/cli_io.dart';
+import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 import '../util/naming.dart';
 
@@ -106,52 +106,12 @@ class CreateCommand extends Command<int> {
       await scaffold.createIos(appGroupId: appGroupId);
     }
 
-    await _ensureFlutterHomeWidgetDependency(cwd);
+    await ensureFlutterHomeWidgetDependency(cwd);
 
     cliIO.writelnOut(
       'Done. Created placeholder structure for $widgetClassName.',
     );
     return ExitCodes.success;
-  }
-}
-
-Future<void> _ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  if (!pubspec.existsSync()) {
-    cliIO.writelnErr(
-      'Warning: pubspec.yaml not found in ${projectRoot.path}; skipping '
-      '`flutter pub add home_widget`.',
-    );
-    return;
-  }
-
-  final text = pubspec.readAsStringSync();
-  // Cheap idempotency: if the dependency is already present anywhere, skip.
-  if (RegExp(r'^\s*home_widget\s*:', multiLine: true).hasMatch(text)) {
-    return;
-  }
-
-  final result = await Process.run(
-    'flutter',
-    ['pub', 'add', 'home_widget'],
-    workingDirectory: projectRoot.path,
-    runInShell: true,
-  );
-
-  if (result.stdout != null && result.stdout.toString().trim().isNotEmpty) {
-    cliIO.writeOut(result.stdout.toString());
-    if (!result.stdout.toString().endsWith('\n')) cliIO.writelnOut();
-  }
-  if (result.stderr != null && result.stderr.toString().trim().isNotEmpty) {
-    cliIO.writeErr(result.stderr.toString());
-    if (!result.stderr.toString().endsWith('\n')) cliIO.writelnErr();
-  }
-
-  if (result.exitCode != 0) {
-    cliIO.writelnErr(
-      'Warning: failed to run `flutter pub add home_widget` (exit code '
-      '${result.exitCode}). You can run it manually in your project root.',
-    );
   }
 }
 

@@ -7,6 +7,7 @@ import '../generators/ios_generator.dart';
 import '../models/widget_spec.dart';
 import '../parser/schema_parser.dart';
 import '../util/cli_io.dart';
+import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 
 class GenerateCommand extends Command<int> {
@@ -91,6 +92,9 @@ class GenerateCommand extends Command<int> {
             .generate();
       }
     }
+
+    // Ensure dependencies are present since generated code depends on home_widget
+    await ensureFlutterHomeWidgetDependency(Directory.current);
 
     return ExitCodes.success;
   }
