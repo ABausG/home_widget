@@ -50,15 +50,15 @@ class DartHelperGenerator {
         final type = field.type.dartType;
         buffer.writeln('    $type? ${field.key},');
       }
-      buffer.writeln('  }) async {');
+      buffer.writeln('  }) {');
+      buffer.writeln('    return Future.wait([');
       for (final field in spec.dataFields) {
         final type = field.type.dartType;
-        buffer.writeln('    if (${field.key} != null) {');
         buffer.writeln(
-          "      await HomeWidget.saveWidgetData<$type>('${field.key}', ${field.key});",
+          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('${field.key}', ${field.key}),",
         );
-        buffer.writeln('    }');
       }
+      buffer.writeln('    ]);');
       buffer.writeln('  }');
       buffer.writeln();
 
@@ -66,14 +66,14 @@ class DartHelperGenerator {
       for (final field in spec.dataFields) {
         buffer.writeln('    bool ${field.key} = false,');
       }
-      buffer.writeln('  }) async {');
+      buffer.writeln('  }) {');
+      buffer.writeln('    return Future.wait([');
       for (final field in spec.dataFields) {
-        buffer.writeln('    if (${field.key}) {');
         buffer.writeln(
-          "      await HomeWidget.saveWidgetData('${field.key}', null);",
+          "      if (${field.key}) HomeWidget.saveWidgetData('${field.key}', null),",
         );
-        buffer.writeln('    }');
       }
+      buffer.writeln('    ]);');
       buffer.writeln('  }');
       buffer.writeln();
 

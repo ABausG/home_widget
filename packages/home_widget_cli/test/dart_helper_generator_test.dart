@@ -27,13 +27,13 @@ void main() {
       expect(
         output,
         contains(
-          "await HomeWidget.saveWidgetData<String>('countLabel', countLabel);",
+          "if (countLabel != null) HomeWidget.saveWidgetData<String>('countLabel', countLabel),",
         ),
       );
       expect(
         output,
         contains(
-          "await HomeWidget.saveWidgetData<int>('count', count);",
+          "if (count != null) HomeWidget.saveWidgetData<int>('count', count),",
         ),
       );
 
@@ -43,7 +43,9 @@ void main() {
       expect(output, contains('bool count = false,'));
       expect(
         output,
-        contains("await HomeWidget.saveWidgetData('countLabel', null);"),
+        contains(
+          "if (countLabel) HomeWidget.saveWidgetData('countLabel', null),",
+        ),
       );
 
       // getData

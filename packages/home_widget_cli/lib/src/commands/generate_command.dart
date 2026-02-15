@@ -115,10 +115,13 @@ class GenerateCommand extends Command<int> {
       final dartOutPath = dartOutOption ??
           spec.data.dartOutput ??
           p.join(
-            p.dirname(path),
+            'lib',
+            'home_widget',
             '${p.basenameWithoutExtension(path)}.home_widget.dart',
           );
-      await File(dartOutPath).writeAsString(dartHelperContent);
+      final dartOutFile = File(dartOutPath);
+      await dartOutFile.parent.create(recursive: true);
+      await dartOutFile.writeAsString(dartHelperContent);
 
       if (spec.data.android != null) {
         logger.info('Generating Android for ${spec.data.name}...');
