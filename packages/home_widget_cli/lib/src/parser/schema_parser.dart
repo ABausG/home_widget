@@ -41,6 +41,8 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
   String? dartOutput;
   HomeWidgetAndroidConfiguration? android;
   HomeWidgetIOSConfiguration? ios;
+  List<DataFieldSpec> dataFields = [];
+  InteractivitySpec? interactivity;
 
   for (final arg in args.arguments) {
     if (arg is NamedExpression) {
@@ -55,6 +57,8 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
         if (expression is StringLiteral) {
           dartOutput = expression.stringValue;
         }
+      } else if (argName == 'data') {
+        dataFields = _parseDataMap(expression);
       } else if (argName == 'android') {
         ArgumentList? configArgs;
         if (expression is InstanceCreationExpression) {
@@ -77,6 +81,27 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
         if (configArgs != null) {
           ios = _extractIosConfig(configArgs);
         }
+      } else if (argName == 'interactivity') {
+        if (expression is InstanceCreationExpression) {
+          String? importPath;
+          String? callbackName;
+
+          for (final arg in expression.argumentList.arguments) {
+            if (arg is NamedExpression) {
+              final name = arg.name.label.name;
+              if (name == 'import') {
+                importPath = arg.expression.toSource().replaceAll("'", "");
+              } else if (name == 'callback') {
+                callbackName = arg.expression.toSource().replaceAll("'", "");
+              }
+            }
+          }
+
+          if (importPath != null && callbackName != null) {
+            interactivity =
+                InteractivitySpec(import: importPath, callback: callbackName);
+          }
+        }
       }
     }
   }
@@ -95,7 +120,48 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
       iOS: ios,
     ),
     className: className,
+    dataFields: dataFields,
+    interactivity: interactivity,
   );
+}
+
+List<DataFieldSpec> _parseDataMap(Expression? dataExpr) {
+  if (dataExpr == null) return [];
+  if (dataExpr is! SetOrMapLiteral) {
+    throw FormatException('data must be a Map literal');
+  }
+  return dataExpr.elements.map((element) {
+    if (element is! MapLiteralEntry) {
+      throw FormatException('data entries must be key: value pairs');
+    }
+    final keyNode = element.key;
+    if (keyNode is! SimpleStringLiteral) {
+      throw FormatException('data keys must be string literals');
+    }
+    final key = keyNode.value;
+
+    final valueNode = element.value;
+    String? typeName;
+    if (valueNode is InstanceCreationExpression) {
+      typeName = valueNode.constructorName.type.name2.lexeme;
+    } else if (valueNode is MethodInvocation) {
+      // Analyzer parses unknown constructors as MethodInvocation
+      typeName = valueNode.methodName.name;
+    } else {
+      throw FormatException(
+        'data values must be HWDataType constructors (found ${valueNode.runtimeType})',
+      );
+    }
+
+    final type = switch (typeName) {
+      'HWString' => HWDataFieldType.string,
+      'HWInt' => HWDataFieldType.int_,
+      'HWDouble' => HWDataFieldType.double_,
+      'HWBool' => HWDataFieldType.bool_,
+      _ => throw FormatException('Unknown data type: $typeName'),
+    };
+    return DataFieldSpec(key: key, type: type);
+  }).toList();
 }
 
 HomeWidgetAndroidConfiguration? _extractAndroidConfig(ArgumentList args) {

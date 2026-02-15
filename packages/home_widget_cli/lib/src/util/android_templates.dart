@@ -11,6 +11,7 @@ String androidGlanceWidgetTemplate({
   required String packageName,
   required String widgetClassName,
   String? contentBody,
+  String? extraContent,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -58,6 +59,8 @@ class $widgetClassName : GlanceAppWidget() {
 $body
   }
 }
+
+${extraContent ?? ''}
 ''';
 }
 

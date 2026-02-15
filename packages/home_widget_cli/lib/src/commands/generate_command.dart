@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
+import 'package:path/path.dart' as p;
 
 import '../generators/android_generator.dart';
+import '../generators/config_generator.dart';
+import '../generators/dart_helper_generator.dart';
 import '../generators/ios_generator.dart';
 import '../models/widget_spec.dart';
 import '../parser/schema_parser.dart';
@@ -25,6 +28,10 @@ class GenerateCommand extends Command<int> {
       abbr: 'i',
       help: 'Path to schema file or directory. Defaults to home_widget/',
     );
+    argParser.addOption(
+      'dart-out',
+      help: 'Output path for the generated Dart helper file.',
+    );
   }
 
   @override
@@ -39,7 +46,7 @@ class GenerateCommand extends Command<int> {
       return ExitCodes.noInput;
     }
 
-    final specs = <WidgetSpec>[];
+    final specs = <({String path, WidgetSpec spec})>[];
 
     if (inputEntity is Directory) {
       await for (final file in inputEntity.list(recursive: true)) {
@@ -48,7 +55,7 @@ class GenerateCommand extends Command<int> {
             final content = await file.readAsString();
             final spec = await parseSchemaSource(content, filePath: file.path);
             if (spec != null) {
-              specs.add(spec);
+              specs.add((path: file.path, spec: spec));
               logger.info('Parsed ${spec.data.name} from ${file.path}');
             }
           } catch (e) {
@@ -63,7 +70,7 @@ class GenerateCommand extends Command<int> {
         final spec =
             await parseSchemaSource(content, filePath: inputEntity.path);
         if (spec != null) {
-          specs.add(spec);
+          specs.add((path: inputEntity.path, spec: spec));
           logger.info('Parsed ${spec.data.name} from ${inputEntity.path}');
         } else {
           logger.warn(
@@ -83,7 +90,36 @@ class GenerateCommand extends Command<int> {
 
     logger.info('Found ${specs.length} widget(s). Generating...');
 
-    for (final spec in specs) {
+    for (final item in specs) {
+      final spec = item.spec;
+      final path = item.path;
+
+      // Generate config file
+      if (spec.dataFields.isNotEmpty) {
+        logger.info('Generating config for ${spec.data.name}...');
+        final configGenerator = ConfigGenerator(spec);
+        final configContent = configGenerator.generate();
+        final configPath = p.join(
+          p.dirname(path),
+          '${p.basenameWithoutExtension(path)}.home_widget_config.dart',
+        );
+        await File(configPath).writeAsString(configContent);
+      }
+
+      // Generate Dart helper file
+      logger.info('Generating Dart helper for ${spec.data.name}...');
+      final dartHelperGenerator = DartHelperGenerator(spec);
+      final dartHelperContent = dartHelperGenerator.generate();
+
+      final dartOutOption = argResults?['dart-out'] as String?;
+      final dartOutPath = dartOutOption ??
+          spec.data.dartOutput ??
+          p.join(
+            p.dirname(path),
+            '${p.basenameWithoutExtension(path)}.home_widget.dart',
+          );
+      await File(dartOutPath).writeAsString(dartHelperContent);
+
       if (spec.data.android != null) {
         logger.info('Generating Android for ${spec.data.name}...');
         await AndroidGenerator(spec: spec, projectRoot: Directory.current)

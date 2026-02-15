@@ -65,10 +65,79 @@ class AndroidGenerator {
 
     // 2. Generate Widget.kt
     final widgetFile = File(p.join(kotlinDir.path, '$widgetClassName.kt'));
+
+    String? dataClassContent;
+    String? contentBody;
+
+    if (spec.dataFields.isNotEmpty) {
+      final className = '${spec.className}Data';
+      final buffer = StringBuffer();
+      buffer.writeln('data class $className(');
+      for (final field in spec.dataFields) {
+        final type = field.type.kotlinType;
+        buffer.writeln('    val ${field.key}: $type? = null,');
+      }
+      buffer.writeln(') {');
+      buffer.writeln('    companion object {');
+      buffer.writeln(
+        '        fun fromPreferences(prefs: android.content.SharedPreferences): $className {',
+      );
+      buffer.writeln('            return $className(');
+
+      for (final field in spec.dataFields) {
+        final key = field.key;
+        String readLogic;
+        switch (field.type) {
+          case HWDataFieldType.string:
+            readLogic = 'prefs.getString("$key", null)';
+            break;
+          case HWDataFieldType.int_:
+            readLogic =
+                'if (prefs.contains("$key")) prefs.getInt("$key", 0) else null';
+            break;
+          case HWDataFieldType.double_:
+            readLogic =
+                'if (prefs.contains("$key")) prefs.getFloat("$key", 0f).toDouble() else null';
+            break;
+          case HWDataFieldType.bool_:
+            readLogic =
+                'if (prefs.contains("$key")) prefs.getBoolean("$key", false) else null';
+            break;
+        }
+
+        buffer.writeln('                ${field.key} = $readLogic,');
+      }
+
+      buffer.writeln('            )');
+      buffer.writeln('        }');
+      buffer.writeln('    }');
+      buffer.writeln('}');
+      dataClassContent = buffer.toString();
+
+      final bodyBuffer = StringBuffer();
+      bodyBuffer.writeln('    val prefs = currentState.preferences');
+      bodyBuffer.writeln('    val data = $className.fromPreferences(prefs)');
+      bodyBuffer.writeln(
+        '    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
+      );
+      bodyBuffer.writeln('      androidx.glance.layout.Column {');
+      bodyBuffer.writeln('        Text(text = "$widgetClassName")');
+      for (final field in spec.dataFields) {
+        bodyBuffer.writeln(
+          '        Text(text = "${field.key}: \${data.${field.key} ?: "-"}")',
+        );
+      }
+      bodyBuffer.writeln('      }');
+      bodyBuffer.writeln('    }');
+      contentBody = bodyBuffer.toString();
+    }
+
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
         packageName: packageName,
         widgetClassName: widgetClassName,
+        contentBody: contentBody,
+        extraContent: dataClassContent,
       ),
     );
     logger.success('Generated: ${widgetFile.path}');
@@ -106,5 +175,3 @@ class AndroidGenerator {
     );
   }
 }
-
-// Minimal HttpClient logic if we really wanted version resolution, but kept hardcoded above.

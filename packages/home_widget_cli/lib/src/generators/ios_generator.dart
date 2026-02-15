@@ -65,10 +65,91 @@ class IosGenerator {
     );
 
     // 1. Generate Widget.swift
+    String? extraContent;
+    String? entryDefinition;
+    String? getSnapshotBody;
+    String? getTimelineBody;
+    String? entryViewBody;
+
+    if (spec.dataFields.isNotEmpty) {
+      final className = '${spec.className}Data';
+
+      final buffer = StringBuffer();
+      buffer.writeln('struct $className {');
+      for (final field in spec.dataFields) {
+        final type = field.type.swiftType;
+        buffer.writeln('  let ${field.key}: $type?');
+      }
+      buffer.writeln();
+      buffer.writeln(
+        '  static func fromUserDefaults(_ defaults: UserDefaults?) -> $className {',
+      );
+      buffer.writeln('    return $className(');
+      for (final field in spec.dataFields) {
+        final key = field.key;
+        String readLogic;
+        switch (field.type) {
+          case HWDataFieldType.string:
+            readLogic = 'defaults?.string(forKey: "$key")';
+            break;
+          case HWDataFieldType.int_:
+            readLogic = 'defaults?.object(forKey: "$key") as? Int';
+            break;
+          case HWDataFieldType.double_:
+            readLogic = 'defaults?.object(forKey: "$key") as? Double';
+            break;
+          case HWDataFieldType.bool_:
+            readLogic = 'defaults?.object(forKey: "$key") as? Bool';
+            break;
+        }
+        buffer.writeln('      ${field.key}: $readLogic,');
+      }
+      buffer.writeln('    )');
+      buffer.writeln('  }');
+      buffer.writeln('}');
+      extraContent = buffer.toString();
+
+      entryDefinition = '''
+struct SimpleEntry: TimelineEntry {
+  let date: Date
+  let data: $className
+}
+''';
+
+      final loadDataLogic = '''
+    let prefs = UserDefaults(suiteName: "$groupId")
+    let data = $className.fromUserDefaults(prefs)
+''';
+      getSnapshotBody = '''
+$loadDataLogic
+    completion(SimpleEntry(date: Date(), data: data))
+''';
+      getTimelineBody = '''
+$loadDataLogic
+    completion(Timeline(entries: [SimpleEntry(date: Date(), data: data)], policy: .atEnd))
+''';
+
+      final viewBuffer = StringBuffer();
+      viewBuffer.writeln('    VStack {');
+      viewBuffer.writeln('      Text("$widgetClassName")');
+      for (final field in spec.dataFields) {
+        viewBuffer.writeln(
+          '      Text("${field.key}: \\(entry.data.${field.key}?.description ?? "-")")',
+        );
+      }
+      viewBuffer.writeln('    }');
+      entryViewBody = viewBuffer.toString();
+    }
+
     await widgetSwift.writeAsString(
       iosWidgetSwiftTemplate(
         widgetClassName: widgetClassName,
         appGroupId: groupId,
+        extraContent: extraContent,
+        entryDefinition: entryDefinition,
+        getSnapshotBody: getSnapshotBody,
+        getTimelineBody: getTimelineBody,
+        entryViewBody: entryViewBody,
       ),
     );
     logger.success('Generated: ${widgetSwift.path}');

@@ -10,10 +10,36 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 String iosWidgetSwiftTemplate({
   required String widgetClassName,
   required String appGroupId,
-  String? widgetBody,
+  String? entryDefinition,
+  String? getSnapshotBody,
+  String? getTimelineBody,
+  String? entryViewBody,
+  String? extraContent,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
+  final entryDef = entryDefinition ??
+      '''
+struct SimpleEntry: TimelineEntry {
+  let date: Date
+}
+''';
+  final snapshotBody = getSnapshotBody ??
+      '''
+    // Example of accessing data written by home_widget in Flutter:
+    // let prefs = UserDefaults(suiteName: "$appGroupId")
+    // let counter = prefs?.integer(forKey: "counter") ?? 0
+    completion(SimpleEntry(date: Date()))
+''';
+  final timelineBody = getTimelineBody ??
+      '''
+    completion(Timeline(entries: [SimpleEntry(date: Date())], policy: .atEnd))
+''';
+  final viewBody = entryViewBody ??
+      '''
+    Text("$widgetClassName (placeholder)")
+''';
+
   return '''
 $head
 //
@@ -30,25 +56,21 @@ struct Provider: TimelineProvider {
   }
 
   func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
-    // Example of accessing data written by home_widget in Flutter:
-    // let prefs = UserDefaults(suiteName: "$appGroupId")
-    // let counter = prefs?.integer(forKey: "counter") ?? 0
-    completion(SimpleEntry(date: Date()))
+$snapshotBody
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    completion(Timeline(entries: [SimpleEntry(date: Date())], policy: .atEnd))
+$timelineBody
   }
 }
 
-struct SimpleEntry: TimelineEntry {
-  let date: Date
-}
+$entryDef
 
 struct ${widgetClassName}EntryView: View {
   var entry: Provider.Entry
+
   var body: some View {
-    Text("$widgetClassName (placeholder)")
+$viewBody
   }
 }
 
@@ -63,6 +85,8 @@ struct $widgetClassName: Widget {
     .description("home_widget placeholder widget")
   }
 }
+
+${extraContent ?? ''}
 ''';
 }
 

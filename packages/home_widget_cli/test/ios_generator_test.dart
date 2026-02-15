@@ -2,75 +2,82 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
-import 'package:test/test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 
 void main() {
   late Directory tempDir;
 
-  setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('hw_ios_gen_test');
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync('ios_gen_test');
+    Directory(p.join(tempDir.path, 'ios')).createSync(recursive: true);
   });
 
-  tearDown(() async {
-    await tempDir.delete(recursive: true);
+  tearDown(() {
+    tempDir.deleteSync(recursive: true);
   });
 
-  test('generate creates correct files', () async {
-    // Setup minimal iOS structure
-    final iosDir = Directory(p.join(tempDir.path, 'ios'));
-    await iosDir.create(recursive: true);
-
-    // Create pbxproj
-    final xcodeprojDir = Directory(p.join(iosDir.path, 'Runner.xcodeproj'));
-    await xcodeprojDir.create(recursive: true);
-    final pbxproj = File(p.join(xcodeprojDir.path, 'project.pbxproj'));
-    await pbxproj.writeAsString('// project.pbxproj placeholder');
-
+  test('generates Swift widget with data struct', () async {
     final spec = WidgetSpec(
-      data: const HomeWidget(
-        name: 'Test Widget',
-        iOS: HomeWidgetIOSConfiguration(groupId: 'group.test.app'),
+      data: HomeWidget(
+        name: 'ExampleWidget',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.com.example',
+        ),
       ),
-      className: 'TestWidget', // This will become TestWidgetHomeWidget
+      className: 'ExampleWidget',
+      dataFields: [
+        DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
+        DataFieldSpec(key: 'label', type: HWDataFieldType.string),
+      ],
     );
 
     final generator = IosGenerator(spec: spec, projectRoot: tempDir);
     await generator.generate();
 
-    // Verify files
-    final extensionDir = Directory(p.join(iosDir.path, 'TestWidgetHomeWidget'));
-    final widgetSwift = File(p.join(extensionDir.path, 'Widget.swift'));
-    final widgetBundleSwift =
-        File(p.join(extensionDir.path, 'WidgetBundle.swift'));
-    final infoPlist = File(p.join(extensionDir.path, 'Info.plist'));
-    final extensionEntitlements =
-        File(p.join(iosDir.path, 'TestWidgetHomeWidget.entitlements'));
-    final runnerEntitlements =
-        File(p.join(iosDir.path, 'Runner', 'Runner.entitlements'));
-
-    expect(widgetSwift.existsSync(), isTrue);
-    expect(widgetBundleSwift.existsSync(), isTrue);
-    expect(infoPlist.existsSync(), isTrue);
-
-    final swiftContent = await widgetSwift.readAsString();
-    expect(swiftContent, contains('struct TestWidgetHomeWidget: Widget'));
-    expect(swiftContent, contains('App Group ID used here: group.test.app'));
-
-    final bundleContent = await widgetBundleSwift.readAsString();
-    expect(
-      bundleContent,
-      contains('struct TestWidgetHomeWidgetBundle: WidgetBundle'),
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/ExampleWidgetHomeWidget/Widget.swift',
+      ),
     );
-    expect(bundleContent, contains('TestWidgetHomeWidget()'));
 
-    // Check entitlements creation (stubbed by ensuring path exists in test logic of generator, assuming utils work)
-    expect(extensionEntitlements.existsSync(), isTrue);
-    expect(runnerEntitlements.existsSync(), isTrue);
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
 
-    final entitlementContent = await extensionEntitlements.readAsString();
-    expect(entitlementContent, contains('group.test.app'));
+    // Check Data Struct
+    expect(content, contains('struct ExampleWidgetData {'));
+    expect(content, contains('let count: Int?'));
+    expect(content, contains('let label: String?'));
+    expect(
+      content,
+      contains(
+        'static func fromUserDefaults(_ defaults: UserDefaults?) -> ExampleWidgetData',
+      ),
+    );
+    expect(content, contains('defaults?.object(forKey: "count") as? Int'));
+    expect(content, contains('defaults?.string(forKey: "label")'));
+
+    // Check Entry
+    expect(content, contains('struct SimpleEntry: TimelineEntry {'));
+    expect(content, contains('let data: ExampleWidgetData'));
+
+    // Check Provider
+    expect(
+      content,
+      contains('let prefs = UserDefaults(suiteName: "group.com.example")'),
+    );
+    expect(
+      content,
+      contains('let data = ExampleWidgetData.fromUserDefaults(prefs)'),
+    );
+    expect(content, contains('SimpleEntry(date: Date(), data: data)'));
+
+    // Check View
+    expect(
+      content,
+      contains('Text("count: \\(entry.data.count?.description ?? "-")")'),
+    );
   });
 }

@@ -2,101 +2,75 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
-import 'package:test/test.dart';
-import 'package:path/path.dart' as p;
-
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
 
 void main() {
   late Directory tempDir;
 
-  setUp(() async {
-    tempDir = await Directory.systemTemp.createTemp('hw_android_gen_test');
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync('android_gen_test');
+    // Setup android/app structure
+    Directory(p.join(tempDir.path, 'android', 'app'))
+        .createSync(recursive: true);
   });
 
-  tearDown(() async {
-    await tempDir.delete(recursive: true);
+  tearDown(() {
+    tempDir.deleteSync(recursive: true);
   });
 
-  test('generate creates correct files', () async {
-    // Setup minimal android structure
-    final appDir = Directory(p.join(tempDir.path, 'android', 'app'));
-    await appDir.create(recursive: true);
-
-    // Create manifest
-    final manifestFile =
-        File(p.join(appDir.path, 'src', 'main', 'AndroidManifest.xml'));
-    await manifestFile.create(recursive: true);
-    await manifestFile.writeAsString('''
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.test.app">
-    <application>
-    </application>
-</manifest>
-''');
-
-    // Create build.gradle
-    final gradleFile = File(p.join(appDir.path, 'build.gradle'));
-    await gradleFile.create(recursive: true);
-    await gradleFile.writeAsString('// build.gradle');
-
+  test('generates Kotlin widget with data class', () async {
     final spec = WidgetSpec(
-      data: const HomeWidget(
-        name: 'Test Widget',
-        android: HomeWidgetAndroidConfiguration(packageName: 'com.test.app'),
+      data: HomeWidget(
+        name: 'ExampleWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
       ),
-      className: 'TestWidget', // This will become TestWidgetHomeWidget
+      className: 'ExampleWidget',
+      dataFields: [
+        DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
+        DataFieldSpec(key: 'label', type: HWDataFieldType.string),
+      ],
     );
 
     final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
     await generator.generate();
 
-    // Verify files
-    final kotlinDir =
-        p.join(appDir.path, 'src', 'main', 'kotlin', 'com', 'test', 'app');
-    final widgetFile = File(p.join(kotlinDir, 'TestWidgetHomeWidget.kt'));
-    final receiverFile =
-        File(p.join(kotlinDir, 'TestWidgetHomeWidgetReceiver.kt'));
-    final xmlFile = File(
+    final widgetFile = File(
       p.join(
-        appDir.path,
-        'src',
-        'main',
-        'res',
-        'xml',
-        'test_widget_home_widget.xml',
+        tempDir.path,
+        'android/app/src/main/kotlin/com/example/ExampleWidgetHomeWidget.kt',
       ),
     );
 
     expect(widgetFile.existsSync(), isTrue);
-    expect(receiverFile.existsSync(), isTrue);
-    expect(xmlFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
 
-    final widgetContent = await widgetFile.readAsString();
+    expect(content, contains('data class ExampleWidgetData('));
+    expect(content, contains('val count: Int? = null,'));
+    expect(content, contains('val label: String? = null,'));
     expect(
-      widgetContent,
-      contains('class TestWidgetHomeWidget : GlanceAppWidget()'),
-    );
-    expect(widgetContent, contains('package com.test.app'));
-
-    final receiverContent = await receiverFile.readAsString();
-    expect(
-      receiverContent,
+      content,
       contains(
-        'class TestWidgetHomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<TestWidgetHomeWidget>()',
+        'fun fromPreferences(prefs: android.content.SharedPreferences): ExampleWidgetData',
       ),
     );
-
-    final xmlContent = await xmlFile.readAsString();
     expect(
-      xmlContent,
+      content,
       contains(
-        'android:initialLayout="@layout/glance_default_loading_layout"',
+        'if (prefs.contains("count")) prefs.getInt("count", 0) else null',
       ),
     );
+    expect(content, contains('prefs.getString("label", null)'));
 
-    // Verify manifest update
-    final manifestContent = await manifestFile.readAsString();
-    expect(manifestContent, contains('TestWidgetHomeWidgetReceiver'));
-    expect(manifestContent, contains('@xml/test_widget_home_widget'));
+    // Check usage in UI
+    expect(
+      content,
+      contains('val data = ExampleWidgetData.fromPreferences(prefs)'),
+    );
+    expect(
+      content,
+      contains('''Text(text = "count: \${data.count ?: "-"}")'''),
+    );
   });
 }

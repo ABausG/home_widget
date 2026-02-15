@@ -1,4 +1,5 @@
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
+import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -69,6 +70,36 @@ void main() {
       expect(spec.className, 'BasicCreation');
       expect(spec.data.android, isNotNull);
       expect(spec.data.iOS, isNotNull);
+    });
+    test('parses data map', () async {
+      const source = '''
+        @HomeWidget(
+          name: 'Data Widget',
+          data: {
+            'str': HWString(),
+            'int': HWInt(),
+            'dbl': HWDouble(),
+            'bln': HWBool(),
+          },
+        )
+        class DataWidget {}
+      ''';
+
+      final spec = await parseSchemaSource(source);
+      expect(spec, isNotNull);
+      expect(spec!.dataFields, hasLength(4));
+
+      final strField = spec.dataFields.firstWhere((f) => f.key == 'str');
+      expect(strField.type, HWDataFieldType.string);
+
+      final intField = spec.dataFields.firstWhere((f) => f.key == 'int');
+      expect(intField.type, HWDataFieldType.int_);
+
+      final dblField = spec.dataFields.firstWhere((f) => f.key == 'dbl');
+      expect(dblField.type, HWDataFieldType.double_);
+
+      final blnField = spec.dataFields.firstWhere((f) => f.key == 'bln');
+      expect(blnField.type, HWDataFieldType.bool_);
     });
   });
 }
