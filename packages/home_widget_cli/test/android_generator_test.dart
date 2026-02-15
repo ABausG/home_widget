@@ -66,11 +66,11 @@ void main() {
     // Check usage in UI
     expect(
       content,
-      contains('val data = ExampleWidgetData.fromPreferences(prefs)'),
+      contains('val widgetData = ExampleWidgetData.fromPreferences(prefs)'),
     );
     expect(
       content,
-      contains('''Text(text = "count: \${data.count ?: "-"}")'''),
+      contains('''Text(text = "count: \${widgetData.count ?: "-"}")'''),
     );
   });
 }

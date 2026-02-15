@@ -116,7 +116,8 @@ class AndroidGenerator {
 
       final bodyBuffer = StringBuffer();
       bodyBuffer.writeln('    val prefs = currentState.preferences');
-      bodyBuffer.writeln('    val data = $className.fromPreferences(prefs)');
+      bodyBuffer
+          .writeln('    val widgetData = $className.fromPreferences(prefs)');
       bodyBuffer.writeln(
         '    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
       );
@@ -124,7 +125,7 @@ class AndroidGenerator {
       bodyBuffer.writeln('        Text(text = "$widgetClassName")');
       for (final field in spec.dataFields) {
         bodyBuffer.writeln(
-          '        Text(text = "${field.key}: \${data.${field.key} ?: "-"}")',
+          '        Text(text = "${field.key}: \${widgetData.${field.key} ?: "-"}")',
         );
       }
       bodyBuffer.writeln('      }');

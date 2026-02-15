@@ -60,7 +60,10 @@ void main() {
     expect(content, contains('defaults?.string(forKey: "label")'));
 
     // Check Entry
-    expect(content, contains('struct SimpleEntry: TimelineEntry {'));
+    expect(
+      content,
+      contains('struct ExampleWidgetHomeWidgetEntry: TimelineEntry {'),
+    );
     expect(content, contains('let data: ExampleWidgetData'));
 
     // Check Provider
@@ -72,7 +75,10 @@ void main() {
       content,
       contains('let data = ExampleWidgetData.fromUserDefaults(prefs)'),
     );
-    expect(content, contains('SimpleEntry(date: Date(), data: data)'));
+    expect(
+      content,
+      contains('ExampleWidgetHomeWidgetEntry(date: Date(), data: data)'),
+    );
 
     // Check View
     expect(

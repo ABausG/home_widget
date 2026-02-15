@@ -21,7 +21,7 @@ String iosWidgetSwiftTemplate({
   final head = header ?? _defaultHeader;
   final entryDef = entryDefinition ??
       '''
-struct SimpleEntry: TimelineEntry {
+struct ${widgetClassName}Entry: TimelineEntry {
   let date: Date
 }
 ''';
@@ -30,11 +30,11 @@ struct SimpleEntry: TimelineEntry {
     // Example of accessing data written by home_widget in Flutter:
     // let prefs = UserDefaults(suiteName: "$appGroupId")
     // let counter = prefs?.integer(forKey: "counter") ?? 0
-    completion(SimpleEntry(date: Date()))
+    completion(${widgetClassName}Entry(date: Date()))
 ''';
   final timelineBody = getTimelineBody ??
       '''
-    completion(Timeline(entries: [SimpleEntry(date: Date())], policy: .atEnd))
+    completion(Timeline(entries: [${widgetClassName}Entry(date: Date())], policy: .atEnd))
 ''';
   final viewBody = entryViewBody ??
       '''
@@ -52,11 +52,11 @@ import SwiftUI
 import WidgetKit
 
 struct Provider: TimelineProvider {
-  func placeholder(in context: Context) -> SimpleEntry {
-    ${placeholderBody ?? 'SimpleEntry(date: Date())'}
+  func placeholder(in context: Context) -> ${widgetClassName}Entry {
+    ${placeholderBody ?? '${widgetClassName}Entry(date: Date())'}
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
+  func getSnapshot(in context: Context, completion: @escaping (${widgetClassName}Entry) -> Void) {
 $snapshotBody
   }
 

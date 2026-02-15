@@ -110,7 +110,7 @@ class IosGenerator {
       extraContent = buffer.toString();
 
       entryDefinition = '''
-struct SimpleEntry: TimelineEntry {
+struct ${widgetClassName}Entry: TimelineEntry {
   let date: Date
   let data: $className
 }
@@ -122,11 +122,11 @@ struct SimpleEntry: TimelineEntry {
 ''';
       getSnapshotBody = '''
 $loadDataLogic
-    completion(SimpleEntry(date: Date(), data: data))
+    completion(${widgetClassName}Entry(date: Date(), data: data))
 ''';
       getTimelineBody = '''
 $loadDataLogic
-    completion(Timeline(entries: [SimpleEntry(date: Date(), data: data)], policy: .atEnd))
+    completion(Timeline(entries: [${widgetClassName}Entry(date: Date(), data: data)], policy: .atEnd))
 ''';
 
       final viewBuffer = StringBuffer();
@@ -146,7 +146,7 @@ $loadDataLogic
         widgetClassName: widgetClassName,
         appGroupId: groupId,
         placeholderBody: spec.dataFields.isNotEmpty
-            ? 'SimpleEntry(date: Date(), data: ${spec.className}Data.fromUserDefaults(nil))'
+            ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data.fromUserDefaults(nil))'
             : null,
         extraContent: extraContent,
         entryDefinition: entryDefinition,
