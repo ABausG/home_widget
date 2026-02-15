@@ -73,4 +73,75 @@ void main() {
       contains('''Text(text = "count: \${widgetData.count ?: "-"}")'''),
     );
   });
+
+  test('generates provider info XML and strings.xml with v2 fields', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'V2Widget',
+        description: 'A v2 widget description',
+        android: HomeWidgetAndroidConfiguration(
+          packageName: 'com.example.v2',
+          minWidth: 100,
+          minHeight: 50,
+          minResizeWidth: 80,
+          minResizeHeight: 40,
+          maxResizeWidth: 200,
+          maxResizeHeight: 100,
+          targetCellWidth: 2,
+          targetCellHeight: 1,
+          resizeMode: HWAndroidResizeMode.horizontal,
+          widgetCategory: HWAndroidWidgetCategory.keyguard,
+          updatePeriodMillis: 3600000,
+        ),
+      ),
+      className: 'V2Widget',
+      dataFields: [],
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    // Check XML
+    final xmlFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/res/xml/v2_widget_home_widget.xml',
+      ),
+    );
+    expect(xmlFile.existsSync(), isTrue);
+    final xmlContent = xmlFile.readAsStringSync();
+
+    expect(xmlContent, contains('android:minWidth="100dp"'));
+    expect(xmlContent, contains('android:minHeight="50dp"'));
+    expect(xmlContent, contains('android:minResizeWidth="80dp"'));
+    expect(xmlContent, contains('android:minResizeHeight="40dp"'));
+    expect(xmlContent, contains('android:maxResizeWidth="200dp"'));
+    expect(xmlContent, contains('android:maxResizeHeight="100dp"'));
+    expect(xmlContent, contains('android:targetCellWidth="2"'));
+    expect(xmlContent, contains('android:targetCellHeight="1"'));
+    expect(xmlContent, contains('android:resizeMode="horizontal"'));
+    expect(xmlContent, contains('android:widgetCategory="keyguard"'));
+    expect(xmlContent, contains('android:updatePeriodMillis="3600000"'));
+    expect(
+      xmlContent,
+      contains(
+        'android:description="@string/v2_widget_home_widget_description"',
+      ),
+    );
+
+    // Check Strings
+    final stringsFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/res/values/strings.xml',
+      ),
+    );
+    expect(stringsFile.existsSync(), isTrue);
+    final stringsContent = stringsFile.readAsStringSync();
+    expect(
+      stringsContent,
+      contains('name="v2_widget_home_widget_description"'),
+    );
+    expect(stringsContent, contains('>A v2 widget description<'));
+  });
 }

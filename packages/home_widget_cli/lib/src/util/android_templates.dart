@@ -90,21 +90,73 @@ class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassNa
 /// Generates the `appwidget-provider` XML content.
 ///
 /// [initialLayoutName]: The name of the layout resource to use as initial layout.
+/// [minWidth]: The minimum width of the widget (default 180dp).
+/// [minHeight]: The minimum height of the widget (default 80dp).
+/// [minResizeWidth]: The minimum resize width (optional).
+/// [minResizeHeight]: The minimum resize height (optional).
+/// [maxResizeWidth]: The maximum resize width (optional, API 31+).
+/// [maxResizeHeight]: The maximum resize height (optional, API 31+).
+/// [targetCellWidth]: The target cell width (optional, API 31+).
+/// [targetCellHeight]: The target cell height (optional, API 31+).
+/// [resizeMode]: The resize mode (default "horizontal|vertical").
+/// [widgetCategory]: The widget category (default "home_screen").
+/// [updatePeriodMillis]: The update period in milliseconds (default 0).
+/// [descriptionResource]: The resource name for the description (optional, e.g. "@string/my_desc").
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidAppWidgetProviderInfoTemplate({
   required String initialLayoutName,
+  int minWidth = 180,
+  int minHeight = 80,
+  int? minResizeWidth,
+  int? minResizeHeight,
+  int? maxResizeWidth,
+  int? maxResizeHeight,
+  int? targetCellWidth,
+  int? targetCellHeight,
+  String resizeMode = 'horizontal|vertical',
+  String widgetCategory = 'home_screen',
+  int updatePeriodMillis = 0,
+  String? descriptionResource,
   String? header,
 }) {
   final head = header ?? '<!-- $_defaultHeader -->';
-  return '''
-<?xml version="1.0" encoding="utf-8"?>
-$head
-<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:initialLayout="@layout/$initialLayoutName"
-    android:minWidth="180dp"
-    android:minHeight="80dp"
-    android:updatePeriodMillis="0"
-    android:resizeMode="horizontal|vertical"
-    android:widgetCategory="home_screen" />
-''';
+
+  final buffer = StringBuffer();
+  buffer.writeln('<?xml version="1.0" encoding="utf-8"?>');
+  buffer.writeln(head);
+  buffer.writeln(
+    '<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"',
+  );
+  buffer.writeln('    android:initialLayout="@layout/$initialLayoutName"');
+  buffer.writeln('    android:minWidth="${minWidth}dp"');
+  buffer.writeln('    android:minHeight="${minHeight}dp"');
+  buffer.writeln('    android:updatePeriodMillis="$updatePeriodMillis"');
+  buffer.writeln('    android:resizeMode="$resizeMode"');
+  buffer.writeln('    android:widgetCategory="$widgetCategory"');
+
+  if (minResizeWidth != null) {
+    buffer.writeln('    android:minResizeWidth="${minResizeWidth}dp"');
+  }
+  if (minResizeHeight != null) {
+    buffer.writeln('    android:minResizeHeight="${minResizeHeight}dp"');
+  }
+  if (maxResizeWidth != null) {
+    buffer.writeln('    android:maxResizeWidth="${maxResizeWidth}dp"');
+  }
+  if (maxResizeHeight != null) {
+    buffer.writeln('    android:maxResizeHeight="${maxResizeHeight}dp"');
+  }
+  if (targetCellWidth != null) {
+    buffer.writeln('    android:targetCellWidth="$targetCellWidth"');
+  }
+  if (targetCellHeight != null) {
+    buffer.writeln('    android:targetCellHeight="$targetCellHeight"');
+  }
+  if (descriptionResource != null) {
+    buffer.writeln('    android:description="$descriptionResource"');
+  }
+
+  buffer.writeln('/>');
+
+  return buffer.toString();
 }

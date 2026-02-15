@@ -85,5 +85,47 @@ void main() {
       content,
       contains('Text("count: \\(entry.data.count?.description ?? "-")")'),
     );
+    expect(
+      content,
+      contains('Text("count: \\(entry.data.count?.description ?? "-")")'),
+    );
+  });
+
+  test('generates Swift widget with v2 metadata and families', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'V2Widget',
+        description: 'A v2 widget description',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.v2',
+          supportedFamilies: [
+            HWWidgetFamily.systemSmall,
+            HWWidgetFamily.systemMedium,
+          ],
+        ),
+      ),
+      className: 'V2Widget',
+      dataFields: [],
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/V2WidgetHomeWidget/Widget.swift',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, contains('.configurationDisplayName("V2Widget")'));
+    expect(content, contains('.description("A v2 widget description")'));
+    expect(
+      content,
+      contains('.supportedFamilies([.systemSmall, .systemMedium])'),
+    );
   });
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
+import '../models/extensions.dart';
 import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
@@ -64,7 +65,6 @@ class IosGenerator {
       p.join(iosDir.path, '$widgetClassName.entitlements'),
     );
 
-    // 1. Generate Widget.swift
     String? extraContent;
     String? entryDefinition;
     String? getSnapshotBody;
@@ -141,6 +141,15 @@ $loadDataLogic
       entryViewBody = viewBuffer.toString();
     }
 
+    String? supportedFamilies;
+    if (spec.data.iOS?.supportedFamilies != null &&
+        spec.data.iOS!.supportedFamilies!.isNotEmpty) {
+      final families = spec.data.iOS!.supportedFamilies!
+          .map((f) => f.toSwiftValue())
+          .join(', ');
+      supportedFamilies = '[$families]';
+    }
+
     await widgetSwift.writeAsString(
       iosWidgetSwiftTemplate(
         widgetClassName: widgetClassName,
@@ -153,21 +162,21 @@ $loadDataLogic
         getSnapshotBody: getSnapshotBody,
         getTimelineBody: getTimelineBody,
         entryViewBody: entryViewBody,
+        displayName: spec.data.name,
+        description: spec.data.description,
+        supportedFamilies: supportedFamilies,
       ),
     );
     logger.success('Generated: ${widgetSwift.path}');
 
-    // 2. Generate WidgetBundle.swift
     await widgetBundleSwift.writeAsString(
       iosWidgetBundleSwiftTemplate(widgetClassName: widgetClassName),
     );
     logger.success('Generated: ${widgetBundleSwift.path}');
 
-    // 3. Generate Info.plist
     await infoPlist.writeAsString(iosInfoPlistTemplate());
     logger.success('Generated: ${infoPlist.path}');
 
-    // 4. Ensure App Group entitlement is present for the extension and Runner.
     await ensureAppGroupEntitlement(
       entitlementsFile: extensionEntitlements,
       appGroupId: groupId,
@@ -184,7 +193,6 @@ $loadDataLogic
     );
     logger.success('Updated: ${runnerEntitlements.path}');
 
-    // 5. Patch the Xcode project so the extension can actually be built.
     if (xcodeproj.existsSync()) {
       await ensureWidgetExtensionTargetInXcodeProject(
         pbxprojFile: xcodeproj,

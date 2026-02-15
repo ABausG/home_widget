@@ -1,7 +1,41 @@
 import 'interactivity_config.dart';
 import 'types.dart';
 
+/// The rules by which a widget can be resized.
+///
+/// See: [AppWidgetProviderInfo.resizeMode](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#resizeMode)
+enum HWAndroidResizeMode {
+  /// The widget is not resizable.
+  none,
+
+  /// The widget is resizable horizontally.
+  horizontal,
+
+  /// The widget is resizable vertically.
+  vertical,
+
+  /// The widget is resizable both horizontally and vertically.
+  horizontalAndVertical,
+}
+
+/// The category of widget. Whether it can be displayed on the home screen,
+/// the keyguard, or both.
+///
+/// See: [AppWidgetProviderInfo.widgetCategory](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#widgetCategory)
+enum HWAndroidWidgetCategory {
+  /// The widget can be displayed on the home screen.
+  homeScreen,
+
+  /// The widget can be displayed on the keyguard.
+  keyguard,
+
+  /// The widget can be displayed in the search box.
+  searchbox,
+}
+
 /// Configuration for the Android widget.
+///
+/// See: [AppWidgetProviderInfo](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo)
 class HomeWidgetAndroidConfiguration {
   /// The package name of the app.
   ///
@@ -9,43 +43,193 @@ class HomeWidgetAndroidConfiguration {
   /// the Android project.
   final String? packageName;
 
-  const HomeWidgetAndroidConfiguration({this.packageName});
+  /// The default width of the widget when added to a host, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minWidth)
+  final int? minWidth;
+
+  /// The default height of the widget when added to a host, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minHeight)
+  final int? minHeight;
+
+  /// The minimum width the widget can be resized to, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minResizeWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minResizeWidth)
+  final int? minResizeWidth;
+
+  /// The minimum height the widget can be resized to, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minResizeHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minResizeHeight)
+  final int? minResizeHeight;
+
+  /// The maximum width the widget can be resized to, in dp.
+  ///
+  /// **Note:** This field corresponds to `maxResizeWidth` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.maxResizeWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#maxResizeWidth)
+  final int? maxResizeWidth;
+
+  /// The maximum height the widget can be resized to, in dp.
+  ///
+  /// **Note:** This field corresponds to `maxResizeHeight` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.maxResizeHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#maxResizeHeight)
+  final int? maxResizeHeight;
+
+  /// The default width of the widget when added to a host, in cells.
+  ///
+  /// **Note:** This field corresponds to `targetCellWidth` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.targetCellWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#targetCellWidth)
+  final int? targetCellWidth;
+
+  /// The default height of the widget when added to a host, in cells.
+  ///
+  /// **Note:** This field corresponds to `targetCellHeight` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.targetCellHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#targetCellHeight)
+  final int? targetCellHeight;
+
+  /// The rules by which a widget can be resized.
+  ///
+  /// See: [AppWidgetProviderInfo.resizeMode](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#resizeMode)
+  final HWAndroidResizeMode? resizeMode;
+
+  /// The category of widget.
+  ///
+  /// See: [AppWidgetProviderInfo.widgetCategory](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#widgetCategory)
+  final HWAndroidWidgetCategory? widgetCategory;
+
+  /// The update period in milliseconds.
+  ///
+  /// See: [AppWidgetProviderInfo.updatePeriodMillis](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#updatePeriodMillis)
+  final int? updatePeriodMillis;
+
+  const HomeWidgetAndroidConfiguration({
+    this.packageName,
+    this.minWidth,
+    this.minHeight,
+    this.minResizeWidth,
+    this.minResizeHeight,
+    this.maxResizeWidth,
+    this.maxResizeHeight,
+    this.targetCellWidth,
+    this.targetCellHeight,
+    this.resizeMode,
+    this.widgetCategory,
+    this.updatePeriodMillis,
+  });
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HomeWidgetAndroidConfiguration &&
-          packageName == other.packageName;
+          packageName == other.packageName &&
+          minWidth == other.minWidth &&
+          minHeight == other.minHeight &&
+          minResizeWidth == other.minResizeWidth &&
+          minResizeHeight == other.minResizeHeight &&
+          maxResizeWidth == other.maxResizeWidth &&
+          maxResizeHeight == other.maxResizeHeight &&
+          targetCellWidth == other.targetCellWidth &&
+          targetCellHeight == other.targetCellHeight &&
+          resizeMode == other.resizeMode &&
+          widgetCategory == other.widgetCategory &&
+          updatePeriodMillis == other.updatePeriodMillis;
 
   @override
-  int get hashCode => packageName.hashCode;
+  int get hashCode =>
+      packageName.hashCode ^
+      minWidth.hashCode ^
+      minHeight.hashCode ^
+      minResizeWidth.hashCode ^
+      minResizeHeight.hashCode ^
+      maxResizeWidth.hashCode ^
+      maxResizeHeight.hashCode ^
+      targetCellWidth.hashCode ^
+      targetCellHeight.hashCode ^
+      resizeMode.hashCode ^
+      widgetCategory.hashCode ^
+      updatePeriodMillis.hashCode;
+}
+
+/// The size and shape of a widget.
+///
+/// See: [WidgetFamily](https://developer.apple.com/documentation/widgetkit/widgetfamily)
+enum HWWidgetFamily {
+  /// A small widget.
+  systemSmall,
+
+  /// A medium-sized widget.
+  systemMedium,
+
+  /// A large widget.
+  systemLarge,
+
+  /// An extra-large widget.
+  systemExtraLarge,
+
+  /// A circular accessory widget.
+  accessoryCircular,
+
+  /// A rectangular accessory widget.
+  accessoryRectangular,
+
+  /// An inline accessory widget.
+  accessoryInline,
 }
 
 /// Configuration for the iOS widget.
+///
+/// See: [WidgetConfiguration](https://developer.apple.com/documentation/widgetkit/widgetconfiguration)
 class HomeWidgetIOSConfiguration {
-  /// The app group ID for the widget.
+  /// The App Group ID allowing data sharing between the app and the widget.
   final String groupId;
 
-  const HomeWidgetIOSConfiguration({required this.groupId});
+  /// The supported widget families.
+  ///
+  /// See: [StaticConfiguration.supportedFamilies(_:)](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:))
+  final List<HWWidgetFamily>? supportedFamilies;
+
+  const HomeWidgetIOSConfiguration({
+    required this.groupId,
+    this.supportedFamilies,
+  });
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is HomeWidgetIOSConfiguration && groupId == other.groupId;
+      other is HomeWidgetIOSConfiguration &&
+          groupId == other.groupId &&
+          supportedFamilies == other.supportedFamilies;
 
   @override
-  int get hashCode => groupId.hashCode;
+  int get hashCode => groupId.hashCode ^ supportedFamilies.hashCode;
 }
 
 /// Annotation for generating home_widget native code.
 class HomeWidget {
   /// The name of the widget.
+  ///
+  /// This corresponds to the `kind` in iOS WidgetKit and the `label` in Android
+  /// receiver.
   final String name;
 
+  /// A description of the widget.
+  ///
+  /// This is displayed in the widget gallery on iOS and Android.
+  final String? description;
+
   /// The data fields for the widget.
+  ///
+  /// These fields will be generated in the native widget code and can be
+  /// accessed to display data.
   final Map<String, HWDataType>? data;
 
   /// The path to the generated Dart file.
+  ///
+  /// This file will contain helper methods for updating the widget data.
   final String? dartOutput;
 
   /// Configuration for the Android widget.
@@ -59,6 +243,7 @@ class HomeWidget {
 
   const HomeWidget({
     required this.name,
+    this.description,
     this.data,
     this.dartOutput,
     this.android,
@@ -71,6 +256,7 @@ class HomeWidget {
       identical(this, other) ||
       other is HomeWidget &&
           name == other.name &&
+          description == other.description &&
           data == other.data &&
           dartOutput == other.dartOutput &&
           android == other.android &&
@@ -80,6 +266,7 @@ class HomeWidget {
   @override
   int get hashCode =>
       name.hashCode ^
+      description.hashCode ^
       data.hashCode ^
       dartOutput.hashCode ^
       android.hashCode ^

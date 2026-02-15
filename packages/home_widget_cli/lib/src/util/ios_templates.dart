@@ -16,6 +16,9 @@ String iosWidgetSwiftTemplate({
   String? getTimelineBody,
   String? entryViewBody,
   String? extraContent,
+  String? displayName,
+  String? description,
+  String? supportedFamilies,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -41,54 +44,75 @@ struct ${widgetClassName}Entry: TimelineEntry {
     Text("$widgetClassName (placeholder)")
 ''';
 
-  return '''
-$head
-//
-// Placeholder SwiftUI widget.
-//
-// App Group ID used here: $appGroupId
+  final buffer = StringBuffer();
+  buffer.writeln(head);
+  buffer.writeln('//');
+  buffer.writeln('// Placeholder SwiftUI widget.');
+  buffer.writeln('//');
+  buffer.writeln('// App Group ID used here: $appGroupId');
+  buffer.writeln();
+  buffer.writeln('import SwiftUI');
+  buffer.writeln('import WidgetKit');
+  buffer.writeln();
+  buffer.writeln('struct Provider: TimelineProvider {');
+  buffer.writeln(
+    '  func placeholder(in context: Context) -> ${widgetClassName}Entry {',
+  );
+  buffer.writeln(
+    '    ${placeholderBody ?? '${widgetClassName}Entry(date: Date())'}',
+  );
+  buffer.writeln('  }');
+  buffer.writeln();
+  buffer.writeln(
+    '  func getSnapshot(in context: Context, completion: @escaping (${widgetClassName}Entry) -> Void) {',
+  );
+  buffer.writeln(snapshotBody);
+  buffer.writeln('  }');
+  buffer.writeln();
+  buffer.writeln(
+    '  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {',
+  );
+  buffer.writeln(timelineBody);
+  buffer.writeln('  }');
+  buffer.writeln('}');
+  buffer.writeln();
+  buffer.writeln(entryDef);
+  buffer.writeln();
+  buffer.writeln('struct ${widgetClassName}EntryView: View {');
+  buffer.writeln('  var entry: Provider.Entry');
+  buffer.writeln();
+  buffer.writeln('  var body: some View {');
+  buffer.writeln(viewBody);
+  buffer.writeln('  }');
+  buffer.writeln('}');
+  buffer.writeln();
+  buffer.writeln('struct $widgetClassName: Widget {');
+  buffer.writeln('  let kind: String = "$widgetClassName"');
+  buffer.writeln();
+  buffer.writeln('  var body: some WidgetConfiguration {');
+  buffer.writeln(
+    '    StaticConfiguration(kind: kind, provider: Provider()) { entry in',
+  );
+  buffer.writeln('      ${widgetClassName}EntryView(entry: entry)');
+  buffer.writeln('    }');
+  buffer.writeln(
+    '    .configurationDisplayName("${displayName ?? widgetClassName}")',
+  );
 
-import SwiftUI
-import WidgetKit
-
-struct Provider: TimelineProvider {
-  func placeholder(in context: Context) -> ${widgetClassName}Entry {
-    ${placeholderBody ?? '${widgetClassName}Entry(date: Date())'}
+  if (description != null) {
+    buffer.writeln('    .description("$description")');
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (${widgetClassName}Entry) -> Void) {
-$snapshotBody
+  if (supportedFamilies != null) {
+    buffer.writeln('    .supportedFamilies($supportedFamilies)');
   }
 
-  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-$timelineBody
-  }
-}
+  buffer.writeln('  }');
+  buffer.writeln('}');
+  buffer.writeln();
+  buffer.writeln(extraContent ?? '');
 
-$entryDef
-
-struct ${widgetClassName}EntryView: View {
-  var entry: Provider.Entry
-
-  var body: some View {
-$viewBody
-  }
-}
-
-struct $widgetClassName: Widget {
-  let kind: String = "$widgetClassName"
-
-  var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: Provider()) { entry in
-      ${widgetClassName}EntryView(entry: entry)
-    }
-    .configurationDisplayName("$widgetClassName")
-    .description("home_widget placeholder widget")
-  }
-}
-
-${extraContent ?? ''}
-''';
+  return buffer.toString();
 }
 
 /// Generates the Swift code for the WidgetBundle.

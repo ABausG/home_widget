@@ -1,14 +1,17 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:xml/xml.dart';
 
 import '../models/widget_spec.dart';
+import '../models/extensions.dart';
 import '../util/android_package.dart';
 import '../util/android_templates.dart';
 import '../util/android_wiring.dart';
 import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
+import '../util/xml_utils.dart';
 
 /// Generates Android Glance widget files from a [WidgetSpec].
 class AndroidGenerator {
@@ -35,7 +38,6 @@ class AndroidGenerator {
       return;
     }
 
-    // 1. Determine package name (annotation override or auto-detect)
     final packageName = spec.data.android?.packageName ??
         tryDetectAndroidPackage(projectRoot) ??
         'com.example';
@@ -63,7 +65,6 @@ class AndroidGenerator {
     await ensureDir(kotlinDir);
     await ensureDir(resXmlDir);
 
-    // 2. Generate Widget.kt
     final widgetFile = File(p.join(kotlinDir.path, '$widgetClassName.kt'));
 
     String? dataClassContent;
@@ -143,7 +144,6 @@ class AndroidGenerator {
     );
     logger.success('Generated: ${widgetFile.path}');
 
-    // 3. Generate Receiver.kt
     final receiverFile = File(
       p.join(kotlinDir.path, '${widgetClassName}Receiver.kt'),
     );
@@ -155,24 +155,103 @@ class AndroidGenerator {
     );
     logger.success('Generated: ${receiverFile.path}');
 
-    // 4. Generate provider info XML
+    final android = spec.data.android;
+    String? descriptionResource;
+
+    if (spec.data.description != null && spec.data.description!.isNotEmpty) {
+      final descName = '${providerInfoName}_description';
+      await _ensureStringResource(
+        projectRoot,
+        name: descName,
+        value: spec.data.description!,
+      );
+      descriptionResource = '@string/$descName';
+    }
+
     final providerInfoFile = File(
       p.join(resXmlDir.path, '$providerInfoName.xml'),
     );
     await providerInfoFile.writeAsString(
       androidAppWidgetProviderInfoTemplate(
         initialLayoutName: 'glance_default_loading_layout',
+        minWidth: android?.minWidth ?? 180,
+        minHeight: android?.minHeight ?? 80,
+        minResizeWidth: android?.minResizeWidth,
+        minResizeHeight: android?.minResizeHeight,
+        maxResizeWidth: android?.maxResizeWidth,
+        maxResizeHeight: android?.maxResizeHeight,
+        targetCellWidth: android?.targetCellWidth,
+        targetCellHeight: android?.targetCellHeight,
+        resizeMode: android?.resizeMode?.toXmlValue() ?? 'horizontal|vertical',
+        widgetCategory: android?.widgetCategory?.toXmlValue() ?? 'home_screen',
+        updatePeriodMillis: android?.updatePeriodMillis ?? 0,
+        descriptionResource: descriptionResource,
       ),
     );
     logger.success('Generated: ${providerInfoFile.path}');
 
-    // 5. Wire into Gradle and AndroidManifest (idempotent)
     await ensureAndroidGlanceGradleSetup(projectRoot);
     await ensureAndroidManifestReceiver(
       projectRoot,
       widgetClassName: widgetClassName,
       appPackageName: packageName,
       providerInfoName: providerInfoName,
+      label: spec.data.name,
     );
+  }
+
+  Future<void> _ensureStringResource(
+    Directory projectRoot, {
+    required String name,
+    required String value,
+  }) async {
+    final stringsFile = File(
+      p.join(
+        projectRoot.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'res',
+        'values',
+        'strings.xml',
+      ),
+    );
+
+    if (!stringsFile.existsSync()) {
+      await stringsFile.create(recursive: true);
+      final doc = XmlDocument([
+        XmlProcessing('xml', 'version="1.0" encoding="utf-8"'),
+        XmlElement(XmlName('resources'), const [], [
+          XmlElement(
+            XmlName('string'),
+            [XmlAttribute(XmlName('name'), name)],
+            [XmlText(value)],
+          ),
+        ]),
+      ]);
+      writeXmlFile(stringsFile, doc);
+      return;
+    }
+
+    final doc = tryParseXmlFile(stringsFile);
+    if (doc == null) return;
+
+    final resources = doc.rootElement;
+    final existing = resources.childElements.where(
+      (e) => e.localName == 'string' && e.getAttribute('name') == name,
+    );
+    if (existing.isNotEmpty) return;
+
+    resources.children.add(
+      XmlElement(
+        XmlName('string'),
+        [XmlAttribute(XmlName('name'), name)],
+        [XmlText(value)],
+      ),
+    );
+
+    writeXmlFile(stringsFile, doc);
+    logger.info('Updated: ${stringsFile.path}');
   }
 }

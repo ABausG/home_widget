@@ -38,6 +38,7 @@ WidgetSpec? _parseClass(ClassDeclaration classDecl) {
 
 WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
   String? name;
+  String? description;
   String? dartOutput;
   HomeWidgetAndroidConfiguration? android;
   HomeWidgetIOSConfiguration? ios;
@@ -52,6 +53,10 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
       if (argName == 'name') {
         if (expression is StringLiteral) {
           name = expression.stringValue;
+        }
+      } else if (argName == 'description') {
+        if (expression is StringLiteral) {
+          description = expression.stringValue;
         }
       } else if (argName == 'dartOutput') {
         if (expression is StringLiteral) {
@@ -108,13 +113,14 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
 
   if (name == null) {
     throw FormatException(
-      'Missing required argument "name" in @HomeWidget annotation on $className',
+      'Missing required argument "name" in @HomeWidget annotation on \$className',
     );
   }
 
   return WidgetSpec(
     data: HomeWidget(
       name: name,
+      description: description,
       dartOutput: dartOutput,
       android: android,
       iOS: ios,
@@ -145,11 +151,10 @@ List<DataFieldSpec> _parseDataMap(Expression? dataExpr) {
     if (valueNode is InstanceCreationExpression) {
       typeName = valueNode.constructorName.type.name2.lexeme;
     } else if (valueNode is MethodInvocation) {
-      // Analyzer parses unknown constructors as MethodInvocation
       typeName = valueNode.methodName.name;
     } else {
       throw FormatException(
-        'data values must be HWDataType constructors (found ${valueNode.runtimeType})',
+        'data values must be HWDataType constructors (found \${valueNode.runtimeType})',
       );
     }
 
@@ -158,44 +163,102 @@ List<DataFieldSpec> _parseDataMap(Expression? dataExpr) {
       'HWInt' => HWDataFieldType.int_,
       'HWDouble' => HWDataFieldType.double_,
       'HWBool' => HWDataFieldType.bool_,
-      _ => throw FormatException('Unknown data type: $typeName'),
+      _ => throw FormatException('Unknown data type: \$typeName'),
     };
     return DataFieldSpec(key: key, type: type);
   }).toList();
 }
 
 HomeWidgetAndroidConfiguration? _extractAndroidConfig(ArgumentList args) {
-  String? packageName;
-  for (final arg in args.arguments) {
-    if (arg is NamedExpression) {
-      final argName = arg.name.label.name;
-      if (argName == 'packageName') {
-        final value = arg.expression;
-        if (value is StringLiteral) {
-          packageName = value.stringValue;
-        }
-      }
-    }
-  }
-  return HomeWidgetAndroidConfiguration(packageName: packageName);
+  final map = _namedArgs(args);
+  return HomeWidgetAndroidConfiguration(
+    packageName: _stringOrNull(map['packageName']),
+    minWidth: _intOrNull(map['minWidth']),
+    minHeight: _intOrNull(map['minHeight']),
+    minResizeWidth: _intOrNull(map['minResizeWidth']),
+    minResizeHeight: _intOrNull(map['minResizeHeight']),
+    maxResizeWidth: _intOrNull(map['maxResizeWidth']),
+    maxResizeHeight: _intOrNull(map['maxResizeHeight']),
+    targetCellWidth: _intOrNull(map['targetCellWidth']),
+    targetCellHeight: _intOrNull(map['targetCellHeight']),
+    resizeMode: _enumOrNull<HWAndroidResizeMode>(
+      map['resizeMode'],
+      'HWAndroidResizeMode',
+      HWAndroidResizeMode.values,
+    ),
+    widgetCategory: _enumOrNull<HWAndroidWidgetCategory>(
+      map['widgetCategory'],
+      'HWAndroidWidgetCategory',
+      HWAndroidWidgetCategory.values,
+    ),
+    updatePeriodMillis: _intOrNull(map['updatePeriodMillis']),
+  );
 }
 
 HomeWidgetIOSConfiguration? _extractIosConfig(ArgumentList args) {
-  String? groupId;
-  for (final arg in args.arguments) {
-    if (arg is NamedExpression) {
-      final argName = arg.name.label.name;
-      if (argName == 'groupId') {
-        final value = arg.expression;
-        if (value is StringLiteral) {
-          groupId = value.stringValue;
-        }
-      }
-    }
-  }
+  final map = _namedArgs(args);
+  final groupId = _stringOrNull(map['groupId']);
 
   if (groupId == null) {
     return null;
   }
-  return HomeWidgetIOSConfiguration(groupId: groupId);
+  return HomeWidgetIOSConfiguration(
+    groupId: groupId,
+    supportedFamilies: _parseFamilyList(map['supportedFamilies']),
+  );
+}
+
+Map<String, Expression> _namedArgs(ArgumentList args) {
+  final map = <String, Expression>{};
+  for (final arg in args.arguments) {
+    if (arg is NamedExpression) {
+      map[arg.name.label.name] = arg.expression;
+    }
+  }
+  return map;
+}
+
+String? _stringOrNull(Expression? expr) {
+  if (expr is StringLiteral) {
+    return expr.stringValue;
+  }
+  return null;
+}
+
+int? _intOrNull(Expression? expr) {
+  if (expr is IntegerLiteral) {
+    return expr.value;
+  }
+  return null;
+}
+
+T? _enumOrNull<T>(Expression? expr, String prefix, List<T> values) {
+  if (expr is PrefixedIdentifier) {
+    if (expr.prefix.name == prefix) {
+      final name = expr.identifier.name;
+      try {
+        return values.firstWhere((e) => (e as Enum).name == name);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+List<HWWidgetFamily>? _parseFamilyList(Expression? expr) {
+  if (expr == null) return null;
+  if (expr is! ListLiteral) {
+    throw FormatException('supportedFamilies must be a list literal');
+  }
+  return expr.elements
+      .map((element) {
+        return _enumOrNull<HWWidgetFamily>(
+          element as Expression,
+          'HWWidgetFamily',
+          HWWidgetFamily.values,
+        );
+      })
+      .whereType<HWWidgetFamily>()
+      .toList();
 }

@@ -120,6 +120,7 @@ Future<void> ensureAndroidManifestReceiver(
   required String widgetClassName,
   required String appPackageName,
   required String providerInfoName,
+  String? label,
 }) async {
   final manifestFile = File(
     p.join(
@@ -177,6 +178,7 @@ Future<void> ensureAndroidManifestReceiver(
       receiverFqcn: receiverFqcn,
       widgetClassName: widgetClassName,
       providerInfoName: providerInfoName,
+      label: label,
     ),
   );
 
@@ -210,12 +212,13 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
+  String? label,
 }) {
   return XmlElement(
     XmlName('receiver'),
     [
       XmlAttribute(XmlName('android:name'), receiverFqcn),
-      XmlAttribute(XmlName('android:label'), widgetClassName),
+      XmlAttribute(XmlName('android:label'), label ?? widgetClassName),
       XmlAttribute(XmlName('android:exported'), 'true'),
     ],
     [

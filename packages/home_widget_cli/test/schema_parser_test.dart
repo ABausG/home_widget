@@ -1,5 +1,6 @@
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -100,6 +101,65 @@ void main() {
 
       final blnField = spec.dataFields.firstWhere((f) => f.key == 'bln');
       expect(blnField.type, HWDataFieldType.bool_);
+    });
+    test('parses v2 fields (description, sizing, families)', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'V2Widget',
+          description: 'A v2 widget',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.id',
+            supportedFamilies: [
+              HWWidgetFamily.systemSmall,
+              HWWidgetFamily.systemMedium,
+            ],
+          ),
+          android: HomeWidgetAndroidConfiguration(
+            packageName: 'com.example',
+            minWidth: 100,
+            minHeight: 50,
+            minResizeWidth: 80,
+            minResizeHeight: 40,
+            maxResizeWidth: 200,
+            maxResizeHeight: 100,
+            targetCellWidth: 2,
+            targetCellHeight: 1,
+            resizeMode: HWAndroidResizeMode.horizontal,
+            widgetCategory: HWAndroidWidgetCategory.keyguard,
+            updatePeriodMillis: 3600000,
+          ),
+        )
+        class V2Widget extends StatelessWidget {}
+      ''';
+
+      final spec = await parseSchemaSource(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.name, 'V2Widget');
+      expect(spec.data.description, 'A v2 widget');
+
+      // Android
+      final android = spec.data.android!;
+      expect(android.packageName, 'com.example');
+      expect(android.minWidth, 100);
+      expect(android.minHeight, 50);
+      expect(android.minResizeWidth, 80);
+      expect(android.minResizeHeight, 40);
+      expect(android.maxResizeWidth, 200);
+      expect(android.maxResizeHeight, 100);
+      expect(android.targetCellWidth, 2);
+      expect(android.targetCellHeight, 1);
+      expect(android.resizeMode, HWAndroidResizeMode.horizontal);
+      expect(android.widgetCategory, HWAndroidWidgetCategory.keyguard);
+      expect(android.updatePeriodMillis, 3600000);
+
+      // iOS
+      final ios = spec.data.iOS!;
+      expect(ios.groupId, 'group.id');
+      expect(ios.supportedFamilies, hasLength(2));
+      expect(ios.supportedFamilies, contains(HWWidgetFamily.systemSmall));
+      expect(ios.supportedFamilies, contains(HWWidgetFamily.systemMedium));
     });
   });
 }
