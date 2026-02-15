@@ -145,6 +145,9 @@ $loadDataLogic
       iosWidgetSwiftTemplate(
         widgetClassName: widgetClassName,
         appGroupId: groupId,
+        placeholderBody: spec.dataFields.isNotEmpty
+            ? 'SimpleEntry(date: Date(), data: ${spec.className}Data.fromUserDefaults(nil))'
+            : null,
         extraContent: extraContent,
         entryDefinition: entryDefinition,
         getSnapshotBody: getSnapshotBody,

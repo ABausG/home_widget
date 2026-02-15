@@ -113,5 +113,81 @@ class TestWidget {}
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );
+
+    test(
+      'generate produces a buildable app for Android and iOS',
+      () async {
+        // This is an end-to-end sanity check. It can be slow and requires a
+        // macOS host with Xcode + CocoaPods for iOS.
+        final shouldRun = Platform.isMacOS &&
+            (Platform.environment['HW_CLI_IOS_BUILD_TESTS'] == '1' ||
+                Platform.environment['CI'] == 'true');
+        if (!shouldRun) {
+          return;
+        }
+
+        Future<bool> hasTool(String tool, List<String> args) async {
+          final r = await Process.run(tool, args, runInShell: true);
+          return r.exitCode == 0;
+        }
+
+        if (!await hasTool('xcodebuild', ['-version'])) return;
+        if (!await hasTool('pod', ['--version'])) return;
+
+        final project = await TestFlutterProject.create();
+        project.useAsCwd();
+
+        // Write the SimpleData schema file into the default input directory.
+        final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
+        widgetDir.createSync(recursive: true);
+        final schemaFile = File(p.join(widgetDir.path, 'simple_data.dart'));
+        schemaFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Simple Data',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.example',
+  ),
+  data: {'label': HWString(), 'value': HWInt()},
+)
+class SimpleData {}
+''');
+
+        // Run the generate command.
+        final code = await runCli(['generate']);
+        expect(code, 0);
+
+        // Build Android.
+        final androidBuild = await Process.run(
+          'flutter',
+          ['build', 'apk'],
+          workingDirectory: project.root.path,
+          runInShell: true,
+        );
+        expect(
+          androidBuild.exitCode,
+          0,
+          reason:
+              'flutter build apk failed.\nSTDOUT:\n${androidBuild.stdout}\n\nSTDERR:\n${androidBuild.stderr}',
+        );
+
+        // Build iOS.
+        final iosBuild = await Process.run(
+          'flutter',
+          ['build', 'ios', '--no-codesign'],
+          workingDirectory: project.root.path,
+          runInShell: true,
+        );
+        expect(
+          iosBuild.exitCode,
+          0,
+          reason:
+              'flutter build ios failed.\nSTDOUT:\n${iosBuild.stdout}\n\nSTDERR:\n${iosBuild.stderr}',
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 25)),
+    );
   });
 }

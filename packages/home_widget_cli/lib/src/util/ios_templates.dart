@@ -10,6 +10,7 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 String iosWidgetSwiftTemplate({
   required String widgetClassName,
   required String appGroupId,
+  String? placeholderBody,
   String? entryDefinition,
   String? getSnapshotBody,
   String? getTimelineBody,
@@ -52,7 +53,7 @@ import WidgetKit
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> SimpleEntry {
-    SimpleEntry(date: Date())
+    ${placeholderBody ?? 'SimpleEntry(date: Date())'}
   }
 
   func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> Void) {
