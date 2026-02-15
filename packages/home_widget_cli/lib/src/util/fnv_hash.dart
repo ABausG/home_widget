@@ -6,6 +6,7 @@
 /// - Xcode object IDs are 24 hex chars (96-bit) and are typically random.
 /// - For our CLI scaffolding we want determinism across runs to keep patches
 ///   idempotent and reviewable.
+library;
 
 /// 32-bit FNV-1a hash.
 int fnv1a32(String input) {
@@ -31,5 +32,3 @@ String xcodeObjectId(String seed) {
   return '${a.toRadixString(16).padLeft(8, '0')}${b.toRadixString(16).padLeft(8, '0')}${c.toRadixString(16).padLeft(8, '0')}'
       .toUpperCase();
 }
-
-

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
-import '../util/cli_io.dart';
+import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
@@ -21,7 +21,7 @@ class IosGenerator {
   Future<void> generate() async {
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: ios/ not found. Skipping iOS generation for ${spec.name}.',
       );
       return;
@@ -31,7 +31,7 @@ class IosGenerator {
       p.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'),
     );
     if (!xcodeproj.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: ios/Runner.xcodeproj/project.pbxproj not found. '
         'Skipping iOS Widget Extension target wiring.',
       );
@@ -60,26 +60,28 @@ class IosGenerator {
     // 1. Generate Widget.swift
     await widgetSwift.writeAsString(
       iosWidgetSwiftTemplate(
-          widgetClassName: widgetClassName, appGroupId: groupId),
+        widgetClassName: widgetClassName,
+        appGroupId: groupId,
+      ),
     );
-    cliIO.writelnOut('Generated: ${widgetSwift.path}');
+    logger.success('Generated: ${widgetSwift.path}');
 
     // 2. Generate WidgetBundle.swift
     await widgetBundleSwift.writeAsString(
       iosWidgetBundleSwiftTemplate(widgetClassName: widgetClassName),
     );
-    cliIO.writelnOut('Generated: ${widgetBundleSwift.path}');
+    logger.success('Generated: ${widgetBundleSwift.path}');
 
     // 3. Generate Info.plist
     await infoPlist.writeAsString(iosInfoPlistTemplate());
-    cliIO.writelnOut('Generated: ${infoPlist.path}');
+    logger.success('Generated: ${infoPlist.path}');
 
     // 4. Ensure App Group entitlement is present for the extension and Runner.
     await ensureAppGroupEntitlement(
       entitlementsFile: extensionEntitlements,
       appGroupId: groupId,
     );
-    cliIO.writelnOut('Updated: ${extensionEntitlements.path}');
+    logger.success('Updated: ${extensionEntitlements.path}');
 
     final runnerEntitlements = File(
       p.join(iosDir.path, 'Runner', 'Runner.entitlements'),
@@ -89,7 +91,7 @@ class IosGenerator {
       entitlementsFile: runnerEntitlements,
       appGroupId: groupId,
     );
-    cliIO.writelnOut('Updated: ${runnerEntitlements.path}');
+    logger.success('Updated: ${runnerEntitlements.path}');
 
     // 5. Patch the Xcode project so the extension can actually be built.
     if (xcodeproj.existsSync()) {
@@ -100,7 +102,7 @@ class IosGenerator {
 
       // Ensure Runner is signed with Runner/Runner.entitlements (App Groups apply).
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
-      cliIO.writelnOut('Updated: ${xcodeproj.path}');
+      logger.success('Updated: ${xcodeproj.path}');
     }
   }
 }

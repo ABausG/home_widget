@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'cli_io.dart';
+import 'logger.dart';
 import 'fnv_hash.dart';
 
 /// Ensures an iOS Widget Extension target exists inside the given Xcode
@@ -42,7 +42,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
       projectObjectId == null ||
       mainGroupId == null ||
       productsGroupId == null) {
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: Could not locate required Xcode project IDs in '
       '${pbxprojFile.path}. Skipping Widget Extension wiring.',
     );
@@ -56,7 +56,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 
   // Build the objects we will inject.
   final pbxBuildFiles = <String>[
-    '\t\t${ids.embedBuildFileId} /* ${widgetClassName}.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ${ids.productFileRefId} /* ${widgetClassName}.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };',
+    '\t\t${ids.embedBuildFileId} /* $widgetClassName.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ${ids.productFileRefId} /* $widgetClassName.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };',
     '\t\t${ids.widgetKitBuildFileId} /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ${ids.widgetKitFileRefId} /* WidgetKit.framework */; };',
     '\t\t${ids.swiftUIBuildFileId} /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ${ids.swiftUIFileRefId} /* SwiftUI.framework */; };',
     if (!hasFileSystemSynchronizedSections)
@@ -83,7 +83,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\tdstPath = "";
 \t\t\tdstSubfolderSpec = 13;
 \t\t\tfiles = (
-\t\t\t\t${ids.embedBuildFileId} /* ${widgetClassName}.appex in Embed Foundation Extensions */,
+\t\t\t\t${ids.embedBuildFileId} /* $widgetClassName.appex in Embed Foundation Extensions */,
 \t\t\t);
 \t\t\tname = "Embed Foundation Extensions";
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
@@ -92,7 +92,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
       .trimRight();
 
   final pbxFileReferences = <String>[
-    '\t\t${ids.productFileRefId} /* ${widgetClassName}.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ${widgetClassName}.appex; sourceTree = BUILT_PRODUCTS_DIR; };',
+    '\t\t${ids.productFileRefId} /* $widgetClassName.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = $widgetClassName.appex; sourceTree = BUILT_PRODUCTS_DIR; };',
     '\t\t${ids.widgetKitFileRefId} /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };',
     '\t\t${ids.swiftUIFileRefId} /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };',
     '\t\t${ids.entitlementsFileRefId} /* $widgetClassName.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = $widgetClassName.entitlements; sourceTree = "<group>"; };',
@@ -208,7 +208,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 ''' : ''}
 \t\t\tname = $widgetClassName;
 \t\t\tproductName = $widgetClassName;
-\t\t\tproductReference = ${ids.productFileRefId} /* ${widgetClassName}.appex */;
+\t\t\tproductReference = ${ids.productFileRefId} /* $widgetClassName.appex */;
 \t\t\tproductType = "com.apple.product-type.app-extension";
 \t\t};
 '''
@@ -414,7 +414,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   updated = _patchGroupChildrenAddId(
     updated,
     groupId: productsGroupId,
-    idToAdd: '${ids.productFileRefId} /* ${widgetClassName}.appex */',
+    idToAdd: '${ids.productFileRefId} /* $widgetClassName.appex */',
   );
 
   // Add the file-system-synchronized group and entitlements file to the main
@@ -438,8 +438,8 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 
   if (updated != text) {
     await pbxprojFile.writeAsString(updated);
-    cliIO.writelnOut('Updated Xcode project: ${pbxprojFile.path}');
-    cliIO.writelnOut(
+    logger.info('Updated Xcode project: ${pbxprojFile.path}');
+    logger.info(
       'Added Widget Extension target "$widgetClassName" (bundle id: $extBundleId).',
     );
   }
@@ -505,7 +505,7 @@ Future<void> ensureRunnerEntitlementsInXcodeProject({
   if (!didChange) {
     // Don't fail the whole command, but let the user know scaffolding might
     // require manual intervention for non-standard pbxproj layouts.
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: Could not auto-set CODE_SIGN_ENTITLEMENTS for Runner in '
       '${pbxprojFile.path}. You may need to set it manually to Runner/Runner.entitlements.',
     );
@@ -513,8 +513,8 @@ Future<void> ensureRunnerEntitlementsInXcodeProject({
   }
 
   await pbxprojFile.writeAsString(text);
-  cliIO.writelnOut('Updated Xcode project: ${pbxprojFile.path}');
-  cliIO.writelnOut('Ensured Runner uses Runner/Runner.entitlements.');
+  logger.info('Updated Xcode project: ${pbxprojFile.path}');
+  logger.info('Ensured Runner uses Runner/Runner.entitlements.');
 }
 
 String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
@@ -635,7 +635,7 @@ String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
       out,
       targetId: runnerTargetId,
       listKey: 'buildPhases',
-      idToAdd: '$idWithComment',
+      idToAdd: idWithComment,
     );
   }
 

@@ -70,5 +70,3 @@ String? _extractKotlinVersion(String text) {
 
   return null;
 }
-
-

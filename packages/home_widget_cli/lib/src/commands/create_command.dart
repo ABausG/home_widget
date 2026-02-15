@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../scaffold/scaffold.dart';
-import '../util/cli_io.dart';
+import '../util/logger.dart';
 import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 import '../util/naming.dart';
@@ -71,7 +71,7 @@ class CreateCommand extends Command<int> {
         iosFlag || (!androidFlag && !iosFlag && iosDir.existsSync());
 
     if (!androidFlag && !iosFlag && !shouldAndroid && !shouldIos) {
-      cliIO.writelnOut(
+      logger.info(
         'No platform selected and no android/ or ios/ folder detected in '
         '${cwd.path}. Nothing to do.',
       );
@@ -79,13 +79,13 @@ class CreateCommand extends Command<int> {
     }
 
     if (shouldAndroid && !androidDir.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: requested Android scaffolding but no android/ folder exists '
         'in ${cwd.path}. Skipping Android.',
       );
     }
     if (shouldIos && !iosDir.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: requested iOS scaffolding but no ios/ folder exists in '
         '${cwd.path}. Skipping iOS.',
       );
@@ -108,7 +108,7 @@ class CreateCommand extends Command<int> {
 
     await ensureFlutterHomeWidgetDependency(cwd);
 
-    cliIO.writelnOut(
+    logger.success(
       'Done. Created placeholder structure for $widgetClassName.',
     );
     return ExitCodes.success;
@@ -122,19 +122,16 @@ String _resolveIosAppGroupId({required String? fromArgs}) {
   if (trimmedArg != null && trimmedArg.isNotEmpty) return trimmedArg;
 
   if (!stdin.hasTerminal) {
-    cliIO.writelnErr(
+    logger.warn(
       'Note: stdin is not interactive; using default iOS App Group ID: '
       '$defaultValue',
     );
     return defaultValue;
   }
 
-  cliIO.writelnOut(
+  final input = logger.prompt(
     'Enter iOS App Group ID (optional). Press Enter to use "$defaultValue".',
+    defaultValue: defaultValue,
   );
-  cliIO.writeOut('App Group ID [$defaultValue]: ');
-  final input = stdin.readLineSync();
-  final trimmed = input?.trim();
-  if (trimmed == null || trimmed.isEmpty) return defaultValue;
-  return trimmed;
+  return input;
 }

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:xml/xml.dart';
 
-import 'cli_io.dart';
+import 'logger.dart';
 import 'fs.dart';
 
 /// Ensures [appGroupId] exists in the `com.apple.security.application-groups`
@@ -26,7 +26,7 @@ Future<void> ensureAppGroupEntitlement({
   try {
     doc = XmlDocument.parse(original);
   } catch (_) {
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: Could not parse entitlements as XML: ${entitlementsFile.path}. '
       'Leaving it unchanged.',
     );
@@ -36,7 +36,7 @@ Future<void> ensureAppGroupEntitlement({
   final plist = doc.findElements('plist').firstOrNull;
   final dict = plist?.findElements('dict').firstOrNull;
   if (dict == null) {
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: Entitlements plist missing <dict>: ${entitlementsFile.path}. '
       'Leaving it unchanged.',
     );
@@ -60,23 +60,26 @@ Future<void> ensureAppGroupEntitlement({
   if (arrayEl == null) {
     // Append new entitlement at end.
     dict.children.add(XmlText('\n\t'));
-    dict.children.add(XmlElement(XmlName('key'))..children.add(XmlText('com.apple.security.application-groups')));
+    dict.children.add(
+      XmlElement(XmlName('key'))
+        ..children.add(XmlText('com.apple.security.application-groups')),
+    );
     dict.children.add(XmlText('\n\t'));
     final newArray = XmlElement(XmlName('array'));
     newArray.children.add(XmlText('\n\t\t'));
-    newArray.children.add(XmlElement(XmlName('string'))..children.add(XmlText(id)));
+    newArray.children
+        .add(XmlElement(XmlName('string'))..children.add(XmlText(id)));
     newArray.children.add(XmlText('\n\t'));
     dict.children.add(newArray);
     dict.children.add(XmlText('\n'));
   } else {
-    final existing = arrayEl
-        .findElements('string')
-        .map((e) => e.innerText.trim())
-        .toSet();
+    final existing =
+        arrayEl.findElements('string').map((e) => e.innerText.trim()).toSet();
     if (!existing.contains(id)) {
       // Keep indentation similar-ish.
       arrayEl.children.add(XmlText('\n\t\t'));
-      arrayEl.children.add(XmlElement(XmlName('string'))..children.add(XmlText(id)));
+      arrayEl.children
+          .add(XmlElement(XmlName('string'))..children.add(XmlText(id)));
       arrayEl.children.add(XmlText('\n\t'));
     }
   }
@@ -84,7 +87,7 @@ Future<void> ensureAppGroupEntitlement({
   final updated = doc.toXmlString(pretty: true, indent: '\t');
   if (updated != original) {
     await entitlementsFile.writeAsString(updated);
-    cliIO.writelnOut('Updated entitlements: ${entitlementsFile.path}');
+    logger.info('Updated entitlements: ${entitlementsFile.path}');
   }
 }
 
@@ -104,5 +107,3 @@ String _newEntitlementsXml(String appGroupId) => '''
 extension _FirstOrNullExt on Iterable<XmlElement> {
   XmlElement? get firstOrNull => isEmpty ? null : first;
 }
-
-

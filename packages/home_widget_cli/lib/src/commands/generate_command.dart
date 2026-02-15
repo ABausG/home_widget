@@ -6,7 +6,7 @@ import '../generators/android_generator.dart';
 import '../generators/ios_generator.dart';
 import '../models/widget_spec.dart';
 import '../parser/schema_parser.dart';
-import '../util/cli_io.dart';
+import '../util/logger.dart';
 import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 
@@ -33,7 +33,7 @@ class GenerateCommand extends Command<int> {
         : File(input);
 
     if (!inputEntity.existsSync()) {
-      cliIO.writelnErr('Error: Input path "$input" does not exist.');
+      logger.err('Error: Input path "$input" does not exist.');
       return ExitCodes.noInput;
     }
 
@@ -47,10 +47,10 @@ class GenerateCommand extends Command<int> {
             final spec = await parseSchemaSource(content, filePath: file.path);
             if (spec != null) {
               specs.add(spec);
-              cliIO.writelnOut('Parsed ${spec.name} from ${file.path}');
+              logger.info('Parsed ${spec.name} from ${file.path}');
             }
           } catch (e) {
-            cliIO.writelnErr('Error parsing ${file.path}: $e');
+            logger.err('Error parsing ${file.path}: $e');
             // Continue parsing other files? Or fail? The plan implies process all.
           }
         }
@@ -62,32 +62,33 @@ class GenerateCommand extends Command<int> {
             await parseSchemaSource(content, filePath: inputEntity.path);
         if (spec != null) {
           specs.add(spec);
-          cliIO.writelnOut('Parsed ${spec.name} from ${inputEntity.path}');
+          logger.info('Parsed ${spec.name} from ${inputEntity.path}');
         } else {
-          cliIO.writelnErr(
-              'No @HomeWidget annotation found in ${inputEntity.path}');
+          logger.warn(
+            'No @HomeWidget annotation found in ${inputEntity.path}',
+          );
         }
       } catch (e) {
-        cliIO.writelnErr('Error parsing ${inputEntity.path}: $e');
+        logger.err('Error parsing ${inputEntity.path}: $e');
         return ExitCodes.usage;
       }
     }
 
     if (specs.isEmpty) {
-      cliIO.writelnOut('No widgets found to generate.');
+      logger.info('No widgets found to generate.');
       return ExitCodes.success;
     }
 
-    cliIO.writelnOut('Found ${specs.length} widget(s). Generating...');
+    logger.info('Found ${specs.length} widget(s). Generating...');
 
     for (final spec in specs) {
       if (spec.android != null) {
-        cliIO.writelnOut('Generating Android for ${spec.name}...');
+        logger.info('Generating Android for ${spec.name}...');
         await AndroidGenerator(spec: spec, projectRoot: Directory.current)
             .generate();
       }
       if (spec.ios != null) {
-        cliIO.writelnOut('Generating iOS for ${spec.name}...');
+        logger.info('Generating iOS for ${spec.name}...');
         await IosGenerator(spec: spec, projectRoot: Directory.current)
             .generate();
       }

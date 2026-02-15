@@ -1,13 +1,24 @@
 import 'dart:io';
 
 import 'package:home_widget_cli/src/cli.dart';
-import 'package:home_widget_cli/src/util/cli_io.dart';
+import 'package:home_widget_cli/src/util/logger.dart';
+import 'package:mason_logger/mason_logger.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import 'helpers/test_flutter_project.dart';
 
+class MockLogger extends Mock implements Logger {}
+
 void main() {
+  late MockLogger mockLogger;
+
+  setUp(() {
+    mockLogger = MockLogger();
+    logger = mockLogger;
+  });
+
   tearDownAll(() {
     for (final root in createdTestProjectRoots) {
       final dir = Directory(root);
@@ -17,24 +28,17 @@ void main() {
     }
   });
 
-  ({StringBuffer out, StringBuffer err}) captureCliOutput() {
-    final out = StringBuffer();
-    final err = StringBuffer();
-    cliIO = CliIO(out: out.write, err: err.write);
-    addTearDown(resetCliIO);
-    return (out: out, err: err);
-  }
-
   group('GenerateCommand', () {
     test('fails if input path does not exist', () async {
       final code = await runCli(['generate', '--input', 'non_existent_path']);
       expect(code, isNot(0));
+      verify(() => mockLogger.err(any(that: contains('does not exist'))))
+          .called(1);
     });
 
     test(
       'adds home_widget dependency if missing during generation',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create();
         project.useAsCwd();
 
@@ -63,14 +67,11 @@ class TestWidget {}
         final code = await runCli(['generate', '--input', widgetFile.path]);
         expect(code, 0);
 
-        expect(
-          capture.out.toString(),
-          contains('Adding home_widget dependency...'),
-        );
-        // Note: The actual `flutter pub add` might fail in this test environment if internet
-        // is restricted or if the package doesn't resolve, but we check that the CLI *attempted* it.
-        // If the command fails, it logs to stderr, but the generate command usually returns success (0)
-        // because dependency addition is a "best effort" post-step or warning.
+        verify(
+          () => mockLogger.info(
+            any(that: contains('Adding home_widget dependency...')),
+          ),
+        ).called(1);
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );
@@ -78,7 +79,6 @@ class TestWidget {}
     test(
       'skips adding home_widget dependency if already present',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create();
         project.useAsCwd();
 
@@ -98,15 +98,17 @@ class TestWidget {}
 
         // Add home_widget to pubspec manually
         final pubspec = File(p.join(project.root.path, 'pubspec.yaml'));
-        pubspec.writeAsStringSync('\ndependencies:\n  home_widget: ^0.1.0\n',
-            mode: FileMode.append);
+        pubspec.writeAsStringSync(
+          '\ndependencies:\n  home_widget: ^0.1.0\n',
+          mode: FileMode.append,
+        );
 
         final code = await runCli(['generate', '--input', widgetFile.path]);
         expect(code, 0);
 
-        expect(
-          capture.out.toString(),
-          isNot(contains('Adding home_widget dependency...')),
+        verifyNever(
+          () => mockLogger
+              .info(any(that: contains('Adding home_widget dependency...'))),
         );
       },
       timeout: const Timeout(Duration(minutes: 2)),

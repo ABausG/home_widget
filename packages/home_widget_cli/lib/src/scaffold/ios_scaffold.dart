@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../util/cli_io.dart';
+import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
@@ -18,7 +18,7 @@ final class IosWidgetScaffold {
   Future<void> run({required String appGroupId}) async {
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
-      cliIO.writelnErr('Warning: ios/ not found. Skipping iOS scaffolding.');
+      logger.warn('Warning: ios/ not found. Skipping iOS scaffolding.');
       return;
     }
 
@@ -26,7 +26,7 @@ final class IosWidgetScaffold {
       p.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'),
     );
     if (!xcodeproj.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: ios/Runner.xcodeproj/project.pbxproj not found. '
         'Skipping iOS Widget Extension target wiring.',
       );

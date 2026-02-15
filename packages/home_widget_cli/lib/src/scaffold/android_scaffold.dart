@@ -5,13 +5,15 @@ import 'package:path/path.dart' as p;
 import '../util/android_package.dart';
 import '../util/android_templates.dart';
 import '../util/android_wiring.dart';
-import '../util/cli_io.dart';
+import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
 
 final class AndroidWidgetScaffold {
-  AndroidWidgetScaffold(
-      {required this.projectRoot, required this.widgetClassName});
+  AndroidWidgetScaffold({
+    required this.projectRoot,
+    required this.widgetClassName,
+  });
 
   final Directory projectRoot;
   final String widgetClassName;
@@ -21,7 +23,7 @@ final class AndroidWidgetScaffold {
   Future<void> run() async {
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: android/app/ not found. Skipping Android scaffolding.',
       );
       return;

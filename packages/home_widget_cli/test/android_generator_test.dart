@@ -56,29 +56,43 @@ void main() {
     final widgetFile = File(p.join(kotlinDir, 'TestWidgetHomeWidget.kt'));
     final receiverFile =
         File(p.join(kotlinDir, 'TestWidgetHomeWidgetReceiver.kt'));
-    final xmlFile = File(p.join(appDir.path, 'src', 'main', 'res', 'xml',
-        'test_widget_home_widget.xml'));
+    final xmlFile = File(
+      p.join(
+        appDir.path,
+        'src',
+        'main',
+        'res',
+        'xml',
+        'test_widget_home_widget.xml',
+      ),
+    );
 
     expect(widgetFile.existsSync(), isTrue);
     expect(receiverFile.existsSync(), isTrue);
     expect(xmlFile.existsSync(), isTrue);
 
     final widgetContent = await widgetFile.readAsString();
-    expect(widgetContent,
-        contains('class TestWidgetHomeWidget : GlanceAppWidget()'));
+    expect(
+      widgetContent,
+      contains('class TestWidgetHomeWidget : GlanceAppWidget()'),
+    );
     expect(widgetContent, contains('package com.test.app'));
 
     final receiverContent = await receiverFile.readAsString();
     expect(
-        receiverContent,
-        contains(
-            'class TestWidgetHomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<TestWidgetHomeWidget>()'));
+      receiverContent,
+      contains(
+        'class TestWidgetHomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<TestWidgetHomeWidget>()',
+      ),
+    );
 
     final xmlContent = await xmlFile.readAsString();
     expect(
-        xmlContent,
-        contains(
-            'android:initialLayout="@layout/glance_default_loading_layout"'));
+      xmlContent,
+      contains(
+        'android:initialLayout="@layout/glance_default_loading_layout"',
+      ),
+    );
 
     // Verify manifest update
     final manifestContent = await manifestFile.readAsString();

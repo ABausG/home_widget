@@ -35,7 +35,7 @@ void main() {
 
       await Directory(p.join(root.path, 'android')).create(recursive: true);
       await File(p.join(root.path, 'android', 'settings.gradle')).writeAsString(
-        'plugins { id \"org.jetbrains.kotlin.android\" version \"1.9.25\" apply false }',
+        'plugins { id "org.jetbrains.kotlin.android" version "1.9.25" apply false }',
       );
 
       expect(tryDetectAndroidKotlinVersion(root), '1.9.25');
@@ -50,17 +50,20 @@ void main() {
       await Directory(p.join(root.path, 'android', 'gradle'))
           .create(recursive: true);
       await File(p.join(root.path, 'android', 'gradle', 'libs.versions.toml'))
-          .writeAsString('[versions]\\nkotlin = \"1.9.10\"\\n');
+          .writeAsString('[versions]\\nkotlin = "1.9.10"\\n');
 
       expect(tryDetectAndroidKotlinVersion(root), '1.9.10');
     });
 
-    test('detects Kotlin version from a real Flutter project (smoke test)',
-        () async {
-      final project = await TestFlutterProject.create(includeIos: false);
-      final v = tryDetectAndroidKotlinVersion(project.root);
-      expect(v, isNotNull);
-      expect(v, matches(RegExp(r'^\d+\.\d+\.\d+$')));
-    }, timeout: const Timeout(Duration(minutes: 5)));
+    test(
+      'detects Kotlin version from a real Flutter project (smoke test)',
+      () async {
+        final project = await TestFlutterProject.create(includeIos: false);
+        final v = tryDetectAndroidKotlinVersion(project.root);
+        expect(v, isNotNull);
+        expect(v, matches(RegExp(r'^\d+\.\d+\.\d+$')));
+      },
+      timeout: const Timeout(Duration(minutes: 5)),
+    );
   });
 }

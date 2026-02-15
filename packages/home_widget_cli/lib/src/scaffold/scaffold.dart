@@ -36,5 +36,3 @@ final class WidgetScaffold {
     await scaffold.run(appGroupId: appGroupId);
   }
 }
-
- 

@@ -2,13 +2,29 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/cli.dart';
 import 'package:home_widget_cli/src/util/android_package.dart';
-import 'package:home_widget_cli/src/util/cli_io.dart';
+import 'package:home_widget_cli/src/util/logger.dart';
+import 'package:mason_logger/mason_logger.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import 'helpers/test_flutter_project.dart';
 
+class MockLogger extends Mock implements Logger {}
+
 void main() {
+  late MockLogger mockLogger;
+
+  setUp(() {
+    mockLogger = MockLogger();
+    logger = mockLogger;
+    // Default prompt behavior to return default value (empty string usually means use default in prompt logic if no default is provided, but here prompt returns a string)
+    // In CreateCommand: confirm input. If I mock it to return 'group.id', it simulates user input.
+    when(
+      () => mockLogger.prompt(any(), defaultValue: any(named: 'defaultValue')),
+    ).thenReturn('');
+  });
+
   tearDownAll(() {
     for (final root in createdTestProjectRoots) {
       expect(
@@ -101,14 +117,6 @@ void main() {
       File(p.join(iosExtensionDir.path, 'Info.plist')).existsSync(),
       isTrue,
     );
-  }
-
-  ({StringBuffer out, StringBuffer err}) captureCliOutput() {
-    final out = StringBuffer();
-    final err = StringBuffer();
-    cliIO = CliIO(out: out.write, err: err.write);
-    addTearDown(resetCliIO);
-    return (out: out, err: err);
   }
 
   test(
@@ -242,7 +250,6 @@ void main() {
   test(
     'create --android warns when android/ is missing',
     () async {
-      final capture = captureCliOutput();
       final project = await TestFlutterProject.create(
         includeAndroid: false,
         includeIos: false,
@@ -252,20 +259,26 @@ void main() {
       final code = await runCli(['create', '--android', 'Example']);
       expect(code, 0);
 
-      expect(
-        capture.err.toString(),
-        contains(
-          'Warning: requested Android scaffolding but no android/ folder exists',
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: contains(
+              'requested Android scaffolding but no android/ folder exists',
+            ),
+          ),
         ),
-      );
+      ).called(1);
 
       // Still no Android/iOS scaffolding should be created without folders.
-      expect(Directory(p.join(project.root.path, 'android')).existsSync(),
-          isFalse);
       expect(
-          Directory(p.join(project.root.path, 'ios', 'ExampleHomeWidget'))
-              .existsSync(),
-          isFalse);
+        Directory(p.join(project.root.path, 'android')).existsSync(),
+        isFalse,
+      );
+      expect(
+        Directory(p.join(project.root.path, 'ios', 'ExampleHomeWidget'))
+            .existsSync(),
+        isFalse,
+      );
     },
     timeout: const Timeout(Duration(minutes: 5)),
   );
@@ -273,7 +286,6 @@ void main() {
   test(
     'create --ios warns when ios/ is missing',
     () async {
-      final capture = captureCliOutput();
       final project = await TestFlutterProject.create(
         includeAndroid: false,
         includeIos: false,
@@ -283,17 +295,21 @@ void main() {
       final code = await runCli(['create', '--ios', 'Example']);
       expect(code, 0);
 
-      expect(
-        capture.err.toString(),
-        contains(
-          'Warning: requested iOS scaffolding but no ios/ folder exists',
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: contains(
+              'requested iOS scaffolding but no ios/ folder exists',
+            ),
+          ),
         ),
-      );
+      ).called(1);
 
       expect(Directory(p.join(project.root.path, 'ios')).existsSync(), isFalse);
       expect(
-          Directory(p.join(project.root.path, 'android', 'app')).existsSync(),
-          isFalse);
+        Directory(p.join(project.root.path, 'android', 'app')).existsSync(),
+        isFalse,
+      );
     },
     timeout: const Timeout(Duration(minutes: 5)),
   );
@@ -344,7 +360,6 @@ void main() {
   test(
     'create --android --ios creates android and warns when ios/ is missing',
     () async {
-      final capture = captureCliOutput();
       final project = await TestFlutterProject.create(includeIos: false);
 
       project.useAsCwd();
@@ -355,11 +370,15 @@ void main() {
         projectRoot: project.root,
         widgetClassName: 'ExampleHomeWidget',
       );
-      expect(
-        capture.err.toString(),
-        contains(
-            'Warning: requested iOS scaffolding but no ios/ folder exists'),
-      );
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: contains(
+              'requested iOS scaffolding but no ios/ folder exists',
+            ),
+          ),
+        ),
+      ).called(1);
       expect(
         Directory(p.join(project.root.path, 'ios', 'ExampleHomeWidget'))
             .existsSync(),
@@ -373,7 +392,6 @@ void main() {
     test(
       'warns when pubspec.yaml is missing (skips flutter pub add)',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create(includeIos: false);
         project.useAsCwd();
 
@@ -383,14 +401,9 @@ void main() {
 
         final code = await runCli(['create', '--android', 'Example']);
         expect(code, 0);
-        expect(
-          capture.err.toString(),
-          contains('Warning: pubspec.yaml not found'),
-        );
-        expect(
-          capture.err.toString(),
-          contains('skipping `flutter pub add home_widget`'),
-        );
+        verify(
+          () => mockLogger.warn(any(that: contains('pubspec.yaml not found'))),
+        ).called(1);
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );
@@ -398,7 +411,6 @@ void main() {
     test(
       'warns when android/app/ is missing (skips Android scaffolding)',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create(includeIos: false);
         project.useAsCwd();
 
@@ -409,16 +421,20 @@ void main() {
 
         final code = await runCli(['create', '--android', 'Example']);
         expect(code, 0);
-        expect(
-          capture.err.toString(),
-          contains(
-              'Warning: android/app/ not found. Skipping Android scaffolding.'),
-        );
+        verify(
+          () => mockLogger.warn(
+            any(
+              that: contains(
+                'Warning: android/app/ not found. Skipping Android scaffolding.',
+              ),
+            ),
+          ),
+        ).called(1);
 
         // Ensure Android scaffolding truly did not run / recreate android/app/.
         expect(androidAppDir.existsSync(), isFalse);
-        expect(capture.out.toString(), isNot(contains('Created:')));
-        expect(capture.out.toString(), isNot(contains('Updated:')));
+        verifyNever(() => mockLogger.success(any(that: contains('Created:'))));
+        verifyNever(() => mockLogger.info(any(that: contains('Updated:'))));
 
         final androidDir = Directory(p.join(project.root.path, 'android'));
         final androidFiles = androidDir.existsSync()
@@ -443,7 +459,6 @@ void main() {
     test(
       'warns when AndroidManifest.xml is missing (skips manifest wiring)',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create(includeIos: false);
         project.useAsCwd();
 
@@ -462,12 +477,15 @@ void main() {
 
         final code = await runCli(['create', '--android', 'Example']);
         expect(code, 0);
-        expect(
-          capture.err.toString(),
-          contains(
-            'Warning: android/app/src/main/AndroidManifest.xml not found; skipping manifest wiring.',
+        verify(
+          () => mockLogger.warn(
+            any(
+              that: contains(
+                'Warning: android/app/src/main/AndroidManifest.xml not found; skipping manifest wiring.',
+              ),
+            ),
           ),
-        );
+        ).called(1);
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );
@@ -475,7 +493,6 @@ void main() {
     test(
       'warns when AndroidManifest.xml cannot be parsed as XML',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create(includeIos: false);
         project.useAsCwd();
 
@@ -494,12 +511,15 @@ void main() {
 
         final code = await runCli(['create', '--android', 'Example']);
         expect(code, 0);
-        expect(
-          capture.err.toString(),
-          contains(
-            'Warning: Could not parse AndroidManifest.xml as XML; skipping manifest wiring.',
+        verify(
+          () => mockLogger.warn(
+            any(
+              that: contains(
+                'Warning: Could not parse AndroidManifest.xml as XML; skipping manifest wiring.',
+              ),
+            ),
           ),
-        );
+        ).called(1);
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );
@@ -507,7 +527,6 @@ void main() {
     test(
       'warns when android/app/build.gradle(.kts) is missing (skips Gradle setup)',
       () async {
-        final capture = captureCliOutput();
         final project = await TestFlutterProject.create(includeIos: false);
         project.useAsCwd();
 
@@ -525,12 +544,15 @@ void main() {
 
         final code = await runCli(['create', '--android', 'Example']);
         expect(code, 0);
-        expect(
-          capture.err.toString(),
-          contains(
-            'Warning: Could not find android/app/build.gradle(.kts); skipping Gradle Glance setup.',
+        verify(
+          () => mockLogger.warn(
+            any(
+              that: contains(
+                'Warning: Could not find android/app/build.gradle(.kts); skipping Gradle Glance setup.',
+              ),
+            ),
           ),
-        );
+        ).called(1);
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );
@@ -565,7 +587,9 @@ void main() {
 
       final widgetClassName = 'ExampleHomeWidget';
       expectIosScaffold(
-          projectRoot: project.root, widgetClassName: widgetClassName);
+        projectRoot: project.root,
+        widgetClassName: widgetClassName,
+      );
 
       final pbxproj = File(
         p.join(

@@ -60,8 +60,10 @@ void main() {
     expect(swiftContent, contains('App Group ID used here: group.test.app'));
 
     final bundleContent = await widgetBundleSwift.readAsString();
-    expect(bundleContent,
-        contains('struct TestWidgetHomeWidgetBundle: WidgetBundle'));
+    expect(
+      bundleContent,
+      contains('struct TestWidgetHomeWidgetBundle: WidgetBundle'),
+    );
     expect(bundleContent, contains('TestWidgetHomeWidget()'));
 
     // Check entitlements creation (stubbed by ensuring path exists in test logic of generator, assuming utils work)

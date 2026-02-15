@@ -30,9 +30,9 @@ String ensureKotlinComposeCompilerPlugin(
   final indent = _leadingWhitespace(lines[pluginsStart]);
   final pluginLine = switch (dialect) {
     GradleDialect.groovy =>
-      "${indent}    id 'org.jetbrains.kotlin.plugin.compose' version '$kotlinVersion'",
+      "$indent    id 'org.jetbrains.kotlin.plugin.compose' version '$kotlinVersion'",
     GradleDialect.kts =>
-      '${indent}    id("org.jetbrains.kotlin.plugin.compose") version "$kotlinVersion"',
+      '$indent    id("org.jetbrains.kotlin.plugin.compose") version "$kotlinVersion"',
   };
 
   // Insert after the Kotlin Android plugin if present, otherwise right after
@@ -173,8 +173,8 @@ void _ensureComposeInBuildFeatures(
   );
 
   final composeLine = switch (dialect) {
-    GradleDialect.groovy => '${baseIndent}        compose true',
-    GradleDialect.kts => '${baseIndent}        compose = true',
+    GradleDialect.groovy => '$baseIndent        compose true',
+    GradleDialect.kts => '$baseIndent        compose = true',
   };
 
   if (buildFeaturesStart != -1) {

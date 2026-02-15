@@ -6,7 +6,7 @@ import '../models/widget_spec.dart';
 import '../util/android_package.dart';
 import '../util/android_templates.dart';
 import '../util/android_wiring.dart';
-import '../util/cli_io.dart';
+import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
 
@@ -22,7 +22,7 @@ class AndroidGenerator {
   Future<void> generate() async {
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: android/app/ not found. Skipping Android generation for ${spec.name}.',
       );
       return;
@@ -60,9 +60,11 @@ class AndroidGenerator {
     final widgetFile = File(p.join(kotlinDir.path, '$widgetClassName.kt'));
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
-          packageName: packageName, widgetClassName: widgetClassName),
+        packageName: packageName,
+        widgetClassName: widgetClassName,
+      ),
     );
-    cliIO.writelnOut('Generated: ${widgetFile.path}');
+    logger.success('Generated: ${widgetFile.path}');
 
     // 3. Generate Receiver.kt
     final receiverFile = File(
@@ -70,9 +72,11 @@ class AndroidGenerator {
     );
     await receiverFile.writeAsString(
       androidGlanceReceiverTemplate(
-          packageName: packageName, widgetClassName: widgetClassName),
+        packageName: packageName,
+        widgetClassName: widgetClassName,
+      ),
     );
-    cliIO.writelnOut('Generated: ${receiverFile.path}');
+    logger.success('Generated: ${receiverFile.path}');
 
     // 4. Generate provider info XML
     final providerInfoFile = File(
@@ -80,9 +84,10 @@ class AndroidGenerator {
     );
     await providerInfoFile.writeAsString(
       androidAppWidgetProviderInfoTemplate(
-          initialLayoutName: 'glance_default_loading_layout'),
+        initialLayoutName: 'glance_default_loading_layout',
+      ),
     );
-    cliIO.writelnOut('Generated: ${providerInfoFile.path}');
+    logger.success('Generated: ${providerInfoFile.path}');
 
     // 5. Wire into Gradle and AndroidManifest (idempotent)
     await ensureAndroidGlanceGradleSetup(projectRoot);

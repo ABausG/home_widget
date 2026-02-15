@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
-import 'cli_io.dart';
+import 'logger.dart';
 import 'compose_kotlin_compat.dart';
 import 'gradle_utils.dart';
 import 'kotlin_version_detector.dart';
@@ -34,7 +34,7 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 
   if (kotlinVersion != null && composeCompilerVersion == null) {
     if (kotlinMajor == null || kotlinMajor < 2) {
-      cliIO.writelnErr(
+      logger.warn(
         'Warning: Detected Kotlin $kotlinVersion, but could not determine a '
         'compatible Compose compiler version from the compatibility table. '
         'Skipping composeOptions.kotlinCompilerExtensionVersion insertion.',
@@ -73,7 +73,7 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 
     if (updated != original) {
       gradleGroovy.writeAsStringSync(updated);
-      cliIO.writelnOut('Updated: ${gradleGroovy.path}');
+      logger.info('Updated: ${gradleGroovy.path}');
     }
     return;
   }
@@ -102,13 +102,13 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 
     if (updated != original) {
       gradleKts.writeAsStringSync(updated);
-      cliIO.writelnOut('Updated: ${gradleKts.path}');
+      logger.info('Updated: ${gradleKts.path}');
     }
     return;
   }
 
   // If neither exists, we can't do anything (unlikely in a Flutter project).
-  cliIO.writelnErr(
+  logger.warn(
     'Warning: Could not find android/app/build.gradle(.kts); skipping Gradle '
     'Glance setup.',
   );
@@ -132,7 +132,7 @@ Future<void> ensureAndroidManifestReceiver(
     ),
   );
   if (!manifestFile.existsSync()) {
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
       'manifest wiring.',
     );
@@ -143,7 +143,7 @@ Future<void> ensureAndroidManifestReceiver(
 
   final manifestXml = tryParseXmlFile(manifestFile);
   if (manifestXml == null) {
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: Could not parse AndroidManifest.xml as XML; skipping manifest '
       'wiring.',
     );
@@ -156,7 +156,7 @@ Future<void> ensureAndroidManifestReceiver(
       .firstWhere((e) => e != null, orElse: () => null);
 
   if (application == null) {
-    cliIO.writelnErr(
+    logger.warn(
       'Warning: Could not find <application> in AndroidManifest.xml; skipping '
       'manifest wiring.',
     );
@@ -181,7 +181,7 @@ Future<void> ensureAndroidManifestReceiver(
   );
 
   writeXmlFile(manifestFile, manifestXml);
-  cliIO.writelnOut('Updated: ${manifestFile.path}');
+  logger.info('Updated: ${manifestFile.path}');
 }
 
 bool _androidApplicationHasWidgetReceiver(
@@ -201,7 +201,8 @@ bool _androidApplicationHasWidgetReceiver(
   if (hasReceiverName) return true;
 
   final hasProviderMeta = application.findAllElements('meta-data').any(
-      (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName');
+        (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName',
+      );
   return hasProviderMeta;
 }
 
