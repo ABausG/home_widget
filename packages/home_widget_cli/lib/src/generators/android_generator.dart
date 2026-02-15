@@ -82,6 +82,10 @@ class AndroidGenerator {
       buffer.writeln(') {');
       buffer.writeln('    companion object {');
       buffer.writeln(
+        '        private const val PREFERENCES_PREFIX = "home_widget.${spec.className}."',
+      );
+      buffer.writeln();
+      buffer.writeln(
         '        fun fromPreferences(prefs: android.content.SharedPreferences): $className {',
       );
       buffer.writeln('            return $className(');
@@ -91,19 +95,19 @@ class AndroidGenerator {
         String readLogic;
         switch (field.type) {
           case HWDataFieldType.string:
-            readLogic = 'prefs.getString("$key", null)';
+            readLogic = 'prefs.getString("\${PREFERENCES_PREFIX}$key", null)';
             break;
           case HWDataFieldType.int_:
             readLogic =
-                'if (prefs.contains("$key")) prefs.getInt("$key", 0) else null';
+                'if (prefs.contains("\${PREFERENCES_PREFIX}$key")) prefs.getInt("\${PREFERENCES_PREFIX}$key", 0) else null';
             break;
           case HWDataFieldType.double_:
             readLogic =
-                'if (prefs.contains("$key")) prefs.getFloat("$key", 0f).toDouble() else null';
+                'if (prefs.contains("\${PREFERENCES_PREFIX}$key")) prefs.getFloat("\${PREFERENCES_PREFIX}$key", 0f).toDouble() else null';
             break;
           case HWDataFieldType.bool_:
             readLogic =
-                'if (prefs.contains("$key")) prefs.getBoolean("$key", false) else null';
+                'if (prefs.contains("\${PREFERENCES_PREFIX}$key")) prefs.getBoolean("\${PREFERENCES_PREFIX}$key", false) else null';
             break;
         }
 

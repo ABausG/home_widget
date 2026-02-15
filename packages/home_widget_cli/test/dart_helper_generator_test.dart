@@ -27,13 +27,13 @@ void main() {
       expect(
         output,
         contains(
-          "if (countLabel != null) HomeWidget.saveWidgetData<String>('countLabel', countLabel),",
+          "if (countLabel != null) HomeWidget.saveWidgetData<String>('\$_paramPrefix${'countLabel'}', countLabel),",
         ),
       );
       expect(
         output,
         contains(
-          "if (count != null) HomeWidget.saveWidgetData<int>('count', count),",
+          "if (count != null) HomeWidget.saveWidgetData<int>('\$_paramPrefix${'count'}', count),",
         ),
       );
 
@@ -44,7 +44,7 @@ void main() {
       expect(
         output,
         contains(
-          "if (countLabel) HomeWidget.saveWidgetData('countLabel', null),",
+          "if (countLabel) HomeWidget.saveWidgetData('\$_paramPrefix${'countLabel'}', null),",
         ),
       );
 
@@ -56,12 +56,14 @@ void main() {
       expect(
         output,
         contains(
-          "countLabel: await HomeWidget.getWidgetData<String>('countLabel'),",
+          "countLabel: await HomeWidget.getWidgetData<String>('\$_paramPrefix${'countLabel'}'),",
         ),
       );
       expect(
         output,
-        contains("count: await HomeWidget.getWidgetData<int>('count'),"),
+        contains(
+          "count: await HomeWidget.getWidgetData<int>('\$_paramPrefix${'count'}'),",
+        ),
       );
     });
 

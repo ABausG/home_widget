@@ -57,8 +57,14 @@ void main() {
         'static func fromUserDefaults(_ defaults: UserDefaults?) -> ExampleWidgetData',
       ),
     );
-    expect(content, contains('defaults?.object(forKey: "count") as? Int'));
-    expect(content, contains('defaults?.string(forKey: "label")'));
+    expect(
+      content,
+      contains('defaults?.object(forKey: "\\(paramPrefix)count") as? Int'),
+    );
+    expect(
+      content,
+      contains('defaults?.string(forKey: "\\(paramPrefix)label")'),
+    );
 
     // Check Entry
     expect(

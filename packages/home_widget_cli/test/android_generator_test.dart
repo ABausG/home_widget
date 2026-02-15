@@ -59,10 +59,13 @@ void main() {
     expect(
       content,
       contains(
-        'if (prefs.contains("count")) prefs.getInt("count", 0) else null',
+        'if (prefs.contains("\${PREFERENCES_PREFIX}count")) prefs.getInt("\${PREFERENCES_PREFIX}count", 0) else null',
       ),
     );
-    expect(content, contains('prefs.getString("label", null)'));
+    expect(
+      content,
+      contains('prefs.getString("\${PREFERENCES_PREFIX}label", null)'),
+    );
 
     // Check usage in UI
     expect(
