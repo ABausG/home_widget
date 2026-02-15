@@ -59,11 +59,11 @@ void main() {
     );
     expect(
       content,
-      contains('defaults?.object(forKey: "\\(paramPrefix)count") as? Int'),
+      contains('defaults?.object(forKey: "\\(paramPrefix).count") as? Int'),
     );
     expect(
       content,
-      contains('defaults?.string(forKey: "\\(paramPrefix)label")'),
+      contains('defaults?.string(forKey: "\\(paramPrefix).label")'),
     );
 
     // Check Entry

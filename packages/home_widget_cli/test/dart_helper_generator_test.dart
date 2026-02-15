@@ -27,13 +27,13 @@ void main() {
       expect(
         output,
         contains(
-          "if (countLabel != null) HomeWidget.saveWidgetData<String>('\$_paramPrefix${'countLabel'}', countLabel),",
+          "if (countLabel != null) HomeWidget.saveWidgetData<String>('\$_paramPrefix.${'countLabel'}', countLabel),",
         ),
       );
       expect(
         output,
         contains(
-          "if (count != null) HomeWidget.saveWidgetData<int>('\$_paramPrefix${'count'}', count),",
+          "if (count != null) HomeWidget.saveWidgetData<int>('\$_paramPrefix.${'count'}', count),",
         ),
       );
 
@@ -44,7 +44,7 @@ void main() {
       expect(
         output,
         contains(
-          "if (countLabel) HomeWidget.saveWidgetData('\$_paramPrefix${'countLabel'}', null),",
+          "if (countLabel) HomeWidget.saveWidgetData('\$_paramPrefix.${'countLabel'}', null),",
         ),
       );
 
@@ -56,13 +56,13 @@ void main() {
       expect(
         output,
         contains(
-          "countLabel: await HomeWidget.getWidgetData<String>('\$_paramPrefix${'countLabel'}'),",
+          "countLabel: await HomeWidget.getWidgetData<String>('\$_paramPrefix.${'countLabel'}'),",
         ),
       );
       expect(
         output,
         contains(
-          "count: await HomeWidget.getWidgetData<int>('\$_paramPrefix${'count'}'),",
+          "count: await HomeWidget.getWidgetData<int>('\$_paramPrefix.${'count'}'),",
         ),
       );
     });
@@ -109,6 +109,23 @@ void main() {
         contains("androidName: 'ExampleWidgetHomeWidgetReceiver',"),
       );
       expect(output, contains("iOSName: 'ExampleWidgetHomeWidget',"));
+    });
+
+    test('generates helper without data fields', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'NoDataWidget'),
+        className: 'NoDataWidget',
+        dataFields: [],
+      );
+
+      final generator = DartHelperGenerator(spec);
+      final output = generator.generate();
+
+      expect(output, contains('class NoDataWidgetHomeWidget {'));
+      expect(output, isNot(contains('_paramPrefix')));
+      expect(output, isNot(contains('saveData')));
+      expect(output, isNot(contains('deleteData')));
+      expect(output, isNot(contains('getData')));
     });
 
     test('generates ensureInitialized method', () {

@@ -29,11 +29,6 @@ class DartHelperGenerator {
     buffer.writeln('class $className {');
     buffer.writeln('  const $className._();');
     buffer.writeln();
-    buffer.writeln(
-      "  static const String _paramPrefix = 'home_widget.${spec.className}.';",
-    );
-    buffer.writeln();
-
     buffer.writeln('  static Future<void> ensureInitialized() async {');
     if (spec.data.iOS != null) {
       buffer.writeln(
@@ -49,6 +44,10 @@ class DartHelperGenerator {
     buffer.writeln();
 
     if (spec.dataFields.isNotEmpty) {
+      buffer.writeln(
+        "  static const String _paramPrefix = 'home_widget.${spec.className}';",
+      );
+      buffer.writeln();
       buffer.writeln('  static Future<void> saveData({');
       for (final field in spec.dataFields) {
         final type = field.type.dartType;
@@ -59,7 +58,7 @@ class DartHelperGenerator {
       for (final field in spec.dataFields) {
         final type = field.type.dartType;
         buffer.writeln(
-          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('\$_paramPrefix${field.key}', ${field.key}),",
+          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('\$_paramPrefix.${field.key}', ${field.key}),",
         );
       }
       buffer.writeln('    ]);');
@@ -74,7 +73,7 @@ class DartHelperGenerator {
       buffer.writeln('    return Future.wait([');
       for (final field in spec.dataFields) {
         buffer.writeln(
-          "      if (${field.key}) HomeWidget.saveWidgetData('\$_paramPrefix${field.key}', null),",
+          "      if (${field.key}) HomeWidget.saveWidgetData('\$_paramPrefix.${field.key}', null),",
         );
       }
       buffer.writeln('    ]);');
@@ -90,7 +89,7 @@ class DartHelperGenerator {
       for (final field in spec.dataFields) {
         final type = field.type.dartType;
         buffer.writeln(
-          "      ${field.key}: await HomeWidget.getWidgetData<$type>('\$_paramPrefix${field.key}'),",
+          "      ${field.key}: await HomeWidget.getWidgetData<$type>('\$_paramPrefix.${field.key}'),",
         );
       }
       buffer.writeln('    );');

@@ -83,8 +83,7 @@ class IosGenerator {
       }
       buffer.writeln();
       buffer.writeln(
-        '  static let paramPrefix = "home_widget.${spec.className}."',
-      );
+          '  static let paramPrefix = "home_widget.${spec.className}"',);
       buffer.writeln();
       buffer.writeln(
         '  static func fromUserDefaults(_ defaults: UserDefaults?) -> $className {',
@@ -95,19 +94,19 @@ class IosGenerator {
         String readLogic;
         switch (field.type) {
           case HWDataFieldType.string:
-            readLogic = 'defaults?.string(forKey: "\\(paramPrefix)$key")';
+            readLogic = 'defaults?.string(forKey: "\\(paramPrefix).$key")';
             break;
           case HWDataFieldType.int_:
             readLogic =
-                'defaults?.object(forKey: "\\(paramPrefix)$key") as? Int';
+                'defaults?.object(forKey: "\\(paramPrefix).$key") as? Int';
             break;
           case HWDataFieldType.double_:
             readLogic =
-                'defaults?.object(forKey: "\\(paramPrefix)$key") as? Double';
+                'defaults?.object(forKey: "\\(paramPrefix).$key") as? Double';
             break;
           case HWDataFieldType.bool_:
             readLogic =
-                'defaults?.object(forKey: "\\(paramPrefix)$key") as? Bool';
+                'defaults?.object(forKey: "\\(paramPrefix).$key") as? Bool';
             break;
         }
         buffer.writeln('      ${field.key}: $readLogic,');
