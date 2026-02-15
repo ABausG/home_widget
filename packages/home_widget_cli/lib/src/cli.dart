@@ -4,6 +4,7 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 
 import 'commands/create_command.dart';
+import 'commands/generate_command.dart';
 import 'util/cli_io.dart';
 import 'util/exit_codes.dart';
 
@@ -12,7 +13,9 @@ Future<int> runCli(List<String> args) async {
   final runner = CommandRunner<int>(
     'home_widget',
     'Scaffold native widget parts for the home_widget plugin.',
-  )..addCommand(CreateCommand());
+  )
+    ..addCommand(CreateCommand())
+    ..addCommand(GenerateCommand());
 
   runner.argParser
     ..addFlag('version', negatable: false, help: 'Print the CLI version.')

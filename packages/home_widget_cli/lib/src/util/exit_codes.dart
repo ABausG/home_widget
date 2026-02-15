@@ -13,4 +13,7 @@ abstract final class ExitCodes {
 
   /// OS / file system error.
   static const int osFile = 72;
+
+  /// Input file did not exist or was not readable.
+  static const int noInput = 66;
 }
