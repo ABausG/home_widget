@@ -1,0 +1,41 @@
+---
+title: Migration to 0.9.0
+description: Breaking changes and migration guide for home_widget 0.9.0
+---
+
+# Migration to 0.9.0
+
+This guide will help you migrate your project to `home_widget` version 0.9.0.
+
+## Minimum Version Requirements
+
+The following minimum version requirements apply for version 0.9.0:
+
+- **iOS**: Minimum deployment target is **iOS 14.0**
+- **Dart SDK**: Minimum version is `>=3.5.0 <4.0.0`
+- **Flutter**: Minimum version is `>=3.20.0-1.2.pre`
+
+## Android Package Names
+
+With version 0.9.0, Android now requires explicit namespace declarations in `build.gradle`. As a result, imports for `home_widget` classes must now use fully qualified package names.
+
+### Update Imports
+
+Previously, you could import `home_widget` classes without the package prefix. Now you must use the full package-qualified imports:
+
+```kotlin
+import HomeWidgetGlanceState // [!code --]
+import HomeWidgetGlanceStateDefinition // [!code --]
+import HomeWidgetGlanceWidgetReceiver // [!code --]
+import es.antonborri.home_widget.HomeWidgetGlanceState // [!code ++]
+import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition // [!code ++]
+import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver // [!code ++]
+```
+
+This applies to all `home_widget` classes you import in your Android widget code, including:
+- `HomeWidgetGlanceState`
+- `HomeWidgetGlanceStateDefinition`
+- `HomeWidgetGlanceWidgetReceiver`
+- `HomeWidgetBackgroundIntent`
+- `HomeWidgetPlugin`
+- Any other classes from the `es.antonborri.home_widget` package

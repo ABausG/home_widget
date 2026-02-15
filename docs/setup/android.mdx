@@ -58,8 +58,8 @@ The `GlanceAppWidget` is the file in which you define your Widget's layout. Shou
 
 ```kotlin
 // Other imports...
-import HomeWidgetGlanceState
-import HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetGlanceState
+import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 
 class AppWidget : GlanceAppWidget() {
 
@@ -103,7 +103,7 @@ Your Receiver should then look like this, using the previously define `AppWidget
 // Remember to set a package in order for home_widget to find the Receiver
 package es.antonborri.home_widget_example.glance
 
-import HomeWidgetGlanceWidgetReceiver
+import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
 class HomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<AppWidget>() {
     override val glanceAppWidget = AppWidget()

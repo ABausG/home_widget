@@ -70,9 +70,13 @@ words:
     - Codelab
     - pubspec
     - Siri
+    - sirikit
     - objc
     - typealias
+    - widgetconfigurationintent
     - xcodeproj
     - pbxproj
+    - xcworkspace
     - Codemagic
     - lockscreen
+    - codesign
