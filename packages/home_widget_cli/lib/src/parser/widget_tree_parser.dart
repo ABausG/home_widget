@@ -11,23 +11,36 @@ WidgetNode parseWidgetExpression(
   Expression expr, {
   required List<DataFieldSpec> dataFields,
 }) {
-  if (expr is! InstanceCreationExpression) {
+  String typeName;
+  String? ctorName;
+
+  if (expr is InstanceCreationExpression) {
+    typeName = expr.constructorName.type.name2.lexeme;
+    ctorName = expr.constructorName.name?.name;
+
+    if (expr.constructorName.type.importPrefix != null &&
+        ['HWText']
+            .contains(expr.constructorName.type.importPrefix!.name.lexeme)) {
+      typeName = expr.constructorName.type.importPrefix!.name.lexeme;
+      ctorName = expr.constructorName.type.name2.lexeme;
+    }
+  } else if (expr is MethodInvocation) {
+    // Handle cases like HWText.data(...) which are parsed as MethodInvocation
+    // when not using const/new.
+    final target = expr.target;
+    if (target is SimpleIdentifier) {
+      typeName = target.name;
+    } else {
+      throw GeneratorError(
+        'Expected widget class name (e.g. HWText), got ${expr.target}',
+      );
+    }
+    ctorName = expr.methodName.name;
+  } else {
     throw GeneratorError(
-      'widgetBuilder must be a const constructor call, '
+      'widgetBuilder must be a const constructor call or method invocation, '
       'got ${expr.runtimeType}',
     );
-  }
-
-  var typeName = expr.constructorName.type.name2.lexeme; // e.g. 'HWText'
-  var ctorName = expr.constructorName.name?.name; // e.g. 'fixed' or 'data'
-
-  // When parsing "HWText.fixed(...)" without context, the analyzer may interprete
-  // "HWText" as a prefix and "fixed" as a type.
-  if (expr.constructorName.type.importPrefix != null &&
-      ['HWText']
-          .contains(expr.constructorName.type.importPrefix!.name.lexeme)) {
-    typeName = expr.constructorName.type.importPrefix!.name.lexeme;
-    ctorName = expr.constructorName.type.name2.lexeme;
   }
 
   return switch (typeName) {
@@ -38,19 +51,29 @@ WidgetNode parseWidgetExpression(
 }
 
 TextNode _parseHWText(
-  InstanceCreationExpression expr,
+  Expression expr,
   String? ctorName, {
   required List<DataFieldSpec> dataFields,
 }) {
+  final args = _getArguments(expr);
   return switch (ctorName) {
-    'fixed' => _parseHWTextFixed(expr),
-    'data' => _parseHWTextData(expr, dataFields: dataFields),
+    'fixed' => _parseHWTextFixed(args),
+    'data' => _parseHWTextData(args, dataFields: dataFields),
     _ => throw GeneratorError('Unknown HWText constructor: .$ctorName'),
   };
 }
 
-TextNode _parseHWTextFixed(InstanceCreationExpression expr) {
-  final arg = expr.argumentList.arguments.first;
+List<Expression> _getArguments(Expression expr) {
+  if (expr is InstanceCreationExpression) {
+    return expr.argumentList.arguments;
+  } else if (expr is MethodInvocation) {
+    return expr.argumentList.arguments;
+  }
+  throw GeneratorError('Unsupported expression type: ${expr.runtimeType}');
+}
+
+TextNode _parseHWTextFixed(List<Expression> args) {
+  final arg = args.first;
   if (arg is! SimpleStringLiteral) {
     throw GeneratorError('HWText.fixed() argument must be a string literal');
   }
@@ -58,10 +81,10 @@ TextNode _parseHWTextFixed(InstanceCreationExpression expr) {
 }
 
 TextNode _parseHWTextData(
-  InstanceCreationExpression expr, {
+  List<Expression> args, {
   required List<DataFieldSpec> dataFields,
 }) {
-  final arg = expr.argumentList.arguments.first;
+  final arg = args.first;
 
   // exampleWidgetData.countLabel is a PrefixedIdentifier
   // where .identifier.name is 'countLabel'
