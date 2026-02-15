@@ -23,7 +23,6 @@ class ConfigGenerator {
     buffer.writeln();
 
     final dataClassName = '${spec.className}Data';
-    final instanceName = '${_startLowerCase(spec.className)}Data';
 
     buffer.writeln('class $dataClassName {');
     buffer.writeln('  const $dataClassName._();');
@@ -32,20 +31,13 @@ class ConfigGenerator {
     for (final field in spec.dataFields) {
       final type = field.type.dartType;
       buffer.writeln(
-        "  HWDataRef<$type> get ${field.key} => const HWDataRef<$type>('${field.key}');",
+        "  static const HWDataRef<$type> ${field.key} = HWDataRef<$type>('${field.key}');",
       );
     }
 
     buffer.writeln('}');
-    buffer.writeln();
-    buffer.writeln('const $instanceName = $dataClassName._();');
 
     return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
         .format(buffer.toString());
-  }
-
-  String _startLowerCase(String input) {
-    if (input.isEmpty) return input;
-    return input[0].toLowerCase() + input.substring(1);
   }
 }

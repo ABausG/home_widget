@@ -23,16 +23,18 @@ void main() {
       expect(
         output,
         contains(
-          "HWDataRef<String> get countLabel => const HWDataRef<String>('countLabel');",
+          "static const HWDataRef<String> countLabel = HWDataRef<String>('countLabel');",
         ),
       );
       expect(
         output,
-        contains("HWDataRef<int> get count => const HWDataRef<int>('count');"),
+        contains(
+          "static const HWDataRef<int> count = HWDataRef<int>('count');",
+        ),
       );
       expect(
         output,
-        contains('const exampleWidgetData = ExampleWidgetData._();'),
+        isNot(contains('const exampleWidgetData = ExampleWidgetData._();')),
       );
     });
 
