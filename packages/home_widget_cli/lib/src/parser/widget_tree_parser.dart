@@ -30,12 +30,17 @@ WidgetNode parseWidgetExpression(
     final target = expr.target;
     if (target is SimpleIdentifier) {
       typeName = target.name;
+      ctorName = expr.methodName.name;
+    } else if (target == null) {
+      // Nested constructor call without const/new, e.g. HWColumn(children: [...])
+      // inside a const list literal. The method name is the type name.
+      typeName = expr.methodName.name;
+      ctorName = null;
     } else {
       throw GeneratorError(
         'Expected widget class name (e.g. HWText), got ${expr.target}',
       );
     }
-    ctorName = expr.methodName.name;
   } else {
     throw GeneratorError(
       'widgetBuilder must be a const constructor call or method invocation, '
@@ -45,7 +50,9 @@ WidgetNode parseWidgetExpression(
 
   return switch (typeName) {
     'HWText' => _parseHWText(expr, ctorName, dataFields: dataFields),
-    // v4 will add: 'HWColumn' => ..., 'HWRow' => ...
+    'HWColumn' =>
+      _parseLayoutNode(expr, isColumn: true, dataFields: dataFields),
+    'HWRow' => _parseLayoutNode(expr, isColumn: false, dataFields: dataFields),
     _ => throw GeneratorError('Unknown widget type: $typeName'),
   };
 }
@@ -112,5 +119,79 @@ TextNode _parseHWTextData(
 
   return TextNode(
     content: DataRefValue(key: fieldName, type: field.type),
+  );
+}
+
+WidgetNode _parseLayoutNode(
+  Expression expr, {
+  required bool isColumn,
+  required List<DataFieldSpec> dataFields,
+}) {
+  final args = _getArguments(expr);
+
+  final childrenArg = args.whereType<NamedExpression>().firstWhere(
+        (a) => a.name.label.name == 'children',
+        orElse: () => throw GeneratorError(
+          '${isColumn ? "HWColumn" : "HWRow"} requires a children argument',
+        ),
+      );
+
+  final listExpr = childrenArg.expression;
+  if (listExpr is! ListLiteral) {
+    throw GeneratorError('children must be a list literal');
+  }
+
+  final children = listExpr.elements.map((element) {
+    if (element is! Expression) {
+      throw GeneratorError(
+        'children list elements must be expressions',
+      );
+    }
+    return parseWidgetExpression(element, dataFields: dataFields);
+  }).toList();
+
+  final alignArg = args
+      .whereType<NamedExpression>()
+      .where((a) => a.name.label.name == 'crossAxisAlignment')
+      .firstOrNull;
+
+  final crossAxisAlignment =
+      alignArg != null ? _parseCrossAxisAlignment(alignArg.expression) : null;
+
+  final mainAlignArg = args
+      .whereType<NamedExpression>()
+      .where((a) => a.name.label.name == 'mainAxisAlignment')
+      .firstOrNull;
+
+  final mainAxisAlignment = mainAlignArg != null
+      ? _parseMainAxisAlignment(mainAlignArg.expression)
+      : null;
+
+  return isColumn
+      ? ColumnNode(
+          children: children,
+          crossAxisAlignment: crossAxisAlignment,
+          mainAxisAlignment: mainAxisAlignment,
+        )
+      : RowNode(
+          children: children,
+          crossAxisAlignment: crossAxisAlignment,
+          mainAxisAlignment: mainAxisAlignment,
+        );
+}
+
+CrossAxisAlignment _parseCrossAxisAlignment(Expression expr) {
+  final name = (expr as PrefixedIdentifier).identifier.name;
+  return CrossAxisAlignment.values.firstWhere(
+    (v) => v.name == name,
+    orElse: () => throw GeneratorError('Unknown crossAxisAlignment: $name'),
+  );
+}
+
+MainAxisAlignment _parseMainAxisAlignment(Expression expr) {
+  final name = (expr as PrefixedIdentifier).identifier.name;
+  return MainAxisAlignment.values.firstWhere(
+    (v) => v.name == name,
+    orElse: () => throw GeneratorError('Unknown mainAxisAlignment: $name'),
   );
 }

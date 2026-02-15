@@ -12,6 +12,7 @@ String androidGlanceWidgetTemplate({
   required String widgetClassName,
   String? contentBody,
   String? extraContent,
+  Set<String>? additionalImports,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -45,7 +46,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
-import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition${additionalImports != null && additionalImports.isNotEmpty ? '\n${additionalImports.join('\n')}' : ''}
 
 class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()

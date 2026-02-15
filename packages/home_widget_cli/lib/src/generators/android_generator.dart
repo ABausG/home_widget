@@ -159,12 +159,15 @@ class AndroidGenerator {
       contentBody = bodyBuffer.toString();
     }
 
+    final layoutImports = collectKotlinLayoutImports(spec.widgetTree);
+
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
         packageName: packageName,
         widgetClassName: widgetClassName,
         contentBody: contentBody,
         extraContent: dataClassContent,
+        additionalImports: layoutImports.isNotEmpty ? layoutImports : null,
       ),
     );
     logger.success('Generated: ${widgetFile.path}');

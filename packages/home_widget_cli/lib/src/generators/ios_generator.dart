@@ -83,7 +83,8 @@ class IosGenerator {
       }
       buffer.writeln();
       buffer.writeln(
-          '  static let paramPrefix = "home_widget.${spec.className}"',);
+        '  static let paramPrefix = "home_widget.${spec.className}"',
+      );
       buffer.writeln();
       buffer.writeln(
         '  static func fromUserDefaults(_ defaults: UserDefaults?) -> $className {',
