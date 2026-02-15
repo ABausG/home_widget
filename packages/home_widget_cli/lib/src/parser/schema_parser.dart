@@ -56,12 +56,26 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
           dartOutput = expression.stringValue;
         }
       } else if (argName == 'android') {
+        ArgumentList? configArgs;
         if (expression is InstanceCreationExpression) {
-          android = _extractAndroidConfig(expression);
+          configArgs = expression.argumentList;
+        } else if (expression is MethodInvocation) {
+          configArgs = expression.argumentList;
+        }
+
+        if (configArgs != null) {
+          android = _extractAndroidConfig(configArgs);
         }
       } else if (argName == 'iOS') {
+        ArgumentList? configArgs;
         if (expression is InstanceCreationExpression) {
-          ios = _extractIosConfig(expression);
+          configArgs = expression.argumentList;
+        } else if (expression is MethodInvocation) {
+          configArgs = expression.argumentList;
+        }
+
+        if (configArgs != null) {
+          ios = _extractIosConfig(configArgs);
         }
       }
     }
@@ -84,10 +98,9 @@ WidgetSpec _extractWidgetSpec(String className, ArgumentList args) {
   );
 }
 
-HomeWidgetAndroidConfiguration? _extractAndroidConfig(
-    InstanceCreationExpression expression) {
+HomeWidgetAndroidConfiguration? _extractAndroidConfig(ArgumentList args) {
   String? packageName;
-  for (final arg in expression.argumentList.arguments) {
+  for (final arg in args.arguments) {
     if (arg is NamedExpression) {
       final argName = arg.name.label.name;
       if (argName == 'packageName') {
@@ -101,10 +114,9 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(
   return HomeWidgetAndroidConfiguration(packageName: packageName);
 }
 
-HomeWidgetIOSConfiguration? _extractIosConfig(
-    InstanceCreationExpression expression) {
+HomeWidgetIOSConfiguration? _extractIosConfig(ArgumentList args) {
   String? groupId;
-  for (final arg in expression.argumentList.arguments) {
+  for (final arg in args.arguments) {
     if (arg is NamedExpression) {
       final argName = arg.name.label.name;
       if (argName == 'groupId') {

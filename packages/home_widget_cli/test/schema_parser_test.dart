@@ -48,5 +48,30 @@ void main() {
       final spec = await parseSchemaSource(source);
       expect(spec, isNull);
     });
+
+    test('parses Basic Creation scenario', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Basic Creation',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.example',
+          ),
+        )
+        class BasicCreation {}
+      ''';
+
+      final spec = await parseSchemaSource(source);
+      expect(spec, isNotNull);
+      expect(spec!.name, 'Basic Creation');
+      expect(spec.className, 'BasicCreation');
+      expect(spec.android, isNotNull);
+      // packageName is optional/null in HomeWidgetAndroidConfiguration unless specified
+      expect(spec.android?.packageName, isNull);
+      expect(spec.ios, isNotNull);
+      expect(spec.ios?.groupId, 'group.example');
+    });
   });
 }
