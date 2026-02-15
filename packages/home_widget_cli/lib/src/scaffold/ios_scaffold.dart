@@ -8,10 +8,16 @@ import '../util/fs.dart';
 import '../util/ios_templates.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 
+/// Scaffolds a placeholder iOS WidgetKit extension and wires it into the
+/// Xcode project.
 final class IosWidgetScaffold {
+  /// Creates a new [IosWidgetScaffold].
   IosWidgetScaffold({required this.projectRoot, required this.widgetClassName});
 
+  /// The root directory of the Flutter project.
   final Directory projectRoot;
+
+  /// The Swift class name for the generated widget extension.
   final String widgetClassName;
 
   /// Create iOS widget-extension placeholders.

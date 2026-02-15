@@ -12,6 +12,8 @@ XmlDocument? tryParseXmlFile(File file) {
   }
 }
 
+/// Writes an [XmlDocument] to [file] with pretty-printed, Android-style
+/// formatting.
 void writeXmlFile(File file, XmlDocument document) {
   // "Nice default" formatting:
   // - pretty printed

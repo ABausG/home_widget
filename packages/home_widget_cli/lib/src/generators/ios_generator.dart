@@ -9,20 +9,27 @@ import '../util/fs.dart';
 import '../util/ios_templates.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 
+/// Generates iOS WidgetKit extension files from a [WidgetSpec].
 class IosGenerator {
+  /// The widget specification to generate code for.
   final WidgetSpec spec;
+
+  /// The root directory of the Flutter project.
   final Directory projectRoot;
 
+  /// Creates a new [IosGenerator].
   IosGenerator({
     required this.spec,
     required this.projectRoot,
   });
 
+  /// Generates the iOS WidgetKit extension files and wires them into the
+  /// Xcode project.
   Future<void> generate() async {
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
       logger.warn(
-        'Warning: ios/ not found. Skipping iOS generation for ${spec.name}.',
+        'Warning: ios/ not found. Skipping iOS generation for ${spec.data.name}.',
       );
       return;
     }
@@ -37,12 +44,12 @@ class IosGenerator {
       );
     }
 
-    if (spec.ios == null) {
+    if (spec.data.iOS == null) {
       return;
     }
 
     final widgetClassName = '${spec.className}HomeWidget';
-    final groupId = spec.ios!.groupId;
+    final groupId = spec.data.iOS!.groupId;
 
     // Create the Widget Extension folder and files.
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));

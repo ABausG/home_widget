@@ -13,10 +13,10 @@ void main() {
 
       final spec = await parseSchemaSource(source);
       expect(spec, isNotNull);
-      expect(spec!.name, 'Test');
+      expect(spec!.data.name, 'Test');
       expect(spec.className, 'TestWidget');
-      expect(spec.android, isNull);
-      expect(spec.ios, isNull);
+      expect(spec.data.android, isNull);
+      expect(spec.data.iOS, isNull);
       expect(spec.data.name, 'Test');
     });
 
@@ -33,11 +33,11 @@ void main() {
 
       final spec = await parseSchemaSource(source);
       expect(spec, isNotNull);
-      expect(spec!.name, 'Full Test');
+      expect(spec!.data.name, 'Full Test');
       expect(spec.className, 'FullWidget');
-      expect(spec.dartOutput, 'lib/full_test.dart');
-      expect(spec.android?.packageName, 'com.full');
-      expect(spec.ios?.groupId, 'group.full');
+      expect(spec.data.dartOutput, 'lib/full_test.dart');
+      expect(spec.data.android?.packageName, 'com.full');
+      expect(spec.data.iOS?.groupId, 'group.full');
     });
 
     test('returns null if no @HomeWidget annotation', () async {
@@ -65,10 +65,10 @@ void main() {
 
       final spec = await parseSchemaSource(source);
       expect(spec, isNotNull);
-      expect(spec!.name, 'Basic Creation');
+      expect(spec!.data.name, 'Basic Creation');
       expect(spec.className, 'BasicCreation');
-      expect(spec.android, isNotNull);
-      expect(spec.ios, isNotNull);
+      expect(spec.data.android, isNotNull);
+      expect(spec.data.iOS, isNotNull);
     });
   });
 }

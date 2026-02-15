@@ -10,8 +10,17 @@
 /// than relying on exact line matches.
 library;
 
-enum GradleDialect { groovy, kts }
+/// The dialect of a Gradle build script.
+enum GradleDialect {
+  /// Groovy-based Gradle scripts (`.gradle`).
+  groovy,
 
+  /// Kotlin Script Gradle scripts (`.gradle.kts`).
+  kts,
+}
+
+/// Ensures the Kotlin Compose compiler plugin is declared in the Gradle
+/// build script, inserting it idempotently if missing.
 String ensureKotlinComposeCompilerPlugin(
   String input, {
   required GradleDialect dialect,
@@ -52,6 +61,8 @@ String ensureKotlinComposeCompilerPlugin(
   return lines.join('\n');
 }
 
+/// Ensures the Jetpack Glance `appwidget` dependency is present in the
+/// Gradle build script, inserting it idempotently if missing.
 String ensureGlanceDependency(
   String input, {
   required GradleDialect dialect,
@@ -117,6 +128,8 @@ String ensureGlanceDependency(
   return out.endsWith('\n') ? out : '$out\n';
 }
 
+/// Ensures Compose is enabled via `buildFeatures` (and optionally
+/// `composeOptions`) in the Gradle build script.
 String ensureComposeEnabled(
   String input, {
   required GradleDialect dialect,

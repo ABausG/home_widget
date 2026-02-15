@@ -7,12 +7,12 @@
 /// fast, offline lookup without relying on network access at runtime.
 library;
 
-// Kotlin version -> *latest* compatible Compose compiler version, derived from
-// the table above (when multiple Compose compiler versions map to the same
-// Kotlin version, we pick the highest Compose compiler version).
-//
-// Note: Kotlin versions here are normalized to the `x.y.z` form as published in
-// the table (no suffixes).
+/// Kotlin version -> *latest* compatible Compose compiler version, derived from
+/// the table above (when multiple Compose compiler versions map to the same
+/// Kotlin version, we pick the highest Compose compiler version).
+///
+/// Kotlin versions here are normalized to the `x.y.z` form as published in
+/// the table (no suffixes).
 const Map<String, String> kotlinToComposeCompiler = {
   '1.5.10': '1.0.0',
   '1.5.21': '1.1.0-alpha02',
@@ -41,7 +41,7 @@ const Map<String, String> kotlinToComposeCompiler = {
   '1.9.25': '1.5.15',
 };
 
-// Compose compiler -> Kotlin from the table (includes prereleases too).
+/// Compose compiler -> Kotlin from the table (includes prereleases too).
 const Map<String, String> composeCompilerToKotlin = {
   '1.0.0': '1.5.10',
   '1.0.0-rc02': '1.5.10',

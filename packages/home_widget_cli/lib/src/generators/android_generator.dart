@@ -10,26 +10,33 @@ import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
 
+/// Generates Android Glance widget files from a [WidgetSpec].
 class AndroidGenerator {
+  /// The widget specification to generate code for.
   final WidgetSpec spec;
+
+  /// The root directory of the Flutter project.
   final Directory projectRoot;
 
+  /// Creates a new [AndroidGenerator].
   AndroidGenerator({
     required this.spec,
     required this.projectRoot,
   });
 
+  /// Generates the Android Glance widget files and wires them into Gradle
+  /// and AndroidManifest.
   Future<void> generate() async {
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
       logger.warn(
-        'Warning: android/app/ not found. Skipping Android generation for ${spec.name}.',
+        'Warning: android/app/ not found. Skipping Android generation for ${spec.data.name}.',
       );
       return;
     }
 
     // 1. Determine package name (annotation override or auto-detect)
-    final packageName = spec.android?.packageName ??
+    final packageName = spec.data.android?.packageName ??
         tryDetectAndroidPackage(projectRoot) ??
         'com.example';
     final packagePath = packageName.split('.').join(p.separator);

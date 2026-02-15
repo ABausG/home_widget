@@ -8,16 +8,11 @@ class WidgetSpec {
   /// The name of the Dart class (from annotated class).
   final String className;
 
+  /// Creates a new [WidgetSpec].
   const WidgetSpec({
     required this.data,
     required this.className,
   });
-
-  String get name => data.name;
-  String? get dartOutput => data.dartOutput;
-  HomeWidgetAndroidConfiguration? get android => data.android;
-  HomeWidgetIOSConfiguration? get ios => data.iOS;
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

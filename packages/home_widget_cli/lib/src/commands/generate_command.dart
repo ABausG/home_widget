@@ -10,6 +10,7 @@ import '../util/logger.dart';
 import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 
+/// Command that generates native widget code from annotated Dart schemas.
 class GenerateCommand extends Command<int> {
   @override
   String get name => 'generate';
@@ -17,6 +18,7 @@ class GenerateCommand extends Command<int> {
   @override
   String get description => 'Generate native widget code from a schema file.';
 
+  /// Creates a new [GenerateCommand].
   GenerateCommand() {
     argParser.addOption(
       'input',
@@ -47,7 +49,7 @@ class GenerateCommand extends Command<int> {
             final spec = await parseSchemaSource(content, filePath: file.path);
             if (spec != null) {
               specs.add(spec);
-              logger.info('Parsed ${spec.name} from ${file.path}');
+              logger.info('Parsed ${spec.data.name} from ${file.path}');
             }
           } catch (e) {
             logger.err('Error parsing ${file.path}: $e');
@@ -62,7 +64,7 @@ class GenerateCommand extends Command<int> {
             await parseSchemaSource(content, filePath: inputEntity.path);
         if (spec != null) {
           specs.add(spec);
-          logger.info('Parsed ${spec.name} from ${inputEntity.path}');
+          logger.info('Parsed ${spec.data.name} from ${inputEntity.path}');
         } else {
           logger.warn(
             'No @HomeWidget annotation found in ${inputEntity.path}',
@@ -82,13 +84,13 @@ class GenerateCommand extends Command<int> {
     logger.info('Found ${specs.length} widget(s). Generating...');
 
     for (final spec in specs) {
-      if (spec.android != null) {
-        logger.info('Generating Android for ${spec.name}...');
+      if (spec.data.android != null) {
+        logger.info('Generating Android for ${spec.data.name}...');
         await AndroidGenerator(spec: spec, projectRoot: Directory.current)
             .generate();
       }
-      if (spec.ios != null) {
-        logger.info('Generating iOS for ${spec.name}...');
+      if (spec.data.iOS != null) {
+        logger.info('Generating iOS for ${spec.data.name}...');
         await IosGenerator(spec: spec, projectRoot: Directory.current)
             .generate();
       }

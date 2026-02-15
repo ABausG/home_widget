@@ -9,13 +9,19 @@ import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
 
+/// Scaffolds a placeholder Android Glance widget and wires it into the
+/// project.
 final class AndroidWidgetScaffold {
+  /// Creates a new [AndroidWidgetScaffold].
   AndroidWidgetScaffold({
     required this.projectRoot,
     required this.widgetClassName,
   });
 
+  /// The root directory of the Flutter project.
   final Directory projectRoot;
+
+  /// The Kotlin class name for the generated widget.
   final String widgetClassName;
 
   /// Create Android placeholders using Jetpack Compose (Glance) and wire them

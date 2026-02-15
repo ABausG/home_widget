@@ -6,6 +6,8 @@ environment:
 
 workspace:
   - packages/home_widget
+  - packages/home_widget_cli
+  - packages/home_widget_generator
   - packages/home_widget/example
   - examples/configurable_widget
   - examples/lockscreen_widgets
