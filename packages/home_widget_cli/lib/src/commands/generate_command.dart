@@ -116,6 +116,7 @@ class GenerateCommand extends Command<int> {
           spec.data.dartOutput ??
           p.join(
             'lib',
+            'src',
             'home_widget',
             '${p.basenameWithoutExtension(path)}.home_widget.dart',
           );

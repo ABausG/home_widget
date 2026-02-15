@@ -115,6 +115,41 @@ class TestWidget {}
     );
 
     test(
+      'creates dart helper in lib/src/home_widget by default',
+      () async {
+        final project = await TestFlutterProject.create();
+        project.useAsCwd();
+
+        // Create a dummy widget spec file
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'widget.dart'));
+        widgetFile.createSync(recursive: true);
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'TestWidget',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class TestWidget {}
+''');
+
+        final code = await runCli(['generate', '--input', widgetFile.path]);
+        expect(code, 0);
+
+        final expectedPath = p.join(
+          project.root.path,
+          'lib',
+          'src',
+          'home_widget',
+          'widget.home_widget.dart',
+        );
+        expect(File(expectedPath).existsSync(), isTrue);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
       'generate produces a buildable app for Android and iOS',
       () async {
         // This is an end-to-end sanity check. It can be slow and requires a
