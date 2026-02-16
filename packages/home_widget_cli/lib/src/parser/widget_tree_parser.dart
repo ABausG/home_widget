@@ -1,5 +1,5 @@
 import 'package:analyzer/dart/ast/ast.dart';
-import '../models/widget_node.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import '../models/widget_spec.dart';
 import '../generator_error.dart';
 
@@ -7,7 +7,7 @@ import '../generator_error.dart';
 ///
 /// [dataFields] is used to resolve HWText.data references: the data ref's
 /// property name is looked up in the data map to determine the field type.
-WidgetNode parseWidgetExpression(
+HWWidget parseWidgetExpression(
   Expression expr, {
   required List<DataFieldSpec> dataFields,
 }) {
@@ -57,7 +57,7 @@ WidgetNode parseWidgetExpression(
   };
 }
 
-TextNode _parseHWText(
+HWText _parseHWText(
   Expression expr,
   String? ctorName, {
   required List<DataFieldSpec> dataFields,
@@ -79,15 +79,15 @@ List<Expression> _getArguments(Expression expr) {
   throw GeneratorError('Unsupported expression type: ${expr.runtimeType}');
 }
 
-TextNode _parseHWTextFixed(List<Expression> args) {
+HWText _parseHWTextFixed(List<Expression> args) {
   final arg = args.first;
   if (arg is! SimpleStringLiteral) {
     throw GeneratorError('HWText.fixed() argument must be a string literal');
   }
-  return TextNode(content: StaticValue(arg.value));
+  return HWText.fixed(arg.value);
 }
 
-TextNode _parseHWTextData(
+HWText _parseHWTextData(
   List<Expression> args, {
   required List<DataFieldSpec> dataFields,
 }) {
@@ -117,12 +117,13 @@ TextNode _parseHWTextData(
     );
   }
 
-  return TextNode(
-    content: DataRefValue(key: fieldName, type: field.type),
-  );
+  // We wrap the key in HWDataRef.
+  // Note: HWDataRef in Generator is generic <T>, but here we just pass the key.
+  // The type is known via dataFields context when emitting.
+  return HWText.data(HWDataRef(fieldName));
 }
 
-WidgetNode _parseLayoutNode(
+HWWidget _parseLayoutNode(
   Expression expr, {
   required bool isColumn,
   required List<DataFieldSpec> dataFields,
@@ -168,29 +169,29 @@ WidgetNode _parseLayoutNode(
       : null;
 
   return isColumn
-      ? ColumnNode(
+      ? HWColumn(
           children: children,
           crossAxisAlignment: crossAxisAlignment,
           mainAxisAlignment: mainAxisAlignment,
         )
-      : RowNode(
+      : HWRow(
           children: children,
           crossAxisAlignment: crossAxisAlignment,
           mainAxisAlignment: mainAxisAlignment,
         );
 }
 
-CrossAxisAlignment _parseCrossAxisAlignment(Expression expr) {
+HWCrossAxisAlignment _parseCrossAxisAlignment(Expression expr) {
   final name = (expr as PrefixedIdentifier).identifier.name;
-  return CrossAxisAlignment.values.firstWhere(
+  return HWCrossAxisAlignment.values.firstWhere(
     (v) => v.name == name,
     orElse: () => throw GeneratorError('Unknown crossAxisAlignment: $name'),
   );
 }
 
-MainAxisAlignment _parseMainAxisAlignment(Expression expr) {
+HWMainAxisAlignment _parseMainAxisAlignment(Expression expr) {
   final name = (expr as PrefixedIdentifier).identifier.name;
-  return MainAxisAlignment.values.firstWhere(
+  return HWMainAxisAlignment.values.firstWhere(
     (v) => v.name == name,
     orElse: () => throw GeneratorError('Unknown mainAxisAlignment: $name'),
   );

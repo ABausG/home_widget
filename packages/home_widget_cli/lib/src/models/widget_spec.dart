@@ -1,5 +1,4 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'widget_node.dart';
 
 /// Specification for interactivity callback configuration.
 class InteractivitySpec {
@@ -28,7 +27,7 @@ class WidgetSpec {
   final InteractivitySpec? interactivity;
 
   /// The widget tree definition (if any).
-  final WidgetNode? widgetTree;
+  final HWWidget? widgetTree;
 
   /// Creates a new [WidgetSpec].
   const WidgetSpec({

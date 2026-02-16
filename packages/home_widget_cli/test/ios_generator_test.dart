@@ -4,7 +4,6 @@ import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
-import 'package:home_widget_cli/src/models/widget_node.dart'; // NEW
 import 'package:test/test.dart';
 
 void main() {
@@ -146,8 +145,8 @@ void main() {
       dataFields: [
         DataFieldSpec(key: 'title', type: HWDataFieldType.string),
       ],
-      widgetTree: TextNode(
-        content: DataRefValue(key: 'title', type: HWDataFieldType.string),
+      widgetTree: HWText.data(
+        HWDataRef('title'),
       ),
     );
 

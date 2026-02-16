@@ -1,8 +1,8 @@
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
-import 'package:home_widget_cli/src/models/widget_node.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/parser/widget_tree_parser.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -16,20 +16,25 @@ void main() {
       ];
 
       final node = parseWidgetExpression(expr, dataFields: dataFields);
-      expect(node, isA<TextNode>());
-      final text = node as TextNode;
-      expect(text.content, isA<DataRefValue>());
-      expect((text.content as DataRefValue).key, 'countLabel');
+      expect(node, isA<HWText>());
+      final text = node as HWText;
+      expect(
+        text.toSwift(
+          0,
+          dataExpr: 'data',
+          dataFields: {'countLabel': const HWString()},
+        ),
+        contains('data.countLabel'),
+      );
     });
 
     test('parses HWText.fixed without const', () {
       final expr = _parseClassMember("HWText.fixed('Hello')");
 
       final node = parseWidgetExpression(expr, dataFields: []);
-      expect(node, isA<TextNode>());
-      final text = node as TextNode;
-      expect(text.content, isA<StaticValue>());
-      expect((text.content as StaticValue).value, 'Hello');
+      expect(node, isA<HWText>());
+      final text = node as HWText;
+      expect(text.toSwift(0, dataExpr: 'data'), contains('Hello'));
     });
   });
 }

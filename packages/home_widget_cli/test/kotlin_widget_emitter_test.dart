@@ -1,92 +1,118 @@
 import 'package:home_widget_cli/src/generators/kotlin_widget_emitter.dart';
-import 'package:home_widget_cli/src/models/widget_node.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
   group('emitKotlinWidgetBody', () {
     test('emits fixed text', () {
-      final node = TextNode(content: StaticValue('Hello'));
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final node = HWText.fixed('Hello');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, 'Text(text = "Hello")');
     });
 
     test('emits string data ref', () {
-      final node = TextNode(
-        content: DataRefValue(key: 'label', type: HWDataFieldType.string),
+      final node = HWText.data(HWDataRef('label'));
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [
+          DataFieldSpec(key: 'label', type: HWDataFieldType.string),
+        ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
       expect(result, 'Text(text = data.label ?: "")');
     });
 
     test('emits int data ref', () {
-      final node = TextNode(
-        content: DataRefValue(key: 'count', type: HWDataFieldType.int_),
+      final node = HWText.data(HWDataRef('count'));
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [
+          DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
+        ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
       expect(result, 'Text(text = (data.count?.toString() ?: "0"))');
     });
 
     test('emits bool data ref', () {
-      final node = TextNode(
-        content: DataRefValue(key: 'flag', type: HWDataFieldType.bool_),
+      final node = HWText.data(HWDataRef('flag'));
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [
+          DataFieldSpec(key: 'flag', type: HWDataFieldType.bool_),
+        ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
       expect(result, 'Text(text = (data.flag?.toString() ?: "false"))');
     });
 
     test('emits double data ref', () {
-      final node = TextNode(
-        content: DataRefValue(key: 'ratio', type: HWDataFieldType.double_),
+      final node = HWText.data(HWDataRef('ratio'));
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [
+          DataFieldSpec(key: 'ratio', type: HWDataFieldType.double_),
+        ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
       expect(result, 'Text(text = (data.ratio?.toString() ?: "0.0"))');
     });
 
     test('escapes strings', () {
-      final node = TextNode(content: StaticValue('Price: \$5'));
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final node = HWText.fixed('Price: \$5');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, 'Text(text = "Price: \\\$5")');
     });
 
     test('respects indent', () {
-      final node = TextNode(content: StaticValue('Hello'));
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data', indent: 1);
+      final node = HWText.fixed('Hello');
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [],
+        indent: 1,
+      );
       expect(result, '    Text(text = "Hello")');
     });
 
-    test('Column from ColumnNode', () {
-      final node = ColumnNode(
+    test('Column from HWColumn', () {
+      final node = HWColumn(
         children: [
-          TextNode(content: StaticValue('a')),
-          TextNode(content: StaticValue('b')),
+          HWText.fixed('a'),
+          HWText.fixed('b'),
         ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Column {'));
       expect(result, contains('Text(text = "a")'));
       expect(result, contains('Text(text = "b")'));
     });
 
-    test('Row from RowNode', () {
-      final node = RowNode(
+    test('Row from HWRow', () {
+      final node = HWRow(
         children: [
-          TextNode(content: StaticValue('x')),
+          HWText.fixed('x'),
         ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "x")'));
     });
 
     test('nested Column/Row', () {
-      final node = ColumnNode(
+      final node = HWColumn(
         children: [
-          RowNode(children: [TextNode(content: StaticValue('x'))]),
-          TextNode(content: StaticValue('y')),
+          HWRow(children: [HWText.fixed('x')]),
+          HWText.fixed('y'),
         ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Column {'));
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "x")'));
@@ -94,32 +120,42 @@ void main() {
     });
 
     test('data in layout', () {
-      final node = ColumnNode(
+      final node = HWColumn(
         children: [
-          TextNode(
-            content: DataRefValue(key: 'count', type: HWDataFieldType.string),
-          ),
+          HWText.data(HWDataRef('count')),
         ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [
+          DataFieldSpec(key: 'count', type: HWDataFieldType.string),
+        ],
+      );
       expect(result, contains('Column {'));
       expect(result, contains('Text(text = data.count ?: "")'));
     });
 
     test('empty Column', () {
-      final node = ColumnNode(children: []);
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final node = HWColumn(children: []);
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Column {'));
       expect(result, contains('}'));
     });
 
     test('layout indentation', () {
-      final node = ColumnNode(
+      final node = HWColumn(
         children: [
-          RowNode(children: [TextNode(content: StaticValue('x'))]),
+          HWRow(children: [HWText.fixed('x')]),
         ],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data', indent: 0);
+      final result = emitKotlinWidgetBody(
+        node,
+        dataExpr: 'data',
+        dataFields: [],
+        indent: 0,
+      );
       expect(result, startsWith('Column {'));
       expect(result, contains('    Row {'));
       expect(result, contains('        Text(text = "x")'));
@@ -128,9 +164,9 @@ void main() {
 
   group('collectKotlinLayoutImports', () {
     test('Column in tree', () {
-      final node = ColumnNode(
+      final node = HWColumn(
         children: [
-          TextNode(content: StaticValue('a')),
+          HWText.fixed('a'),
         ],
       );
       final imports = collectKotlinLayoutImports(node);
@@ -138,9 +174,9 @@ void main() {
     });
 
     test('Row in tree', () {
-      final node = RowNode(
+      final node = HWRow(
         children: [
-          TextNode(content: StaticValue('a')),
+          HWText.fixed('a'),
         ],
       );
       final imports = collectKotlinLayoutImports(node);
@@ -148,9 +184,9 @@ void main() {
     });
 
     test('both Column + Row', () {
-      final node = ColumnNode(
+      final node = HWColumn(
         children: [
-          RowNode(children: [TextNode(content: StaticValue('a'))]),
+          HWRow(children: [HWText.fixed('a')]),
         ],
       );
       final imports = collectKotlinLayoutImports(node);
@@ -158,8 +194,8 @@ void main() {
       expect(imports, contains('import androidx.glance.layout.Row'));
     });
 
-    test('TextNode only', () {
-      final node = TextNode(content: StaticValue('a'));
+    test('HWText only', () {
+      final node = HWText.fixed('a');
       final imports = collectKotlinLayoutImports(node);
       expect(imports, isEmpty);
     });
@@ -170,9 +206,9 @@ void main() {
     });
 
     test('alignment import when alignment is set', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
-        crossAxisAlignment: CrossAxisAlignment.center,
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
+        crossAxisAlignment: HWCrossAxisAlignment.center,
       );
       final imports = collectKotlinLayoutImports(node);
       expect(imports, contains('import androidx.compose.ui.Alignment'));
@@ -181,11 +217,12 @@ void main() {
 
   group('alignment emitter', () {
     test('Column with .center alignment', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
-        crossAxisAlignment: CrossAxisAlignment.center,
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
+        crossAxisAlignment: HWCrossAxisAlignment.center,
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(
         result,
         contains(
@@ -195,19 +232,21 @@ void main() {
     });
 
     test('Row with .start alignment', () {
-      final node = RowNode(
-        children: [TextNode(content: StaticValue('a'))],
-        crossAxisAlignment: CrossAxisAlignment.start,
+      final node = HWRow(
+        children: [HWText.fixed('a')],
+        crossAxisAlignment: HWCrossAxisAlignment.start,
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Row(verticalAlignment = Alignment.Top) {'));
     });
 
     test('no alignment emits bare layout', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Column {'));
       expect(result, isNot(contains('horizontalAlignment')));
     });
@@ -215,11 +254,12 @@ void main() {
 
   group('mainAxisAlignment emitter', () {
     test('Column with .center emits Spacer before and after', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
-        mainAxisAlignment: MainAxisAlignment.center,
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
+        mainAxisAlignment: HWMainAxisAlignment.center,
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Column {'));
       expect(result, contains('Spacer()'));
       expect(result, contains('Text(text = "a")'));
@@ -227,14 +267,15 @@ void main() {
     });
 
     test('Row with .spaceBetween emits Spacer between children', () {
-      final node = RowNode(
+      final node = HWRow(
         children: [
-          TextNode(content: StaticValue('a')),
-          TextNode(content: StaticValue('b')),
+          HWText.fixed('a'),
+          HWText.fixed('b'),
         ],
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "a")'));
       expect(result, contains('Spacer()'));
@@ -243,12 +284,13 @@ void main() {
     });
 
     test('Column with both cross and main alignment', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
-        crossAxisAlignment: CrossAxisAlignment.center,
-        mainAxisAlignment: MainAxisAlignment.end,
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
+        crossAxisAlignment: HWCrossAxisAlignment.center,
+        mainAxisAlignment: HWMainAxisAlignment.end,
       );
-      final result = emitKotlinWidgetBody(node, dataExpr: 'data');
+      final result =
+          emitKotlinWidgetBody(node, dataExpr: 'data', dataFields: []);
       expect(
         result,
         contains('horizontalAlignment = Alignment.CenterHorizontally'),
@@ -259,17 +301,17 @@ void main() {
     });
 
     test('Spacer import collected when mainAxisAlignment set', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
-        mainAxisAlignment: MainAxisAlignment.center,
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
+        mainAxisAlignment: HWMainAxisAlignment.center,
       );
       final imports = collectKotlinLayoutImports(node);
       expect(imports, contains('import androidx.glance.layout.Spacer'));
     });
 
     test('no Spacer import when mainAxisAlignment not set', () {
-      final node = ColumnNode(
-        children: [TextNode(content: StaticValue('a'))],
+      final node = HWColumn(
+        children: [HWText.fixed('a')],
       );
       final imports = collectKotlinLayoutImports(node);
       expect(

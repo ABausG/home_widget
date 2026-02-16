@@ -1,4 +1,4 @@
-import 'hw_widget.dart';
+import 'widgets/hw_widget.dart';
 
 /// The base class for defining a HomeWidget UI.
 ///

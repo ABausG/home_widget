@@ -1,6 +1,5 @@
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
-import 'package:home_widget_cli/src/models/widget_node.dart'; // NEW
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
@@ -177,10 +176,9 @@ void main() {
       final spec = await parseSchemaSource(source);
       expect(spec, isNotNull);
       expect(spec!.widgetTree, isNotNull);
-      expect(spec.widgetTree, isA<TextNode>());
-      final text = spec.widgetTree as TextNode;
-      expect(text.content, isA<StaticValue>());
-      expect((text.content as StaticValue).value, 'Hello');
+      expect(spec.widgetTree, isA<HWText>());
+      final text = spec.widgetTree as HWText;
+      expect(text.toSwift(0, dataExpr: 'data'), contains('Hello'));
     });
 
     test('parses widget tree from widgetBuilder override with block body',
@@ -200,7 +198,7 @@ void main() {
       final spec = await parseSchemaSource(source);
       expect(spec, isNotNull);
       expect(spec!.widgetTree, isNotNull);
-      expect(spec.widgetTree, isA<TextNode>());
+      expect(spec.widgetTree, isA<HWText>());
     });
   });
 }

@@ -3,7 +3,6 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
-import '../models/widget_node.dart';
 import 'widget_tree_parser.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s.
@@ -116,11 +115,11 @@ WidgetSpec _extractWidgetSpec(ClassDeclaration classDecl, ArgumentList args) {
 
   if (name == null) {
     throw FormatException(
-      'Missing required argument "name" in @HomeWidget annotation on \$className',
+      'Missing required argument "name" in @HomeWidget annotation on $className',
     );
   }
 
-  WidgetNode? widgetTree;
+  HWWidget? widgetTree;
   // Find widgetBuilder getter or method
   for (final member in classDecl.members) {
     if (member is MethodDeclaration && member.name.lexeme == 'widgetBuilder') {

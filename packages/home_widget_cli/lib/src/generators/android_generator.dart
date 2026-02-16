@@ -153,6 +153,7 @@ class AndroidGenerator {
         emitKotlinWidgetBody(
           spec.widgetTree!,
           dataExpr: 'widgetData',
+          dataFields: spec.dataFields,
           indent: 1, // inside WidgetContent method
         ),
       );

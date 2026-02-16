@@ -1,9 +1,9 @@
 import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:home_widget_cli/src/generator_error.dart';
-import 'package:home_widget_cli/src/models/widget_node.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/parser/widget_tree_parser.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -11,10 +11,15 @@ void main() {
     test('parses HWText.fixed', () {
       final expr = _parseClassMember("const HWText.fixed('Hello')");
       final node = parseWidgetExpression(expr, dataFields: []);
-      expect(node, isA<TextNode>());
-      final text = node as TextNode;
-      expect(text.content, isA<StaticValue>());
-      expect((text.content as StaticValue).value, 'Hello');
+      expect(node, isA<HWText>());
+      // Fixed content is private, but checking type is enough for now,
+      // or we can test generate output or rely on reflection if needed.
+      // But for parser test, just checking type and structure is usually sufficient
+      // if we can't access private fields.
+      // Actually, we can't access private fields. Let's trust it parses.
+      // Or we can rely on `toSwift/toKotlin` output if we really had to,
+      // but that's what emitter tests are for.
+      expect(node.toSwift(0, dataExpr: 'data'), contains('Text("Hello")'));
     });
 
     test('parses HWText.data', () {
@@ -24,12 +29,16 @@ void main() {
         DataFieldSpec(key: 'countLabel', type: HWDataFieldType.string),
       ];
       final node = parseWidgetExpression(expr, dataFields: dataFields);
-      expect(node, isA<TextNode>());
-      final text = node as TextNode;
-      expect(text.content, isA<DataRefValue>());
-      final ref = text.content as DataRefValue;
-      expect(ref.key, 'countLabel');
-      expect(ref.type, HWDataFieldType.string);
+      expect(node, isA<HWText>());
+      // Verify via output to indirectly check private fields
+      expect(
+        node.toSwift(
+          0,
+          dataExpr: 'data',
+          dataFields: {'countLabel': const HWString()},
+        ),
+        contains('Text(data.countLabel ?? "")'),
+      );
     });
 
     test('throws on unknown data field', () {
@@ -62,11 +71,11 @@ void main() {
         "const HWColumn(children: [HWText.fixed('a'), HWText.fixed('b')])",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      expect(node, isA<ColumnNode>());
-      final col = node as ColumnNode;
+      expect(node, isA<HWColumn>());
+      final col = node as HWColumn;
       expect(col.children, hasLength(2));
-      expect(col.children[0], isA<TextNode>());
-      expect(col.children[1], isA<TextNode>());
+      expect(col.children[0], isA<HWText>());
+      expect(col.children[1], isA<HWText>());
     });
 
     test('parses simple HWRow', () {
@@ -74,8 +83,8 @@ void main() {
         "const HWRow(children: [HWText.fixed('x')])",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      expect(node, isA<RowNode>());
-      final row = node as RowNode;
+      expect(node, isA<HWRow>());
+      final row = node as HWRow;
       expect(row.children, hasLength(1));
     });
 
@@ -84,18 +93,18 @@ void main() {
         "const HWColumn(children: [HWRow(children: [HWText.fixed('x')])])",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      expect(node, isA<ColumnNode>());
-      final col = node as ColumnNode;
-      expect(col.children.first, isA<RowNode>());
-      final row = col.children.first as RowNode;
-      expect(row.children.first, isA<TextNode>());
+      expect(node, isA<HWColumn>());
+      final col = node as HWColumn;
+      expect(col.children.first, isA<HWRow>());
+      final row = col.children.first as HWRow;
+      expect(row.children.first, isA<HWText>());
     });
 
     test('parses empty children', () {
       final expr = _parseClassMember("const HWColumn(children: [])");
       final node = parseWidgetExpression(expr, dataFields: []);
-      expect(node, isA<ColumnNode>());
-      expect((node as ColumnNode).children, isEmpty);
+      expect(node, isA<HWColumn>());
+      expect((node as HWColumn).children, isEmpty);
     });
 
     test('parses deep nesting (3+ levels)', () {
@@ -103,10 +112,10 @@ void main() {
         "const HWColumn(children: [HWRow(children: [HWColumn(children: [HWText.fixed('deep')])])])",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final col = node as ColumnNode;
-      final row = col.children.first as RowNode;
-      final innerCol = row.children.first as ColumnNode;
-      expect(innerCol.children.first, isA<TextNode>());
+      final col = node as HWColumn;
+      final row = col.children.first as HWRow;
+      final innerCol = row.children.first as HWColumn;
+      expect(innerCol.children.first, isA<HWText>());
     });
 
     test('parses data ref in nested child', () {
@@ -117,10 +126,18 @@ void main() {
         DataFieldSpec(key: 'countLabel', type: HWDataFieldType.string),
       ];
       final node = parseWidgetExpression(expr, dataFields: dataFields);
-      final col = node as ColumnNode;
-      final text = col.children.first as TextNode;
-      expect(text.content, isA<DataRefValue>());
-      expect((text.content as DataRefValue).key, 'countLabel');
+      final col = node as HWColumn;
+      final text = col.children.first as HWText;
+      expect(text, isA<HWText>());
+      // Indirect verification
+      expect(
+        text.toSwift(
+          0,
+          dataExpr: 'data',
+          dataFields: {'countLabel': const HWString()},
+        ),
+        contains('Text(data.countLabel ?? "")'),
+      );
     });
 
     test('throws on unknown field in nested child', () {
@@ -141,11 +158,18 @@ void main() {
         DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
       ];
       final node = parseWidgetExpression(expr, dataFields: dataFields);
-      final col = node as ColumnNode;
-      expect(col.children[0], isA<TextNode>());
-      final row = col.children[1] as RowNode;
-      final dataText = row.children.first as TextNode;
-      expect(dataText.content, isA<DataRefValue>());
+      final col = node as HWColumn;
+      expect(col.children[0], isA<HWText>());
+      final row = col.children[1] as HWRow;
+      final dataText = row.children.first as HWText;
+      expect(
+        dataText.toSwift(
+          0,
+          dataExpr: 'data',
+          dataFields: {'count': const HWInt()},
+        ),
+        contains('Text(data.count != nil'),
+      );
     });
 
     test('parses crossAxisAlignment start', () {
@@ -153,8 +177,8 @@ void main() {
         "const HWColumn(children: [HWText.fixed('a')], crossAxisAlignment: HWCrossAxisAlignment.start)",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final col = node as ColumnNode;
-      expect(col.crossAxisAlignment, CrossAxisAlignment.start);
+      final col = node as HWColumn;
+      expect(col.crossAxisAlignment, HWCrossAxisAlignment.start);
     });
 
     test('parses crossAxisAlignment center', () {
@@ -162,8 +186,8 @@ void main() {
         "const HWRow(children: [HWText.fixed('a')], crossAxisAlignment: HWCrossAxisAlignment.center)",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final row = node as RowNode;
-      expect(row.crossAxisAlignment, CrossAxisAlignment.center);
+      final row = node as HWRow;
+      expect(row.crossAxisAlignment, HWCrossAxisAlignment.center);
     });
 
     test('no alignment defaults to null', () {
@@ -171,7 +195,7 @@ void main() {
         "const HWColumn(children: [HWText.fixed('a')])",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final col = node as ColumnNode;
+      final col = node as HWColumn;
       expect(col.crossAxisAlignment, isNull);
     });
 
@@ -180,8 +204,8 @@ void main() {
         "const HWColumn(children: [HWText.fixed('a')], mainAxisAlignment: HWMainAxisAlignment.center)",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final col = node as ColumnNode;
-      expect(col.mainAxisAlignment, MainAxisAlignment.center);
+      final col = node as HWColumn;
+      expect(col.mainAxisAlignment, HWMainAxisAlignment.center);
     });
 
     test('parses mainAxisAlignment spaceBetween', () {
@@ -189,8 +213,8 @@ void main() {
         "const HWRow(children: [HWText.fixed('a')], mainAxisAlignment: HWMainAxisAlignment.spaceBetween)",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final row = node as RowNode;
-      expect(row.mainAxisAlignment, MainAxisAlignment.spaceBetween);
+      final row = node as HWRow;
+      expect(row.mainAxisAlignment, HWMainAxisAlignment.spaceBetween);
     });
 
     test('no mainAxisAlignment defaults to null', () {
@@ -198,7 +222,7 @@ void main() {
         "const HWColumn(children: [HWText.fixed('a')])",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final col = node as ColumnNode;
+      final col = node as HWColumn;
       expect(col.mainAxisAlignment, isNull);
     });
 
@@ -207,9 +231,9 @@ void main() {
         "const HWColumn(children: [HWText.fixed('a')], crossAxisAlignment: HWCrossAxisAlignment.center, mainAxisAlignment: HWMainAxisAlignment.end)",
       );
       final node = parseWidgetExpression(expr, dataFields: []);
-      final col = node as ColumnNode;
-      expect(col.crossAxisAlignment, CrossAxisAlignment.center);
-      expect(col.mainAxisAlignment, MainAxisAlignment.end);
+      final col = node as HWColumn;
+      expect(col.crossAxisAlignment, HWCrossAxisAlignment.center);
+      expect(col.mainAxisAlignment, HWMainAxisAlignment.end);
     });
   });
 }

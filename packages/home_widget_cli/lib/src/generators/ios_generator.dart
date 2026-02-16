@@ -155,6 +155,7 @@ $loadDataLogic
       entryViewBody = emitSwiftWidgetBody(
         spec.widgetTree!,
         dataExpr: 'entry.data',
+        dataFields: spec.dataFields,
         indent: 2,
       );
     }
