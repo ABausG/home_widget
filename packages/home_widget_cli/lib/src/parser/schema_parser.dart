@@ -1,296 +1,183 @@
-import 'package:analyzer/dart/analysis/utilities.dart';
-import 'package:analyzer/dart/ast/ast.dart';
+// ignore_for_file: deprecated_member_use
+import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/constant/value.dart';
+import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
-import 'widget_tree_parser.dart';
+import '../utils/widget_tree_traverser.dart';
 
-/// Parses a Dart source file to extract [WidgetSpec]s.
-Future<WidgetSpec?> parseSchemaSource(
-  String source, {
-  String? filePath,
+/// Parses a Dart source file to extract [WidgetSpec]s using Analyzer resolution.
+Future<List<WidgetSpec>> parseSchemaFile(
+  String filePath, {
+  AnalysisContextCollection? collection,
 }) async {
-  final result = parseString(content: source, path: filePath);
-  final unit = result.unit;
+  final ensureCollection = collection ??
+      AnalysisContextCollection(
+        includedPaths: [filePath],
+        resourceProvider: PhysicalResourceProvider.INSTANCE,
+      );
 
-  for (final declaration in unit.declarations) {
-    if (declaration is ClassDeclaration) {
-      final spec = _parseClass(declaration);
+  final context = ensureCollection.contextFor(filePath);
+  final result = await context.currentSession.getResolvedUnit(filePath);
+
+  if (result is! ResolvedUnitResult) {
+    throw FormatException('Failed to resolve unit for $filePath');
+  }
+
+  final specs = <WidgetSpec>[];
+  for (final element in result.unit.declaredElement!.classes) {
+    if (_hasHomeWidgetAnnotation(element)) {
+      final spec = _extractWidgetSpec(element);
       if (spec != null) {
-        return spec;
+        specs.add(spec);
       }
     }
   }
-
-  return null;
+  return specs;
 }
 
-WidgetSpec? _parseClass(ClassDeclaration classDecl) {
-  for (final metadata in classDecl.metadata) {
-    if (metadata.name.name == 'HomeWidget') {
-      final args = metadata.arguments;
-      if (args != null) {
-        return _extractWidgetSpec(classDecl, args);
-      }
-    }
-  }
-  return null;
+bool _hasHomeWidgetAnnotation(ClassElement element) {
+  return element.metadata.any((meta) {
+    final element = meta.element;
+    return element is ConstructorElement &&
+        element.enclosingElement3.name == 'HomeWidget';
+  });
 }
 
-WidgetSpec _extractWidgetSpec(ClassDeclaration classDecl, ArgumentList args) {
-  final className = classDecl.name.lexeme;
-  String? name;
-  String? description;
-  String? dartOutput;
-  HomeWidgetAndroidConfiguration? android;
-  HomeWidgetIOSConfiguration? ios;
-  List<DataFieldSpec> dataFields = [];
-  InteractivitySpec? interactivity;
+WidgetSpec? _extractWidgetSpec(ClassElement element) {
+  final annotation = element.metadata.firstWhere((meta) {
+    final element = meta.element;
+    return element is ConstructorElement &&
+        element.enclosingElement3.name == 'HomeWidget';
+  });
 
-  for (final arg in args.arguments) {
-    if (arg is NamedExpression) {
-      final argName = arg.name.label.name;
-      final expression = arg.expression;
+  final constantValue = annotation.computeConstantValue();
+  if (constantValue == null) return null;
 
-      if (argName == 'name') {
-        if (expression is StringLiteral) {
-          name = expression.stringValue;
-        }
-      } else if (argName == 'description') {
-        if (expression is StringLiteral) {
-          description = expression.stringValue;
-        }
-      } else if (argName == 'dartOutput') {
-        if (expression is StringLiteral) {
-          dartOutput = expression.stringValue;
-        }
-      } else if (argName == 'data') {
-        dataFields = _parseDataMap(expression);
-      } else if (argName == 'android') {
-        ArgumentList? configArgs;
-        if (expression is InstanceCreationExpression) {
-          configArgs = expression.argumentList;
-        } else if (expression is MethodInvocation) {
-          configArgs = expression.argumentList;
-        }
+  // Extract fields from the annotation object
+  final name = constantValue.getField('name')?.toStringValue();
+  final description = constantValue.getField('description')?.toStringValue();
 
-        if (configArgs != null) {
-          android = _extractAndroidConfig(configArgs);
-        }
-      } else if (argName == 'iOS') {
-        ArgumentList? configArgs;
-        if (expression is InstanceCreationExpression) {
-          configArgs = expression.argumentList;
-        } else if (expression is MethodInvocation) {
-          configArgs = expression.argumentList;
-        }
+  final className = constantValue.getField('className')?.toStringValue();
+  // If className is not provided, we use the class name of the annotated class
+  final generatedClassName = className ?? element.name;
 
-        if (configArgs != null) {
-          ios = _extractIosConfig(configArgs);
-        }
-      } else if (argName == 'interactivity') {
-        if (expression is InstanceCreationExpression) {
-          String? importPath;
-          String? callbackName;
+  final dartOutput = constantValue.getField('dartOutput')?.toStringValue();
 
-          for (final arg in expression.argumentList.arguments) {
-            if (arg is NamedExpression) {
-              final name = arg.name.label.name;
-              if (name == 'import') {
-                importPath = arg.expression.toSource().replaceAll("'", "");
-              } else if (name == 'callback') {
-                callbackName = arg.expression.toSource().replaceAll("'", "");
-              }
-            }
-          }
+  final androidConfig =
+      _extractAndroidConfig(constantValue.getField('android'));
+  final iosConfig = _extractIosConfig(constantValue.getField('iOS'));
 
-          if (importPath != null && callbackName != null) {
-            interactivity =
-                InteractivitySpec(import: importPath, callback: callbackName);
-          }
-        }
-      }
-    }
-  }
+  final interactivityConfig =
+      _extractInteractivityConfig(constantValue.getField('interactivity'));
 
-  if (name == null) {
-    throw FormatException(
-      'Missing required argument "name" in @HomeWidget annotation on $className',
-    );
-  }
-
+  // Widget Tree
   HWWidget? widgetTree;
-  // Find widgetBuilder getter or method
-  for (final member in classDecl.members) {
-    if (member is MethodDeclaration && member.name.lexeme == 'widgetBuilder') {
-      final body = member.body;
-      Expression? expression;
+  final widgetField = constantValue.getField('widget');
+  if (widgetField != null && !widgetField.isNull) {
+    widgetTree = WidgetValueDecoder(widgetField).decode();
+  }
 
-      if (body is ExpressionFunctionBody) {
-        expression = body.expression;
-      } else if (body is BlockFunctionBody) {
-        // Look for return statement
-        for (final stmt in body.block.statements) {
-          if (stmt is ReturnStatement) {
-            expression = stmt.expression;
-            break;
-          }
-        }
-      }
+  // Data fields
+  // In v2, we only traverse the widget tree.
+  final dataFields = widgetTree != null
+      ? WidgetTreeTraverser.extractDataFields(widgetTree)
+      : <DataFieldSpec>[];
 
-      if (expression != null) {
-        widgetTree = parseWidgetExpression(
-          expression,
-          dataFields: dataFields,
-        );
-      }
-      break;
-    }
+  if (name == null) return null;
+
+  InteractivitySpec? interactivitySpec;
+  if (interactivityConfig != null) {
+    interactivitySpec = InteractivitySpec(
+      import: interactivityConfig.import,
+      callback: interactivityConfig.callback,
+    );
   }
 
   return WidgetSpec(
     data: HomeWidget(
       name: name,
       description: description,
+      widget: widgetTree,
+      className: generatedClassName,
       dartOutput: dartOutput,
-      android: android,
-      iOS: ios,
+      android: androidConfig,
+      iOS: iosConfig,
+      interactivity: interactivityConfig,
     ),
-    className: className,
+    className: generatedClassName,
     dataFields: dataFields,
-    interactivity: interactivity,
+    interactivity: interactivitySpec,
     widgetTree: widgetTree,
   );
 }
 
-List<DataFieldSpec> _parseDataMap(Expression? dataExpr) {
-  if (dataExpr == null) return [];
-  if (dataExpr is! SetOrMapLiteral) {
-    throw FormatException('data must be a Map literal');
-  }
-  return dataExpr.elements.map((element) {
-    if (element is! MapLiteralEntry) {
-      throw FormatException('data entries must be key: value pairs');
-    }
-    final keyNode = element.key;
-    if (keyNode is! SimpleStringLiteral) {
-      throw FormatException('data keys must be string literals');
-    }
-    final key = keyNode.value;
+HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
+  // obj is DartObject?
+  if (obj == null || obj.isNull) return null;
 
-    final valueNode = element.value;
-    String? typeName;
-    if (valueNode is InstanceCreationExpression) {
-      typeName = valueNode.constructorName.type.name2.lexeme;
-    } else if (valueNode is MethodInvocation) {
-      typeName = valueNode.methodName.name;
-    } else {
-      throw FormatException(
-        'data values must be HWDataType constructors (found \${valueNode.runtimeType})',
-      );
-    }
-
-    final type = switch (typeName) {
-      'HWString' => HWDataFieldType.string,
-      'HWInt' => HWDataFieldType.int_,
-      'HWDouble' => HWDataFieldType.double_,
-      'HWBool' => HWDataFieldType.bool_,
-      _ => throw FormatException('Unknown data type: \$typeName'),
-    };
-    return DataFieldSpec(key: key, type: type);
-  }).toList();
-}
-
-HomeWidgetAndroidConfiguration? _extractAndroidConfig(ArgumentList args) {
-  final map = _namedArgs(args);
+  // We can read fields directly
   return HomeWidgetAndroidConfiguration(
-    packageName: _stringOrNull(map['packageName']),
-    minWidth: _intOrNull(map['minWidth']),
-    minHeight: _intOrNull(map['minHeight']),
-    minResizeWidth: _intOrNull(map['minResizeWidth']),
-    minResizeHeight: _intOrNull(map['minResizeHeight']),
-    maxResizeWidth: _intOrNull(map['maxResizeWidth']),
-    maxResizeHeight: _intOrNull(map['maxResizeHeight']),
-    targetCellWidth: _intOrNull(map['targetCellWidth']),
-    targetCellHeight: _intOrNull(map['targetCellHeight']),
-    resizeMode: _enumOrNull<HWAndroidResizeMode>(
-      map['resizeMode'],
-      'HWAndroidResizeMode',
-      HWAndroidResizeMode.values,
-    ),
-    widgetCategory: _enumOrNull<HWAndroidWidgetCategory>(
-      map['widgetCategory'],
-      'HWAndroidWidgetCategory',
+    packageName: obj.getField('packageName')?.toStringValue(),
+    minWidth: obj.getField('minWidth')?.toIntValue(),
+    minHeight: obj.getField('minHeight')?.toIntValue(),
+    minResizeWidth: obj.getField('minResizeWidth')?.toIntValue(),
+    minResizeHeight: obj.getField('minResizeHeight')?.toIntValue(),
+    maxResizeWidth: obj.getField('maxResizeWidth')?.toIntValue(),
+    maxResizeHeight: obj.getField('maxResizeHeight')?.toIntValue(),
+    targetCellWidth: obj.getField('targetCellWidth')?.toIntValue(),
+    targetCellHeight: obj.getField('targetCellHeight')?.toIntValue(),
+    resizeMode:
+        _decodeEnum(obj.getField('resizeMode'), HWAndroidResizeMode.values),
+    widgetCategory: _decodeEnum(
+      obj.getField('widgetCategory'),
       HWAndroidWidgetCategory.values,
     ),
-    updatePeriodMillis: _intOrNull(map['updatePeriodMillis']),
+    updatePeriodMillis: obj.getField('updatePeriodMillis')?.toIntValue(),
   );
 }
 
-HomeWidgetIOSConfiguration? _extractIosConfig(ArgumentList args) {
-  final map = _namedArgs(args);
-  final groupId = _stringOrNull(map['groupId']);
+HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
+  if (obj == null || obj.isNull) return null;
 
-  if (groupId == null) {
-    return null;
-  }
-  return HomeWidgetIOSConfiguration(
-    groupId: groupId,
-    supportedFamilies: _parseFamilyList(map['supportedFamilies']),
-  );
-}
+  final groupId = obj.getField('groupId')?.toStringValue();
+  if (groupId == null) return null;
 
-Map<String, Expression> _namedArgs(ArgumentList args) {
-  final map = <String, Expression>{};
-  for (final arg in args.arguments) {
-    if (arg is NamedExpression) {
-      map[arg.name.label.name] = arg.expression;
-    }
-  }
-  return map;
-}
-
-String? _stringOrNull(Expression? expr) {
-  if (expr is StringLiteral) {
-    return expr.stringValue;
-  }
-  return null;
-}
-
-int? _intOrNull(Expression? expr) {
-  if (expr is IntegerLiteral) {
-    return expr.value;
-  }
-  return null;
-}
-
-T? _enumOrNull<T>(Expression? expr, String prefix, List<T> values) {
-  if (expr is PrefixedIdentifier) {
-    if (expr.prefix.name == prefix) {
-      final name = expr.identifier.name;
-      try {
-        return values.firstWhere((e) => (e as Enum).name == name);
-      } catch (_) {
-        return null;
-      }
-    }
-  }
-  return null;
-}
-
-List<HWWidgetFamily>? _parseFamilyList(Expression? expr) {
-  if (expr == null) return null;
-  if (expr is! ListLiteral) {
-    throw FormatException('supportedFamilies must be a list literal');
-  }
-  return expr.elements
-      .map((element) {
-        return _enumOrNull<HWWidgetFamily>(
-          element as Expression,
-          'HWWidgetFamily',
-          HWWidgetFamily.values,
-        );
-      })
+  final familiesObj = obj.getField('supportedFamilies')?.toListValue();
+  final families = familiesObj
+      ?.map((f) => _decodeEnum(f, HWWidgetFamily.values))
       .whereType<HWWidgetFamily>()
       .toList();
+
+  return HomeWidgetIOSConfiguration(
+    groupId: groupId,
+    supportedFamilies: families,
+  );
+}
+
+HomeWidgetInteractivityConfig? _extractInteractivityConfig(DartObject? obj) {
+  if (obj == null || obj.isNull) return null;
+
+  final import = obj.getField('import')?.toStringValue();
+  final callback = obj.getField('callback')?.toStringValue();
+
+  if (import != null && callback != null) {
+    return HomeWidgetInteractivityConfig(
+      import: import,
+      callback: callback,
+    );
+  }
+  return null;
+}
+
+T? _decodeEnum<T>(DartObject? obj, List<T> values) {
+  if (obj == null || obj.isNull) return null;
+  final index = obj.getField('index')?.toIntValue();
+  if (index != null && index >= 0 && index < values.length) {
+    return values[index];
+  }
+  return null;
 }

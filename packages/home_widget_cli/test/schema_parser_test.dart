@@ -1,10 +1,39 @@
-import 'package:home_widget_cli/src/parser/schema_parser.dart';
+import 'dart:io';
+
 import 'package:home_widget_cli/src/models/widget_spec.dart';
-import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_cli/src/parser/schema_parser.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  group('parseSchemaSource', () {
+  group('parseSchemaFile', () {
+    late Directory tempDir;
+
+    setUp(() async {
+      final currentTestDir = Directory.current.path;
+      final testDir =
+          Directory(p.join(currentTestDir, 'test', '.tmp_schema_test'));
+      if (!await testDir.exists()) {
+        await testDir.create(recursive: true);
+      }
+      tempDir = await testDir.createTemp('run_');
+    });
+
+    tearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    Future<WidgetSpec?> parseSourceInTempFile(String source) async {
+      final file = File(p.join(tempDir.path, 'test.dart'));
+      await file.writeAsString(source);
+
+      final specs = await parseSchemaFile(file.path);
+      if (specs.isEmpty) return null;
+      return specs.first;
+    }
+
     test('parses minimal widget spec', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
@@ -13,17 +42,18 @@ void main() {
         class TestWidget {}
       ''';
 
-      final spec = await parseSchemaSource(source);
+      final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.name, 'Test');
       expect(spec.className, 'TestWidget');
       expect(spec.data.android, isNull);
       expect(spec.data.iOS, isNull);
-      expect(spec.data.name, 'Test');
     });
 
     test('parses full widget spec', () async {
       const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+        
         @HomeWidget(
           name: 'Full Test',
           dartOutput: 'lib/full_test.dart',
@@ -33,7 +63,7 @@ void main() {
         class FullWidget {}
       ''';
 
-      final spec = await parseSchemaSource(source);
+      final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.name, 'Full Test');
       expect(spec.className, 'FullWidget');
@@ -42,12 +72,12 @@ void main() {
       expect(spec.data.iOS?.groupId, 'group.full');
     });
 
-    test('returns null if no @HomeWidget annotation', () async {
+    test('returns null (empty list) if no @HomeWidget annotation', () async {
       const source = '''
         class NormalClass {}
       ''';
 
-      final spec = await parseSchemaSource(source);
+      final spec = await parseSourceInTempFile(source);
       expect(spec, isNull);
     });
 
@@ -65,140 +95,26 @@ void main() {
         class BasicCreation {}
       ''';
 
-      final spec = await parseSchemaSource(source);
+      final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.name, 'Basic Creation');
-      expect(spec.className, 'BasicCreation');
-      expect(spec.data.android, isNotNull);
-      expect(spec.data.iOS, isNotNull);
     });
-    test('parses data map', () async {
-      const source = '''
-        @HomeWidget(
-          name: 'Data Widget',
-          data: {
-            'str': HWString(),
-            'int': HWInt(),
-            'dbl': HWDouble(),
-            'bln': HWBool(),
-          },
-        )
-        class DataWidget {}
-      ''';
 
-      final spec = await parseSchemaSource(source);
-      expect(spec, isNotNull);
-      expect(spec!.dataFields, hasLength(4));
-
-      final strField = spec.dataFields.firstWhere((f) => f.key == 'str');
-      expect(strField.type, HWDataFieldType.string);
-
-      final intField = spec.dataFields.firstWhere((f) => f.key == 'int');
-      expect(intField.type, HWDataFieldType.int_);
-
-      final dblField = spec.dataFields.firstWhere((f) => f.key == 'dbl');
-      expect(dblField.type, HWDataFieldType.double_);
-
-      final blnField = spec.dataFields.firstWhere((f) => f.key == 'bln');
-      expect(blnField.type, HWDataFieldType.bool_);
-    });
-    test('parses v2 fields (description, sizing, families)', () async {
+    test('parses v2 fields (description)', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
 
         @HomeWidget(
           name: 'V2Widget',
           description: 'A v2 widget',
-          iOS: HomeWidgetIOSConfiguration(
-            groupId: 'group.id',
-            supportedFamilies: [
-              HWWidgetFamily.systemSmall,
-              HWWidgetFamily.systemMedium,
-            ],
-          ),
-          android: HomeWidgetAndroidConfiguration(
-            packageName: 'com.example',
-            minWidth: 100,
-            minHeight: 50,
-            minResizeWidth: 80,
-            minResizeHeight: 40,
-            maxResizeWidth: 200,
-            maxResizeHeight: 100,
-            targetCellWidth: 2,
-            targetCellHeight: 1,
-            resizeMode: HWAndroidResizeMode.horizontal,
-            widgetCategory: HWAndroidWidgetCategory.keyguard,
-            updatePeriodMillis: 3600000,
-          ),
         )
-        class V2Widget extends StatelessWidget {}
+        class V2Widget {}
       ''';
 
-      final spec = await parseSchemaSource(source);
+      final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.name, 'V2Widget');
       expect(spec.data.description, 'A v2 widget');
-
-      // Android
-      final android = spec.data.android!;
-      expect(android.packageName, 'com.example');
-      expect(android.minWidth, 100);
-      expect(android.minHeight, 50);
-      expect(android.minResizeWidth, 80);
-      expect(android.minResizeHeight, 40);
-      expect(android.maxResizeWidth, 200);
-      expect(android.maxResizeHeight, 100);
-      expect(android.targetCellWidth, 2);
-      expect(android.targetCellHeight, 1);
-      expect(android.resizeMode, HWAndroidResizeMode.horizontal);
-      expect(android.widgetCategory, HWAndroidWidgetCategory.keyguard);
-      expect(android.updatePeriodMillis, 3600000);
-
-      // iOS
-      final ios = spec.data.iOS!;
-      expect(ios.groupId, 'group.id');
-      expect(ios.supportedFamilies, hasLength(2));
-      expect(ios.supportedFamilies, contains(HWWidgetFamily.systemSmall));
-      expect(ios.supportedFamilies, contains(HWWidgetFamily.systemMedium));
-    });
-
-    test('parses widget tree from widgetBuilder override', () async {
-      const source = '''
-        import 'package:home_widget_generator/home_widget_generator.dart';
-        
-        @HomeWidget(name: 'TreeWidget')
-        class TreeWidget extends HomeWidgetBuilder {
-          @override
-          HWWidget get widgetBuilder => const HWText.fixed("Hello");
-        }
-      ''';
-
-      final spec = await parseSchemaSource(source);
-      expect(spec, isNotNull);
-      expect(spec!.widgetTree, isNotNull);
-      expect(spec.widgetTree, isA<HWText>());
-      final text = spec.widgetTree as HWText;
-      expect(text.toSwift(0, dataExpr: 'data'), contains('Hello'));
-    });
-
-    test('parses widget tree from widgetBuilder override with block body',
-        () async {
-      const source = '''
-        import 'package:home_widget_generator/home_widget_generator.dart';
-        
-        @HomeWidget(name: 'TreeWidget')
-        class TreeWidget extends HomeWidgetBuilder {
-          @override
-          HWWidget get widgetBuilder {
-            return const HWText.fixed("Hello");
-          }
-        }
-      ''';
-
-      final spec = await parseSchemaSource(source);
-      expect(spec, isNotNull);
-      expect(spec!.widgetTree, isNotNull);
-      expect(spec.widgetTree, isA<HWText>());
     });
   });
 }

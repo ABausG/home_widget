@@ -12,17 +12,18 @@ String emitSwiftWidgetBody(
   int indent = 0,
 }) {
   final fieldMap = {
-    for (final field in dataFields) field.key: _toHWDataType(field.type),
+    for (final field in dataFields)
+      field.key: _toHWDataType(field.key, field.type),
   };
 
   return node.toSwift(indent, dataExpr: dataExpr, dataFields: fieldMap);
 }
 
-HWDataType _toHWDataType(HWDataFieldType type) {
+HWDataType _toHWDataType(String key, HWDataFieldType type) {
   return switch (type) {
-    HWDataFieldType.string => const HWString(),
-    HWDataFieldType.int_ => const HWInt(),
-    HWDataFieldType.double_ => const HWDouble(),
-    HWDataFieldType.bool_ => const HWBool(),
+    HWDataFieldType.string => HWString(key),
+    HWDataFieldType.int_ => HWInt(key),
+    HWDataFieldType.double_ => HWDouble(key),
+    HWDataFieldType.bool_ => HWBool(key),
   };
 }

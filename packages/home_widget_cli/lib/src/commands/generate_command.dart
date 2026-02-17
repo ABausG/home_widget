@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
@@ -46,41 +48,46 @@ class GenerateCommand extends Command<int> {
       return ExitCodes.noInput;
     }
 
+    // Initialize AnalysisContextCollection
+    // We include the root of the input to ensure context covers it.
+    // If input is a file, we use its directory.
+    // If input is a dir, we use it directly.
+    final rootPath = inputEntity is Directory
+        ? inputEntity.path
+        : p.dirname(inputEntity.path);
+    final collection = AnalysisContextCollection(
+      includedPaths: [rootPath],
+      resourceProvider: PhysicalResourceProvider.INSTANCE,
+    );
+
     final specs = <({String path, WidgetSpec spec})>[];
+
+    Future<void> processFile(File file) async {
+      if (!file.path.endsWith('.dart')) return;
+      try {
+        final fileSpecs =
+            await parseSchemaFile(file.path, collection: collection);
+        if (fileSpecs.isEmpty && inputEntity is File) {
+          logger.warn('No @HomeWidget annotation found in ${file.path}');
+        }
+        for (final spec in fileSpecs) {
+          specs.add((path: file.path, spec: spec));
+          logger.info('Parsed ${spec.data.name} from ${file.path}');
+        }
+      } catch (e) {
+        logger.err('Error parsing ${file.path}: $e');
+        // We continue processing other files
+      }
+    }
 
     if (inputEntity is Directory) {
       await for (final file in inputEntity.list(recursive: true)) {
-        if (file is File && file.path.endsWith('.dart')) {
-          try {
-            final content = await file.readAsString();
-            final spec = await parseSchemaSource(content, filePath: file.path);
-            if (spec != null) {
-              specs.add((path: file.path, spec: spec));
-              logger.info('Parsed ${spec.data.name} from ${file.path}');
-            }
-          } catch (e) {
-            logger.err('Error parsing ${file.path}: $e');
-            // Continue parsing other files? Or fail? The plan implies process all.
-          }
+        if (file is File) {
+          await processFile(file);
         }
       }
     } else if (inputEntity is File) {
-      try {
-        final content = await inputEntity.readAsString();
-        final spec =
-            await parseSchemaSource(content, filePath: inputEntity.path);
-        if (spec != null) {
-          specs.add((path: inputEntity.path, spec: spec));
-          logger.info('Parsed ${spec.data.name} from ${inputEntity.path}');
-        } else {
-          logger.warn(
-            'No @HomeWidget annotation found in ${inputEntity.path}',
-          );
-        }
-      } catch (e) {
-        logger.err('Error parsing ${inputEntity.path}: $e');
-        return ExitCodes.usage;
-      }
+      await processFile(inputEntity);
     }
 
     if (specs.isEmpty) {

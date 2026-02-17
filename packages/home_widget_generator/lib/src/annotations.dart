@@ -1,5 +1,5 @@
 import 'interactivity_config.dart';
-import 'types.dart';
+import 'widgets/hw_widget.dart';
 
 /// The rules by which a widget can be resized.
 ///
@@ -221,11 +221,14 @@ class HomeWidget {
   /// This is displayed in the widget gallery on iOS and Android.
   final String? description;
 
-  /// The data fields for the widget.
+  /// The widget structure defined inline.
+  final HWWidget? widget;
+
+  /// The name of the generated class.
   ///
-  /// These fields will be generated in the native widget code and can be
-  /// accessed to display data.
-  final Map<String, HWDataType>? data;
+  /// If provided, the generator will create a class with this name that extends
+  /// `HomeWidget` and contains the widget definition.
+  final String? className;
 
   /// The path to the generated Dart file.
   ///
@@ -244,7 +247,8 @@ class HomeWidget {
   const HomeWidget({
     required this.name,
     this.description,
-    this.data,
+    this.widget,
+    this.className,
     this.dartOutput,
     this.android,
     this.iOS,
@@ -257,7 +261,8 @@ class HomeWidget {
       other is HomeWidget &&
           name == other.name &&
           description == other.description &&
-          data == other.data &&
+          widget == other.widget &&
+          className == other.className &&
           dartOutput == other.dartOutput &&
           android == other.android &&
           iOS == other.iOS &&
@@ -267,7 +272,8 @@ class HomeWidget {
   int get hashCode =>
       name.hashCode ^
       description.hashCode ^
-      data.hashCode ^
+      widget.hashCode ^
+      className.hashCode ^
       dartOutput.hashCode ^
       android.hashCode ^
       iOS.hashCode ^

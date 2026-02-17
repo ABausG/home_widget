@@ -5,21 +5,67 @@ part of 'hw_widget.dart';
 /// Two const constructors:
 /// - `HWText.fixed('Hello')` -- hardcoded string literal
 /// - `HWText.data(ref)` -- data-bound via HWDataRef
-class HWText extends HWWidget {
-  // ignore: unused_field
+class HWText extends HWWidget implements HWDataWidget {
   final String? _fixedContent;
-  // ignore: unused_field
-  final HWDataRef? _dataRef;
+
+  final HWDataRef? dataRef;
+
+  final HWDataType? dataType;
+
+  @override
+  List<HWDataType> get dataDependencies => [if (dataType != null) dataType!];
 
   /// Static/hardcoded text content.
   const HWText.fixed(String content)
       : _fixedContent = content,
-        _dataRef = null;
+        dataRef = null,
+        dataType = null;
 
   /// Data-bound text content from a generated HWDataRef.
   const HWText.data(HWDataRef ref)
       : _fixedContent = null,
-        _dataRef = ref;
+        dataRef = ref,
+        dataType = null;
+
+  const HWText(HWDataType data)
+      : _fixedContent = null,
+        dataRef = null,
+        dataType = data;
+
+  static HWText fromDartObject(DartObject obj) {
+    // Check for fixed content
+    final fixedContent = obj.getField('_fixedContent')?.toStringValue();
+    if (fixedContent != null) {
+      return HWText.fixed(fixedContent);
+    }
+
+    // Check for data ref
+    final dataRef = obj.getField('dataRef');
+    if (dataRef != null && !dataRef.isNull) {
+      final key = dataRef.getField('key')?.toStringValue();
+      if (key != null) {
+        return HWText.data(HWDataRef(key));
+      }
+    }
+
+    // Check for data type
+    final dataType = obj.getField('dataType');
+    if (dataType != null && !dataType.isNull) {
+      final key = dataType.getField('key')?.toStringValue();
+      final typeName = dataType.type?.element3?.name3;
+
+      if (key != null) {
+        if (typeName == 'HWString') return HWText(HWString(key));
+        if (typeName == 'HWInt') return HWText(HWInt(key));
+        if (typeName == 'HWDouble') return HWText(HWDouble(key));
+        if (typeName == 'HWBool') return HWText(HWBool(key));
+      }
+    }
+
+    // Fallback/Error?
+    throw GeneratorError(
+        'Could not decode HWText. Fields: fixedContent=$fixedContent, dataRef=${obj.getField('dataRef')}, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element3?.name3}');
+  }
 
   @override
   String toSwift(int indent,
@@ -28,8 +74,8 @@ class HWText extends HWWidget {
     final pad = '    ' * indent; // Use 4 spaces per indent level to match tests
     if (_fixedContent != null) {
       return '${pad}Text("${_escapeSwiftString(_fixedContent)}")';
-    } else if (_dataRef != null) {
-      final key = _dataRef.key;
+    } else if (dataRef != null || dataType?.key != null) {
+      final key = dataRef?.key ?? dataType!.key;
       final type = dataFields[key];
 
       switch (type) {
@@ -56,8 +102,8 @@ class HWText extends HWWidget {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     if (_fixedContent != null) {
       return '${pad}Text(text = "${_escapeKotlinString(_fixedContent)}")';
-    } else if (_dataRef != null) {
-      final key = _dataRef.key;
+    } else if (dataRef != null || dataType?.key != null) {
+      final key = dataRef?.key ?? dataType!.key;
       final type = dataFields[key];
 
       switch (type) {

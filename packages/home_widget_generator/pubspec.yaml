@@ -10,3 +10,6 @@ resolution: workspace
 dev_dependencies:
   lints: ^5.1.1
   test: ^1.25.8
+  path: ^1.9.0
+dependencies:
+  analyzer: ^7.7.1

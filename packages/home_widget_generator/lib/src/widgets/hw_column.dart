@@ -3,16 +3,34 @@ part of 'hw_widget.dart';
 /// A vertical layout widget for use in widgetBuilder.
 ///
 /// Maps to SwiftUI VStack and Glance Column.
-class HWColumn extends HWWidget {
-  final List<HWWidget> children;
+class HWColumn extends HWMultiChildWidget {
   final HWCrossAxisAlignment? crossAxisAlignment;
   final HWMainAxisAlignment? mainAxisAlignment;
 
   const HWColumn({
-    required this.children,
+    required super.children,
     this.crossAxisAlignment,
     this.mainAxisAlignment,
   });
+
+  static HWColumn fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
+    final childrenField = obj.getField('children');
+    final children = childrenField?.toListValue()?.map((child) {
+          return decoder.decodeRecursive(child);
+        }).toList() ??
+        [];
+
+    final crossAxisAlignmentField = obj.getField('crossAxisAlignment');
+    final mainAxisAlignmentField = obj.getField('mainAxisAlignment');
+
+    return HWColumn(
+      children: children,
+      crossAxisAlignment: WidgetValueDecoder.decodeEnum(
+          crossAxisAlignmentField, HWCrossAxisAlignment.values),
+      mainAxisAlignment: WidgetValueDecoder.decodeEnum(
+          mainAxisAlignmentField, HWMainAxisAlignment.values),
+    );
+  }
 
   @override
   String toSwift(int indent,

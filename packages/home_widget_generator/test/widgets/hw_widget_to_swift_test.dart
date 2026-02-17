@@ -1,80 +1,63 @@
-import 'package:home_widget_cli/src/generators/swift_widget_emitter.dart';
-import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('emitSwiftWidgetBody', () {
+  group('HWWidget.toSwift', () {
     test('emits fixed text', () {
       final node = HWText.fixed('Hello');
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, 'Text("Hello")');
     });
 
     test('emits string data ref', () {
       final node = HWText.data(HWDataRef('label'));
-      final result = emitSwiftWidgetBody(
-        node,
+      final result = node.toSwift(
+        0,
         dataExpr: 'data',
-        dataFields: [
-          DataFieldSpec(key: 'label', type: HWDataFieldType.string),
-        ],
+        dataFields: {'label': HWString('label')},
       );
       expect(result, 'Text(data.label ?? "")');
     });
 
     test('emits int data ref', () {
       final node = HWText.data(HWDataRef('count'));
-      final result = emitSwiftWidgetBody(
-        node,
+      final result = node.toSwift(
+        0,
         dataExpr: 'data',
-        dataFields: [
-          DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
-        ],
+        dataFields: {'count': HWInt('count')},
       );
       expect(result, 'Text(data.count != nil ? "\\(data.count!)" : "0")');
     });
 
     test('emits bool data ref', () {
       final node = HWText.data(HWDataRef('flag'));
-      final result = emitSwiftWidgetBody(
-        node,
+      final result = node.toSwift(
+        0,
         dataExpr: 'data',
-        dataFields: [
-          DataFieldSpec(key: 'flag', type: HWDataFieldType.bool_),
-        ],
+        dataFields: {'flag': HWBool('flag')},
       );
       expect(result, 'Text(data.flag != nil ? "\\(data.flag!)" : "false")');
     });
 
     test('emits double data ref', () {
       final node = HWText.data(HWDataRef('ratio'));
-      final result = emitSwiftWidgetBody(
-        node,
+      final result = node.toSwift(
+        0,
         dataExpr: 'data',
-        dataFields: [
-          DataFieldSpec(key: 'ratio', type: HWDataFieldType.double_),
-        ],
+        dataFields: {'ratio': HWDouble('ratio')},
       );
       expect(result, 'Text(data.ratio != nil ? "\\(data.ratio!)" : "0.0")');
     });
 
     test('escapes strings', () {
       final node = HWText.fixed('He said "Hi"');
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, 'Text("He said \\"Hi\\"")');
     });
 
     test('respects indent', () {
       final node = HWText.fixed('Hello');
-      final result = emitSwiftWidgetBody(
-        node,
-        dataExpr: 'data',
-        dataFields: [],
-        indent: 1,
-      );
+      final result = node.toSwift(1, dataExpr: 'data', dataFields: {});
       expect(result, '    Text("Hello")');
     });
 
@@ -85,8 +68,7 @@ void main() {
           HWText.fixed('b'),
         ],
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack {'));
       expect(result, contains('Text("a")'));
       expect(result, contains('Text("b")'));
@@ -98,8 +80,7 @@ void main() {
           HWText.fixed('x'),
         ],
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('HStack {'));
       expect(result, contains('Text("x")'));
     });
@@ -111,8 +92,7 @@ void main() {
           HWText.fixed('y'),
         ],
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack {'));
       expect(result, contains('HStack {'));
       expect(result, contains('Text("x")'));
@@ -125,12 +105,10 @@ void main() {
           HWText.data(HWDataRef('countLabel')),
         ],
       );
-      final result = emitSwiftWidgetBody(
-        node,
+      final result = node.toSwift(
+        0,
         dataExpr: 'entry.widgetData',
-        dataFields: [
-          DataFieldSpec(key: 'countLabel', type: HWDataFieldType.string),
-        ],
+        dataFields: {'countLabel': HWString('countLabel')},
       );
       expect(result, contains('VStack {'));
       expect(result, contains('Text(entry.widgetData.countLabel ?? "")'));
@@ -138,8 +116,7 @@ void main() {
 
     test('empty Column', () {
       final node = HWColumn(children: []);
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack {'));
       expect(result, contains('}'));
     });
@@ -150,12 +127,7 @@ void main() {
           HWRow(children: [HWText.fixed('x')]),
         ],
       );
-      final result = emitSwiftWidgetBody(
-        node,
-        dataExpr: 'data',
-        dataFields: [],
-        indent: 0,
-      );
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       // Root VStack at 0 indent
       expect(result, startsWith('VStack {'));
       // HStack at 4 spaces
@@ -169,8 +141,7 @@ void main() {
         children: [HWText.fixed('a')],
         crossAxisAlignment: HWCrossAxisAlignment.start,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack(alignment: .leading) {'));
     });
 
@@ -179,8 +150,7 @@ void main() {
         children: [HWText.fixed('a')],
         crossAxisAlignment: HWCrossAxisAlignment.end,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('HStack(alignment: .bottom) {'));
     });
 
@@ -189,8 +159,7 @@ void main() {
         children: [HWText.fixed('a')],
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack(alignment: .center) {'));
     });
 
@@ -198,21 +167,19 @@ void main() {
       final node = HWColumn(
         children: [HWText.fixed('a')],
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack {'));
       expect(result, isNot(contains('alignment:')));
     });
-  });
 
-  group('mainAxisAlignment emitter', () {
-    test('Column with .center emits Spacer before and after', () {
+    test(
+        'Column with .center emits Spacer before and after (mainAxisAlignment)',
+        () {
       final node = HWColumn(
         children: [HWText.fixed('a')],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('VStack {'));
       expect(result, contains('Spacer()'));
       expect(result, contains('Text("a")'));
@@ -225,8 +192,7 @@ void main() {
         children: [HWText.fixed('a')],
         mainAxisAlignment: HWMainAxisAlignment.end,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('Spacer()'));
       expect(result, contains('Text("a")'));
       // Only 1 spacer (before)
@@ -241,8 +207,7 @@ void main() {
         ],
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, contains('HStack {'));
       expect(result, contains('Text("a")'));
       expect(result, contains('Spacer()'));
@@ -259,8 +224,7 @@ void main() {
         ],
         mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       // Spacer before first, between, and after last = 3 spacers
       expect('Spacer()'.allMatches(result).length, 3);
     });
@@ -270,8 +234,7 @@ void main() {
         children: [HWText.fixed('a')],
         mainAxisAlignment: HWMainAxisAlignment.start,
       );
-      final result =
-          emitSwiftWidgetBody(node, dataExpr: 'data', dataFields: []);
+      final result = node.toSwift(0, dataExpr: 'data', dataFields: {});
       expect(result, isNot(contains('Spacer()')));
     });
   });

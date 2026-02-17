@@ -1,20 +1,21 @@
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
 abstract class HWDataType {
-  const HWDataType();
+  final String? key;
+  const HWDataType([this.key]);
 }
 
 class HWString extends HWDataType {
-  const HWString();
+  const HWString([super.key]);
 }
 
 class HWInt extends HWDataType {
-  const HWInt();
+  const HWInt([super.key]);
 }
 
 class HWDouble extends HWDataType {
-  const HWDouble();
+  const HWDouble([super.key]);
 }
 
 class HWBool extends HWDataType {
-  const HWBool();
+  const HWBool([super.key]);
 }
