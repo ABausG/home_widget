@@ -7,28 +7,33 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
-  group('Reproduction: Nested Widget Children', () {
+  group('Schema Parser Layout Tests', () {
     late Directory tempDir;
 
     setUp(() async {
       final currentTestDir = Directory.current.path;
       final testDir =
-          Directory(p.join(currentTestDir, 'test', '.tmp_repro_test'));
+          Directory(p.join(currentTestDir, 'test', '.tmp_layout_test'));
       if (!await testDir.exists()) {
         await testDir.create(recursive: true);
       }
-      tempDir = await testDir.createTemp('repro_');
+      tempDir = await testDir.createTemp('layout_');
     });
 
     tearDown(() async {
       if (await tempDir.exists()) {
-        // await tempDir.delete(recursive: true);
+        await tempDir.delete(recursive: true);
       }
     });
 
     Future<WidgetSpec?> parseSourceInTempFile(String source) async {
       final file = File(p.join(tempDir.path, 'test.dart'));
       await file.writeAsString(source);
+
+      // We need to ensure the package imports are resolvable or mocked if necessary.
+      // For this integration test, we assume the environment can handle it or we use
+      // a relative path if needed, but the parser likely just reads the string content
+      // and resolves based on that.
 
       final specs = await parseSchemaFile(file.path);
       if (specs.isEmpty) return null;
@@ -64,7 +69,6 @@ void main() {
       expect(widgetTree, isA<HWColumn>());
       final column = widgetTree as HWColumn;
 
-      print('Column children count: ${column.children.length}');
       expect(column.children, hasLength(2));
 
       expect(column.children[0], isA<HWText>());

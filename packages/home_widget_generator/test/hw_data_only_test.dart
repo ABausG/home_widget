@@ -7,8 +7,7 @@ import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
-  test('parses HWDataOnly with HWString, HWInt, HWDouble, and HWBool',
-      () async {
+  test('Parses HWDataOnly with all supported data types', () async {
     final code = '''
 @HomeWidget(
   name: 'TestData',
@@ -23,7 +22,7 @@ class TestData {}
 ''';
 
     final file = File(p.join(Directory.current.path, 'test',
-        'temp_repro_${DateTime.now().millisecondsSinceEpoch}.dart'));
+        '.tmp_data_only_test_${DateTime.now().millisecondsSinceEpoch}.dart'));
     await file.writeAsString('''
 import 'package:home_widget_generator/home_widget_generator.dart';
 
@@ -51,13 +50,13 @@ $code
       final dataOnly = widget as HWDataOnly;
       expect(dataOnly.data.length, 4);
       expect(dataOnly.data[0], isA<HWString>());
-      expect(dataOnly.data[0].key, 'stringKey');
+      expect((dataOnly.data[0] as HWString).key, 'stringKey');
       expect(dataOnly.data[1], isA<HWInt>());
-      expect(dataOnly.data[1].key, 'intKey');
+      expect((dataOnly.data[1] as HWInt).key, 'intKey');
       expect(dataOnly.data[2], isA<HWDouble>());
-      expect(dataOnly.data[2].key, 'doubleKey');
+      expect((dataOnly.data[2] as HWDouble).key, 'doubleKey');
       expect(dataOnly.data[3], isA<HWBool>());
-      expect(dataOnly.data[3].key, 'boolKey');
+      expect((dataOnly.data[3] as HWBool).key, 'boolKey');
     } finally {
       if (await file.exists()) await file.delete();
     }

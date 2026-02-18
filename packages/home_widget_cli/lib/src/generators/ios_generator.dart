@@ -54,7 +54,6 @@ class IosGenerator {
     final widgetClassName = '${spec.className}HomeWidget';
     final groupId = spec.data.iOS!.groupId;
 
-    // Create the Widget Extension folder and files.
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
     await ensureDir(extensionDir);
 
@@ -206,7 +205,7 @@ $loadDataLogic
     final runnerEntitlements = File(
       p.join(iosDir.path, 'Runner', 'Runner.entitlements'),
     );
-    // Flutter templates usually have this file; if not, we still create it.
+
     await ensureAppGroupEntitlement(
       entitlementsFile: runnerEntitlements,
       appGroupId: groupId,
@@ -219,10 +218,7 @@ $loadDataLogic
         widgetClassName: widgetClassName,
       );
 
-      // Ensure Runner is signed with Runner/Runner.entitlements (App Groups apply).
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
-
-      // Ensure Runner's deployment target is at least 14.0 (required by home_widget).
       await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
       logger.success('Updated: ${xcodeproj.path}');
     }
