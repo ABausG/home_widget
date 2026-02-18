@@ -6,7 +6,6 @@ import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
 import '../generators/android_generator.dart';
-import '../generators/config_generator.dart';
 import '../generators/dart_helper_generator.dart';
 import '../generators/ios_generator.dart';
 import '../models/widget_spec.dart';
@@ -39,9 +38,10 @@ class GenerateCommand extends Command<int> {
   @override
   Future<int> run() async {
     final input = argResults?['input'] as String? ?? 'home_widget';
-    final inputEntity = FileSystemEntity.isDirectorySync(input)
-        ? Directory(input)
-        : File(input);
+    final absoluteInput = p.absolute(input);
+    final inputEntity = FileSystemEntity.isDirectorySync(absoluteInput)
+        ? Directory(absoluteInput)
+        : File(absoluteInput);
 
     if (!inputEntity.existsSync()) {
       logger.err('Error: Input path "$input" does not exist.');
@@ -100,18 +100,6 @@ class GenerateCommand extends Command<int> {
     for (final item in specs) {
       final spec = item.spec;
       final path = item.path;
-
-      // Generate config file
-      if (spec.dataFields.isNotEmpty) {
-        logger.info('Generating config for ${spec.data.name}...');
-        final configGenerator = ConfigGenerator(spec);
-        final configContent = configGenerator.generate();
-        final configPath = p.join(
-          p.dirname(path),
-          '${p.basenameWithoutExtension(path)}.home_widget_config.dart',
-        );
-        await File(configPath).writeAsString(configContent);
-      }
 
       // Generate Dart helper file
       logger.info('Generating Dart helper for ${spec.data.name}...');

@@ -9,9 +9,8 @@ void main() {
       expect(text, isA<HWWidget>());
     });
 
-    test('data constructor is const', () {
-      const ref = HWDataRef<String>('key');
-      const text = HWText.data(ref);
+    test('data type constructor is const', () {
+      const text = HWText(HWString('key'));
       expect(text, isA<HWText>());
       expect(text, isA<HWWidget>());
     });

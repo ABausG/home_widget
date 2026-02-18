@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
@@ -120,7 +121,7 @@ class AndroidGenerator {
       buffer.writeln('}');
       dataClassContent = buffer.toString();
 
-      if (spec.widgetTree == null) {
+      if (spec.widgetTree == null || spec.widgetTree is HWDataOnly) {
         final bodyBuffer = StringBuffer();
         bodyBuffer.writeln('    val prefs = currentState.preferences');
         bodyBuffer
@@ -129,7 +130,7 @@ class AndroidGenerator {
           '    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
         );
         bodyBuffer.writeln('      androidx.glance.layout.Column {');
-        bodyBuffer.writeln('        Text(text = "$widgetClassName")');
+        bodyBuffer.writeln('        Text(text = "${spec.data.name}")');
         for (final field in spec.dataFields) {
           bodyBuffer.writeln(
             '        Text(text = "${field.key}: \${widgetData.${field.key} ?: "-"}")',
@@ -141,7 +142,7 @@ class AndroidGenerator {
       }
     }
 
-    if (spec.widgetTree != null) {
+    if (spec.widgetTree != null && spec.widgetTree is! HWDataOnly) {
       final bodyBuffer = StringBuffer();
       if (spec.dataFields.isNotEmpty) {
         final className = '${spec.className}Data';

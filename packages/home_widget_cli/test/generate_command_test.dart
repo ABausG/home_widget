@@ -16,6 +16,15 @@ void main() {
 
   setUp(() {
     mockLogger = MockLogger();
+    when(() => mockLogger.info(any())).thenAnswer((invocation) {
+      print(invocation.positionalArguments.first);
+    });
+    when(() => mockLogger.err(any())).thenAnswer((invocation) {
+      print(invocation.positionalArguments.first);
+    });
+    when(() => mockLogger.warn(any())).thenAnswer((invocation) {
+      print(invocation.positionalArguments.first);
+    });
     logger = mockLogger;
   });
 
@@ -223,6 +232,33 @@ class SimpleData {}
         );
       },
       timeout: const Timeout(Duration(minutes: 25)),
+    );
+    test(
+      'works with relative input path',
+      () async {
+        final project = await TestFlutterProject.create();
+        project.useAsCwd();
+
+        // Create a dummy widget spec file in a subdirectory
+        final widgetDir = Directory(p.join(project.root.path, 'my_widgets'));
+        widgetDir.createSync();
+        final widgetFile = File(p.join(widgetDir.path, 'widget.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'TestWidget',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class TestWidget {}
+''');
+
+        // Pass 'my_widgets' as a relative path
+        // Since we did project.useAsCwd(), 'my_widgets' is relative to CWD.
+        final code = await runCli(['generate', '--input', 'my_widgets']);
+        expect(code, 0);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
     );
   });
 }

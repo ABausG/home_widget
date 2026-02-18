@@ -4,11 +4,9 @@ part of 'hw_widget.dart';
 ///
 /// Two const constructors:
 /// - `HWText.fixed('Hello')` -- hardcoded string literal
-/// - `HWText.data(ref)` -- data-bound via HWDataRef
+/// - `HWText(HWString('key'))` -- data-bound via HWDataType
 class HWText extends HWWidget implements HWDataWidget {
-  final String? _fixedContent;
-
-  final HWDataRef? dataRef;
+  final String? fixedContent;
 
   final HWDataType? dataType;
 
@@ -17,41 +15,31 @@ class HWText extends HWWidget implements HWDataWidget {
 
   /// Static/hardcoded text content.
   const HWText.fixed(String content)
-      : _fixedContent = content,
-        dataRef = null,
-        dataType = null;
-
-  /// Data-bound text content from a generated HWDataRef.
-  const HWText.data(HWDataRef ref)
-      : _fixedContent = null,
-        dataRef = ref,
+      : fixedContent = content,
         dataType = null;
 
   const HWText(HWDataType data)
-      : _fixedContent = null,
-        dataRef = null,
+      : fixedContent = null,
         dataType = data;
 
   static HWText fromDartObject(DartObject obj) {
     // Check for fixed content
-    final fixedContent = obj.getField('_fixedContent')?.toStringValue();
+    final fixedContent = obj.getField('fixedContent')?.toStringValue();
     if (fixedContent != null) {
       return HWText.fixed(fixedContent);
-    }
-
-    // Check for data ref
-    final dataRef = obj.getField('dataRef');
-    if (dataRef != null && !dataRef.isNull) {
-      final key = dataRef.getField('key')?.toStringValue();
-      if (key != null) {
-        return HWText.data(HWDataRef(key));
-      }
     }
 
     // Check for data type
     final dataType = obj.getField('dataType');
     if (dataType != null && !dataType.isNull) {
-      final key = dataType.getField('key')?.toStringValue();
+      var key = dataType.getField('key')?.toStringValue();
+      if (key == null) {
+        // key lives on HWDataType (super), so analyzer may store it under (super)
+        final superClass = dataType.getField('(super)');
+        if (superClass != null) {
+          key = superClass.getField('key')?.toStringValue();
+        }
+      }
       final typeName = dataType.type?.element3?.name3;
 
       if (key != null) {
@@ -64,7 +52,7 @@ class HWText extends HWWidget implements HWDataWidget {
 
     // Fallback/Error?
     throw GeneratorError(
-        'Could not decode HWText. Fields: fixedContent=$fixedContent, dataRef=${obj.getField('dataRef')}, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element3?.name3}');
+        'Could not decode HWText. Fields: fixedContent=$fixedContent, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element3?.name3}');
   }
 
   @override
@@ -72,10 +60,11 @@ class HWText extends HWWidget implements HWDataWidget {
       {required String dataExpr,
       Map<String, HWDataType> dataFields = const {}}) {
     final pad = '    ' * indent; // Use 4 spaces per indent level to match tests
-    if (_fixedContent != null) {
-      return '${pad}Text("${_escapeSwiftString(_fixedContent)}")';
-    } else if (dataRef != null || dataType?.key != null) {
-      final key = dataRef?.key ?? dataType!.key;
+    final fixedContent = this.fixedContent;
+    if (fixedContent != null) {
+      return '${pad}Text("${_escapeSwiftString(fixedContent)}")';
+    } else if (dataType?.key != null) {
+      final key = dataType!.key;
       final type = dataFields[key];
 
       switch (type) {
@@ -100,10 +89,11 @@ class HWText extends HWWidget implements HWDataWidget {
       {required String dataExpr,
       Map<String, HWDataType> dataFields = const {}}) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
-    if (_fixedContent != null) {
-      return '${pad}Text(text = "${_escapeKotlinString(_fixedContent)}")';
-    } else if (dataRef != null || dataType?.key != null) {
-      final key = dataRef?.key ?? dataType!.key;
+    final fixedContent = this.fixedContent;
+    if (fixedContent != null) {
+      return '${pad}Text(text = "${_escapeKotlinString(fixedContent)}")';
+    } else if (dataType?.key != null) {
+      final key = dataType!.key;
       final type = dataFields[key];
 
       switch (type) {

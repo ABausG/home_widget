@@ -145,8 +145,8 @@ void main() {
       dataFields: [
         DataFieldSpec(key: 'title', type: HWDataFieldType.string),
       ],
-      widgetTree: HWText.data(
-        HWDataRef('title'),
+      widgetTree: HWText(
+        HWString('title'),
       ),
     );
 
@@ -167,5 +167,57 @@ void main() {
     expect(content, contains('Text(entry.data.title ?? "")'));
     // Should NOT contain placeholder VStack
     expect(content, isNot(contains('VStack {')));
+  });
+
+  test('generates Swift widget with HWDataOnly as root widget', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'Simple Data',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+      ),
+      className: 'SimpleData',
+      dataFields: [
+        DataFieldSpec(key: 'label', type: HWDataFieldType.string),
+        DataFieldSpec(key: 'value', type: HWDataFieldType.int_),
+      ],
+      widgetTree: HWDataOnly([
+        HWString('label'),
+        HWInt('value'),
+      ]),
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/SimpleDataHomeWidget/Widget.swift',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    // Should contain data struct
+    expect(content, contains('struct SimpleDataData {'));
+    expect(content, contains('let label: String?'));
+    expect(content, contains('let value: Int?'));
+
+    // Should produce the debug VStack view body
+    expect(content, contains('VStack {'));
+    expect(content, contains('Text("Simple Data")'));
+    expect(
+      content,
+      contains(
+        r'Text("label: \(entry.data.label?.description ?? "-")")',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        r'Text("value: \(entry.data.value?.description ?? "-")")',
+      ),
+    );
   });
 }

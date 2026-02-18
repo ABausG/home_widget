@@ -14,7 +14,10 @@ class HWRow extends HWMultiChildWidget {
   });
 
   static HWRow fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
-    final childrenField = obj.getField('children');
+    var childrenField = obj.getField('children');
+    if (childrenField == null || childrenField.isNull) {
+      childrenField = obj.getField('(super)')?.getField('children');
+    }
     final children = childrenField?.toListValue()?.map((child) {
           return decoder.decodeRecursive(child);
         }).toList() ??
@@ -53,7 +56,7 @@ class HWRow extends HWMultiChildWidget {
 
     _emitSwiftChildren(buffer, indent + 1, dataExpr, dataFields);
 
-    buffer.write('$pad})');
+    buffer.write('$pad}');
     return buffer.toString();
   }
 

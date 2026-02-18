@@ -10,7 +10,7 @@ void main() {
     });
 
     test('emits string data ref', () {
-      final node = HWText.data(HWDataRef('label'));
+      final node = HWText(HWString('label'));
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
@@ -20,7 +20,7 @@ void main() {
     });
 
     test('emits int data ref', () {
-      final node = HWText.data(HWDataRef('count'));
+      final node = HWText(HWInt('count'));
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
@@ -30,7 +30,7 @@ void main() {
     });
 
     test('emits bool data ref', () {
-      final node = HWText.data(HWDataRef('flag'));
+      final node = HWText(HWBool('flag'));
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
@@ -40,7 +40,7 @@ void main() {
     });
 
     test('emits double data ref', () {
-      final node = HWText.data(HWDataRef('ratio'));
+      final node = HWText(HWDouble('ratio'));
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
@@ -107,7 +107,7 @@ void main() {
     test('data in layout', () {
       final node = HWColumn(
         children: [
-          HWText.data(HWDataRef('count')),
+          HWText(HWString('count')),
         ],
       );
       final result = node.toKotlin(

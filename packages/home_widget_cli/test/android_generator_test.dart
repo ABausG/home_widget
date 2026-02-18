@@ -159,8 +159,8 @@ void main() {
       dataFields: [
         DataFieldSpec(key: 'title', type: HWDataFieldType.string),
       ],
-      widgetTree: HWText.data(
-        HWDataRef('title'),
+      widgetTree: HWText(
+        HWString('title'),
       ),
     );
 
@@ -183,6 +183,59 @@ void main() {
     expect(
       content,
       isNot(contains('Text(text = "TreeWidgetHomeWidget")')),
+    );
+  });
+
+  test('generates Kotlin widget with HWDataOnly as root widget', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'Simple Data',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'SimpleData',
+      dataFields: [
+        DataFieldSpec(key: 'label', type: HWDataFieldType.string),
+        DataFieldSpec(key: 'value', type: HWDataFieldType.int_),
+      ],
+      widgetTree: HWDataOnly([
+        HWString('label'),
+        HWInt('value'),
+      ]),
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/example/SimpleDataHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    // Should contain data class
+    expect(content, contains('data class SimpleDataData('));
+    expect(content, contains('val label: String? = null,'));
+    expect(content, contains('val value: Int? = null,'));
+
+    // Should produce the debug view body
+    expect(
+      content,
+      contains(
+        'Box(modifier = GlanceModifier.fillMaxSize().background(Color.White))',
+      ),
+    );
+    expect(content, contains('Text(text = "Simple Data")'));
+    expect(
+      content,
+      contains(r'Text(text = "label: ${widgetData.label ?: "-"}")'),
+    );
+    expect(
+      content,
+      contains(r'Text(text = "value: ${widgetData.value ?: "-"}")'),
     );
   });
 }

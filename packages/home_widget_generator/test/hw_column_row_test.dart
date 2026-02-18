@@ -62,7 +62,7 @@ void main() {
 
     test('data ref in nested tree', () {
       const widget = HWColumn(children: [
-        HWText.data(HWDataRef<String>('key')),
+        HWText(HWString('key')),
       ]);
       expect(widget.children.first, isA<HWText>());
     });

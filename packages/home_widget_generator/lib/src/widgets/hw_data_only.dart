@@ -10,8 +10,16 @@ class HWDataOnly extends HWWidget implements HWDataWidget {
   static HWDataOnly fromDartObject(DartObject obj) {
     final dataField = obj.getField('data');
     final data = dataField?.toListValue()?.map((d) {
-          final key = d.getField('key')?.toStringValue();
+          var key = d.getField('key')?.toStringValue();
+          if (key == null) {
+            // Fallback for when key is in super class
+            final superClass = d.getField('(super)');
+            if (superClass != null) {
+              key = superClass.getField('key')?.toStringValue();
+            }
+          }
           final typeName = d.type?.element3?.name3;
+
           if (key != null) {
             if (typeName == 'HWString') return HWString(key);
             if (typeName == 'HWInt') return HWInt(key);

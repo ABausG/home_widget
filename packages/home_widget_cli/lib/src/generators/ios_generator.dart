@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
@@ -137,10 +138,10 @@ $loadDataLogic
     completion(Timeline(entries: [${widgetClassName}Entry(date: Date(), data: data)], policy: .atEnd))
 ''';
 
-      if (spec.widgetTree == null) {
+      if (spec.widgetTree == null || spec.widgetTree is HWDataOnly) {
         final viewBuffer = StringBuffer();
         viewBuffer.writeln('    VStack {');
-        viewBuffer.writeln('      Text("$widgetClassName")');
+        viewBuffer.writeln('      Text("${spec.data.name}")');
         for (final field in spec.dataFields) {
           viewBuffer.writeln(
             '      Text("${field.key}: \\(entry.data.${field.key}?.description ?? "-")")',
@@ -151,7 +152,7 @@ $loadDataLogic
       }
     }
 
-    if (spec.widgetTree != null) {
+    if (spec.widgetTree != null && spec.widgetTree is! HWDataOnly) {
       entryViewBody = emitSwiftWidgetBody(
         spec.widgetTree!,
         dataExpr: 'entry.data',
