@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -147,8 +148,14 @@ dependencies {
 ''';
 
 Future<void> _ensureHomeWidgetDependencyPresent(Directory projectRoot) async {
-  // Assume we are running from packages/home_widget_cli
-  final cliPackageRoot = Directory.current;
+  final packageUri = await Isolate.resolvePackageUri(
+    Uri.parse('package:home_widget_cli/src/cli.dart'),
+  );
+  if (packageUri == null) {
+    throw StateError('Could not resolve package:home_widget_cli');
+  }
+
+  final cliPackageRoot = File(packageUri.toFilePath()).parent.parent.parent;
   final packagesDir = cliPackageRoot.parent;
   final homeWidgetPath = p.join(packagesDir.path, 'home_widget');
   final generatorPath = p.join(packagesDir.path, 'home_widget_generator');
