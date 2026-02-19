@@ -224,12 +224,6 @@ class HomeWidget {
   /// The widget structure defined inline.
   final HWWidget? widget;
 
-  /// The name of the generated class.
-  ///
-  /// If provided, the generator will create a class with this name that extends
-  /// `HomeWidget` and contains the widget definition.
-  final String? className;
-
   /// The path to the generated Dart file.
   ///
   /// This file will contain helper methods for updating the widget data.
@@ -248,7 +242,6 @@ class HomeWidget {
     required this.name,
     this.description,
     this.widget,
-    this.className,
     this.dartOutput,
     this.android,
     this.iOS,
@@ -262,7 +255,6 @@ class HomeWidget {
           name == other.name &&
           description == other.description &&
           widget == other.widget &&
-          className == other.className &&
           dartOutput == other.dartOutput &&
           android == other.android &&
           iOS == other.iOS &&
@@ -273,7 +265,6 @@ class HomeWidget {
       name.hashCode ^
       description.hashCode ^
       widget.hashCode ^
-      className.hashCode ^
       dartOutput.hashCode ^
       android.hashCode ^
       iOS.hashCode ^

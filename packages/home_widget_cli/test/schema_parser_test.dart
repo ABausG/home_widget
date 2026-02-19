@@ -1,35 +1,33 @@
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import 'helpers/test_flutter_project.dart';
+
 void main() {
   group('parseSchemaFile', () {
-    late Directory tempDir;
+    late TestFlutterProject project;
+    late AnalysisContextCollection collection;
 
-    setUp(() async {
-      final currentTestDir = Directory.current.path;
-      final testDir =
-          Directory(p.join(currentTestDir, 'test', '.tmp_schema_test'));
-      if (!await testDir.exists()) {
-        await testDir.create(recursive: true);
-      }
-      tempDir = await testDir.createTemp('run_');
-    });
-
-    tearDown(() async {
-      if (await tempDir.exists()) {
-        await tempDir.delete(recursive: true);
-      }
+    setUpAll(() async {
+      project = await TestFlutterProject.create();
+      collection = AnalysisContextCollection(
+        includedPaths: [project.root.path],
+        resourceProvider: PhysicalResourceProvider.INSTANCE,
+      );
     });
 
     Future<WidgetSpec?> parseSourceInTempFile(String source) async {
-      final file = File(p.join(tempDir.path, 'test.dart'));
+      final fileName = 'widget_${source.hashCode}.dart';
+      final file = File(p.join(project.root.path, 'lib', fileName));
       await file.writeAsString(source);
 
-      final specs = await parseSchemaFile(file.path);
+      final specs = await parseSchemaFile(file.path, collection: collection);
       if (specs.isEmpty) return null;
       return specs.first;
     }

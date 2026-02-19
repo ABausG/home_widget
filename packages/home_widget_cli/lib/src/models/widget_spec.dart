@@ -62,47 +62,8 @@ class DataFieldSpec {
   final String key;
 
   /// The data type of the field.
-  final HWDataFieldType type;
+  final HWDataType type;
 
   /// Creates a new [DataFieldSpec].
   const DataFieldSpec({required this.key, required this.type});
-}
-
-/// Supported data field types for home widgets.
-enum HWDataFieldType {
-  /// A string value.
-  string,
-
-  /// An integer value.
-  int_,
-
-  /// A double value.
-  double_,
-
-  /// A boolean value.
-  bool_;
-
-  /// Dart type string.
-  String get dartType => switch (this) {
-        string => 'String',
-        int_ => 'int',
-        double_ => 'double',
-        bool_ => 'bool',
-      };
-
-  /// Kotlin type string.
-  String get kotlinType => switch (this) {
-        string => 'String',
-        int_ => 'Int',
-        double_ => 'Double',
-        bool_ => 'Boolean',
-      };
-
-  /// Swift type string.
-  String get swiftType => switch (this) {
-        string => 'String',
-        int_ => 'Int',
-        double_ => 'Double',
-        bool_ => 'Bool',
-      };
 }

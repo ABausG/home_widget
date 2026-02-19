@@ -76,6 +76,7 @@ final class TestFlutterProject {
       [
         'create',
         '--empty',
+        '--no-pub',
         projectDirName,
         if (platformArg.isNotEmpty) '--platforms=$platformArg',
       ],
@@ -146,24 +147,33 @@ dependencies {
 ''';
 
 Future<void> _ensureHomeWidgetDependencyPresent(Directory projectRoot) async {
-  final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-  if (!pubspec.existsSync()) {
-    throw StateError('pubspec.yaml not found at ${pubspec.path}');
-  }
+  // Assume we are running from packages/home_widget_cli
+  final cliPackageRoot = Directory.current;
+  final packagesDir = cliPackageRoot.parent;
+  final homeWidgetPath = p.join(packagesDir.path, 'home_widget');
+  final generatorPath = p.join(packagesDir.path, 'home_widget_generator');
 
-  final text = await pubspec.readAsString();
-  if (RegExp(r'^\s*home_widget\s*:', multiLine: true).hasMatch(text)) {
-    return;
-  }
-
-  final lines = text.split('\n');
-  final depsIdx = lines.indexWhere(
-    (l) => RegExp(r'^\s*dependencies:\s*$').hasMatch(l),
+  // Add home_widget dependency
+  var result = await Process.run(
+    'flutter',
+    ['pub', 'add', 'home_widget', '--path', homeWidgetPath],
+    workingDirectory: projectRoot.path,
+    runInShell: true,
   );
-  if (depsIdx == -1) {
-    lines.addAll(['', 'dependencies:', '  home_widget: any']);
-  } else {
-    lines.insert(depsIdx + 1, '  home_widget: any');
+  if (result.exitCode != 0) {
+    throw StateError('flutter pub add home_widget failed:\n${result.stderr}');
   }
-  await pubspec.writeAsString(lines.join('\n'));
+
+  // Add home_widget_generator dev dependency
+  result = await Process.run(
+    'flutter',
+    ['pub', 'add', 'home_widget_generator', '--dev', '--path', generatorPath],
+    workingDirectory: projectRoot.path,
+    runInShell: true,
+  );
+  if (result.exitCode != 0) {
+    throw StateError(
+      'flutter pub add home_widget_generator failed:\n${result.stderr}',
+    );
+  }
 }

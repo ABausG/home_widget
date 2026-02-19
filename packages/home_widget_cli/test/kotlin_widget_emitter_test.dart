@@ -1,17 +1,15 @@
-import 'package:home_widget_cli/src/generators/kotlin_widget_emitter.dart';
-
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('collectKotlinLayoutImports', () {
+  group('HWWidget.kotlinImports', () {
     test('Column in tree', () {
       final node = HWColumn(
         children: [
           HWText.fixed('a'),
         ],
       );
-      final imports = collectKotlinLayoutImports(node);
+      final imports = node.kotlinImports;
       expect(imports, contains('import androidx.glance.layout.Column'));
     });
 
@@ -21,7 +19,7 @@ void main() {
           HWText.fixed('a'),
         ],
       );
-      final imports = collectKotlinLayoutImports(node);
+      final imports = node.kotlinImports;
       expect(imports, contains('import androidx.glance.layout.Row'));
     });
 
@@ -31,20 +29,17 @@ void main() {
           HWRow(children: [HWText.fixed('a')]),
         ],
       );
-      final imports = collectKotlinLayoutImports(node);
+      final imports = node.kotlinImports;
       expect(imports, contains('import androidx.glance.layout.Column'));
       expect(imports, contains('import androidx.glance.layout.Row'));
     });
 
     test('HWText only', () {
       final node = HWText.fixed('a');
-      final imports = collectKotlinLayoutImports(node);
-      expect(imports, isEmpty);
-    });
-
-    test('null tree', () {
-      final imports = collectKotlinLayoutImports(null);
-      expect(imports, isEmpty);
+      final imports = node.kotlinImports;
+      // HWText might have text imports, check logic or ignore?
+      // HWText imports: 'import androidx.glance.text.Text', 'import androidx.glance.text.TextStyle'
+      expect(imports, contains('import androidx.glance.text.Text'));
     });
 
     test('alignment import when alignment is set', () {
@@ -52,7 +47,7 @@ void main() {
         children: [HWText.fixed('a')],
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
-      final imports = collectKotlinLayoutImports(node);
+      final imports = node.kotlinImports;
       expect(imports, contains('import androidx.compose.ui.Alignment'));
     });
     test('Spacer import collected when mainAxisAlignment set', () {
@@ -60,7 +55,7 @@ void main() {
         children: [HWText.fixed('a')],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
-      final imports = collectKotlinLayoutImports(node);
+      final imports = node.kotlinImports;
       expect(imports, contains('import androidx.glance.layout.Spacer'));
     });
 
@@ -68,7 +63,7 @@ void main() {
       final node = HWColumn(
         children: [HWText.fixed('a')],
       );
-      final imports = collectKotlinLayoutImports(node);
+      final imports = node.kotlinImports;
       expect(
         imports,
         isNot(contains('import androidx.glance.layout.Spacer')),

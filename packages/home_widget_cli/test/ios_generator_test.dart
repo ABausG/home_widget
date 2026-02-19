@@ -28,8 +28,8 @@ void main() {
       ),
       className: 'ExampleWidget',
       dataFields: [
-        DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
-        DataFieldSpec(key: 'label', type: HWDataFieldType.string),
+        DataFieldSpec(key: 'count', type: HWInt()),
+        DataFieldSpec(key: 'label', type: HWString()),
       ],
     );
 
@@ -143,7 +143,7 @@ void main() {
       ),
       className: 'TreeWidget',
       dataFields: [
-        DataFieldSpec(key: 'title', type: HWDataFieldType.string),
+        DataFieldSpec(key: 'title', type: HWString()),
       ],
       widgetTree: HWText(
         HWString('title'),
@@ -177,8 +177,8 @@ void main() {
       ),
       className: 'SimpleData',
       dataFields: [
-        DataFieldSpec(key: 'label', type: HWDataFieldType.string),
-        DataFieldSpec(key: 'value', type: HWDataFieldType.int_),
+        DataFieldSpec(key: 'label', type: HWString()),
+        DataFieldSpec(key: 'value', type: HWInt()),
       ],
       widgetTree: HWDataOnly([
         HWString('label'),

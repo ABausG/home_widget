@@ -92,26 +92,10 @@ class AndroidGenerator {
       buffer.writeln('            return $className(');
 
       for (final field in spec.dataFields) {
-        final key = field.key;
-        String readLogic;
-        switch (field.type) {
-          case HWDataFieldType.string:
-            readLogic = 'prefs.getString("\${PREFERENCES_PREFIX}.$key", null)';
-            break;
-          case HWDataFieldType.int_:
-            readLogic =
-                'if (prefs.contains("\${PREFERENCES_PREFIX}.$key")) prefs.getInt("\${PREFERENCES_PREFIX}.$key", 0) else null';
-            break;
-          case HWDataFieldType.double_:
-            readLogic =
-                'if (prefs.contains("\${PREFERENCES_PREFIX}.$key")) prefs.getFloat("\${PREFERENCES_PREFIX}.$key", 0f).toDouble() else null';
-            break;
-          case HWDataFieldType.bool_:
-            readLogic =
-                'if (prefs.contains("\${PREFERENCES_PREFIX}.$key")) prefs.getBoolean("\${PREFERENCES_PREFIX}.$key", false) else null';
-            break;
-        }
-
+        final readLogic = field.type.androidReadValue(
+          store: 'prefs',
+          key: '\${PREFERENCES_PREFIX}.${field.key}',
+        );
         buffer.writeln('                ${field.key} = $readLogic,');
       }
 
@@ -154,14 +138,13 @@ class AndroidGenerator {
         emitKotlinWidgetBody(
           spec.widgetTree!,
           dataExpr: 'widgetData',
-          dataFields: spec.dataFields,
           indent: 1, // inside WidgetContent method
         ),
       );
       contentBody = bodyBuffer.toString();
     }
 
-    final layoutImports = collectKotlinLayoutImports(spec.widgetTree);
+    final layoutImports = spec.widgetTree?.kotlinImports ?? {};
 
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(

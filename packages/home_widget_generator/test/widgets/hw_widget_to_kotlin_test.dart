@@ -5,7 +5,7 @@ void main() {
   group('HWWidget.toKotlin', () {
     test('emits fixed text', () {
       final node = HWText.fixed('Hello');
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, 'Text(text = "Hello")');
     });
 
@@ -14,7 +14,6 @@ void main() {
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
-        dataFields: {'label': HWString('label')},
       );
       expect(result, 'Text(text = data.label ?: "")');
     });
@@ -24,7 +23,6 @@ void main() {
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
-        dataFields: {'count': HWInt('count')},
       );
       expect(result, 'Text(text = (data.count?.toString() ?: "0"))');
     });
@@ -34,7 +32,6 @@ void main() {
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
-        dataFields: {'flag': HWBool('flag')},
       );
       expect(result, 'Text(text = (data.flag?.toString() ?: "false"))');
     });
@@ -44,14 +41,13 @@ void main() {
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
-        dataFields: {'ratio': HWDouble('ratio')},
       );
       expect(result, 'Text(text = (data.ratio?.toString() ?: "0.0"))');
     });
 
     test('escapes strings', () {
       final node = HWText.fixed('Price: \$5');
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       // Note: In toKotlin, $ is escaped to \$, so output is Price: \$5
       // Dart string literal needs \\$ for \$ in regex or string.
       // Emitter logic: s.replaceAll('$', '\\$') -> produces `\$`
@@ -62,7 +58,7 @@ void main() {
 
     test('respects indent', () {
       final node = HWText.fixed('Hello');
-      final result = node.toKotlin(1, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(1, dataExpr: 'data');
       expect(result, '    Text(text = "Hello")');
     });
 
@@ -73,7 +69,7 @@ void main() {
           HWText.fixed('b'),
         ],
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
       expect(result, contains('Text(text = "a")'));
       expect(result, contains('Text(text = "b")'));
@@ -85,7 +81,7 @@ void main() {
           HWText.fixed('x'),
         ],
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "x")'));
     });
@@ -97,7 +93,7 @@ void main() {
           HWText.fixed('y'),
         ],
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "x")'));
@@ -113,7 +109,6 @@ void main() {
       final result = node.toKotlin(
         0,
         dataExpr: 'data',
-        dataFields: {'count': HWString('count')},
       );
       expect(result, contains('Column {'));
       expect(result, contains('Text(text = data.count ?: "")'));
@@ -121,7 +116,7 @@ void main() {
 
     test('empty Column', () {
       final node = HWColumn(children: []);
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
       expect(result, contains('}'));
     });
@@ -132,7 +127,7 @@ void main() {
           HWRow(children: [HWText.fixed('x')]),
         ],
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, startsWith('Column {'));
       expect(result, contains('    Row {'));
       expect(result, contains('        Text(text = "x")'));
@@ -143,7 +138,7 @@ void main() {
         children: [HWText.fixed('a')],
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(
         result,
         contains(
@@ -157,7 +152,7 @@ void main() {
         children: [HWText.fixed('a')],
         crossAxisAlignment: HWCrossAxisAlignment.start,
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Row(verticalAlignment = Alignment.Top) {'));
     });
 
@@ -165,7 +160,7 @@ void main() {
       final node = HWColumn(
         children: [HWText.fixed('a')],
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
       expect(result, isNot(contains('horizontalAlignment')));
     });
@@ -177,7 +172,7 @@ void main() {
         children: [HWText.fixed('a')],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
       expect(result, contains('Spacer()'));
       expect(result, contains('Text(text = "a")'));
@@ -192,7 +187,7 @@ void main() {
         ],
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "a")'));
       expect(result, contains('Spacer()'));
@@ -206,7 +201,7 @@ void main() {
         crossAxisAlignment: HWCrossAxisAlignment.center,
         mainAxisAlignment: HWMainAxisAlignment.end,
       );
-      final result = node.toKotlin(0, dataExpr: 'data', dataFields: {});
+      final result = node.toKotlin(0, dataExpr: 'data');
       expect(
         result,
         contains('horizontalAlignment = Alignment.CenterHorizontally'),

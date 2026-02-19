@@ -91,25 +91,10 @@ class IosGenerator {
       );
       buffer.writeln('    return $className(');
       for (final field in spec.dataFields) {
-        final key = field.key;
-        String readLogic;
-        switch (field.type) {
-          case HWDataFieldType.string:
-            readLogic = 'defaults?.string(forKey: "\\(paramPrefix).$key")';
-            break;
-          case HWDataFieldType.int_:
-            readLogic =
-                'defaults?.object(forKey: "\\(paramPrefix).$key") as? Int';
-            break;
-          case HWDataFieldType.double_:
-            readLogic =
-                'defaults?.object(forKey: "\\(paramPrefix).$key") as? Double';
-            break;
-          case HWDataFieldType.bool_:
-            readLogic =
-                'defaults?.object(forKey: "\\(paramPrefix).$key") as? Bool';
-            break;
-        }
+        final readLogic = field.type.iosReadValue(
+          store: 'defaults',
+          key: '\\(paramPrefix).${field.key}',
+        );
         buffer.writeln('      ${field.key}: $readLogic,');
       }
       buffer.writeln('    )');
@@ -155,7 +140,6 @@ $loadDataLogic
       entryViewBody = emitSwiftWidgetBody(
         spec.widgetTree!,
         dataExpr: 'entry.data',
-        dataFields: spec.dataFields,
         indent: 2,
       );
     }

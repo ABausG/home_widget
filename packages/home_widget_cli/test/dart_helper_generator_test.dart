@@ -10,8 +10,8 @@ void main() {
         data: HomeWidget(name: 'ExampleWidget'),
         className: 'ExampleWidget',
         dataFields: [
-          DataFieldSpec(key: 'countLabel', type: HWDataFieldType.string),
-          DataFieldSpec(key: 'count', type: HWDataFieldType.int_),
+          DataFieldSpec(key: 'countLabel', type: HWString()),
+          DataFieldSpec(key: 'count', type: HWInt()),
         ],
       );
 

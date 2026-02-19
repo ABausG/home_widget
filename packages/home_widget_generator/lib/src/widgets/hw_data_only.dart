@@ -34,19 +34,18 @@ class HWDataOnly extends HWWidget implements HWDataWidget {
   }
 
   @override
-  List<HWDataType> get dataDependencies => data;
+  Set<HWDataType> get dataDependencies => data.toSet();
 
   @override
-  String toSwift(int indent,
-      {required String dataExpr,
-      Map<String, HWDataType> dataFields = const {}}) {
+  Set<String> get kotlinImports => {};
+
+  @override
+  String toSwift(int indent, {required String dataExpr}) {
     return '';
   }
 
   @override
-  String toKotlin(int indent,
-      {required String dataExpr,
-      Map<String, HWDataType> dataFields = const {}}) {
+  String toKotlin(int indent, {required String dataExpr}) {
     return '';
   }
 }

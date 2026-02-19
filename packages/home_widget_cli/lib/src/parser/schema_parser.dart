@@ -7,7 +7,6 @@ import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
-import '../utils/widget_tree_traverser.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s using Analyzer resolution.
 Future<List<WidgetSpec>> parseSchemaFile(
@@ -61,9 +60,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   final name = constantValue.getField('name')?.toStringValue();
   final description = constantValue.getField('description')?.toStringValue();
 
-  final className = constantValue.getField('className')?.toStringValue();
-  // If className is not provided, we use the class name of the annotated class
-  final generatedClassName = className ?? element.name;
+  final generatedClassName = element.name;
 
   final dartOutput = constantValue.getField('dartOutput')?.toStringValue();
 
@@ -82,10 +79,15 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   }
 
   // Data fields
-  // In v2, we only traverse the widget tree.
-  final dataFields = widgetTree != null
-      ? WidgetTreeTraverser.extractDataFields(widgetTree)
-      : <DataFieldSpec>[];
+  final dataFields = <DataFieldSpec>[];
+  if (widgetTree != null) {
+    final dependencies = widgetTree.dataDependencies;
+    for (final dep in dependencies) {
+      if (dep.key != null) {
+        dataFields.add(DataFieldSpec(key: dep.key!, type: dep));
+      }
+    }
+  }
 
   if (name == null) return null;
 
@@ -102,7 +104,6 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       name: name,
       description: description,
       widget: widgetTree,
-      className: generatedClassName,
       dartOutput: dartOutput,
       android: androidConfig,
       iOS: iosConfig,

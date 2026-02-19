@@ -90,10 +90,7 @@ class TestWidget {}
       final text = widget as HWText;
       // dataType is not directly exposed as public field in HWText?
       // We can check generated code.
-      expect(
-          text.toSwift(0,
-              dataExpr: 'data', dataFields: {'title': HWString('title')}),
-          contains('data.title'));
+      expect(text.toSwift(0, dataExpr: 'data'), contains('data.title'));
     });
   });
 }

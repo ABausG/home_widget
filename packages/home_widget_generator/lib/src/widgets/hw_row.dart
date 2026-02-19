@@ -13,6 +13,18 @@ class HWRow extends HWMultiChildWidget {
     this.mainAxisAlignment,
   });
 
+  @override
+  Set<String> get kotlinImports {
+    final imports = <String>{'import androidx.glance.layout.Row'};
+    if (crossAxisAlignment != null) {
+      imports.add('import androidx.compose.ui.Alignment');
+    }
+    if (mainAxisAlignment != null) {
+      imports.add('import androidx.glance.layout.Spacer');
+    }
+    return imports.union(super.kotlinImports);
+  }
+
   static HWRow fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     var childrenField = obj.getField('children');
     if (childrenField == null || childrenField.isNull) {
@@ -36,9 +48,7 @@ class HWRow extends HWMultiChildWidget {
   }
 
   @override
-  String toSwift(int indent,
-      {required String dataExpr,
-      Map<String, HWDataType> dataFields = const {}}) {
+  String toSwift(int indent, {required String dataExpr}) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
     final swiftAlign = switch (crossAxisAlignment) {
@@ -54,16 +64,14 @@ class HWRow extends HWMultiChildWidget {
       buffer.writeln('${pad}HStack {');
     }
 
-    _emitSwiftChildren(buffer, indent + 1, dataExpr, dataFields);
+    _emitSwiftChildren(buffer, indent + 1, dataExpr);
 
     buffer.write('$pad}');
     return buffer.toString();
   }
 
   @override
-  String toKotlin(int indent,
-      {required String dataExpr,
-      Map<String, HWDataType> dataFields = const {}}) {
+  String toKotlin(int indent, {required String dataExpr}) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
     final align = switch (crossAxisAlignment) {
@@ -79,90 +87,78 @@ class HWRow extends HWMultiChildWidget {
       buffer.writeln('${pad}Row {');
     }
 
-    _emitKotlinChildren(buffer, indent + 1, dataExpr, dataFields);
+    _emitKotlinChildren(buffer, indent + 1, dataExpr);
 
     buffer.write('$pad}');
     return buffer.toString();
   }
 
-  void _emitKotlinChildren(StringBuffer buffer, int indent, String dataExpr,
-      Map<String, HWDataType> dataFields) {
+  void _emitKotlinChildren(StringBuffer buffer, int indent, String dataExpr) {
     final childPad = '    ' * indent;
 
     switch (mainAxisAlignment) {
       case HWMainAxisAlignment.center:
         buffer.writeln('${childPad}Spacer()');
         for (final child in children) {
-          buffer.writeln(child.toKotlin(indent,
-              dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
         buffer.writeln('${childPad}Spacer()');
       case HWMainAxisAlignment.end:
         buffer.writeln('${childPad}Spacer()');
         for (final child in children) {
-          buffer.writeln(child.toKotlin(indent,
-              dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceBetween:
         for (var i = 0; i < children.length; i++) {
           if (i > 0) buffer.writeln('${childPad}Spacer()');
-          buffer.writeln(children[i]
-              .toKotlin(indent, dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceEvenly:
         buffer.writeln('${childPad}Spacer()');
         for (var i = 0; i < children.length; i++) {
           if (i > 0) buffer.writeln('${childPad}Spacer()');
-          buffer.writeln(children[i]
-              .toKotlin(indent, dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
         buffer.writeln('${childPad}Spacer()');
       case HWMainAxisAlignment.start:
       case null:
         for (final child in children) {
-          buffer.writeln(child.toKotlin(indent,
-              dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
     }
   }
 
-  void _emitSwiftChildren(StringBuffer buffer, int indent, String dataExpr,
-      Map<String, HWDataType> dataFields) {
+  void _emitSwiftChildren(StringBuffer buffer, int indent, String dataExpr) {
     final childPad = '    ' * indent;
 
     switch (mainAxisAlignment) {
       case HWMainAxisAlignment.center:
         buffer.writeln('${childPad}Spacer()');
         for (final child in children) {
-          buffer.writeln(child.toSwift(indent,
-              dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(child.toSwift(indent, dataExpr: dataExpr));
         }
         buffer.writeln('${childPad}Spacer()');
       case HWMainAxisAlignment.end:
         buffer.writeln('${childPad}Spacer()');
         for (final child in children) {
-          buffer.writeln(child.toSwift(indent,
-              dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(child.toSwift(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceBetween:
         for (var i = 0; i < children.length; i++) {
           if (i > 0) buffer.writeln('${childPad}Spacer()');
-          buffer.writeln(children[i]
-              .toSwift(indent, dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(children[i].toSwift(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceEvenly:
         buffer.writeln('${childPad}Spacer()');
         for (var i = 0; i < children.length; i++) {
           if (i > 0) buffer.writeln('${childPad}Spacer()');
-          buffer.writeln(children[i]
-              .toSwift(indent, dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(children[i].toSwift(indent, dataExpr: dataExpr));
         }
         buffer.writeln('${childPad}Spacer()');
       case HWMainAxisAlignment.start:
       case null:
         for (final child in children) {
-          buffer.writeln(child.toSwift(indent,
-              dataExpr: dataExpr, dataFields: dataFields));
+          buffer.writeln(child.toSwift(indent, dataExpr: dataExpr));
         }
     }
   }

@@ -11,7 +11,13 @@ class HWText extends HWWidget implements HWDataWidget {
   final HWDataType? dataType;
 
   @override
-  List<HWDataType> get dataDependencies => [if (dataType != null) dataType!];
+  Set<HWDataType> get dataDependencies => {if (dataType != null) dataType!};
+
+  @override
+  Set<String> get kotlinImports => {
+        'import androidx.glance.text.Text',
+        'import androidx.glance.text.TextStyle'
+      };
 
   /// Static/hardcoded text content.
   const HWText.fixed(String content)
@@ -56,58 +62,35 @@ class HWText extends HWWidget implements HWDataWidget {
   }
 
   @override
-  String toSwift(int indent,
-      {required String dataExpr,
-      Map<String, HWDataType> dataFields = const {}}) {
+  String toSwift(int indent, {required String dataExpr}) {
     final pad = '    ' * indent; // Use 4 spaces per indent level to match tests
     final fixedContent = this.fixedContent;
     if (fixedContent != null) {
       return '${pad}Text("${_escapeSwiftString(fixedContent)}")';
     } else if (dataType?.key != null) {
       final key = dataType!.key;
-      final type = dataFields[key];
-
-      switch (type) {
-        case HWString():
-          return '${pad}Text($dataExpr.$key ?? "")';
-        case HWInt():
-          return '${pad}Text($dataExpr.$key != nil ? "\\($dataExpr.$key!)" : "0")';
-        case HWDouble():
-          return '${pad}Text($dataExpr.$key != nil ? "\\($dataExpr.$key!)" : "0.0")';
-        case HWBool():
-          return '${pad}Text($dataExpr.$key != nil ? "\\($dataExpr.$key!)" : "false")';
-        case null:
-          // Fallback or error? For now fallback to string assumption
-          return '${pad}Text($dataExpr.$key ?? "")';
-      }
+      final textValue = dataType!.iosToString(
+        outerValue: '$dataExpr.$key',
+        innerValue: '$dataExpr.$key!',
+      );
+      return '${pad}Text($textValue)';
     }
     return '';
   }
 
   @override
-  String toKotlin(int indent,
-      {required String dataExpr,
-      Map<String, HWDataType> dataFields = const {}}) {
+  String toKotlin(int indent, {required String dataExpr}) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final fixedContent = this.fixedContent;
     if (fixedContent != null) {
       return '${pad}Text(text = "${_escapeKotlinString(fixedContent)}")';
     } else if (dataType?.key != null) {
       final key = dataType!.key;
-      final type = dataFields[key];
-
-      switch (type) {
-        case HWString():
-          return '${pad}Text(text = $dataExpr.$key ?: "")';
-        case HWInt():
-          return '${pad}Text(text = ($dataExpr.$key?.toString() ?: "0"))';
-        case HWDouble():
-          return '${pad}Text(text = ($dataExpr.$key?.toString() ?: "0.0"))';
-        case HWBool():
-          return '${pad}Text(text = ($dataExpr.$key?.toString() ?: "false"))';
-        case null:
-          return '${pad}Text(text = $dataExpr.$key ?: "")';
-      }
+      final textValue = dataType!.androidToString(
+        outerValue: '$dataExpr.$key',
+        innerValue: '$dataExpr.$key',
+      );
+      return '${pad}Text(text = $textValue)';
     }
     return '';
   }
