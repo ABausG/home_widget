@@ -1,4 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
 /// Emits Jetpack Glance Composable code from a HWWidget tree.
 ///

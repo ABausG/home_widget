@@ -5,6 +5,7 @@ import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
 import '../models/widget_spec.dart';
 

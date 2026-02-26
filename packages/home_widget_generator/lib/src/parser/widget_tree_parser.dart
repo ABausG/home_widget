@@ -2,6 +2,7 @@ import 'package:analyzer/dart/element/element.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../generator_error.dart';
+import 'widget_value_decoder.dart';
 
 /// Parses a @HomeWidget annotation into an [HWWidget].
 ///
