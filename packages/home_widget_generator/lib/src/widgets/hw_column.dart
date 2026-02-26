@@ -113,18 +113,20 @@ class HWColumn extends HWMultiChildWidget {
         }
       case HWMainAxisAlignment.spaceBetween:
         for (var i = 0; i < children.length; i++) {
-          if (i > 0)
+          if (i > 0) {
             buffer.writeln(
                 '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          }
           buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceEvenly:
         buffer.writeln(
             '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
         for (var i = 0; i < children.length; i++) {
-          if (i > 0)
+          if (i > 0) {
             buffer.writeln(
                 '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          }
           buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
         buffer.writeln(

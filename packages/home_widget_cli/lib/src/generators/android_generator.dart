@@ -111,7 +111,8 @@ class AndroidGenerator {
         bodyBuffer
             .writeln('    val widgetData = $className.fromPreferences(prefs)');
         bodyBuffer.writeln(
-            '    androidx.glance.layout.Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {');
+          '    androidx.glance.layout.Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
+        );
         bodyBuffer.writeln('      androidx.glance.layout.Column {');
         bodyBuffer.writeln('        Text(text = "${spec.data.name}")');
         for (final field in spec.dataFields) {
