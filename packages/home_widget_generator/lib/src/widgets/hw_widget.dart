@@ -2,6 +2,7 @@ import 'package:analyzer/dart/constant/value.dart';
 import '../generator_error.dart';
 import '../parser/widget_value_decoder.dart';
 import '../types.dart';
+import '../utils/glance_utils.dart';
 import 'hw_alignment.dart';
 
 part 'hw_column.dart';
@@ -9,6 +10,20 @@ part 'hw_row.dart';
 part 'hw_text.dart';
 part 'hw_data_only.dart';
 part 'hw_adaptive.dart';
+part 'hw_fill.dart';
+
+/// Base class for widgets that accept a single child (e.g. Expanded).
+sealed class HWSingleChildWidget extends HWWidget {
+  final HWWidget child;
+
+  const HWSingleChildWidget({required this.child});
+
+  @override
+  Set<String> get kotlinImports => child.kotlinImports;
+
+  @override
+  Set<HWDataType> get dataDependencies => child.dataDependencies;
+}
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
 sealed class HWMultiChildWidget extends HWWidget {

@@ -111,8 +111,7 @@ class AndroidGenerator {
         bodyBuffer
             .writeln('    val widgetData = $className.fromPreferences(prefs)');
         bodyBuffer.writeln(
-          '    Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {',
-        );
+            '    androidx.glance.layout.Box(modifier = GlanceModifier.fillMaxSize().background(Color.White)) {');
         bodyBuffer.writeln('      androidx.glance.layout.Column {');
         bodyBuffer.writeln('        Text(text = "${spec.data.name}")');
         for (final field in spec.dataFields) {
@@ -134,15 +133,13 @@ class AndroidGenerator {
         bodyBuffer
             .writeln('    val widgetData = $className.fromPreferences(prefs)');
       }
-      bodyBuffer.writeln('    Box(modifier = GlanceModifier.fillMaxSize()) {');
       bodyBuffer.writeln(
         emitKotlinWidgetBody(
           spec.widgetTree!,
           dataExpr: 'widgetData',
-          indent: 3, // inside WidgetContent -> Box
+          indent: 2, // inside WidgetContent
         ),
       );
-      bodyBuffer.writeln('    }');
       contentBody = bodyBuffer.toString();
     }
 

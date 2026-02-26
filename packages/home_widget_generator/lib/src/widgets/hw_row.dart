@@ -98,28 +98,37 @@ class HWRow extends HWMultiChildWidget {
 
     switch (mainAxisAlignment) {
       case HWMainAxisAlignment.center:
-        buffer.writeln('${childPad}Spacer()');
+        buffer.writeln(
+            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
         for (final child in children) {
           buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
-        buffer.writeln('${childPad}Spacer()');
+        buffer.writeln(
+            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
       case HWMainAxisAlignment.end:
-        buffer.writeln('${childPad}Spacer()');
+        buffer.writeln(
+            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
         for (final child in children) {
           buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceBetween:
         for (var i = 0; i < children.length; i++) {
-          if (i > 0) buffer.writeln('${childPad}Spacer()');
+          if (i > 0)
+            buffer.writeln(
+                '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
           buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceEvenly:
-        buffer.writeln('${childPad}Spacer()');
+        buffer.writeln(
+            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
         for (var i = 0; i < children.length; i++) {
-          if (i > 0) buffer.writeln('${childPad}Spacer()');
+          if (i > 0)
+            buffer.writeln(
+                '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
           buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
-        buffer.writeln('${childPad}Spacer()');
+        buffer.writeln(
+            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
       case HWMainAxisAlignment.start:
       case null:
         for (final child in children) {

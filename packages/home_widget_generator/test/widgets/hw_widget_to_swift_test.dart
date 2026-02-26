@@ -232,5 +232,12 @@ void main() {
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, isNot(contains('Spacer()')));
     });
+
+    test('HWFill emits frame max', () {
+      final node = HWFill(child: HWText.fixed('a'));
+      final result = node.toSwift(0, dataExpr: 'data');
+      expect(result,
+          'Text("a")\n.frame(maxWidth: .infinity, maxHeight: .infinity)');
+    });
   });
 }

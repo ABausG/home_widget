@@ -174,9 +174,14 @@ void main() {
       );
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
-      expect(result, contains('Spacer()'));
+      expect(result,
+          contains('Spacer(modifier = GlanceModifier.defaultWeight())'));
       expect(result, contains('Text(text = "a")'));
-      expect('Spacer()'.allMatches(result).length, 2);
+      expect(
+          'Spacer(modifier = GlanceModifier.defaultWeight())'
+              .allMatches(result)
+              .length,
+          2);
     });
 
     test('Row with .spaceBetween emits Spacer between children', () {
@@ -190,9 +195,14 @@ void main() {
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Row {'));
       expect(result, contains('Text(text = "a")'));
-      expect(result, contains('Spacer()'));
+      expect(result,
+          contains('Spacer(modifier = GlanceModifier.defaultWeight())'));
       expect(result, contains('Text(text = "b")'));
-      expect('Spacer()'.allMatches(result).length, 1);
+      expect(
+          'Spacer(modifier = GlanceModifier.defaultWeight())'
+              .allMatches(result)
+              .length,
+          1);
     });
 
     test('Column with both cross and main alignment', () {
@@ -206,9 +216,21 @@ void main() {
         result,
         contains('horizontalAlignment = Alignment.CenterHorizontally'),
       );
-      expect(result, contains('Spacer()'));
+      expect(result,
+          contains('Spacer(modifier = GlanceModifier.defaultWeight())'));
       // end = 1 spacer before children
-      expect('Spacer()'.allMatches(result).length, 1);
+      expect(
+          'Spacer(modifier = GlanceModifier.defaultWeight())'
+              .allMatches(result)
+              .length,
+          1);
+    });
+
+    test('HWFill emits fillMaxSize', () {
+      final node = HWFill(child: HWText.fixed('a'));
+      final result = node.toKotlin(0, dataExpr: 'data');
+      expect(
+          result, 'Text(modifier = GlanceModifier.fillMaxSize(), text = "a")');
     });
   });
 }
