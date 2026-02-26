@@ -134,13 +134,15 @@ class AndroidGenerator {
         bodyBuffer
             .writeln('    val widgetData = $className.fromPreferences(prefs)');
       }
+      bodyBuffer.writeln('    Box(modifier = GlanceModifier.fillMaxSize()) {');
       bodyBuffer.writeln(
         emitKotlinWidgetBody(
           spec.widgetTree!,
           dataExpr: 'widgetData',
-          indent: 1, // inside WidgetContent method
+          indent: 3, // inside WidgetContent -> Box
         ),
       );
+      bodyBuffer.writeln('    }');
       contentBody = bodyBuffer.toString();
     }
 
