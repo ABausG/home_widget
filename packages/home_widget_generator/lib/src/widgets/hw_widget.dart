@@ -8,6 +8,7 @@ part 'hw_column.dart';
 part 'hw_row.dart';
 part 'hw_text.dart';
 part 'hw_data_only.dart';
+part 'hw_adaptive.dart';
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
 sealed class HWMultiChildWidget extends HWWidget {

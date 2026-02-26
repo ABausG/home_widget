@@ -27,6 +27,8 @@ class WidgetValueDecoder {
       return HWText.fromDartObject(object!);
     } else if (typeName == 'HWDataOnly') {
       return HWDataOnly.fromDartObject(object!);
+    } else if (typeName == 'HWAdaptive') {
+      return HWAdaptive.fromDartObject(object!, this);
     }
 
     throw GeneratorError('Unknown widget type: $typeName');
