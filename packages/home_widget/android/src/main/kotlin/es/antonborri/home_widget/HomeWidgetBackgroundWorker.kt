@@ -72,11 +72,17 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
 
     // Defensive null check: engine could theoretically become null if
     // resetEngine() is called between the mutex release above and here.
-    engine?.let {
-      channel = MethodChannel(it.dartExecutor.binaryMessenger, CHANNEL_NAME)
+    val currentEngine = engine
+    if (currentEngine != null) {
+      channel = MethodChannel(currentEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
       channel.setMethodCallHandler(this)
-    } ?: run {
-      Log.w(TAG, "Flutter engine is null after initialization, skipping callback")
+    } else {
+      Log.e(TAG, "Flutter engine is null after initialization, queuing callback data")
+      val data = inputData.getString(DATA_KEY) ?: ""
+      val args = listOf(HomeWidgetPlugin.getHandle(context), data)
+      synchronized(serviceStarted) {
+        queue.add(args)
+      }
       return Result.success()
     }
 
