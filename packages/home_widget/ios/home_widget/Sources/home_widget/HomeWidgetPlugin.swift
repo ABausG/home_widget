@@ -18,8 +18,8 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
 
   private static var groupId: String?
 
-  private var initialUrl: URL?
-  private var latestUrl: URL? {
+  var initialUrl: URL?
+  var latestUrl: URL? {
     didSet {
       if latestUrl != nil {
         eventSink?.self(latestUrl?.absoluteString)
@@ -48,13 +48,18 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       name: "home_widget/updates", binaryMessenger: registrar.messenger())
     eventChannel.setStreamHandler(instance)
 
-    guard isRunningInAppExtension() == false else {
-      return
-    }
+    if isRunningInAppExtension() { return }
 
     let selector = NSSelectorFromString("addApplicationDelegate:")
     if registrar.responds(to: selector) {
       registrar.perform(selector, with: instance)
+    }
+
+    if #available(iOS 13.0, *) {
+      let sceneSelector = NSSelectorFromString("addSceneDelegate:")
+      if registrar.responds(to: sceneSelector) {
+        registrar.perform(sceneSelector, with: instance)
+      }
     }
   }
 
@@ -371,8 +376,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   }
 
   public func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink)
-    -> FlutterError?
-  {
+    -> FlutterError? {
     eventSink = events
     return nil
   }
@@ -387,8 +391,8 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     didFinishLaunchingWithOptions launchOptions: [AnyHashable: Any] = [:]
   ) -> Bool {
     let launchUrl = (launchOptions[UIApplication.LaunchOptionsKey.url] as? NSURL)?.absoluteURL
-    if launchUrl != nil && isWidgetUrl(url: launchUrl!) {
-      initialUrl = launchUrl?.absoluteURL
+    if let launchUrl = launchUrl, isWidgetUrl(url: launchUrl) {
+      initialUrl = launchUrl.absoluteURL
       latestUrl = initialUrl
     }
     return true
@@ -405,14 +409,13 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     return false
   }
 
-  private func isWidgetUrl(url: URL) -> Bool {
+  func isWidgetUrl(url: URL) -> Bool {
     let components = URLComponents.init(url: url, resolvingAgainstBaseURL: false)
     return components?.queryItems?.contains(where: { (item) in item.name == "homeWidget" }) ?? false
   }
 }
 
 protocol _AnyIntentParameter {
-
   var anyWrappedValue: Any { get }
 }
 
