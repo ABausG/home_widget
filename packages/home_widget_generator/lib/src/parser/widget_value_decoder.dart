@@ -31,6 +31,8 @@ class WidgetValueDecoder {
       return HWAdaptive.fromDartObject(object!, this);
     } else if (typeName == 'HWFill') {
       return HWFill.fromDartObject(object!, this);
+    } else if (typeName == 'HWColoredBox') {
+      return HWColoredBox.fromDartObject(object!, this);
     }
 
     throw GeneratorError('Unknown widget type: $typeName');
@@ -50,6 +52,27 @@ class WidgetValueDecoder {
         return values[index];
       }
     }
+    return null;
+  }
+
+  static HWColor? decodeColor(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element3?.name3;
+    if (typeName == 'HWFixedColor') {
+      final value = obj.getField('value')?.toIntValue();
+      if (value != null) return HWFixedColor(value);
+    } else if (typeName == 'HWThemedColor') {
+      final light = decodeColor(obj.getField('light'));
+      final dark = decodeColor(obj.getField('dark'));
+      if (light != null && dark != null) {
+        return HWThemedColor(light: light, dark: dark);
+      }
+    } else if (typeName == 'HWDefaultColor') {
+      final roleEnum = decodeEnum(obj.getField('role'), HWColorRole.values);
+      if (roleEnum != null) return HWDefaultColor(roleEnum);
+    }
+
     return null;
   }
 }

@@ -167,6 +167,8 @@ void main() {
     expect(content, contains('Text(entry.data.title ?? "")'));
     // Should NOT contain placeholder VStack
     expect(content, isNot(contains('VStack {')));
+    expect(content, contains('.applyContainerBackground()'));
+    expect(content, isNot(contains('Color.clear')));
   });
 
   test('generates Swift widget with HWDataOnly as root widget', () async {
@@ -219,5 +221,7 @@ void main() {
         r'Text("value: \(entry.data.value?.description ?? "-")")',
       ),
     );
+    expect(content, contains('.applyContainerBackground()'));
+    expect(content, isNot(contains('.containerBackground(for: .widget) {')));
   });
 }

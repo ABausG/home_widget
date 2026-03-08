@@ -106,6 +106,18 @@ class HomeWidgetAndroidConfiguration {
   /// See: [AppWidgetProviderInfo.updatePeriodMillis](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#updatePeriodMillis)
   final int? updatePeriodMillis;
 
+  /// Whether to wrap the widget in a `GlanceTheme`.
+  ///
+  /// Defaults to `true`. When true, the generated Android code will use
+  /// `GlanceTheme { ... }` which generates local CompositionLocals for colors.
+  final bool useGlanceTheme;
+
+  /// Whether to automatically apply the widget background color on Android.
+  ///
+  /// Defaults to `true`. When true, it appends a `GlanceModifier.background(GlanceTheme.colors.widgetBackground)`
+  /// to the outermost component.
+  final bool useGlanceBackgroundColor;
+
   const HomeWidgetAndroidConfiguration({
     this.packageName,
     this.minWidth,
@@ -119,6 +131,8 @@ class HomeWidgetAndroidConfiguration {
     this.resizeMode,
     this.widgetCategory,
     this.updatePeriodMillis,
+    this.useGlanceTheme = true,
+    this.useGlanceBackgroundColor = true,
   });
 
   @override
@@ -136,7 +150,9 @@ class HomeWidgetAndroidConfiguration {
           targetCellHeight == other.targetCellHeight &&
           resizeMode == other.resizeMode &&
           widgetCategory == other.widgetCategory &&
-          updatePeriodMillis == other.updatePeriodMillis;
+          updatePeriodMillis == other.updatePeriodMillis &&
+          useGlanceTheme == other.useGlanceTheme &&
+          useGlanceBackgroundColor == other.useGlanceBackgroundColor;
 
   @override
   int get hashCode =>
@@ -151,7 +167,9 @@ class HomeWidgetAndroidConfiguration {
       targetCellHeight.hashCode ^
       resizeMode.hashCode ^
       widgetCategory.hashCode ^
-      updatePeriodMillis.hashCode;
+      updatePeriodMillis.hashCode ^
+      useGlanceTheme.hashCode ^
+      useGlanceBackgroundColor.hashCode;
 }
 
 /// The size and shape of a widget.

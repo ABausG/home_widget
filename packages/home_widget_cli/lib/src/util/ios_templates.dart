@@ -19,6 +19,7 @@ String iosWidgetSwiftTemplate({
   String? displayName,
   String? description,
   String? supportedFamilies,
+  Set<String>? swiftViewModifiers,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -80,6 +81,14 @@ struct ${widgetClassName}Entry: TimelineEntry {
   buffer.writeln();
   buffer.writeln('struct ${widgetClassName}EntryView: View {');
   buffer.writeln('  var entry: Provider.Entry');
+
+  if (swiftViewModifiers != null && swiftViewModifiers.isNotEmpty) {
+    buffer.writeln();
+    for (final modifier in swiftViewModifiers) {
+      buffer.writeln('  $modifier');
+    }
+  }
+
   buffer.writeln();
   buffer.writeln('  var body: some View {');
   buffer.writeln(viewBody);
@@ -110,6 +119,22 @@ struct ${widgetClassName}Entry: TimelineEntry {
   buffer.writeln('  }');
   buffer.writeln('}');
   buffer.writeln();
+
+  buffer.writeln('''
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOS 17.0, macOS 14.0, watchOS 10.0, *) {
+      self.containerBackground(for: .widget) {
+        Color.clear
+      }
+    } else {
+      self.background(Color.clear)
+    }
+  }
+}
+''');
+
   buffer.writeln(extraContent ?? '');
 
   return buffer.toString();

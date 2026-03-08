@@ -132,16 +132,18 @@ $loadDataLogic
           );
         }
         viewBuffer.writeln('    }');
+        viewBuffer.writeln('    .applyContainerBackground()');
         entryViewBody = viewBuffer.toString();
       }
     }
 
     if (spec.widgetTree != null && spec.widgetTree is! HWDataOnly) {
-      entryViewBody = emitSwiftWidgetBody(
+      final treeCode = emitSwiftWidgetBody(
         spec.widgetTree!,
         dataExpr: 'entry.data',
         indent: 2,
       );
+      entryViewBody = '$treeCode\n    .applyContainerBackground()';
     }
 
     String? supportedFamilies;
@@ -168,6 +170,7 @@ $loadDataLogic
         displayName: spec.data.name,
         description: spec.data.description,
         supportedFamilies: supportedFamilies,
+        swiftViewModifiers: spec.widgetTree?.swiftViewModifiers,
       ),
     );
     logger.success('Generated: ${widgetSwift.path}');

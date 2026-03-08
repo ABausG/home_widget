@@ -93,5 +93,67 @@ class TestWidget {}
       // We can check generated code.
       expect(text.toSwift(0, dataExpr: 'data'), contains('data.title'));
     });
+
+    test('parses HWColoredBox and HWThemedColor', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColoredBox(
+    color: HWThemedColor(
+      light: HWFixedColor(0xFFFF0000),
+      dark: HWFixedColor(0xFF00FF00),
+    ),
+    child: HWText.fixed('Colored'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWColoredBox>());
+      final box = widget as HWColoredBox;
+      expect(box.color, isA<HWThemedColor>());
+      final themedColor = box.color as HWThemedColor;
+      expect(themedColor.light, isA<HWFixedColor>());
+      expect((themedColor.light as HWFixedColor).value, 0xFFFF0000);
+      expect(themedColor.dark, isA<HWFixedColor>());
+      expect((themedColor.dark as HWFixedColor).value, 0xFF00FF00);
+
+      expect(box.child, isA<HWText>());
+      expect((box.child as HWText).fixedContent, 'Colored');
+    });
+
+    test('parses HWText with HWTextStyle', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText.fixed('Styled', style: HWTextStyle(color: HWFixedColor(0xFF0000FF))),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWText>());
+      final text = widget as HWText;
+      expect(text.style, isNotNull);
+      expect(text.style!.color, isA<HWFixedColor>());
+      expect((text.style!.color as HWFixedColor).value, 0xFF0000FF);
+    });
+
+    test('parses HWDefaultColor', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColoredBox(
+    color: HWDefaultColor(HWColorRole.contentPrimary),
+    child: HWText.fixed('DefaultColor'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWColoredBox>());
+      final box = widget as HWColoredBox;
+      expect(box.color, isA<HWDefaultColor>());
+      expect((box.color as HWDefaultColor).role, HWColorRole.contentPrimary);
+    });
   });
 }

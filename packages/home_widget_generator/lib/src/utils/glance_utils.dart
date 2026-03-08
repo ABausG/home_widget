@@ -19,7 +19,15 @@ String injectGlanceModifier(String code, String modifier) {
 
     String newArgs = '';
     if (args != null && args.isNotEmpty) {
-      newArgs = '$modifier, $args';
+      if (args.contains('modifier = ') &&
+          modifier.startsWith('modifier = GlanceModifier.')) {
+        final chainSegment =
+            modifier.substring('modifier = GlanceModifier'.length);
+        newArgs =
+            args.replaceFirst('GlanceModifier', 'GlanceModifier$chainSegment');
+      } else {
+        newArgs = '$modifier, $args';
+      }
     } else {
       newArgs = modifier;
     }

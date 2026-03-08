@@ -184,6 +184,14 @@ void main() {
       content,
       isNot(contains('Text(text = "TreeWidgetHomeWidget")')),
     );
+    expect(content, contains('GlanceTheme {'));
+    expect(
+      content,
+      contains(
+        'modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground)',
+      ),
+    );
+    expect(content, contains('import androidx.glance.GlanceTheme'));
   });
 
   test('generates Kotlin widget with HWDataOnly as root widget', () async {
@@ -225,9 +233,10 @@ void main() {
     expect(
       content,
       contains(
-        'Box(modifier = GlanceModifier.fillMaxSize().background(Color.White))',
+        'Box(modifier = GlanceModifier.fillMaxSize().background(GlanceTheme.colors.widgetBackground)) {',
       ),
     );
+    expect(content, contains('GlanceTheme {'));
     expect(content, contains('Text(text = "Simple Data")'));
     expect(
       content,

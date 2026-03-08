@@ -16,6 +16,26 @@ String androidGlanceWidgetTemplate({
   String? header,
 }) {
   final head = header ?? _defaultHeader;
+
+  if (additionalImports != null) {
+    additionalImports = additionalImports.difference({
+      'import androidx.compose.runtime.Composable',
+      'import android.content.Context',
+      'import androidx.compose.ui.graphics.Color',
+      'import androidx.glance.GlanceId',
+      'import androidx.glance.GlanceModifier',
+      'import androidx.glance.appwidget.GlanceAppWidget',
+      'import androidx.glance.appwidget.provideContent',
+      'import androidx.glance.background',
+      'import androidx.glance.currentState',
+      'import androidx.glance.layout.Box',
+      'import androidx.glance.layout.fillMaxSize',
+      'import androidx.glance.text.Text',
+      'import es.antonborri.home_widget.HomeWidgetGlanceState',
+      'import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition',
+    });
+  }
+
   final body = contentBody ??
       '''
     // Example to access data from SharedPreferences:
