@@ -41,7 +41,6 @@ class HWFill extends HWSingleChildWidget {
 
     // Uses a local regex helper to securely inject the defaultWeight
     // modifier into the child's top-level compose element.
-    return injectGlanceModifier(
-        childCode, 'modifier = GlanceModifier.fillMaxSize()');
+    return injectGlanceModifier(childCode, 'fillMaxSize()');
   }
 }

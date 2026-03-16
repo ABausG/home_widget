@@ -1,5 +1,5 @@
 /// Helper to parse a typical Compose call (e.g. `Column {` or `Text(...)`)
-/// and inject a modifier string (e.g. `modifier = GlanceModifier.fillMaxSize()`).
+/// and inject a modifier string (e.g. `fillMaxSize()`).
 String injectGlanceModifier(String code, String modifier) {
   // We want to find the first Compose element like `Column(`, `Column {`, `Text(`.
   // If it already has arguments `Column(abc) {`, we inject `modifier = modifier, abc` or similar.
@@ -19,17 +19,17 @@ String injectGlanceModifier(String code, String modifier) {
 
     String newArgs = '';
     if (args != null && args.isNotEmpty) {
-      if (args.contains('modifier = ') &&
-          modifier.startsWith('modifier = GlanceModifier.')) {
-        final chainSegment =
-            modifier.substring('modifier = GlanceModifier'.length);
+      if (args.contains('GlanceModifier.')) {
         newArgs =
-            args.replaceFirst('GlanceModifier', 'GlanceModifier$chainSegment');
+            args.replaceFirst('GlanceModifier.', 'GlanceModifier.$modifier.');
+      } else if (args.contains('GlanceModifier')) {
+        newArgs =
+            args.replaceFirst('GlanceModifier', 'GlanceModifier.$modifier');
       } else {
-        newArgs = '$modifier, $args';
+        newArgs = 'modifier = GlanceModifier.$modifier, $args';
       }
     } else {
-      newArgs = modifier;
+      newArgs = 'modifier = GlanceModifier.$modifier';
     }
 
     final rest = trimmed.substring(compMatch.end +

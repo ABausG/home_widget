@@ -7,4 +7,4 @@ library;
 
 export 'src/parser/widget_tree_parser.dart';
 export 'src/parser/widget_value_decoder.dart';
-export 'src/utils/glance_utils.dart';
+export 'src/utils/inject_glance_modifier.dart';

@@ -126,7 +126,7 @@ class AndroidGenerator {
     if (bgColor != null) {
       widgetTreeBody = injectGlanceModifier(
         widgetTreeBody,
-        'modifier = GlanceModifier.background(${bgColor.toKotlin(0, dataExpr: spec.dataFields.isNotEmpty ? "widgetData" : "null")})',
+        'background(${bgColor.toKotlin(0, dataExpr: spec.dataFields.isNotEmpty ? "widgetData" : "null")})',
       );
     }
 

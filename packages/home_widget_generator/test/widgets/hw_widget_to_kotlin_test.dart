@@ -230,7 +230,9 @@ void main() {
       final node = HWFill(child: HWText.fixed('a'));
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(
-          result, 'Text(modifier = GlanceModifier.fillMaxSize(), text = "a")');
+        result,
+        'Text(modifier = GlanceModifier.fillMaxSize(), text = "a")',
+      );
     });
   });
 }
