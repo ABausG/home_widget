@@ -127,7 +127,14 @@ $loadDataLogic
       dataExpr: 'entry.data',
       indent: 2,
     );
-    entryViewBody = '$treeCode\n    .applyContainerBackground()';
+
+    final customBgColor = spec.data.iOS?.backgroundColor;
+    if (customBgColor != null) {
+      entryViewBody =
+          '$treeCode\n    .applyContainerBackground(${customBgColor.toSwift(2, dataExpr: "entry.data")})';
+    } else {
+      entryViewBody = treeCode;
+    }
 
     String? supportedFamilies;
     if (spec.data.iOS?.supportedFamilies != null &&
@@ -153,7 +160,11 @@ $loadDataLogic
         displayName: spec.data.name,
         description: spec.data.description,
         supportedFamilies: supportedFamilies,
-        swiftViewModifiers: spec.effectiveWidgetTree.swiftViewModifiers,
+        swiftViewModifiers: {
+          ...spec.effectiveWidgetTree.swiftViewModifiers,
+          if (customBgColor != null) ...customBgColor.swiftViewModifiers,
+        },
+        includeBackgroundExtension: customBgColor != null,
       ),
     );
     logger.success('Generated: ${widgetSwift.path}');

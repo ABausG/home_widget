@@ -139,6 +139,8 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
       HWAndroidWidgetCategory.values,
     ),
     updatePeriodMillis: obj.getField('updatePeriodMillis')?.toIntValue(),
+    backgroundColor:
+        WidgetValueDecoder.decodeColor(obj.getField('backgroundColor')),
   );
 }
 
@@ -157,6 +159,9 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
   return HomeWidgetIOSConfiguration(
     groupId: groupId,
     supportedFamilies: families,
+    backgroundColor: WidgetValueDecoder.decodeColor(
+      obj.getField('backgroundColor'),
+    ),
   );
 }
 

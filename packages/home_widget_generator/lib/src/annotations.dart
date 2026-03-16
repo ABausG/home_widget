@@ -1,4 +1,5 @@
 import 'interactivity_config.dart';
+import 'widgets/hw_color.dart';
 import 'widgets/hw_widget.dart';
 
 /// The rules by which a widget can be resized.
@@ -112,11 +113,11 @@ class HomeWidgetAndroidConfiguration {
   /// `GlanceTheme { ... }` which generates local CompositionLocals for colors.
   final bool useGlanceTheme;
 
-  /// Whether to automatically apply the widget background color on Android.
+  /// The background color to be applied to the widget.
   ///
-  /// Defaults to `true`. When true, it appends a `GlanceModifier.background(GlanceTheme.colors.widgetBackground)`
-  /// to the outermost component.
-  final bool useGlanceBackgroundColor;
+  /// Defaults to `HWDefaultColor(HWColorRole.defaultBackground)`.
+  /// When not null, applies a `GlanceModifier.background(color)`.
+  final HWColor? backgroundColor;
 
   const HomeWidgetAndroidConfiguration({
     this.packageName,
@@ -132,7 +133,7 @@ class HomeWidgetAndroidConfiguration {
     this.widgetCategory,
     this.updatePeriodMillis,
     this.useGlanceTheme = true,
-    this.useGlanceBackgroundColor = true,
+    this.backgroundColor = const HWDefaultColor(HWColorRole.defaultBackground),
   });
 
   @override
@@ -152,7 +153,7 @@ class HomeWidgetAndroidConfiguration {
           widgetCategory == other.widgetCategory &&
           updatePeriodMillis == other.updatePeriodMillis &&
           useGlanceTheme == other.useGlanceTheme &&
-          useGlanceBackgroundColor == other.useGlanceBackgroundColor;
+          backgroundColor == other.backgroundColor;
 
   @override
   int get hashCode =>
@@ -169,7 +170,7 @@ class HomeWidgetAndroidConfiguration {
       widgetCategory.hashCode ^
       updatePeriodMillis.hashCode ^
       useGlanceTheme.hashCode ^
-      useGlanceBackgroundColor.hashCode;
+      backgroundColor.hashCode;
 }
 
 /// The size and shape of a widget.
@@ -210,9 +211,13 @@ class HomeWidgetIOSConfiguration {
   /// See: [StaticConfiguration.supportedFamilies(_:)](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:))
   final List<HWWidgetFamily>? supportedFamilies;
 
+  /// The background color to be applied to the widget.
+  final HWColor? backgroundColor;
+
   const HomeWidgetIOSConfiguration({
     required this.groupId,
     this.supportedFamilies,
+    this.backgroundColor,
   });
 
   @override
@@ -220,10 +225,12 @@ class HomeWidgetIOSConfiguration {
       identical(this, other) ||
       other is HomeWidgetIOSConfiguration &&
           groupId == other.groupId &&
-          supportedFamilies == other.supportedFamilies;
+          supportedFamilies == other.supportedFamilies &&
+          backgroundColor == other.backgroundColor;
 
   @override
-  int get hashCode => groupId.hashCode ^ supportedFamilies.hashCode;
+  int get hashCode =>
+      groupId.hashCode ^ supportedFamilies.hashCode ^ backgroundColor.hashCode;
 }
 
 /// Annotation for generating home_widget native code.

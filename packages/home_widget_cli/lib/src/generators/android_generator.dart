@@ -115,7 +115,7 @@ class AndroidGenerator {
     }
 
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
-    final useBgColor = spec.data.android?.useGlanceBackgroundColor ?? true;
+    final bgColor = spec.data.android?.backgroundColor;
 
     var widgetTreeBody = emitKotlinWidgetBody(
       spec.effectiveWidgetTree,
@@ -123,10 +123,10 @@ class AndroidGenerator {
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
     );
 
-    if (useBgColor) {
+    if (bgColor != null) {
       widgetTreeBody = injectGlanceModifier(
         widgetTreeBody,
-        'modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground)',
+        'modifier = GlanceModifier.background(${bgColor.toKotlin(0, dataExpr: spec.dataFields.isNotEmpty ? "widgetData" : "null")})',
       );
     }
 
@@ -142,6 +142,9 @@ class AndroidGenerator {
     final layoutImports = (spec.effectiveWidgetTree.kotlinImports).toSet();
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
+    }
+    if (bgColor != null) {
+      layoutImports.addAll(bgColor.kotlinImports);
     }
 
     await widgetFile.writeAsString(

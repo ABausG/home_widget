@@ -104,7 +104,10 @@ enum HWColorRole {
   contentTertiary,
 
   /// Maps to `Color.accentColor` on iOS and `GlanceTheme.colors.primaryContainer` on Android.
-  backgroundPrimary,
+  contentAccent,
+
+  /// Maps to `Color.clear` on iOS and `GlanceTheme.colors.widgetBackground` on Android.
+  defaultBackground,
 }
 
 /// A color that maps to default system semantic colors based on the given role.
@@ -128,8 +131,10 @@ class HWDefaultColor extends HWColor {
         return 'Color.secondary';
       case HWColorRole.contentTertiary:
         return 'Color(.tertiaryLabel)';
-      case HWColorRole.backgroundPrimary:
+      case HWColorRole.contentAccent:
         return 'Color.accentColor';
+      case HWColorRole.defaultBackground:
+        return 'Color.clear';
     }
   }
 
@@ -142,8 +147,10 @@ class HWDefaultColor extends HWColor {
         return 'GlanceTheme.colors.onSurfaceVariant';
       case HWColorRole.contentTertiary:
         return 'GlanceTheme.colors.outline';
-      case HWColorRole.backgroundPrimary:
+      case HWColorRole.contentAccent:
         return 'GlanceTheme.colors.primaryContainer';
+      case HWColorRole.defaultBackground:
+        return 'GlanceTheme.colors.widgetBackground';
     }
   }
 }

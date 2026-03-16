@@ -18,7 +18,7 @@ void main() {
     });
 
     test('backgroundPrimary maps correctly', () {
-      const color = HWDefaultColor(HWColorRole.backgroundPrimary);
+      const color = HWDefaultColor(HWColorRole.contentAccent);
       expect(color.toSwift(0, dataExpr: ''), equals('Color.accentColor'));
       expect(color.toKotlin(0, dataExpr: ''),
           equals('GlanceTheme.colors.primaryContainer'));
