@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
@@ -105,88 +104,42 @@ class AndroidGenerator {
       buffer.writeln('    }');
       buffer.writeln('}');
       dataClassContent = buffer.toString();
-
-      if (spec.widgetTree == null || spec.widgetTree is HWDataOnly) {
-        final bodyBuffer = StringBuffer();
-        bodyBuffer.writeln('    val prefs = currentState.preferences');
-        bodyBuffer
-            .writeln('    val widgetData = $className.fromPreferences(prefs)');
-
-        final useTheme = spec.data.android?.useGlanceTheme ?? true;
-        final useBgColor = spec.data.android?.useGlanceBackgroundColor ?? true;
-
-        String modifier = 'GlanceModifier.fillMaxSize()';
-        if (useBgColor) {
-          modifier += '.background(GlanceTheme.colors.widgetBackground)';
-        } else {
-          modifier += '.background(Color.White)';
-        }
-
-        int indent = 4;
-        if (useTheme) {
-          bodyBuffer.writeln('    GlanceTheme {');
-          indent += 2;
-        }
-
-        final pad = ' ' * (indent ~/ 2 * 2);
-
-        bodyBuffer.writeln(
-          '$pad    androidx.glance.layout.Box(modifier = $modifier) {',
-        );
-        bodyBuffer.writeln('$pad      androidx.glance.layout.Column {');
-        bodyBuffer.writeln('$pad        Text(text = "${spec.data.name}")');
-        for (final field in spec.dataFields) {
-          bodyBuffer.writeln(
-            '$pad        Text(text = "${field.key}: \${widgetData.${field.key} ?: "-"}")',
-          );
-        }
-        bodyBuffer.writeln('$pad      }');
-        bodyBuffer.writeln('$pad    }');
-
-        if (useTheme) {
-          bodyBuffer.writeln('    }');
-        }
-        contentBody = bodyBuffer.toString();
-      }
     }
 
-    if (spec.widgetTree != null && spec.widgetTree is! HWDataOnly) {
-      final bodyBuffer = StringBuffer();
-      if (spec.dataFields.isNotEmpty) {
-        final className = '${spec.className}Data';
-        bodyBuffer.writeln('    val prefs = currentState.preferences');
-        bodyBuffer
-            .writeln('    val widgetData = $className.fromPreferences(prefs)');
-      }
-
-      final useTheme = spec.data.android?.useGlanceTheme ?? true;
-      final useBgColor = spec.data.android?.useGlanceBackgroundColor ?? true;
-
-      var widgetTreeBody = emitKotlinWidgetBody(
-        spec.widgetTree!,
-        dataExpr: spec.dataFields.isNotEmpty ? 'widgetData' : 'null',
-        indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
-      );
-
-      if (useBgColor) {
-        widgetTreeBody = injectGlanceModifier(
-          widgetTreeBody,
-          'modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground)',
-        );
-      }
-
-      if (useTheme) {
-        bodyBuffer.writeln('    GlanceTheme {');
-        bodyBuffer.writeln(widgetTreeBody);
-        bodyBuffer.writeln('    }');
-      } else {
-        bodyBuffer.writeln(widgetTreeBody);
-      }
-      contentBody = bodyBuffer.toString();
+    final bodyBuffer = StringBuffer();
+    if (spec.dataFields.isNotEmpty) {
+      final className = '${spec.className}Data';
+      bodyBuffer.writeln('    val prefs = currentState.preferences');
+      bodyBuffer
+          .writeln('    val widgetData = $className.fromPreferences(prefs)');
     }
 
-    final layoutImports = (spec.widgetTree?.kotlinImports ?? {}).toSet();
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
+    final useBgColor = spec.data.android?.useGlanceBackgroundColor ?? true;
+
+    var widgetTreeBody = emitKotlinWidgetBody(
+      spec.effectiveWidgetTree,
+      dataExpr: spec.dataFields.isNotEmpty ? 'widgetData' : 'null',
+      indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
+    );
+
+    if (useBgColor) {
+      widgetTreeBody = injectGlanceModifier(
+        widgetTreeBody,
+        'modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground)',
+      );
+    }
+
+    if (useTheme) {
+      bodyBuffer.writeln('    GlanceTheme {');
+      bodyBuffer.writeln(widgetTreeBody);
+      bodyBuffer.writeln('    }');
+    } else {
+      bodyBuffer.writeln(widgetTreeBody);
+    }
+    contentBody = bodyBuffer.toString();
+
+    final layoutImports = (spec.effectiveWidgetTree.kotlinImports).toSet();
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
     }

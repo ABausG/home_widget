@@ -54,6 +54,27 @@ class WidgetSpec {
       dataFields.hashCode ^
       interactivity.hashCode ^
       widgetTree.hashCode;
+
+  /// The effective widget tree, returning [widgetTree] if provided, or a
+  /// generated default widget based on [dataFields].
+  HWWidget get effectiveWidgetTree {
+    if (widgetTree != null && widgetTree is! HWDataOnly) {
+      return widgetTree!;
+    }
+
+    return HWColumn(
+      children: [
+        HWText.fixed(data.name),
+        for (final field in dataFields)
+          HWRow(
+            children: [
+              HWText.fixed('${field.key}: '),
+              HWText(field.type),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 /// Specification for a single data field in a widget.

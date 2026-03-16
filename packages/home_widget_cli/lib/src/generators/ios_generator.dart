@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
@@ -121,30 +120,14 @@ $loadDataLogic
 $loadDataLogic
     completion(Timeline(entries: [${widgetClassName}Entry(date: Date(), data: data)], policy: .atEnd))
 ''';
-
-      if (spec.widgetTree == null || spec.widgetTree is HWDataOnly) {
-        final viewBuffer = StringBuffer();
-        viewBuffer.writeln('    VStack {');
-        viewBuffer.writeln('      Text("${spec.data.name}")');
-        for (final field in spec.dataFields) {
-          viewBuffer.writeln(
-            '      Text("${field.key}: \\(entry.data.${field.key}?.description ?? "-")")',
-          );
-        }
-        viewBuffer.writeln('    }');
-        viewBuffer.writeln('    .applyContainerBackground()');
-        entryViewBody = viewBuffer.toString();
-      }
     }
 
-    if (spec.widgetTree != null && spec.widgetTree is! HWDataOnly) {
-      final treeCode = emitSwiftWidgetBody(
-        spec.widgetTree!,
-        dataExpr: 'entry.data',
-        indent: 2,
-      );
-      entryViewBody = '$treeCode\n    .applyContainerBackground()';
-    }
+    final treeCode = emitSwiftWidgetBody(
+      spec.effectiveWidgetTree,
+      dataExpr: 'entry.data',
+      indent: 2,
+    );
+    entryViewBody = '$treeCode\n    .applyContainerBackground()';
 
     String? supportedFamilies;
     if (spec.data.iOS?.supportedFamilies != null &&
@@ -170,7 +153,7 @@ $loadDataLogic
         displayName: spec.data.name,
         description: spec.data.description,
         supportedFamilies: supportedFamilies,
-        swiftViewModifiers: spec.widgetTree?.swiftViewModifiers,
+        swiftViewModifiers: spec.effectiveWidgetTree.swiftViewModifiers,
       ),
     );
     logger.success('Generated: ${widgetSwift.path}');
