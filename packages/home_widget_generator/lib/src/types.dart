@@ -1,7 +1,7 @@
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
 sealed class HWDataType {
-  final String? key;
-  const HWDataType([this.key]);
+  final String key;
+  const HWDataType(this.key);
 
   /// The Dart type string.
   String get dartType;
@@ -45,7 +45,7 @@ sealed class HWDataType {
 }
 
 class HWString extends HWDataType {
-  const HWString([super.key]);
+  const HWString(super.key);
 
   @override
   String get dartType => 'String';
@@ -79,7 +79,7 @@ class HWString extends HWDataType {
 }
 
 class HWInt extends HWDataType {
-  const HWInt([super.key]);
+  const HWInt(super.key);
 
   @override
   String get dartType => 'int';
@@ -113,7 +113,7 @@ class HWInt extends HWDataType {
 }
 
 class HWDouble extends HWDataType {
-  const HWDouble([super.key]);
+  const HWDouble(super.key);
 
   @override
   String get dartType => 'double';
@@ -147,7 +147,7 @@ class HWDouble extends HWDataType {
 }
 
 class HWBool extends HWDataType {
-  const HWBool([super.key]);
+  const HWBool(super.key);
 
   @override
   String get dartType => 'bool';

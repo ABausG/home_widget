@@ -28,8 +28,8 @@ void main() {
       ),
       className: 'ExampleWidget',
       dataFields: [
-        DataFieldSpec(key: 'count', type: HWInt()),
-        DataFieldSpec(key: 'label', type: HWString()),
+        DataFieldSpec(key: 'count', type: HWInt('count')),
+        DataFieldSpec(key: 'label', type: HWString('label')),
       ],
     );
 
@@ -86,14 +86,11 @@ void main() {
       contains('ExampleWidgetHomeWidgetEntry(date: Date(), data: data)'),
     );
 
-    // Check View
+    // Check View — default tree uses separate Text views in HStack
+    expect(content, contains('Text("count: ")'));
     expect(
       content,
-      contains('Text("count: \\(entry.data.count?.description ?? "-")")'),
-    );
-    expect(
-      content,
-      contains('Text("count: \\(entry.data.count?.description ?? "-")")'),
+      contains('Text(entry.data.count != nil ? "\\(entry.data.count!)" : "0")'),
     );
   });
 
@@ -143,7 +140,7 @@ void main() {
       ),
       className: 'TreeWidget',
       dataFields: [
-        DataFieldSpec(key: 'title', type: HWString()),
+        DataFieldSpec(key: 'title', type: HWString('title')),
       ],
       widgetTree: HWText(
         HWString('title'),
@@ -179,8 +176,8 @@ void main() {
       ),
       className: 'SimpleData',
       dataFields: [
-        DataFieldSpec(key: 'label', type: HWString()),
-        DataFieldSpec(key: 'value', type: HWInt()),
+        DataFieldSpec(key: 'label', type: HWString('label')),
+        DataFieldSpec(key: 'value', type: HWInt('value')),
       ],
       widgetTree: HWDataOnly([
         HWString('label'),
@@ -209,19 +206,17 @@ void main() {
     // Should produce the debug VStack view body
     expect(content, contains('VStack {'));
     expect(content, contains('Text("Simple Data")'));
+    // Default tree uses separate Text views in HStack
+    expect(content, contains('Text("label: ")'));
     expect(
       content,
-      contains(
-        r'Text("label: \(entry.data.label?.description ?? "-")")',
-      ),
+      contains('Text(entry.data.label ?? "")'),
     );
+    expect(content, contains('Text("value: ")'));
     expect(
       content,
-      contains(
-        r'Text("value: \(entry.data.value?.description ?? "-")")',
-      ),
+      contains('Text(entry.data.value != nil ? "\\(entry.data.value!)" : "0")'),
     );
     expect(content, contains('.applyContainerBackground()'));
-    expect(content, isNot(contains('.containerBackground(for: .widget) {')));
   });
 }

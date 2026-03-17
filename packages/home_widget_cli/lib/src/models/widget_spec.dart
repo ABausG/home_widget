@@ -62,7 +62,7 @@ class WidgetSpec {
       return widgetTree!;
     }
 
-    return HWColumn(
+    final content = HWColumn(
       children: [
         HWText.fixed(data.name),
         for (final field in dataFields)
@@ -74,6 +74,8 @@ class WidgetSpec {
           ),
       ],
     );
+
+    return HWAdaptive(ios: content, android: HWFill(child: content));
   }
 }
 

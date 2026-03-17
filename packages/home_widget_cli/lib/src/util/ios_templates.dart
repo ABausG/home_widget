@@ -134,6 +134,15 @@ extension View {
       self.background(backgroundView)
     }
   }
+
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOS 17.0, macOS 14.0, watchOS 10.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else {
+      self
+    }
+  }
 }
 ''');
   }

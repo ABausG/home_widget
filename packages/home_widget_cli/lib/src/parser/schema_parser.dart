@@ -84,9 +84,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   if (widgetTree != null) {
     final dependencies = widgetTree.dataDependencies;
     for (final dep in dependencies) {
-      if (dep.key != null) {
-        dataFields.add(DataFieldSpec(key: dep.key!, type: dep));
-      }
+      dataFields.add(DataFieldSpec(key: dep.key, type: dep));
     }
   }
 

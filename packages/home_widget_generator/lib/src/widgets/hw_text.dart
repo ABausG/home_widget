@@ -92,7 +92,7 @@ class HWText extends HWWidget implements HWDataWidget {
     var viewCall = '';
     if (fixedContent != null) {
       viewCall = '${pad}Text("${_escapeSwiftString(fixedContent)}")';
-    } else if (dataType?.key != null) {
+    } else if (dataType != null) {
       final key = dataType!.key;
       final textValue = dataType!.iosToString(
         outerValue: '$dataExpr.$key',
@@ -119,7 +119,7 @@ class HWText extends HWWidget implements HWDataWidget {
     var textArgs = '';
     if (fixedContent != null) {
       textArgs = 'text = "${_escapeKotlinString(fixedContent)}"';
-    } else if (dataType?.key != null) {
+    } else if (dataType != null) {
       final key = dataType!.key;
       final textValue = dataType!.androidToString(
         outerValue: '$dataExpr.$key',

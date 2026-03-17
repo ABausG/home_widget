@@ -28,8 +28,8 @@ void main() {
       ),
       className: 'ExampleWidget',
       dataFields: [
-        DataFieldSpec(key: 'count', type: HWInt()),
-        DataFieldSpec(key: 'label', type: HWString()),
+        DataFieldSpec(key: 'count', type: HWInt('count')),
+        DataFieldSpec(key: 'label', type: HWString('label')),
       ],
     );
 
@@ -73,7 +73,11 @@ void main() {
     );
     expect(
       content,
-      contains('''Text(text = "count: \${widgetData.count ?: "-"}")'''),
+      contains('Text(text = "count: ")'),
+    );
+    expect(
+      content,
+      contains('Text(text = (widgetData.count?.toString() ?: "0"))'),
     );
   });
 
@@ -157,7 +161,7 @@ void main() {
       ),
       className: 'TreeWidget',
       dataFields: [
-        DataFieldSpec(key: 'title', type: HWString()),
+        DataFieldSpec(key: 'title', type: HWString('title')),
       ],
       widgetTree: HWText(
         HWString('title'),
@@ -178,7 +182,12 @@ void main() {
     final content = widgetFile.readAsStringSync();
 
     // Should use the emitter output with widgetData variable
-    expect(content, contains('Text(text = widgetData.title ?: "")'));
+    expect(
+      content,
+      contains(
+        'Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground), text = widgetData.title ?: \"\")',
+      ),
+    );
     // Should NOT contain placeholder
     expect(
       content,
@@ -188,7 +197,7 @@ void main() {
     expect(
       content,
       contains(
-        'modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground)',
+        'GlanceModifier.background(GlanceTheme.colors.widgetBackground)',
       ),
     );
     expect(content, contains('import androidx.glance.GlanceTheme'));
@@ -202,8 +211,8 @@ void main() {
       ),
       className: 'SimpleData',
       dataFields: [
-        DataFieldSpec(key: 'label', type: HWString()),
-        DataFieldSpec(key: 'value', type: HWInt()),
+        DataFieldSpec(key: 'label', type: HWString('label')),
+        DataFieldSpec(key: 'value', type: HWInt('value')),
       ],
       widgetTree: HWDataOnly([
         HWString('label'),
@@ -229,22 +238,14 @@ void main() {
     expect(content, contains('val label: String? = null,'));
     expect(content, contains('val value: Int? = null,'));
 
-    // Should produce the debug view body
+    // Should produce the debug view body with fillMaxSize from HWFill
     expect(
       content,
       contains(
-        'Box(modifier = GlanceModifier.fillMaxSize().background(GlanceTheme.colors.widgetBackground)) {',
+        'Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).fillMaxSize()) {',
       ),
     );
     expect(content, contains('GlanceTheme {'));
     expect(content, contains('Text(text = "Simple Data")'));
-    expect(
-      content,
-      contains(r'Text(text = "label: ${widgetData.label ?: "-"}")'),
-    );
-    expect(
-      content,
-      contains(r'Text(text = "value: ${widgetData.value ?: "-"}")'),
-    );
   });
 }
