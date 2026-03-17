@@ -54,3 +54,35 @@ melos:
       packageFilters:
         dirExists: ios
         ignore: home_widget
+    test:
+      description: Run all unit tests (excludes integration)
+      steps:
+        - test:flutter
+        - test:dart
+    test:flutter:
+      description: Run Flutter unit tests (excludes integration)
+      exec: flutter test -x integration
+      packageFilters:
+        flutter: true
+        dirExists: test
+    test:dart:
+      description: Run Dart-only unit tests (excludes integration)
+      exec: dart test -x integration
+      packageFilters:
+        flutter: false
+        dirExists: test
+    test:cli:integration:
+      description: Run all CLI integration tests
+      exec: dart test -t integration
+      packageFilters:
+        scope: home_widget_cli
+    test:cli:integration:android:
+      description: Run CLI Android integration tests
+      exec: dart test -t integration_android
+      packageFilters:
+        scope: home_widget_cli
+    test:cli:integration:ios:
+      description: Run CLI iOS integration tests
+      exec: dart test -t integration_ios
+      packageFilters:
+        scope: home_widget_cli

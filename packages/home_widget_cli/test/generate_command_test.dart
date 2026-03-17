@@ -169,23 +169,6 @@ class TestWidget {}
     test(
       'generate produces a buildable app for Android and iOS',
       () async {
-        // This is an end-to-end sanity check. It can be slow and requires a
-        // macOS host with Xcode + CocoaPods for iOS.
-        final shouldRun = Platform.isMacOS &&
-            (Platform.environment['HW_CLI_IOS_BUILD_TESTS'] == '1' ||
-                Platform.environment['CI'] == 'true');
-        if (!shouldRun) {
-          return;
-        }
-
-        Future<bool> hasTool(String tool, List<String> args) async {
-          final r = await Process.run(tool, args, runInShell: true);
-          return r.exitCode == 0;
-        }
-
-        if (!await hasTool('xcodebuild', ['-version'])) return;
-        if (!await hasTool('pod', ['--version'])) return;
-
         final project = await TestFlutterProject.create();
         project.useAsCwd();
 
@@ -241,6 +224,7 @@ class SimpleData {}
         );
       },
       timeout: const Timeout(Duration(minutes: 25)),
+      tags: ['integration', 'integration_android', 'integration_ios'],
     );
     test(
       'works with relative input path',

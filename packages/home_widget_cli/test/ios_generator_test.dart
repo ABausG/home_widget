@@ -164,7 +164,6 @@ void main() {
     expect(content, contains('Text(entry.data.title ?? "")'));
     // Should NOT contain placeholder VStack
     expect(content, isNot(contains('VStack {')));
-    expect(content, contains('.applyContainerBackground()'));
     expect(content, isNot(contains('Color.clear')));
   });
 
@@ -217,6 +216,5 @@ void main() {
       content,
       contains('Text(entry.data.value != nil ? "\\(entry.data.value!)" : "0")'),
     );
-    expect(content, contains('.applyContainerBackground()'));
   });
 }

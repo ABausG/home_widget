@@ -94,5 +94,6 @@ class SimpleColor {}
       }
     },
     timeout: const Timeout(Duration(minutes: 5)),
+    tags: ['integration', 'integration_android'],
   );
 }

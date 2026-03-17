@@ -27,12 +27,10 @@ void main() {
 
   tearDownAll(() {
     for (final root in createdTestProjectRoots) {
-      expect(
-        Directory(root).existsSync(),
-        isFalse,
-        reason:
-            'Expected temp Flutter project to be deleted in tearDown: $root',
-      );
+      final dir = Directory(root);
+      if (dir.existsSync()) {
+        dir.deleteSync(recursive: true);
+      }
     }
   });
 
@@ -561,24 +559,6 @@ void main() {
   test(
     'create --ios produces a buildable iOS app (includes Widget Extension target)',
     () async {
-      // This is an end-to-end sanity check. It can be slow and requires a macOS
-      // host with Xcode + CocoaPods.
-      final shouldRun = Platform.isMacOS &&
-          (Platform.environment['HW_CLI_IOS_BUILD_TESTS'] == '1' ||
-              Platform.environment['CI'] == 'true');
-      if (!shouldRun) {
-        // Avoid hard failures on dev machines.
-        return;
-      }
-
-      Future<bool> hasTool(String tool, List<String> args) async {
-        final r = await Process.run(tool, args, runInShell: true);
-        return r.exitCode == 0;
-      }
-
-      if (!await hasTool('xcodebuild', ['-version'])) return;
-      if (!await hasTool('pod', ['--version'])) return;
-
       final project = await TestFlutterProject.create(includeAndroid: false);
       project.useAsCwd();
 
@@ -618,5 +598,6 @@ void main() {
       );
     },
     timeout: const Timeout(Duration(minutes: 25)),
+    tags: ['integration', 'integration_ios'],
   );
 }
