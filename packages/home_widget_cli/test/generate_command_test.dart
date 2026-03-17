@@ -73,7 +73,10 @@ class TestWidget {}
             pubspecContent.replaceAll('home_widget:', 'ignored_widget:');
         pubspec.writeAsStringSync(pubspecContent);
 
-        final code = await runCli(['generate', '--input', widgetFile.path]);
+        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final code = await runCli(
+          ['generate', '--input', widgetFile.path, '--dart-out', dartOut],
+        );
         expect(code, 0);
 
         verify(
@@ -112,7 +115,10 @@ class TestWidget {}
           mode: FileMode.append,
         );
 
-        final code = await runCli(['generate', '--input', widgetFile.path]);
+        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final code = await runCli(
+          ['generate', '--input', widgetFile.path, '--dart-out', dartOut],
+        );
         expect(code, 0);
 
         verifyNever(
@@ -143,17 +149,19 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class TestWidget {}
 ''');
 
-        final code = await runCli(['generate', '--input', widgetFile.path]);
-        expect(code, 0);
-
-        final expectedPath = p.join(
+        final dartOutDir = p.join(
           project.root.path,
           'lib',
           'src',
           'home_widget',
-          'widget.home_widget.dart',
         );
-        expect(File(expectedPath).existsSync(), isTrue);
+        final code = await runCli(
+          ['generate', '--input', widgetFile.path, '--dart-out', dartOutDir],
+        );
+        expect(code, 0);
+
+        final expectedFile = p.join(dartOutDir, 'widget.home_widget.dart');
+        expect(File(expectedFile).existsSync(), isTrue);
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );
@@ -200,7 +208,8 @@ class SimpleData {}
 ''');
 
         // Run the generate command.
-        final code = await runCli(['generate']);
+        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final code = await runCli(['generate', '--dart-out', dartOut]);
         expect(code, 0);
 
         // Build Android.
@@ -255,8 +264,106 @@ class TestWidget {}
 
         // Pass 'my_widgets' as a relative path
         // Since we did project.useAsCwd(), 'my_widgets' is relative to CWD.
-        final code = await runCli(['generate', '--input', 'my_widgets']);
+        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final code = await runCli(
+          ['generate', '--input', 'my_widgets', '--dart-out', dartOut],
+        );
         expect(code, 0);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+  });
+
+  group('dart-out resolution', () {
+    test(
+      'accepts a directory and auto-generates filename',
+      () async {
+        final project = await TestFlutterProject.create();
+        project.useAsCwd();
+
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'my_schema.dart'));
+        widgetFile.createSync(recursive: true);
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'TestWidget',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class TestWidget {}
+''');
+
+        final outDir = p.join(project.root.path, 'generated');
+        Directory(outDir).createSync();
+
+        final code = await runCli(
+          ['generate', '--input', widgetFile.path, '--dart-out', outDir],
+        );
+        expect(code, 0);
+
+        // Should auto-generate filename from schema file basename
+        final expectedFile = p.join(outDir, 'my_schema.home_widget.dart');
+        expect(File(expectedFile).existsSync(), isTrue);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'accepts an explicit .dart file path',
+      () async {
+        final project = await TestFlutterProject.create();
+        project.useAsCwd();
+
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'widget.dart'));
+        widgetFile.createSync(recursive: true);
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'TestWidget',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class TestWidget {}
+''');
+
+        final outFile =
+            p.join(project.root.path, 'generated', 'custom_name.dart');
+        final code = await runCli(
+          ['generate', '--input', widgetFile.path, '--dart-out', outFile],
+        );
+        expect(code, 0);
+
+        expect(File(outFile).existsSync(), isTrue);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'rejects invalid extension',
+      () async {
+        final project = await TestFlutterProject.create();
+        project.useAsCwd();
+
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'widget.dart'));
+        widgetFile.createSync(recursive: true);
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'TestWidget',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class TestWidget {}
+''');
+
+        final code = await runCli(
+          ['generate', '--input', widgetFile.path, '--dart-out', 'out.txt'],
+        );
+        // Should fail due to invalid extension
+        expect(code, isNot(0));
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );

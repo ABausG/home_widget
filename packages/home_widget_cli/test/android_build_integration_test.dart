@@ -53,10 +53,10 @@ class SimpleColor {}
 
       // Run the CLI programmatically to ensure the current source is used and not a cached pub version
       project.useAsCwd();
-      final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget',
-          'widget.home_widget.dart');
+      final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
       final cliResult = await runCli(
-          ['generate', '--input', widgetFile.path, '--dart-out', dartOut]);
+        ['generate', '--input', widgetFile.path, '--dart-out', dartOut],
+      );
 
       if (cliResult != 0) {
         fail('CLI failed with exit code $cliResult');

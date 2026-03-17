@@ -31,7 +31,8 @@ class GenerateCommand extends Command<int> {
     );
     argParser.addOption(
       'dart-out',
-      help: 'Output path for the generated Dart helper file.',
+      help: 'Output path for the generated Dart helper. '
+          'Can be a .dart file path or a directory.',
     );
   }
 
@@ -107,14 +108,18 @@ class GenerateCommand extends Command<int> {
       final dartHelperContent = dartHelperGenerator.generate();
 
       final dartOutOption = argResults?['dart-out'] as String?;
-      final dartOutPath = dartOutOption ??
-          spec.data.dartOutput ??
-          p.join(
-            'lib',
-            'src',
-            'home_widget',
-            '${p.basenameWithoutExtension(path)}.home_widget.dart',
-          );
+      final specDartOutput = spec.data.dartOutput;
+      final autoFileName =
+          '${p.basenameWithoutExtension(path)}.home_widget.dart';
+
+      final String dartOutPath;
+      if (dartOutOption != null) {
+        dartOutPath = _resolveDartOutPath(dartOutOption, autoFileName);
+      } else if (specDartOutput != null) {
+        dartOutPath = _resolveDartOutPath(specDartOutput, autoFileName);
+      } else {
+        dartOutPath = p.join('lib', 'src', 'home_widget', autoFileName);
+      }
       final dartOutFile = File(dartOutPath);
       await dartOutFile.parent.create(recursive: true);
       await dartOutFile.writeAsString(dartHelperContent);
@@ -135,5 +140,24 @@ class GenerateCommand extends Command<int> {
     await ensureFlutterHomeWidgetDependency(Directory.current);
 
     return ExitCodes.success;
+  }
+
+  /// Resolves a `--dart-out` value to a full file path.
+  ///
+  /// - If [value] ends with `.dart`, it's treated as a file path.
+  /// - Otherwise it's treated as a directory and [autoFileName] is appended.
+  /// - Any other extension (e.g. `.txt`) throws a [FormatException].
+  static String _resolveDartOutPath(String value, String autoFileName) {
+    final ext = p.extension(value);
+    if (ext == '.dart') {
+      return value;
+    }
+    if (ext.isEmpty || FileSystemEntity.isDirectorySync(value)) {
+      return p.join(value, autoFileName);
+    }
+    throw FormatException(
+      'Invalid --dart-out value "$value". '
+      'Must be a .dart file path or a directory.',
+    );
   }
 }
