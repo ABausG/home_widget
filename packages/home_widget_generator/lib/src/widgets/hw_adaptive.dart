@@ -37,6 +37,9 @@ class HWAdaptive extends HWWidget {
   Set<String> get kotlinImports => android.kotlinImports;
 
   @override
+  Set<String> get swiftViewModifiers => ios.swiftViewModifiers;
+
+  @override
   String toSwift(int indent, {required String dataExpr}) {
     return ios.toSwift(indent, dataExpr: dataExpr);
   }
