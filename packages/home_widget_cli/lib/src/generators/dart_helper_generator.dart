@@ -50,13 +50,13 @@ class DartHelperGenerator {
       buffer.writeln();
       buffer.writeln('  static Future<void> saveData({');
       for (final field in spec.dataFields) {
-        final type = field.type.dartType;
+        final type = field.dartType;
         buffer.writeln('    $type? ${field.key},');
       }
       buffer.writeln('  }) {');
       buffer.writeln('    return Future.wait([');
       for (final field in spec.dataFields) {
-        final type = field.type.dartType;
+        final type = field.dartType;
         buffer.writeln(
           "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('\$_paramPrefix.${field.key}', ${field.key}),",
         );
@@ -81,13 +81,13 @@ class DartHelperGenerator {
       buffer.writeln();
 
       final recordFields =
-          spec.dataFields.map((f) => '${f.type.dartType}? ${f.key}').join(', ');
+          spec.dataFields.map((f) => '${f.dartType}? ${f.key}').join(', ');
       buffer.writeln(
         '  static Future<({$recordFields})> getData() async {',
       );
       buffer.writeln('    return (');
       for (final field in spec.dataFields) {
-        final type = field.type.dartType;
+        final type = field.dartType;
         buffer.writeln(
           "      ${field.key}: await HomeWidget.getWidgetData<$type>('\$_paramPrefix.${field.key}'),",
         );

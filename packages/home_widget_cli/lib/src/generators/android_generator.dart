@@ -77,7 +77,7 @@ class AndroidGenerator {
       final buffer = StringBuffer();
       buffer.writeln('data class $className(');
       for (final field in spec.dataFields) {
-        final type = field.type.kotlinType;
+        final type = field.kotlinType;
         buffer.writeln('    val ${field.key}: $type? = null,');
       }
       buffer.writeln(') {');
@@ -92,7 +92,7 @@ class AndroidGenerator {
       buffer.writeln('            return $className(');
 
       for (final field in spec.dataFields) {
-        final readLogic = field.type.androidReadValue(
+        final readLogic = field.androidReadValue(
           store: 'prefs',
           key: '\${PREFERENCES_PREFIX}.${field.key}',
         );

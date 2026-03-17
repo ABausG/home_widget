@@ -21,7 +21,7 @@ class WidgetSpec {
   final String className;
 
   /// The data fields defined in the annotation.
-  final List<DataFieldSpec> dataFields;
+  final List<HWDataType> dataFields;
 
   /// The interactivity configuration.
   final InteractivitySpec? interactivity;
@@ -69,7 +69,7 @@ class WidgetSpec {
           HWRow(
             children: [
               HWText.fixed('${field.key}: '),
-              HWText(field.type),
+              HWText(field),
             ],
           ),
       ],
@@ -77,16 +77,4 @@ class WidgetSpec {
 
     return HWAdaptive(ios: content, android: HWFill(child: content));
   }
-}
-
-/// Specification for a single data field in a widget.
-class DataFieldSpec {
-  /// The key used to store and retrieve this field.
-  final String key;
-
-  /// The data type of the field.
-  final HWDataType type;
-
-  /// Creates a new [DataFieldSpec].
-  const DataFieldSpec({required this.key, required this.type});
 }

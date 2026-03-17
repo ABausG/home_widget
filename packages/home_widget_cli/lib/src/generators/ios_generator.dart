@@ -77,7 +77,7 @@ class IosGenerator {
       final buffer = StringBuffer();
       buffer.writeln('struct $className {');
       for (final field in spec.dataFields) {
-        final type = field.type.swiftType;
+        final type = field.swiftType;
         buffer.writeln('  let ${field.key}: $type?');
       }
       buffer.writeln();
@@ -90,7 +90,7 @@ class IosGenerator {
       );
       buffer.writeln('    return $className(');
       for (final field in spec.dataFields) {
-        final readLogic = field.type.iosReadValue(
+        final readLogic = field.iosReadValue(
           store: 'defaults',
           key: '\\(paramPrefix).${field.key}',
         );

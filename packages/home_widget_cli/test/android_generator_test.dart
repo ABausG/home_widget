@@ -28,8 +28,8 @@ void main() {
       ),
       className: 'ExampleWidget',
       dataFields: [
-        DataFieldSpec(key: 'count', type: HWInt('count')),
-        DataFieldSpec(key: 'label', type: HWString('label')),
+        HWInt('count'),
+        HWString('label'),
       ],
     );
 
@@ -161,7 +161,7 @@ void main() {
       ),
       className: 'TreeWidget',
       dataFields: [
-        DataFieldSpec(key: 'title', type: HWString('title')),
+        HWString('title'),
       ],
       widgetTree: HWText(
         HWString('title'),
@@ -185,7 +185,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground), text = widgetData.title ?: \"\")',
+        'Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground), text = widgetData.title ?: "")',
       ),
     );
     // Should NOT contain placeholder
@@ -211,8 +211,8 @@ void main() {
       ),
       className: 'SimpleData',
       dataFields: [
-        DataFieldSpec(key: 'label', type: HWString('label')),
-        DataFieldSpec(key: 'value', type: HWInt('value')),
+        HWString('label'),
+        HWInt('value'),
       ],
       widgetTree: HWDataOnly([
         HWString('label'),

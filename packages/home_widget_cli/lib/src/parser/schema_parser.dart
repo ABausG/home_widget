@@ -80,11 +80,11 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   }
 
   // Data fields
-  final dataFields = <DataFieldSpec>[];
+  final dataFields = <HWDataType>[];
   if (widgetTree != null) {
     final dependencies = widgetTree.dataDependencies;
     for (final dep in dependencies) {
-      dataFields.add(DataFieldSpec(key: dep.key, type: dep));
+      dataFields.add(dep);
     }
   }
 
