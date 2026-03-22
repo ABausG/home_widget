@@ -75,4 +75,59 @@ class WidgetValueDecoder {
 
     return null;
   }
+
+  static DartObject? _getField(DartObject obj, String name) {
+    var field = obj.getField(name);
+    if (field != null) return field;
+
+    var superClass = obj.getField('(super)');
+    while (superClass != null) {
+      field = superClass.getField(name);
+      if (field != null) return field;
+      superClass = superClass.getField('(super)');
+    }
+    return null;
+  }
+
+  static HWTextStyle? decodeTextStyle(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element3?.name3;
+    final fontSize = _getField(obj, 'fontSize')?.toDoubleValue();
+    final fontWeight =
+        decodeEnum(_getField(obj, 'fontWeight'), HWFontWeight.values);
+    final color = decodeColor(_getField(obj, 'color'));
+    final italic = _getField(obj, 'italic')?.toBoolValue();
+    final underline = _getField(obj, 'underline')?.toBoolValue();
+    final lineThrough = _getField(obj, 'lineThrough')?.toBoolValue();
+    final baseStyle = decodeTextStyle(_getField(obj, 'baseStyle'));
+
+    if (typeName == 'HWRoleTextStyle') {
+      final role = decodeEnum(_getField(obj, 'role'), HWTextStyleRole.values)!;
+      return HWRoleTextStyle(
+        role: role,
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+        italic: italic,
+        underline: underline,
+        lineThrough: lineThrough,
+        baseStyle: baseStyle,
+      );
+    }
+
+    return HWTextStyle(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      italic: italic,
+      underline: underline,
+      lineThrough: lineThrough,
+      baseStyle: baseStyle,
+    );
+  }
+
+  static HWTextAlign? decodeTextAlign(DartObject? obj) {
+    return decodeEnum(obj, HWTextAlign.values);
+  }
 }

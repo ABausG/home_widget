@@ -239,5 +239,51 @@ void main() {
       expect(result,
           'Text("a")\n.frame(maxWidth: .infinity, maxHeight: .infinity)');
     });
+
+    test('HWText emits style and alignment', () {
+      final node = HWText.fixed('Styled', 
+        style: HWTextStyle(
+          fontSize: 24, 
+          fontWeight: HWFontWeight.bold, 
+          italic: true, 
+          underline: true, 
+          color: HWFixedColor(0xFFFF0000)
+        ),
+        textAlign: HWTextAlign.center,
+      );
+      final result = node.toSwift(0, dataExpr: 'data');
+      expect(result, contains('.font(.system(size: 24.0, weight: .bold))'));
+      expect(result, contains('.foregroundColor(Color(red: 1.0, green: 0.0, blue: 0.0, opacity: 1.0))'));
+      expect(result, contains('.italic()'));
+      expect(result, contains('.underline(true)'));
+      expect(result, contains('.multilineTextAlignment(.center)'));
+    });
+
+    test('HWRoleTextStyle emits semantic font', () {
+      final node = HWText.fixed('Role', style: HWRoleTextStyle.headline());
+      final result = node.toSwift(0, dataExpr: 'data');
+      expect(result, contains('.font(.headline)'));
+    });
+
+    test('HWRoleTextStyle overridden by explicit size', () {
+      final node = HWText.fixed('Role Override', style: HWRoleTextStyle.headline(fontSize: 30));
+      final result = node.toSwift(0, dataExpr: 'data');
+      expect(result, contains('.font(.system(size: 30.0))'));
+    });
+
+    test('HWTextStyle baseStyle resolution', () {
+      final node = HWText.fixed('Base Base', 
+        style: HWTextStyle(
+          color: HWFixedColor(0xFF00FF00),
+          baseStyle: HWRoleTextStyle.title(
+            italic: true,
+          ),
+        ),
+      );
+      final result = node.toSwift(0, dataExpr: 'data');
+      expect(result, contains('.font(.title)'));
+      expect(result, contains('.italic()'));
+      expect(result, contains('green: 1.0'));
+    });
   });
 }

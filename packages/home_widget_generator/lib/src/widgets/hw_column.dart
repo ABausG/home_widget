@@ -17,7 +17,7 @@ class HWColumn extends HWMultiChildWidget {
   Set<String> get kotlinImports {
     final imports = <String>{'import androidx.glance.layout.Column'};
     if (crossAxisAlignment != null) {
-      imports.add('import androidx.compose.ui.Alignment');
+      imports.add('import androidx.glance.layout.Alignment');
     }
     if (mainAxisAlignment != null) {
       imports.add('import androidx.glance.layout.Spacer');

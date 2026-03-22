@@ -234,5 +234,46 @@ void main() {
         'Text(modifier = GlanceModifier.fillMaxSize(), text = "a")',
       );
     });
+
+    test('HWText emits style and alignment', () {
+      final node = HWText.fixed('Styled', 
+        style: HWTextStyle(
+          fontSize: 24, 
+          fontWeight: HWFontWeight.bold, 
+          italic: true, 
+          underline: true, 
+          color: HWFixedColor(0xFFFF0000)
+        ),
+        textAlign: HWTextAlign.center,
+      );
+      final result = node.toKotlin(0, dataExpr: 'data');
+      expect(result, contains('fontSize = 24.sp'));
+      expect(result, contains('fontWeight = FontWeight.Bold'));
+      expect(result, contains('fontStyle = FontStyle.Italic'));
+      expect(result, contains('textDecoration = TextDecoration.Underline'));
+      expect(result, contains('textAlign = TextAlign.Center'));
+    });
+
+    test('HWRoleTextStyle emits default metrics when unprovided', () {
+      final node = HWText.fixed('Role', style: HWRoleTextStyle.headline());
+      final result = node.toKotlin(0, dataExpr: 'data');
+      expect(result, contains('fontSize = 18.sp'));
+      expect(result, contains('fontWeight = FontWeight.SemiBold'));
+    });
+
+    test('HWTextStyle baseStyle resolution', () {
+      final node = HWText.fixed('Base Base', 
+        style: HWTextStyle(
+          color: HWFixedColor(0xFF00FF00),
+          baseStyle: HWRoleTextStyle.title(
+            italic: true,
+          ),
+        ),
+      );
+      final result = node.toKotlin(0, dataExpr: 'data');
+      expect(result, contains('fontSize = 22.sp'));
+      expect(result, contains('fontStyle = FontStyle.Italic'));
+      expect(result, contains('0xFF00FF00'));
+    });
   });
 }

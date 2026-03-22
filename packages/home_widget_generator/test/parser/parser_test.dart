@@ -155,5 +155,62 @@ class TestWidget {}
       expect(box.color, isA<HWDefaultColor>());
       expect((box.color as HWDefaultColor).role, HWColorRole.contentPrimary);
     });
+
+    test('parses HWText with complex HWTextStyle and align', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText.fixed('Complex', 
+    textAlign: HWTextAlign.center,
+    style: HWTextStyle(
+      fontSize: 24,
+      fontWeight: HWFontWeight.bold,
+      italic: true,
+      underline: true,
+      lineThrough: false,
+    )
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWText>());
+      final text = widget as HWText;
+      expect(text.textAlign, HWTextAlign.center);
+      expect(text.style, isNotNull);
+      expect(text.style!.fontSize, 24.0);
+      expect(text.style!.fontWeight, HWFontWeight.bold);
+      expect(text.style!.italic, true);
+      expect(text.style!.underline, true);
+      expect(text.style!.lineThrough, false);
+      expect(text.style!.baseStyle, isNull);
+    });
+
+    test('parses HWRoleTextStyle and baseStyle', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText.fixed('Role',
+    style: HWTextStyle(
+      color: HWFixedColor(0xFF000000),
+      baseStyle: HWRoleTextStyle.headline(
+        italic: true,
+      ),
+    ),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWText>());
+      final text = widget as HWText;
+      expect(text.style, isNotNull);
+      expect(text.style!.color, isNotNull);
+      expect(text.style!.baseStyle, isNotNull);
+      expect(text.style!.baseStyle, isA<HWRoleTextStyle>());
+      final roleStyle = text.style!.baseStyle as HWRoleTextStyle;
+      expect(roleStyle.role, HWTextStyleRole.headline);
+      expect(roleStyle.italic, true);
+    });
   });
 }

@@ -10,6 +10,7 @@ class HWText extends HWWidget implements HWDataWidget {
 
   final HWDataType? dataType;
   final HWTextStyle? style;
+  final HWTextAlign? textAlign;
 
   @override
   Set<HWDataType> get dataDependencies => {if (dataType != null) dataType!};
@@ -22,6 +23,9 @@ class HWText extends HWWidget implements HWDataWidget {
     };
     if (style != null) {
       imports.addAll(style!.kotlinImports);
+    }
+    if (textAlign != null) {
+      imports.add('import androidx.glance.text.TextAlign');
     }
     return imports;
   }
@@ -36,26 +40,23 @@ class HWText extends HWWidget implements HWDataWidget {
   }
 
   /// Static/hardcoded text content.
-  const HWText.fixed(String content, {this.style})
+  const HWText.fixed(String content, {this.style, this.textAlign})
       : fixedContent = content,
         dataType = null;
 
-  const HWText(HWDataType data, {this.style})
+  const HWText(HWDataType data, {this.style, this.textAlign})
       : fixedContent = null,
         dataType = data;
 
   static HWText fromDartObject(DartObject obj) {
-    HWTextStyle? style;
-    final styleObj = obj.getField('style');
-    if (styleObj != null && !styleObj.isNull) {
-      final color = WidgetValueDecoder.decodeColor(styleObj.getField('color'));
-      style = HWTextStyle(color: color);
-    }
+    var style = WidgetValueDecoder.decodeTextStyle(obj.getField('style'));
+    var textAlign =
+        WidgetValueDecoder.decodeTextAlign(obj.getField('textAlign'));
 
     // Check for fixed content
     final fixedContent = obj.getField('fixedContent')?.toStringValue();
     if (fixedContent != null) {
-      return HWText.fixed(fixedContent, style: style);
+      return HWText.fixed(fixedContent, style: style, textAlign: textAlign);
     }
 
     // Check for data type
@@ -72,10 +73,16 @@ class HWText extends HWWidget implements HWDataWidget {
       final typeName = dataType.type?.element3?.name3;
 
       if (key != null) {
-        if (typeName == 'HWString') return HWText(HWString(key), style: style);
-        if (typeName == 'HWInt') return HWText(HWInt(key), style: style);
-        if (typeName == 'HWDouble') return HWText(HWDouble(key), style: style);
-        if (typeName == 'HWBool') return HWText(HWBool(key), style: style);
+        switch (typeName) {
+          case 'HWString':
+            return HWText(HWString(key), style: style, textAlign: textAlign);
+          case 'HWInt':
+            return HWText(HWInt(key), style: style, textAlign: textAlign);
+          case 'HWDouble':
+            return HWText(HWDouble(key), style: style, textAlign: textAlign);
+          case 'HWBool':
+            return HWText(HWBool(key), style: style, textAlign: textAlign);
+        }
       }
     }
 
@@ -101,10 +108,16 @@ class HWText extends HWWidget implements HWDataWidget {
       viewCall = '${pad}Text($textValue)';
     }
 
-    if (viewCall.isNotEmpty && style != null) {
-      final styleCode = style!.toSwift(indent, dataExpr: dataExpr);
-      if (styleCode.isNotEmpty) {
-        viewCall += '\n$pad    $styleCode';
+    if (viewCall.isNotEmpty) {
+      if (style != null) {
+        final styleCode = style!.toSwift(indent, dataExpr: dataExpr);
+        if (styleCode.isNotEmpty) {
+          viewCall += '\n$pad    $styleCode';
+        }
+      }
+      if (textAlign != null) {
+        viewCall +=
+            '\n$pad    .multilineTextAlignment(${_swiftTextAlign(textAlign!)})';
       }
     }
 
@@ -129,14 +142,50 @@ class HWText extends HWWidget implements HWDataWidget {
     }
 
     if (textArgs.isNotEmpty) {
-      final styleCode = style?.toKotlin(indent, dataExpr: dataExpr);
-      if (styleCode != null && styleCode.isNotEmpty) {
-        return '${pad}Text($textArgs, style = $styleCode)';
+      final styleCode = style?.toKotlin(indent, dataExpr: dataExpr) ?? '';
+
+      if (textAlign != null) {
+        final alignCode = 'textAlign = ${_kotlinTextAlign(textAlign!)}';
+        if (styleCode.isEmpty) {
+          textArgs += ', style = TextStyle($alignCode)';
+        } else {
+          final newStyleCode = styleCode.replaceFirst(')', ', $alignCode)');
+          textArgs += ', style = $newStyleCode';
+        }
+      } else if (styleCode.isNotEmpty) {
+        textArgs += ', style = $styleCode';
       }
+
       return '${pad}Text($textArgs)';
     }
 
     return '';
+  }
+
+  String _swiftTextAlign(HWTextAlign align) {
+    switch (align) {
+      case HWTextAlign.start:
+        return '.leading';
+      case HWTextAlign.end:
+        return '.trailing';
+      case HWTextAlign.center:
+        return '.center';
+      case HWTextAlign.justify:
+        return '.leading'; // default LTR fallback
+    }
+  }
+
+  String _kotlinTextAlign(HWTextAlign align) {
+    switch (align) {
+      case HWTextAlign.start:
+        return 'TextAlign.Start';
+      case HWTextAlign.end:
+        return 'TextAlign.End';
+      case HWTextAlign.center:
+        return 'TextAlign.Center';
+      case HWTextAlign.justify:
+        return 'TextAlign.Start'; // default fallback
+    }
   }
 
   String _escapeSwiftString(String s) =>
