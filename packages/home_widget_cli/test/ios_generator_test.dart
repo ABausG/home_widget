@@ -217,4 +217,75 @@ void main() {
       contains('Text(entry.data.value != nil ? "\\(entry.data.value!)" : "0")'),
     );
   });
+
+  test(
+      'generates Swift widget with contentMarginsDisabled when applyContentPadding is false',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NoPaddingWidget',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.nopadding',
+          applyContentPadding: false,
+        ),
+      ),
+      className: 'NoPaddingWidget',
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/NoPaddingWidgetHomeWidget/Widget.swift',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, contains('.disableContentMarginsIfNeeded()'));
+    expect(
+      content,
+      contains(
+        'func disableContentMarginsIfNeeded() -> some WidgetConfiguration {',
+      ),
+    );
+    expect(content, contains('self.contentMarginsDisabled()'));
+  });
+
+  test('generates Swift widget with HWPadding', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PaddingWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.padding'),
+      ),
+      className: 'PaddingWidget',
+      widgetTree: HWPadding(
+        padding: HWEdgeInsets.all(16),
+        child: HWText(HWString('title')),
+      ),
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/PaddingWidgetHomeWidget/Widget.swift',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        '.padding(EdgeInsets(top: 16.0, leading: 16.0, bottom: 16.0, trailing: 16.0))',
+      ),
+    );
+  });
 }

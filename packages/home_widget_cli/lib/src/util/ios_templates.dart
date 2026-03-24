@@ -21,6 +21,7 @@ String iosWidgetSwiftTemplate({
   String? supportedFamilies,
   Set<String>? swiftViewModifiers,
   bool includeBackgroundExtension = false,
+  bool applyContentPadding = true,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -117,6 +118,10 @@ struct ${widgetClassName}Entry: TimelineEntry {
     buffer.writeln('    .supportedFamilies($supportedFamilies)');
   }
 
+  if (!applyContentPadding) {
+    buffer.writeln('    .disableContentMarginsIfNeeded()');
+  }
+
   buffer.writeln('  }');
   buffer.writeln('}');
   buffer.writeln();
@@ -132,6 +137,20 @@ extension View {
       }
     } else {
       self.background(backgroundView)
+    }
+  }
+}
+''');
+  }
+
+  if (!applyContentPadding) {
+    buffer.writeln('''
+extension WidgetConfiguration {
+  func disableContentMarginsIfNeeded() -> some WidgetConfiguration {
+    if #available(iOSApplicationExtension 15.0, macOS 12.0, watchOS 9.0, *) {
+      return self.contentMarginsDisabled()
+    } else {
+      return self
     }
   }
 }

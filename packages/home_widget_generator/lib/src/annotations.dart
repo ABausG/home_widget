@@ -119,6 +119,11 @@ class HomeWidgetAndroidConfiguration {
   /// When not null, applies a `GlanceModifier.background(color)`.
   final HWColor? backgroundColor;
 
+  /// Whether to apply default content padding to the widget.
+  ///
+  /// Defaults to `true`. If true, applies 16.dp root padding on Android.
+  final bool applyContentPadding;
+
   const HomeWidgetAndroidConfiguration({
     this.packageName,
     this.minWidth,
@@ -134,6 +139,7 @@ class HomeWidgetAndroidConfiguration {
     this.updatePeriodMillis,
     this.useGlanceTheme = true,
     this.backgroundColor = const HWDefaultColor(HWColorRole.defaultBackground),
+    this.applyContentPadding = true,
   });
 
   @override
@@ -153,7 +159,8 @@ class HomeWidgetAndroidConfiguration {
           widgetCategory == other.widgetCategory &&
           updatePeriodMillis == other.updatePeriodMillis &&
           useGlanceTheme == other.useGlanceTheme &&
-          backgroundColor == other.backgroundColor;
+          backgroundColor == other.backgroundColor &&
+          applyContentPadding == other.applyContentPadding;
 
   @override
   int get hashCode =>
@@ -170,7 +177,8 @@ class HomeWidgetAndroidConfiguration {
       widgetCategory.hashCode ^
       updatePeriodMillis.hashCode ^
       useGlanceTheme.hashCode ^
-      backgroundColor.hashCode;
+      backgroundColor.hashCode ^
+      applyContentPadding.hashCode;
 }
 
 /// The size and shape of a widget.
@@ -214,10 +222,16 @@ class HomeWidgetIOSConfiguration {
   /// The background color to be applied to the widget.
   final HWColor? backgroundColor;
 
+  /// Whether to apply default system content margin to the widget.
+  ///
+  /// Defaults to `true`. If false, disables the default system padding using contentMarginsDisabled().
+  final bool applyContentPadding;
+
   const HomeWidgetIOSConfiguration({
     required this.groupId,
     this.supportedFamilies,
     this.backgroundColor,
+    this.applyContentPadding = true,
   });
 
   @override
@@ -226,11 +240,15 @@ class HomeWidgetIOSConfiguration {
       other is HomeWidgetIOSConfiguration &&
           groupId == other.groupId &&
           supportedFamilies == other.supportedFamilies &&
-          backgroundColor == other.backgroundColor;
+          backgroundColor == other.backgroundColor &&
+          applyContentPadding == other.applyContentPadding;
 
   @override
   int get hashCode =>
-      groupId.hashCode ^ supportedFamilies.hashCode ^ backgroundColor.hashCode;
+      groupId.hashCode ^
+      supportedFamilies.hashCode ^
+      backgroundColor.hashCode ^
+      applyContentPadding.hashCode;
 }
 
 /// Annotation for generating home_widget native code.

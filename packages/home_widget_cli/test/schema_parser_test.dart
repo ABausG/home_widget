@@ -114,5 +114,23 @@ void main() {
       expect(spec!.data.name, 'V2Widget');
       expect(spec.data.description, 'A v2 widget');
     });
+
+    test('parses applyContentPadding flag correctly', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+        
+        @HomeWidget(
+          name: 'Padding Test',
+          android: const HomeWidgetAndroidConfiguration(applyContentPadding: false),
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.padding', applyContentPadding: false),
+        )
+        class PaddingWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.android?.applyContentPadding, false);
+      expect(spec.data.iOS?.applyContentPadding, false);
+    });
   });
 }

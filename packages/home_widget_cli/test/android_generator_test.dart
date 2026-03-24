@@ -238,14 +238,78 @@ void main() {
     expect(content, contains('val label: String? = null,'));
     expect(content, contains('val value: Int? = null,'));
 
-    // Should produce the debug view body with fillMaxSize from HWFill
     expect(
       content,
       contains(
-        'Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).fillMaxSize()) {',
+        'Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize()) {',
       ),
     );
     expect(content, contains('GlanceTheme {'));
     expect(content, contains('Text(text = "Simple Data")'));
+  });
+
+  test(
+      'generates Kotlin widget without padding when applyContentPadding is false',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NoPaddingWidget',
+        android: HomeWidgetAndroidConfiguration(
+          packageName: 'com.nopadding',
+          applyContentPadding: false,
+        ),
+      ),
+      className: 'NoPaddingWidget',
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/nopadding/NoPaddingWidgetHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, isNot(contains('.padding(16.dp)')));
+    // Not necessarily asserting not importing padding because HWPadding could be inside, but here tree is default.
+  });
+
+  test('generates Kotlin widget with HWPadding', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PaddingWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.padding'),
+      ),
+      className: 'PaddingWidget',
+      widgetTree: HWPadding(
+        padding: HWEdgeInsets.only(top: 10, left: 20),
+        child: HWText(HWString('title')),
+      ),
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/padding/PaddingWidgetHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        'padding(start = 20.0.dp, top = 10.0.dp, end = 0.0.dp, bottom = 0.0.dp)',
+      ),
+    );
   });
 }

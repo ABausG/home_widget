@@ -116,12 +116,20 @@ class AndroidGenerator {
 
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
     final bgColor = spec.data.android?.backgroundColor;
+    final applyPadding = spec.data.android?.applyContentPadding ?? true;
 
     var widgetTreeBody = emitKotlinWidgetBody(
       spec.effectiveWidgetTree,
       dataExpr: spec.dataFields.isNotEmpty ? 'widgetData' : 'null',
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
     );
+
+    if (applyPadding) {
+      widgetTreeBody = injectGlanceModifier(
+        widgetTreeBody,
+        'padding(16.dp)',
+      );
+    }
 
     if (bgColor != null) {
       widgetTreeBody = injectGlanceModifier(
@@ -145,6 +153,10 @@ class AndroidGenerator {
     }
     if (bgColor != null) {
       layoutImports.addAll(bgColor.kotlinImports);
+    }
+    if (applyPadding) {
+      layoutImports.add('import androidx.compose.ui.unit.dp');
+      layoutImports.add('import androidx.glance.layout.padding');
     }
 
     await widgetFile.writeAsString(

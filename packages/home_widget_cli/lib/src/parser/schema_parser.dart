@@ -139,6 +139,8 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
     updatePeriodMillis: obj.getField('updatePeriodMillis')?.toIntValue(),
     backgroundColor:
         WidgetValueDecoder.decodeColor(obj.getField('backgroundColor')),
+    applyContentPadding:
+        obj.getField('applyContentPadding')?.toBoolValue() ?? true,
   );
 }
 
@@ -160,6 +162,8 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     backgroundColor: WidgetValueDecoder.decodeColor(
       obj.getField('backgroundColor'),
     ),
+    applyContentPadding:
+        obj.getField('applyContentPadding')?.toBoolValue() ?? true,
   );
 }
 

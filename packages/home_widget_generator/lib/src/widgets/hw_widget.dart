@@ -7,6 +7,7 @@ import 'hw_alignment.dart';
 import 'hw_color.dart';
 import 'hw_generatable.dart';
 import 'hw_text_style.dart';
+import 'hw_edge_insets.dart';
 
 part 'hw_column.dart';
 part 'hw_row.dart';
@@ -15,6 +16,7 @@ part 'hw_data_only.dart';
 part 'hw_adaptive.dart';
 part 'hw_fill.dart';
 part 'hw_colored_box.dart';
+part 'hw_padding.dart';
 
 /// Base class for widgets that accept a single child (e.g. Expanded).
 sealed class HWSingleChildWidget extends HWWidget {

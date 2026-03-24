@@ -33,6 +33,8 @@ class WidgetValueDecoder {
       return HWFill.fromDartObject(object!, this);
     } else if (typeName == 'HWColoredBox') {
       return HWColoredBox.fromDartObject(object!, this);
+    } else if (typeName == 'HWPadding') {
+      return HWPadding.fromDartObject(object!, this);
     }
 
     throw GeneratorError('Unknown widget type: $typeName');
@@ -124,6 +126,22 @@ class WidgetValueDecoder {
       underline: underline,
       lineThrough: lineThrough,
       baseStyle: baseStyle,
+    );
+  }
+
+  static HWEdgeInsets? decodeEdgeInsets(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final top = _getField(obj, 'top')?.toDoubleValue() ?? 0.0;
+    final bottom = _getField(obj, 'bottom')?.toDoubleValue() ?? 0.0;
+    final left = _getField(obj, 'left')?.toDoubleValue() ?? 0.0;
+    final right = _getField(obj, 'right')?.toDoubleValue() ?? 0.0;
+
+    return HWEdgeInsets.only(
+      top: top,
+      bottom: bottom,
+      left: left,
+      right: right,
     );
   }
 

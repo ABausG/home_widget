@@ -129,6 +129,8 @@ $loadDataLogic
     );
 
     final customBgColor = spec.data.iOS?.backgroundColor;
+    final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
+
     if (customBgColor != null) {
       entryViewBody =
           '$treeCode\n    .applyContainerBackground(${customBgColor.toSwift(2, dataExpr: "entry.data")})';
@@ -165,6 +167,7 @@ $loadDataLogic
           if (customBgColor != null) ...customBgColor.swiftViewModifiers,
         },
         includeBackgroundExtension: customBgColor != null,
+        applyContentPadding: applyPadding,
       ),
     );
     logger.success('Generated: ${widgetSwift.path}');
