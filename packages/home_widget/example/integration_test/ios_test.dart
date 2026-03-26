@@ -35,7 +35,7 @@ void main() {
 
     const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
-    setUpAll(() async {
+    setUp(() async {
       // Add Group Id
       await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
       // Clear all Data
@@ -119,6 +119,40 @@ void main() {
         final frame = await codec.getNextFrame();
         expect(frame.image.width, 1);
         expect(frame.image.height, 1);
+      });
+
+      testWidgets('saveFile then clear key removes data and file',
+          (tester) async {
+        const key = 'integration_savefile_clear_key';
+        final data = <String, dynamic>{'clear': 'test'};
+        final jsonStr = jsonEncode(data);
+        final path = await HomeWidget.saveFile(
+          key,
+          Uint8List.fromList(utf8.encode(jsonStr)),
+          extension: 'json',
+        );
+        expect(await File(path).exists(), isTrue);
+        await HomeWidget.saveWidgetData(key, null);
+        expect(await HomeWidget.getWidgetData(key), isNull);
+        expect(await File(path).exists(), isFalse);
+      });
+
+      testWidgets(
+          'saveFile then clear key with deleteFile false removes path but keeps file',
+          (tester) async {
+        const key = 'integration_savefile_clear_no_delete_key';
+        final data = <String, dynamic>{'keep': 'on_disk'};
+        final jsonStr = jsonEncode(data);
+        final path = await HomeWidget.saveFile(
+          key,
+          Uint8List.fromList(utf8.encode(jsonStr)),
+          extension: 'json',
+        );
+        expect(await File(path).exists(), isTrue);
+        await HomeWidget.saveWidgetData(key, null, deleteFile: false);
+        expect(await HomeWidget.getWidgetData(key), isNull);
+        expect(await File(path).exists(), isTrue);
+        expect(jsonDecode(await File(path).readAsString()), data);
       });
     });
 

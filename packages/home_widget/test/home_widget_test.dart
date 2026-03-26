@@ -77,14 +77,183 @@ void main() {
     expect(arguments['defaultValue'], defaultValue);
   });
 
-  test('saveWidgetData', () async {
-    const id = 'TestId';
-    const value = 'Test Value';
-    expect(await HomeWidget.saveWidgetData(id, value), true);
-    final arguments = await passedArguments.future;
+  group('saveWidgetData', () {
+    test('saves data with value', () async {
+      const id = 'TestId';
+      const value = 'Test Value';
+      expect(await HomeWidget.saveWidgetData(id, value), true);
+      final arguments = await passedArguments.future;
 
-    expect(arguments['id'], id);
-    expect(arguments['data'], value);
+      expect(arguments['id'], id);
+      expect(arguments['data'], value);
+    });
+
+    group('deleteFile', () {
+      late List<MethodCall> invocations;
+      dynamic getWidgetDataReturn;
+      Object? getWidgetDataError;
+
+      setUp(() {
+        invocations = [];
+        getWidgetDataReturn = null;
+        getWidgetDataError = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            // ignore: body_might_complete_normally_nullable
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          invocations.add(call);
+          switch (call.method) {
+            case 'getWidgetData':
+              if (getWidgetDataError != null) throw getWidgetDataError!;
+              return getWidgetDataReturn;
+            case 'saveWidgetData':
+              return true;
+            default:
+              return null;
+          }
+        });
+      });
+
+      test('deleteFile false with null only invokes saveWidgetData', () async {
+        const id = 'TestId';
+        expect(
+          await HomeWidget.saveWidgetData(id, null, deleteFile: false),
+          true,
+        );
+        expect(invocations.length, 1);
+        expect(invocations.single.method, 'saveWidgetData');
+        expect(invocations.single.arguments['id'], id);
+        expect(invocations.single.arguments['data'], isNull);
+      });
+
+      test(
+        'non-String path skips deleteSync; getWidgetData then saveWidgetData',
+        () async {
+          getWidgetDataReturn = 42;
+          const id = 'fileKey';
+          expect(await HomeWidget.saveWidgetData(id, null), true);
+          expect(invocations.map((c) => c.method).toList(), [
+            'getWidgetData',
+            'saveWidgetData',
+          ]);
+          expect(invocations[0].arguments['id'], id);
+          expect(invocations[1].arguments['data'], isNull);
+        },
+      );
+
+      test('String path missing file never calls deleteSync', () async {
+        getWidgetDataReturn = '/widget/file.bin';
+        final file = MockFile();
+        when(() => file.existsSync()).thenReturn(false);
+
+        await IOOverrides.runZoned(
+          () async {
+            expect(await HomeWidget.saveWidgetData('k', null), true);
+            verifyNever(() => file.deleteSync());
+          },
+          createFile: (path) {
+            when(() => file.path).thenReturn(path);
+            return file;
+          },
+        );
+
+        expect(invocations.map((c) => c.method), [
+          'getWidgetData',
+          'saveWidgetData',
+        ]);
+      });
+
+      test('String path existing file deletes once', () async {
+        getWidgetDataReturn = '/widget/file.bin';
+        final file = MockFile();
+        when(() => file.existsSync()).thenReturn(true);
+        when(() => file.deleteSync()).thenAnswer((_) async {});
+
+        await IOOverrides.runZoned(
+          () async {
+            expect(await HomeWidget.saveWidgetData('k', null), true);
+            verify(() => file.deleteSync()).called(1);
+          },
+          createFile: (path) {
+            when(() => file.path).thenReturn(path);
+            return file;
+          },
+        );
+      });
+
+      test(
+        'getWidgetData throws; error propagates so caller can handle; '
+        'saveWidgetData channel not invoked',
+        () async {
+          getWidgetDataError = Exception('channel fail');
+          await expectLater(
+            HomeWidget.saveWidgetData('id', null),
+            throwsA(anything),
+          );
+          expect(invocations.map((c) => c.method), ['getWidgetData']);
+          expect(
+            invocations.any((c) => c.method == 'saveWidgetData'),
+            isFalse,
+          );
+        },
+      );
+
+      test(
+        'existsSync throws; error propagates; saveWidgetData channel not invoked',
+        () async {
+          getWidgetDataReturn = '/p';
+          final file = MockFile();
+          when(() => file.existsSync()).thenThrow(Exception('io'));
+
+          await IOOverrides.runZoned(
+            () async {
+              await expectLater(
+                HomeWidget.saveWidgetData('id', null),
+                throwsA(anything),
+              );
+            },
+            createFile: (path) {
+              when(() => file.path).thenReturn(path);
+              return file;
+            },
+          );
+
+          expect(invocations.map((c) => c.method), ['getWidgetData']);
+          expect(
+            invocations.any((c) => c.method == 'saveWidgetData'),
+            isFalse,
+          );
+        },
+      );
+
+      test(
+        'deleteSync throws; error propagates; saveWidgetData channel not invoked',
+        () async {
+          getWidgetDataReturn = '/p';
+          final file = MockFile();
+          when(() => file.existsSync()).thenReturn(true);
+          when(() => file.deleteSync()).thenThrow(Exception('io'));
+
+          await IOOverrides.runZoned(
+            () async {
+              await expectLater(
+                HomeWidget.saveWidgetData('id', null),
+                throwsA(anything),
+              );
+            },
+            createFile: (path) {
+              when(() => file.path).thenReturn(path);
+              return file;
+            },
+          );
+
+          expect(invocations.map((c) => c.method), ['getWidgetData']);
+          expect(
+            invocations.any((c) => c.method == 'saveWidgetData'),
+            isFalse,
+          );
+        },
+      );
+    });
   });
 
   test('updateWidget', () async {

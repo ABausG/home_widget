@@ -23,10 +23,9 @@ void main() {
 
   const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
-  setUpAll(() {
-    // Clear all Data
+  setUp(() async {
     for (final key in testData.keys) {
-      HomeWidget.saveWidgetData(key, null);
+      await HomeWidget.saveWidgetData(key, null);
     }
   });
 
@@ -144,7 +143,8 @@ void main() {
       expect(read, orderedEquals(expected));
     });
 
-    testWidgets('saveImage decodes asset and saves valid 1x1 PNG', (tester) async {
+    testWidgets('saveImage decodes asset and saves valid 1x1 PNG',
+        (tester) async {
       const key = 'integration_save_image_key';
       final path = await HomeWidget.saveImage(
         key,
@@ -157,6 +157,40 @@ void main() {
       final frame = await codec.getNextFrame();
       expect(frame.image.width, 1);
       expect(frame.image.height, 1);
+    });
+
+    testWidgets('saveFile then clear key removes data and file',
+        (tester) async {
+      const key = 'integration_savefile_clear_key';
+      final data = <String, dynamic>{'clear': 'test'};
+      final jsonStr = jsonEncode(data);
+      final path = await HomeWidget.saveFile(
+        key,
+        Uint8List.fromList(utf8.encode(jsonStr)),
+        extension: 'json',
+      );
+      expect(await File(path).exists(), isTrue);
+      await HomeWidget.saveWidgetData(key, null);
+      expect(await HomeWidget.getWidgetData(key), isNull);
+      expect(await File(path).exists(), isFalse);
+    });
+
+    testWidgets(
+        'saveFile then clear key with deleteFile false removes path but keeps file',
+        (tester) async {
+      const key = 'integration_savefile_clear_no_delete_key';
+      final data = <String, dynamic>{'keep': 'on_disk'};
+      final jsonStr = jsonEncode(data);
+      final path = await HomeWidget.saveFile(
+        key,
+        Uint8List.fromList(utf8.encode(jsonStr)),
+        extension: 'json',
+      );
+      expect(await File(path).exists(), isTrue);
+      await HomeWidget.saveWidgetData(key, null, deleteFile: false);
+      expect(await HomeWidget.getWidgetData(key), isNull);
+      expect(await File(path).exists(), isTrue);
+      expect(jsonDecode(await File(path).readAsString()), data);
     });
   });
 }

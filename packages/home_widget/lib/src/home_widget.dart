@@ -21,7 +21,21 @@ class HomeWidget {
   /// Save [data] to the Widget Storage
   ///
   /// Returns whether the data was saved or not
-  static Future<bool?> saveWidgetData<T>(String id, T? data) {
+  static Future<bool?> saveWidgetData<T>(
+    String id,
+    T? data, {
+    bool deleteFile = true,
+  }) async {
+    if (deleteFile && data == null) {
+      final path = await getWidgetData<dynamic>(id);
+      if (path is String) {
+        final file = File(path);
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+      }
+    }
+
     return _channel.invokeMethod<bool>('saveWidgetData', {
       'id': id,
       'data': data,
