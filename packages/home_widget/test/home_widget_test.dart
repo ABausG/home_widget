@@ -14,6 +14,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'mocks.dart';
+import 'utils/test_png.dart';
 
 const updateChannel = MethodChannel('home_widget/updates');
 
@@ -359,6 +360,168 @@ void main() {
           when(() => file.path).thenReturn(path);
           return file;
         },
+      );
+    });
+  });
+
+  group('saveFile', () {
+    final directory = Directory('app/directory');
+
+    setUp(() {
+      final pathProvider = MockPathProvider();
+      when(() => pathProvider.getApplicationSupportPath())
+          .thenAnswer((invocation) async => directory.path);
+      PathProviderPlatform.instance = pathProvider;
+    });
+
+    test('writes bytes and saves path to widget data', () async {
+      final file = MockFile();
+      final payload = Uint8List.fromList([1, 2, 3]);
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        expect(
+          invocation.positionalArguments.first,
+          orderedEquals(payload),
+        );
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          final path = await HomeWidget.saveFile(
+            'myKey',
+            payload,
+            extension: 'json',
+          );
+          expect(path, '${directory.path}/home_widget/myKey.json');
+          final arguments = await passedArguments.future;
+          expect(arguments['id'], 'myKey');
+          expect(arguments['data'], path);
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    test('strips leading dot from extension', () async {
+      final file = MockFile();
+      final payload = Uint8List.fromList([1, 2, 3]);
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          final path = await HomeWidget.saveFile(
+            'myKey',
+            payload,
+            extension: '.json',
+          );
+          expect(path, '${directory.path}/home_widget/myKey.json');
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    test('rejects invalid key', () async {
+      expect(
+        () => HomeWidget.saveFile('', Uint8List(0)),
+        throwsAssertionError,
+      );
+      expect(
+        () => HomeWidget.saveFile('../x', Uint8List(0)),
+        throwsAssertionError,
+      );
+      expect(
+        () => HomeWidget.saveFile('a b', Uint8List(0)),
+        throwsAssertionError,
+      );
+    });
+
+    test('rejects invalid extension', () async {
+      expect(
+        () => HomeWidget.saveFile('k', Uint8List(0), extension: ''),
+        throwsAssertionError,
+      );
+      expect(
+        () => HomeWidget.saveFile('k', Uint8List(0), extension: 'a/b'),
+        throwsAssertionError,
+      );
+    });
+  });
+
+  group('saveImage', () {
+    final directory = Directory('app/directory');
+
+    setUp(() {
+      final pathProvider = MockPathProvider();
+      when(() => pathProvider.getApplicationSupportPath())
+          .thenAnswer((invocation) async => directory.path);
+      PathProviderPlatform.instance = pathProvider;
+    });
+
+    testWidgets('encodes ImageProvider to PNG and saves via saveFile',
+        (tester) async {
+      final file = MockFile();
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        expect(
+          (invocation.positionalArguments.first as List<int>).length,
+          greaterThan(0),
+        );
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            final path = await HomeWidget.saveImage(
+              'shot',
+              MemoryImage(kTestPngBytes),
+            );
+            expect(path, '${directory.path}/home_widget/shot.png');
+            final arguments = await passedArguments.future;
+            expect(arguments['id'], 'shot');
+            expect(arguments['data'], path);
+          });
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    testWidgets('propagates error when image bytes cannot be decoded',
+        (tester) async {
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            await expectLater(
+              HomeWidget.saveImage(
+                'bad',
+                MemoryImage(Uint8List.fromList(<int>[0, 1, 2, 3, 4])),
+              ),
+              throwsA(anything),
+            );
+          });
+        },
+        createFile: (path) => MockFile(),
       );
     });
   });

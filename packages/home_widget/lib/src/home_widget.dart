@@ -146,6 +146,127 @@ class HomeWidget {
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
 
+  static String _normalizeExtension(String extension) {
+    var ext = extension.trim();
+    if (ext.startsWith('.')) {
+      ext = ext.substring(1);
+    }
+    assert(ext.isNotEmpty, 'extension must not be empty');
+    assert(
+      !ext.contains('/') && !ext.contains(r'\') && !ext.contains('..'),
+      'extension must not contain path separators',
+    );
+    return ext;
+  }
+
+  static void _validateKey(String key) {
+    assert(key.isNotEmpty, 'key must not be empty');
+    assert(
+      !key.contains('/') &&
+          !key.contains(r'\') &&
+          !key.contains('..') &&
+          !key.contains(' '),
+      'key must not contain /, \\, .., or spaces',
+    );
+  }
+
+  /// Writes [bytes] to the shared widget storage area and stores the absolute
+  /// file path under [key] via [saveWidgetData] (same as [renderFlutterWidget]).
+  ///
+  /// On iOS the file is written under the app group container; on Android under
+  /// the application support directory. In both cases the path is
+  /// `{container}/home_widget/{key}.{extension}`.
+  static Future<String> saveFile(
+    String key,
+    Uint8List bytes, {
+    String extension = 'bin',
+  }) async {
+    final ext = _normalizeExtension(extension);
+    _validateKey(key);
+    try {
+      late final String? directory;
+
+      // coverage:ignore-start
+      if (Platform.isIOS) {
+        final PathProviderFoundation provider = PathProviderFoundation();
+        assert(
+          HomeWidget.groupId != null,
+          'No groupId defined. Did you forget to call `HomeWidget.setAppGroupId`',
+        );
+        directory = await provider.getContainerPath(
+          appGroupIdentifier: HomeWidget.groupId!,
+        );
+      } else {
+        // coverage:ignore-end
+        directory = (await getApplicationSupportDirectory()).path;
+      }
+
+      final String path = '$directory/home_widget/$key.$ext';
+      final File file = File(path);
+      if (!await file.exists()) {
+        await file.create(recursive: true);
+      }
+      await file.writeAsBytes(bytes);
+
+      await saveWidgetData<String>(key, path);
+
+      return path;
+    } catch (e) {
+      throw Exception('Failed to save file to widget container: $e');
+    }
+  }
+
+  /// Encodes the first decoded frame of [imageProvider] as PNG and saves it
+  /// via [saveFile] with extension `png`. Animated images use the first frame
+  /// only.
+  static Future<String> saveImage(
+    String key,
+    ImageProvider imageProvider, {
+    ImageConfiguration configuration = ImageConfiguration.empty,
+  }) async {
+    _validateKey(key);
+    final completer = Completer<Uint8List>();
+    final stream = imageProvider.resolve(configuration);
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (ImageInfo info, bool synchronousCall) async {
+        stream.removeListener(listener);
+        try {
+          final ByteData? byteData =
+              await info.image.toByteData(format: ui.ImageByteFormat.png);
+          // coverage:ignore-start
+          if (byteData == null) {
+            if (!completer.isCompleted) {
+              completer.completeError(
+                Exception('Failed to encode image to PNG'),
+              );
+            }
+          } else
+          // coverage:ignore-end
+          if (!completer.isCompleted) {
+            completer.complete(byteData.buffer.asUint8List());
+          }
+        }
+        // coverage:ignore-start
+        catch (e, st) {
+          if (!completer.isCompleted) {
+            completer.completeError(e, st);
+          }
+        }
+        // coverage:ignore-end
+      },
+      onError: (Object exception, StackTrace? stackTrace) {
+        stream.removeListener(listener);
+        if (!completer.isCompleted) {
+          completer.completeError(exception, stackTrace);
+        }
+      },
+    );
+    stream.addListener(listener);
+    final bytes = await completer.future;
+    return saveFile(key, bytes, extension: 'png');
+  }
+
   /// Generate a screenshot based on a given widget.
   /// This method renders the widget to an image (png) file with the provided filename.
   /// The png file is saved to the App Group container and the full path is returned as a string.
@@ -229,38 +350,18 @@ class HomeWidget {
       final ByteData? byteData =
           await image.toByteData(format: ui.ImageByteFormat.png);
 
+      // coverage:ignore-start
+      if (byteData == null) {
+        throw Exception('Failed to encode widget to PNG');
+      }
+      // coverage:ignore-end
+
       try {
-        late final String? directory;
-
-        // coverage:ignore-start
-        if (Platform.isIOS) {
-          final PathProviderFoundation provider = PathProviderFoundation();
-          assert(
-            HomeWidget.groupId != null,
-            'No groupId defined. Did you forget to call `HomeWidget.setAppGroupId`',
-          );
-          directory = await provider.getContainerPath(
-            appGroupIdentifier: HomeWidget.groupId!,
-          );
-        } else {
-          // coverage:ignore-end
-          directory = (await getApplicationSupportDirectory()).path;
-        }
-
-        final String path = '$directory/home_widget/$key.png';
-        final File file = File(path);
-        if (!await file.exists()) {
-          await file.create(recursive: true);
-        }
-        await file.writeAsBytes(byteData!.buffer.asUint8List());
-
-        // Save the filename to UserDefaults if a key was provided
-        _channel.invokeMethod<bool>('saveWidgetData', {
-          'id': key,
-          'data': path,
-        });
-
-        return path;
+        return await saveFile(
+          key,
+          byteData.buffer.asUint8List(),
+          extension: 'png',
+        );
       } catch (e) {
         throw Exception('Failed to save screenshot to app group container: $e');
       }
