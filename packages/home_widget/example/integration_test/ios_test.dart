@@ -141,6 +141,34 @@ void main() {
     final retrievedData = await HomeWidget.getInstalledWidgets();
     expect(retrievedData, isEmpty);
   });
+
+  group('Android Configurable Widgets', () {
+    testWidgets('Calling android specific methods does not throw',
+        (tester) async {
+      await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
+      await expectLater(
+        () async => await HomeWidget.isRequestPinWidgetSupported(),
+        returnsNormally,
+      );
+
+      await expectLater(
+        () async => await HomeWidget.requestPinWidget(
+          name: 'HomeWidgetExample',
+        ),
+        returnsNormally,
+      );
+
+      await expectLater(
+        () async => await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure(),
+        returnsNormally,
+      );
+
+      await expectLater(
+        () async => await HomeWidget.finishHomeWidgetConfigure(),
+        returnsNormally,
+      );
+    });
+  });
 }
 
 Future<void> interactivityCallback(Uri? uri) async {}
