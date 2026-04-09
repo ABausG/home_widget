@@ -102,16 +102,17 @@ class HomeWidget {
         .then(_handleReceivedData);
   }
 
-  /// Checks if the App was initially launched via the Widget configure action
+  /// Checks if the App was initially launched via the Widget configure action on Android.
+  /// Only works on Android. Ensure to call `HomeWidget.finishHomeWidgetConfigure` once you want to complete the configuration
   static Future<String?> initiallyLaunchedFromHomeWidgetConfigure() {
     return _channel
         .invokeMethod<String>('initiallyLaunchedFromHomeWidgetConfigure');
   }
 
-  /// Ends the Widget configure action
+  /// Ends the Widget configure action on Android.
+  /// This should be called when finishing up a Widget Configuration that was initiated based on `HomeWidget.initiallyLaunchedFromHomeWidgetConfigure`
   static Future<void> finishHomeWidgetConfigure() {
-    return _channel
-        .invokeMethod<void>('finishHomeWidgetConfigure');
+    return _channel.invokeMethod<void>('finishHomeWidgetConfigure');
   }
 
   /// Receives Updates if App Launched via the Widget
