@@ -23,6 +23,7 @@ ignorePaths:
         "**/gradle.properties",
         "cspell.yaml",
         "**/build.gradle",
+        "**/*.kts",
         "**/proguard-rules.pro",
         "**/.github/**",
         "**/.gitignore",
