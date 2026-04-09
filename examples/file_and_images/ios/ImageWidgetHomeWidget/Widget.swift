@@ -10,7 +10,8 @@ struct Provider: TimelineProvider {
     ImageWidgetHomeWidgetEntry(date: Date(), imagePath: nil)
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (ImageWidgetHomeWidgetEntry) -> Void) {
+  func getSnapshot(in context: Context, completion: @escaping (ImageWidgetHomeWidgetEntry) -> Void)
+  {
     completion(ImageWidgetHomeWidgetEntry(date: Date(), imagePath: Self.resolvedImagePath()))
   }
 

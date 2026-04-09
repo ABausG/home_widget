@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -13,7 +14,6 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
-import androidx.compose.ui.unit.dp
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.ContentScale
@@ -41,9 +41,7 @@ class ImageWidgetHomeWidget : GlanceAppWidget() {
     val prefs = currentState.preferences
     val imagePath = prefs.getString(IMAGE_KEY, null)
     val bitmap =
-        imagePath?.takeIf { File(it).isFile }?.let { path ->
-          BitmapFactory.decodeFile(path)
-        }
+        imagePath?.takeIf { File(it).isFile }?.let { path -> BitmapFactory.decodeFile(path) }
 
     Box(
         modifier = GlanceModifier.fillMaxSize().background(Color.White),
