@@ -9,6 +9,7 @@ workspace:
   - packages/home_widget/example
   - examples/configurable_widget
   - examples/lockscreen_widgets
+  - examples/file_and_images
 
 dev_dependencies:
   melos: ^7.0.0
