@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -18,13 +19,14 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: Text('File and Images')),
-        body: ListView(children: [ImageWidget()]),
+        body: ListView(children: [ImageWidget(), Divider(), FileWidget()]),
       ),
     );
   }
 }
 
 class ImageWidget extends StatefulWidget {
+  const ImageWidget({super.key});
   @override
   State<ImageWidget> createState() => _ImageWidgetState();
 }
@@ -183,3 +185,162 @@ class _ImageWidgetState extends State<ImageWidget> {
 }
 
 enum ImageType { flutter, dash, network }
+
+class NameModel {
+  const NameModel({required this.name});
+
+  final String name;
+
+  factory NameModel.fromJson(Map<String, dynamic> json) {
+    final raw = json['name'];
+    return NameModel(name: raw is String && raw.isNotEmpty ? raw : 'World');
+  }
+
+  Map<String, dynamic> toJson() => {'name': name};
+}
+
+class FileWidget extends StatefulWidget {
+  const FileWidget({super.key});
+  @override
+  State<FileWidget> createState() => _FileWidgetState();
+}
+
+class _FileWidgetState extends State<FileWidget> {
+  static const _fileJsonKey = 'fileJson';
+
+  final _nameController = TextEditingController();
+  bool _initializing = true;
+  bool _loading = false;
+
+  String? _storedJsonString;
+
+  String get _effectiveName {
+    final t = _nameController.text.trim();
+    return t.isEmpty ? 'World' : t;
+  }
+
+  String _jsonForName(String name) =>
+      jsonEncode(NameModel(name: name).toJson());
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFile();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadFile() async {
+    final path = await HomeWidget.getWidgetData<String>(_fileJsonKey);
+    String? text;
+    if (path != null) {
+      try {
+        final bytes = await File(path).readAsBytes();
+        text = utf8.decode(bytes);
+      } catch (_) {
+        text = null;
+      }
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _initializing = false;
+      _storedJsonString = text;
+      if (text != null) {
+        try {
+          final decoded = jsonDecode(text);
+          if (decoded is Map) {
+            _nameController.text = NameModel.fromJson(
+              Map<String, dynamic>.from(decoded),
+            ).name;
+          }
+        } catch (_) {}
+      }
+    });
+  }
+
+  Future<void> _updateFile() async {
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      final json = _jsonForName(_effectiveName);
+      await HomeWidget.saveFile(
+        _fileJsonKey,
+        Uint8List.fromList(utf8.encode(json)),
+        extension: 'json',
+      );
+
+      await HomeWidget.updateWidget(
+        androidName: 'FileWidgetHomeWidgetReceiver',
+        iOSName: 'FileWidgetHomeWidget',
+      );
+      await _loadFile();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_initializing) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final preview = _storedJsonString ?? _jsonForName(_effectiveName);
+
+    return IgnorePointer(
+      ignoring: _loading,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                labelText: 'Name',
+                hintText: 'World',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (_) => setState(() {}),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: SelectableText(
+                  preview,
+                  style: const TextStyle(fontFamily: 'monospace'),
+                ),
+              ),
+            ),
+          ),
+          ElevatedButton(onPressed: _updateFile, child: Text('Update')),
+        ],
+      ),
+    );
+  }
+}
