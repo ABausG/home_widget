@@ -50,6 +50,8 @@ var path = await HomeWidget.renderFlutterWidget(
 - `LineChart()` is the widget that will be rendered as an image.
 - `key` is the key in the key/value storage on the device that stores the path of the file for easy retrieval on the native side
 
+Under the hood this uses the same file storage and key→path behavior as [`saveFile`](/features/save-files) (PNG extension). For other file types, arbitrary bytes, or saving an [`ImageProvider`](https://api.flutter.dev/flutter/painting/ImageProvider-class.html) without building a widget tree, see [Save files and images](/features/save-files).
+
 ## iOS
 
 To retrieve the image and display it in a widget, you can use the following SwiftUI code:

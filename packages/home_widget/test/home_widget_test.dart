@@ -14,6 +14,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 
 import 'mocks.dart';
+import 'utils/test_png.dart';
 
 const updateChannel = MethodChannel('home_widget/updates');
 
@@ -76,14 +77,199 @@ void main() {
     expect(arguments['defaultValue'], defaultValue);
   });
 
-  test('saveWidgetData', () async {
-    const id = 'TestId';
-    const value = 'Test Value';
-    expect(await HomeWidget.saveWidgetData(id, value), true);
-    final arguments = await passedArguments.future;
+  group('saveWidgetData', () {
+    test('saves data with value', () async {
+      const id = 'TestId';
+      const value = 'Test Value';
+      expect(await HomeWidget.saveWidgetData(id, value), true);
+      final arguments = await passedArguments.future;
 
-    expect(arguments['id'], id);
-    expect(arguments['data'], value);
+      expect(arguments['id'], id);
+      expect(arguments['data'], value);
+    });
+
+    group('deleteFile', () {
+      late List<MethodCall> invocations;
+      dynamic getWidgetDataReturn;
+      Object? getWidgetDataError;
+
+      setUp(() {
+        invocations = [];
+        getWidgetDataReturn = null;
+        getWidgetDataError = null;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            // ignore: body_might_complete_normally_nullable
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          invocations.add(call);
+          switch (call.method) {
+            case 'getWidgetData':
+              if (getWidgetDataError != null) throw getWidgetDataError!;
+              return getWidgetDataReturn;
+            case 'saveWidgetData':
+              return true;
+            default:
+              return null;
+          }
+        });
+      });
+
+      test('deleteFile false with null only invokes saveWidgetData', () async {
+        const id = 'TestId';
+        expect(
+          await HomeWidget.saveWidgetData(id, null, deleteFile: false),
+          true,
+        );
+        expect(invocations.length, 1);
+        expect(invocations.single.method, 'saveWidgetData');
+        expect(invocations.single.arguments['id'], id);
+        expect(invocations.single.arguments['data'], isNull);
+      });
+
+      test(
+        'non-String path skips delete; getWidgetData then saveWidgetData',
+        () async {
+          getWidgetDataReturn = 42;
+          const id = 'fileKey';
+          expect(await HomeWidget.saveWidgetData(id, null), true);
+          expect(invocations.map((c) => c.method).toList(), [
+            'getWidgetData',
+            'saveWidgetData',
+          ]);
+          expect(invocations[0].arguments['id'], id);
+          expect(invocations[1].arguments['data'], isNull);
+        },
+      );
+
+      test('String path not under home_widget skips file delete', () async {
+        getWidgetDataReturn = '/widget/file.bin';
+        final file = MockFile();
+
+        await IOOverrides.runZoned(
+          () async {
+            expect(await HomeWidget.saveWidgetData('k', null), true);
+            verifyNever(() => file.exists());
+            verifyNever(() => file.delete());
+          },
+          createFile: (path) {
+            when(() => file.path).thenReturn(path);
+            return file;
+          },
+        );
+
+        expect(invocations.map((c) => c.method), [
+          'getWidgetData',
+          'saveWidgetData',
+        ]);
+      });
+
+      test('managed path missing file never calls delete', () async {
+        getWidgetDataReturn = '/app/support/home_widget/missing.bin';
+        final file = MockFile();
+        when(() => file.exists()).thenAnswer((_) async => false);
+
+        await IOOverrides.runZoned(
+          () async {
+            expect(await HomeWidget.saveWidgetData('k', null), true);
+            verify(() => file.exists()).called(1);
+            verifyNever(() => file.delete());
+          },
+          createFile: (path) {
+            when(() => file.path).thenReturn(path);
+            return file;
+          },
+        );
+      });
+
+      test('managed path existing file deletes once', () async {
+        getWidgetDataReturn = '/app/support/home_widget/file.bin';
+        final file = MockFile();
+        when(() => file.exists()).thenAnswer((_) async => true);
+        when(() => file.delete()).thenAnswer((_) async => file);
+
+        await IOOverrides.runZoned(
+          () async {
+            expect(await HomeWidget.saveWidgetData('k', null), true);
+            verify(() => file.delete()).called(1);
+          },
+          createFile: (path) {
+            when(() => file.path).thenReturn(path);
+            return file;
+          },
+        );
+      });
+
+      test(
+        'getWidgetData throws; error propagates so caller can handle; '
+        'saveWidgetData channel not invoked',
+        () async {
+          getWidgetDataError = Exception('channel fail');
+          await expectLater(
+            HomeWidget.saveWidgetData('id', null),
+            throwsA(anything),
+          );
+          expect(invocations.map((c) => c.method), ['getWidgetData']);
+          expect(
+            invocations.any((c) => c.method == 'saveWidgetData'),
+            isFalse,
+          );
+        },
+      );
+
+      test(
+        'exists throws; error propagates; saveWidgetData channel not invoked',
+        () async {
+          getWidgetDataReturn = '/app/home_widget/f';
+          final file = MockFile();
+          when(() => file.exists()).thenThrow(Exception('io'));
+
+          await IOOverrides.runZoned(
+            () async {
+              await expectLater(
+                HomeWidget.saveWidgetData('id', null),
+                throwsA(anything),
+              );
+            },
+            createFile: (path) {
+              when(() => file.path).thenReturn(path);
+              return file;
+            },
+          );
+
+          expect(invocations.map((c) => c.method), ['getWidgetData']);
+          expect(
+            invocations.any((c) => c.method == 'saveWidgetData'),
+            isFalse,
+          );
+        },
+      );
+
+      test(
+        'managed path delete failure is ignored; saveWidgetData still invoked',
+        () async {
+          getWidgetDataReturn = '/app/home_widget/f';
+          final file = MockFile();
+          when(() => file.exists()).thenAnswer((_) async => true);
+          when(() => file.delete()).thenAnswer(
+            (_) async => throw FileSystemException('delete', 'path'),
+          );
+
+          await IOOverrides.runZoned(
+            () async {
+              expect(await HomeWidget.saveWidgetData('id', null), true);
+            },
+            createFile: (path) {
+              when(() => file.path).thenReturn(path);
+              return file;
+            },
+          );
+
+          expect(invocations.map((c) => c.method), [
+            'getWidgetData',
+            'saveWidgetData',
+          ]);
+        },
+      );
+    });
   });
 
   test('updateWidget', () async {
@@ -359,6 +545,168 @@ void main() {
           when(() => file.path).thenReturn(path);
           return file;
         },
+      );
+    });
+  });
+
+  group('saveFile', () {
+    final directory = Directory('app/directory');
+
+    setUp(() {
+      final pathProvider = MockPathProvider();
+      when(() => pathProvider.getApplicationSupportPath())
+          .thenAnswer((invocation) async => directory.path);
+      PathProviderPlatform.instance = pathProvider;
+    });
+
+    test('writes bytes and saves path to widget data', () async {
+      final file = MockFile();
+      final payload = Uint8List.fromList([1, 2, 3]);
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        expect(
+          invocation.positionalArguments.first,
+          orderedEquals(payload),
+        );
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          final path = await HomeWidget.saveFile(
+            'myKey',
+            payload,
+            extension: 'json',
+          );
+          expect(path, '${directory.path}/home_widget/myKey.json');
+          final arguments = await passedArguments.future;
+          expect(arguments['id'], 'myKey');
+          expect(arguments['data'], path);
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    test('strips leading dot from extension', () async {
+      final file = MockFile();
+      final payload = Uint8List.fromList([1, 2, 3]);
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          final path = await HomeWidget.saveFile(
+            'myKey',
+            payload,
+            extension: '.json',
+          );
+          expect(path, '${directory.path}/home_widget/myKey.json');
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    test('rejects invalid key', () async {
+      expect(
+        () => HomeWidget.saveFile('', Uint8List(0)),
+        throwsArgumentError,
+      );
+      expect(
+        () => HomeWidget.saveFile('../x', Uint8List(0)),
+        throwsArgumentError,
+      );
+      expect(
+        () => HomeWidget.saveFile('a b', Uint8List(0)),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects invalid extension', () async {
+      expect(
+        () => HomeWidget.saveFile('k', Uint8List(0), extension: ''),
+        throwsArgumentError,
+      );
+      expect(
+        () => HomeWidget.saveFile('k', Uint8List(0), extension: 'a/b'),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('saveImage', () {
+    final directory = Directory('app/directory');
+
+    setUp(() {
+      final pathProvider = MockPathProvider();
+      when(() => pathProvider.getApplicationSupportPath())
+          .thenAnswer((invocation) async => directory.path);
+      PathProviderPlatform.instance = pathProvider;
+    });
+
+    testWidgets('encodes ImageProvider to PNG and saves via saveFile',
+        (tester) async {
+      final file = MockFile();
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any())).thenAnswer((invocation) async {
+        expect(
+          (invocation.positionalArguments.first as List<int>).length,
+          greaterThan(0),
+        );
+        return file;
+      });
+
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            final path = await HomeWidget.saveImage(
+              'shot',
+              MemoryImage(kTestPngBytes),
+            );
+            expect(path, '${directory.path}/home_widget/shot.png');
+            final arguments = await passedArguments.future;
+            expect(arguments['id'], 'shot');
+            expect(arguments['data'], path);
+          });
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    testWidgets('propagates error when image bytes cannot be decoded',
+        (tester) async {
+      await IOOverrides.runZoned(
+        () async {
+          await tester.runAsync(() async {
+            await expectLater(
+              HomeWidget.saveImage(
+                'bad',
+                MemoryImage(Uint8List.fromList(<int>[0, 1, 2, 3, 4])),
+              ),
+              throwsA(anything),
+            );
+          });
+        },
+        createFile: (path) => MockFile(),
       );
     });
   });
