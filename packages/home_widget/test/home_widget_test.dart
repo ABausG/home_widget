@@ -159,25 +159,26 @@ void main() {
       expect(parsedUri, null);
     });
   });
-  
+
   group('initiallyLaunchedFromHomeWidgetConfigure', () {
     test('Valid widget ID is returned', () async {
       configureWidgetId = '7';
 
-      final returnedId = await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
+      final returnedId =
+          await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
 
       expect(returnedId, '7');
     });
-	
+
     test('null return value returns null', () async {
       configureWidgetId = null;
 
-      final returnedId = await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
+      final returnedId =
+          await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
 
       expect(returnedId, null);
     });
   });
-
 
   test('Set Group Id', () async {
     const appGroup = 'Default Value';

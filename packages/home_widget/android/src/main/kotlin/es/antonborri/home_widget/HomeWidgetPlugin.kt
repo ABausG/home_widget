@@ -137,28 +137,37 @@ class HomeWidgetPlugin :
         }
       }
       "initiallyLaunchedFromHomeWidgetConfigure" -> {
-        if (
-            activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) ==
-                true
-        ) {
-		  val id = activity?.intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-		  if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
-			  activity!!.setResult(Activity.RESULT_CANCELED);
-			  return result.success(id.toString())
-		  }
+        if (activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) == true) {
+          val id =
+              activity
+                  ?.intent
+                  ?.getIntExtra(
+                      AppWidgetManager.EXTRA_APPWIDGET_ID,
+                      AppWidgetManager.INVALID_APPWIDGET_ID,
+                  )
+          if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            activity!!.setResult(Activity.RESULT_CANCELED)
+            return result.success(id.toString())
+          }
         }
         return result.success(null)
       }
       "finishHomeWidgetConfigure" -> {
-        if (
-		    activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) ==
-               true
-        ) {
-		  val id = activity?.intent?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
-		  if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
-			  activity!!.setResult(Activity.RESULT_OK, Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id));
-			  activity!!.finish()
-		  }
+        if (activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) == true) {
+          val id =
+              activity
+                  ?.intent
+                  ?.getIntExtra(
+                      AppWidgetManager.EXTRA_APPWIDGET_ID,
+                      AppWidgetManager.INVALID_APPWIDGET_ID,
+                  )
+          if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            activity!!.setResult(
+                Activity.RESULT_OK,
+                Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
+            )
+            activity!!.finish()
+          }
         }
         return result.success(null)
       }
