@@ -143,29 +143,28 @@ void main() {
   });
 
   group('Android Configurable Widgets', () {
-    testWidgets('Calling android specific methods does not throw',
-        (tester) async {
+    testWidgets('Android-specific APIs complete on iOS stubs', (tester) async {
       await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
       await expectLater(
-        () async => await HomeWidget.isRequestPinWidgetSupported(),
-        returnsNormally,
+        HomeWidget.isRequestPinWidgetSupported(),
+        completion(false),
       );
 
       await expectLater(
-        () async => await HomeWidget.requestPinWidget(
+        HomeWidget.requestPinWidget(
           name: 'HomeWidgetExample',
         ),
-        returnsNormally,
+        completes,
       );
 
       await expectLater(
-        () async => await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure(),
-        returnsNormally,
+        HomeWidget.initiallyLaunchedFromHomeWidgetConfigure(),
+        completion(isNull),
       );
 
       await expectLater(
-        () async => await HomeWidget.finishHomeWidgetConfigure(),
-        returnsNormally,
+        HomeWidget.finishHomeWidgetConfigure(),
+        completes,
       );
     });
   });
