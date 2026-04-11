@@ -197,9 +197,9 @@ class HomeWidget {
   }) async {
     final ext = _normalizeExtension(extension);
     _validateKey(key);
+
     try {
       late final String? directory;
-
       // coverage:ignore-start
       if (Platform.isIOS) {
         final PathProviderFoundation provider = PathProviderFoundation();
@@ -210,6 +210,13 @@ class HomeWidget {
         directory = await provider.getContainerPath(
           appGroupIdentifier: HomeWidget.groupId!,
         );
+
+        if (directory == null) {
+          throw StateError(
+            'Widget storage directory is null for group "${HomeWidget.groupId}". '
+            'Verify App Group configuration and HomeWidget.setAppGroupId.',
+          );
+        }
       } else {
         // coverage:ignore-end
         directory = (await getApplicationSupportDirectory()).path;
