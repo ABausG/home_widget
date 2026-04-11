@@ -1,6 +1,6 @@
 # File and images
 
-A simple Demo app showing how to save Images and Files from Flutter and accessing the Data from native Widgets
+A simple demo app showing how to save images and files from Flutter and access the data from native widgets.
 
 **Flutter (save)** — [`lib/main.dart`](lib/main.dart):
 

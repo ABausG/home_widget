@@ -27,11 +27,15 @@ class HomeWidget {
     bool deleteFile = true,
   }) async {
     if (deleteFile && data == null) {
-      final path = await getWidgetData<dynamic>(id);
-      if (path is String) {
-        final file = File(path);
-        if (file.existsSync()) {
-          file.deleteSync();
+      final raw = await getWidgetData<dynamic>(id);
+      if (raw is String && _isHomeWidgetManagedFilePath(raw)) {
+        final file = File(raw);
+        if (await file.exists()) {
+          try {
+            await file.delete();
+          } on FileSystemException {
+            // Keep clearing widget data even when file cleanup fails.
+          }
         }
       }
     }
@@ -160,28 +164,46 @@ class HomeWidget {
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }
 
+  /// Paths written by [saveFile], [saveImage], and [renderFlutterWidget] live
+  /// under a `home_widget` directory; only those files are removed when
+  /// clearing a key with [saveWidgetData].
+  static bool _isHomeWidgetManagedFilePath(String path) {
+    final normalized = path.replaceAll(r'\', '/');
+    return normalized.contains('/home_widget/');
+  }
+
   static String _normalizeExtension(String extension) {
     var ext = extension.trim();
     if (ext.startsWith('.')) {
       ext = ext.substring(1);
     }
-    assert(ext.isNotEmpty, 'extension must not be empty');
-    assert(
-      !ext.contains('/') && !ext.contains(r'\') && !ext.contains('..'),
-      'extension must not contain path separators',
-    );
+    if (ext.isEmpty) {
+      throw ArgumentError.value(extension, 'extension', 'must not be empty');
+    }
+    if (ext.contains('/') || ext.contains(r'\') || ext.contains('..')) {
+      throw ArgumentError.value(
+        extension,
+        'extension',
+        'must not contain path separators',
+      );
+    }
     return ext;
   }
 
   static void _validateKey(String key) {
-    assert(key.isNotEmpty, 'key must not be empty');
-    assert(
-      !key.contains('/') &&
-          !key.contains(r'\') &&
-          !key.contains('..') &&
-          !key.contains(' '),
-      'key must not contain /, \\, .., or spaces',
-    );
+    if (key.isEmpty) {
+      throw ArgumentError.value(key, 'key', 'must not be empty');
+    }
+    if (key.contains('/') ||
+        key.contains(r'\') ||
+        key.contains('..') ||
+        key.contains(' ')) {
+      throw ArgumentError.value(
+        key,
+        'key',
+        'must not contain /, \\, .., or spaces',
+      );
+    }
   }
 
   /// Writes [bytes] to the shared widget storage area and stores the absolute

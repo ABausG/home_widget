@@ -21,10 +21,19 @@ void main() {
     'longKey': DateTime(2024).millisecondsSinceEpoch,
   };
 
+  final cleanupKeys = <String>{
+    ...testData.keys,
+    'integration_json_file_key',
+    'integration_png_file_key',
+    'integration_save_image_key',
+    'integration_savefile_clear_key',
+    'integration_savefile_clear_no_delete_key',
+  };
+
   const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
   setUp(() async {
-    for (final key in testData.keys) {
+    for (final key in cleanupKeys) {
       await HomeWidget.saveWidgetData(key, null);
     }
   });

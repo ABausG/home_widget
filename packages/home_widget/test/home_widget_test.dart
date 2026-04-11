@@ -126,7 +126,7 @@ void main() {
       });
 
       test(
-        'non-String path skips deleteSync; getWidgetData then saveWidgetData',
+        'non-String path skips delete; getWidgetData then saveWidgetData',
         () async {
           getWidgetDataReturn = 42;
           const id = 'fileKey';
@@ -140,15 +140,15 @@ void main() {
         },
       );
 
-      test('String path missing file never calls deleteSync', () async {
+      test('String path not under home_widget skips file delete', () async {
         getWidgetDataReturn = '/widget/file.bin';
         final file = MockFile();
-        when(() => file.existsSync()).thenReturn(false);
 
         await IOOverrides.runZoned(
           () async {
             expect(await HomeWidget.saveWidgetData('k', null), true);
-            verifyNever(() => file.deleteSync());
+            verifyNever(() => file.exists());
+            verifyNever(() => file.delete());
           },
           createFile: (path) {
             when(() => file.path).thenReturn(path);
@@ -162,16 +162,34 @@ void main() {
         ]);
       });
 
-      test('String path existing file deletes once', () async {
-        getWidgetDataReturn = '/widget/file.bin';
+      test('managed path missing file never calls delete', () async {
+        getWidgetDataReturn = '/app/support/home_widget/missing.bin';
         final file = MockFile();
-        when(() => file.existsSync()).thenReturn(true);
-        when(() => file.deleteSync()).thenAnswer((_) async {});
+        when(() => file.exists()).thenAnswer((_) async => false);
 
         await IOOverrides.runZoned(
           () async {
             expect(await HomeWidget.saveWidgetData('k', null), true);
-            verify(() => file.deleteSync()).called(1);
+            verify(() => file.exists()).called(1);
+            verifyNever(() => file.delete());
+          },
+          createFile: (path) {
+            when(() => file.path).thenReturn(path);
+            return file;
+          },
+        );
+      });
+
+      test('managed path existing file deletes once', () async {
+        getWidgetDataReturn = '/app/support/home_widget/file.bin';
+        final file = MockFile();
+        when(() => file.exists()).thenAnswer((_) async => true);
+        when(() => file.delete()).thenAnswer((_) async => file);
+
+        await IOOverrides.runZoned(
+          () async {
+            expect(await HomeWidget.saveWidgetData('k', null), true);
+            verify(() => file.delete()).called(1);
           },
           createFile: (path) {
             when(() => file.path).thenReturn(path);
@@ -198,11 +216,11 @@ void main() {
       );
 
       test(
-        'existsSync throws; error propagates; saveWidgetData channel not invoked',
+        'exists throws; error propagates; saveWidgetData channel not invoked',
         () async {
-          getWidgetDataReturn = '/p';
+          getWidgetDataReturn = '/app/home_widget/f';
           final file = MockFile();
-          when(() => file.existsSync()).thenThrow(Exception('io'));
+          when(() => file.exists()).thenThrow(Exception('io'));
 
           await IOOverrides.runZoned(
             () async {
@@ -226,19 +244,18 @@ void main() {
       );
 
       test(
-        'deleteSync throws; error propagates; saveWidgetData channel not invoked',
+        'managed path delete failure is ignored; saveWidgetData still invoked',
         () async {
-          getWidgetDataReturn = '/p';
+          getWidgetDataReturn = '/app/home_widget/f';
           final file = MockFile();
-          when(() => file.existsSync()).thenReturn(true);
-          when(() => file.deleteSync()).thenThrow(Exception('io'));
+          when(() => file.exists()).thenAnswer((_) async => true);
+          when(() => file.delete()).thenAnswer(
+            (_) async => throw FileSystemException('delete', 'path'),
+          );
 
           await IOOverrides.runZoned(
             () async {
-              await expectLater(
-                HomeWidget.saveWidgetData('id', null),
-                throwsA(anything),
-              );
+              expect(await HomeWidget.saveWidgetData('id', null), true);
             },
             createFile: (path) {
               when(() => file.path).thenReturn(path);
@@ -246,11 +263,10 @@ void main() {
             },
           );
 
-          expect(invocations.map((c) => c.method), ['getWidgetData']);
-          expect(
-            invocations.any((c) => c.method == 'saveWidgetData'),
-            isFalse,
-          );
+          expect(invocations.map((c) => c.method), [
+            'getWidgetData',
+            'saveWidgetData',
+          ]);
         },
       );
     });
@@ -607,26 +623,26 @@ void main() {
     test('rejects invalid key', () async {
       expect(
         () => HomeWidget.saveFile('', Uint8List(0)),
-        throwsAssertionError,
+        throwsArgumentError,
       );
       expect(
         () => HomeWidget.saveFile('../x', Uint8List(0)),
-        throwsAssertionError,
+        throwsArgumentError,
       );
       expect(
         () => HomeWidget.saveFile('a b', Uint8List(0)),
-        throwsAssertionError,
+        throwsArgumentError,
       );
     });
 
     test('rejects invalid extension', () async {
       expect(
         () => HomeWidget.saveFile('k', Uint8List(0), extension: ''),
-        throwsAssertionError,
+        throwsArgumentError,
       );
       expect(
         () => HomeWidget.saveFile('k', Uint8List(0), extension: 'a/b'),
-        throwsAssertionError,
+        throwsArgumentError,
       );
     });
   });
