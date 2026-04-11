@@ -57,6 +57,9 @@ void main() {
         case 'isRequestPinWidgetSupported':
           return true;
       }
+      throw UnimplementedError(
+        'Method ${methodCall.method} not implemented in mock',
+      );
     });
   });
 
