@@ -48,6 +48,8 @@ void main() {
           return Future.value(launchUri);
         case 'initiallyLaunchedFromHomeWidgetConfigure':
           return Future.value(configureWidgetId);
+        case 'finishHomeWidgetConfigure':
+          return null;
         case 'registerBackgroundCallback':
           return true;
         case 'requestPinWidget':
@@ -178,6 +180,13 @@ void main() {
 
       expect(returnedId, null);
     });
+  });
+
+  test('finishHomeWidgetConfigure', () async {
+    await HomeWidget.finishHomeWidgetConfigure();
+    final arguments = await passedArguments.future;
+
+    expect(arguments, isNull);
   });
 
   test('Set Group Id', () async {
