@@ -26,9 +26,11 @@ void main() {
   late Completer<dynamic> passedArguments;
 
   dynamic launchUri;
+  dynamic configureWidgetId;
 
   setUp(() {
     launchUri = null;
+    configureWidgetId = null;
     passedArguments = Completer();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         // ignore: body_might_complete_normally_nullable
@@ -45,6 +47,10 @@ void main() {
           return true;
         case 'initiallyLaunchedFromHomeWidget':
           return Future.value(launchUri);
+        case 'initiallyLaunchedFromHomeWidgetConfigure':
+          return Future.value(configureWidgetId);
+        case 'finishHomeWidgetConfigure':
+          return null;
         case 'registerBackgroundCallback':
           return true;
         case 'requestPinWidget':
@@ -52,6 +58,9 @@ void main() {
         case 'isRequestPinWidgetSupported':
           return true;
       }
+      throw UnimplementedError(
+        'Method ${methodCall.method} not implemented in mock',
+      );
     });
   });
 
@@ -340,6 +349,33 @@ void main() {
 
       expect(parsedUri, null);
     });
+  });
+
+  group('initiallyLaunchedFromHomeWidgetConfigure', () {
+    test('Valid widget ID is returned', () async {
+      configureWidgetId = '7';
+
+      final returnedId =
+          await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
+
+      expect(returnedId, '7');
+    });
+
+    test('null return value returns null', () async {
+      configureWidgetId = null;
+
+      final returnedId =
+          await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
+
+      expect(returnedId, null);
+    });
+  });
+
+  test('finishHomeWidgetConfigure', () async {
+    await HomeWidget.finishHomeWidgetConfigure();
+    final arguments = await passedArguments.future;
+
+    expect(arguments, isNull);
   });
 
   test('Set Group Id', () async {

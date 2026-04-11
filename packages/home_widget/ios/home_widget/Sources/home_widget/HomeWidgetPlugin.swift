@@ -202,6 +202,10 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       result(false)
     } else if call.method == "requestPinWidget" {
       result(nil)
+    } else if call.method == "initiallyLaunchedFromHomeWidgetConfigure" {
+      result(nil)
+    } else if call.method == "finishHomeWidgetConfigure" {
+      result(nil)
     } else if call.method == "getInstalledWidgets" {
       if #available(iOS 14.0, *) {
         #if arch(arm64) || arch(i386) || arch(x86_64)

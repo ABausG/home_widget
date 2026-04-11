@@ -239,6 +239,33 @@ void main() {
     final retrievedData = await HomeWidget.getInstalledWidgets();
     expect(retrievedData, isEmpty);
   });
+
+  group('Android Configurable Widgets', () {
+    testWidgets('Android-specific APIs complete on iOS stubs', (tester) async {
+      await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
+      await expectLater(
+        HomeWidget.isRequestPinWidgetSupported(),
+        completion(false),
+      );
+
+      await expectLater(
+        HomeWidget.requestPinWidget(
+          name: 'HomeWidgetExample',
+        ),
+        completes,
+      );
+
+      await expectLater(
+        HomeWidget.initiallyLaunchedFromHomeWidgetConfigure(),
+        completion(isNull),
+      );
+
+      await expectLater(
+        HomeWidget.finishHomeWidgetConfigure(),
+        completes,
+      );
+    });
+  });
 }
 
 Future<void> interactivityCallback(Uri? uri) async {}
