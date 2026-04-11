@@ -1,0 +1,57 @@
+---
+title: Save files and images
+description: Use saveFile and saveImage to store files for Home Screen widgets
+---
+
+# Save files and images
+
+Besides primitive values via [`saveWidgetData`](/usage/sync-data), you can write **files** into the same shared area your app and widgets use. The absolute path is stored under your chosen key so native widget code can load the file (for example with `UIImage(contentsOfFile:)` or `BitmapFactory.decodeFile`).
+
+## Flutter
+
+### `saveFile`
+
+Write arbitrary bytes and register the path:
+
+```dart
+import 'dart:convert';
+import 'dart:typed_data';
+
+final json = jsonEncode({'count': 3});
+final path = await HomeWidget.saveFile(
+  'stats',
+  Uint8List.fromList(utf8.encode(json)),
+  extension: 'json',
+);
+```
+
+- The file is written as `{container}/home_widget/{key}.{extension}`.
+- On **iOS** the container is the [app group](/setup/ios) (call `setAppGroupId` first).
+- On **Android** it is under the application support directory, in a `home_widget` subdirectory.
+
+`key` must be non-empty and must not contain `/`, `\`, `..`, or spaces. `extension` is normalized (e.g. `json` or `.json`); it must not contain path separators. These rules are enforced with **assertions** in debug builds.
+
+### `saveImage`
+
+Decode an [`ImageProvider`](https://api.flutter.dev/flutter/painting/ImageProvider-class.html) and save the **first frame** as PNG via `saveFile`:
+
+```dart
+await HomeWidget.saveImage(
+  'avatar',
+  NetworkImage('https://example.com/photo.png'),
+);
+```
+
+Animated images use the first frame only.
+
+### Relationship to `renderFlutterWidget`
+
+[`renderFlutterWidget`](/features/render-flutter-widgets) renders a widget to a PNG and uses the same storage and `saveWidgetData` path behavior as `saveFile` with extension `png`.
+
+## Native widgets
+
+Use the same approach as for rendered Flutter widgets: read the key with your platform’s widget APIs to get the path string, then load that path as a file or image. See the [iOS](/setup/ios) and [Android](/setup/android) setup guides for accessing shared data from the widget extension or `AppWidgetProvider`.
+
+## Example
+
+See the **[file_and_images](https://github.com/ABausG/home_widget/tree/main/examples/file_and_images)** example app on GitHub for how to use `saveFile`, `saveImage`, and load the stored files from Android and iOS home screen widgets.

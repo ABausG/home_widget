@@ -60,6 +60,10 @@
           "/features/analytics"
         ],
         [
+          "Save files and images",
+          "/features/save-files"
+        ],
+        [
           "Configurable Widgets",
           "/features/configurable-widgets"
         ],
