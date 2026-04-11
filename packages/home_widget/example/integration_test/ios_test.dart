@@ -56,13 +56,16 @@ void main() {
       }
 
       testWidgets('Delete Value successful', (tester) async {
-        final initialData = await HomeWidget.getWidgetData(testData.keys.first);
-        expect(initialData, testData.values.first);
+        final entry = testData.entries.first;
+        final key = entry.key;
+        final value = entry.value;
 
-        await HomeWidget.saveWidgetData(testData.values.first, null);
+        await HomeWidget.saveWidgetData(key, value);
+        expect(await HomeWidget.getWidgetData(key), value);
 
-        final deletedData = await HomeWidget.getWidgetData(testData.keys.first);
-        expect(deletedData, testData.values.first);
+        await HomeWidget.saveWidgetData(key, null);
+
+        expect(await HomeWidget.getWidgetData(key), isNull);
       });
 
       testWidgets('Returns default Value', (tester) async {
