@@ -27,7 +27,9 @@ ignorePaths:
         "**/proguard-rules.pro",
         "**/.github/**",
         "**/.gitignore",
-        "**/*.intentdefinition"
+        "**/*.intentdefinition",
+        "**/ios/Flutter/**",
+        "**/*.iml"
     ]
 dictionaries:
   - names
@@ -81,3 +83,5 @@ words:
     - Codemagic
     - lockscreen
     - codesign
+    - Charsets
+    - savefile
