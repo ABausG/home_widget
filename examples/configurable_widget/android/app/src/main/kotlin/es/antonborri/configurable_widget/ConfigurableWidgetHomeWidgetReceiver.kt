@@ -3,6 +3,7 @@ package es.antonborri.configurable_widget
 
 import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
-class ConfigurableWidgetHomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<ConfigurableWidgetHomeWidget>() {
+class ConfigurableWidgetHomeWidgetReceiver :
+    HomeWidgetGlanceWidgetReceiver<ConfigurableWidgetHomeWidget>() {
   override val glanceAppWidget = ConfigurableWidgetHomeWidget()
 }

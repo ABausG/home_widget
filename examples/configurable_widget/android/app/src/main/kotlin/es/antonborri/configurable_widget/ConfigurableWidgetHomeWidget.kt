@@ -38,10 +38,7 @@ class ConfigurableWidgetHomeWidget : GlanceAppWidget() {
     val punctuation = prefs.getString(punctuationKey, null)
 
     Column(
-        modifier =
-            GlanceModifier.fillMaxSize()
-                .background(Color(0xFFF2F2F7))
-                .padding(16.dp),
+        modifier = GlanceModifier.fillMaxSize().background(Color(0xFFF2F2F7)).padding(16.dp),
         horizontalAlignment = Alignment.Horizontal.CenterHorizontally,
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
@@ -55,5 +52,3 @@ class ConfigurableWidgetHomeWidget : GlanceAppWidget() {
     }
   }
 }
-
-

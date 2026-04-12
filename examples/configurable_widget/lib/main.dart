@@ -100,7 +100,8 @@ class _MainAppState extends State<MainApp> {
         } else if (Platform.isIOS && w.configuration != null) {
           configuration = Map<String, dynamic>.from(w.configuration!);
         }
-        entries.add(_InstalledWidgetEntry(info: w, configuration: configuration));
+        entries
+            .add(_InstalledWidgetEntry(info: w, configuration: configuration));
       }
       if (!mounted) return;
       setState(() {
@@ -126,8 +127,7 @@ class _MainAppState extends State<MainApp> {
     final id = widget.androidWidgetId;
     final cls = widget.androidClassName ?? '?';
     final label = widget.androidLabel ?? '';
-    final header =
-        'id=$id $cls${label.isNotEmpty ? ' ($label)' : ''}';
+    final header = 'id=$id $cls${label.isNotEmpty ? ' ($label)' : ''}';
     if (entry.configuration == null) return header;
     return '$header\n${jsonEncode(entry.configuration)}';
   }
