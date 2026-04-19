@@ -8,7 +8,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-import 'helpers/test_flutter_project.dart';
+import '../helpers/test_flutter_project.dart';
 
 class MockLogger extends Mock implements Logger {}
 

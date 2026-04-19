@@ -7,7 +7,7 @@ import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-import 'helpers/test_flutter_project.dart';
+import '../helpers/test_flutter_project.dart';
 
 void main() {
   group('parseSchemaFile', () {
