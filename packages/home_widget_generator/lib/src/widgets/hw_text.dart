@@ -8,12 +8,13 @@ part of 'hw_widget.dart';
 class HWText extends HWWidget implements HWDataWidget {
   final String? fixedContent;
 
-  final HWDataType? dataType;
+  final HWDataType<dynamic>? dataType;
   final HWTextStyle? style;
   final HWTextAlign? textAlign;
 
   @override
-  Set<HWDataType> get dataDependencies => {if (dataType != null) dataType!};
+  Set<HWDataType<dynamic>> get dataDependencies =>
+      {if (dataType != null) dataType!};
 
   @override
   Set<String> get kotlinImports {
@@ -44,7 +45,7 @@ class HWText extends HWWidget implements HWDataWidget {
       : fixedContent = content,
         dataType = null;
 
-  const HWText(HWDataType data, {this.style, this.textAlign})
+  const HWText(HWDataType<dynamic> data, {this.style, this.textAlign})
       : fixedContent = null,
         dataType = data;
 
@@ -60,30 +61,10 @@ class HWText extends HWWidget implements HWDataWidget {
     }
 
     // Check for data type
-    final dataType = obj.getField('dataType');
-    if (dataType != null && !dataType.isNull) {
-      var key = dataType.getField('key')?.toStringValue();
-      if (key == null) {
-        // key lives on HWDataType (super), so analyzer may store it under (super)
-        final superClass = dataType.getField('(super)');
-        if (superClass != null) {
-          key = superClass.getField('key')?.toStringValue();
-        }
-      }
-      final typeName = dataType.type?.element3?.name3;
-
-      if (key != null) {
-        switch (typeName) {
-          case 'HWString':
-            return HWText(HWString(key), style: style, textAlign: textAlign);
-          case 'HWInt':
-            return HWText(HWInt(key), style: style, textAlign: textAlign);
-          case 'HWDouble':
-            return HWText(HWDouble(key), style: style, textAlign: textAlign);
-          case 'HWBool':
-            return HWText(HWBool(key), style: style, textAlign: textAlign);
-        }
-      }
+    final dataTypeObj = obj.getField('dataType');
+    final dataType = WidgetValueDecoder.decodeDataType(dataTypeObj);
+    if (dataType != null) {
+      return HWText(dataType, style: style, textAlign: textAlign);
     }
 
     // Fallback/Error?

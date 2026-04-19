@@ -301,25 +301,17 @@ String _swiftFontWeight(HWFontWeight weight) {
 String _kotlinFontWeight(HWFontWeight weight) {
   switch (weight) {
     case HWFontWeight.w100:
-      return 'FontWeight.Thin';
     case HWFontWeight.w200:
-      return 'FontWeight.ExtraLight';
     case HWFontWeight.w300:
-      return 'FontWeight.Light';
     case HWFontWeight.w400:
-      return 'FontWeight.Normal';
-    case HWFontWeight.w500:
-      return 'FontWeight.Medium';
-    case HWFontWeight.w600:
-      return 'FontWeight.SemiBold';
-    case HWFontWeight.w700:
-      return 'FontWeight.Bold';
-    case HWFontWeight.w800:
-      return 'FontWeight.ExtraBold';
-    case HWFontWeight.w900:
-      return 'FontWeight.Black';
     case HWFontWeight.normal:
       return 'FontWeight.Normal';
+    case HWFontWeight.w500:
+    case HWFontWeight.w600:
+      return 'FontWeight.Medium';
+    case HWFontWeight.w700:
+    case HWFontWeight.w800:
+    case HWFontWeight.w900:
     case HWFontWeight.bold:
       return 'FontWeight.Bold';
   }

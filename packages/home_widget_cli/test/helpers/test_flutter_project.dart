@@ -7,6 +7,8 @@ import 'package:test/test.dart';
 /// Tracks temp project roots so test suites can assert cleanup happened.
 final List<String> createdTestProjectRoots = <String>[];
 
+final String _absoluteOriginalCwd = Directory.current.path;
+
 /// A temporary Flutter project created via `flutter create --empty cli_test`.
 ///
 /// The project directory is deleted automatically via `addTearDown`.
@@ -118,10 +120,13 @@ final class TestFlutterProject {
   /// Switches `Directory.current` to this Flutter project root and restores it
   /// automatically via `addTearDown`.
   void useAsCwd() {
-    final previous = Directory.current;
     Directory.current = root;
     addTearDown(() {
-      Directory.current = previous;
+      try {
+        Directory.current = _absoluteOriginalCwd;
+      } catch (e) {
+        // ignore
+      }
     });
   }
 }

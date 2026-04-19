@@ -8,6 +8,65 @@ String injectGlanceModifier(String code, String modifier) {
   final indentMatch = RegExp(r'^(\s*)').firstMatch(code);
   final indent = indentMatch?.group(1) ?? '';
 
+  if (trimmed.startsWith('if (')) {
+    final firstBraceIndex = code.indexOf('{');
+    if (firstBraceIndex != -1) {
+      int openBraces = 0;
+      int firstBraceEnd = -1;
+      for (int i = firstBraceIndex; i < code.length; i++) {
+        if (code[i] == '{') {
+          openBraces++;
+        } else if (code[i] == '}') {
+          openBraces--;
+          if (openBraces == 0) {
+            firstBraceEnd = i;
+            break;
+          }
+        }
+      }
+
+      if (firstBraceEnd != -1) {
+        final firstBlockContent =
+            code.substring(firstBraceIndex + 1, firstBraceEnd);
+        final injectedFirst = injectGlanceModifier(firstBlockContent, modifier);
+
+        int secondBraceIndex = code.indexOf('{', firstBraceEnd + 1);
+        int secondBraceEnd = -1;
+        if (secondBraceIndex != -1) {
+          openBraces = 0;
+          for (int i = secondBraceIndex; i < code.length; i++) {
+            if (code[i] == '{') {
+              openBraces++;
+            } else if (code[i] == '}') {
+              openBraces--;
+              if (openBraces == 0) {
+                secondBraceEnd = i;
+                break;
+              }
+            }
+          }
+        }
+
+        if (secondBraceEnd != -1) {
+          final secondBlockContent =
+              code.substring(secondBraceIndex + 1, secondBraceEnd);
+          final injectedSecond =
+              injectGlanceModifier(secondBlockContent, modifier);
+
+          return code.substring(0, firstBraceIndex + 1) +
+              injectedFirst +
+              code.substring(firstBraceEnd, secondBraceIndex + 1) +
+              injectedSecond +
+              code.substring(secondBraceEnd);
+        } else {
+          return code.substring(0, firstBraceIndex + 1) +
+              injectedFirst +
+              code.substring(firstBraceEnd);
+        }
+      }
+    }
+  }
+
   final compMatch =
       RegExp(r'^([A-Z][a-zA-Z0-9_]*)(?:\s*\((.*?)\))?').firstMatch(trimmed);
   if (compMatch != null) {
@@ -42,6 +101,9 @@ String injectGlanceModifier(String code, String modifier) {
     }
   }
 
-  // Fallback: don't modify if we can't parse
-  return code;
+  // Fallback: if we can't find a direct Compose element (e.g. it's an if-statement), wrap it in a Box
+  final lines = code.split('\n');
+  final indentedLines =
+      lines.map((l) => l.trimRight().isEmpty ? '' : '    $l').join('\n');
+  return '${indent}Box(modifier = GlanceModifier.$modifier) {\n$indentedLines\n$indent}';
 }

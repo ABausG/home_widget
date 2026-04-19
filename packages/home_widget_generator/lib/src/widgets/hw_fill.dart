@@ -8,6 +8,7 @@ class HWFill extends HWSingleChildWidget {
   @override
   Set<String> get kotlinImports => {
         'import androidx.glance.layout.fillMaxSize',
+        'import androidx.glance.layout.Box',
         ...super.kotlinImports,
       };
 

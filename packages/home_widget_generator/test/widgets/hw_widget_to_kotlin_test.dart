@@ -236,14 +236,14 @@ void main() {
     });
 
     test('HWText emits style and alignment', () {
-      final node = HWText.fixed('Styled', 
+      final node = HWText.fixed(
+        'Styled',
         style: HWTextStyle(
-          fontSize: 24, 
-          fontWeight: HWFontWeight.bold, 
-          italic: true, 
-          underline: true, 
-          color: HWFixedColor(0xFFFF0000)
-        ),
+            fontSize: 24,
+            fontWeight: HWFontWeight.bold,
+            italic: true,
+            underline: true,
+            color: HWFixedColor(0xFFFF0000)),
         textAlign: HWTextAlign.center,
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -258,11 +258,12 @@ void main() {
       final node = HWText.fixed('Role', style: HWRoleTextStyle.headline());
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('fontSize = 18.sp'));
-      expect(result, contains('fontWeight = FontWeight.SemiBold'));
+      expect(result, contains('fontWeight = FontWeight.Medium'));
     });
 
     test('HWTextStyle baseStyle resolution', () {
-      final node = HWText.fixed('Base Base', 
+      final node = HWText.fixed(
+        'Base Base',
         style: HWTextStyle(
           color: HWFixedColor(0xFF00FF00),
           baseStyle: HWRoleTextStyle.title(

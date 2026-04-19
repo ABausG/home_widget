@@ -80,7 +80,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   }
 
   // Data fields
-  final dataFields = <HWDataType>[];
+  final dataFields = <HWDataType<dynamic>>[];
   if (widgetTree != null) {
     final dependencies = widgetTree.dataDependencies;
     for (final dep in dependencies) {
@@ -141,6 +141,7 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
         WidgetValueDecoder.decodeColor(obj.getField('backgroundColor')),
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
+    fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
   );
 }
 

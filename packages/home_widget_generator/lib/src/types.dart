@@ -1,7 +1,10 @@
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
-sealed class HWDataType {
+sealed class HWDataType<T> {
   final String key;
   const HWDataType(this.key);
+
+  /// The default value.
+  T? get defaultValue => null;
 
   /// The Dart type string.
   String get dartType;
@@ -38,14 +41,18 @@ sealed class HWDataType {
       identical(this, other) ||
       other is HWDataType &&
           runtimeType == other.runtimeType &&
-          key == other.key;
+          key == other.key &&
+          defaultValue == other.defaultValue;
 
   @override
-  int get hashCode => key.hashCode;
+  int get hashCode => Object.hash(key, defaultValue);
 }
 
-class HWString extends HWDataType {
-  const HWString(super.key);
+class HWString extends HWDataType<String> {
+  @override
+  final String? defaultValue;
+
+  const HWString(super.key, {this.defaultValue});
 
   @override
   String get dartType => 'String';
@@ -58,12 +65,15 @@ class HWString extends HWDataType {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    return '$store.getString("$key", null)';
+    final fallback = defaultValue != null ? '"$defaultValue"' : 'null';
+    return '$store.getString("$key", $fallback)';
   }
 
   @override
   String iosReadValue({required String store, required String key}) {
-    return '$store?.string(forKey: "$key")';
+    final read = '$store?.string(forKey: "$key")';
+    if (defaultValue != null) return '($read ?? "$defaultValue")';
+    return read;
   }
 
   @override
@@ -78,8 +88,11 @@ class HWString extends HWDataType {
   }
 }
 
-class HWInt extends HWDataType {
-  const HWInt(super.key);
+class HWInt extends HWDataType<int> {
+  @override
+  final int? defaultValue;
+
+  const HWInt(super.key, {this.defaultValue});
 
   @override
   String get dartType => 'int';
@@ -92,12 +105,15 @@ class HWInt extends HWDataType {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    return 'if ($store.contains("$key")) $store.getInt("$key", 0) else null';
+    final fallback = defaultValue?.toString() ?? 'null';
+    return 'if ($store.contains("$key")) $store.getInt("$key", 0) else $fallback';
   }
 
   @override
   String iosReadValue({required String store, required String key}) {
-    return '$store?.object(forKey: "$key") as? Int';
+    final read = '$store?.object(forKey: "$key") as? Int';
+    if (defaultValue != null) return '($read ?? $defaultValue)';
+    return read;
   }
 
   @override
@@ -112,8 +128,11 @@ class HWInt extends HWDataType {
   }
 }
 
-class HWDouble extends HWDataType {
-  const HWDouble(super.key);
+class HWDouble extends HWDataType<double> {
+  @override
+  final double? defaultValue;
+
+  const HWDouble(super.key, {this.defaultValue});
 
   @override
   String get dartType => 'double';
@@ -126,12 +145,15 @@ class HWDouble extends HWDataType {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    return 'if ($store.contains("$key")) $store.getFloat("$key", 0f).toDouble() else null';
+    final fallback = defaultValue?.toString() ?? 'null';
+    return 'if ($store.contains("$key")) $store.getFloat("$key", 0f).toDouble() else $fallback';
   }
 
   @override
   String iosReadValue({required String store, required String key}) {
-    return '$store?.object(forKey: "$key") as? Double';
+    final read = '$store?.object(forKey: "$key") as? Double';
+    if (defaultValue != null) return '($read ?? $defaultValue)';
+    return read;
   }
 
   @override
@@ -146,8 +168,11 @@ class HWDouble extends HWDataType {
   }
 }
 
-class HWBool extends HWDataType {
-  const HWBool(super.key);
+class HWBool extends HWDataType<bool> {
+  @override
+  final bool? defaultValue;
+
+  const HWBool(super.key, {this.defaultValue});
 
   @override
   String get dartType => 'bool';
@@ -160,12 +185,15 @@ class HWBool extends HWDataType {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    return 'if ($store.contains("$key")) $store.getBoolean("$key", false) else null';
+    final fallback = defaultValue?.toString() ?? 'null';
+    return 'if ($store.contains("$key")) $store.getBoolean("$key", false) else $fallback';
   }
 
   @override
   String iosReadValue({required String store, required String key}) {
-    return '$store?.object(forKey: "$key") as? Bool';
+    final read = '$store?.object(forKey: "$key") as? Bool';
+    if (defaultValue != null) return '($read ?? $defaultValue)';
+    return read;
   }
 
   @override

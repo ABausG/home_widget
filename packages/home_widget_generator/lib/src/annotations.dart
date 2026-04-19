@@ -124,6 +124,11 @@ class HomeWidgetAndroidConfiguration {
   /// Defaults to `true`. If true, applies 16.dp root padding on Android.
   final bool applyContentPadding;
 
+  /// Whether to apply fill modifier to the widget content.
+  ///
+  /// Defaults to `true`. If true, applies `GlanceModifier.fillMaxSize()`.
+  final bool fillWidgetContent;
+
   const HomeWidgetAndroidConfiguration({
     this.packageName,
     this.minWidth,
@@ -140,6 +145,7 @@ class HomeWidgetAndroidConfiguration {
     this.useGlanceTheme = true,
     this.backgroundColor = const HWDefaultColor(HWColorRole.defaultBackground),
     this.applyContentPadding = true,
+    this.fillWidgetContent = true,
   });
 
   @override
@@ -160,7 +166,8 @@ class HomeWidgetAndroidConfiguration {
           updatePeriodMillis == other.updatePeriodMillis &&
           useGlanceTheme == other.useGlanceTheme &&
           backgroundColor == other.backgroundColor &&
-          applyContentPadding == other.applyContentPadding;
+          applyContentPadding == other.applyContentPadding &&
+          fillWidgetContent == other.fillWidgetContent;
 
   @override
   int get hashCode =>
@@ -178,7 +185,8 @@ class HomeWidgetAndroidConfiguration {
       updatePeriodMillis.hashCode ^
       useGlanceTheme.hashCode ^
       backgroundColor.hashCode ^
-      applyContentPadding.hashCode;
+      applyContentPadding.hashCode ^
+      fillWidgetContent.hashCode;
 }
 
 /// The size and shape of a widget.

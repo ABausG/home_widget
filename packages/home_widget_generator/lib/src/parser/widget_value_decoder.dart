@@ -35,6 +35,10 @@ class WidgetValueDecoder {
       return HWColoredBox.fromDartObject(object!, this);
     } else if (typeName == 'HWPadding') {
       return HWPadding.fromDartObject(object!, this);
+    } else if (typeName == 'HWDataExists') {
+      return HWDataExists.fromDartObject(object!, this);
+    } else if (typeName == 'HWBoolConditional') {
+      return HWBoolConditional.fromDartObject(object!, this);
     }
 
     throw GeneratorError('Unknown widget type: $typeName');
@@ -78,7 +82,7 @@ class WidgetValueDecoder {
     return null;
   }
 
-  static DartObject? _getField(DartObject obj, String name) {
+  static DartObject? getField(DartObject obj, String name) {
     var field = obj.getField(name);
     if (field != null) return field;
 
@@ -95,17 +99,17 @@ class WidgetValueDecoder {
     if (obj == null || obj.isNull) return null;
 
     final typeName = obj.type?.element3?.name3;
-    final fontSize = _getField(obj, 'fontSize')?.toDoubleValue();
+    final fontSize = getField(obj, 'fontSize')?.toDoubleValue();
     final fontWeight =
-        decodeEnum(_getField(obj, 'fontWeight'), HWFontWeight.values);
-    final color = decodeColor(_getField(obj, 'color'));
-    final italic = _getField(obj, 'italic')?.toBoolValue();
-    final underline = _getField(obj, 'underline')?.toBoolValue();
-    final lineThrough = _getField(obj, 'lineThrough')?.toBoolValue();
-    final baseStyle = decodeTextStyle(_getField(obj, 'baseStyle'));
+        decodeEnum(getField(obj, 'fontWeight'), HWFontWeight.values);
+    final color = decodeColor(getField(obj, 'color'));
+    final italic = getField(obj, 'italic')?.toBoolValue();
+    final underline = getField(obj, 'underline')?.toBoolValue();
+    final lineThrough = getField(obj, 'lineThrough')?.toBoolValue();
+    final baseStyle = decodeTextStyle(getField(obj, 'baseStyle'));
 
     if (typeName == 'HWRoleTextStyle') {
-      final role = decodeEnum(_getField(obj, 'role'), HWTextStyleRole.values)!;
+      final role = decodeEnum(getField(obj, 'role'), HWTextStyleRole.values)!;
       return HWRoleTextStyle(
         role: role,
         fontSize: fontSize,
@@ -132,10 +136,10 @@ class WidgetValueDecoder {
   static HWEdgeInsets? decodeEdgeInsets(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final top = _getField(obj, 'top')?.toDoubleValue() ?? 0.0;
-    final bottom = _getField(obj, 'bottom')?.toDoubleValue() ?? 0.0;
-    final left = _getField(obj, 'left')?.toDoubleValue() ?? 0.0;
-    final right = _getField(obj, 'right')?.toDoubleValue() ?? 0.0;
+    final top = getField(obj, 'top')?.toDoubleValue() ?? 0.0;
+    final bottom = getField(obj, 'bottom')?.toDoubleValue() ?? 0.0;
+    final left = getField(obj, 'left')?.toDoubleValue() ?? 0.0;
+    final right = getField(obj, 'right')?.toDoubleValue() ?? 0.0;
 
     return HWEdgeInsets.only(
       top: top,
@@ -147,5 +151,29 @@ class WidgetValueDecoder {
 
   static HWTextAlign? decodeTextAlign(DartObject? obj) {
     return decodeEnum(obj, HWTextAlign.values);
+  }
+
+  static HWDataType<dynamic>? decodeDataType(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element3?.name3;
+    final key = getField(obj, 'key')?.toStringValue();
+    if (key == null) return null;
+
+    if (typeName == 'HWString') {
+      final defaultValue = getField(obj, 'defaultValue')?.toStringValue();
+      return HWString(key, defaultValue: defaultValue);
+    } else if (typeName == 'HWInt') {
+      final defaultValue = getField(obj, 'defaultValue')?.toIntValue();
+      return HWInt(key, defaultValue: defaultValue);
+    } else if (typeName == 'HWDouble') {
+      final defaultValue = getField(obj, 'defaultValue')?.toDoubleValue();
+      return HWDouble(key, defaultValue: defaultValue);
+    } else if (typeName == 'HWBool') {
+      final defaultValue = getField(obj, 'defaultValue')?.toBoolValue();
+      return HWBool(key, defaultValue: defaultValue);
+    }
+
+    return null;
   }
 }

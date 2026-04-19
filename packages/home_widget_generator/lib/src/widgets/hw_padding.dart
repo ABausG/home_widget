@@ -16,6 +16,7 @@ class HWPadding extends HWSingleChildWidget {
         ...super.kotlinImports,
         'import androidx.compose.ui.unit.dp',
         'import androidx.glance.layout.padding',
+        'import androidx.glance.layout.Box',
       };
 
   static HWPadding fromDartObject(DartObject obj, WidgetValueDecoder decoder) {

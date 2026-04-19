@@ -185,7 +185,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground), text = widgetData.title ?: "")',
+        'Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), text = widgetData.title ?: "")',
       ),
     );
     // Should NOT contain placeholder
@@ -311,5 +311,81 @@ void main() {
         'padding(start = 20.0.dp, top = 10.0.dp, end = 0.0.dp, bottom = 0.0.dp)',
       ),
     );
+  });
+
+  test(
+      'generates Kotlin widget without fillMaxSize when fillWidgetContent is false',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NoFillWidget',
+        android: HomeWidgetAndroidConfiguration(
+          packageName: 'com.nofill',
+          fillWidgetContent: false,
+        ),
+      ),
+      className: 'NoFillWidget',
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/nofill/NoFillWidgetHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, isNot(contains('.fillMaxSize()')));
+  });
+
+  test('generates Kotlin widget with Conditional Root (Box fallback)',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'ConditionalRootWidget',
+        android: HomeWidgetAndroidConfiguration(
+          packageName: 'com.conditional',
+          backgroundColor: HWFixedColor(0xFFFF0000),
+          applyContentPadding: true,
+        ),
+      ),
+      className: 'ConditionalRoot',
+      dataFields: [HWBool('flag')],
+      widgetTree: HWDataExists(
+        data: HWBool('flag'),
+        whenPresent: HWText.fixed('Yes'),
+        whenAbsent: HWText.fixed('No'),
+      ),
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/conditional/ConditionalRootHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(
+      content,
+      contains('import androidx.glance.layout.Box'),
+    );
+
+    expect(
+      content,
+      contains(
+          'Text(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize(), text = "Yes")'),
+    );
+    expect(content, contains('if (widgetData.flag != null) {'));
   });
 }

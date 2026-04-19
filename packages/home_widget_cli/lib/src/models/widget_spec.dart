@@ -21,7 +21,7 @@ class WidgetSpec {
   final String className;
 
   /// The data fields defined in the annotation.
-  final List<HWDataType> dataFields;
+  final List<HWDataType<dynamic>> dataFields;
 
   /// The interactivity configuration.
   final InteractivitySpec? interactivity;
@@ -62,7 +62,7 @@ class WidgetSpec {
       return widgetTree!;
     }
 
-    final content = HWColumn(
+    return HWColumn(
       children: [
         HWText.fixed(data.name),
         for (final field in dataFields)
@@ -74,7 +74,5 @@ class WidgetSpec {
           ),
       ],
     );
-
-    return HWAdaptive(ios: content, android: HWFill(child: content));
   }
 }

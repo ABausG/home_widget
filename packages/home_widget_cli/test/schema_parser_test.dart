@@ -132,5 +132,21 @@ void main() {
       expect(spec!.data.android?.applyContentPadding, false);
       expect(spec.data.iOS?.applyContentPadding, false);
     });
+
+    test('parses fillWidgetContent flag correctly', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+        
+        @HomeWidget(
+          name: 'Fill Content Test',
+          android: const HomeWidgetAndroidConfiguration(fillWidgetContent: false),
+        )
+        class FillContentWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.android?.fillWidgetContent, false);
+    });
   });
 }

@@ -28,7 +28,7 @@ class HWAdaptive extends HWWidget {
   }
 
   @override
-  Set<HWDataType> get dataDependencies => {
+  Set<HWDataType<dynamic>> get dataDependencies => {
         ...ios.dataDependencies,
         ...android.dataDependencies,
       };

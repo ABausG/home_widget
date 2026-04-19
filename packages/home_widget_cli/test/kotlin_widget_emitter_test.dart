@@ -48,7 +48,7 @@ void main() {
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
       final imports = node.kotlinImports;
-      expect(imports, contains('import androidx.compose.ui.Alignment'));
+      expect(imports, contains('import androidx.glance.layout.Alignment'));
     });
     test('Spacer import collected when mainAxisAlignment set', () {
       final node = HWColumn(

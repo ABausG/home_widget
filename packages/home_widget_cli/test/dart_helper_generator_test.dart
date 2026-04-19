@@ -10,8 +10,8 @@ void main() {
         data: HomeWidget(name: 'ExampleWidget'),
         className: 'ExampleWidget',
         dataFields: [
-          HWString('countLabel'),
-          HWInt('count'),
+          HWString('countLabel', defaultValue: 'Label'),
+          HWInt('count', defaultValue: 0),
         ],
       );
 
@@ -56,13 +56,13 @@ void main() {
       expect(
         output,
         contains(
-          "countLabel: await HomeWidget.getWidgetData<String>('\$_paramPrefix.${'countLabel'}'),",
+          "countLabel: await HomeWidget.getWidgetData<String>('\$_paramPrefix.${'countLabel'}', defaultValue: 'Label'),",
         ),
       );
       expect(
         output,
         contains(
-          "count: await HomeWidget.getWidgetData<int>('\$_paramPrefix.${'count'}'),",
+          "count: await HomeWidget.getWidgetData<int>('\$_paramPrefix.${'count'}', defaultValue: 0),",
         ),
       );
     });

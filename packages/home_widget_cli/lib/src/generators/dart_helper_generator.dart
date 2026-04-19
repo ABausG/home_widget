@@ -88,8 +88,15 @@ class DartHelperGenerator {
       buffer.writeln('    return (');
       for (final field in spec.dataFields) {
         final type = field.dartType;
+        final defaultValue = field.defaultValue;
+        var defaultLiteral = '';
+        if (defaultValue != null) {
+          defaultLiteral = defaultValue is String
+              ? ", defaultValue: '$defaultValue'"
+              : ', defaultValue: $defaultValue';
+        }
         buffer.writeln(
-          "      ${field.key}: await HomeWidget.getWidgetData<$type>('\$_paramPrefix.${field.key}'),",
+          "      ${field.key}: await HomeWidget.getWidgetData<$type>('\$_paramPrefix.${field.key}'$defaultLiteral),",
         );
       }
       buffer.writeln('    );');

@@ -17,6 +17,7 @@ part 'hw_adaptive.dart';
 part 'hw_fill.dart';
 part 'hw_colored_box.dart';
 part 'hw_padding.dart';
+part 'hw_conditional.dart';
 
 /// Base class for widgets that accept a single child (e.g. Expanded).
 sealed class HWSingleChildWidget extends HWWidget {
@@ -31,7 +32,7 @@ sealed class HWSingleChildWidget extends HWWidget {
   Set<String> get swiftViewModifiers => child.swiftViewModifiers;
 
   @override
-  Set<HWDataType> get dataDependencies => child.dataDependencies;
+  Set<HWDataType<dynamic>> get dataDependencies => child.dataDependencies;
 }
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
@@ -51,14 +52,14 @@ sealed class HWMultiChildWidget extends HWWidget {
   }
 
   @override
-  Set<HWDataType> get dataDependencies {
+  Set<HWDataType<dynamic>> get dataDependencies {
     return children.expand((child) => child.dataDependencies).toSet();
   }
 }
 
 /// Interface for widgets that hold data dependencies.
 abstract interface class HWDataWidget {
-  Set<HWDataType> get dataDependencies;
+  Set<HWDataType<dynamic>> get dataDependencies;
 }
 
 /// Abstract base class for all DSL widgets used in widgetBuilder.
@@ -73,7 +74,7 @@ sealed class HWWidget implements HWGeneratable {
   Set<String> get swiftViewModifiers => {};
 
   /// The set of data dependencies required by this widget.
-  Set<HWDataType> get dataDependencies => {};
+  Set<HWDataType<dynamic>> get dataDependencies => {};
 
   /// Generates the SwiftUI code for this widget.
   /// [indent] is the number of indentation levels (4 spaces each).
