@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:home_widget_generator/src/parser/widget_tree_parser.dart';
+import 'package:home_widget_generator/src/parser/widget_value_decoder.dart';
 import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
 
@@ -24,8 +27,13 @@ void main() {
       // so it picks up the project's package config!
       // But we need to be careful with concurrency.
 
-      final file = File(p.join(Directory.current.path, 'test',
-          'temp_${DateTime.now().millisecondsSinceEpoch}.dart'));
+      final file = File(
+        p.join(
+          Directory.current.path,
+          'test',
+          'temp_${DateTime.now().millisecondsSinceEpoch}.dart',
+        ),
+      );
       await file.writeAsString('''
 import 'package:home_widget_generator/home_widget_generator.dart';
 
@@ -46,9 +54,48 @@ $code
 
         final element = result.unit.declaredFragment!.element.classes.first;
         final annotation = element.metadata2.annotations.firstWhere(
-            (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget');
+          (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+        );
 
         return WidgetTreeParser(annotation).parse();
+      } finally {
+        if (await file.exists()) await file.delete();
+      }
+    }
+
+    Future<GeneratorError> expectParseError(String code) async {
+      final file = File(
+        p.join(
+          Directory.current.path,
+          'test',
+          'temp_err_${DateTime.now().millisecondsSinceEpoch}.dart',
+        ),
+      );
+      await file.writeAsString('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+$code
+''');
+      try {
+        final collection = AnalysisContextCollection(
+          includedPaths: [file.path],
+          resourceProvider: PhysicalResourceProvider.INSTANCE,
+        );
+        final context = collection.contextFor(file.path);
+        final result = await context.currentSession.getResolvedUnit(file.path);
+        if (result is! ResolvedUnitResult) {
+          throw StateError('Failed to resolve');
+        }
+        final element = result.unit.declaredFragment!.element.classes.first;
+        final annotation = element.metadata2.annotations.firstWhere(
+          (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+        );
+        try {
+          WidgetTreeParser(annotation).parse();
+        } on GeneratorError catch (e) {
+          return e;
+        }
+        throw StateError('Expected GeneratorError');
       } finally {
         if (await file.exists()) await file.delete();
       }
@@ -73,9 +120,38 @@ class TestWidget {}
       final column = widget as HWColumn;
       expect(column.children.length, 2);
       expect(column.children[0], isA<HWText>());
-      expect((column.children[0] as HWText).toSwift(0, dataExpr: ''),
-          contains('Hello'));
+      expect(
+        (column.children[0] as HWText).toSwift(0, dataExpr: ''),
+        contains('Hello'),
+      );
       expect(column.mainAxisAlignment, HWMainAxisAlignment.center);
+      expect(
+        column.kotlinImports,
+        contains('import androidx.glance.layout.Spacer'),
+      );
+    });
+
+    test('parses HWRow with children', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestRow',
+  widget: HWRow(
+    children: [HWText.fixed('L'), HWText.fixed('R')],
+    crossAxisAlignment: HWCrossAxisAlignment.end,
+    mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+  ),
+)
+class TestRowWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWRow>());
+      final row = widget as HWRow;
+      expect(row.children, hasLength(2));
+      expect(row.crossAxisAlignment, HWCrossAxisAlignment.end);
+      expect(row.mainAxisAlignment, HWMainAxisAlignment.spaceBetween);
+      final out = row.toSwift(0, dataExpr: 'd');
+      expect(out, contains('HStack(alignment: .bottom)'));
+      expect(out, contains('Spacer()'));
     });
 
     test('parses HWText with data', () async {
@@ -211,6 +287,214 @@ class TestWidget {}
       final roleStyle = text.style!.baseStyle as HWRoleTextStyle;
       expect(roleStyle.role, HWTextStyleRole.headline);
       expect(roleStyle.italic, true);
+    });
+
+    test('parses HWPadding with HWEdgeInsets.all', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWPadding(
+    padding: HWEdgeInsets.all(12),
+    child: HWText.fixed('Pad'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWPadding>());
+      final pad = widget as HWPadding;
+      expect(pad.padding.top, 12.0);
+      expect(pad.padding.bottom, 12.0);
+      expect(pad.padding.left, 12.0);
+      expect(pad.padding.right, 12.0);
+      expect((pad.child as HWText).fixedContent, 'Pad');
+    });
+
+    test('parses HWPadding with HWEdgeInsets.symmetric', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWPadding(
+    padding: HWEdgeInsets.symmetric(vertical: 4, horizontal: 8),
+    child: HWText.fixed('x'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final pad = widget as HWPadding;
+      expect(pad.padding.top, 4.0);
+      expect(pad.padding.bottom, 4.0);
+      expect(pad.padding.left, 8.0);
+      expect(pad.padding.right, 8.0);
+    });
+
+    test('parses HWPadding with HWEdgeInsets.only', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWPadding(
+    padding: HWEdgeInsets.only(left: 1, top: 2, right: 3, bottom: 4),
+    child: HWText.fixed('y'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final pad = widget as HWPadding;
+      expect(pad.padding.left, 1.0);
+      expect(pad.padding.top, 2.0);
+      expect(pad.padding.right, 3.0);
+      expect(pad.padding.bottom, 4.0);
+    });
+
+    test('parses HWDataExists', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataExists(
+    data: HWString('k'),
+    whenPresent: HWText.fixed('yes'),
+    whenAbsent: HWText.fixed('no'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWDataExists>());
+      final cond = widget as HWDataExists;
+      expect(cond.data, const HWString('k'));
+      expect((cond.whenPresent as HWText).fixedContent, 'yes');
+      expect((cond.whenAbsent as HWText).fixedContent, 'no');
+    });
+
+    test('parses HWBoolConditional', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWBoolConditional(
+    data: HWBool('flag', defaultValue: false),
+    whenTrue: HWText.fixed('T'),
+    whenFalse: HWText.fixed('F'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWBoolConditional>());
+      final cond = widget as HWBoolConditional;
+      expect(cond.data, const HWBool('flag', defaultValue: false));
+      expect((cond.whenTrue as HWText).fixedContent, 'T');
+      expect((cond.whenFalse as HWText).fixedContent, 'F');
+    });
+
+    test('parses HWFill', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWFill(
+    child: HWText.fixed('fill'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWFill>());
+      expect(((widget as HWFill).child as HWText).fixedContent, 'fill');
+    });
+
+    test('throws when annotation constant value cannot be computed', () async {
+      final e = await expectParseError('''
+String n = "N";
+@HomeWidget(
+  name: n,
+  widget: HWText.fixed("a"),
+)
+class BadConst {}
+''');
+      expect(
+        e.message,
+        'Could not compute constant value for annotation',
+      );
+    });
+
+    test('throws when @HomeWidget has no widget', () async {
+      final e = await expectParseError('''
+@HomeWidget(name: "A")
+class NoWidget {}
+''');
+      expect(
+        e.message,
+        'HomeWidget annotation does not contain a widget definition',
+      );
+    });
+  });
+
+  group('WidgetValueDecoder', () {
+    test('throws when object reference is null', () {
+      expect(
+        () => WidgetValueDecoder(null).decode(),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            'Widget object is null',
+          ),
+        ),
+      );
+    });
+
+    test('throws for analyzer null object (isNull) same as null', () async {
+      final file = File(
+        p.join(
+          Directory.current.path,
+          'test',
+          'temp_wvd_isnull_${DateTime.now().millisecondsSinceEpoch}.dart',
+        ),
+      );
+      await file.writeAsString('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+const aNull = null;
+@HomeWidget(
+  name: "A",
+  widget: HWText.fixed("a"),
+)
+class C {}
+''');
+      try {
+        final collection = AnalysisContextCollection(
+          includedPaths: [file.path],
+          resourceProvider: PhysicalResourceProvider.INSTANCE,
+        );
+        final context = collection.contextFor(file.path);
+        final result = await context.currentSession.getResolvedUnit(file.path);
+        if (result is! ResolvedUnitResult) {
+          throw StateError('Failed to resolve');
+        }
+        final lib = result.unit.declaredFragment!.element;
+        DartObject? nullObj;
+        for (final v in lib.topLevelVariables) {
+          if (v.name3 == 'aNull') {
+            nullObj = v.computeConstantValue();
+            break;
+          }
+        }
+        expect(nullObj, isNotNull);
+        expect(nullObj!.isNull, isTrue);
+        expect(
+          () => WidgetValueDecoder(nullObj).decode(),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              'Widget object is null',
+            ),
+          ),
+        );
+      } finally {
+        if (await file.exists()) await file.delete();
+      }
     });
   });
 }

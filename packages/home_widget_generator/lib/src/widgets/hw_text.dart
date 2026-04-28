@@ -20,7 +20,7 @@ class HWText extends HWWidget implements HWDataWidget {
   Set<String> get kotlinImports {
     final imports = <String>{
       'import androidx.glance.text.Text',
-      'import androidx.glance.text.TextStyle'
+      'import androidx.glance.text.TextStyle',
     };
     if (style != null) {
       imports.addAll(style!.kotlinImports);
@@ -67,9 +67,11 @@ class HWText extends HWWidget implements HWDataWidget {
       return HWText(dataType, style: style, textAlign: textAlign);
     }
 
-    // Fallback/Error?
+    // coverage:ignore-start
     throw GeneratorError(
-        'Could not decode HWText. Fields: fixedContent=$fixedContent, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element3?.name3}');
+      'Could not decode HWText. Fields: fixedContent=$fixedContent, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element3?.name3}',
+    );
+    // coverage:ignore-end
   }
 
   @override

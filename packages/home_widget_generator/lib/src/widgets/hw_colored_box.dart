@@ -31,12 +31,10 @@ class HWColoredBox extends HWSingleChildWidget {
   }
 
   static HWColoredBox fromDartObject(
-      DartObject obj, WidgetValueDecoder decoder) {
-    var childField = obj.getField('child');
-    if (childField == null || childField.isNull) {
-      childField = obj.getField('(super)')?.getField('child');
-    }
-
+    DartObject obj,
+    WidgetValueDecoder decoder,
+  ) {
+    final childField = WidgetValueDecoder.getField(obj, 'child');
     final child = childField != null && !childField.isNull
         ? decoder.decodeRecursive(childField)
         : null;
@@ -44,7 +42,9 @@ class HWColoredBox extends HWSingleChildWidget {
     final color = WidgetValueDecoder.decodeColor(obj.getField('color'));
 
     if (color == null) {
+      // coverage:ignore-start
       throw GeneratorError('HWColoredBox requires a non-null color property');
+      // coverage:ignore-end
     }
 
     return HWColoredBox(

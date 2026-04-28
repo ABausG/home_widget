@@ -4,7 +4,7 @@ sealed class HWDataType<T> {
   const HWDataType(this.key);
 
   /// The default value.
-  T? get defaultValue => null;
+  T? get defaultValue;
 
   /// The Dart type string.
   String get dartType;
@@ -28,8 +28,10 @@ sealed class HWDataType<T> {
   /// Returns the Kotlin code to stringify this value for display.
   /// [outerValue] is the nullable value expression (e.g. "data.count").
   /// [innerValue] is the non-null value expression (e.g. "data.count").
-  String androidToString(
-      {required String outerValue, required String innerValue});
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  });
 
   /// Returns the Swift code to stringify this value for display.
   /// [outerValue] is the nullable value expression (e.g. "entry.data.count").
@@ -77,8 +79,10 @@ class HWString extends HWDataType<String> {
   }
 
   @override
-  String androidToString(
-      {required String outerValue, required String innerValue}) {
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
     return '$outerValue ?: ""';
   }
 
@@ -117,8 +121,10 @@ class HWInt extends HWDataType<int> {
   }
 
   @override
-  String androidToString(
-      {required String outerValue, required String innerValue}) {
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
     return '($outerValue?.toString() ?: "0")';
   }
 
@@ -157,8 +163,10 @@ class HWDouble extends HWDataType<double> {
   }
 
   @override
-  String androidToString(
-      {required String outerValue, required String innerValue}) {
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
     return '($outerValue?.toString() ?: "0.0")';
   }
 
@@ -197,8 +205,10 @@ class HWBool extends HWDataType<bool> {
   }
 
   @override
-  String androidToString(
-      {required String outerValue, required String innerValue}) {
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
     return '($outerValue?.toString() ?: "false")';
   }
 

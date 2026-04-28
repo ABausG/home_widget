@@ -1,21 +1,20 @@
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:home_widget_cli/src/util/xcode_pbxproj_patcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
-
-/// Tracks temp project roots so test suites can assert cleanup happened.
-final List<String> createdTestProjectRoots = <String>[];
 
 final String _absoluteOriginalCwd = Directory.current.path;
 
 /// A temporary Flutter project created via `flutter create --empty cli_test`.
 ///
-/// The project directory is deleted automatically via `addTearDown`.
+/// The whole temp tree (`<systemTemp>/hw_cli_<random>/`, including `cli_test/`)
+/// is deleted after the test completes via [addTearDown] registered in
+/// [create]. Do not add a global [tearDownAll] that deletes paths from other
+/// suites—parallel runs need each suite to only remove its own [tempDir].
 final class TestFlutterProject {
-  TestFlutterProject._(this.root) {
-    createdTestProjectRoots.add(root.path);
-  }
+  TestFlutterProject._(this.root);
 
   final Directory root;
 
@@ -114,6 +113,17 @@ final class TestFlutterProject {
     }
 
     await _ensureHomeWidgetDependencyPresent(projectRoot);
+
+    // home_widget requires iOS 14+; default `flutter create` templates may target lower.
+    if (includeIos) {
+      final pbxproj = File(
+        p.join(projectRoot.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'),
+      );
+      if (pbxproj.existsSync()) {
+        await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: pbxproj);
+      }
+    }
+
     return TestFlutterProject._(projectRoot);
   }
 

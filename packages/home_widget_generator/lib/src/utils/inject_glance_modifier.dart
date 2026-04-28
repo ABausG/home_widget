@@ -91,8 +91,10 @@ String injectGlanceModifier(String code, String modifier) {
       newArgs = 'modifier = GlanceModifier.$modifier';
     }
 
-    final rest = trimmed.substring(compMatch.end +
-        (hasBrace ? trimmed.substring(compMatch.end).indexOf('{') + 1 : 0));
+    final rest = trimmed.substring(
+      compMatch.end +
+          (hasBrace ? trimmed.substring(compMatch.end).indexOf('{') + 1 : 0),
+    );
 
     if (hasBrace) {
       return '$indent$compName($newArgs) {$rest';

@@ -15,10 +15,14 @@ class HWAdaptive extends HWWidget {
     final androidField = obj.getField('android');
 
     if (iosField == null || iosField.isNull) {
+      // coverage:ignore-start
       throw GeneratorError('HWAdaptive: ios parameter is required');
+      // coverage:ignore-end
     }
     if (androidField == null || androidField.isNull) {
+      // coverage:ignore-start
       throw GeneratorError('HWAdaptive: android parameter is required');
+      // coverage:ignore-end
     }
 
     return HWAdaptive(

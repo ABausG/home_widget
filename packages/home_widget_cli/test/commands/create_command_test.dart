@@ -25,15 +25,6 @@ void main() {
     ).thenReturn('');
   });
 
-  tearDownAll(() {
-    for (final root in createdTestProjectRoots) {
-      final dir = Directory(root);
-      if (dir.existsSync()) {
-        dir.deleteSync(recursive: true);
-      }
-    }
-  });
-
   void expectAndroidScaffold({
     required Directory projectRoot,
     required String widgetClassName,

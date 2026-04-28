@@ -3,53 +3,68 @@ import 'package:test/test.dart';
 
 void main() {
   group('HWBoolConditional', () {
-    test('throws ArgumentError on missing defaultValue during generation', () {
-      final invalidConditional = HWBoolConditional(
-        data: const HWBool('myBool'), // no default
-        whenTrue: const HWText.fixed('True'),
-        whenFalse: const HWText.fixed('False'),
-      );
-      expect(
-        () => invalidConditional.toSwift(0, dataExpr: 'entry.data'),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => invalidConditional.toKotlin(0, dataExpr: 'widgetData'),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
-
-    final boolConditional = HWBoolConditional(
-      data: const HWBool('myBool', defaultValue: true),
-      whenTrue: const HWText.fixed('True'),
-      whenFalse: const HWText.fixed('False'),
+    const boolConditional = HWBoolConditional(
+      data: HWBool('myBool', defaultValue: true),
+      whenTrue: HWText.fixed('True'),
+      whenFalse: HWText.fixed('False'),
     );
 
-    test('toSwift generates correct if block', () {
-      final code = boolConditional.toSwift(0, dataExpr: 'entry.data');
-      expect(
+    group('model', () {
+      test('throws ArgumentError on missing defaultValue during generation',
+          () {
+        final invalidConditional = HWBoolConditional(
+          data: const HWBool('x'),
+          whenTrue: const HWText.fixed('True'),
+          whenFalse: const HWText.fixed('False'),
+        );
+        expect(
+          () => invalidConditional.toSwift(0, dataExpr: 'entry.data'),
+          throwsA(isA<ArgumentError>()),
+        );
+        expect(
+          () => invalidConditional.toKotlin(0, dataExpr: 'widgetData'),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('dataDependencies include HWBool', () {
+        expect(
+          boolConditional.dataDependencies,
+          contains(const HWBool('myBool', defaultValue: true)),
+        );
+      });
+    });
+
+    group('iOS (SwiftUI)', () {
+      test('toSwift emits if / else on bool field', () {
+        final code = boolConditional.toSwift(0, dataExpr: 'entry.data');
+        expect(
           code,
           equals('if entry.data.myBool == true {\n'
               '    Text("True")\n'
               '} else {\n'
               '    Text("False")\n'
-              '}'));
+              '}'),
+        );
+        expect(code, contains('if entry.data.myBool == true'));
+        expect(code, contains('Text("True")'));
+      });
     });
 
-    test('toKotlin generates correct if block', () {
-      final code = boolConditional.toKotlin(0, dataExpr: 'widgetData');
-      expect(
+    group('Android (Glance)', () {
+      test('toKotlin emits if / else on bool field', () {
+        final code = boolConditional.toKotlin(0, dataExpr: 'widgetData');
+        expect(
           code,
           equals('if (widgetData.myBool == true) {\n'
               '    Text(text = "True")\n'
               '} else {\n'
               '    Text(text = "False")\n'
-              '}'));
-    });
-
-    test('dataDependencies merges all dependencies', () {
-      expect(boolConditional.dataDependencies,
-          contains(const HWBool('myBool', defaultValue: true)));
+              '}'),
+        );
+        expect(code, contains('if (widgetData.myBool == true)'));
+        expect(code, contains('Text(text = "True")'));
+      });
     });
   });
 }

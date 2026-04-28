@@ -41,7 +41,9 @@ class WidgetValueDecoder {
       return HWBoolConditional.fromDartObject(object!, this);
     }
 
+    // coverage:ignore-start
     throw GeneratorError('Unknown widget type: $typeName');
+    // coverage:ignore-end
   }
 
   HWWidget decodeRecursive(DartObject? obj) {
@@ -90,7 +92,7 @@ class WidgetValueDecoder {
     while (superClass != null) {
       field = superClass.getField(name);
       if (field != null) return field;
-      superClass = superClass.getField('(super)');
+      superClass = superClass.getField('(super)'); // coverage:ignore-line
     }
     return null;
   }

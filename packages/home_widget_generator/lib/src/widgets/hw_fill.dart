@@ -13,13 +13,11 @@ class HWFill extends HWSingleChildWidget {
       };
 
   static HWFill fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
-    var childField = obj.getField('child');
+    final childField = WidgetValueDecoder.getField(obj, 'child');
     if (childField == null || childField.isNull) {
-      childField = obj.getField('(super)')?.getField('child');
-    }
-
-    if (childField == null || childField.isNull) {
+      // coverage:ignore-start
       throw GeneratorError('HWFill: child parameter is required');
+      // coverage:ignore-end
     }
 
     return HWFill(

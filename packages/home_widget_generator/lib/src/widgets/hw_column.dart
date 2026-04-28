@@ -26,14 +26,15 @@ class HWColumn extends HWMultiChildWidget {
   }
 
   static HWColumn fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
-    var childrenField = obj.getField('children');
-    if (childrenField == null || childrenField.isNull) {
-      childrenField = obj.getField('(super)')?.getField('children');
+    final childrenField = WidgetValueDecoder.getField(obj, 'children');
+    final listValue = childrenField?.toListValue();
+    if (listValue == null) {
+      // coverage:ignore-start
+      throw GeneratorError('HWColumn: children parameter is required');
+      // coverage:ignore-end
     }
-    final children = childrenField?.toListValue()?.map((child) {
-          return decoder.decodeRecursive(child);
-        }).toList() ??
-        [];
+
+    final children = listValue.map(decoder.decodeRecursive).toList();
 
     final crossAxisAlignmentField = obj.getField('crossAxisAlignment');
     final mainAxisAlignmentField = obj.getField('mainAxisAlignment');
@@ -41,9 +42,13 @@ class HWColumn extends HWMultiChildWidget {
     return HWColumn(
       children: children,
       crossAxisAlignment: WidgetValueDecoder.decodeEnum(
-          crossAxisAlignmentField, HWCrossAxisAlignment.values),
+        crossAxisAlignmentField,
+        HWCrossAxisAlignment.values,
+      ),
       mainAxisAlignment: WidgetValueDecoder.decodeEnum(
-          mainAxisAlignmentField, HWMainAxisAlignment.values),
+        mainAxisAlignmentField,
+        HWMainAxisAlignment.values,
+      ),
     );
   }
 
@@ -99,15 +104,18 @@ class HWColumn extends HWMultiChildWidget {
     switch (mainAxisAlignment) {
       case HWMainAxisAlignment.center:
         buffer.writeln(
-            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+        );
         for (final child in children) {
           buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
         buffer.writeln(
-            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+        );
       case HWMainAxisAlignment.end:
         buffer.writeln(
-            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+        );
         for (final child in children) {
           buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
         }
@@ -115,22 +123,26 @@ class HWColumn extends HWMultiChildWidget {
         for (var i = 0; i < children.length; i++) {
           if (i > 0) {
             buffer.writeln(
-                '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+              '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+            );
           }
           buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
       case HWMainAxisAlignment.spaceEvenly:
         buffer.writeln(
-            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+        );
         for (var i = 0; i < children.length; i++) {
           if (i > 0) {
             buffer.writeln(
-                '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+              '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+            );
           }
           buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
         }
         buffer.writeln(
-            '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())');
+          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
+        );
       case HWMainAxisAlignment.start:
       case null:
         for (final child in children) {

@@ -1,0 +1,8 @@
+# Tests use Directory.current via TestFlutterProject.useAsCwd(). Parallel suites
+# can delete another suite's cwd (temp tree), breaking Uri.base / path resolution.
+concurrency: 1
+
+tags:
+  integration:
+  integration_android:
+  integration_ios:

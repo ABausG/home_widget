@@ -384,7 +384,8 @@ void main() {
     expect(
       content,
       contains(
-          'Text(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize(), text = "Yes")'),
+        'Text(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize(), text = "Yes")',
+      ),
     );
     expect(content, contains('if (widgetData.flag != null) {'));
   });

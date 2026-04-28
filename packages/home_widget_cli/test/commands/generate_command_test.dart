@@ -28,15 +28,6 @@ void main() {
     logger = mockLogger;
   });
 
-  tearDownAll(() {
-    for (final root in createdTestProjectRoots) {
-      final dir = Directory(root);
-      if (dir.existsSync()) {
-        dir.deleteSync(recursive: true);
-      }
-    }
-  });
-
   group('GenerateCommand', () {
     test('fails if input path does not exist', () async {
       final code = await runCli(['generate', '--input', 'non_existent_path']);

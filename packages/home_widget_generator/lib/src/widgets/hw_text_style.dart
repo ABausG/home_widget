@@ -115,7 +115,8 @@ class HWTextStyle implements HWGeneratable {
     if (resolved.fontSize != null) {
       if (resolved.fontWeight != null) {
         parts.add(
-            '.font(.system(size: ${resolved.fontSize}, weight: ${_swiftFontWeight(resolved.fontWeight!)}))');
+          '.font(.system(size: ${resolved.fontSize}, weight: ${_swiftFontWeight(resolved.fontWeight!)}))',
+        );
       } else {
         parts.add('.font(.system(size: ${resolved.fontSize}))');
       }
@@ -130,7 +131,8 @@ class HWTextStyle implements HWGeneratable {
 
     if (resolved.color != null) {
       parts.add(
-          '.foregroundColor(${resolved.color!.toSwift(indent, dataExpr: dataExpr)})');
+        '.foregroundColor(${resolved.color!.toSwift(indent, dataExpr: dataExpr)})',
+      );
     }
 
     if (resolved.italic == true) {
@@ -154,7 +156,8 @@ class HWTextStyle implements HWGeneratable {
 
     if (resolved.color != null) {
       args.add(
-          'color = ${resolved.color!.toKotlin(indent, dataExpr: dataExpr)}');
+        'color = ${resolved.color!.toKotlin(indent, dataExpr: dataExpr)}',
+      );
     }
 
     final size = resolved.fontSize ?? _androidRoleFontSize(effectiveRole);
@@ -184,7 +187,8 @@ class HWTextStyle implements HWGeneratable {
       // Wait! The user plan says: "Kotlin: set `textDecoration` to `**TextDecoration.combine(…)**` (or equivalent) when more than one flag is true"
       // Wait, there's `TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))` in Compose. Let's just use it as suggested if we need to. But let's look closer at the plan: "TextDecoration.combine(...)"
       args.add(
-          'textDecoration = TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))');
+        'textDecoration = TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))',
+      );
     } else if (resolved.underline == true) {
       args.add('textDecoration = TextDecoration.Underline');
     } else if (resolved.lineThrough == true) {

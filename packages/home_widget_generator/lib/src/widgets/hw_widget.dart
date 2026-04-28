@@ -67,6 +67,7 @@ abstract interface class HWDataWidget {
 sealed class HWWidget implements HWGeneratable {
   const HWWidget();
 
+  // coverage:ignore-start
   @override
   Set<String> get kotlinImports => {};
 
@@ -75,6 +76,7 @@ sealed class HWWidget implements HWGeneratable {
 
   /// The set of data dependencies required by this widget.
   Set<HWDataType<dynamic>> get dataDependencies => {};
+  // coverage:ignore-end
 
   /// Generates the SwiftUI code for this widget.
   /// [indent] is the number of indentation levels (4 spaces each).

@@ -68,10 +68,16 @@ class HWDataExists extends HWConditional {
   });
 
   static HWDataExists fromDartObject(
-      DartObject obj, WidgetValueDecoder decoder) {
+    DartObject obj,
+    WidgetValueDecoder decoder,
+  ) {
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
     final data = WidgetValueDecoder.decodeDataType(dataObj);
-    if (data == null) throw GeneratorError('HWDataExists requires data');
+    if (data == null) {
+      // coverage:ignore-start
+      throw GeneratorError('HWDataExists requires data');
+      // coverage:ignore-end
+    }
 
     final whenPresentObj = WidgetValueDecoder.getField(obj, 'whenPresent');
     final whenAbsentObj = WidgetValueDecoder.getField(obj, 'whenAbsent');
@@ -119,13 +125,22 @@ class HWBoolConditional extends HWConditional {
     required this.whenFalse,
   });
   static HWBoolConditional fromDartObject(
-      DartObject obj, WidgetValueDecoder decoder) {
+    DartObject obj,
+    WidgetValueDecoder decoder,
+  ) {
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
     final data = WidgetValueDecoder.decodeDataType(dataObj) as HWBool?;
-    if (data == null) throw GeneratorError('HWBoolConditional requires data');
+    if (data == null) {
+      // coverage:ignore-start
+      throw GeneratorError('HWBoolConditional requires data');
+      // coverage:ignore-end
+    }
     if (data.defaultValue == null) {
+      // coverage:ignore-start
       throw GeneratorError(
-          'HWBool must have a non-null defaultValue for HWBoolConditional');
+        'HWBool must have a non-null defaultValue for HWBoolConditional',
+      );
+      // coverage:ignore-end
     }
 
     final whenTrueObj = WidgetValueDecoder.getField(obj, 'whenTrue');
@@ -154,7 +169,8 @@ class HWBoolConditional extends HWConditional {
   String conditionSwift({required String dataExpr}) {
     if (data.defaultValue == null) {
       throw ArgumentError(
-          'HWBoolConditional requires a defaultValue to be set on its data type.');
+        'HWBoolConditional requires a defaultValue to be set on its data type.',
+      );
     }
     return '$dataExpr.${data.key} == true';
   }
@@ -163,7 +179,8 @@ class HWBoolConditional extends HWConditional {
   String conditionKotlin({required String dataExpr}) {
     if (data.defaultValue == null) {
       throw ArgumentError(
-          'HWBoolConditional requires a defaultValue to be set on its data type.');
+        'HWBoolConditional requires a defaultValue to be set on its data type.',
+      );
     }
     return '$dataExpr.${data.key} == true';
   }

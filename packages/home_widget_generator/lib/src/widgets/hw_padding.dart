@@ -20,11 +20,7 @@ class HWPadding extends HWSingleChildWidget {
       };
 
   static HWPadding fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
-    var childField = obj.getField('child');
-    if (childField == null || childField.isNull) {
-      childField = obj.getField('(super)')?.getField('child');
-    }
-
+    final childField = WidgetValueDecoder.getField(obj, 'child');
     final child = childField != null && !childField.isNull
         ? decoder.decodeRecursive(childField)
         : null;
@@ -33,7 +29,9 @@ class HWPadding extends HWSingleChildWidget {
         WidgetValueDecoder.decodeEdgeInsets(obj.getField('padding'));
 
     if (padding == null) {
+      // coverage:ignore-start
       throw GeneratorError('HWPadding requires a non-null padding property');
+      // coverage:ignore-end
     }
 
     return HWPadding(

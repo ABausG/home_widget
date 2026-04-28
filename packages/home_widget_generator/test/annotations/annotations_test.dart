@@ -23,6 +23,18 @@ void main() {
       expect(annotation.android?.packageName, 'com.example');
       expect(annotation.iOS?.groupId, 'group.example');
     });
+
+    test('can include interactivity config', () {
+      const annotation = HomeWidget(
+        name: 'T',
+        interactivity: HomeWidgetInteractivityConfig(
+          import: 'package:app/x.dart',
+          callback: 'cb',
+        ),
+      );
+      expect(annotation.interactivity?.import, 'package:app/x.dart');
+      expect(annotation.interactivity?.callback, 'cb');
+    });
   });
 
   group('HomeWidgetAndroidConfiguration', () {
@@ -34,6 +46,22 @@ void main() {
     test('can be const-constructed with packageName', () {
       const config = HomeWidgetAndroidConfiguration(packageName: 'com.example');
       expect(config.packageName, 'com.example');
+    });
+
+    test('resizeMode and widgetCategory round-trip in equality', () {
+      const a = HomeWidgetAndroidConfiguration(
+        resizeMode: HWAndroidResizeMode.horizontalAndVertical,
+        widgetCategory: HWAndroidWidgetCategory.keyguard,
+      );
+      const b = HomeWidgetAndroidConfiguration(
+        resizeMode: HWAndroidResizeMode.horizontalAndVertical,
+        widgetCategory: HWAndroidWidgetCategory.keyguard,
+      );
+      const c = HomeWidgetAndroidConfiguration(
+        resizeMode: HWAndroidResizeMode.none,
+      );
+      expect(a, equals(b));
+      expect(a, isNot(equals(c)));
     });
   });
 

@@ -27,7 +27,8 @@ class WidgetTreeParser {
       // Actually, maybe we should return HWDataOnly if no widget is present but data is?
       // For now, let's assume if this is called, we expect a widget.
       throw GeneratorError(
-          'HomeWidget annotation does not contain a widget definition');
+        'HomeWidget annotation does not contain a widget definition',
+      );
     }
 
     return WidgetValueDecoder(widgetField).decode();
