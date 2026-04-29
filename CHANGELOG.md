@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-04-12
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`home_widget` - `v0.9.1`](#home_widget---v091)
+
+---
+
+#### `home_widget` - `v0.9.1`
+
+ - **FEAT**: Configurable widgets for Android ([#396](https://github.com/abausg/home_widget/issues/396)). ([faf16897](https://github.com/abausg/home_widget/commit/faf16897d6667b54799c61fa714eec9247dda1c9))
+ - **FEAT**: Add support for `HomeWidget.saveFile` and `HomeWidget.saveImage` ([#409](https://github.com/abausg/home_widget/issues/409)). ([bf965fbf](https://github.com/abausg/home_widget/commit/bf965fbf37e3d14aeb32077184897025014d994f))
+
+
 ## 2026-01-04
 
 ### Changes

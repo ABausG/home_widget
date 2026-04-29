@@ -1,3 +1,8 @@
+## 0.9.1
+
+ - **FEAT**: Configurable widgets for Android ([#396](https://github.com/abausg/home_widget/issues/396)). ([faf16897](https://github.com/abausg/home_widget/commit/faf16897d6667b54799c61fa714eec9247dda1c9))
+ - **FEAT**: Add support for `HomeWidget.saveFile` and `HomeWidget.saveImage` ([#409](https://github.com/abausg/home_widget/issues/409)). ([bf965fbf](https://github.com/abausg/home_widget/commit/bf965fbf37e3d14aeb32077184897025014d994f))
+
 ## 0.9.0
 
 > Note: This release has breaking changes. See the [migration guide](https://docs.page/ABausG/home_widget/migrations/0.9.0) for details on how to migrate.

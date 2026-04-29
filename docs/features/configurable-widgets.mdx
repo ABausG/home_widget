@@ -435,3 +435,117 @@ Before iOS 17 SiriKit Intents where used to build configurable widgets. You can 
     
     </Step>
 </Steps>
+
+
+## Android
+
+Use a **dedicated `FlutterActivity`** for widget configuration and a **second Dart entry point** (e.g. `configureMain`) so configuration always runs in a clean isolate and you do not mix “open app” with “configure widget.” The steps below describe that setup.
+
+For a full example, check out the [configurable_widget](https://github.com/ABausG/home_widget/tree/main/examples/configurable_widget) example app.
+
+<Info>
+    You can point `android:configure` at **`MainActivity`** and handle everything in **`main()`**, but that is easy to get wrong: `main()` runs once per process, while your activity can be **recreated**, **resumed**, or receive **new intents** when the user opens configuration again. You must detect “launched from widget configuration” in the right **lifecycle** moments—not only on the first `main()`—or you can show the wrong UI or miss a configure flow. Prefer the dedicated activity unless you have a strong reason not to.
+</Info>
+
+<Steps>
+    <Step title="Create a configuration Activity">
+
+        Subclass `FlutterActivity` and override the Dart entry point name so Flutter runs `configureMain` instead of `main`:
+
+        ```kotlin
+        package es.antonborri.configurable_widget
+
+        import io.flutter.embedding.android.FlutterActivity
+
+        class WidgetConfigurationActivity : FlutterActivity() {
+          override fun getDartEntrypointFunctionName(): String = "configureMain"
+        }
+        ```
+
+        Keep your launcher `MainActivity` on the default `main` entry point.
+
+    </Step>
+
+    <Step title="Register the Activity in the widget provider">
+
+        In your widget’s `appwidget-provider` XML, set `reconfigurable` and point `android:configure` at the **fully qualified class name** of your configuration activity:
+
+        ```xml
+        <appwidget-provider
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            ...
+            android:widgetFeatures="reconfigurable"
+            android:configure="com.example.app.WidgetConfigurationActivity" />
+        ```
+
+        This enables the widget’s configuration / “Settings” flow from the system UI.
+
+    </Step>
+
+    <Step title="Declare the Activity in AndroidManifest.xml">
+
+        Register the configuration activity with an intent filter for `android.appwidget.action.APPWIDGET_CONFIGURE` (same action as [`AppWidgetManager.ACTION_APPWIDGET_CONFIGURE`](https://developer.android.com/reference/android/appwidget/AppWidgetManager#ACTION_APPWIDGET_CONFIGURE)). Mirror the Flutter embedding setup you use on `MainActivity` (`LaunchTheme`, `NormalTheme`, `configChanges`, etc.):
+
+        ```xml
+        <activity
+            android:name=".WidgetConfigurationActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            ... >
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        ```
+
+    </Step>
+
+    <Step title="Add `configureMain` and listen for configuration">
+
+        Define a second entry point with `@pragma('vm:entry-point')` so tree shaking keeps it. The name must match `getDartEntrypointFunctionName()`:
+
+        ```dart
+        @pragma('vm:entry-point')
+        Future<void> configureMain() async {
+          WidgetsFlutterBinding.ensureInitialized();
+          final configuredWidgetId =
+              await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
+
+          if (configuredWidgetId != null) {
+            return runApp(MaterialApp(
+              home: YourConfigurationScreen(widgetId: configuredWidgetId),
+            ));
+          }
+          return main();
+        }
+        ```
+
+        Call `HomeWidget.initiallyLaunchedFromHomeWidgetConfigure()` as early as possible after `WidgetsFlutterBinding.ensureInitialized()`. If the user opened this activity to configure a widget, the `Future` resolves to that instance’s **widget ID** (string); otherwise `null` (you can fall through to `main()`).
+
+        When a configure launch is detected, the plugin sets the activity result to `RESULT_CANCELED` until you finish successfully—so canceling or leaving the flow behaves correctly.
+
+    </Step>
+
+    <Step title="Build the configuration UI and persist with HomeWidget">
+
+        In your configuration screen, use the widget ID to scope stored keys per instance (for example `name.$widgetId` and `punctuation.$widgetId`), read/write them with `HomeWidget.getWidgetData` / `HomeWidget.saveWidgetData`, and refresh the widget with `HomeWidget.updateWidget` (pass `qualifiedAndroidName` for your `AppWidgetProvider` / receiver class if needed).
+
+    </Step>
+
+    <Step title="Finish configuration">
+
+        When the user saves (or you are done applying settings), call:
+
+        ```dart
+        await HomeWidget.finishHomeWidgetConfigure();
+        ```
+
+        This completes the configuration activity with `RESULT_OK`, returns the `EXTRA_APPWIDGET_ID` to the system, and closes the activity.
+
+    </Step>
+</Steps>
+
+For platform details and UI expectations, see the [Android App Widget configuration guide](https://developer.android.com/develop/ui/views/appwidgets/configuration).

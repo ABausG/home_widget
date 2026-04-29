@@ -136,6 +136,41 @@ class HomeWidgetPlugin :
           result.success(null)
         }
       }
+      "initiallyLaunchedFromHomeWidgetConfigure" -> {
+        if (activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) == true) {
+          val id =
+              activity
+                  ?.intent
+                  ?.getIntExtra(
+                      AppWidgetManager.EXTRA_APPWIDGET_ID,
+                      AppWidgetManager.INVALID_APPWIDGET_ID,
+                  )
+          if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            activity!!.setResult(Activity.RESULT_CANCELED)
+            return result.success(id.toString())
+          }
+        }
+        return result.success(null)
+      }
+      "finishHomeWidgetConfigure" -> {
+        if (activity?.intent?.action?.equals(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE) == true) {
+          val id =
+              activity
+                  ?.intent
+                  ?.getIntExtra(
+                      AppWidgetManager.EXTRA_APPWIDGET_ID,
+                      AppWidgetManager.INVALID_APPWIDGET_ID,
+                  )
+          if (id != null && id != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            activity!!.setResult(
+                Activity.RESULT_OK,
+                Intent().putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
+            )
+            activity!!.finish()
+          }
+        }
+        return result.success(null)
+      }
       "registerBackgroundCallback" -> {
         val dispatcher = ((call.arguments as Iterable<*>).toList()[0] as Number).toLong()
         val callback = ((call.arguments as Iterable<*>).toList()[1] as Number).toLong()
