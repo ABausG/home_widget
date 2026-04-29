@@ -232,6 +232,38 @@ class TestWidget {}
       expect((box.color as HWDefaultColor).role, HWColorRole.contentPrimary);
     });
 
+    test('parses HWDecoratedBox with HWBoxDecoration and HWBoxBorder',
+        () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDecoratedBox(
+    decoration: HWBoxDecoration(
+      color: HWFixedColor(0xFFFFFFFF),
+      border: HWBoxBorder(
+        radius: 12,
+        thickness: 2,
+        color: HWFixedColor(0xFF000000),
+      ),
+    ),
+    child: HWText.fixed('Decorated'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWDecoratedBox>());
+      final box = widget as HWDecoratedBox;
+      expect(box.decoration.color, isA<HWFixedColor>());
+      expect((box.decoration.color! as HWFixedColor).value, 0xFFFFFFFF);
+      expect(box.decoration.border, isNotNull);
+      expect(box.decoration.border!.radius, 12.0);
+      expect(box.decoration.border!.thickness, 2.0);
+      expect(box.decoration.border!.color, isA<HWFixedColor>());
+      expect((box.decoration.border!.color as HWFixedColor).value, 0xFF000000);
+      expect((box.child as HWText).fixedContent, 'Decorated');
+    });
+
     test('parses HWText with complex HWTextStyle and align', () async {
       final code = '''
 @HomeWidget(

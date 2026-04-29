@@ -33,6 +33,8 @@ class WidgetValueDecoder {
       return HWFill.fromDartObject(object!, this);
     } else if (typeName == 'HWColoredBox') {
       return HWColoredBox.fromDartObject(object!, this);
+    } else if (typeName == 'HWDecoratedBox') {
+      return HWDecoratedBox.fromDartObject(object!, this);
     } else if (typeName == 'HWPadding') {
       return HWPadding.fromDartObject(object!, this);
     } else if (typeName == 'HWDataExists') {
@@ -148,6 +150,28 @@ class WidgetValueDecoder {
       bottom: bottom,
       left: left,
       right: right,
+    );
+  }
+
+  static HWBoxDecoration? decodeBoxDecoration(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    return HWBoxDecoration(
+      color: decodeColor(getField(obj, 'color')),
+      border: decodeBoxBorder(getField(obj, 'border')),
+    );
+  }
+
+  static HWBoxBorder? decodeBoxBorder(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final color = decodeColor(getField(obj, 'color'));
+    if (color == null) return null;
+
+    return HWBoxBorder(
+      radius: getField(obj, 'radius')?.toDoubleValue() ?? 0.0,
+      thickness: getField(obj, 'thickness')?.toDoubleValue() ?? 0.0,
+      color: color,
     );
   }
 

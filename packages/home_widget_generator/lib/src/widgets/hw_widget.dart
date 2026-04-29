@@ -16,6 +16,7 @@ part 'hw_data_only.dart';
 part 'hw_adaptive.dart';
 part 'hw_fill.dart';
 part 'hw_colored_box.dart';
+part 'hw_decorated_box.dart';
 part 'hw_padding.dart';
 part 'hw_conditional.dart';
 
