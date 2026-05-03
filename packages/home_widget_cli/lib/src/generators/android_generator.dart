@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
@@ -32,6 +33,10 @@ class AndroidGenerator {
   /// Generates the Android Glance widget files and wires them into Gradle
   /// and AndroidManifest.
   Future<void> generate() async {
+    final primitiveFields = spec.primitiveDataFields;
+    final jsonGroups = spec.jsonDataGroups;
+    final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
+
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
       logger.warn(
@@ -72,13 +77,17 @@ class AndroidGenerator {
     String? dataClassContent;
     String? contentBody;
 
-    if (spec.dataFields.isNotEmpty) {
+    if (hasDataFields) {
       final className = '${spec.className}Data';
       final buffer = StringBuffer();
       buffer.writeln('data class $className(');
-      for (final field in spec.dataFields) {
+      for (final field in primitiveFields) {
         final type = field.kotlinType;
         buffer.writeln('    val ${field.key}: $type? = null,');
+      }
+      for (final group in jsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln('    val ${group.key}: $jsonClass? = null,');
       }
       buffer.writeln(') {');
       buffer.writeln('    companion object {');
@@ -91,23 +100,39 @@ class AndroidGenerator {
       );
       buffer.writeln('            return $className(');
 
-      for (final field in spec.dataFields) {
+      for (final field in primitiveFields) {
         final readLogic = field.androidReadValue(
           store: 'prefs',
           key: '\${PREFERENCES_PREFIX}.${field.key}',
         );
         buffer.writeln('                ${field.key} = $readLogic,');
       }
+      for (final group in jsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln(
+          '                ${group.key} = $jsonClass.fromPath(prefs.getString("\${PREFERENCES_PREFIX}.${group.key}", null)),',
+        );
+      }
 
       buffer.writeln('            )');
       buffer.writeln('        }');
       buffer.writeln('    }');
       buffer.writeln('}');
+      for (final group in jsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln();
+        final tree = _buildJsonTree(group.children);
+        _writeAndroidJsonNodeClass(
+          buffer: buffer,
+          className: jsonClass,
+          node: tree,
+          isRoot: true,
+        );
+      }
       dataClassContent = buffer.toString();
     }
-
     final bodyBuffer = StringBuffer();
-    if (spec.dataFields.isNotEmpty) {
+    if (hasDataFields) {
       final className = '${spec.className}Data';
       bodyBuffer.writeln('    val prefs = currentState.preferences');
       bodyBuffer
@@ -121,7 +146,7 @@ class AndroidGenerator {
 
     var widgetTreeBody = emitKotlinWidgetBody(
       spec.effectiveWidgetTree,
-      dataExpr: spec.dataFields.isNotEmpty ? 'widgetData' : 'null',
+      dataExpr: hasDataFields ? 'widgetData' : 'null',
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
     );
 
@@ -142,7 +167,7 @@ class AndroidGenerator {
     if (bgColor != null) {
       widgetTreeBody = injectGlanceModifier(
         widgetTreeBody,
-        'background(${bgColor.toKotlin(0, dataExpr: spec.dataFields.isNotEmpty ? "widgetData" : "null")})',
+        'background(${bgColor.toKotlin(0, dataExpr: hasDataFields ? "widgetData" : "null")})',
       );
     }
 
@@ -171,6 +196,10 @@ class AndroidGenerator {
 
     if (fillContent) {
       layoutImports.add('import androidx.glance.layout.fillMaxSize');
+    }
+    if (jsonGroups.isNotEmpty) {
+      layoutImports.add('import java.io.File');
+      layoutImports.add('import org.json.JSONObject');
     }
 
     await widgetFile.writeAsString(
@@ -294,4 +323,140 @@ class AndroidGenerator {
     writeXmlFile(stringsFile, doc);
     logger.info('Updated: ${stringsFile.path}');
   }
+
+  String _kotlinDefaultLiteral(HWDataType<dynamic> field) {
+    final defaultValue = field.defaultValue;
+    if (defaultValue == null) return 'null';
+    if (defaultValue is String) {
+      return '"${defaultValue.replaceAll(r'$', r'\$')}"';
+    }
+    return '$defaultValue';
+  }
+
+  _JsonPathNode _buildJsonTree(List<JsonDataField> fields) {
+    final root = _JsonPathNode();
+    for (final field in fields) {
+      var node = root;
+      for (final segment in field.path) {
+        node = node.children.putIfAbsent(segment, _JsonPathNode.new);
+      }
+      node.leafType = field.type;
+    }
+    return root;
+  }
+
+  void _writeAndroidJsonNodeClass({
+    required StringBuffer buffer,
+    required String className,
+    required _JsonPathNode node,
+    required bool isRoot,
+  }) {
+    buffer.writeln('data class $className(');
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.leafType != null && child.children.isEmpty) {
+        final leaf = child.leafType!;
+        final kt = leaf.kotlinType;
+        if (leaf.defaultValue == null) {
+          buffer.writeln('    val $key: $kt? = null,');
+        } else {
+          buffer.writeln(
+            '    val $key: $kt = ${_kotlinDefaultLiteral(leaf)},',
+          );
+        }
+      } else {
+        final childClass = '${className}${toPascalCase(key)}';
+        buffer.writeln('    val $key: $childClass? = null,');
+      }
+    }
+    buffer.writeln(') {');
+    buffer.writeln('    companion object {');
+    if (isRoot) {
+      buffer.writeln('        fun fromPath(path: String?): $className? {');
+      buffer.writeln('            if (path == null) return null');
+      buffer.writeln('            return try {');
+      buffer.writeln('                val file = java.io.File(path)');
+      buffer.writeln('                if (!file.exists()) return null');
+      buffer.writeln(
+          '                fromJson(org.json.JSONObject(file.readText()))');
+      buffer.writeln('            } catch (_: Exception) {');
+      buffer.writeln('                null');
+      buffer.writeln('            }');
+      buffer.writeln('        }');
+      buffer.writeln();
+    }
+    buffer.writeln(
+      '        fun fromJson(obj: org.json.JSONObject?): $className? {',
+    );
+    if (isRoot) {
+      buffer.writeln('            if (obj == null) return null');
+      buffer.writeln('            val json = obj');
+    } else {
+      buffer.writeln('            val json = obj ?: org.json.JSONObject()');
+    }
+    buffer.writeln('            return $className(');
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.leafType != null && child.children.isEmpty) {
+        final valueExpr = _androidLeafReadExpression(
+          objExpr: 'json',
+          key: key,
+          type: child.leafType!,
+        );
+        buffer.writeln('                $key = $valueExpr,');
+      } else {
+        final childClass = '${className}${toPascalCase(key)}';
+        buffer.writeln(
+          '                $key = $childClass.fromJson(json.optJSONObject("$key")),',
+        );
+      }
+    }
+    buffer.writeln('            )');
+    buffer.writeln('        }');
+    buffer.writeln('    }');
+    buffer.writeln('}');
+
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.children.isNotEmpty) {
+        buffer.writeln();
+        final childClass = '${className}${toPascalCase(key)}';
+        _writeAndroidJsonNodeClass(
+          buffer: buffer,
+          className: childClass,
+          node: child,
+          isRoot: false,
+        );
+      }
+    }
+  }
+
+  String _androidLeafReadExpression({
+    required String objExpr,
+    required String key,
+    required HWDataType<dynamic> type,
+  }) {
+    final fallback = _kotlinDefaultLiteral(type);
+    if (type is HWString) {
+      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optString("$key") else $fallback';
+    }
+    if (type is HWInt) {
+      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optInt("$key") else $fallback';
+    }
+    if (type is HWDouble) {
+      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optDouble("$key") else $fallback';
+    }
+    if (type is HWBool) {
+      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optBoolean("$key") else $fallback';
+    }
+    return fallback;
+  }
+}
+
+class _JsonPathNode {
+  final Map<String, _JsonPathNode> children = {};
+  HWDataType<dynamic>? leafType;
 }

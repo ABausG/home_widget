@@ -198,6 +198,18 @@ class WidgetValueDecoder {
     } else if (typeName == 'HWBool') {
       final defaultValue = getField(obj, 'defaultValue')?.toBoolValue();
       return HWBool(key, defaultValue: defaultValue);
+    } else if (typeName == 'HWJson') {
+      final childObj = getField(obj, 'child');
+      final child = decodeDataType(childObj);
+      if (child == null) return null;
+      if (child is! HWString &&
+          child is! HWInt &&
+          child is! HWDouble &&
+          child is! HWBool &&
+          child is! HWJson) {
+        return null;
+      }
+      return HWJson(key, child);
     }
 
     return null;

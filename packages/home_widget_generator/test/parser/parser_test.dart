@@ -420,6 +420,42 @@ class TestWidget {}
       expect((cond.whenFalse as HWText).fixedContent, 'F');
     });
 
+    test('parses HWBoolConditional with HWJson child bool', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWBoolConditional(
+    data: HWJson('profile', HWBool('isActive', defaultValue: false)),
+    whenTrue: HWText.fixed('T'),
+    whenFalse: HWText.fixed('F'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWBoolConditional>());
+      final cond = widget as HWBoolConditional;
+      expect(
+        cond.data,
+        const HWJson('profile', HWBool('isActive', defaultValue: false)),
+      );
+    });
+
+    test('throws when HWJson has no child field', () async {
+      final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataExists(
+    data: HWJson('profile'),
+    whenPresent: HWText.fixed('yes'),
+    whenAbsent: HWText.fixed('no'),
+  ),
+)
+class TestWidget {}
+''');
+      expect(e.message, 'HWDataExists requires data');
+    });
+
     test('parses HWFill', () async {
       final code = '''
 @HomeWidget(

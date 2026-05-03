@@ -12,6 +12,26 @@ class InteractivitySpec {
   const InteractivitySpec({required this.import, required this.callback});
 }
 
+class JsonDataGroup {
+  final String key;
+  final List<JsonDataField> children;
+
+  const JsonDataGroup({
+    required this.key,
+    required this.children,
+  });
+}
+
+class JsonDataField {
+  final List<String> path;
+  final HWDataType<dynamic> type;
+
+  const JsonDataField({
+    required this.path,
+    required this.type,
+  });
+}
+
 /// Specification for a home widget.
 class WidgetSpec {
   /// The annotated configuration data.
@@ -74,5 +94,49 @@ class WidgetSpec {
           ),
       ],
     );
+  }
+
+  List<HWDataType<dynamic>> get primitiveDataFields =>
+      dataFields.where((f) => f is! HWJson).toList();
+
+  List<JsonDataGroup> get jsonDataGroups {
+    final orderedKeys = <String>[];
+    final groupedChildren = <String, List<JsonDataField>>{};
+
+    for (final field in dataFields.whereType<HWJson>()) {
+      if (!orderedKeys.contains(field.key)) {
+        orderedKeys.add(field.key);
+        groupedChildren[field.key] = <JsonDataField>[];
+      }
+
+      final leafType = field.leafType;
+      final path = field.pathSegments;
+      final existing = groupedChildren[field.key]!;
+      if (existing.any((e) => _samePath(e.path, path) && e.type == leafType)) {
+        continue;
+      }
+      groupedChildren[field.key]!.add(
+        JsonDataField(
+          path: path,
+          type: leafType,
+        ),
+      );
+    }
+
+    return [
+      for (final key in orderedKeys)
+        JsonDataGroup(
+          key: key,
+          children: groupedChildren[key]!,
+        ),
+    ];
+  }
+
+  bool _samePath(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 }

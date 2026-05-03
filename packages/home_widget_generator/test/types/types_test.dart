@@ -47,6 +47,14 @@ void main() {
       expect(typeWithDefault.defaultValue, true);
     });
 
+    test('HWJson wraps child field metadata and accessors', () {
+      const type = HWJson('fileKey', HWBool('flag', defaultValue: false));
+      expect(type.dartType, 'Map<String, dynamic>');
+      expect(type.defaultValue, false);
+      expect(type.swiftAccess('entry.data'), 'entry.data.fileKey?.flag');
+      expect(type.kotlinAccess('widgetData'), 'widgetData.fileKey?.flag');
+    });
+
     test('Equality works', () {
       expect(const HWString('a'), equals(const HWString('a')));
       expect(const HWString('a'), isNot(equals(const HWString('b'))));
@@ -63,6 +71,18 @@ void main() {
       expect(
         const HWString('a', defaultValue: 'v1'),
         isNot(equals(const HWString('a'))),
+      );
+      expect(
+        const HWJson('root', HWString('a')),
+        equals(const HWJson('root', HWString('a'))),
+      );
+      expect(
+        const HWJson('root', HWString('a')),
+        isNot(equals(const HWJson('root', HWString('b')))),
+      );
+      expect(
+        const HWJson('root', HWString('a')),
+        isNot(equals(const HWJson('root', HWJson('a', HWString('b'))))),
       );
     });
 

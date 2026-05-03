@@ -81,6 +81,112 @@ void main() {
     );
   });
 
+  test('generates Kotlin widget with JSON data classes', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'JsonWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'JsonWidget',
+      dataFields: const [
+        HWJson('fileKey', HWString('title')),
+        HWJson('fileKey', HWBool('enabled', defaultValue: false)),
+        HWJson('settings', HWBool('compact', defaultValue: true)),
+      ],
+      widgetTree: const HWBoolConditional(
+        data: HWJson('fileKey', HWBool('enabled', defaultValue: false)),
+        whenTrue: HWText.fixed('Enabled'),
+        whenFalse: HWText.fixed('Disabled'),
+      ),
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/example/JsonWidgetHomeWidget.kt',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, contains('val fileKey: JsonWidgetFileKeyJsonData? = null,'));
+    expect(
+      content,
+      contains(
+          'fileKey = JsonWidgetFileKeyJsonData.fromPath(prefs.getString("\${PREFERENCES_PREFIX}.fileKey", null)),'),
+    );
+    expect(content, contains('data class JsonWidgetFileKeyJsonData('));
+    expect(content, contains('val enabled: Boolean = false,'));
+    expect(content, contains('import org.json.JSONObject'));
+    expect(
+      content,
+      contains('if ((widgetData.fileKey?.enabled ?: false) == true) {'),
+    );
+  });
+
+  test('generates Kotlin widget with nested JSON lookups from root file',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NestedJsonWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'NestedJsonWidget',
+      dataFields: const [
+        HWJson(
+          'fileKey',
+          HWJson('user', HWBool('enabled', defaultValue: true)),
+        ),
+      ],
+      widgetTree: const HWBoolConditional(
+        data: HWJson(
+          'fileKey',
+          HWJson('user', HWBool('enabled', defaultValue: true)),
+        ),
+        whenTrue: HWText.fixed('Enabled'),
+        whenFalse: HWText.fixed('Disabled'),
+      ),
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/example/NestedJsonWidgetHomeWidget.kt',
+      ),
+    );
+    final content = widgetFile.readAsStringSync();
+
+    expect(content,
+        contains('val user: NestedJsonWidgetFileKeyJsonDataUser? = null,'));
+    expect(
+      content,
+      contains('prefs.getString("\${PREFERENCES_PREFIX}.fileKey", null)'),
+    );
+    expect(
+        content,
+        contains(
+            'NestedJsonWidgetFileKeyJsonDataUser.fromJson(json.optJSONObject("user"))'));
+    expect(content, contains('val json = obj ?: org.json.JSONObject()'));
+    expect(
+      content,
+      contains(
+          'enabled = if (json.has("enabled") && !json.isNull("enabled")) '
+          'json.optBoolean("enabled") else true,',
+      ),
+    );
+    expect(
+      content,
+      contains('if ((widgetData.fileKey?.user?.enabled ?: true) == true) {'),
+    );
+  });
+
   test('generates provider info XML and strings.xml with v2 fields', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
@@ -8,6 +9,7 @@ import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
+import '../util/naming.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 import 'swift_widget_emitter.dart';
 
@@ -28,6 +30,10 @@ class IosGenerator {
   /// Generates the iOS WidgetKit extension files and wires them into the
   /// Xcode project.
   Future<void> generate() async {
+    final primitiveFields = spec.primitiveDataFields;
+    final jsonGroups = spec.jsonDataGroups;
+    final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
+
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
       logger.warn(
@@ -71,14 +77,18 @@ class IosGenerator {
     String? getTimelineBody;
     String? entryViewBody;
 
-    if (spec.dataFields.isNotEmpty) {
+    if (hasDataFields) {
       final className = '${spec.className}Data';
 
       final buffer = StringBuffer();
       buffer.writeln('struct $className {');
-      for (final field in spec.dataFields) {
+      for (final field in primitiveFields) {
         final type = field.swiftType;
         buffer.writeln('  let ${field.key}: $type?');
+      }
+      for (final group in jsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln('  let ${group.key}: $jsonClass?');
       }
       buffer.writeln();
       buffer.writeln(
@@ -89,16 +99,33 @@ class IosGenerator {
         '  static func fromUserDefaults(_ defaults: UserDefaults?) -> $className {',
       );
       buffer.writeln('    return $className(');
-      for (final field in spec.dataFields) {
+      for (final field in primitiveFields) {
         final readLogic = field.iosReadValue(
           store: 'defaults',
           key: '\\(paramPrefix).${field.key}',
         );
         buffer.writeln('      ${field.key}: $readLogic,');
       }
+      for (final group in jsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln(
+          '      ${group.key}: $jsonClass.fromPath(defaults?.string(forKey: "\\(paramPrefix).${group.key}")),',
+        );
+      }
       buffer.writeln('    )');
       buffer.writeln('  }');
       buffer.writeln('}');
+      for (final group in jsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln();
+        final tree = _buildJsonTree(group.children);
+        _writeSwiftJsonNodeStruct(
+          buffer: buffer,
+          structName: jsonClass,
+          node: tree,
+          isRoot: true,
+        );
+      }
       extraContent = buffer.toString();
 
       entryDefinition = '''
@@ -151,7 +178,7 @@ $loadDataLogic
       iosWidgetSwiftTemplate(
         widgetClassName: widgetClassName,
         appGroupId: groupId,
-        placeholderBody: spec.dataFields.isNotEmpty
+        placeholderBody: hasDataFields
             ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data.fromUserDefaults(nil))'
             : null,
         extraContent: extraContent,
@@ -207,4 +234,121 @@ $loadDataLogic
       logger.success('Updated: ${xcodeproj.path}');
     }
   }
+
+  String _swiftDefaultLiteral(HWDataType<dynamic> field) {
+    final defaultValue = field.defaultValue;
+    if (defaultValue == null) return 'nil';
+    if (defaultValue is String) {
+      return '"${defaultValue.replaceAll('"', r'\"')}"';
+    }
+    return '$defaultValue';
+  }
+
+  _SwiftJsonNode _buildJsonTree(List<JsonDataField> fields) {
+    final root = _SwiftJsonNode();
+    for (final field in fields) {
+      var node = root;
+      for (final segment in field.path) {
+        node = node.children.putIfAbsent(segment, _SwiftJsonNode.new);
+      }
+      node.leafType = field.type;
+    }
+    return root;
+  }
+
+  void _writeSwiftJsonNodeStruct({
+    required StringBuffer buffer,
+    required String structName,
+    required _SwiftJsonNode node,
+    required bool isRoot,
+  }) {
+    buffer.writeln('struct $structName {');
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.leafType != null && child.children.isEmpty) {
+        final leaf = child.leafType!;
+        final st = leaf.swiftType;
+        if (leaf.defaultValue == null) {
+          buffer.writeln('  let $key: $st?');
+        } else {
+          buffer.writeln(
+            '  let $key: $st = ${_swiftDefaultLiteral(leaf)}',
+          );
+        }
+      } else {
+        final childStruct = '${structName}${toPascalCase(key)}';
+        buffer.writeln('  let $key: $childStruct?');
+      }
+    }
+    buffer.writeln();
+    if (isRoot) {
+      buffer
+          .writeln('  static func fromPath(_ path: String?) -> $structName? {');
+      buffer.writeln('    guard let path else { return nil }');
+      buffer.writeln(
+        '    guard FileManager.default.fileExists(atPath: path) else { return nil }',
+      );
+      buffer.writeln('    do {');
+      buffer.writeln(
+        '      let data = try Data(contentsOf: URL(fileURLWithPath: path))',
+      );
+      buffer.writeln(
+        '      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }',
+      );
+      buffer.writeln('      return fromJson(json)');
+      buffer.writeln('    } catch {');
+      buffer.writeln('      return nil');
+      buffer.writeln('    }');
+      buffer.writeln('  }');
+      buffer.writeln();
+    }
+    buffer.writeln(
+      '  static func fromJson(_ json: [String: Any]?) -> $structName? {',
+    );
+    if (isRoot) {
+      buffer.writeln('    guard let values = json else { return nil }');
+    } else {
+      buffer.writeln('    let values = json ?? [:]');
+    }
+    buffer.writeln('    return $structName(');
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.leafType != null && child.children.isEmpty) {
+        final fallback = _swiftDefaultLiteral(child.leafType!);
+        buffer.writeln(
+          '      $key: (values["$key"] as? ${child.leafType!.swiftType}) ?? $fallback,',
+        );
+      } else {
+        final childStruct = '${structName}${toPascalCase(key)}';
+        buffer.writeln(
+          '      $key: $childStruct.fromJson(values["$key"] as? [String: Any]),',
+        );
+      }
+    }
+    buffer.writeln('    )');
+    buffer.writeln('  }');
+    buffer.writeln('}');
+
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.children.isNotEmpty) {
+        buffer.writeln();
+        final childStruct = '${structName}${toPascalCase(key)}';
+        _writeSwiftJsonNodeStruct(
+          buffer: buffer,
+          structName: childStruct,
+          node: child,
+          isRoot: false,
+        );
+      }
+    }
+  }
+}
+
+class _SwiftJsonNode {
+  final Map<String, _SwiftJsonNode> children = {};
+  HWDataType<dynamic>? leafType;
 }

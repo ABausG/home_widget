@@ -65,6 +65,46 @@ void main() {
         expect(code, contains('if (widgetData.myBool == true)'));
         expect(code, contains('Text(text = "True")'));
       });
+
+      test('supports JSON child bool conditions', () {
+        const jsonConditional = HWBoolConditional(
+          data: HWJson('profile', HWBool('isActive', defaultValue: false)),
+          whenTrue: HWText.fixed('True'),
+          whenFalse: HWText.fixed('False'),
+        );
+
+        expect(
+          jsonConditional.toSwift(0, dataExpr: 'entry.data'),
+          contains(
+              'if (((entry.data.profile?.isActive) ?? (false))) == true'),
+        );
+        expect(
+          jsonConditional.toKotlin(0, dataExpr: 'widgetData'),
+          contains('if ((widgetData.profile?.isActive ?: false) == true'),
+        );
+      });
+
+      test('supports nested JSON child bool conditions', () {
+        const jsonConditional = HWBoolConditional(
+          data: HWJson(
+            'profile',
+            HWJson('user', HWBool('isActive', defaultValue: false)),
+          ),
+          whenTrue: HWText.fixed('True'),
+          whenFalse: HWText.fixed('False'),
+        );
+
+        expect(
+          jsonConditional.toSwift(0, dataExpr: 'entry.data'),
+          contains(
+              'if (((entry.data.profile?.user?.isActive) ?? (false))) == true'),
+        );
+        expect(
+          jsonConditional.toKotlin(0, dataExpr: 'widgetData'),
+          contains(
+              'if ((widgetData.profile?.user?.isActive ?: false) == true'),
+        );
+      });
     });
   });
 }

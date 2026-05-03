@@ -94,6 +94,114 @@ void main() {
     );
   });
 
+  test('generates Swift widget with JSON data structs', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'JsonWidget',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.com.example',
+        ),
+      ),
+      className: 'JsonWidget',
+      dataFields: const [
+        HWJson('fileKey', HWString('title')),
+        HWJson('fileKey', HWBool('enabled', defaultValue: false)),
+      ],
+      widgetTree: const HWBoolConditional(
+        data: HWJson('fileKey', HWBool('enabled', defaultValue: false)),
+        whenTrue: HWText.fixed('Enabled'),
+        whenFalse: HWText.fixed('Disabled'),
+      ),
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/JsonWidgetHomeWidget/Widget.swift',
+      ),
+    );
+
+    expect(widgetFile.existsSync(), isTrue);
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, contains('let fileKey: JsonWidgetFileKeyJsonData?'));
+    expect(
+      content,
+      contains(
+          'fileKey: JsonWidgetFileKeyJsonData.fromPath(defaults?.string(forKey: "\\(paramPrefix).fileKey")),'),
+    );
+    expect(content, contains('struct JsonWidgetFileKeyJsonData {'));
+    expect(content, contains('let enabled: Bool = false'));
+    expect(
+      content,
+      contains(
+        'if (((entry.data.fileKey?.enabled) ?? (false))) == true {',
+      ),
+    );
+  });
+
+  test('generates Swift widget with nested JSON lookups from root file',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NestedJsonWidget',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.com.example',
+        ),
+      ),
+      className: 'NestedJsonWidget',
+      dataFields: const [
+        HWJson(
+          'fileKey',
+          HWJson('user', HWBool('enabled', defaultValue: true)),
+        ),
+      ],
+      widgetTree: const HWBoolConditional(
+        data: HWJson(
+          'fileKey',
+          HWJson('user', HWBool('enabled', defaultValue: true)),
+        ),
+        whenTrue: HWText.fixed('Enabled'),
+        whenFalse: HWText.fixed('Disabled'),
+      ),
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final widgetFile = File(
+      p.join(
+        tempDir.path,
+        'ios/NestedJsonWidgetHomeWidget/Widget.swift',
+      ),
+    );
+    final content = widgetFile.readAsStringSync();
+
+    expect(content, contains('let user: NestedJsonWidgetFileKeyJsonDataUser?'));
+    expect(
+      content,
+      contains('defaults?.string(forKey: "\\(paramPrefix).fileKey")'),
+    );
+    expect(
+      content,
+      contains(
+        'NestedJsonWidgetFileKeyJsonDataUser.fromJson(values["user"] as? [String: Any])',
+      ),
+    );
+    expect(content, contains('let values = json ?? [:]'));
+    expect(content, contains('enabled: (values["enabled"] as? Bool) ?? true,'));
+    expect(content, contains('let enabled: Bool = true'));
+    expect(
+      content,
+      contains(
+        'if (((entry.data.fileKey?.user?.enabled) ?? (true))) == true {',
+      ),
+    );
+  });
+
   test('generates Swift widget with v2 metadata and families', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

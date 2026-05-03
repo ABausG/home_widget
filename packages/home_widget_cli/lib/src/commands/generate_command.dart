@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../generators/android_generator.dart';
 import '../generators/dart_helper_generator.dart';
 import '../generators/ios_generator.dart';
+import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../parser/schema_parser.dart';
 import '../util/logger.dart';
@@ -75,20 +76,27 @@ class GenerateCommand extends Command<int> {
           specs.add((path: file.path, spec: spec));
           logger.info('Parsed ${spec.data.name} from ${file.path}');
         }
+      } on GeneratorError catch (e) {
+        logger.err(e.message);
+        rethrow;
       } catch (e) {
         logger.err('Error parsing ${file.path}: $e');
         // We continue processing other files
       }
     }
 
-    if (inputEntity is Directory) {
-      await for (final file in inputEntity.list(recursive: true)) {
-        if (file is File) {
-          await processFile(file);
+    try {
+      if (inputEntity is Directory) {
+        await for (final file in inputEntity.list(recursive: true)) {
+          if (file is File) {
+            await processFile(file);
+          }
         }
+      } else if (inputEntity is File) {
+        await processFile(inputEntity);
       }
-    } else if (inputEntity is File) {
-      await processFile(inputEntity);
+    } on GeneratorError {
+      return ExitCodes.software;
     }
 
     if (specs.isEmpty) {

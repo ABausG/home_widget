@@ -83,12 +83,19 @@ class HWText extends HWWidget implements HWDataWidget {
     if (fixedContent != null) {
       viewCall = '${pad}Text("${_escapeSwiftString(fixedContent)}")';
     } else if (dataType != null) {
-      final key = dataType!.key;
-      final textValue = dataType!.iosToString(
-        outerValue: '$dataExpr.$key',
-        innerValue: '$dataExpr.$key!',
-      );
-      viewCall = '${pad}Text($textValue)';
+      final bound = dataType!;
+      if (bound is HWJson) {
+        final expr = bound.swiftGlanceJsonTextInterpolation(dataExpr);
+        viewCall = '${pad}Text($expr)';
+      } else {
+        final outerValue = bound.swiftAccess(dataExpr);
+        final innerValue = '${outerValue.replaceAll('?.', '!.')}!';
+        final textValue = bound.iosToString(
+          outerValue: outerValue,
+          innerValue: innerValue,
+        );
+        viewCall = '${pad}Text($textValue)';
+      }
     }
 
     if (viewCall.isNotEmpty) {
@@ -116,12 +123,18 @@ class HWText extends HWWidget implements HWDataWidget {
     if (fixedContent != null) {
       textArgs = 'text = "${_escapeKotlinString(fixedContent)}"';
     } else if (dataType != null) {
-      final key = dataType!.key;
-      final textValue = dataType!.androidToString(
-        outerValue: '$dataExpr.$key',
-        innerValue: '$dataExpr.$key',
-      );
-      textArgs = 'text = $textValue';
+      final bound = dataType!;
+      if (bound is HWJson) {
+        textArgs =
+            'text = ${bound.kotlinGlanceJsonTextInterpolation(dataExpr)}';
+      } else {
+        final access = bound.kotlinAccess(dataExpr);
+        final textValue = bound.androidToString(
+          outerValue: access,
+          innerValue: access,
+        );
+        textArgs = 'text = $textValue';
+      }
     }
 
     if (textArgs.isNotEmpty) {

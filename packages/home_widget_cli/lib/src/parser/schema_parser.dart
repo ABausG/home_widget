@@ -8,6 +8,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
 import '../models/widget_spec.dart';
+import '../validation/widget_data_validator.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s using Analyzer resolution.
 Future<List<WidgetSpec>> parseSchemaFile(
@@ -98,7 +99,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
     );
   }
 
-  return WidgetSpec(
+  final spec = WidgetSpec(
     data: HomeWidget(
       name: name,
       description: description,
@@ -113,6 +114,8 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
     interactivity: interactivitySpec,
     widgetTree: widgetTree,
   );
+  validateWidgetData(spec);
+  return spec;
 }
 
 HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {

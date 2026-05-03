@@ -103,19 +103,19 @@ class HWDataExists extends HWConditional {
 
   @override
   String conditionSwift({required String dataExpr}) {
-    return '$dataExpr.${data.key} != nil';
+    return '${data.swiftAccess(dataExpr)} != nil';
   }
 
   @override
   String conditionKotlin({required String dataExpr}) {
-    return '$dataExpr.${data.key} != null';
+    return '${data.kotlinAccess(dataExpr)} != null';
   }
 }
 
 /// Renders a widget depending on a boolean data field.
 /// The provided HWBool must have a default value.
 class HWBoolConditional extends HWConditional {
-  final HWBool data;
+  final HWDataType<dynamic> data;
   final HWWidget whenTrue;
   final HWWidget whenFalse;
 
@@ -129,13 +129,13 @@ class HWBoolConditional extends HWConditional {
     WidgetValueDecoder decoder,
   ) {
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
-    final data = WidgetValueDecoder.decodeDataType(dataObj) as HWBool?;
-    if (data == null) {
+    final data = WidgetValueDecoder.decodeDataType(dataObj);
+    if (data == null || !_isSupportedBoolData(data)) {
       // coverage:ignore-start
       throw GeneratorError('HWBoolConditional requires data');
       // coverage:ignore-end
     }
-    if (data.defaultValue == null) {
+    if (_boolDefaultValue(data) == null) {
       // coverage:ignore-start
       throw GeneratorError(
         'HWBool must have a non-null defaultValue for HWBoolConditional',
@@ -167,21 +167,35 @@ class HWBoolConditional extends HWConditional {
 
   @override
   String conditionSwift({required String dataExpr}) {
-    if (data.defaultValue == null) {
+    if (_boolDefaultValue(data) == null) {
       throw ArgumentError(
         'HWBoolConditional requires a defaultValue to be set on its data type.',
       );
     }
-    return '$dataExpr.${data.key} == true';
+    return '${data.swiftReadExpr(dataExpr)} == true';
   }
 
   @override
   String conditionKotlin({required String dataExpr}) {
-    if (data.defaultValue == null) {
+    if (_boolDefaultValue(data) == null) {
       throw ArgumentError(
         'HWBoolConditional requires a defaultValue to be set on its data type.',
       );
     }
-    return '$dataExpr.${data.key} == true';
+    return '${data.kotlinReadExpr(dataExpr)} == true';
+  }
+
+  static bool _isSupportedBoolData(HWDataType<dynamic> data) {
+    if (data is HWBool) return true;
+    if (data is HWJson && data.leafType is HWBool) return true;
+    return false;
+  }
+
+  static bool? _boolDefaultValue(HWDataType<dynamic> data) {
+    if (data is HWBool) return data.defaultValue;
+    if (data is HWJson && data.leafType is HWBool) {
+      return (data.leafType as HWBool).defaultValue;
+    }
+    return null;
   }
 }

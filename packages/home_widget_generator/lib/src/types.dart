@@ -38,6 +38,26 @@ sealed class HWDataType<T> {
   /// [innerValue] is the non-null value expression (e.g. "entry.data.count!").
   String iosToString({required String outerValue, required String innerValue});
 
+  /// Returns the Swift access expression for this value from [dataExpr].
+  String swiftAccess(String dataExpr) => '$dataExpr.$key';
+
+  /// Returns the Kotlin access expression for this value from [dataExpr].
+  String kotlinAccess(String dataExpr) => '$dataExpr.$key';
+
+  /// Kotlin expression applying widget JSON leaf defaults ([HWJson] only).
+  String kotlinReadExpr(String dataExpr) => kotlinAccess(dataExpr);
+
+  /// Swift expression applying widget JSON leaf defaults ([HWJson] only).
+  String swiftReadExpr(String dataExpr) => swiftAccess(dataExpr);
+
+  /// Kotlin literal representing [defaultValue] for generated native code,
+  /// or null when there is no default.
+  String? codegenKotlinDefaultLiteral() => null;
+
+  /// Swift literal representing [defaultValue] for generated native code,
+  /// or null when there is no default.
+  String? codegenSwiftDefaultLiteral() => null;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -90,6 +110,20 @@ class HWString extends HWDataType<String> {
   String iosToString({required String outerValue, required String innerValue}) {
     return '$outerValue ?? ""';
   }
+
+  @override
+  String? codegenKotlinDefaultLiteral() {
+    final d = defaultValue;
+    if (d == null) return null;
+    return '"${_escapeKotlinStringLiteral(d)}"';
+  }
+
+  @override
+  String? codegenSwiftDefaultLiteral() {
+    final d = defaultValue;
+    if (d == null) return null;
+    return '"${_escapeSwiftStringLiteral(d)}"';
+  }
 }
 
 class HWInt extends HWDataType<int> {
@@ -132,6 +166,14 @@ class HWInt extends HWDataType<int> {
   String iosToString({required String outerValue, required String innerValue}) {
     return '$outerValue != nil ? "\\($innerValue)" : "0"';
   }
+
+  @override
+  String? codegenKotlinDefaultLiteral() =>
+      defaultValue == null ? null : '${defaultValue!}';
+
+  @override
+  String? codegenSwiftDefaultLiteral() =>
+      defaultValue == null ? null : '${defaultValue!}';
 }
 
 class HWDouble extends HWDataType<double> {
@@ -174,6 +216,14 @@ class HWDouble extends HWDataType<double> {
   String iosToString({required String outerValue, required String innerValue}) {
     return '$outerValue != nil ? "\\($innerValue)" : "0.0"';
   }
+
+  @override
+  String? codegenKotlinDefaultLiteral() =>
+      defaultValue == null ? null : defaultValue!.toString();
+
+  @override
+  String? codegenSwiftDefaultLiteral() =>
+      defaultValue == null ? null : defaultValue!.toString();
 }
 
 class HWBool extends HWDataType<bool> {
@@ -216,4 +266,144 @@ class HWBool extends HWDataType<bool> {
   String iosToString({required String outerValue, required String innerValue}) {
     return '$outerValue != nil ? "\\($innerValue)" : "false"';
   }
+
+  @override
+  String? codegenKotlinDefaultLiteral() =>
+      defaultValue == null ? null : '$defaultValue';
+
+  @override
+  String? codegenSwiftDefaultLiteral() =>
+      defaultValue == null ? null : '${defaultValue!}';
 }
+
+class HWJson extends HWDataType<dynamic> {
+  final HWDataType<dynamic> child;
+
+  const HWJson(super.key, this.child);
+
+  List<String> get pathSegments {
+    if (child is HWJson) {
+      final nested = child as HWJson;
+      return [nested.key, ...nested.pathSegments];
+    }
+    return [child.key];
+  }
+
+  HWDataType<dynamic> get leafType {
+    if (child is HWJson) return (child as HWJson).leafType;
+    return child;
+  }
+
+  @override
+  dynamic get defaultValue => leafType.defaultValue;
+
+  @override
+  String get dartType => 'Map<String, dynamic>';
+
+  @override
+  String get kotlinType => 'String';
+
+  @override
+  String get swiftType => 'String';
+
+  @override
+  String androidReadValue({required String store, required String key}) {
+    return '$store.getString("$key", null)';
+  }
+
+  @override
+  String iosReadValue({required String store, required String key}) {
+    return '$store?.string(forKey: "$key")';
+  }
+
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    return leafType.androidToString(
+      outerValue: outerValue,
+      innerValue: innerValue,
+    );
+  }
+
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    return leafType.iosToString(outerValue: outerValue, innerValue: innerValue);
+  }
+
+  @override
+  String swiftAccess(String dataExpr) {
+    return '$dataExpr.$key?.${pathSegments.join('?.')}';
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    return '$dataExpr.$key?.${pathSegments.join('?.')}';
+  }
+
+  @override
+  String kotlinReadExpr(String dataExpr) {
+    final base = kotlinAccess(dataExpr);
+    final literal = leafType.codegenKotlinDefaultLiteral();
+    if (literal == null) return base;
+    return '($base ?: $literal)';
+  }
+
+  @override
+  String swiftReadExpr(String dataExpr) {
+    final base = swiftAccess(dataExpr);
+    final literal = leafType.codegenSwiftDefaultLiteral();
+    if (literal == null) return base;
+    return '((($base) ?? ($literal)))';
+  }
+
+  @override
+  String? codegenKotlinDefaultLiteral() =>
+      leafType.codegenKotlinDefaultLiteral();
+
+  @override
+  String? codegenSwiftDefaultLiteral() => leafType.codegenSwiftDefaultLiteral();
+
+  /// Kotlin `text = ...` argument for Glance Text when bound to nested JSON data.
+  String kotlinGlanceJsonTextInterpolation(String dataExpr) =>
+      leafType.androidToString(
+        outerValue: kotlinReadExpr(dataExpr),
+        innerValue: kotlinReadExpr(dataExpr),
+      );
+
+  /// Swift `Text(...)` argument when bound to nested JSON data.
+  String swiftGlanceJsonTextInterpolation(String dataExpr) {
+    final read = swiftReadExpr(dataExpr);
+    final leaf = leafType;
+
+    // Keep string handling compatible with iosToString quoting rules.
+    if (leaf is HWString) {
+      return leaf.iosToString(
+        outerValue: read,
+        innerValue: read,
+      );
+    }
+
+    return 'String(describing: ($read))';
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWJson &&
+          key == other.key &&
+          child == other.child &&
+          defaultValue == other.defaultValue;
+
+  @override
+  int get hashCode => Object.hash(key, child, defaultValue);
+}
+
+String _escapeKotlinStringLiteral(String s) => s
+    .replaceAll(r'\', r'\\')
+    .replaceAll(r'$', r'\$')
+    .replaceAll('"', r'\"');
+
+String _escapeSwiftStringLiteral(String s) =>
+    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');

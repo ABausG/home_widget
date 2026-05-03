@@ -57,6 +57,23 @@ void main() {
           contains('import androidx.glance.text.Text'),
         );
       });
+
+      test('supports JSON child existence checks', () {
+        const jsonExists = HWDataExists(
+          data: HWJson('profile', HWString('name')),
+          whenPresent: HWText.fixed('Present'),
+          whenAbsent: HWText.fixed('Absent'),
+        );
+
+        expect(
+          jsonExists.toSwift(0, dataExpr: 'entry.data'),
+          contains('if entry.data.profile?.name != nil'),
+        );
+        expect(
+          jsonExists.toKotlin(0, dataExpr: 'widgetData'),
+          contains('if (widgetData.profile?.name != null)'),
+        );
+      });
     });
   });
 }
