@@ -32,6 +32,19 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private let notInitializedError = FlutterError(
     code: "-7", message: "AppGroupId not set. Call setAppGroupId first", details: nil)
 
+  private func callArguments(_ call: FlutterMethodCall) -> [String: Any?]? {
+    return call.arguments as? [String: Any?]
+  }
+
+  private func resolvedAppGroupId(from call: FlutterMethodCall) -> String? {
+    if let args = callArguments(call),
+      let appGroupId = args["appGroupId"] as? String
+    {
+      return appGroupId
+    }
+    return HomeWidgetPlugin.groupId
+  }
+
   private static func isRunningInAppExtension() -> Bool {
     let bundleURL = Bundle.main.bundleURL
     let bundlePathExtension = bundleURL.pathExtension
@@ -75,7 +88,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             details: nil))
       }
     } else if call.method == "saveWidgetData" {
-      if HomeWidgetPlugin.groupId == nil {
+      guard let resolvedGroupId = resolvedAppGroupId(from: call) else {
         result(notInitializedError)
         return
       }
@@ -86,7 +99,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let id = myArgs["id"] as? String,
         let data = myArgs["data"]
       {
-        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
+        let preferences = UserDefaults.init(suiteName: resolvedGroupId)
         if data != nil {
           if let binaryData = data as? FlutterStandardTypedData {
             preferences?.setValue(Data(binaryData.data), forKey: id)
@@ -104,7 +117,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             details: nil))
       }
     } else if call.method == "getWidgetData" {
-      if HomeWidgetPlugin.groupId == nil {
+      guard let resolvedGroupId = resolvedAppGroupId(from: call) else {
         result(notInitializedError)
         return
       }
@@ -115,7 +128,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let id = myArgs["id"] as? String,
         let defaultValue = myArgs["defaultValue"]
       {
-        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
+        let preferences = UserDefaults.init(suiteName: resolvedGroupId)
         result(preferences?.value(forKey: id) ?? defaultValue)
       } else {
         result(
