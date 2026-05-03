@@ -89,7 +89,7 @@ void main() {
   test('getWidgetData passes appGroupId when provided', () async {
     const dataId = 'TestId';
     const appGroupId = 'group.test.per.call';
-    await HomeWidget.getWidgetData(dataId, appGroupId: appGroupId);
+    await HomeWidget.getWidgetData<String>(dataId, appGroupId: appGroupId);
     final arguments = await passedArguments.future;
 
     expect(arguments['id'], dataId);
