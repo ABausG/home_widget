@@ -86,6 +86,16 @@ void main() {
     expect(arguments['defaultValue'], defaultValue);
   });
 
+  test('getWidgetData passes appGroupId when provided', () async {
+    const dataId = 'TestId';
+    const appGroupId = 'group.test.per.call';
+    await HomeWidget.getWidgetData<String>(dataId, appGroupId: appGroupId);
+    final arguments = await passedArguments.future;
+
+    expect(arguments['id'], dataId);
+    expect(arguments['appGroupId'], appGroupId);
+  });
+
   group('saveWidgetData', () {
     test('saves data with value', () async {
       const id = 'TestId';
@@ -95,6 +105,25 @@ void main() {
 
       expect(arguments['id'], id);
       expect(arguments['data'], value);
+    });
+
+    test('passes appGroupId when provided', () async {
+      const id = 'TestId';
+      const value = 'Test Value';
+      const appGroupId = 'group.test.per.call';
+      expect(
+        await HomeWidget.saveWidgetData(
+          id,
+          value,
+          appGroupId: appGroupId,
+        ),
+        true,
+      );
+      final arguments = await passedArguments.future;
+
+      expect(arguments['id'], id);
+      expect(arguments['data'], value);
+      expect(arguments['appGroupId'], appGroupId);
     });
 
     group('deleteFile', () {
@@ -148,6 +177,25 @@ void main() {
           expect(invocations[1].arguments['data'], isNull);
         },
       );
+
+      test('delete flow forwards appGroupId to get and save', () async {
+        getWidgetDataReturn = '/widget/file.bin';
+        const id = 'fileKey';
+        const appGroupId = 'group.test.per.call';
+        expect(
+          await HomeWidget.saveWidgetData(id, null, appGroupId: appGroupId),
+          true,
+        );
+        expect(invocations.map((c) => c.method).toList(), [
+          'getWidgetData',
+          'saveWidgetData',
+        ]);
+        expect(invocations[0].arguments['id'], id);
+        expect(invocations[0].arguments['appGroupId'], appGroupId);
+        expect(invocations[1].arguments['id'], id);
+        expect(invocations[1].arguments['data'], isNull);
+        expect(invocations[1].arguments['appGroupId'], appGroupId);
+      });
 
       test('String path not under home_widget skips file delete', () async {
         getWidgetDataReturn = '/widget/file.bin';
@@ -386,6 +434,29 @@ void main() {
     expect(arguments['groupId'], appGroup);
   });
 
+  test('per-call appGroupId does not change global groupId', () async {
+    const globalGroupId = 'group.global';
+    const perCallGroupId = 'group.per.call';
+    final invocations = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
+      invocations.add(call);
+      switch (call.method) {
+        case 'setAppGroupId':
+          return true;
+        case 'saveWidgetData':
+          return true;
+        default:
+          return null;
+      }
+    });
+
+    await HomeWidget.setAppGroupId(globalGroupId);
+    await HomeWidget.saveWidgetData('k', 'v', appGroupId: perCallGroupId);
+    expect(HomeWidget.groupId, globalGroupId);
+    expect(invocations.last.arguments['appGroupId'], perCallGroupId);
+  });
+
   test('Register Background Callback passes Handles', () async {
     final dispatcherHandle =
         PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle();
@@ -621,6 +692,37 @@ void main() {
           final arguments = await passedArguments.future;
           expect(arguments['id'], 'myKey');
           expect(arguments['data'], path);
+        },
+        createFile: (path) {
+          when(() => file.path).thenReturn(path);
+          return file;
+        },
+      );
+    });
+
+    test('passes appGroupId to saved widget path metadata', () async {
+      final file = MockFile();
+      final payload = Uint8List.fromList([1, 2, 3]);
+
+      when(() => file.exists()).thenAnswer((invocation) async => false);
+      when(() => file.create(recursive: true))
+          .thenAnswer((invocation) async => file);
+      when(() => file.writeAsBytes(any()))
+          .thenAnswer((invocation) async => file);
+
+      await IOOverrides.runZoned(
+        () async {
+          final path = await HomeWidget.saveFile(
+            'myKey',
+            payload,
+            extension: 'json',
+            appGroupId: 'group.test.per.call',
+          );
+          expect(path, '${directory.path}/home_widget/myKey.json');
+          final arguments = await passedArguments.future;
+          expect(arguments['id'], 'myKey');
+          expect(arguments['data'], path);
+          expect(arguments['appGroupId'], 'group.test.per.call');
         },
         createFile: (path) {
           when(() => file.path).thenReturn(path);

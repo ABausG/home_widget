@@ -11,6 +11,7 @@ import 'package:integration_test/integration_test.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  const integrationAppGroupId = 'group.es.antonborri.integrationTest';
 
   group('Need Group Id', () {
     testWidgets('Save Data needs GroupId', (tester) async {
@@ -46,7 +47,7 @@ void main() {
 
     setUp(() async {
       // Add Group Id
-      await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
+      await HomeWidget.setAppGroupId(integrationAppGroupId);
       // Clear all Data
       for (final key in cleanupKeys) {
         await HomeWidget.saveWidgetData(key, null);
@@ -199,7 +200,7 @@ void main() {
       testWidgets(
           'Initially Launched completes and returns null if not launched from widget',
           (tester) async {
-        await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
+        await HomeWidget.setAppGroupId(integrationAppGroupId);
         final retrievedData =
             await HomeWidget.initiallyLaunchedFromHomeWidget();
         expect(retrievedData, isNull);
@@ -211,7 +212,7 @@ void main() {
           final deviceInfo = await DeviceInfoPlugin().iosInfo;
           final hasInteractiveWidgets =
               double.parse(deviceInfo.systemVersion.split('.').first) >= 17.0;
-          await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
+          await HomeWidget.setAppGroupId(integrationAppGroupId);
           if (hasInteractiveWidgets) {
             final registerCallbackResult =
                 await HomeWidget.registerInteractivityCallback(
@@ -242,7 +243,7 @@ void main() {
 
   group('Android Configurable Widgets', () {
     testWidgets('Android-specific APIs complete on iOS stubs', (tester) async {
-      await HomeWidget.setAppGroupId('group.es.antonborri.integrationTest');
+      await HomeWidget.setAppGroupId(integrationAppGroupId);
       await expectLater(
         HomeWidget.isRequestPinWidgetSupported(),
         completion(false),
@@ -264,6 +265,70 @@ void main() {
         HomeWidget.finishHomeWidgetConfigure(),
         completes,
       );
+    });
+  });
+
+  group('Per-call app group without global setup', () {
+    const keyValueKey = 'integration_per_call_key';
+    const fileKey = 'integration_per_call_file_key';
+
+    setUp(() async {
+      HomeWidget.groupId = null;
+      await HomeWidget.saveWidgetData(
+        keyValueKey,
+        null,
+        appGroupId: integrationAppGroupId,
+      );
+      await HomeWidget.saveWidgetData(
+        fileKey,
+        null,
+        appGroupId: integrationAppGroupId,
+      );
+    });
+
+    testWidgets('save/get widget data with appGroupId override',
+        (tester) async {
+      await HomeWidget.saveWidgetData(
+        keyValueKey,
+        'value',
+        appGroupId: integrationAppGroupId,
+      );
+
+      final value = await HomeWidget.getWidgetData<String>(
+        keyValueKey,
+        appGroupId: integrationAppGroupId,
+      );
+      expect(value, 'value');
+    });
+
+    testWidgets('saveFile and clear with appGroupId override', (tester) async {
+      final path = await HomeWidget.saveFile(
+        fileKey,
+        Uint8List.fromList(utf8.encode(jsonEncode({'per': 'call'}))),
+        extension: 'json',
+        appGroupId: integrationAppGroupId,
+      );
+      expect(await File(path).exists(), isTrue);
+
+      final storedPath = await HomeWidget.getWidgetData<String>(
+        fileKey,
+        appGroupId: integrationAppGroupId,
+      );
+      expect(storedPath, path);
+
+      await HomeWidget.saveWidgetData(
+        fileKey,
+        null,
+        appGroupId: integrationAppGroupId,
+      );
+      expect(
+        await HomeWidget.getWidgetData<String>(
+          fileKey,
+          appGroupId: integrationAppGroupId,
+        ),
+        isNull,
+      );
+      expect(await File(path).exists(), isFalse);
     });
   });
 }
