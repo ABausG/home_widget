@@ -5,9 +5,9 @@ import 'package:home_widget_cli/src/util/xcode_pbxproj_patcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-final String _absoluteOriginalCwd = Directory.current.path;
-
-/// A temporary Flutter project created via `flutter create --empty cli_test`.
+/// A temporary Flutter project created via `flutter create --empty --no-pub`
+/// with only the requested `--platforms` (android / ios / web), then path deps
+/// added via `dart pub add` (faster than `flutter pub add`).
 ///
 /// The whole temp tree (`<systemTemp>/hw_cli_<random>/`, including `cli_test/`)
 /// is deleted after the test completes via [addTearDown] registered in
@@ -73,9 +73,8 @@ final class TestFlutterProject {
 
     final result = await Process.run(
       'flutter',
-      // Prefer `--platforms` (current Flutter), but allow fallback to `--platform`
-      // since some setups/scripts use that spelling.
       [
+        '--suppress-analytics',
         'create',
         '--empty',
         '--no-pub',
@@ -90,8 +89,10 @@ final class TestFlutterProject {
       final retry = await Process.run(
         'flutter',
         [
+          '--suppress-analytics',
           'create',
           '--empty',
+          '--no-pub',
           projectDirName,
           if (platformArg.isNotEmpty) '--platform=$platformArg',
         ],
@@ -125,19 +126,6 @@ final class TestFlutterProject {
     }
 
     return TestFlutterProject._(projectRoot);
-  }
-
-  /// Switches `Directory.current` to this Flutter project root and restores it
-  /// automatically via `addTearDown`.
-  void useAsCwd() {
-    Directory.current = root;
-    addTearDown(() {
-      try {
-        Directory.current = _absoluteOriginalCwd;
-      } catch (e) {
-        // ignore
-      }
-    });
   }
 }
 
@@ -175,27 +163,33 @@ Future<void> _ensureHomeWidgetDependencyPresent(Directory projectRoot) async {
   final homeWidgetPath = p.join(packagesDir.path, 'home_widget');
   final generatorPath = p.join(packagesDir.path, 'home_widget_generator');
 
-  // Add home_widget dependency
+  // Prefer `dart pub add`: lighter than `flutter pub add` (no Flutter tool boot).
   var result = await Process.run(
-    'flutter',
+    'dart',
     ['pub', 'add', 'home_widget', '--path', homeWidgetPath],
     workingDirectory: projectRoot.path,
     runInShell: true,
   );
   if (result.exitCode != 0) {
-    throw StateError('flutter pub add home_widget failed:\n${result.stderr}');
+    throw StateError('dart pub add home_widget failed:\n${result.stderr}');
   }
 
-  // Add home_widget_generator dev dependency
   result = await Process.run(
-    'flutter',
-    ['pub', 'add', 'home_widget_generator', '--dev', '--path', generatorPath],
+    'dart',
+    [
+      'pub',
+      'add',
+      'home_widget_generator',
+      '--dev',
+      '--path',
+      generatorPath,
+    ],
     workingDirectory: projectRoot.path,
     runInShell: true,
   );
   if (result.exitCode != 0) {
     throw StateError(
-      'flutter pub add home_widget_generator failed:\n${result.stderr}',
+      'dart pub add home_widget_generator failed:\n${result.stderr}',
     );
   }
 }

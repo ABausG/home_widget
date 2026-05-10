@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
 
 class MockLogger extends Mock implements Logger {}
@@ -40,8 +41,6 @@ void main() {
       'adds home_widget dependency if missing during generation',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
-
         // Create a dummy widget spec file
         final widgetFile =
             File(p.join(project.root.path, 'lib', 'widget.dart'));
@@ -65,7 +64,8 @@ class TestWidget {}
         pubspec.writeAsStringSync(pubspecContent);
 
         final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', widgetFile.path, '--dart-out', dartOut],
         );
         expect(code, 0);
@@ -83,8 +83,6 @@ class TestWidget {}
       'skips adding home_widget dependency if already present',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
-
         // Create a dummy widget spec file
         final widgetFile =
             File(p.join(project.root.path, 'lib', 'widget.dart'));
@@ -107,7 +105,8 @@ class TestWidget {}
         );
 
         final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', widgetFile.path, '--dart-out', dartOut],
         );
         expect(code, 0);
@@ -124,8 +123,6 @@ class TestWidget {}
       'creates dart helper in lib/src/home_widget by default',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
-
         // Create a dummy widget spec file
         final widgetFile =
             File(p.join(project.root.path, 'lib', 'widget.dart'));
@@ -146,7 +143,8 @@ class TestWidget {}
           'src',
           'home_widget',
         );
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', widgetFile.path, '--dart-out', dartOutDir],
         );
         expect(code, 0);
@@ -161,8 +159,6 @@ class TestWidget {}
       'generate produces a buildable app for Android and iOS',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
-
         // Write the SimpleData schema file into the default input directory.
         final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
         widgetDir.createSync(recursive: true);
@@ -183,7 +179,10 @@ class SimpleData {}
 
         // Run the generate command.
         final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
-        final code = await runCli(['generate', '--dart-out', dartOut]);
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--dart-out', dartOut],
+        );
         expect(code, 0);
 
         // Build Android.
@@ -221,8 +220,6 @@ class SimpleData {}
       'works with relative input path',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
-
         // Create a dummy widget spec file in a subdirectory
         final widgetDir = Directory(p.join(project.root.path, 'my_widgets'));
         widgetDir.createSync();
@@ -237,10 +234,11 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class TestWidget {}
 ''');
 
-        // Pass 'my_widgets' as a relative path
-        // Since we did project.useAsCwd(), 'my_widgets' is relative to CWD.
+        // Pass 'my_widgets' as a relative path (resolved vs project root via
+        // runCliWithProjectRoot).
         final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', 'my_widgets', '--dart-out', dartOut],
         );
         expect(code, 0);
@@ -254,7 +252,6 @@ class TestWidget {}
       'accepts a directory and auto-generates filename',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
 
         final widgetFile =
             File(p.join(project.root.path, 'lib', 'my_schema.dart'));
@@ -272,7 +269,8 @@ class TestWidget {}
         final outDir = p.join(project.root.path, 'generated');
         Directory(outDir).createSync();
 
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', widgetFile.path, '--dart-out', outDir],
         );
         expect(code, 0);
@@ -288,7 +286,6 @@ class TestWidget {}
       'accepts an explicit .dart file path',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
 
         final widgetFile =
             File(p.join(project.root.path, 'lib', 'widget.dart'));
@@ -305,7 +302,8 @@ class TestWidget {}
 
         final outFile =
             p.join(project.root.path, 'generated', 'custom_name.dart');
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', widgetFile.path, '--dart-out', outFile],
         );
         expect(code, 0);
@@ -319,7 +317,6 @@ class TestWidget {}
       'rejects invalid extension',
       () async {
         final project = await TestFlutterProject.create();
-        project.useAsCwd();
 
         final widgetFile =
             File(p.join(project.root.path, 'lib', 'widget.dart'));
@@ -334,7 +331,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class TestWidget {}
 ''');
 
-        final code = await runCli(
+        final code = await runCliWithProjectRoot(
+          project.root,
           ['generate', '--input', widgetFile.path, '--dart-out', 'out.txt'],
         );
         // Should fail due to invalid extension

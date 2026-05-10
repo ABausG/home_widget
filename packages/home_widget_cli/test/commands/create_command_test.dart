@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_cli/src/cli.dart';
 import 'package:home_widget_cli/src/util/android_package.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -8,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
 
 class MockLogger extends Mock implements Logger {}
@@ -112,9 +112,7 @@ void main() {
     'create scaffolds both android and ios by default when folders exist',
     () async {
       final project = await TestFlutterProject.create();
-      project.useAsCwd();
-
-      final code = await runCli(['create', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       final widgetClassName = 'ExampleHomeWidget';
@@ -183,8 +181,7 @@ void main() {
           // Force Groovy by replacing the app gradle file in test only.
           await project.setAndroidAppGradleDsl(dsl);
 
-          project.useAsCwd();
-          final code = await runCli(['create', '--android', 'Example']);
+          final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
           expect(code, 0);
 
           await expectAndroidGradlePatched(projectRoot: project.root, dsl: dsl);
@@ -198,9 +195,7 @@ void main() {
     'create --android only scaffolds android',
     () async {
       final project = await TestFlutterProject.create();
-      project.useAsCwd();
-
-      final code = await runCli(['create', '--android', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
       expect(code, 0);
 
       expectAndroidScaffold(
@@ -222,9 +217,7 @@ void main() {
         includeAndroid: false,
         includeIos: false,
       );
-      project.useAsCwd();
-
-      final code = await runCli(['create', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       expect(
@@ -243,9 +236,7 @@ void main() {
         includeAndroid: false,
         includeIos: false,
       );
-      project.useAsCwd();
-
-      final code = await runCli(['create', '--android', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
       expect(code, 0);
 
       verify(
@@ -279,9 +270,7 @@ void main() {
         includeAndroid: false,
         includeIos: false,
       );
-      project.useAsCwd();
-
-      final code = await runCli(['create', '--ios', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', '--ios', 'Example']);
       expect(code, 0);
 
       verify(
@@ -308,8 +297,7 @@ void main() {
     () async {
       final project = await TestFlutterProject.create(includeIos: false);
 
-      project.useAsCwd();
-      final code = await runCli(['create', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       expectAndroidScaffold(
@@ -330,8 +318,7 @@ void main() {
     () async {
       final project = await TestFlutterProject.create(includeAndroid: false);
 
-      project.useAsCwd();
-      final code = await runCli(['create', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       expectIosScaffold(
@@ -351,8 +338,7 @@ void main() {
     () async {
       final project = await TestFlutterProject.create(includeIos: false);
 
-      project.useAsCwd();
-      final code = await runCli(['create', '--android', '--ios', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', '--android', '--ios', 'Example']);
       expect(code, 0);
 
       expectAndroidScaffold(
@@ -382,13 +368,11 @@ void main() {
       'warns when pubspec.yaml is missing (skips flutter pub add)',
       () async {
         final project = await TestFlutterProject.create(includeIos: false);
-        project.useAsCwd();
-
         final pubspec = File(p.join(project.root.path, 'pubspec.yaml'));
         expect(pubspec.existsSync(), isTrue);
         await pubspec.delete();
 
-        final code = await runCli(['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
         expect(code, 0);
         verify(
           () => mockLogger.warn(any(that: contains('pubspec.yaml not found'))),
@@ -401,14 +385,12 @@ void main() {
       'warns when android/app/ is missing (skips Android scaffolding)',
       () async {
         final project = await TestFlutterProject.create(includeIos: false);
-        project.useAsCwd();
-
         final androidAppDir =
             Directory(p.join(project.root.path, 'android', 'app'));
         expect(androidAppDir.existsSync(), isTrue);
         await androidAppDir.delete(recursive: true);
 
-        final code = await runCli(['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -449,8 +431,6 @@ void main() {
       'warns when AndroidManifest.xml is missing (skips manifest wiring)',
       () async {
         final project = await TestFlutterProject.create(includeIos: false);
-        project.useAsCwd();
-
         final manifest = File(
           p.join(
             project.root.path,
@@ -464,7 +444,7 @@ void main() {
         expect(manifest.existsSync(), isTrue);
         await manifest.delete();
 
-        final code = await runCli(['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -483,8 +463,6 @@ void main() {
       'warns when AndroidManifest.xml cannot be parsed as XML',
       () async {
         final project = await TestFlutterProject.create(includeIos: false);
-        project.useAsCwd();
-
         final manifest = File(
           p.join(
             project.root.path,
@@ -498,7 +476,7 @@ void main() {
         expect(manifest.existsSync(), isTrue);
         await manifest.writeAsString('not xml at all');
 
-        final code = await runCli(['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -517,8 +495,6 @@ void main() {
       'warns when android/app/build.gradle(.kts) is missing (skips Gradle setup)',
       () async {
         final project = await TestFlutterProject.create(includeIos: false);
-        project.useAsCwd();
-
         final appDir = Directory(p.join(project.root.path, 'android', 'app'));
         expect(appDir.existsSync(), isTrue);
 
@@ -531,7 +507,7 @@ void main() {
         expect(groovy.existsSync(), isFalse);
         expect(kts.existsSync(), isFalse);
 
-        final code = await runCli(['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -551,9 +527,7 @@ void main() {
     'create --ios produces a buildable iOS app (includes Widget Extension target)',
     () async {
       final project = await TestFlutterProject.create(includeAndroid: false);
-      project.useAsCwd();
-
-      final code = await runCli(['create', '--ios', 'Example']);
+      final code = await runCliWithProjectRoot(project.root, ['create', '--ios', 'Example']);
       expect(code, 0);
 
       final widgetClassName = 'ExampleHomeWidget';

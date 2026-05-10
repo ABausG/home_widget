@@ -29,7 +29,7 @@ Future<List<WidgetSpec>> parseSchemaFile(
   }
 
   final specs = <WidgetSpec>[];
-  for (final element in result.unit.declaredElement!.classes) {
+  for (final element in result.libraryElement.classes) {
     if (_hasHomeWidgetAnnotation(element)) {
       final spec = _extractWidgetSpec(element);
       if (spec != null) {
@@ -40,20 +40,19 @@ Future<List<WidgetSpec>> parseSchemaFile(
   return specs;
 }
 
+bool _isHomeWidgetAnnotation(ElementAnnotation meta) {
+  final element = meta.element;
+  return element is ConstructorElement &&
+      element.enclosingElement.name == 'HomeWidget';
+}
+
 bool _hasHomeWidgetAnnotation(ClassElement element) {
-  return element.metadata.any((meta) {
-    final element = meta.element;
-    return element is ConstructorElement &&
-        element.enclosingElement3.name == 'HomeWidget';
-  });
+  return element.metadata.annotations.any(_isHomeWidgetAnnotation);
 }
 
 WidgetSpec? _extractWidgetSpec(ClassElement element) {
-  final annotation = element.metadata.firstWhere((meta) {
-    final element = meta.element;
-    return element is ConstructorElement &&
-        element.enclosingElement3.name == 'HomeWidget';
-  });
+  final annotation =
+      element.metadata.annotations.firstWhere(_isHomeWidgetAnnotation);
 
   final constantValue = annotation.computeConstantValue();
   if (constantValue == null) return null;
@@ -63,6 +62,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   final description = constantValue.getField('description')?.toStringValue();
 
   final generatedClassName = element.name;
+  if (generatedClassName == null) return null;
 
   final dartOutput = constantValue.getField('dartOutput')?.toStringValue();
 
