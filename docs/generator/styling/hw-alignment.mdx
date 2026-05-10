@@ -1,0 +1,36 @@
+---
+title: HWAlignment
+description: Cross- and main-axis alignment enums for HWColumn and HWRow.
+---
+
+# HWAlignment
+
+Alignment enums consumed by [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row).
+
+The cross-axis is the axis perpendicular to the layout direction:
+
+- `HWColumn` (vertical) — cross-axis is **horizontal**, main-axis is **vertical**.
+- `HWRow` (horizontal) — cross-axis is **vertical**, main-axis is **horizontal**.
+
+## HWCrossAxisAlignment
+
+| Value    | Description                          |
+| -------- | ------------------------------------ |
+| `start`  | Align children to the cross-axis start. |
+| `center` | Center children along the cross-axis.   |
+| `end`    | Align children to the cross-axis end.   |
+
+## HWMainAxisAlignment
+
+| Value          | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `start`        | Pack children at the main-axis start.                             |
+| `center`       | Center children along the main-axis.                              |
+| `end`          | Pack children at the main-axis end.                               |
+| `spaceBetween` | Distribute children with equal space between them.                |
+| `spaceEvenly`  | Distribute children with equal space between, before, and after.  |
+
+## Platform mapping
+
+- **iOS:** maps to SwiftUI [`HorizontalAlignment`](https://developer.apple.com/documentation/swiftui/horizontalalignment) / [`VerticalAlignment`](https://developer.apple.com/documentation/swiftui/verticalalignment) on the stack, with `Spacer`s inserted to model the `spaceBetween` / `spaceEvenly` values.
+- **Android:** maps to Glance [`Alignment.Horizontal`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Horizontal) / [`Alignment.Vertical`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Vertical) on the `Column` / `Row`, with `Spacer`s for the space-distribution values.

@@ -1,0 +1,37 @@
+---
+title: HWPadding
+description: Inset a child by a given padding.
+---
+
+# HWPadding
+
+Insets a child by an `HWEdgeInsets`. Use one of the three named constructors to specify uniform, symmetric, or per-side padding.
+
+```dart
+HWPadding(
+  padding: const HWEdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  child: HWText.fixed('Padded'),
+)
+```
+
+## Parameters
+
+### HWPadding
+
+| Name      | Type            | Default      | Description                |
+| --------- | --------------- | ------------ | -------------------------- |
+| `child`   | `HWWidget`      | **required** | Widget being inset.        |
+| `padding` | `HWEdgeInsets`  | **required** | Insets applied to `child`. |
+
+### HWEdgeInsets
+
+Three const constructors:
+
+- `HWEdgeInsets.all(double value)` — same value on every side.
+- `HWEdgeInsets.symmetric({double vertical = 0, double horizontal = 0})` — paired sides.
+- `HWEdgeInsets.only({double left = 0, double top = 0, double right = 0, double bottom = 0})` — per-side.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`.padding(_:)`](https://developer.apple.com/documentation/swiftui/view/padding(_:)) with explicit `EdgeInsets`.
+- **Android:** Glance [`GlanceModifier.padding(...)`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#padding(androidx.glance.GlanceModifier,androidx.compose.ui.unit.Dp,androidx.compose.ui.unit.Dp,androidx.compose.ui.unit.Dp,androidx.compose.ui.unit.Dp)) with per-side `dp` values.

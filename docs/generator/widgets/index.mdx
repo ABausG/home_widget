@@ -1,0 +1,40 @@
+---
+title: Widgets
+description: Overview of the HWWidget building blocks.
+---
+
+# Widgets
+
+`HWWidget` is the base class for the layout primitives you compose inside `@HomeWidget(widget: ...)`. They translate to SwiftUI on iOS and Jetpack Glance on Android at generation time.
+
+## Layout
+
+| Widget                                                | Purpose                                              |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| [`HWColumn`](/generator/widgets/hw-column)            | Vertical stack of children.                          |
+| [`HWRow`](/generator/widgets/hw-row)                  | Horizontal stack of children.                        |
+| [`HWPadding`](/generator/widgets/hw-padding)          | Inset a child by an `HWEdgeInsets`.                  |
+| [`HWFill`](/generator/widgets/hw-fill)                | Expand a child to fill the available space.          |
+
+## Content
+
+| Widget                                                       | Purpose                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`HWText`](/generator/widgets/hw-text)                       | Fixed or data-bound text.                            |
+| [`HWColoredBox`](/generator/widgets/hw-colored-box)          | Solid background color around a child.               |
+| [`HWDecoratedBox`](/generator/widgets/hw-decorated-box)      | Background color and/or border around a child.       |
+
+## Branching
+
+| Widget                                                       | Purpose                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`HWAdaptive`](/generator/widgets/hw-adaptive)               | Pick a different child per platform.                 |
+| [`HWConditional`](/generator/widgets/hw-conditional)         | Pick a child based on a runtime data check.          |
+
+## Data only
+
+| Widget                                                       | Purpose                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`HWDataOnly`](/generator/widgets/hw-data-only)              | Declare data fields without rendering anything.      |
+
+See [Data Types](/generator/data) for the available `HWDataType` variants you can bind to widgets.

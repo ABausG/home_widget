@@ -1,0 +1,31 @@
+---
+title: home_widget_generator
+description: Generate native HomeScreen widget code from a Dart schema.
+next: /generator/getting-started
+---
+
+# home_widget_generator
+
+`home_widget_generator` lets you describe a HomeScreen widget once in Dart and have the matching native widget code generated for you. Instead of writing SwiftUI and Jetpack Glance by hand, you author a small annotated Dart class and the generator produces everything needed to render and update the widget on both platforms.
+
+It builds on top of [`home_widget`](/), which remains the runtime channel for sending data to and refreshing your widgets. The generator does not replace `home_widget`; it sits on top of it and removes the need to write platform-specific UI code yourself.
+
+To run the generator, use the companion [`home_widget_cli`](/cli) tool. It discovers your annotated schemas, runs `build_runner` under the hood, and writes the generated files into your Flutter project.
+
+## What gets generated
+
+From a single annotated Dart class, the generator produces:
+
+- A typed **Dart helper** (e.g. `MyWidgetHomeWidget`) with `ensureInitialized()`, an `updateWidget()` method, and `setData(...)` / `update(...)` methods for any data fields you declared.
+- An **iOS widget extension** using SwiftUI and WidgetKit, including the `TimelineProvider`, `TimelineEntry`, and `View` wired up to your App Group.
+- An **Android widget** using Jetpack Glance, including the `GlanceAppWidget`, `GlanceAppWidgetReceiver`, and the `appwidget-provider` XML.
+
+You only ever interact with the Dart helper from your app code. The native sources are dropped into your `ios/` and `android/` folders and compiled as part of your normal Flutter build.
+
+## Next steps
+
+- [Getting Started](/generator/getting-started) - install the generator and ship your first widget.
+- [Annotation](/generator/annotation) - the `@HomeWidget` annotation and platform configuration options.
+- [Widgets](/generator/widgets/hw-adaptive) - the layout primitives (`HWColumn`, `HWText`, `HWImage`, ...) you use to describe the UI.
+- [Styling](/generator/styling/hw-color) - colors, text styles, padding, and other shared building blocks.
+- [CLI](/cli) - command reference for `home_widget_cli`.

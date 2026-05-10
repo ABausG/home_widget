@@ -1,0 +1,53 @@
+---
+title: home_widget create
+description: Scaffold placeholder native widget code for iOS and Android.
+---
+
+# create
+
+Scaffold placeholder native widget code for a new HomeScreen widget. Run this once per widget, then fill in the generated native files (or use [`generate`](/cli/generate) to produce them from a schema).
+
+```bash
+dart run home_widget_cli create <Name> [options]
+```
+
+## Behavior
+
+- `<Name>` is normalized to PascalCase and suffixed with `HomeWidget`. For example, `create my_widget` produces a class named `MyWidgetHomeWidget`.
+- Without `--android` or `--ios`, the CLI auto-detects which platforms to scaffold based on the presence of `android/` and `ios/` folders in the current directory.
+- Passing `--android` or `--ios` explicitly limits scaffolding to that platform.
+- For iOS, an App Group ID is written into entitlements and the widget placeholder code:
+  - If `--ios-app-group-id` is provided, that value is used.
+  - Otherwise, if stdin is interactive, you are prompted (default `YOUR_APP_GROUP_ID`).
+  - If stdin is non-interactive, the default `YOUR_APP_GROUP_ID` is used.
+- The `home_widget` package is automatically added to your `pubspec.yaml` if it isn't already listed as a dependency.
+
+After scaffolding, finish wiring up your project by following [iOS Setup](/setup/ios) and [Android Setup](/setup/android).
+
+## Options
+
+| Option                       | Description                                                                                                                                                  | Default              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
+| `--android`                  | Create Android widget placeholder structure.                                                                                                                 | autodetect           |
+| `--ios`                      | Create iOS widget placeholder structure.                                                                                                                     | autodetect           |
+| `--ios-app-group-id=<id>`    | iOS App Group ID to write into entitlements and widget placeholder code. If omitted and stdin is interactive, the CLI will prompt. If omitted and stdin is non-interactive, it defaults to `YOUR_APP_GROUP_ID`. | prompt / `YOUR_APP_GROUP_ID` |
+
+## Examples
+
+Scaffold for every platform detected in the current Flutter project:
+
+```bash
+dart run home_widget_cli create Example
+```
+
+iOS only, with an explicit App Group ID:
+
+```bash
+dart run home_widget_cli create Example --ios --ios-app-group-id=group.com.example.app
+```
+
+Android only:
+
+```bash
+dart run home_widget_cli create Example --android
+```

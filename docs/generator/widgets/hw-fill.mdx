@@ -1,0 +1,36 @@
+---
+title: HWFill
+description: Expand a child to fill the available space.
+---
+
+# HWFill
+
+Expands its child to fill the available space along both axes. Most useful as the root of a widget, or inside an [`HWColumn`](/generator/widgets/hw-column) / [`HWRow`](/generator/widgets/hw-row) to claim remaining space.
+
+```dart
+HWFill(
+  child: HWColumn(
+    mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
+    children: [
+      HWText.fixed('Hello World'),
+      HWFill(
+        child: HWRow(
+          mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+          children: [HWText.fixed('1'), HWText.fixed('2')],
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+## Parameters
+
+| Name    | Type       | Default      | Description                       |
+| ------- | ---------- | ------------ | --------------------------------- |
+| `child` | `HWWidget` | **required** | Widget that should fill the area. |
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`.frame(maxWidth: .infinity, maxHeight: .infinity)`](https://developer.apple.com/documentation/swiftui/view/frame(minwidth:idealwidth:maxwidth:minheight:idealheight:maxheight:alignment:)).
+- **Android:** Glance [`GlanceModifier.fillMaxSize()`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#fillMaxSize(androidx.glance.GlanceModifier)) injected into the child.

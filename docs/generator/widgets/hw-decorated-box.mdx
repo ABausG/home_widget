@@ -1,0 +1,53 @@
+---
+title: HWDecoratedBox
+description: Decorate a child with a background color and/or border.
+---
+
+# HWDecoratedBox
+
+Wraps a child with an `HWBoxDecoration` — an optional [`HWColor`](/generator/styling/hw-color) background and an optional `HWBoxBorder`. For a plain solid fill, prefer [`HWColoredBox`](/generator/widgets/hw-colored-box).
+
+```dart
+HWDecoratedBox(
+  decoration: HWBoxDecoration(
+    color: HWColor.fixed(0xFF222222),
+    border: HWBoxBorder(
+      radius: 12,
+      thickness: 1,
+      color: HWColor.fixed(0xFFFFFFFF),
+    ),
+  ),
+  child: HWText.fixed('Boxed'),
+)
+```
+
+`HWBoxBorder` requires `thickness` and `color`; `radius` defaults to `0`. Glance does not expose stroke alignment, so borders are emitted as an inside-border approximation on Android.
+
+## Parameters
+
+### HWDecoratedBox
+
+| Name         | Type               | Default      | Description                              |
+| ------------ | ------------------ | ------------ | ---------------------------------------- |
+| `child`      | `HWWidget`         | **required** | Widget being decorated.                  |
+| `decoration` | `HWBoxDecoration`  | **required** | Background color and/or border.          |
+
+### HWBoxDecoration
+
+| Name     | Type            | Default | Description           |
+| -------- | --------------- | ------- | --------------------- |
+| `color`  | `HWColor?`      | `null`  | Background color.     |
+| `border` | `HWBoxBorder?`  | `null`  | Border specification. |
+
+### HWBoxBorder
+
+| Name        | Type      | Default      | Description                          |
+| ----------- | --------- | ------------ | ------------------------------------ |
+| `radius`    | `double`  | `0.0`        | Corner radius applied to the border. |
+| `thickness` | `double`  | **required** | Border width.                        |
+| `color`     | `HWColor` | **required** | Border color.                        |
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`.background(_:)`](https://developer.apple.com/documentation/swiftui/view/background(_:ignoressafeareaedges:)) and [`.overlay(_:)`](https://developer.apple.com/documentation/swiftui/view/overlay(alignment:content:)) for the border.
+- **Android:** Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment,kotlin.Function1)) with `background(...)` and a nested-`Box` border approximation.

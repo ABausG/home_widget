@@ -1,0 +1,65 @@
+---
+title: HWConditional
+description: Render one of two branches based on widget data.
+---
+
+# HWConditional
+
+`HWConditional` is the abstract base for widgets that pick between two children based on a condition over the widget's data. Use one of the concrete subclasses below; both branches contribute their data dependencies to the generated entry type.
+
+## Variants
+
+### HWDataExists
+
+Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any [`HWDataType`](/generator/data).
+
+`HWDataExists({required HWDataType data, required HWWidget whenPresent, required HWWidget whenAbsent})`
+
+### HWBoolConditional
+
+Renders `whenTrue` if the boolean data field is `true`, otherwise `whenFalse`. The `data` must be an `HWBool` (or a JSON leaf of `HWBool`) **with a non-null `defaultValue`** so the condition is always defined.
+
+`HWBoolConditional({required HWDataType data, required HWWidget whenTrue, required HWWidget whenFalse})`
+
+## Example
+
+```dart
+HWDataExists(
+  data: HWBool('hasData'),
+  whenPresent: HWBoolConditional(
+    data: HWBool('data', defaultValue: true),
+    whenTrue: HWText.fixed(
+      'Enabled',
+      style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFF00FF00)),
+    ),
+    whenFalse: HWText.fixed(
+      'Disabled',
+      style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFFFF0000)),
+    ),
+  ),
+  whenAbsent: HWText.fixed('No Data'),
+)
+```
+
+## Parameters
+
+### HWDataExists
+
+| Name          | Type           | Default      | Description                                   |
+| ------------- | -------------- | ------------ | --------------------------------------------- |
+| `data`        | `HWDataType`   | **required** | Field whose presence is tested.               |
+| `whenPresent` | `HWWidget`     | **required** | Rendered when the field has a value.          |
+| `whenAbsent`  | `HWWidget`     | **required** | Rendered when the field is `null`/missing.    |
+
+### HWBoolConditional
+
+| Name        | Type           | Default      | Description                                              |
+| ----------- | -------------- | ------------ | -------------------------------------------------------- |
+| `data`      | `HWDataType`   | **required** | An `HWBool` (or `HWJson` with `HWBool` leaf) with a `defaultValue`. |
+| `whenTrue`  | `HWWidget`     | **required** | Rendered when the value is `true`.                       |
+| `whenFalse` | `HWWidget`     | **required** | Rendered when the value is `false`.                      |
+
+## Platform mapping
+
+- **iOS:** generates a SwiftUI `if / else` expression in the view body — see [SwiftUI `ViewBuilder`](https://developer.apple.com/documentation/swiftui/viewbuilder).
+- **Android:** generates a Kotlin `if / else` expression in the Glance composable — see [Glance composables](https://developer.android.com/reference/kotlin/androidx/glance/package-summary).

@@ -1,0 +1,65 @@
+---
+title: HWTextStyle
+description: Text styling for HWText — font size, weight, color, decorations, and semantic roles.
+---
+
+# HWTextStyle
+
+`HWTextStyle` describes how an `HWText` is rendered. Every field is optional; unset fields fall back to the platform default or to `baseStyle` if provided.
+
+## Parameters
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `fontSize` | `double?` | `null` | Point size on iOS, `sp` on Android. |
+| `fontWeight` | `HWFontWeight?` | `null` | One of `w100`–`w900`, `normal`, `bold`. |
+| `color` | `HWColor?` | `null` | Foreground color. See [HWColor](/generator/styling/hw-color). |
+| `italic` | `bool?` | `null` | Italicizes the text. |
+| `underline` | `bool?` | `null` | Adds an underline decoration. |
+| `lineThrough` | `bool?` | `null` | Adds a strike-through decoration. |
+| `baseStyle` | `HWTextStyle?` | `null` | A style to inherit from. See [Inheritance](#inheritance). |
+
+```dart
+HWText.fixed(
+  'kWh',
+  style: HWTextStyle(
+    fontSize: 16.0,
+    color: HWDefaultColor(HWColorRole.contentSecondary),
+  ),
+)
+```
+
+## HWTextStyle.role / HWRoleTextStyle
+
+Use `HWRoleTextStyle` when you want to follow the system's typographic hierarchy. The role sets a sensible default font size and weight per platform; you can still override individual fields.
+
+| Role | Description |
+| --- | --- |
+| `title` | Largest, headline-level text. |
+| `headline` | Section headline. |
+| `body` | Default body copy. |
+| `callout` | Slightly smaller than body. |
+| `caption` | Small caption text. |
+| `captionSmall` | Smallest caption variant. |
+
+`HWRoleTextStyle` exposes a named constructor per role: `.title`, `.headline`, `.body`, `.callout`, `.caption`, `.captionSmall`.
+
+```dart
+HWText.fixed(
+  '46',
+  style: HWRoleTextStyle(
+    role: HWTextStyleRole.title,
+    color: HWDefaultColor(HWColorRole.contentPrimary),
+    fontWeight: HWFontWeight.bold,
+  ),
+)
+```
+
+## Inheritance
+
+`baseStyle` lets you compose styles. The generator walks up the chain and uses the first non-null value it finds for each field — so a child only needs to declare what it overrides.
+
+## Platform mapping
+
+- iOS — emitted as SwiftUI [`.font`](https://developer.apple.com/documentation/swiftui/view/font(_:)), [`.foregroundColor`](https://developer.apple.com/documentation/swiftui/view/foregroundcolor(_:)) and decoration modifiers.
+- Android — emitted as Glance [`TextStyle`](https://developer.android.com/reference/kotlin/androidx/glance/text/TextStyle) with `FontWeight`, `FontStyle`, and `TextDecoration`.

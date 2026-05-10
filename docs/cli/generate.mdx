@@ -1,0 +1,57 @@
+---
+title: home_widget generate
+description: Generate native widget code and a Dart helper from a schema file.
+---
+
+# generate
+
+Generate native iOS and Android widget code, plus a typed Dart helper, from `@HomeWidget` annotated schema files defined with [`home_widget_generator`](/generator).
+
+```bash
+dart run home_widget_cli generate [options]
+```
+
+## Behavior
+
+- The default input is the `home_widget/` directory at the project root. Pass a different file or directory with `--input`.
+- If the input is a directory, every `.dart` file in it is scanned recursively for `@HomeWidget` annotations.
+- For each widget found:
+  - A Dart helper is written to `lib/src/home_widget/<schema-file>.home_widget.dart` by default, where `<schema-file>` is the schema's file name without extension.
+  - iOS code is written under `ios/` if the schema declares an `iOS` config.
+  - Android code is written under `android/` if the schema declares an `android` config.
+- The Dart helper output location can be overridden:
+  - `--dart-out` on the CLI takes priority.
+  - Otherwise the schema's `dartOutput` is used.
+  - Otherwise the default `lib/src/home_widget/...` is used.
+- `--dart-out` resolution rules:
+  - A path ending in `.dart` is treated as the exact output file.
+  - A path with no extension (or an existing directory) is treated as a directory; the auto-generated file name `<schema-file>.home_widget.dart` is appended.
+  - Any other extension is rejected.
+- The `home_widget` package is automatically added to your `pubspec.yaml` if it isn't already listed as a dependency.
+
+## Options
+
+| Option                  | Description                                                              | Default         |
+| ----------------------- | ------------------------------------------------------------------------ | --------------- |
+| `-i, --input=<path>`    | Path to schema file or directory.                                        | `home_widget/`  |
+| `--dart-out=<path>`     | Output path for the generated Dart helper. Can be a `.dart` file path or a directory. | `lib/src/home_widget/<schema>.home_widget.dart` |
+
+## Examples
+
+Generate from the default `home_widget/` directory:
+
+```bash
+dart run home_widget_cli generate
+```
+
+Generate from a specific schema file:
+
+```bash
+dart run home_widget_cli generate --input home_widget/my_widget.dart
+```
+
+Write the Dart helper into a custom directory:
+
+```bash
+dart run home_widget_cli generate --dart-out lib/widgets/
+```

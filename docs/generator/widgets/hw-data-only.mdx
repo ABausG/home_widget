@@ -1,0 +1,27 @@
+---
+title: HWDataOnly
+description: Declare data fields without rendering anything.
+---
+
+# HWDataOnly
+
+A non-visual widget that contributes data fields to the generated widget data class without producing any view output. Useful for fields you want to read in click handlers, deep links, or background updates but do not want to display.
+
+```dart
+HWDataOnly([HWString('label'), HWInt('value')])
+```
+
+Combine it with a visible widget tree using [`HWColumn`](/generator/widgets/hw-column) or similar — `HWDataOnly` itself emits nothing.
+
+## Parameters
+
+| Name   | Type                | Default      | Description                                       |
+| ------ | ------------------- | ------------ | ------------------------------------------------- |
+| `data` | `List<HWDataType>`  | **required** | Fields added to the generated data class.         |
+
+See [Data Types](/generator/data) for the available `HWDataType` variants.
+
+## Platform mapping
+
+- **iOS:** emits no SwiftUI view; only adds the fields to the entry data type. See [WidgetKit `TimelineEntry`](https://developer.apple.com/documentation/widgetkit/timelineentry).
+- **Android:** emits no Glance content; only adds the fields to the data class. See [Glance state](https://developer.android.com/develop/ui/compose/glance/manage-and-update-glance-widget).

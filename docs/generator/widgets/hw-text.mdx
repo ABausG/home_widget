@@ -1,0 +1,59 @@
+---
+title: HWText
+description: Render fixed or data-bound text.
+---
+
+# HWText
+
+Renders a string, either hardcoded or bound to a widget data field. Both constructors accept an optional [`HWTextStyle`](/generator/styling/hw-text-style) and `HWTextAlign`.
+
+## Constructors
+
+### HWText.fixed
+
+`const HWText.fixed(String content, {HWTextStyle? style, HWTextAlign? textAlign})`
+
+Hardcoded literal — the value is baked into the generated native code.
+
+```dart
+HWText.fixed('Hello World')
+```
+
+### HWText (data-bound)
+
+`const HWText(HWDataType data, {HWTextStyle? style, HWTextAlign? textAlign})`
+
+Reads the value from widget storage at runtime. Add the matching field to the entry by using it here or via [`HWDataOnly`](/generator/widgets/hw-data-only).
+
+```dart
+HWText(HWString('greeting'))
+```
+
+### Styled example
+
+```dart
+HWText.fixed(
+  '46',
+  style: HWRoleTextStyle(
+    role: HWTextStyleRole.title,
+    color: HWDefaultColor(HWColorRole.contentPrimary),
+    fontWeight: HWFontWeight.bold,
+  ),
+)
+```
+
+## Parameters
+
+| Name           | Type            | Default      | Description                                                  |
+| -------------- | --------------- | ------------ | ------------------------------------------------------------ |
+| `content`      | `String`        | **required** _(`.fixed`)_ | Hardcoded text.                                |
+| `data`         | `HWDataType`    | **required** _(default ctor)_ | Field whose value is rendered.             |
+| `style`        | `HWTextStyle?`  | `null`       | Font, weight, color — see [`HWTextStyle`](/generator/styling/hw-text-style). |
+| `textAlign`    | `HWTextAlign?`  | `null`       | Multi-line text alignment.                                   |
+
+Exactly one of `content` (via `.fixed`) or `data` (via the default constructor) is supplied — the constructor you call enforces this.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`Text`](https://developer.apple.com/documentation/swiftui/text), with `.multilineTextAlignment(...)` when `textAlign` is set.
+- **Android:** Glance [`Text`](https://developer.android.com/reference/kotlin/androidx/glance/text/package-summary#Text(kotlin.String,androidx.glance.GlanceModifier,androidx.glance.text.TextStyle,kotlin.Int)) with a [`TextStyle`](https://developer.android.com/reference/kotlin/androidx/glance/text/TextStyle).
