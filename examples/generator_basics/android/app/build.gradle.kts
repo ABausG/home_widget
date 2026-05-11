@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -37,8 +38,17 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+    buildFeatures {
+        compose = true
+    }
+
 }
 
 flutter {
     source = "../.."
+}
+
+
+dependencies {
+    implementation("androidx.glance:glance-appwidget:1.1.1")
 }
