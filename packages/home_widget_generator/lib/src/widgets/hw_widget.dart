@@ -2,6 +2,7 @@ import 'package:analyzer/dart/constant/value.dart';
 import '../generator_error.dart';
 import '../parser/widget_value_decoder.dart';
 import '../types.dart';
+import '../utils/apply_swift_modifier.dart';
 import '../utils/inject_glance_modifier.dart';
 import 'hw_alignment.dart';
 import 'hw_color.dart';

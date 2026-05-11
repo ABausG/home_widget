@@ -109,24 +109,26 @@ class HWDecoratedBox extends HWSingleChildWidget {
 
   @override
   String toSwift(int indent, {required String dataExpr}) {
-    final pad = '    ' * indent;
     var viewCall = child.toSwift(indent, dataExpr: dataExpr);
     final border = decoration.border;
     final color = decoration.color;
 
     if (color != null) {
+      final String backgroundModifier;
       if (border != null && border.radius > 0) {
-        viewCall +=
-            '\n$pad.background(RoundedRectangle(cornerRadius: ${border.radius}).fill(${color.toSwift(indent, dataExpr: dataExpr)}))';
+        backgroundModifier =
+            '.background(RoundedRectangle(cornerRadius: ${border.radius}).fill(${color.toSwift(indent, dataExpr: dataExpr)}))';
       } else {
-        viewCall +=
-            '\n$pad.background(${color.toSwift(indent, dataExpr: dataExpr)})';
+        backgroundModifier =
+            '.background(${color.toSwift(indent, dataExpr: dataExpr)})';
       }
+      viewCall = applySwiftModifier(viewCall, backgroundModifier, indent);
     }
 
     if (border != null) {
-      viewCall +=
-          '\n$pad.overlay(RoundedRectangle(cornerRadius: ${border.radius}).stroke(${border.color.toSwift(indent, dataExpr: dataExpr)}, lineWidth: ${border.thickness}))';
+      final overlayModifier =
+          '.overlay(RoundedRectangle(cornerRadius: ${border.radius}).stroke(${border.color.toSwift(indent, dataExpr: dataExpr)}, lineWidth: ${border.thickness}))';
+      viewCall = applySwiftModifier(viewCall, overlayModifier, indent);
     }
 
     return viewCall;

@@ -43,10 +43,10 @@ class HWPadding extends HWSingleChildWidget {
 
   @override
   String toSwift(int indent, {required String dataExpr}) {
-    final pad = '    ' * indent;
     final childCode = child.toSwift(indent, dataExpr: dataExpr);
-
-    return '$childCode\n$pad.padding(EdgeInsets(top: ${padding.top}, leading: ${padding.left}, bottom: ${padding.bottom}, trailing: ${padding.right}))';
+    final modifier =
+        '.padding(EdgeInsets(top: ${padding.top}, leading: ${padding.left}, bottom: ${padding.bottom}, trailing: ${padding.right}))';
+    return applySwiftModifier(childCode, modifier, indent);
   }
 
   @override

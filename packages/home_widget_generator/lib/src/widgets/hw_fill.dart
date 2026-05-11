@@ -3,6 +3,9 @@ part of 'hw_widget.dart';
 /// A widget that expands a child of a Row, Column, or Flex
 /// so that the child fills the available space.
 class HWFill extends HWSingleChildWidget {
+  static const _swiftModifier =
+      '.frame(maxWidth: .infinity, maxHeight: .infinity)';
+
   const HWFill({required super.child});
 
   @override
@@ -27,11 +30,8 @@ class HWFill extends HWSingleChildWidget {
 
   @override
   String toSwift(int indent, {required String dataExpr}) {
-    // Generate the child
     final childCode = child.toSwift(indent, dataExpr: dataExpr);
-    // There are some variations of how Swift modifies modifiers, but typically
-    // we just use a helper method to append the frame modifier
-    return '$childCode\n${'    ' * indent}.frame(maxWidth: .infinity, maxHeight: .infinity)';
+    return applySwiftModifier(childCode, _swiftModifier, indent);
   }
 
   @override

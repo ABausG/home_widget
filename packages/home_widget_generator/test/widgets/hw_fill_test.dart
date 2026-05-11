@@ -46,6 +46,29 @@ void main() {
         );
         expect(result, contains('.frame(maxWidth:'));
       });
+
+      test(
+        'toSwift wraps conditional child in Group { ... } so the modifier '
+        'chains on a View expression',
+        () {
+          const fillOverConditional = HWFill(
+            child: HWDataExists(
+              data: HWBool('flag'),
+              whenPresent: HWText.fixed('on'),
+              whenAbsent: HWText.fixed('off'),
+            ),
+          );
+
+          final result = fillOverConditional.toSwift(0, dataExpr: 'data');
+
+          expect(result, startsWith('Group {\n'));
+          expect(result, contains('if data.flag != nil {'));
+          expect(
+            result,
+            endsWith('\n}\n.frame(maxWidth: .infinity, maxHeight: .infinity)'),
+          );
+        },
+      );
     });
 
     group('Android (Glance)', () {
