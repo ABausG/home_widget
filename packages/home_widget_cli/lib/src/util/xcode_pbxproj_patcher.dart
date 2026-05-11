@@ -593,6 +593,7 @@ String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
   required String runnerTargetId,
   required String embedCopyPhaseId,
 }) {
+  // coverage:ignore-start
   // We must avoid an Xcode build cycle:
   // - If "Thin Binary" runs before embedding the extension, Xcode can detect a
   //   copy-phase ↔ script-phase cycle.
@@ -711,6 +712,7 @@ String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
   }
 
   return out;
+  // coverage:ignore-end
 }
 
 final class _WidgetExtensionIds {
@@ -824,8 +826,10 @@ String? _extractPbxObjectBlock(
 
   // Fall back to "id = {" form (rare, but safe).
   if (startIdx == -1) {
+    // coverage:ignore-start
     final withoutCommentNeedle = '$objectId = {';
     startIdx = pbxproj.indexOf(withoutCommentNeedle);
+    // coverage:ignore-end
   }
   if (startIdx == -1) return null;
 

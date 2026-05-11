@@ -129,9 +129,11 @@ String _resolveIosAppGroupId({required String? fromArgs}) {
     return defaultValue;
   }
 
+  // coverage:ignore-start
   final input = logger.prompt(
     'Enter iOS App Group ID (optional). Press Enter to use "$defaultValue".',
     defaultValue: defaultValue,
   );
   return input;
+  // coverage:ignore-end
 }

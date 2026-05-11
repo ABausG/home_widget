@@ -2,9 +2,14 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:mason_logger/mason_logger.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+
+class MockLogger extends Mock implements Logger {}
 
 void main() {
   late Directory tempDir;
@@ -395,5 +400,79 @@ void main() {
         '.padding(EdgeInsets(top: 16.0, leading: 16.0, bottom: 16.0, trailing: 16.0))',
       ),
     );
+  });
+
+  test('warns and skips wiring when ios/ is missing', () async {
+    final saved = logger;
+    final mockLogger = MockLogger();
+    logger = mockLogger;
+    when(() => mockLogger.warn(any())).thenReturn(null);
+    addTearDown(() => logger = saved);
+
+    final root = Directory.systemTemp.createTempSync('ios_gen_no_ios');
+    addTearDown(() => root.deleteSync(recursive: true));
+
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'X',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'g'),
+      ),
+      className: 'X',
+    );
+
+    await IosGenerator(spec: spec, projectRoot: root).generate();
+
+    verify(
+      () => mockLogger.warn(any(that: contains('ios/ not found'))),
+    ).called(1);
+  });
+
+  test('applies custom background and disables content padding', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'BgPad',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.bg',
+          backgroundColor: HWFixedColor(0xFFE91E63),
+          applyContentPadding: false,
+        ),
+      ),
+      className: 'BgPadWidget',
+    );
+
+    final generator = IosGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/BgPadWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, contains('applyContainerBackground'));
+    expect(content, contains('disableContentMarginsIfNeeded'));
+  });
+
+  test('escapes embedded quotes in Swift string defaults for JSON fields',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'QuoteJson',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.q'),
+      ),
+      className: 'QuoteJson',
+      dataFields: const [
+        HWJson('jf', HWString('caption', defaultValue: 'Say "hello"')),
+      ],
+      widgetTree: const HWText(
+        HWJson('jf', HWString('caption', defaultValue: 'Say "hello"')),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/QuoteJsonHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, contains(r'caption: String = "Say \"hello\""'));
   });
 }

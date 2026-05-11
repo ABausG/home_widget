@@ -2,14 +2,26 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:mason_logger/mason_logger.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+class MockLogger extends Mock implements Logger {}
+
 void main() {
   late Directory tempDir;
+  late MockLogger mockLogger;
 
   setUp(() {
+    mockLogger = MockLogger();
+    logger = mockLogger;
+    when(() => mockLogger.success(any())).thenReturn(null);
+    when(() => mockLogger.info(any())).thenReturn(null);
+    when(() => mockLogger.warn(any())).thenReturn(null);
+
     tempDir = Directory.systemTemp.createTempSync('android_gen_test');
     // Setup android/app structure
     Directory(p.join(tempDir.path, 'android', 'app'))
@@ -18,6 +30,180 @@ void main() {
 
   tearDown(() {
     tempDir.deleteSync(recursive: true);
+  });
+
+  test('skips when android/app directory is absent', () async {
+    final root = Directory.systemTemp.createTempSync('android_gen_no_app');
+    addTearDown(() => root.deleteSync(recursive: true));
+
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'N',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'N',
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+    verify(
+      () => mockLogger.warn(any(that: contains('android/app/ not found'))),
+    ).called(1);
+  });
+
+  test('emits bare widget tree without GlanceTheme when useGlanceTheme false',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'No Theme',
+        android: HomeWidgetAndroidConfiguration(
+          packageName: 'com.notheme',
+          useGlanceTheme: false,
+        ),
+      ),
+      className: 'NoThemeWidget',
+    );
+
+    final generator = AndroidGenerator(spec: spec, projectRoot: tempDir);
+    await generator.generate();
+
+    final kt = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/notheme/NoThemeWidgetHomeWidget.kt',
+      ),
+    );
+    final content = kt.readAsStringSync();
+    expect(content, isNot(contains('GlanceTheme {')));
+    expect(content, contains('GlanceTheme.colors'));
+  });
+
+  test(
+      'appends description string into existing strings.xml via update path',
+      () async {
+    final stringsDir = Directory(
+      p.join(
+        tempDir.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'res',
+        'values',
+      ),
+    )..createSync(recursive: true);
+    File(p.join(stringsDir.path, 'strings.xml')).writeAsStringSync(
+      '''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="existing_only">existing</string>
+</resources>
+''',
+    );
+
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'DescAppend',
+        description: 'From unit test strings patch',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'DescAppend',
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content =
+        File(p.join(stringsDir.path, 'strings.xml')).readAsStringSync();
+    expect(content, contains('name="desc_append_home_widget_description"'));
+  });
+
+  test('escapes literal dollar signs in Kotlin string defaults', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'DollarWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.buck'),
+      ),
+      className: 'DollarWidget',
+      dataFields: const [
+        HWJson(
+          'j',
+          HWString('price', defaultValue: '\$9.99'),
+        ),
+      ],
+      widgetTree: const HWText(
+        HWJson(
+          'j',
+          HWString('price', defaultValue: '\$9.99'),
+        ),
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final kt = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/buck/DollarWidgetHomeWidget.kt',
+      ),
+    );
+    expect(
+      kt.readAsStringSync(),
+      contains(r'"\$9.99"'),
+    );
+  });
+
+  test('generates JSONObject optInt for HWInt JSON leaves', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'JsonIntLeaf',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.jsonint'),
+      ),
+      className: 'JsonIntLeaf',
+      dataFields: const [
+        HWJson('jf', HWInt('hits', defaultValue: 10)),
+      ],
+      widgetTree: const HWText(
+        HWJson('jf', HWInt('hits', defaultValue: 10)),
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final kt = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/jsonint/JsonIntLeafHomeWidget.kt',
+      ),
+    );
+    expect(
+      kt.readAsStringSync(),
+      contains('optInt'),
+    );
+  });
+
+  test('generates JSONObject optDouble for HWDouble JSON leaves', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'JsonDoubleLeaf',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.jsondbl'),
+      ),
+      className: 'JsonDoubleLeaf',
+      dataFields: const [
+        HWJson('jf', HWDouble('ratio', defaultValue: 1.5)),
+      ],
+      widgetTree: const HWText(
+        HWJson('jf', HWDouble('ratio', defaultValue: 1.5)),
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final kt = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/jsondbl/JsonDoubleLeafHomeWidget.kt',
+      ),
+    );
+    expect(kt.readAsStringSync(), contains('optDouble'));
   });
 
   test('generates Kotlin widget with data class', () async {

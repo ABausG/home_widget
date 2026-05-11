@@ -87,8 +87,3 @@ melos:
       exec: dart test -t integration_ios
       packageFilters:
         scope: home_widget_cli
-    coverage:generator:
-      description: Run home_widget_generator tests with coverage and write coverage/lcov.info
-      exec: bash tool/coverage.sh
-      packageFilters:
-        scope: home_widget_generator

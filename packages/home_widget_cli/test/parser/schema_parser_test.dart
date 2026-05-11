@@ -4,6 +4,7 @@ import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -147,6 +148,74 @@ void main() {
       final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.android?.fillWidgetContent, false);
+    });
+
+    test('collects data fields from widget tree (HWText HWString)', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Tree Data',
+          widget: HWText(HWString('label')),
+        )
+        class TreeWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.dataFields.length, 1);
+      expect(spec.dataFields.first.key, 'label');
+    });
+
+    test('parses supportedFamilies on iOS configuration', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Families',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.f',
+            supportedFamilies: [
+              HWWidgetFamily.systemSmall,
+              HWWidgetFamily.systemMedium,
+            ],
+          ),
+        )
+        class FamWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.data.iOS?.supportedFamilies,
+        [HWWidgetFamily.systemSmall, HWWidgetFamily.systemMedium],
+      );
+    });
+
+    test('parses Android resizeMode and widgetCategory enums', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Android Enums',
+          android: const HomeWidgetAndroidConfiguration(
+            resizeMode: HWAndroidResizeMode.horizontalAndVertical,
+            widgetCategory: HWAndroidWidgetCategory.searchbox,
+          ),
+        )
+        class AndroidEnumWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.data.android?.resizeMode,
+        HWAndroidResizeMode.horizontalAndVertical,
+      );
+      expect(
+        spec.data.android?.widgetCategory,
+        HWAndroidWidgetCategory.searchbox,
+      );
     });
   });
 }

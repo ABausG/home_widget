@@ -24,17 +24,6 @@ void main() {
       expect(annotation.iOS?.groupId, 'group.example');
     });
 
-    test('can include interactivity config', () {
-      const annotation = HomeWidget(
-        name: 'T',
-        interactivity: HomeWidgetInteractivityConfig(
-          import: 'package:app/x.dart',
-          callback: 'cb',
-        ),
-      );
-      expect(annotation.interactivity?.import, 'package:app/x.dart');
-      expect(annotation.interactivity?.callback, 'cb');
-    });
   });
 
   group('HomeWidgetAndroidConfiguration', () {

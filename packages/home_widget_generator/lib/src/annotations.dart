@@ -1,4 +1,3 @@
-import 'interactivity_config.dart';
 import 'widgets/hw_color.dart';
 import 'widgets/hw_widget.dart';
 
@@ -286,9 +285,6 @@ class HomeWidget {
   /// Configuration for the iOS widget.
   final HomeWidgetIOSConfiguration? iOS;
 
-  /// Configuration for interactivity.
-  final HomeWidgetInteractivityConfig? interactivity;
-
   const HomeWidget({
     required this.name,
     this.description,
@@ -296,7 +292,6 @@ class HomeWidget {
     this.dartOutput,
     this.android,
     this.iOS,
-    this.interactivity,
   });
 
   @override
@@ -308,8 +303,7 @@ class HomeWidget {
           widget == other.widget &&
           dartOutput == other.dartOutput &&
           android == other.android &&
-          iOS == other.iOS &&
-          interactivity == other.interactivity;
+          iOS == other.iOS;
 
   @override
   int get hashCode =>
@@ -318,6 +312,5 @@ class HomeWidget {
       widget.hashCode ^
       dartOutput.hashCode ^
       android.hashCode ^
-      iOS.hashCode ^
-      interactivity.hashCode;
+      iOS.hashCode;
 }

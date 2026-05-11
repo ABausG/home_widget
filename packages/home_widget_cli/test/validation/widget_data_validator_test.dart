@@ -122,5 +122,89 @@ void main() {
         throwsA(isA<GeneratorError>()),
       );
     });
+
+    test('throws when data name is empty', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: [
+          HWString(''),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('empty'),
+          ),
+        ),
+      );
+    });
+
+    test('reports multiple platforms for cross-language reserved names', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: [
+          HWString('class'),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf([
+              contains('"class"'),
+              contains('Dart'),
+              contains('Swift'),
+              contains('Kotlin'),
+            ]),
+          ),
+        ),
+      );
+    });
+
+    test(
+        'throws when nested JSON path collides with primitive at same segment',
+        () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWJson(
+            'fileKey',
+            HWJson('user', HWBool('enabled', defaultValue: true)),
+          ),
+          HWJson('fileKey', HWString('user')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(isA<GeneratorError>()),
+      );
+    });
+
+    test('throws when duplicate JSON leaves differ only by default value', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWJson('fileKey', HWString('leaf', defaultValue: 'a')),
+          HWJson('fileKey', HWString('leaf', defaultValue: 'b')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(isA<GeneratorError>()),
+      );
+    });
   });
 }

@@ -1,17 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
-/// Specification for interactivity callback configuration.
-class InteractivitySpec {
-  /// The import path for the callback function.
-  final String import;
-
-  /// The name of the callback function.
-  final String callback;
-
-  /// Creates a new [InteractivitySpec].
-  const InteractivitySpec({required this.import, required this.callback});
-}
-
 class JsonDataGroup {
   final String key;
   final List<JsonDataField> children;
@@ -43,9 +31,6 @@ class WidgetSpec {
   /// The data fields defined in the annotation.
   final List<HWDataType<dynamic>> dataFields;
 
-  /// The interactivity configuration.
-  final InteractivitySpec? interactivity;
-
   /// The widget tree definition (if any).
   final HWWidget? widgetTree;
 
@@ -54,7 +39,6 @@ class WidgetSpec {
     required this.data,
     required this.className,
     this.dataFields = const [],
-    this.interactivity,
     this.widgetTree,
   });
   @override
@@ -64,7 +48,6 @@ class WidgetSpec {
           data == other.data &&
           className == other.className &&
           dataFields == other.dataFields &&
-          interactivity == other.interactivity &&
           widgetTree == other.widgetTree;
 
   @override
@@ -72,7 +55,6 @@ class WidgetSpec {
       data.hashCode ^
       className.hashCode ^
       dataFields.hashCode ^
-      interactivity.hashCode ^
       widgetTree.hashCode;
 
   /// The effective widget tree, returning [widgetTree] if provided, or a

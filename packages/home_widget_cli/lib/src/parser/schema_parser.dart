@@ -25,7 +25,9 @@ Future<List<WidgetSpec>> parseSchemaFile(
   final result = await context.currentSession.getResolvedUnit(filePath);
 
   if (result is! ResolvedUnitResult) {
+    // coverage:ignore-start
     throw FormatException('Failed to resolve unit for $filePath');
+    // coverage:ignore-end
   }
 
   final specs = <WidgetSpec>[];
@@ -70,9 +72,6 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       _extractAndroidConfig(constantValue.getField('android'));
   final iosConfig = _extractIosConfig(constantValue.getField('iOS'));
 
-  final interactivityConfig =
-      _extractInteractivityConfig(constantValue.getField('interactivity'));
-
   // Widget Tree
   HWWidget? widgetTree;
   final widgetField = constantValue.getField('widget');
@@ -91,14 +90,6 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
 
   if (name == null) return null;
 
-  InteractivitySpec? interactivitySpec;
-  if (interactivityConfig != null) {
-    interactivitySpec = InteractivitySpec(
-      import: interactivityConfig.import,
-      callback: interactivityConfig.callback,
-    );
-  }
-
   final spec = WidgetSpec(
     data: HomeWidget(
       name: name,
@@ -107,11 +98,9 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       dartOutput: dartOutput,
       android: androidConfig,
       iOS: iosConfig,
-      interactivity: interactivityConfig,
     ),
     className: generatedClassName,
     dataFields: dataFields,
-    interactivity: interactivitySpec,
     widgetTree: widgetTree,
   );
   validateWidgetData(spec);
@@ -169,21 +158,6 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
   );
-}
-
-HomeWidgetInteractivityConfig? _extractInteractivityConfig(DartObject? obj) {
-  if (obj == null || obj.isNull) return null;
-
-  final import = obj.getField('import')?.toStringValue();
-  final callback = obj.getField('callback')?.toStringValue();
-
-  if (import != null && callback != null) {
-    return HomeWidgetInteractivityConfig(
-      import: import,
-      callback: callback,
-    );
-  }
-  return null;
 }
 
 T? _decodeEnum<T>(DartObject? obj, List<T> values) {

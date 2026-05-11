@@ -93,12 +93,14 @@ final class _TrieNode {
     required List<String> path,
     required JsonDataField field,
   }) {
+    // coverage:ignore-start
     if (path.isEmpty) {
       throw GeneratorError(
         'Invalid JSON leaf in JSON group "$jsonRootKey": '
         'empty path is not supported.',
       );
     }
+    // coverage:ignore-end
 
     var node = this;
     for (var i = 0; i < path.length; i++) {

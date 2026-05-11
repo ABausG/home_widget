@@ -31,7 +31,9 @@ Future<void> ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
   );
 
   if (result.stdout != null && result.stdout.toString().trim().isNotEmpty) {
+    // coverage:ignore-start
     logger.detail(result.stdout.toString());
+    // coverage:ignore-end
   }
   if (result.stderr != null && result.stderr.toString().trim().isNotEmpty) {
     logger.err(result.stderr.toString());

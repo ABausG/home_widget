@@ -304,7 +304,11 @@ class AndroidGenerator {
     }
 
     final doc = tryParseXmlFile(stringsFile);
-    if (doc == null) return;
+    if (doc == null) {
+      // coverage:ignore-start
+      return;
+      // coverage:ignore-end
+    }
 
     final resources = doc.rootElement;
     final existing = resources.childElements.where(

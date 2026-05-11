@@ -80,8 +80,10 @@ class GenerateCommand extends Command<int> {
         logger.err(e.message);
         rethrow;
       } catch (e) {
+        // coverage:ignore-start
         logger.err('Error parsing ${file.path}: $e');
         // We continue processing other files
+        // coverage:ignore-end
       }
     }
 

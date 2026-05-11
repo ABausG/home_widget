@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:home_widget_cli/src/cli.dart';
+import 'package:home_widget_cli/src/util/exit_codes.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
@@ -26,6 +27,7 @@ void main() {
     when(() => mockLogger.warn(any())).thenAnswer((invocation) {
       print(invocation.positionalArguments.first);
     });
+    when(() => mockLogger.success(any())).thenAnswer((_) {});
     logger = mockLogger;
   });
 
@@ -216,6 +218,221 @@ class SimpleData {}
       timeout: const Timeout(Duration(minutes: 25)),
       tags: ['integration', 'integration_android', 'integration_ios'],
     );
+    test(
+      'warns when single input file has no HomeWidget annotation',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'no_annotation.dart'));
+        widgetFile.writeAsStringSync('class Plain {}');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, ExitCodes.success);
+        verify(
+          () => mockLogger.warn(
+            any(that: contains('@HomeWidget')),
+          ),
+        ).called(1);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'returns software exit when schema validation fails',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'bad_keys.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Bad Keys',
+  widget: HWText(HWString('class')),
+)
+class BadKeys {}
+''');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, ExitCodes.software);
+        verify(() => mockLogger.err(any())).called(greaterThanOrEqualTo(1));
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'succeeds with no widgets when input directory is empty',
+      () async {
+        final project = await TestFlutterProject.create();
+        final emptyDir = Directory(p.join(project.root.path, 'empty_in'));
+        emptyDir.createSync();
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', emptyDir.path],
+        );
+        expect(code, ExitCodes.success);
+        verify(
+          () => mockLogger.info('No widgets found to generate.'),
+        ).called(1);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'generates iOS only when android config omitted',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'ios_only.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Ios Only',
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+)
+class IosOnly {}
+''');
+
+        final dartOut =
+            p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final code = await runCliWithProjectRoot(
+          project.root,
+          [
+            'generate',
+            '--input',
+            widgetFile.path,
+            '--dart-out',
+            dartOut,
+          ],
+        );
+        expect(code, 0);
+        verify(
+          () => mockLogger.info(
+            any(that: contains('Generating iOS for')),
+          ),
+        ).called(1);
+        verifyNever(
+          () => mockLogger.info(
+            any(that: contains('Generating Android for')),
+          ),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'generates Android and iOS when both configs are present',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'both_platforms.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Both Platforms',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+)
+class BothPlatforms {}
+''');
+
+        final dartOut =
+            p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final code = await runCliWithProjectRoot(
+          project.root,
+          [
+            'generate',
+            '--input',
+            widgetFile.path,
+            '--dart-out',
+            dartOut,
+          ],
+        );
+        expect(code, 0);
+        verify(
+          () => mockLogger.info(
+            any(that: contains('Generating Android for')),
+          ),
+        ).called(1);
+        verify(
+          () => mockLogger.info(
+            any(that: contains('Generating iOS for')),
+          ),
+        ).called(1);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'uses dartOutput from annotation when --dart-out omitted',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'with_dart_out.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Dart Out',
+  dartOutput: 'lib/foo.dart',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class WithDartOut {}
+''');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, 0);
+        final out = File(p.join(project.root.path, 'lib', 'foo.dart'));
+        expect(out.existsSync(), isTrue);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'defaults dart helper path when neither dart-out nor dartOutput set',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'default_path.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Default Path',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+)
+class DefaultPath {}
+''');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, 0);
+        final expected = p.join(
+          project.root.path,
+          'lib',
+          'src',
+          'home_widget',
+          'default_path.home_widget.dart',
+        );
+        expect(File(expected).existsSync(), isTrue);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
     test(
       'works with relative input path',
       () async {

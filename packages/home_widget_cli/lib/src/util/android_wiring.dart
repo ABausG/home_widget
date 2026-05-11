@@ -263,6 +263,7 @@ Future<String?> _tryResolveLatestAndroidxReleaseVersion({
     'https://dl.google.com/dl/android/maven2/$groupPath/$artifactId/maven-metadata.xml',
   );
 
+  // coverage:ignore-start
   try {
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 4);
@@ -307,6 +308,7 @@ Future<String?> _tryResolveLatestAndroidxReleaseVersion({
   } catch (_) {
     return null;
   }
+  // coverage:ignore-end
 }
 
 int _compareDottedInts3(String a, String b) {

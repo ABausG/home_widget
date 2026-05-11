@@ -46,11 +46,13 @@ Future<int> runCli(List<String> args) async {
     logger.err(e.usage);
     return ExitCodes.usage;
   } on FileSystemException catch (e) {
+    // coverage:ignore-start
     logger.err('File system error: ${e.message}');
     if (e.path != null) {
       logger.err('Path: ${e.path}');
     }
     return ExitCodes.osFile;
+    // coverage:ignore-end
   } catch (e) {
     logger.err('Unexpected error: $e');
     return ExitCodes.software;

@@ -218,16 +218,11 @@ void main() {
           iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
         ),
         className: 'ExampleWidget',
-        interactivity: InteractivitySpec(
-          import: 'package:example/main.dart',
-          callback: 'callback',
-        ),
       );
 
       final generator = DartHelperGenerator(spec);
       final output = generator.generate();
 
-      expect(output, contains("import 'package:example/main.dart';"));
       expect(
         output,
         contains('static Future<void> ensureInitialized() async {'),
@@ -235,12 +230,6 @@ void main() {
       expect(
         output,
         contains("await HomeWidget.setAppGroupId('group.example');"),
-      );
-      expect(
-        output,
-        contains(
-          "await HomeWidget.registerInteractivityCallback(callback);",
-        ),
       );
     });
   });

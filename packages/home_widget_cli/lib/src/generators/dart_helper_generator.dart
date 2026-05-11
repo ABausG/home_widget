@@ -30,11 +30,6 @@ class DartHelperGenerator {
     buffer.writeln("import 'package:home_widget/home_widget.dart';");
     buffer.writeln();
 
-    if (spec.interactivity != null) {
-      buffer.writeln("import '${spec.interactivity!.import}';");
-      buffer.writeln();
-    }
-
     final className = '${spec.className}HomeWidget';
 
     buffer.writeln('class $className {');
@@ -44,11 +39,6 @@ class DartHelperGenerator {
     if (spec.data.iOS != null) {
       buffer.writeln(
         "    await HomeWidget.setAppGroupId('${spec.data.iOS!.groupId}');",
-      );
-    }
-    if (spec.interactivity != null) {
-      buffer.writeln(
-        "    await HomeWidget.registerInteractivityCallback(${spec.interactivity!.callback});",
       );
     }
     buffer.writeln('  }');
