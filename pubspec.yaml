@@ -12,6 +12,7 @@ workspace:
   - examples/configurable_widget
   - examples/lockscreen_widgets
   - examples/file_and_images
+  - examples/generator_basics
 
 dev_dependencies:
   melos: ^7.0.0
