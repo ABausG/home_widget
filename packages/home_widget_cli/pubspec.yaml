@@ -1,7 +1,18 @@
 name: home_widget_cli
-description: CLI to scaffold native widget code for the home_widget plugin.
-version: 0.1.0
+description: CLI to scaffold and generate native HomeScreen widget code for the home_widget Flutter plugin.
+version: 0.0.1
 repository: https://github.com/ABausG/home_widget
+issue_tracker: https://github.com/ABausG/home_widget/issues
+documentation: https://docs.page/ABausG/home_widget/cli
+funding:
+  - https://github.com/sponsors/ABausG/
+topics:
+  - home-screen-widget
+  - cli
+  - code-generation
+  - android
+  - ios
+  - home_widget
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
