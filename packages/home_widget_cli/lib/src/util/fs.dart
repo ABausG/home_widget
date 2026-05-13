@@ -12,10 +12,10 @@ Future<void> ensureDir(Directory dir) async {
 /// Writes [contents] to [file] only if the file does not already exist.
 Future<void> writeFileIfMissing(File file, String contents) async {
   if (file.existsSync()) {
-    logger.info('Skipping existing file: ${file.path}');
+    logger.detail('Skipping existing file: ${file.path}');
     return;
   }
   await file.parent.create(recursive: true);
   await file.writeAsString(contents);
-  logger.info('Created: ${file.path}');
+  logger.detail('Created: ${file.path}');
 }

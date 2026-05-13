@@ -211,7 +211,7 @@ class AndroidGenerator {
         additionalImports: layoutImports.isNotEmpty ? layoutImports : null,
       ),
     );
-    logger.success('Generated: ${widgetFile.path}');
+    logger.detail('Generated: ${widgetFile.path}');
 
     final receiverFile = File(
       p.join(kotlinDir.path, '${widgetClassName}Receiver.kt'),
@@ -222,7 +222,7 @@ class AndroidGenerator {
         widgetClassName: widgetClassName,
       ),
     );
-    logger.success('Generated: ${receiverFile.path}');
+    logger.detail('Generated: ${receiverFile.path}');
 
     final android = spec.data.android;
     String? descriptionResource;
@@ -257,7 +257,7 @@ class AndroidGenerator {
         descriptionResource: descriptionResource,
       ),
     );
-    logger.success('Generated: ${providerInfoFile.path}');
+    logger.detail('Generated: ${providerInfoFile.path}');
 
     await ensureAndroidGlanceGradleSetup(projectRoot);
     await ensureAndroidManifestReceiver(
@@ -325,7 +325,7 @@ class AndroidGenerator {
     );
 
     writeXmlFile(stringsFile, doc);
-    logger.info('Updated: ${stringsFile.path}');
+    logger.detail('Updated: ${stringsFile.path}');
   }
 
   String _kotlinDefaultLiteral(HWDataType<dynamic> field) {

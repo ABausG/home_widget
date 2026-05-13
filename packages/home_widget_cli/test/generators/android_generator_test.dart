@@ -20,6 +20,7 @@ void main() {
     logger = mockLogger;
     when(() => mockLogger.success(any())).thenReturn(null);
     when(() => mockLogger.info(any())).thenReturn(null);
+    when(() => mockLogger.detail(any())).thenReturn(null);
     when(() => mockLogger.warn(any())).thenReturn(null);
 
     tempDir = Directory.systemTemp.createTempSync('android_gen_test');

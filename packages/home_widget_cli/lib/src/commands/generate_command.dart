@@ -11,9 +11,10 @@ import '../generators/ios_generator.dart';
 import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../parser/schema_parser.dart';
-import '../util/logger.dart';
+import '../util/cli_thanks.dart';
 import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
+import '../util/logger.dart';
 
 /// Command that generates native widget code from annotated Dart schemas.
 class GenerateCommand extends Command<int> {
@@ -35,6 +36,13 @@ class GenerateCommand extends Command<int> {
       help: 'Output path for the generated Dart helper. '
           'Can be a .dart file path or a directory.',
     );
+    argParser.addFlag(
+      'verbose',
+      abbr: 'v',
+      negatable: false,
+      hide: true,
+      help: 'Enable verbose output.',
+    );
   }
 
   @override
@@ -46,7 +54,7 @@ class GenerateCommand extends Command<int> {
         : File(absoluteInput);
 
     if (!inputEntity.existsSync()) {
-      logger.err('Error: Input path "$input" does not exist.');
+      logger.err('Input path "$input" does not exist.');
       return ExitCodes.noInput;
     }
 
@@ -74,7 +82,7 @@ class GenerateCommand extends Command<int> {
         }
         for (final spec in fileSpecs) {
           specs.add((path: file.path, spec: spec));
-          logger.info('Parsed ${spec.data.name} from ${file.path}');
+          logger.detail('Parsed ${spec.data.name} from ${file.path}');
         }
       } on GeneratorError catch (e) {
         logger.err(e.message);
@@ -102,20 +110,13 @@ class GenerateCommand extends Command<int> {
     }
 
     if (specs.isEmpty) {
-      logger.info('No widgets found to generate.');
+      logger.info('No @HomeWidget annotated classes found.');
       return ExitCodes.success;
     }
-
-    logger.info('Found ${specs.length} widget(s). Generating...');
 
     for (final item in specs) {
       final spec = item.spec;
       final path = item.path;
-
-      // Generate Dart helper file
-      logger.info('Generating Dart helper for ${spec.data.name}...');
-      final dartHelperGenerator = DartHelperGenerator(spec);
-      final dartHelperContent = dartHelperGenerator.generate();
 
       final dartOutOption = argResults?['dart-out'] as String?;
       final specDartOutput = spec.data.dartOutput;
@@ -130,25 +131,46 @@ class GenerateCommand extends Command<int> {
       } else {
         dartOutPath = p.join('lib', 'src', 'home_widget', autoFileName);
       }
-      final dartOutFile = File(dartOutPath);
-      await dartOutFile.parent.create(recursive: true);
-      await dartOutFile.writeAsString(dartHelperContent);
 
-      if (spec.data.android != null) {
-        logger.info('Generating Android for ${spec.data.name}...');
-        await AndroidGenerator(spec: spec, projectRoot: Directory.current)
-            .generate();
+      final steps = <({String label, Future<void> Function() run})>[
+        if (spec.data.android != null)
+          (
+            label: 'Generating Android widget',
+            run: () => AndroidGenerator(spec: spec, projectRoot: Directory.current)
+                .generate(),
+          ),
+        if (spec.data.iOS != null)
+          (
+            label: 'Generating iOS widget',
+            run: () => IosGenerator(spec: spec, projectRoot: Directory.current)
+                .generate(),
+          ),
+        (
+          label: 'Generating Dart helper',
+          run: () async {
+            final dartHelperGenerator = DartHelperGenerator(spec);
+            final dartHelperContent = dartHelperGenerator.generate();
+            final dartOutFile = File(dartOutPath);
+            await dartOutFile.parent.create(recursive: true);
+            await dartOutFile.writeAsString(dartHelperContent);
+          },
+        ),
+      ];
+
+      final total = steps.length;
+      final base = 'Generating ${spec.data.name} home_widget';
+      final progress = logger.progress(base);
+      for (var i = 0; i < steps.length; i++) {
+        progress.update('$base · ${i + 1}/$total ${steps[i].label}');
+        await steps[i].run();
       }
-      if (spec.data.iOS != null) {
-        logger.info('Generating iOS for ${spec.data.name}...');
-        await IosGenerator(spec: spec, projectRoot: Directory.current)
-            .generate();
-      }
+      progress.complete('Generated ${spec.data.name} home_widget');
     }
 
     // Ensure dependencies are present since generated code depends on home_widget
     await ensureFlutterHomeWidgetDependency(Directory.current);
 
+    logGenerateSuccessThanks();
     return ExitCodes.success;
   }
 

@@ -16,6 +16,7 @@ void main() {
     mockLogger = MockLogger();
     logger = mockLogger;
     when(() => mockLogger.info(any())).thenReturn(null);
+    when(() => mockLogger.detail(any())).thenReturn(null);
 
     tempDir = Directory.systemTemp.createTempSync('hw_cli_fs_test');
     addTearDown(() => tempDir.deleteSync(recursive: true));
@@ -31,9 +32,9 @@ void main() {
     await writeFileIfMissing(file, second);
 
     verify(
-      () => mockLogger.info('Skipping existing file: ${file.path}'),
+      () => mockLogger.detail('Skipping existing file: ${file.path}'),
     ).called(1);
-    verify(() => mockLogger.info('Created: ${file.path}')).called(1);
+    verify(() => mockLogger.detail('Created: ${file.path}')).called(1);
     expect(file.readAsStringSync(), first);
   });
 }

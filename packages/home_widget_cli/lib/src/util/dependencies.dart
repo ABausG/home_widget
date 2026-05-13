@@ -22,7 +22,7 @@ Future<void> ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
     return;
   }
 
-  logger.info('Adding home_widget dependency...');
+  logger.detail('Adding home_widget dependency');
   final result = await Process.run(
     'flutter',
     ['pub', 'add', 'home_widget'],

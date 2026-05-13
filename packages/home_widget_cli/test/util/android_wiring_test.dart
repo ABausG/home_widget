@@ -128,7 +128,7 @@ dependencies {
       final afterSecond = manifestFile.readAsStringSync();
 
       expect(afterFirst, afterSecond);
-      verifyNever(() => mockLogger.info(any(that: contains('Updated:'))));
+      verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
     });
 
     test('treats relative receiver name containing WidgetReceiver as present',
@@ -151,7 +151,7 @@ dependencies {
         providerInfoName: 'foo_home_widget',
       );
 
-      verifyNever(() => mockLogger.info(any(that: contains('Updated:'))));
+      verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
     });
   });
 }

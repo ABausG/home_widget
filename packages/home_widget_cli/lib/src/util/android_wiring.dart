@@ -73,7 +73,7 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 
     if (updated != original) {
       gradleGroovy.writeAsStringSync(updated);
-      logger.info('Updated: ${gradleGroovy.path}');
+      logger.detail('Updated: ${gradleGroovy.path}');
     }
     return;
   }
@@ -102,7 +102,7 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 
     if (updated != original) {
       gradleKts.writeAsStringSync(updated);
-      logger.info('Updated: ${gradleKts.path}');
+      logger.detail('Updated: ${gradleKts.path}');
     }
     return;
   }
@@ -183,7 +183,7 @@ Future<void> ensureAndroidManifestReceiver(
   );
 
   writeXmlFile(manifestFile, manifestXml);
-  logger.info('Updated: ${manifestFile.path}');
+  logger.detail('Updated: ${manifestFile.path}');
 }
 
 bool _androidApplicationHasWidgetReceiver(

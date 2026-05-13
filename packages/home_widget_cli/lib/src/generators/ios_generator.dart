@@ -197,21 +197,21 @@ $loadDataLogic
         applyContentPadding: applyPadding,
       ),
     );
-    logger.success('Generated: ${widgetSwift.path}');
+    logger.detail('Generated: ${widgetSwift.path}');
 
     await widgetBundleSwift.writeAsString(
       iosWidgetBundleSwiftTemplate(widgetClassName: widgetClassName),
     );
-    logger.success('Generated: ${widgetBundleSwift.path}');
+    logger.detail('Generated: ${widgetBundleSwift.path}');
 
     await infoPlist.writeAsString(iosInfoPlistTemplate());
-    logger.success('Generated: ${infoPlist.path}');
+    logger.detail('Generated: ${infoPlist.path}');
 
     await ensureAppGroupEntitlement(
       entitlementsFile: extensionEntitlements,
       appGroupId: groupId,
     );
-    logger.success('Updated: ${extensionEntitlements.path}');
+    logger.detail('Updated: ${extensionEntitlements.path}');
 
     final runnerEntitlements = File(
       p.join(iosDir.path, 'Runner', 'Runner.entitlements'),
@@ -221,7 +221,7 @@ $loadDataLogic
       entitlementsFile: runnerEntitlements,
       appGroupId: groupId,
     );
-    logger.success('Updated: ${runnerEntitlements.path}');
+    logger.detail('Updated: ${runnerEntitlements.path}');
 
     if (xcodeproj.existsSync()) {
       await ensureWidgetExtensionTargetInXcodeProject(
@@ -231,7 +231,7 @@ $loadDataLogic
 
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
       await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
-      logger.success('Updated: ${xcodeproj.path}');
+      logger.detail('Updated: ${xcodeproj.path}');
     }
   }
 

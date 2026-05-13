@@ -5,6 +5,8 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../helpers/fake_progress.dart';
+import '../helpers/recording_logger.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
 
@@ -21,12 +23,32 @@ void main() {
     when(() => mockLogger.warn(any())).thenReturn(null);
     when(() => mockLogger.success(any())).thenReturn(null);
     when(() => mockLogger.detail(any())).thenReturn(null);
+    when(() => mockLogger.progress(any())).thenReturn(FakeProgress());
+    when(() => mockLogger.progress(any(), options: any(named: 'options')))
+        .thenReturn(FakeProgress());
   });
 
   test('--version exits success', () async {
     final code = await runCli(['--version']);
     expect(code, ExitCodes.success);
-    verify(() => mockLogger.info('home_widget_cli 0.1.0')).called(1);
+    verify(() => mockLogger.info('home_widget_cli 0.0.1')).called(1);
+  });
+
+  test('-v and --verbose set log level to verbose before --version',
+      () async {
+    final recording = RecordingLogger();
+    logger = recording;
+    final code = await runCli(['-v', '--version']);
+    expect(code, ExitCodes.success);
+    expect(recording.lastAppliedLevel, Level.verbose);
+  });
+
+  test('--verbose sets log level to verbose', () async {
+    final recording = RecordingLogger();
+    logger = recording;
+    final code = await runCli(['--verbose', '--version']);
+    expect(code, ExitCodes.success);
+    expect(recording.lastAppliedLevel, Level.verbose);
   });
 
   test('missing command returns usage', () async {

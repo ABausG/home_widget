@@ -438,8 +438,8 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 
   if (updated != text) {
     await pbxprojFile.writeAsString(updated);
-    logger.info('Updated Xcode project: ${pbxprojFile.path}');
-    logger.info(
+    logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+    logger.detail(
       'Added Widget Extension target "$widgetClassName" (bundle id: $extBundleId).',
     );
   }
@@ -513,8 +513,8 @@ Future<void> ensureRunnerEntitlementsInXcodeProject({
   }
 
   await pbxprojFile.writeAsString(text);
-  logger.info('Updated Xcode project: ${pbxprojFile.path}');
-  logger.info('Ensured Runner uses Runner/Runner.entitlements.');
+  logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+  logger.detail('Ensured Runner uses Runner/Runner.entitlements.');
 }
 
 /// Ensures that the Runner target's `IPHONEOS_DEPLOYMENT_TARGET` is at least
@@ -582,8 +582,8 @@ Future<void> ensureMinimumDeploymentTargetInXcodeProject({
   if (!didChange) return;
 
   await pbxprojFile.writeAsString(text);
-  logger.info('Updated Xcode project: ${pbxprojFile.path}');
-  logger.info(
+  logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+  logger.detail(
     'Ensured Runner IPHONEOS_DEPLOYMENT_TARGET >= $minimumVersion.',
   );
 }

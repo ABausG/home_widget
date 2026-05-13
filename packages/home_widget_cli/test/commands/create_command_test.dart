@@ -7,6 +7,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/fake_progress.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
 
@@ -23,6 +24,14 @@ void main() {
     when(
       () => mockLogger.prompt(any(), defaultValue: any(named: 'defaultValue')),
     ).thenReturn('');
+    when(() => mockLogger.progress(any())).thenReturn(FakeProgress());
+    when(() => mockLogger.progress(any(), options: any(named: 'options')))
+        .thenReturn(FakeProgress());
+    when(() => mockLogger.detail(any())).thenReturn(null);
+    when(() => mockLogger.info(any())).thenReturn(null);
+    when(() => mockLogger.success(any())).thenReturn(null);
+    when(() => mockLogger.warn(any())).thenReturn(null);
+    when(() => mockLogger.err(any())).thenReturn(null);
   });
 
   void expectAndroidScaffold({
@@ -125,6 +134,23 @@ void main() {
         projectRoot: project.root,
         widgetClassName: widgetClassName,
       );
+
+      verify(
+        () => mockLogger.success(
+          any(that: contains('Widget scaffolded successfully')),
+        ),
+      ).called(1);
+      verify(
+        () => mockLogger.info(
+          any(
+            that: allOf(
+              contains('Thanks for using home_widget'),
+              contains('github.com/sponsors/ABausG'),
+            ),
+          ),
+          style: any(named: 'style'),
+        ),
+      ).called(1);
     },
     timeout: const Timeout(Duration(minutes: 5)),
   );
@@ -243,7 +269,7 @@ void main() {
         () => mockLogger.warn(
           any(
             that: contains(
-              'requested Android scaffolding but no android/ folder exists',
+              'Requested Android scaffolding but no android/ folder exists',
             ),
           ),
         ),
@@ -277,7 +303,7 @@ void main() {
         () => mockLogger.warn(
           any(
             that: contains(
-              'requested iOS scaffolding but no ios/ folder exists',
+              'Requested iOS scaffolding but no ios/ folder exists',
             ),
           ),
         ),
@@ -349,7 +375,7 @@ void main() {
         () => mockLogger.warn(
           any(
             that: contains(
-              'requested iOS scaffolding but no ios/ folder exists',
+              'Requested iOS scaffolding but no ios/ folder exists',
             ),
           ),
         ),
@@ -405,7 +431,7 @@ void main() {
         // Ensure Android scaffolding truly did not run / recreate android/app/.
         expect(androidAppDir.existsSync(), isFalse);
         verifyNever(() => mockLogger.success(any(that: contains('Created:'))));
-        verifyNever(() => mockLogger.info(any(that: contains('Updated:'))));
+        verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
 
         final androidDir = Directory(p.join(project.root.path, 'android'));
         final androidFiles = androidDir.existsSync()

@@ -17,6 +17,9 @@ void main() {
     tempDir = await Directory.systemTemp.createTemp('hw_entitlements_');
     mockLogger = _MockLogger();
     logger = mockLogger;
+    when(() => mockLogger.detail(any())).thenReturn(null);
+    when(() => mockLogger.info(any())).thenReturn(null);
+    when(() => mockLogger.warn(any())).thenReturn(null);
   });
 
   tearDown(() async {
@@ -74,7 +77,7 @@ void main() {
       expect(content, contains('com.apple.developer.something'));
       expect(content, contains('com.apple.security.application-groups'));
       expect(content, contains('<string>group.example</string>'));
-      verify(() => mockLogger.info(any(that: contains('Updated entitlements'))))
+      verify(() => mockLogger.detail(any(that: contains('Updated entitlements'))))
           .called(1);
     });
 
@@ -133,7 +136,7 @@ void main() {
       );
       expect(file.readAsStringSync(), equals(afterFirst));
       verifyNever(
-        () => mockLogger.info(any(that: contains('Updated entitlements'))),
+        () => mockLogger.detail(any(that: contains('Updated entitlements'))),
       );
     });
 

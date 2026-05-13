@@ -3,9 +3,10 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 
 import '../scaffold/scaffold.dart';
-import '../util/logger.dart';
+import '../util/cli_thanks.dart';
 import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
+import '../util/logger.dart';
 import '../util/naming.dart';
 
 /// `home_widget create <Name>`
@@ -37,6 +38,13 @@ class CreateCommand extends Command<int> {
             'code. If omitted and stdin is interactive, the CLI will prompt. '
             'If omitted and stdin is non-interactive, it defaults to '
             '"YOUR_APP_GROUP_ID".',
+      )
+      ..addFlag(
+        'verbose',
+        abbr: 'v',
+        negatable: false,
+        hide: true,
+        help: 'Enable verbose output.',
       );
   }
 
@@ -80,13 +88,13 @@ class CreateCommand extends Command<int> {
 
     if (shouldAndroid && !androidDir.existsSync()) {
       logger.warn(
-        'Warning: requested Android scaffolding but no android/ folder exists '
+        'Requested Android scaffolding but no android/ folder exists '
         'in ${cwd.path}. Skipping Android.',
       );
     }
     if (shouldIos && !iosDir.existsSync()) {
       logger.warn(
-        'Warning: requested iOS scaffolding but no ios/ folder exists in '
+        'Requested iOS scaffolding but no ios/ folder exists in '
         '${cwd.path}. Skipping iOS.',
       );
     }
@@ -96,21 +104,45 @@ class CreateCommand extends Command<int> {
       widgetClassName: widgetClassName,
     );
 
+    final steps = <({String label, Future<void> Function() run})>[];
     if (shouldAndroid && androidDir.existsSync()) {
-      await scaffold.createAndroid();
+      steps.add(
+        (
+          label: 'Scaffolding Android widget',
+          run: () => scaffold.createAndroid(),
+        ),
+      );
     }
     if (shouldIos && iosDir.existsSync()) {
-      final appGroupId = _resolveIosAppGroupId(
-        fromArgs: argResults?['ios-app-group-id'] as String?,
+      steps.add(
+        (
+          label: 'Scaffolding iOS widget',
+          run: () async {
+            final appGroupId = _resolveIosAppGroupId(
+              fromArgs: argResults?['ios-app-group-id'] as String?,
+            );
+            await scaffold.createIos(appGroupId: appGroupId);
+          },
+        ),
       );
-      await scaffold.createIos(appGroupId: appGroupId);
     }
-
-    await ensureFlutterHomeWidgetDependency(cwd);
-
-    logger.success(
-      'Done. Created placeholder structure for $widgetClassName.',
+    steps.add(
+      (
+        label: 'Ensuring home_widget dependency',
+        run: () => ensureFlutterHomeWidgetDependency(cwd),
+      ),
     );
+
+    final total = steps.length;
+    final base = 'Scaffolding $widgetBaseName home_widget';
+    final progress = logger.progress(base);
+    for (var i = 0; i < steps.length; i++) {
+      progress.update('$base · ${i + 1}/$total ${steps[i].label}');
+      await steps[i].run();
+    }
+    progress.complete('Scaffolded $widgetBaseName home_widget');
+
+    logCreateSuccessThanks();
     return ExitCodes.success;
   }
 }
@@ -123,7 +155,7 @@ String _resolveIosAppGroupId({required String? fromArgs}) {
 
   if (!stdin.hasTerminal) {
     logger.warn(
-      'Note: stdin is not interactive; using default iOS App Group ID: '
+      'Stdin is not interactive; using default iOS App Group ID: '
       '$defaultValue',
     );
     return defaultValue;

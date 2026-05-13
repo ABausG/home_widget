@@ -5,8 +5,9 @@ import 'package:args/command_runner.dart';
 
 import 'commands/create_command.dart';
 import 'commands/generate_command.dart';
-import 'util/logger.dart';
+import 'util/apply_log_level.dart';
 import 'util/exit_codes.dart';
+import 'util/logger.dart';
 
 /// Runs the CLI and returns a process exit code.
 Future<int> runCli(List<String> args) async {
@@ -19,7 +20,12 @@ Future<int> runCli(List<String> args) async {
 
   runner.argParser
     ..addFlag('version', negatable: false, help: 'Print the CLI version.')
-    ..addFlag('verbose', negatable: false, help: 'Enable verbose output.');
+    ..addFlag(
+      'verbose',
+      abbr: 'v',
+      negatable: false,
+      help: 'Enable verbose output (per-file generated/updated paths).',
+    );
 
   ArgResults results;
   try {
@@ -31,10 +37,12 @@ Future<int> runCli(List<String> args) async {
     return ExitCodes.usage;
   }
 
+  applyVerboseFromArgResults(results);
+
   // Handle global flags (before command parsing).
   if (results['version'] == true) {
     // Keeping version handling simple for now; will be wired to pubspec later.
-    logger.info('home_widget_cli 0.1.0');
+    logger.info('home_widget_cli 0.0.1');
     return ExitCodes.success;
   }
 

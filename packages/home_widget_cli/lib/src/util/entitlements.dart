@@ -87,7 +87,7 @@ Future<void> ensureAppGroupEntitlement({
   final updated = doc.toXmlString(pretty: true, indent: '\t');
   if (updated != original) {
     await entitlementsFile.writeAsString(updated);
-    logger.info('Updated entitlements: ${entitlementsFile.path}');
+    logger.detail('Updated entitlements: ${entitlementsFile.path}');
   }
 }
 

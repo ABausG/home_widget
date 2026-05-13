@@ -8,6 +8,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/fake_progress.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
 
@@ -28,6 +29,10 @@ void main() {
       print(invocation.positionalArguments.first);
     });
     when(() => mockLogger.success(any())).thenAnswer((_) {});
+    when(() => mockLogger.detail(any())).thenAnswer((_) {});
+    when(() => mockLogger.progress(any())).thenReturn(FakeProgress());
+    when(() => mockLogger.progress(any(), options: any(named: 'options')))
+        .thenReturn(FakeProgress());
     logger = mockLogger;
   });
 
@@ -73,8 +78,8 @@ class TestWidget {}
         expect(code, 0);
 
         verify(
-          () => mockLogger.info(
-            any(that: contains('Adding home_widget dependency...')),
+          () => mockLogger.detail(
+            any(that: contains('Adding home_widget dependency')),
           ),
         ).called(1);
       },
@@ -114,8 +119,9 @@ class TestWidget {}
         expect(code, 0);
 
         verifyNever(
-          () => mockLogger
-              .info(any(that: contains('Adding home_widget dependency...'))),
+          () => mockLogger.detail(
+            any(that: contains('Adding home_widget dependency')),
+          ),
         );
       },
       timeout: const Timeout(Duration(minutes: 2)),
@@ -150,6 +156,23 @@ class TestWidget {}
           ['generate', '--input', widgetFile.path, '--dart-out', dartOutDir],
         );
         expect(code, 0);
+
+        verify(
+          () => mockLogger.success(
+            any(that: contains('Widgets generated successfully')),
+          ),
+        ).called(1);
+        verify(
+          () => mockLogger.info(
+            any(
+              that: allOf(
+                contains('Thanks for using home_widget'),
+                contains('github.com/sponsors/ABausG'),
+              ),
+            ),
+            style: any(named: 'style'),
+          ),
+        ).called(1);
 
         final expectedFile = p.join(dartOutDir, 'widget.home_widget.dart');
         expect(File(expectedFile).existsSync(), isTrue);
@@ -279,7 +302,7 @@ class BadKeys {}
         );
         expect(code, ExitCodes.success);
         verify(
-          () => mockLogger.info('No widgets found to generate.'),
+          () => mockLogger.info('No @HomeWidget annotated classes found.'),
         ).called(1);
       },
       timeout: const Timeout(Duration(minutes: 2)),
@@ -315,13 +338,13 @@ class IosOnly {}
         );
         expect(code, 0);
         verify(
-          () => mockLogger.info(
-            any(that: contains('Generating iOS for')),
+          () => mockLogger.progress(
+            any(that: contains('Generating Ios Only home_widget')),
           ),
         ).called(1);
         verifyNever(
-          () => mockLogger.info(
-            any(that: contains('Generating Android for')),
+          () => mockLogger.progress(
+            any(that: contains('Generating Android widget')),
           ),
         );
       },
@@ -359,13 +382,8 @@ class BothPlatforms {}
         );
         expect(code, 0);
         verify(
-          () => mockLogger.info(
-            any(that: contains('Generating Android for')),
-          ),
-        ).called(1);
-        verify(
-          () => mockLogger.info(
-            any(that: contains('Generating iOS for')),
+          () => mockLogger.progress(
+            any(that: contains('Generating Both Platforms home_widget')),
           ),
         ).called(1);
       },
