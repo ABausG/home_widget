@@ -6,8 +6,9 @@ A minimal example that showcases the `home_widget_generator` annotations and the
 The widget schemas live in [`home_widget/`](home_widget/). They are intentionally
 small and each one demonstrates a different feature of the generator:
 
+- `greeting.dart` – the README walkthrough widget (`HWColumn` + `HWString`).
 - `basic_creation.dart` – the smallest possible widget (no data, no UI).
-- `fixed_text.dart` – a widget with a single hard-coded `HWText`.
+- `adaptive_greeting.dart` – platform-specific text via `HWAdaptive`.
 - `simple_data.dart` – a data-only widget that exposes typed `saveData` /
   `getData` helpers on the Dart side.
 - `themed_counter.dart` – an inline UI that reads data, uses role-based colors

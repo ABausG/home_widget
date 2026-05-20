@@ -76,6 +76,21 @@ await GreetingHomeWidget.updateWidget();
 
 See the [Getting Started](https://docs.page/ABausG/home_widget/generator/getting-started) guide for a full walkthrough.
 
+## Examples
+
+Screenshots from the [`generator_basics`](https://github.com/ABausG/home_widget/tree/main/examples/generator_basics) example app (install name: **home_widget_generator**). Each row is one `@HomeWidget` `name` as shown in the iOS and Android widget pickers.
+
+| Name | iOS | Android |
+| --- | :---: | :---: |
+| Greeting | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/greeting.jpg" width="160"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/greeting.jpg" width="160"/> |
+| Basic Creation | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/basic_creation.jpg" width="160"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/basic_creation.jpg" width="160"/> |
+| Adaptive Greeting | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/adaptive_greeting.jpg" width="160"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/adaptive_greeting.jpg" width="160"/> |
+| Themed Counter | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/counter.jpg" width="160"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/counter.jpg" width="160"/> |
+| Simple Data | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/simple_data.jpg" width="160"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/simple_data.jpg" width="160"/> |
+| Conditional Status | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/data_no_data.jpg" width="160"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/data_no_data.jpg" width="160"/> |
+
+See more examples with full `@HomeWidget` source in the [example README](example/README.md). Runnable schemas and a demo app live in [`examples/generator_basics`](https://github.com/ABausG/home_widget/tree/main/examples/generator_basics/home_widget).
+
 ## Sponsors
 
 I develop this package in my free time. If you or your company benefits from home_widget, it would mean a lot to me if you considered supporting me on [GitHub Sponsors](https://github.com/sponsors/abausg)
