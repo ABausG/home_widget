@@ -485,7 +485,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), text = widgetData.title ?: "")',
+        'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {',
       ),
     );
     // Should NOT contain placeholder
@@ -541,7 +541,7 @@ void main() {
     expect(
       content,
       contains(
-        'Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize()) {',
+        'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {',
       ),
     );
     expect(content, contains('GlanceTheme {'));
@@ -684,7 +684,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize(), text = "Yes")',
+        'Box(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {',
       ),
     );
     expect(content, contains('if (widgetData.flag != null) {'));

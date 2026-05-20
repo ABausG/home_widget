@@ -150,25 +150,25 @@ class AndroidGenerator {
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
     );
 
-    if (fillContent) {
-      widgetTreeBody = injectGlanceModifier(
-        widgetTreeBody,
-        'fillMaxSize()',
-      );
-    }
-
-    if (applyPadding) {
-      widgetTreeBody = injectGlanceModifier(
-        widgetTreeBody,
-        'padding(16.dp)',
-      );
-    }
-
+    final rootModifiers = <String>[];
     if (bgColor != null) {
-      widgetTreeBody = injectGlanceModifier(
-        widgetTreeBody,
+      rootModifiers.add(
         'background(${bgColor.toKotlin(0, dataExpr: hasDataFields ? "widgetData" : "null")})',
       );
+    }
+    if (applyPadding) {
+      rootModifiers.add('padding(16.dp)');
+    }
+    if (fillContent) {
+      rootModifiers.add('fillMaxSize()');
+      widgetTreeBody = wrapGlanceRootContent(
+        widgetTreeBody,
+        modifier: rootModifiers.join('.'),
+      );
+    } else {
+      for (final modifier in rootModifiers) {
+        widgetTreeBody = injectGlanceModifier(widgetTreeBody, modifier);
+      }
     }
 
     if (useTheme) {
@@ -196,6 +196,8 @@ class AndroidGenerator {
 
     if (fillContent) {
       layoutImports.add('import androidx.glance.layout.fillMaxSize');
+      layoutImports.add('import androidx.glance.layout.Alignment');
+      layoutImports.add('import androidx.glance.layout.Box');
     }
     if (jsonGroups.isNotEmpty) {
       layoutImports.add('import java.io.File');
@@ -243,7 +245,7 @@ class AndroidGenerator {
     await providerInfoFile.writeAsString(
       androidAppWidgetProviderInfoTemplate(
         initialLayoutName: 'glance_default_loading_layout',
-        minWidth: android?.minWidth ?? 180,
+        minWidth: android?.minWidth ?? 80,
         minHeight: android?.minHeight ?? 80,
         minResizeWidth: android?.minResizeWidth,
         minResizeHeight: android?.minResizeHeight,

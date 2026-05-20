@@ -18,15 +18,16 @@ import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import androidx.glance.layout.Column
+import androidx.glance.layout.Alignment
 import androidx.glance.text.TextStyle
-import androidx.glance.layout.Row
+import androidx.compose.ui.unit.sp
+import androidx.glance.text.FontWeight
 import androidx.glance.GlanceTheme
 import androidx.glance.color.ColorProvider
 import androidx.compose.ui.unit.dp
 import androidx.glance.layout.padding
-import androidx.glance.layout.Alignment
 
-class SimpleDataHomeWidget : GlanceAppWidget() {
+class GreetingHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -36,19 +37,12 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
   @Composable
   private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
     val prefs = currentState.preferences
-    val widgetData = SimpleDataData.fromPreferences(prefs)
+    val widgetData = GreetingData.fromPreferences(prefs)
     GlanceTheme {
             Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column {
-                    Text(text = "Simple Data")
-                    Row {
-                        Text(text = "label: ")
-                        Text(text = widgetData.label ?: "")
-                    }
-                    Row {
-                        Text(text = "value: ")
-                        Text(text = (widgetData.value?.toString() ?: "0"))
-                    }
+                Column(horizontalAlignment = Alignment.Start) {
+                    Text(text = "Hello", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal))
+                    Text(text = widgetData.name ?: "", style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold))
                 }
             }
     }
@@ -56,17 +50,15 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
   }
 }
 
-data class SimpleDataData(
-    val label: String? = null,
-    val value: Int? = null,
+data class GreetingData(
+    val name: String? = null,
 ) {
     companion object {
-        private const val PREFERENCES_PREFIX = "home_widget.SimpleData"
+        private const val PREFERENCES_PREFIX = "home_widget.Greeting"
 
-        fun fromPreferences(prefs: android.content.SharedPreferences): SimpleDataData {
-            return SimpleDataData(
-                label = prefs.getString("${PREFERENCES_PREFIX}.label", null),
-                value = if (prefs.contains("${PREFERENCES_PREFIX}.value")) prefs.getInt("${PREFERENCES_PREFIX}.value", 0) else null,
+        fun fromPreferences(prefs: android.content.SharedPreferences): GreetingData {
+            return GreetingData(
+                name = prefs.getString("${PREFERENCES_PREFIX}.name", "world"),
             )
         }
     }

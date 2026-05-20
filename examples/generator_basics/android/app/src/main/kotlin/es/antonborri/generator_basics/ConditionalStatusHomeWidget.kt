@@ -40,26 +40,28 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
     val prefs = currentState.preferences
     val widgetData = ConditionalStatusData.fromPreferences(prefs)
     GlanceTheme {
-            if (widgetData.hasData != null) {
-                if (widgetData.enabled == true) {
-                    Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize().fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Spacer(modifier = GlanceModifier.defaultWeight())
-                        Text(text = "Enabled", style = TextStyle(color = ColorProvider(day = Color(0xFF16A34A), night = Color(0xFF16A34A)), fontSize = 18.sp, fontWeight = FontWeight.Medium))
-                        Spacer(modifier = GlanceModifier.defaultWeight())
+            Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {
+                if (widgetData.hasData != null) {
+                    if (widgetData.enabled == true) {
+                        Column(modifier = GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Spacer(modifier = GlanceModifier.defaultWeight())
+                            Text(text = "Enabled", style = TextStyle(color = ColorProvider(day = Color(0xFF16A34A), night = Color(0xFF16A34A)), fontSize = 18.sp, fontWeight = FontWeight.Medium))
+                            Spacer(modifier = GlanceModifier.defaultWeight())
+                        }
+                    } else {
+                        Column(modifier = GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Spacer(modifier = GlanceModifier.defaultWeight())
+                            Text(text = "Disabled", style = TextStyle(color = ColorProvider(day = Color(0xFFDC2626), night = Color(0xFFDC2626)), fontSize = 18.sp, fontWeight = FontWeight.Medium))
+                            Spacer(modifier = GlanceModifier.defaultWeight())
+                        }
                     }
                 } else {
-                    Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize().fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(modifier = GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(modifier = GlanceModifier.defaultWeight())
-                        Text(text = "Disabled", style = TextStyle(color = ColorProvider(day = Color(0xFFDC2626), night = Color(0xFFDC2626)), fontSize = 18.sp, fontWeight = FontWeight.Medium))
+                        Text(text = "No Data", style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium))
+                        Text(text = "Open the app", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Normal))
                         Spacer(modifier = GlanceModifier.defaultWeight())
                     }
-                }
-            } else {
-                Column(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize().fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Spacer(modifier = GlanceModifier.defaultWeight())
-                    Text(text = "No Data", style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium))
-                    Text(text = "Open the app", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Normal))
-                    Spacer(modifier = GlanceModifier.defaultWeight())
                 }
             }
     }

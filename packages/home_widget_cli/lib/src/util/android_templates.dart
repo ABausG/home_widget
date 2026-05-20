@@ -111,7 +111,7 @@ class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassNa
 /// Generates the `appwidget-provider` XML content.
 ///
 /// [initialLayoutName]: The name of the layout resource to use as initial layout.
-/// [minWidth]: The minimum width of the widget (default 180dp).
+/// [minWidth]: The minimum width of the widget (default 80dp).
 /// [minHeight]: The minimum height of the widget (default 80dp).
 /// [minResizeWidth]: The minimum resize width (optional).
 /// [minResizeHeight]: The minimum resize height (optional).
@@ -126,7 +126,7 @@ class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassNa
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidAppWidgetProviderInfoTemplate({
   required String initialLayoutName,
-  int minWidth = 180,
+  int minWidth = 80,
   int minHeight = 80,
   int? minResizeWidth,
   int? minResizeHeight,

@@ -67,4 +67,32 @@ void main() {
       );
     });
   });
+
+  group('wrapGlanceRootContent', () {
+    test('wraps in centered Box with modifier chain', () {
+      expect(
+        wrapGlanceRootContent(
+          'Column {\n    Text("a")\n}',
+          modifier: 'padding(16.dp).fillMaxSize()',
+        ),
+        'Box(modifier = GlanceModifier.padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {\n'
+        '    Column {\n'
+        '        Text("a")\n'
+        '    }\n'
+        '}',
+      );
+    });
+
+    test('preserves leading indent on wrapper', () {
+      expect(
+        wrapGlanceRootContent(
+          '  Text("a")',
+          modifier: 'fillMaxSize()',
+        ),
+        '  Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.Center) {\n'
+        '      Text("a")\n'
+        '  }',
+      );
+    });
+  });
 }

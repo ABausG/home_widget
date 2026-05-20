@@ -40,11 +40,13 @@ class ThemedCounterHomeWidget : GlanceAppWidget() {
     val prefs = currentState.preferences
     val widgetData = ThemedCounterData.fromPreferences(prefs)
     GlanceTheme {
-            Column(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFEFF6FF), night = Color(0xFF0B1220))).padding(16.dp).fillMaxSize().fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(modifier = GlanceModifier.defaultWeight())
-                Text(text = "Counter", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Normal))
-                Text(text = (widgetData.count?.toString() ?: "0"), style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold))
-                Spacer(modifier = GlanceModifier.defaultWeight())
+            Box(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFEFF6FF), night = Color(0xFF0B1220))).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(modifier = GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Text(text = "Counter", style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Normal))
+                    Text(text = (widgetData.count?.toString() ?: "0"), style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold))
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                }
             }
     }
 

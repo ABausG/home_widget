@@ -24,6 +24,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.color.ColorProvider
 import androidx.compose.ui.unit.dp
 import androidx.glance.layout.padding
+import androidx.glance.layout.Alignment
 
 class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -35,7 +36,9 @@ class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
   @Composable
   private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
     GlanceTheme {
-            Text(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), text = "Hello Android", style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium))
+            Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = "Hello Android", style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium))
+            }
     }
 
   }

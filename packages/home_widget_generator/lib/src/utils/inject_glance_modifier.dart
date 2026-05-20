@@ -109,3 +109,19 @@ String injectGlanceModifier(String code, String modifier) {
       lines.map((l) => l.trimRight().isEmpty ? '' : '    $l').join('\n');
   return '${indent}Box(modifier = GlanceModifier.$modifier) {\n$indentedLines\n$indent}';
 }
+
+/// Wraps the widget tree in a full-size [Box] with [contentAlignment].
+///
+/// Used for the Android widget root so content is centered in the cell,
+String wrapGlanceRootContent(
+  String code, {
+  required String modifier,
+  String contentAlignment = 'Alignment.Center',
+}) {
+  final indentMatch = RegExp(r'^(\s*)').firstMatch(code);
+  final indent = indentMatch?.group(1) ?? '';
+  final lines = code.split('\n');
+  final indentedLines =
+      lines.map((l) => l.trimRight().isEmpty ? '' : '    $l').join('\n');
+  return '${indent}Box(modifier = GlanceModifier.$modifier, contentAlignment = $contentAlignment) {\n$indentedLines\n$indent}';
+}

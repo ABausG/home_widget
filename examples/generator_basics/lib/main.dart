@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
+import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
 
@@ -30,9 +31,9 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'home_widget generator basics',
+      title: 'home_widget_generator',
       home: Scaffold(
-        appBar: AppBar(title: const Text('Generator Basics')),
+        appBar: AppBar(title: const Text('home_widget_generator')),
         body: !_isInitialized
             ? const Center(child: CircularProgressIndicator())
             : const _HomePage(),
@@ -62,6 +63,32 @@ class _HomePageState extends State<_HomePage> {
               'Basic Creation & Adaptive Greeting do not need any Dart-side '
               'calls — just add them to your home screen after running the '
               'generator.',
+        ),
+
+        const Divider(),
+
+        // -------------------------------------------------------------------
+        // Greeting: HWString name field (README walkthrough widget).
+        // -------------------------------------------------------------------
+        const _SectionHeader(
+          title: 'Greeting',
+          subtitle: 'saveData(name) + updateWidget()',
+        ),
+        ListTile(
+          title: const Text('Set name to Anton'),
+          trailing: const Icon(Icons.send),
+          onTap: () async {
+            await GreetingHomeWidget.saveData(name: 'Anton');
+            await GreetingHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Reset name to world'),
+          trailing: const Icon(Icons.restore),
+          onTap: () async {
+            await GreetingHomeWidget.saveData(name: 'world');
+            await GreetingHomeWidget.updateWidget();
+          },
         ),
 
         const Divider(),
