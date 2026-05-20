@@ -70,10 +70,8 @@ struct ThemedCounterHomeWidget: Widget {
 extension View {
   @ViewBuilder
   func applyContainerBackground<T: View>(_ backgroundView: T) -> some View {
-    if #available(iOS 17.0, macOS 14.0, watchOS 10.0, *) {
-      self.containerBackground(for: .widget) {
-        backgroundView
-      }
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(for: .widget) { backgroundView }
     } else {
       self.background(backgroundView)
     }

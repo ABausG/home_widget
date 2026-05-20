@@ -38,6 +38,7 @@ struct BasicCreationHomeWidgetEntryView: View {
         VStack {
             Text("Basic Creation")
         }
+    .applyContainerBackground()
   }
 }
 
@@ -49,6 +50,19 @@ struct BasicCreationHomeWidget: Widget {
       BasicCreationHomeWidgetEntryView(entry: entry)
     }
     .configurationDisplayName("Basic Creation")
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
   }
 }
 

@@ -157,13 +157,12 @@ $loadDataLogic
 
     final customBgColor = spec.data.iOS?.backgroundColor;
     final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
-
-    if (customBgColor != null) {
-      entryViewBody =
-          '$treeCode\n    .applyContainerBackground(${customBgColor.toSwift(2, dataExpr: "entry.data")})';
-    } else {
-      entryViewBody = treeCode;
-    }
+    final dataExpr = hasDataFields ? 'entry.data' : 'null';
+    final hasCustomBg = customBgColor != null;
+    final containerBackgroundModifier = hasCustomBg
+        ? '.applyContainerBackground(${customBgColor!.toSwift(2, dataExpr: dataExpr)})'
+        : '.applyContainerBackground()';
+    entryViewBody = '$treeCode\n    $containerBackgroundModifier';
 
     String? supportedFamilies;
     if (spec.data.iOS?.supportedFamilies != null &&
@@ -193,7 +192,7 @@ $loadDataLogic
           ...spec.effectiveWidgetTree.swiftViewModifiers,
           if (customBgColor != null) ...customBgColor.swiftViewModifiers,
         },
-        includeBackgroundExtension: customBgColor != null,
+        hasCustomContainerBackground: hasCustomBg,
         applyContentPadding: applyPadding,
       ),
     );

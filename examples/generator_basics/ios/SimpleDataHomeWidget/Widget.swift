@@ -50,6 +50,7 @@ struct SimpleDataHomeWidgetEntryView: View {
                 Text(entry.data.value != nil ? "\(entry.data.value!)" : "0")
             }
         }
+    .applyContainerBackground()
   }
 }
 
@@ -62,6 +63,19 @@ struct SimpleDataHomeWidget: Widget {
     }
     .configurationDisplayName("Simple Data")
     .supportedFamilies([.systemSmall])
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
   }
 }
 

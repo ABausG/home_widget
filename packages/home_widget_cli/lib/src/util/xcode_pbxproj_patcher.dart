@@ -30,6 +30,9 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
     // Even if the Widget Extension target already exists, the Runner target may
     // still be missing the entitlements build setting (App Groups won't apply).
     await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
+    await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
+      pbxprojFile: pbxprojFile,
+    );
     return;
   }
 
@@ -50,7 +53,9 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   }
 
   final baseBundleId = _detectRunnerBundleIdentifier(text) ?? 'com.example.app';
+  final developmentTeam = _detectRunnerDevelopmentTeam(text);
   final extBundleId = '$baseBundleId.$widgetClassName';
+  final developmentTeamLine = _developmentTeamBuildSettingLine(developmentTeam);
 
   final ids = _WidgetExtensionIds(widgetClassName);
 
@@ -230,7 +235,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = $widgetClassName.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
-\t\t\t\tCURRENT_PROJECT_VERSION = 1;
+$developmentTeamLine\t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
 \t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tINFOPLIST_FILE = $widgetClassName/Info.plist;
@@ -255,7 +260,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = $widgetClassName.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
-\t\t\t\tCURRENT_PROJECT_VERSION = 1;
+$developmentTeamLine\t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
 \t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tINFOPLIST_FILE = $widgetClassName/Info.plist;
@@ -280,7 +285,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
 \t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = $widgetClassName.entitlements;
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
-\t\t\t\tCURRENT_PROJECT_VERSION = 1;
+$developmentTeamLine\t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
 \t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tINFOPLIST_FILE = $widgetClassName/Info.plist;
@@ -447,6 +452,9 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   // Ensure the main app target is actually signed with Runner/Runner.entitlements.
   // Without this, the App Group entitlement won't be applied even if the file exists.
   await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
+  await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
+    pbxprojFile: pbxprojFile,
+  );
 }
 
 /// Ensures the Runner target uses `Runner/Runner.entitlements` for code signing.
@@ -586,6 +594,71 @@ Future<void> ensureMinimumDeploymentTargetInXcodeProject({
   logger.detail(
     'Ensured Runner IPHONEOS_DEPLOYMENT_TARGET >= $minimumVersion.',
   );
+}
+
+/// Ensures widget extension targets use the same [DEVELOPMENT_TEAM] as Runner.
+///
+/// Physical device builds fail when extension targets lack a development team
+/// even if the main app target is already signed.
+Future<void> ensureWidgetExtensionDevelopmentTeamInXcodeProject({
+  required File pbxprojFile,
+}) async {
+  var text = await pbxprojFile.readAsString();
+  final team = _detectRunnerDevelopmentTeam(text);
+  if (team == null || team.isEmpty) return;
+
+  final desiredLine = '\t\t\t\tDEVELOPMENT_TEAM = $team;';
+
+  final configBlockRe = RegExp(
+    r'(\t\t[0-9A-F]{24} /\* (?:Debug|Release|Profile) \*/ = \{\n'
+    r'\t\t\tisa = XCBuildConfiguration;\n'
+    r'(?:\t\t\tbaseConfigurationReference = [^\n]*\n)?'
+    r'\t\t\tbuildSettings = \{\n)'
+    r'([\s\S]*?)'
+    r'(\n\t\t\t\};\n\t\t\tname = (?:Debug|Release|Profile);\n\t\t\};)',
+  );
+
+  var didChange = false;
+  text = text.replaceAllMapped(configBlockRe, (m) {
+    final header = m.group(1)!;
+    var settings = m.group(2)!;
+    final footer = m.group(3)!;
+
+    if (!settings.contains('APPLICATION_EXTENSION_API_ONLY = YES;')) {
+      return m.group(0)!;
+    }
+
+    final existingTeamRe = RegExp(
+      r'^\t\t\t\tDEVELOPMENT_TEAM = [^;]+;$',
+      multiLine: true,
+    );
+    if (existingTeamRe.hasMatch(settings)) {
+      if (settings.contains(desiredLine)) return m.group(0)!;
+      settings = settings.replaceAll(existingTeamRe, desiredLine);
+      didChange = true;
+      return '$header$settings$footer';
+    }
+
+    const anchor = 'CODE_SIGN_STYLE = Automatic;\n';
+    if (settings.contains(anchor)) {
+      settings = settings.replaceFirst(anchor, '$anchor$desiredLine\n');
+      didChange = true;
+      return '$header$settings$footer';
+    }
+
+    return m.group(0)!;
+  });
+
+  if (!didChange) return;
+
+  await pbxprojFile.writeAsString(text);
+  logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+  logger.detail('Ensured widget extensions use DEVELOPMENT_TEAM = $team.');
+}
+
+String _developmentTeamBuildSettingLine(String? team) {
+  if (team == null || team.isEmpty) return '';
+  return '\t\t\t\tDEVELOPMENT_TEAM = $team;\n';
 }
 
 String _ensureRunnerEmbedsWidgetExtensionInSafeOrder(
@@ -877,6 +950,21 @@ String? _detectRunnerBundleIdentifier(String pbxproj) {
     r'isa = XCBuildConfiguration;[\s\S]*?buildSettings = \{[\s\S]*?INFOPLIST_FILE = Runner/Info\.plist;[\s\S]*?PRODUCT_BUNDLE_IDENTIFIER = ([^;]+);',
   ).firstMatch(pbxproj);
   return m?.group(1)?.trim();
+}
+
+String? _detectRunnerDevelopmentTeam(String pbxproj) {
+  final configBlockRe = RegExp(
+    r'isa = XCBuildConfiguration;[\s\S]*?buildSettings = \{([\s\S]*?)\};\s*name = (?:Debug|Release|Profile);',
+  );
+  for (final match in configBlockRe.allMatches(pbxproj)) {
+    final settings = match.group(1)!;
+    if (!settings.contains('INFOPLIST_FILE = Runner/Info.plist;')) continue;
+    final teamMatch = RegExp(
+      r'DEVELOPMENT_TEAM = ([^;]+);',
+    ).firstMatch(settings);
+    if (teamMatch != null) return teamMatch.group(1)?.trim();
+  }
+  return null;
 }
 
 String _insertIntoSection(

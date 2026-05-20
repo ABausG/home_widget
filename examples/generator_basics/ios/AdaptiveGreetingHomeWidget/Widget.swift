@@ -37,6 +37,7 @@ struct AdaptiveGreetingHomeWidgetEntryView: View {
   var body: some View {
         Text("Hello iOS")
             .font(.headline)
+    .applyContainerBackground()
   }
 }
 
@@ -49,6 +50,19 @@ struct AdaptiveGreetingHomeWidget: Widget {
     }
     .configurationDisplayName("Adaptive Greeting")
     .supportedFamilies([.systemSmall])
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
   }
 }
 

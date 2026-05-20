@@ -20,7 +20,7 @@ String iosWidgetSwiftTemplate({
   String? description,
   String? supportedFamilies,
   Set<String>? swiftViewModifiers,
-  bool includeBackgroundExtension = false,
+  bool hasCustomContainerBackground = false,
   bool applyContentPadding = true,
   String? header,
 }) {
@@ -126,15 +126,33 @@ struct ${widgetClassName}Entry: TimelineEntry {
   buffer.writeln('}');
   buffer.writeln();
 
-  if (includeBackgroundExtension) {
+  final includesContainerBackground =
+      entryViewBody?.contains('.applyContainerBackground') ?? false;
+
+  if (includesContainerBackground && !hasCustomContainerBackground) {
+    buffer.writeln('''
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
+  }
+}
+''');
+  }
+
+  if (includesContainerBackground && hasCustomContainerBackground) {
     buffer.writeln('''
 extension View {
   @ViewBuilder
   func applyContainerBackground<T: View>(_ backgroundView: T) -> some View {
-    if #available(iOS 17.0, macOS 14.0, watchOS 10.0, *) {
-      self.containerBackground(for: .widget) {
-        backgroundView
-      }
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(for: .widget) { backgroundView }
     } else {
       self.background(backgroundView)
     }

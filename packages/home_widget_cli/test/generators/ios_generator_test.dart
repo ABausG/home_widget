@@ -97,6 +97,10 @@ void main() {
       content,
       contains('Text(entry.data.count != nil ? "\\(entry.data.count!)" : "0")'),
     );
+    expect(content, contains('.applyContainerBackground()'));
+    expect(content, contains('func applyContainerBackground() -> some View'));
+    expect(content, isNot(contains('func applyContainerBackground<T: View>')));
+    expect(content, contains('containerBackground(.fill.tertiary, for: .widget)'));
   });
 
   test('generates Swift widget with JSON data structs', () async {
@@ -447,7 +451,9 @@ void main() {
       p.join(tempDir.path, 'ios/BgPadWidgetHomeWidget/Widget.swift'),
     ).readAsStringSync();
 
-    expect(content, contains('applyContainerBackground'));
+    expect(content, contains('.applyContainerBackground(Color('));
+    expect(content, contains('func applyContainerBackground<T: View>'));
+    expect(content, isNot(contains('func applyContainerBackground() -> some View')));
     expect(content, contains('disableContentMarginsIfNeeded'));
   });
 

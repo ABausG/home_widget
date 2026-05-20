@@ -60,6 +60,10 @@ final class IosWidgetScaffold {
         widgetClassName: widgetClassName,
         appGroupId: appGroupId,
         header: header,
+        entryViewBody: '''
+    Text("$widgetClassName (placeholder)")
+    .applyContainerBackground()
+''',
       ),
     );
     await writeFileIfMissing(

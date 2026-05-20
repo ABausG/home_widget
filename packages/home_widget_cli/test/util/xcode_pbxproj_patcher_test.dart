@@ -175,4 +175,82 @@ void main() {
       expect(result, contains('IPHONEOS_DEPLOYMENT_TARGET = 12.0;'));
     });
   });
+
+  group('ensureWidgetExtensionDevelopmentTeamInXcodeProject', () {
+    test('copies DEVELOPMENT_TEAM from Runner to widget extensions', () async {
+      const content = '''
+// !&#36;*UTF8*&#36;!
+{
+	objects = {
+/* Begin XCBuildConfiguration section */
+		97C147061CF9000F007C117D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = TEAM123;
+				INFOPLIST_FILE = Runner/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app;
+			};
+			name = Debug;
+		};
+		AABBCCDD11223344EEFF5566 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = MyWidgetHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				INFOPLIST_FILE = MyWidgetHomeWidget/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app.MyWidgetHomeWidget;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+}
+''';
+      pbxprojFile.writeAsStringSync(content);
+
+      await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
+        pbxprojFile: pbxprojFile,
+      );
+
+      final result = pbxprojFile.readAsStringSync();
+      expect(result, contains('DEVELOPMENT_TEAM = TEAM123;'));
+      expect(
+        'DEVELOPMENT_TEAM = TEAM123;'.allMatches(result).length,
+        2,
+      );
+    });
+
+    test('does not modify Runner configs', () async {
+      const content = '''
+// !&#36;*UTF8*&#36;!
+{
+	objects = {
+/* Begin XCBuildConfiguration section */
+		97C147061CF9000F007C117D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = TEAM123;
+				INFOPLIST_FILE = Runner/Info.plist;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+}
+''';
+      pbxprojFile.writeAsStringSync(content);
+
+      await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
+        pbxprojFile: pbxprojFile,
+      );
+
+      expect(
+        'DEVELOPMENT_TEAM = TEAM123;'.allMatches(
+          pbxprojFile.readAsStringSync(),
+        ).length,
+        1,
+      );
+    });
+  });
 }
