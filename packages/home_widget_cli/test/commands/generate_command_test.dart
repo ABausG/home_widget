@@ -324,8 +324,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class IosOnly {}
 ''');
 
-        final dartOut =
-            p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
         final code = await runCliWithProjectRoot(
           project.root,
           [
@@ -368,8 +367,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class BothPlatforms {}
 ''');
 
-        final dartOut =
-            p.join(project.root.path, 'lib', 'src', 'home_widget');
+        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
         final code = await runCliWithProjectRoot(
           project.root,
           [

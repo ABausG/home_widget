@@ -53,8 +53,8 @@ $code
         }
 
         final element = result.unit.declaredFragment!.element.classes.first;
-        final annotation = element.metadata2.annotations.firstWhere(
-          (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+        final annotation = element.metadata.annotations.firstWhere(
+          (m) => m.element?.enclosingElement?.name == 'HomeWidget',
         );
 
         return WidgetTreeParser(annotation).parse();
@@ -87,8 +87,8 @@ $code
           throw StateError('Failed to resolve');
         }
         final element = result.unit.declaredFragment!.element.classes.first;
-        final annotation = element.metadata2.annotations.firstWhere(
-          (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+        final annotation = element.metadata.annotations.firstWhere(
+          (m) => m.element?.enclosingElement?.name == 'HomeWidget',
         );
         try {
           WidgetTreeParser(annotation).parse();
@@ -543,7 +543,7 @@ class C {}
         final lib = result.unit.declaredFragment!.element;
         DartObject? nullObj;
         for (final v in lib.topLevelVariables) {
-          if (v.name3 == 'aNull') {
+          if (v.name == 'aNull') {
             nullObj = v.computeConstantValue();
             break;
           }

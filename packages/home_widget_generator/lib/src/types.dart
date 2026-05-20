@@ -218,12 +218,10 @@ class HWDouble extends HWDataType<double> {
   }
 
   @override
-  String? codegenKotlinDefaultLiteral() =>
-      defaultValue == null ? null : defaultValue!.toString();
+  String? codegenKotlinDefaultLiteral() => defaultValue?.toString();
 
   @override
-  String? codegenSwiftDefaultLiteral() =>
-      defaultValue == null ? null : defaultValue!.toString();
+  String? codegenSwiftDefaultLiteral() => defaultValue?.toString();
 }
 
 class HWBool extends HWDataType<bool> {
@@ -400,10 +398,8 @@ class HWJson extends HWDataType<dynamic> {
   int get hashCode => Object.hash(key, child, defaultValue);
 }
 
-String _escapeKotlinStringLiteral(String s) => s
-    .replaceAll(r'\', r'\\')
-    .replaceAll(r'$', r'\$')
-    .replaceAll('"', r'\"');
+String _escapeKotlinStringLiteral(String s) =>
+    s.replaceAll(r'\', r'\\').replaceAll(r'$', r'\$').replaceAll('"', r'\"');
 
 String _escapeSwiftStringLiteral(String s) =>
     s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');

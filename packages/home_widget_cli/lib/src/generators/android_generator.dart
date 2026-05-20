@@ -370,7 +370,7 @@ class AndroidGenerator {
           );
         }
       } else {
-        final childClass = '${className}${toPascalCase(key)}';
+        final childClass = '$className${toPascalCase(key)}';
         buffer.writeln('    val $key: $childClass? = null,');
       }
     }
@@ -383,7 +383,8 @@ class AndroidGenerator {
       buffer.writeln('                val file = java.io.File(path)');
       buffer.writeln('                if (!file.exists()) return null');
       buffer.writeln(
-          '                fromJson(org.json.JSONObject(file.readText()))');
+        '                fromJson(org.json.JSONObject(file.readText()))',
+      );
       buffer.writeln('            } catch (_: Exception) {');
       buffer.writeln('                null');
       buffer.writeln('            }');
@@ -411,7 +412,7 @@ class AndroidGenerator {
         );
         buffer.writeln('                $key = $valueExpr,');
       } else {
-        final childClass = '${className}${toPascalCase(key)}';
+        final childClass = '$className${toPascalCase(key)}';
         buffer.writeln(
           '                $key = $childClass.fromJson(json.optJSONObject("$key")),',
         );
@@ -427,7 +428,7 @@ class AndroidGenerator {
       final child = entry.value;
       if (child.children.isNotEmpty) {
         buffer.writeln();
-        final childClass = '${className}${toPascalCase(key)}';
+        final childClass = '$className${toPascalCase(key)}';
         _writeAndroidJsonNodeClass(
           buffer: buffer,
           className: childClass,

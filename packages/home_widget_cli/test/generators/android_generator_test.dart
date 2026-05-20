@@ -79,8 +79,7 @@ void main() {
     expect(content, contains('GlanceTheme.colors'));
   });
 
-  test(
-      'appends description string into existing strings.xml via update path',
+  test('appends description string into existing strings.xml via update path',
       () async {
     final stringsDir = Directory(
       p.join(
@@ -300,11 +299,15 @@ void main() {
     expect(widgetFile.existsSync(), isTrue);
     final content = widgetFile.readAsStringSync();
 
-    expect(content, contains('val fileKey: JsonWidgetFileKeyJsonData? = null,'));
+    expect(
+      content,
+      contains('val fileKey: JsonWidgetFileKeyJsonData? = null,'),
+    );
     expect(
       content,
       contains(
-          'fileKey = JsonWidgetFileKeyJsonData.fromPath(prefs.getString("\${PREFERENCES_PREFIX}.fileKey", null)),'),
+        'fileKey = JsonWidgetFileKeyJsonData.fromPath(prefs.getString("\${PREFERENCES_PREFIX}.fileKey", null)),',
+      ),
     );
     expect(content, contains('data class JsonWidgetFileKeyJsonData('));
     expect(content, contains('val enabled: Boolean = false,'));
@@ -350,22 +353,26 @@ void main() {
     );
     final content = widgetFile.readAsStringSync();
 
-    expect(content,
-        contains('val user: NestedJsonWidgetFileKeyJsonDataUser? = null,'));
+    expect(
+      content,
+      contains('val user: NestedJsonWidgetFileKeyJsonDataUser? = null,'),
+    );
     expect(
       content,
       contains('prefs.getString("\${PREFERENCES_PREFIX}.fileKey", null)'),
     );
     expect(
-        content,
-        contains(
-            'NestedJsonWidgetFileKeyJsonDataUser.fromJson(json.optJSONObject("user"))'));
+      content,
+      contains(
+        'NestedJsonWidgetFileKeyJsonDataUser.fromJson(json.optJSONObject("user"))',
+      ),
+    );
     expect(content, contains('val json = obj ?: org.json.JSONObject()'));
     expect(
       content,
       contains(
-          'enabled = if (json.has("enabled") && !json.isNull("enabled")) '
-          'json.optBoolean("enabled") else true,',
+        'enabled = if (json.has("enabled") && !json.isNull("enabled")) '
+        'json.optBoolean("enabled") else true,',
       ),
     );
     expect(

@@ -28,8 +28,7 @@ void main() {
     }
   });
 
-  File entitlementsFile() =>
-      File(p.join(tempDir.path, 'Runner.entitlements'));
+  File entitlementsFile() => File(p.join(tempDir.path, 'Runner.entitlements'));
 
   group('ensureAppGroupEntitlement', () {
     test('creates a new entitlements file when missing', () async {
@@ -56,8 +55,7 @@ void main() {
       expect(file.existsSync(), isFalse);
     });
 
-    test('appends new array to existing dict without app-groups key',
-        () async {
+    test('appends new array to existing dict without app-groups key', () async {
       final file = entitlementsFile();
       file.writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
@@ -77,8 +75,9 @@ void main() {
       expect(content, contains('com.apple.developer.something'));
       expect(content, contains('com.apple.security.application-groups'));
       expect(content, contains('<string>group.example</string>'));
-      verify(() => mockLogger.detail(any(that: contains('Updated entitlements'))))
-          .called(1);
+      verify(
+        () => mockLogger.detail(any(that: contains('Updated entitlements'))),
+      ).called(1);
     });
 
     test('adds string to existing app-groups array', () async {

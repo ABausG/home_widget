@@ -75,8 +75,7 @@ void main() {
 
         expect(
           jsonConditional.toSwift(0, dataExpr: 'entry.data'),
-          contains(
-              'if (((entry.data.profile?.isActive) ?? (false))) == true'),
+          contains('if (((entry.data.profile?.isActive) ?? (false))) == true'),
         );
         expect(
           jsonConditional.toKotlin(0, dataExpr: 'widgetData'),
@@ -97,12 +96,12 @@ void main() {
         expect(
           jsonConditional.toSwift(0, dataExpr: 'entry.data'),
           contains(
-              'if (((entry.data.profile?.user?.isActive) ?? (false))) == true'),
+            'if (((entry.data.profile?.user?.isActive) ?? (false))) == true',
+          ),
         );
         expect(
           jsonConditional.toKotlin(0, dataExpr: 'widgetData'),
-          contains(
-              'if ((widgetData.profile?.user?.isActive ?: false) == true'),
+          contains('if ((widgetData.profile?.user?.isActive ?: false) == true'),
         );
       });
     });

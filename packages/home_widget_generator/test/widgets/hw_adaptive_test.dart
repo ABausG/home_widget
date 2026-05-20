@@ -135,8 +135,8 @@ $code
           }
 
           final element = result.unit.declaredFragment!.element.classes.first;
-          final annotation = element.metadata2.annotations.firstWhere(
-            (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+          final annotation = element.metadata.annotations.firstWhere(
+            (m) => m.element?.enclosingElement?.name == 'HomeWidget',
           );
 
           final widget = WidgetTreeParser(annotation).parse();
@@ -208,8 +208,8 @@ $code
           }
 
           final element = result.unit.declaredFragment!.element.classes.first;
-          final annotation = element.metadata2.annotations.firstWhere(
-            (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+          final annotation = element.metadata.annotations.firstWhere(
+            (m) => m.element?.enclosingElement?.name == 'HomeWidget',
           );
 
           final widget = WidgetTreeParser(annotation).parse();
@@ -263,8 +263,8 @@ $code
           }
 
           final element = result.unit.declaredFragment!.element.classes.first;
-          final annotation = element.metadata2.annotations.firstWhere(
-            (m) => m.element2?.enclosingElement2?.name3 == 'HomeWidget',
+          final annotation = element.metadata.annotations.firstWhere(
+            (m) => m.element?.enclosingElement?.name == 'HomeWidget',
           );
 
           expect(

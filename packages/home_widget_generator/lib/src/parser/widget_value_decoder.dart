@@ -17,7 +17,7 @@ class WidgetValueDecoder {
     }
 
     final type = object!.type;
-    final typeName = type?.element3?.name3;
+    final typeName = type?.element?.name;
 
     if (typeName == 'HWColumn') {
       return HWColumn.fromDartObject(object!, this);
@@ -55,7 +55,7 @@ class WidgetValueDecoder {
   static T? decodeEnum<T>(DartObject? obj, List<T> values) {
     if (obj == null || obj.isNull) return null;
 
-    final variable = obj.variable2;
+    final variable = obj.variable;
     if (variable != null) {
       final index = obj.getField('index')?.toIntValue();
       if (index != null && index >= 0 && index < values.length) {
@@ -68,7 +68,7 @@ class WidgetValueDecoder {
   static HWColor? decodeColor(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final typeName = obj.type?.element3?.name3;
+    final typeName = obj.type?.element?.name;
     if (typeName == 'HWFixedColor') {
       final value = obj.getField('value')?.toIntValue();
       if (value != null) return HWFixedColor(value);
@@ -102,7 +102,7 @@ class WidgetValueDecoder {
   static HWTextStyle? decodeTextStyle(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final typeName = obj.type?.element3?.name3;
+    final typeName = obj.type?.element?.name;
     final fontSize = getField(obj, 'fontSize')?.toDoubleValue();
     final fontWeight =
         decodeEnum(getField(obj, 'fontWeight'), HWFontWeight.values);
@@ -182,7 +182,7 @@ class WidgetValueDecoder {
   static HWDataType<dynamic>? decodeDataType(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final typeName = obj.type?.element3?.name3;
+    final typeName = obj.type?.element?.name;
     final key = getField(obj, 'key')?.toStringValue();
     if (key == null) return null;
 

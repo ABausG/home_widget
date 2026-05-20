@@ -170,8 +170,7 @@ void main() {
       );
     });
 
-    test(
-        'throws when nested JSON path collides with primitive at same segment',
+    test('throws when nested JSON path collides with primitive at same segment',
         () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),

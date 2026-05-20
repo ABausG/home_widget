@@ -23,7 +23,6 @@ void main() {
       expect(annotation.android?.packageName, 'com.example');
       expect(annotation.iOS?.groupId, 'group.example');
     });
-
   });
 
   group('HomeWidgetAndroidConfiguration', () {

@@ -24,9 +24,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           children: [
             HWText.fixed(
               'Enabled',
-              style: HWRoleTextStyle.headline(
-                color: HWColor.fixed(0xFF16A34A),
-              ),
+              style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFF16A34A)),
             ),
           ],
         ),
@@ -36,9 +34,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           children: [
             HWText.fixed(
               'Disabled',
-              style: HWRoleTextStyle.headline(
-                color: HWColor.fixed(0xFFDC2626),
-              ),
+              style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFFDC2626)),
             ),
           ],
         ),

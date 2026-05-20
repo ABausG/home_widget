@@ -1,19 +1,29 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
+/// A JSON object field grouped by its root key for native codegen.
 class JsonDataGroup {
+  /// The root JSON key (e.g. `profile` in `profile.user.name`).
   final String key;
+
+  /// Leaf fields under [key], each with a path and resolved type.
   final List<JsonDataField> children;
 
+  /// Creates a [JsonDataGroup].
   const JsonDataGroup({
     required this.key,
     required this.children,
   });
 }
 
+/// A single leaf field within a [JsonDataGroup].
 class JsonDataField {
+  /// Path segments from the root key to the leaf (e.g. `['user', 'name']`).
   final List<String> path;
+
+  /// Resolved data type at the leaf.
   final HWDataType<dynamic> type;
 
+  /// Creates a [JsonDataField].
   const JsonDataField({
     required this.path,
     required this.type,
@@ -78,9 +88,11 @@ class WidgetSpec {
     );
   }
 
+  /// Non-JSON [dataFields] (primitives and simple types).
   List<HWDataType<dynamic>> get primitiveDataFields =>
       dataFields.where((f) => f is! HWJson).toList();
 
+  /// JSON fields grouped by root key for nested native struct generation.
   List<JsonDataGroup> get jsonDataGroups {
     final orderedKeys = <String>[];
     final groupedChildren = <String, List<JsonDataField>>{};

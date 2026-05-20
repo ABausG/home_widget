@@ -100,7 +100,10 @@ void main() {
     expect(content, contains('.applyContainerBackground()'));
     expect(content, contains('func applyContainerBackground() -> some View'));
     expect(content, isNot(contains('func applyContainerBackground<T: View>')));
-    expect(content, contains('containerBackground(.fill.tertiary, for: .widget)'));
+    expect(
+      content,
+      contains('containerBackground(.fill.tertiary, for: .widget)'),
+    );
   });
 
   test('generates Swift widget with JSON data structs', () async {
@@ -140,7 +143,8 @@ void main() {
     expect(
       content,
       contains(
-          'fileKey: JsonWidgetFileKeyJsonData.fromPath(defaults?.string(forKey: "\\(paramPrefix).fileKey")),'),
+        'fileKey: JsonWidgetFileKeyJsonData.fromPath(defaults?.string(forKey: "\\(paramPrefix).fileKey")),',
+      ),
     );
     expect(content, contains('struct JsonWidgetFileKeyJsonData {'));
     expect(content, contains('let enabled: Bool = false'));
@@ -453,7 +457,10 @@ void main() {
 
     expect(content, contains('.applyContainerBackground(Color('));
     expect(content, contains('func applyContainerBackground<T: View>'));
-    expect(content, isNot(contains('func applyContainerBackground() -> some View')));
+    expect(
+      content,
+      isNot(contains('func applyContainerBackground() -> some View')),
+    );
     expect(content, contains('disableContentMarginsIfNeeded'));
   });
 

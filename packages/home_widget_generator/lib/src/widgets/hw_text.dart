@@ -69,7 +69,7 @@ class HWText extends HWWidget implements HWDataWidget {
 
     // coverage:ignore-start
     throw GeneratorError(
-      'Could not decode HWText. Fields: fixedContent=$fixedContent, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element3?.name3}',
+      'Could not decode HWText. Fields: fixedContent=$fixedContent, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element?.name}',
     );
     // coverage:ignore-end
   }

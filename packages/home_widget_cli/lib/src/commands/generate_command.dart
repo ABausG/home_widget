@@ -136,8 +136,9 @@ class GenerateCommand extends Command<int> {
         if (spec.data.android != null)
           (
             label: 'Generating Android widget',
-            run: () => AndroidGenerator(spec: spec, projectRoot: Directory.current)
-                .generate(),
+            run: () =>
+                AndroidGenerator(spec: spec, projectRoot: Directory.current)
+                    .generate(),
           ),
         if (spec.data.iOS != null)
           (

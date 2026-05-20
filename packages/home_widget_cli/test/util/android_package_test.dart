@@ -18,9 +18,16 @@ void main() {
   });
 
   test('reads package name from manifest package attribute', () {
-    File(p.join(root.path, 'android', 'app', 'src', 'main',
-            'AndroidManifest.xml'))
-        .writeAsStringSync('''
+    File(
+      p.join(
+        root.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'AndroidManifest.xml',
+      ),
+    ).writeAsStringSync('''
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.from.manifest">
@@ -31,9 +38,16 @@ void main() {
 
   test('falls back to regex when manifest XML cannot be parsed for package',
       () {
-    File(p.join(root.path, 'android', 'app', 'src', 'main',
-            'AndroidManifest.xml'))
-        .writeAsStringSync('<manifest package="com.regex.fallback"');
+    File(
+      p.join(
+        root.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'AndroidManifest.xml',
+      ),
+    ).writeAsStringSync('<manifest package="com.regex.fallback"');
     expect(tryDetectAndroidPackage(root), 'com.regex.fallback');
   });
 

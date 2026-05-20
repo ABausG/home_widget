@@ -57,7 +57,8 @@ class HWColoredBox extends HWSingleChildWidget {
   @override
   String toSwift(int indent, {required String dataExpr}) {
     final childCode = child.toSwift(indent, dataExpr: dataExpr);
-    final modifier = '.background(${color.toSwift(indent, dataExpr: dataExpr)})';
+    final modifier =
+        '.background(${color.toSwift(indent, dataExpr: dataExpr)})';
     return applySwiftModifier(childCode, modifier, indent);
   }
 

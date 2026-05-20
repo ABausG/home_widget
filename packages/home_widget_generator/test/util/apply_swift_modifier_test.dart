@@ -58,7 +58,8 @@ void main() {
 
     test('handles indented leading if/else', () {
       const input = '    if cond { Text("a") } else { Text("b") }';
-      final result = applySwiftModifier(input, '.frame(maxWidth: .infinity)', 1);
+      final result =
+          applySwiftModifier(input, '.frame(maxWidth: .infinity)', 1);
       expect(result, startsWith('    Group {\n'));
       expect(result, contains('        if cond'));
       expect(result, endsWith('    }\n    .frame(maxWidth: .infinity)'));

@@ -94,13 +94,17 @@ void main() {
       );
       expect(
         output,
-        isNot(contains(
-            "await HomeWidget.saveWidgetData<String>('\$_paramPrefix.fileKey'")),
+        isNot(
+          contains(
+            "await HomeWidget.saveWidgetData<String>('\$_paramPrefix.fileKey'",
+          ),
+        ),
       );
       expect(
         output,
         contains(
-            "final _fileKeyPath = await HomeWidget.getWidgetData<String>('\$_paramPrefix.fileKey');"),
+          "final _fileKeyPath = await HomeWidget.getWidgetData<String>('\$_paramPrefix.fileKey');",
+        ),
       );
       expect(output, contains('FileKeyJsonData? fileKey;'));
       expect(output, contains('class FileKeyJsonData {'));

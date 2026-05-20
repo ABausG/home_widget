@@ -246,9 +246,11 @@ void main() {
       );
 
       expect(
-        'DEVELOPMENT_TEAM = TEAM123;'.allMatches(
-          pbxprojFile.readAsStringSync(),
-        ).length,
+        'DEVELOPMENT_TEAM = TEAM123;'
+            .allMatches(
+              pbxprojFile.readAsStringSync(),
+            )
+            .length,
         1,
       );
     });

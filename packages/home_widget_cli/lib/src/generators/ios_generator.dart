@@ -160,7 +160,7 @@ $loadDataLogic
     final dataExpr = hasDataFields ? 'entry.data' : 'null';
     final hasCustomBg = customBgColor != null;
     final containerBackgroundModifier = hasCustomBg
-        ? '.applyContainerBackground(${customBgColor!.toSwift(2, dataExpr: dataExpr)})'
+        ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
         : '.applyContainerBackground()';
     entryViewBody = '$treeCode\n    $containerBackgroundModifier';
 
@@ -276,7 +276,7 @@ $loadDataLogic
           );
         }
       } else {
-        final childStruct = '${structName}${toPascalCase(key)}';
+        final childStruct = '$structName${toPascalCase(key)}';
         buffer.writeln('  let $key: $childStruct?');
       }
     }
@@ -320,7 +320,7 @@ $loadDataLogic
           '      $key: (values["$key"] as? ${child.leafType!.swiftType}) ?? $fallback,',
         );
       } else {
-        final childStruct = '${structName}${toPascalCase(key)}';
+        final childStruct = '$structName${toPascalCase(key)}';
         buffer.writeln(
           '      $key: $childStruct.fromJson(values["$key"] as? [String: Any]),',
         );
@@ -335,7 +335,7 @@ $loadDataLogic
       final child = entry.value;
       if (child.children.isNotEmpty) {
         buffer.writeln();
-        final childStruct = '${structName}${toPascalCase(key)}';
+        final childStruct = '$structName${toPascalCase(key)}';
         _writeSwiftJsonNodeStruct(
           buffer: buffer,
           structName: childStruct,

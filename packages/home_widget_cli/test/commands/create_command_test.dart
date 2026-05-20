@@ -121,7 +121,8 @@ void main() {
     'create scaffolds both android and ios by default when folders exist',
     () async {
       final project = await TestFlutterProject.create();
-      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
+      final code =
+          await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       final widgetClassName = 'ExampleHomeWidget';
@@ -207,7 +208,10 @@ void main() {
           // Force Groovy by replacing the app gradle file in test only.
           await project.setAndroidAppGradleDsl(dsl);
 
-          final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+          final code = await runCliWithProjectRoot(
+            project.root,
+            ['create', '--android', 'Example'],
+          );
           expect(code, 0);
 
           await expectAndroidGradlePatched(projectRoot: project.root, dsl: dsl);
@@ -221,7 +225,10 @@ void main() {
     'create --android only scaffolds android',
     () async {
       final project = await TestFlutterProject.create();
-      final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+      final code = await runCliWithProjectRoot(
+        project.root,
+        ['create', '--android', 'Example'],
+      );
       expect(code, 0);
 
       expectAndroidScaffold(
@@ -243,7 +250,8 @@ void main() {
         includeAndroid: false,
         includeIos: false,
       );
-      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
+      final code =
+          await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       expect(
@@ -262,7 +270,10 @@ void main() {
         includeAndroid: false,
         includeIos: false,
       );
-      final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+      final code = await runCliWithProjectRoot(
+        project.root,
+        ['create', '--android', 'Example'],
+      );
       expect(code, 0);
 
       verify(
@@ -296,7 +307,10 @@ void main() {
         includeAndroid: false,
         includeIos: false,
       );
-      final code = await runCliWithProjectRoot(project.root, ['create', '--ios', 'Example']);
+      final code = await runCliWithProjectRoot(
+        project.root,
+        ['create', '--ios', 'Example'],
+      );
       expect(code, 0);
 
       verify(
@@ -323,7 +337,8 @@ void main() {
     () async {
       final project = await TestFlutterProject.create(includeIos: false);
 
-      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
+      final code =
+          await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       expectAndroidScaffold(
@@ -344,7 +359,8 @@ void main() {
     () async {
       final project = await TestFlutterProject.create(includeAndroid: false);
 
-      final code = await runCliWithProjectRoot(project.root, ['create', 'Example']);
+      final code =
+          await runCliWithProjectRoot(project.root, ['create', 'Example']);
       expect(code, 0);
 
       expectIosScaffold(
@@ -364,7 +380,10 @@ void main() {
     () async {
       final project = await TestFlutterProject.create(includeIos: false);
 
-      final code = await runCliWithProjectRoot(project.root, ['create', '--android', '--ios', 'Example']);
+      final code = await runCliWithProjectRoot(
+        project.root,
+        ['create', '--android', '--ios', 'Example'],
+      );
       expect(code, 0);
 
       expectAndroidScaffold(
@@ -398,7 +417,10 @@ void main() {
         expect(pubspec.existsSync(), isTrue);
         await pubspec.delete();
 
-        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['create', '--android', 'Example'],
+        );
         expect(code, 0);
         verify(
           () => mockLogger.warn(any(that: contains('pubspec.yaml not found'))),
@@ -416,7 +438,10 @@ void main() {
         expect(androidAppDir.existsSync(), isTrue);
         await androidAppDir.delete(recursive: true);
 
-        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['create', '--android', 'Example'],
+        );
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -470,7 +495,10 @@ void main() {
         expect(manifest.existsSync(), isTrue);
         await manifest.delete();
 
-        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['create', '--android', 'Example'],
+        );
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -502,7 +530,10 @@ void main() {
         expect(manifest.existsSync(), isTrue);
         await manifest.writeAsString('not xml at all');
 
-        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['create', '--android', 'Example'],
+        );
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -533,7 +564,10 @@ void main() {
         expect(groovy.existsSync(), isFalse);
         expect(kts.existsSync(), isFalse);
 
-        final code = await runCliWithProjectRoot(project.root, ['create', '--android', 'Example']);
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['create', '--android', 'Example'],
+        );
         expect(code, 0);
         verify(
           () => mockLogger.warn(
@@ -553,7 +587,10 @@ void main() {
     'create --ios produces a buildable iOS app (includes Widget Extension target)',
     () async {
       final project = await TestFlutterProject.create(includeAndroid: false);
-      final code = await runCliWithProjectRoot(project.root, ['create', '--ios', 'Example']);
+      final code = await runCliWithProjectRoot(
+        project.root,
+        ['create', '--ios', 'Example'],
+      );
       expect(code, 0);
 
       final widgetClassName = 'ExampleHomeWidget';

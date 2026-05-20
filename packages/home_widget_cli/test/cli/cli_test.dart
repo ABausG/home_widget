@@ -34,8 +34,7 @@ void main() {
     verify(() => mockLogger.info('home_widget_cli 0.0.1')).called(1);
   });
 
-  test('-v and --verbose set log level to verbose before --version',
-      () async {
+  test('-v and --verbose set log level to verbose before --version', () async {
     final recording = RecordingLogger();
     logger = recording;
     final code = await runCli(['-v', '--version']);
@@ -72,8 +71,7 @@ void main() {
     ).called(1);
   });
 
-  test('unknown global flag returns usage exit code and prints help',
-      () async {
+  test('unknown global flag returns usage exit code and prints help', () async {
     final code = await runCli(['--definitely-not-a-flag']);
     expect(code, ExitCodes.usage);
     verify(

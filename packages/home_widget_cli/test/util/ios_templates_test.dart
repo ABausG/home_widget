@@ -40,7 +40,13 @@ void main() {
     );
 
     expect(out, contains('func applyContainerBackground<T: View>'));
-    expect(out, isNot(contains('func applyContainerBackground() -> some View')));
-    expect(out, isNot(contains('containerBackground(.fill.tertiary, for: .widget)')));
+    expect(
+      out,
+      isNot(contains('func applyContainerBackground() -> some View')),
+    );
+    expect(
+      out,
+      isNot(contains('containerBackground(.fill.tertiary, for: .widget)')),
+    );
   });
 }

@@ -113,9 +113,8 @@ final class _TrieNode {
           throw GeneratorError(
             _jsonConflictMessage(
               jsonRootKey,
-              reason:
-                  'cannot add nested "${_dotted(path.sublist(0, i + 1))}" '
-                  'because "${segment}" is already mapped to a primitive leaf '
+              reason: 'cannot add nested "${_dotted(path.sublist(0, i + 1))}" '
+                  'because "$segment" is already mapped to a primitive leaf '
                   '(${_fieldSummary(slot.leafField!)}). ${_fieldSummaryIncoming(field)}',
             ),
           );
@@ -130,7 +129,7 @@ final class _TrieNode {
           _jsonConflictMessage(
             jsonRootKey,
             reason:
-                '"${_dotted(path)}" is a primitive leaf but "${segment}" already '
+                '"${_dotted(path)}" is a primitive leaf but "$segment" already '
                 'contains nested JSON. ${_fieldSummaryIncoming(field)}',
           ),
         );
@@ -142,8 +141,7 @@ final class _TrieNode {
         throw GeneratorError(
           _jsonConflictMessage(
             jsonRootKey,
-            reason:
-                'conflicting leaves at "${_dotted(path)}": '
+            reason: 'conflicting leaves at "${_dotted(path)}": '
                 '${_fieldSummary(slot.leafField!)} '
                 'vs ${_fieldSummary(field)}.',
           ),

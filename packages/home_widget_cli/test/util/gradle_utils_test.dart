@@ -22,12 +22,13 @@ android {
     );
 
     expect(out, contains("'androidx.glance:glance-appwidget:9.9.9'"));
-    final depLine =
-        LineSplitter.split(out).firstWhere((l) => l.contains('glance-appwidget'));
+    final depLine = LineSplitter.split(out)
+        .firstWhere((l) => l.contains('glance-appwidget'));
     expect(depLine.startsWith('\t\t'), isTrue);
   });
 
-  test('ensureComposeEnabled adds composeOptions kotlinCompilerExtensionVersion',
+  test(
+      'ensureComposeEnabled adds composeOptions kotlinCompilerExtensionVersion',
       () {
     final input = '''
 plugins {
@@ -57,8 +58,7 @@ dependencies {
 
   test(
       'ensureGlanceDependency uses block indent when first dep line is not '
-      'deeper than dependencies keyword',
-      () {
+      'deeper than dependencies keyword', () {
     final input = '''
 android {
 }
@@ -74,12 +74,13 @@ android {
       glanceVersion: '1.0.0',
     );
 
-    final depLine =
-        LineSplitter.split(out).firstWhere((l) => l.contains('glance-appwidget'));
+    final depLine = LineSplitter.split(out)
+        .firstWhere((l) => l.contains('glance-appwidget'));
     expect(depLine, startsWith('        '));
   });
 
-  test('ensureGlanceDependency handles dependencies block with no closing brace',
+  test(
+      'ensureGlanceDependency handles dependencies block with no closing brace',
       () {
     final input = '''
 android {
@@ -100,8 +101,7 @@ dependencies {
 
   test(
       'ensureComposeEnabled skips inserting kotlinCompilerExtensionVersion when '
-      'already present in composeOptions',
-      () {
+      'already present in composeOptions', () {
     const input = '''
 android {
     buildFeatures {
