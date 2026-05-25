@@ -54,10 +54,11 @@ inline fun <reified T : Activity> actionStartActivity(context: Context, uri: Uri
 object HomeWidgetBackgroundIntent {
   private const val HOME_WIDGET_BACKGROUND_ACTION = "es.antonborri.home_widget.action.BACKGROUND"
 
-  fun getBroadcast(context: Context, uri: Uri? = null): PendingIntent {
+  fun getBroadcast(context: Context, uri: Uri? = null, direct: Boolean = false): PendingIntent {
     val intent = Intent(context, HomeWidgetBackgroundReceiver::class.java)
     intent.data = uri
     intent.action = HOME_WIDGET_BACKGROUND_ACTION
+    intent.putExtra(HomeWidgetBackgroundReceiver.EXTRA_DIRECT, direct)
 
     var flags = PendingIntent.FLAG_UPDATE_CURRENT
     if (Build.VERSION.SDK_INT >= 23) {
