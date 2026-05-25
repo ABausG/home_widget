@@ -108,17 +108,19 @@ void main() {
   });
 
   testWidgets('Register Background Callback', (tester) async {
-    final returnValue =
-        await HomeWidget.registerInteractivityCallback(backgroundCallback);
+    final returnValue = await HomeWidget.registerInteractivityCallback(
+      backgroundCallback,
+    );
     expect(returnValue, true);
   });
 
   testWidgets(
-      'Initially Launched completes and returns null if not launched from widget',
-      (tester) async {
-    final retrievedData = await HomeWidget.initiallyLaunchedFromHomeWidget();
-    expect(retrievedData, isNull);
-  });
+    'Initially Launched completes and returns null if not launched from widget',
+    (tester) async {
+      final retrievedData = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      expect(retrievedData, isNull);
+    },
+  );
 
   testWidgets('Get Installed Widgets returns empty list', (tester) async {
     final retrievedData = await HomeWidget.getInstalledWidgets();
@@ -128,10 +130,7 @@ void main() {
   group('saveFile and saveImage', () {
     testWidgets('saveFile JSON round-trip', (tester) async {
       const key = 'integration_json_file_key';
-      final data = <String, dynamic>{
-        'hello': 'world',
-        'n': 42,
-      };
+      final data = <String, dynamic>{'hello': 'world', 'n': 42};
       final jsonStr = jsonEncode(data);
       final path = await HomeWidget.saveFile(
         key,
@@ -155,8 +154,9 @@ void main() {
       expect(read, orderedEquals(expected));
     });
 
-    testWidgets('saveImage decodes asset and saves valid 1x1 PNG',
-        (tester) async {
+    testWidgets('saveImage decodes asset and saves valid 1x1 PNG', (
+      tester,
+    ) async {
       const key = 'integration_save_image_key';
       final path = await HomeWidget.saveImage(
         key,
@@ -171,8 +171,9 @@ void main() {
       expect(frame.image.height, 1);
     });
 
-    testWidgets('saveFile then clear key removes data and file',
-        (tester) async {
+    testWidgets('saveFile then clear key removes data and file', (
+      tester,
+    ) async {
       const key = 'integration_savefile_clear_key';
       final data = <String, dynamic>{'clear': 'test'};
       final jsonStr = jsonEncode(data);
@@ -188,22 +189,23 @@ void main() {
     });
 
     testWidgets(
-        'saveFile then clear key with deleteFile false removes path but keeps file',
-        (tester) async {
-      const key = 'integration_savefile_clear_no_delete_key';
-      final data = <String, dynamic>{'keep': 'on_disk'};
-      final jsonStr = jsonEncode(data);
-      final path = await HomeWidget.saveFile(
-        key,
-        Uint8List.fromList(utf8.encode(jsonStr)),
-        extension: 'json',
-      );
-      expect(await File(path).exists(), isTrue);
-      await HomeWidget.saveWidgetData(key, null, deleteFile: false);
-      expect(await HomeWidget.getWidgetData(key), isNull);
-      expect(await File(path).exists(), isTrue);
-      expect(jsonDecode(await File(path).readAsString()), data);
-    });
+      'saveFile then clear key with deleteFile false removes path but keeps file',
+      (tester) async {
+        const key = 'integration_savefile_clear_no_delete_key';
+        final data = <String, dynamic>{'keep': 'on_disk'};
+        final jsonStr = jsonEncode(data);
+        final path = await HomeWidget.saveFile(
+          key,
+          Uint8List.fromList(utf8.encode(jsonStr)),
+          extension: 'json',
+        );
+        expect(await File(path).exists(), isTrue);
+        await HomeWidget.saveWidgetData(key, null, deleteFile: false);
+        expect(await HomeWidget.getWidgetData(key), isNull);
+        expect(await File(path).exists(), isTrue);
+        expect(jsonDecode(await File(path).readAsString()), data);
+      },
+    );
   });
 }
 

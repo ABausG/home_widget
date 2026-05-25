@@ -91,10 +91,7 @@ void main() {
     group('saveFile and saveImage', () {
       testWidgets('saveFile JSON round-trip', (tester) async {
         const key = 'integration_json_file_key';
-        final data = <String, dynamic>{
-          'hello': 'world',
-          'n': 42,
-        };
+        final data = <String, dynamic>{'hello': 'world', 'n': 42};
         final jsonStr = jsonEncode(data);
         final path = await HomeWidget.saveFile(
           key,
@@ -118,8 +115,9 @@ void main() {
         expect(read, orderedEquals(expected));
       });
 
-      testWidgets('saveImage decodes asset and saves valid 1x1 PNG',
-          (tester) async {
+      testWidgets('saveImage decodes asset and saves valid 1x1 PNG', (
+        tester,
+      ) async {
         const key = 'integration_save_image_key';
         final path = await HomeWidget.saveImage(
           key,
@@ -134,8 +132,9 @@ void main() {
         expect(frame.image.height, 1);
       });
 
-      testWidgets('saveFile then clear key removes data and file',
-          (tester) async {
+      testWidgets('saveFile then clear key removes data and file', (
+        tester,
+      ) async {
         const key = 'integration_savefile_clear_key';
         final data = <String, dynamic>{'clear': 'test'};
         final jsonStr = jsonEncode(data);
@@ -151,22 +150,23 @@ void main() {
       });
 
       testWidgets(
-          'saveFile then clear key with deleteFile false removes path but keeps file',
-          (tester) async {
-        const key = 'integration_savefile_clear_no_delete_key';
-        final data = <String, dynamic>{'keep': 'on_disk'};
-        final jsonStr = jsonEncode(data);
-        final path = await HomeWidget.saveFile(
-          key,
-          Uint8List.fromList(utf8.encode(jsonStr)),
-          extension: 'json',
-        );
-        expect(await File(path).exists(), isTrue);
-        await HomeWidget.saveWidgetData(key, null, deleteFile: false);
-        expect(await HomeWidget.getWidgetData(key), isNull);
-        expect(await File(path).exists(), isTrue);
-        expect(jsonDecode(await File(path).readAsString()), data);
-      });
+        'saveFile then clear key with deleteFile false removes path but keeps file',
+        (tester) async {
+          const key = 'integration_savefile_clear_no_delete_key';
+          final data = <String, dynamic>{'keep': 'on_disk'};
+          final jsonStr = jsonEncode(data);
+          final path = await HomeWidget.saveFile(
+            key,
+            Uint8List.fromList(utf8.encode(jsonStr)),
+            extension: 'json',
+          );
+          expect(await File(path).exists(), isTrue);
+          await HomeWidget.saveWidgetData(key, null, deleteFile: false);
+          expect(await HomeWidget.getWidgetData(key), isNull);
+          expect(await File(path).exists(), isTrue);
+          expect(jsonDecode(await File(path).readAsString()), data);
+        },
+      );
     });
 
     testWidgets('Update Widget completes', (tester) async {
@@ -198,17 +198,19 @@ void main() {
 
     group('Initially Launched', () {
       testWidgets(
-          'Initially Launched completes and returns null if not launched from widget',
-          (tester) async {
-        await HomeWidget.setAppGroupId(integrationAppGroupId);
-        final retrievedData =
-            await HomeWidget.initiallyLaunchedFromHomeWidget();
-        expect(retrievedData, isNull);
-      });
+        'Initially Launched completes and returns null if not launched from widget',
+        (tester) async {
+          await HomeWidget.setAppGroupId(integrationAppGroupId);
+          final retrievedData =
+              await HomeWidget.initiallyLaunchedFromHomeWidget();
+          expect(retrievedData, isNull);
+        },
+      );
 
       group('Register Background Callback', () {
-        testWidgets('RegisterBackgroundCallback completes without error',
-            (tester) async {
+        testWidgets('RegisterBackgroundCallback completes without error', (
+          tester,
+        ) async {
           final deviceInfo = await DeviceInfoPlugin().iosInfo;
           final hasInteractiveWidgets =
               double.parse(deviceInfo.systemVersion.split('.').first) >= 17.0;
@@ -216,13 +218,10 @@ void main() {
           if (hasInteractiveWidgets) {
             final registerCallbackResult =
                 await HomeWidget.registerInteractivityCallback(
-              interactivityCallback,
-            );
+                  interactivityCallback,
+                );
 
-            expect(
-              registerCallbackResult,
-              isTrue,
-            );
+            expect(registerCallbackResult, isTrue);
           } else {
             expect(
               () async => await HomeWidget.registerInteractivityCallback(
@@ -250,9 +249,7 @@ void main() {
       );
 
       await expectLater(
-        HomeWidget.requestPinWidget(
-          name: 'HomeWidgetExample',
-        ),
+        HomeWidget.requestPinWidget(name: 'HomeWidgetExample'),
         completes,
       );
 
@@ -261,10 +258,7 @@ void main() {
         completion(isNull),
       );
 
-      await expectLater(
-        HomeWidget.finishHomeWidgetConfigure(),
-        completes,
-      );
+      await expectLater(HomeWidget.finishHomeWidgetConfigure(), completes);
     });
   });
 
@@ -286,8 +280,9 @@ void main() {
       );
     });
 
-    testWidgets('save/get widget data with appGroupId override',
-        (tester) async {
+    testWidgets('save/get widget data with appGroupId override', (
+      tester,
+    ) async {
       await HomeWidget.saveWidgetData(
         keyValueKey,
         'value',
