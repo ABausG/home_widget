@@ -23,8 +23,11 @@ Future<void> configureMain() async {
         await HomeWidget.initiallyLaunchedFromHomeWidgetConfigure();
 
     if (configuredWidgetId != null) {
-      return runApp(MaterialApp(
-          home: AndroidConfigurationPage(widgetId: configuredWidgetId)));
+      return runApp(
+        MaterialApp(
+          home: AndroidConfigurationPage(widgetId: configuredWidgetId),
+        ),
+      );
     }
   }
   return main();
@@ -44,10 +47,7 @@ Future<void> _initPunctuations() async {
   // Needed for communication between the app and the widget
   await HomeWidget.setAppGroupId('group.es.antonborri.configurableWidget');
   // Save the punctuations to the widget
-  await HomeWidget.saveWidgetData(
-    'punctuations',
-    jsonEncode(punctuations),
-  );
+  await HomeWidget.saveWidgetData('punctuations', jsonEncode(punctuations));
 }
 
 class MainApp extends StatefulWidget {
@@ -79,12 +79,10 @@ class _MainAppState extends State<MainApp> {
     int widgetId,
   ) async {
     final name = await HomeWidget.getWidgetData<String>('name.$widgetId');
-    final punctuation =
-        await HomeWidget.getWidgetData<String>('punctuation.$widgetId');
-    return <String, dynamic>{
-      'name': name,
-      'punctuation': punctuation,
-    };
+    final punctuation = await HomeWidget.getWidgetData<String>(
+      'punctuation.$widgetId',
+    );
+    return <String, dynamic>{'name': name, 'punctuation': punctuation};
   }
 
   /// Loads pinned home screen widget instances (Android: per instance; iOS: per kind).
@@ -95,13 +93,15 @@ class _MainAppState extends State<MainApp> {
       for (final w in installedWidgets) {
         Map<String, dynamic>? configuration;
         if (Platform.isAndroid && w.androidWidgetId != null) {
-          configuration =
-              await _androidConfigurationFromStorage(w.androidWidgetId!);
+          configuration = await _androidConfigurationFromStorage(
+            w.androidWidgetId!,
+          );
         } else if (Platform.isIOS && w.configuration != null) {
           configuration = Map<String, dynamic>.from(w.configuration!);
         }
-        entries
-            .add(_InstalledWidgetEntry(info: w, configuration: configuration));
+        entries.add(
+          _InstalledWidgetEntry(info: w, configuration: configuration),
+        );
       }
       if (!mounted) return;
       setState(() {
@@ -141,7 +141,7 @@ class _MainAppState extends State<MainApp> {
             IconButton(
               icon: const Icon(Icons.refresh),
               onPressed: _getInstalledWidgets,
-            )
+            ),
           ],
         ),
         body: _installedWidgets.isEmpty
