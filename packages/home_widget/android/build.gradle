@@ -22,9 +22,12 @@ rootProject.allprojects {
 }
 
 def isAgp9OrAbove = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger() >= 9
+def builtInKotlinProperty = project.findProperty('android.builtInKotlin') ?: rootProject.findProperty('android.builtInKotlin')
+// AGP 9+ enables built-in Kotlin by default; Flutter sets android.builtInKotlin=false during migration.
+def useBuiltInKotlin = isAgp9OrAbove && (builtInKotlinProperty == null ? true : builtInKotlinProperty.toString().toBoolean())
 
 apply plugin: 'com.android.library'
-if (!isAgp9OrAbove) {
+if (!useBuiltInKotlin) {
     apply plugin: 'kotlin-android'
 }
 
@@ -48,7 +51,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
         sourceCompatibility JavaVersion.VERSION_1_8
     }
-    if (!isAgp9OrAbove) {
+    if (!useBuiltInKotlin) {
         kotlinOptions {
             jvmTarget = "1.8"
         }
