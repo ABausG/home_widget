@@ -62,7 +62,7 @@ class DartHelperGenerator {
         final type = field.dartType;
         buffer.writeln(
           "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
-          r"${_$paramPrefix}." +
+          r"${_$paramPrefix}."
           "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
@@ -70,7 +70,7 @@ class DartHelperGenerator {
         buffer.writeln('      if (${group.key} != null) () async {');
         buffer.writeln(
           "        await HomeWidget.saveFile('"
-          r"${_$paramPrefix}." +
+          r"${_$paramPrefix}."
           "${group.key}', Uint8List.fromList(utf8.encode(jsonEncode(${group.key}.toJson()))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
         );
         buffer.writeln('      }(),');
@@ -91,14 +91,14 @@ class DartHelperGenerator {
       for (final field in primitiveFields) {
         buffer.writeln(
           "      if (${field.key}) HomeWidget.saveWidgetData('"
-          r"${_$paramPrefix}." +
+          r"${_$paramPrefix}."
           "${field.key}', null${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
       for (final group in jsonGroups) {
         buffer.writeln(
           "      if (${group.key}) HomeWidget.saveWidgetData('"
-          r"${_$paramPrefix}." +
+          r"${_$paramPrefix}."
           "${group.key}', null${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
@@ -118,7 +118,7 @@ class DartHelperGenerator {
         final jsonClass = _dartJsonClassName(group.key);
         buffer.writeln(
           "    final _${group.key}Path = await HomeWidget.getWidgetData<String>('"
-          r"${_$paramPrefix}." +
+          r"${_$paramPrefix}."
           "${group.key}'${_appGroupIdArg(usesAppGroupId)});",
         );
         buffer.writeln('    $jsonClass? ${group.key};');
@@ -150,7 +150,7 @@ class DartHelperGenerator {
         }
         buffer.writeln(
           "      ${field.key}: await HomeWidget.getWidgetData<$type>('"
-          r"${_$paramPrefix}." +
+          r"${_$paramPrefix}."
           "${field.key}'$defaultLiteral${_appGroupIdArg(usesAppGroupId)}),",
         );
       }

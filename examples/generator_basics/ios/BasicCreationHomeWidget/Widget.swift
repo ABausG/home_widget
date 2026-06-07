@@ -12,7 +12,9 @@ struct Provider: TimelineProvider {
     BasicCreationHomeWidgetEntry(date: Date())
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (BasicCreationHomeWidgetEntry) -> Void) {
+  func getSnapshot(
+    in context: Context, completion: @escaping (BasicCreationHomeWidgetEntry) -> Void
+  ) {
     // Example of accessing data written by home_widget in Flutter:
     // let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     // let counter = prefs?.integer(forKey: "counter") ?? 0
@@ -30,14 +32,13 @@ struct BasicCreationHomeWidgetEntry: TimelineEntry {
   let date: Date
 }
 
-
 struct BasicCreationHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-        VStack {
-            Text("Basic Creation")
-        }
+    VStack {
+      Text("Basic Creation")
+    }
     .applyContainerBackground()
   }
 }
@@ -65,5 +66,3 @@ extension View {
     }
   }
 }
-
-

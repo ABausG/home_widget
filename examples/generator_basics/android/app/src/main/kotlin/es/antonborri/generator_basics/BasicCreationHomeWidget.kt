@@ -3,27 +3,24 @@
 // This is a placeholder Glance (Jetpack Compose) widget.
 package es.antonborri.generator_basics
 
-import androidx.compose.runtime.Composable
 import android.content.Context
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.GlanceTheme
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
+import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
+import androidx.glance.layout.Column
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
-import androidx.glance.layout.Column
-import androidx.glance.text.TextStyle
-import androidx.glance.GlanceTheme
-import androidx.glance.color.ColorProvider
-import androidx.compose.ui.unit.dp
-import androidx.glance.layout.padding
-import androidx.glance.layout.Alignment
 
 class BasicCreationHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -35,14 +32,15 @@ class BasicCreationHomeWidget : GlanceAppWidget() {
   @Composable
   private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
     GlanceTheme {
-            Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column {
-                    Text(text = "Basic Creation")
-                }
-            }
+      Box(
+          modifier =
+              GlanceModifier.background(GlanceTheme.colors.widgetBackground)
+                  .padding(16.dp)
+                  .fillMaxSize(),
+          contentAlignment = Alignment.Center,
+      ) {
+        Column { Text(text = "Basic Creation") }
+      }
     }
-
   }
 }
-
-
