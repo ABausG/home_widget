@@ -1,3 +1,7 @@
+## 0.9.2+1
+
+ - **FIX**: Apply kotlin plugin when not built in ([#425](https://github.com/abausg/home_widget/issues/425)). ([fc7e800c](https://github.com/abausg/home_widget/commit/fc7e800c661e2fd6ad951a8df16a04d14e8eacc0))
+
 ## 0.9.2
 
  - **FIX**: Add FlutterFramework to iOS SPM package ([#419](https://github.com/abausg/home_widget/issues/419)). ([85aa4bf2](https://github.com/abausg/home_widget/commit/85aa4bf2f56feddf1b8d4c6f6a3954363308317d))
