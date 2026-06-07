@@ -1,0 +1,42 @@
+---
+title: HWColumn
+description: Vertical layout of children.
+---
+
+# HWColumn
+
+Arranges its children vertically. The cross axis is horizontal, the main axis is vertical. Pair with [`HWRow`](/generator/widgets/hw-row) and [`HWFill`](/generator/widgets/hw-fill) to build layouts.
+
+```dart
+HWFill(
+  child: HWColumn(
+    mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
+    children: [
+      HWText.fixed('Hello World'),
+      HWFill(
+        child: HWRow(
+          mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+          children: [HWText.fixed('1'), HWText.fixed('2')],
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+`mainAxisAlignment` is implemented with `Spacer`s on both platforms, so non-`start` values force children to take only their intrinsic size.
+
+## Parameters
+
+| Name                  | Type                     | Default      | Description                              |
+| --------------------- | ------------------------ | ------------ | ---------------------------------------- |
+| `children`            | `List<HWWidget>`         | **required** | Widgets stacked top-to-bottom.           |
+| `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null`       | Horizontal alignment of children.        |
+| `mainAxisAlignment`   | `HWMainAxisAlignment?`   | `null`       | Vertical distribution of children.       |
+
+See [HWAlignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`VStack`](https://developer.apple.com/documentation/swiftui/vstack).
+- **Android:** Glance [`Column`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Column(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment.Vertical,androidx.glance.layout.Alignment.Horizontal,kotlin.Function1)).

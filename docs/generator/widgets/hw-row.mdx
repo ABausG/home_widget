@@ -1,0 +1,34 @@
+---
+title: HWRow
+description: Horizontal layout of children.
+---
+
+# HWRow
+
+Arranges its children horizontally. The cross axis is vertical, the main axis is horizontal. The mirror of [`HWColumn`](/generator/widgets/hw-column).
+
+```dart
+HWFill(
+  child: HWRow(
+    mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+    children: [HWText.fixed('1'), HWText.fixed('2')],
+  ),
+)
+```
+
+`mainAxisAlignment` is implemented with `Spacer`s on both platforms.
+
+## Parameters
+
+| Name                  | Type                     | Default      | Description                              |
+| --------------------- | ------------------------ | ------------ | ---------------------------------------- |
+| `children`            | `List<HWWidget>`         | **required** | Widgets stacked left-to-right.           |
+| `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null`       | Vertical alignment of children.          |
+| `mainAxisAlignment`   | `HWMainAxisAlignment?`   | `null`       | Horizontal distribution of children.     |
+
+See [HWAlignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`HStack`](https://developer.apple.com/documentation/swiftui/hstack).
+- **Android:** Glance [`Row`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Row(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment.Horizontal,androidx.glance.layout.Alignment.Vertical,kotlin.Function1)).

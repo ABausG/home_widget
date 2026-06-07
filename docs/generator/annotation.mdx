@@ -1,0 +1,81 @@
+---
+title: Annotation
+description: The @HomeWidget annotation and its platform configuration options.
+---
+
+# Annotation
+
+Every generated widget starts with a class annotated with `@HomeWidget(...)`. The annotation describes the widget's identity, its UI, and how it should be configured on each platform.
+
+```dart
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Widget Configuration',
+  description: 'A widget with configuration options',
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.es.antonborri.hwGeneratePlayground',
+    supportedFamilies: [
+      HWWidgetFamily.systemSmall,
+      HWWidgetFamily.systemMedium,
+    ],
+  ),
+  android: HomeWidgetAndroidConfiguration(
+    packageName: 'com.example',
+    minWidth: 100,
+    minHeight: 50,
+    targetCellWidth: 2,
+    targetCellHeight: 1,
+    resizeMode: HWAndroidResizeMode.horizontal,
+    widgetCategory: HWAndroidWidgetCategory.homeScreen,
+    updatePeriodMillis: 3600000,
+  ),
+)
+class ConfigurationOptions {}
+```
+
+## `@HomeWidget`
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `name` | `String` | required | The widget's name. Maps to the `kind` on iOS WidgetKit and the receiver `label` on Android. |
+| `description` | `String?` | `null` | Description shown in the iOS and Android widget gallery. |
+| `widget` | `HWWidget?` | `null` | The widget UI tree, built from the [Widgets](/generator/widgets/hw-adaptive) primitives. |
+| `dartOutput` | `String?` | `null` | Override the path of the generated Dart helper file. |
+| `android` | `HomeWidgetAndroidConfiguration?` | `null` | Android-specific configuration (see below). |
+| `iOS` | `HomeWidgetIOSConfiguration?` | `null` | iOS-specific configuration (see below). |
+| `interactivity` | `HomeWidgetInteractivityConfig?` | `null` | Configuration for tap and intent-driven interactivity. |
+
+## `HomeWidgetAndroidConfiguration`
+
+Maps to [`AppWidgetProviderInfo`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo) on Android.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `packageName` | `String?` | auto-detected | App package name. If omitted, the generator infers it from your Android project. |
+| `minWidth` | `int?` | `null` | Default width in dp. Maps to [`minWidth`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minWidth). |
+| `minHeight` | `int?` | `null` | Default height in dp. Maps to [`minHeight`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minHeight). |
+| `minResizeWidth` | `int?` | `null` | Minimum resizable width in dp. Maps to [`minResizeWidth`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minResizeWidth). |
+| `minResizeHeight` | `int?` | `null` | Minimum resizable height in dp. Maps to [`minResizeHeight`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minResizeHeight). |
+| `maxResizeWidth` | `int?` | `null` | Maximum resizable width in dp (Android 12+). Maps to [`maxResizeWidth`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#maxResizeWidth). |
+| `maxResizeHeight` | `int?` | `null` | Maximum resizable height in dp (Android 12+). Maps to [`maxResizeHeight`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#maxResizeHeight). |
+| `targetCellWidth` | `int?` | `null` | Default width in cells (Android 12+). Maps to [`targetCellWidth`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#targetCellWidth). |
+| `targetCellHeight` | `int?` | `null` | Default height in cells (Android 12+). Maps to [`targetCellHeight`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#targetCellHeight). |
+| `resizeMode` | `HWAndroidResizeMode?` | `null` | How the widget can be resized. Maps to [`resizeMode`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#resizeMode). |
+| `widgetCategory` | `HWAndroidWidgetCategory?` | `null` | Where the widget can be shown. Maps to [`widgetCategory`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#widgetCategory). |
+| `updatePeriodMillis` | `int?` | `null` | Refresh interval in ms. Maps to [`updatePeriodMillis`](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#updatePeriodMillis). |
+| `useGlanceTheme` | `bool` | `true` | Wraps the generated Glance UI in `GlanceTheme { ... }`. |
+| `backgroundColor` | `HWColor?` | `HWDefaultColor(HWColorRole.defaultBackground)` | Background color applied via `GlanceModifier.background(...)`. See [`HWColor`](/generator/styling/hw-color). |
+| `applyContentPadding` | `bool` | `true` | Applies a default 16.dp root padding. |
+| `fillWidgetContent` | `bool` | `true` | Applies `GlanceModifier.fillMaxSize()` to the root. |
+
+## `HomeWidgetIOSConfiguration`
+
+Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widgetkit/widgetconfiguration) on iOS.
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `groupId` | `String` | required | App Group ID used to share data between the app and the widget extension. |
+| `supportedFamilies` | `List<HWWidgetFamily>?` | all families | Restricts which [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) values are supported. Maps to [`StaticConfiguration.supportedFamilies`](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:)). |
+| `backgroundColor` | `HWColor?` | `null` | Background color for the widget container. See [`HWColor`](/generator/styling/hw-color). |
+| `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |

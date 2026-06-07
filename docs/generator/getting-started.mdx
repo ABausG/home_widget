@@ -1,0 +1,115 @@
+---
+title: Getting Started
+description: Install home_widget_generator, write a widget schema, and generate code.
+---
+
+# Getting Started
+
+This page walks through setting up `home_widget_generator`, writing your first widget schema, generating native code, and using the generated Dart helper from your Flutter app.
+
+<Steps>
+  <Step title="Add dependencies">
+    Add `home_widget` to your app's `pubspec.yaml`, and add `home_widget_generator` and `home_widget_cli` as dev dependencies:
+
+    ```yaml
+    dependencies:
+      home_widget: ^0.9.0
+
+    dev_dependencies:
+      home_widget_generator: ^0.0.1
+      home_widget_cli: ^0.0.1
+    ```
+  </Step>
+
+  <Step title="Write a widget schema">
+    Create a Dart file describing your widget. By default `home_widget_cli` picks up files under a top-level `home_widget/` folder. Here is a minimal schema:
+
+    ```dart
+    import 'package:home_widget_generator/home_widget_generator.dart';
+
+    @HomeWidget(
+      name: 'Basic Creation',
+      android: HomeWidgetAndroidConfiguration(),
+      iOS: HomeWidgetIOSConfiguration(
+        groupId: 'group.com.example.app',
+      ),
+    )
+    class BasicCreation {}
+    ```
+
+    The class itself stays empty - it only exists as an attachment point for the annotation. See the [Annotation](/generator/annotation) reference for every available parameter, and the [Widgets](/generator/widgets) section for the UI primitives you can pass via `widget:`.
+  </Step>
+
+  <Step title="Add data and styling">
+    The `widget:` parameter accepts a tree of widgets. See the [Widgets](/generator/widgets) section for the available primitives, [Data Types](/generator/data) for binding values from `home_widget` storage, and [Styling](/generator/styling) for colors, text styles and insets.
+
+    ```dart
+    import 'package:home_widget_generator/home_widget_generator.dart';
+
+    @HomeWidget(
+      name: 'Greeting',
+      android: HomeWidgetAndroidConfiguration(),
+      iOS: HomeWidgetIOSConfiguration(
+        groupId: 'group.com.example.app',
+      ),
+      widget: HWColumn(
+        crossAxisAlignment: HWCrossAxisAlignment.start,
+        children: [
+          HWText.fixed(
+            'Hello',
+            style: HWRoleTextStyle(role: HWTextStyleRole.caption),
+          ),
+          HWText(
+            HWString('name', defaultValue: 'world'),
+            style: HWRoleTextStyle(
+              role: HWTextStyleRole.title,
+              fontWeight: HWFontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    )
+    class Greeting {}
+    ```
+
+    Every `HWString` / `HWInt` / `HWBool` / `HWDouble` you reference inside `widget:` becomes a typed field on the generated helper, so you can update it without juggling string keys.
+  </Step>
+
+  <Step title="Generate the code">
+    Run the CLI from your project root:
+
+    ```bash
+    dart run home_widget_cli generate
+    ```
+
+    The CLI scans for annotated classes and writes the generated Dart helper next to your other source under `lib/src/home_widget/<name>.home_widget.dart`, plus the iOS and Android widget sources into the corresponding native folders. See the [`generate` command](/cli/generate) for all options.
+  </Step>
+
+  <Step title="Use the generated Dart helper">
+    Import the generated file and call its static methods. For the schema above, the generator produces a `GreetingHomeWidget` class with the following static API:
+
+    ```dart
+    import 'src/home_widget/greeting.home_widget.dart';
+
+    void main() {
+      runApp(const MyApp());
+    }
+
+    Future<void> setName(String name) async {
+      await GreetingHomeWidget.saveData(name: name);
+      await GreetingHomeWidget.updateWidget();
+    }
+    ```
+
+    - `saveData(...)` writes any of the declared data fields through `home_widget` in a type-safe way. Each field is an optional named parameter, so you can update one or many at a time.
+    - `getData()` reads the current values back as a typed record.
+    - `deleteData(...)` clears the given fields.
+    - `updateWidget()` triggers a refresh of the native widget on both platforms, using the correct `androidName` / `iOSName` automatically.
+
+    See [Sync data](/usage/sync-data) for the underlying `home_widget` behavior.
+  </Step>
+
+  <Step title="Native setup">
+    **No manual native setup is needed**: the CLI registers the widget receiver in `AndroidManifest.xml`, adds the iOS widget extension to the Xcode project, writes the entitlements file, and bumps the deployment target as required. You only need an App Group ID configured for iOS — provide it via the `iOS: HomeWidgetIOSConfiguration(groupId: ...)` field on the annotation.
+  </Step>
+</Steps>

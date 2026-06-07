@@ -1,0 +1,50 @@
+---
+title: HWColoredBox
+description: Paint a child with a solid background color.
+---
+
+# HWColoredBox
+
+Paints its area with a single [`HWColor`](/generator/styling/hw-color) and renders a child on top. For backgrounds with a border or rounded corners use [`HWDecoratedBox`](/generator/widgets/hw-decorated-box).
+
+```dart
+HWFill(
+  child: HWColoredBox(
+    color: HWColor.fixed(0xFF0000FF),
+    child: HWFill(
+      child: HWColumn(
+        children: [
+          HWText.fixed('No Color'),
+          HWText.fixed(
+            'Fixed Color',
+            style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
+          ),
+          HWText.fixed(
+            'Themed',
+            style: HWTextStyle(
+              color: HWThemedColor(
+                light: HWFixedColor(0xFFFFFF00),
+                dark: HWFixedColor(0xFF00FFFF),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+)
+```
+
+The `color` accepts any `HWColor` — a fixed ARGB value, a themed light/dark pair, or a system role. See [`HWColor`](/generator/styling/hw-color).
+
+## Parameters
+
+| Name    | Type        | Default      | Description                              |
+| ------- | ----------- | ------------ | ---------------------------------------- |
+| `child` | `HWWidget`  | **required** | The widget painted on top of the color.  |
+| `color` | `HWColor`   | **required** | The background color (fixed or themed).  |
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`.background(_:)`](https://developer.apple.com/documentation/swiftui/view/background(_:ignoressafeareaedges:)) modifier.
+- **Android:** Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment,kotlin.Function1)) with [`GlanceModifier.background(...)`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#background(androidx.glance.GlanceModifier,androidx.glance.unit.ColorProvider)).

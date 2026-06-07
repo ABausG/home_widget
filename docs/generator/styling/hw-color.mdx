@@ -1,0 +1,74 @@
+---
+title: HWColor
+description: Color values for HomeWidget — fixed ARGB, light/dark themed, and semantic system roles.
+---
+
+# HWColor
+
+`HWColor` is the base type for every color the generator emits. It is `sealed`/abstract — pick one of the variants below.
+
+## Variants
+
+| Variant | Constructor | Description |
+| --- | --- | --- |
+| `HWFixedColor` | `HWColor.fixed(int value)` | A single ARGB color (e.g. `0xFFFF0000`). |
+| `HWThemedColor` | `HWColor.themed({light, dark})` | Resolves to `light` or `dark` based on the system color scheme. |
+| `HWDefaultColor` | `HWDefaultColor(HWColorRole role)` | A semantic system color picked via [HWColorRole](#hwcolorrole). |
+
+## HWColor.fixed
+
+A literal ARGB color packed into a 32-bit integer.
+
+```dart
+HWText.fixed(
+  'Fixed Color',
+  style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
+)
+```
+
+Background colors on the widget configuration take an `HWColor` directly:
+
+```dart
+HomeWidgetAndroidConfiguration(
+  backgroundColor: HWColor.fixed(0xFF0000FF),
+)
+```
+
+## HWColor.themed
+
+Two `HWColor`s — one for light mode, one for dark mode. Either side may itself be any `HWColor`.
+
+```dart
+HomeWidgetAndroidConfiguration(
+  backgroundColor: HWColor.themed(
+    light: HWColor.fixed(0xFFFF00FF),
+    dark: HWColor.fixed(0xFF00FF00),
+  ),
+)
+```
+
+## HWDefaultColor
+
+A semantic color tied to the system's widget palette. Useful when you want the widget to follow Apple's and Google's defaults instead of hardcoding values.
+
+```dart
+HWText.fixed(
+  'Primary',
+  style: HWTextStyle(color: HWDefaultColor(HWColorRole.contentPrimary)),
+)
+```
+
+### HWColorRole
+
+| Role | Description |
+| --- | --- |
+| `contentPrimary` | Primary foreground content. |
+| `contentSecondary` | Secondary, less emphasized content. |
+| `contentTertiary` | Tertiary / decorative content. |
+| `contentAccent` | Accent / tint color. |
+| `defaultBackground` | The default widget background. |
+
+## Platform mapping
+
+- iOS — resolves to SwiftUI [`Color`](https://developer.apple.com/documentation/swiftui/color) values such as `Color.primary` and `Color.accentColor`.
+- Android — resolves to Glance [`ColorProvider`](https://developer.android.com/reference/kotlin/androidx/glance/color/ColorProvider) and [`GlanceTheme.colors`](https://developer.android.com/reference/kotlin/androidx/glance/GlanceTheme).

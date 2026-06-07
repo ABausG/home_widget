@@ -1,0 +1,55 @@
+---
+title: HWBoxDecoration
+description: Background color and border for HWDecoratedBox.
+---
+
+# HWBoxDecoration
+
+`HWBoxDecoration` describes how an [`HWDecoratedBox`](/generator/widgets/hw-decorated-box) paints behind and around its child. Both fields are optional — leave them `null` to skip that layer.
+
+## Parameters
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `color` | `HWColor?` | `null` | Background fill. See [HWColor](/generator/styling/hw-color). |
+| `border` | `HWBoxBorder?` | `null` | Border drawn around the child. |
+
+```dart
+HWDecoratedBox(
+  decoration: HWBoxDecoration(
+    color: HWColor.fixed(0xFF0000FF),
+  ),
+  child: HWText.fixed('Hello World'),
+)
+```
+
+## HWBoxBorder
+
+A simple, single-color rounded border.
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `color` | `HWColor` | required | Stroke color. |
+| `thickness` | `double` | required | Stroke width. |
+| `radius` | `double` | `0.0` | Corner radius applied to both border and background. |
+
+```dart
+HWDecoratedBox(
+  decoration: HWBoxDecoration(
+    color: HWColor.fixed(0xFFFFFFFF),
+    border: HWBoxBorder(
+      color: HWDefaultColor(HWColorRole.contentAccent),
+      thickness: 2.0,
+      radius: 12.0,
+    ),
+  ),
+  child: HWText.fixed('Bordered'),
+)
+```
+
+Glance does not expose stroke alignment, so on Android the border is approximated as an inside border (an outer `Box` providing the stroke, with the child inset by `thickness`).
+
+## Platform mapping
+
+- iOS — emitted as SwiftUI [`.background(...)`](https://developer.apple.com/documentation/swiftui/view/background(_:alignment:)) and [`.overlay(...)`](https://developer.apple.com/documentation/swiftui/view/overlay(_:alignment:)) with a `RoundedRectangle`.
+- Android — emitted as a Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box) using [`background`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#background) and [`cornerRadius`](https://developer.android.com/reference/kotlin/androidx/glance/appwidget/package-summary#cornerRadius).

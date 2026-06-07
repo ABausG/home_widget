@@ -1,0 +1,83 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default: false
+      home_widget:
+        target: 100%
+        threshold: 1%
+        flags:
+          - home_widget
+      home_widget_cli:
+        target: 95%
+        threshold: 1%
+        flags:
+          - home_widget_cli
+      home_widget_generator:
+        target: 74%
+        threshold: 1%
+        flags:
+          - home_widget_generator
+    patch:
+      default: false
+      home_widget:
+        target: 90%
+        threshold: 0%
+        flags:
+          - home_widget
+      home_widget_cli:
+        target: 90%
+        threshold: 0%
+        flags:
+          - home_widget_cli
+      home_widget_generator:
+        target: 90%
+        threshold: 0%
+        flags:
+          - home_widget_generator
+    default_rules:
+      # Path-filtered CI only uploads affected packages; don't fail others.
+      flag_coverage_not_uploaded_behavior: pass
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+
+flag_management:
+  default_rules:
+    carryforward: true
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+  individual_flags:
+    - name: home_widget
+      paths:
+        - packages/home_widget/
+      statuses:
+        - type: project
+          target: 100%
+          threshold: 1%
+        - type: patch
+          target: 90%
+    - name: home_widget_cli
+      paths:
+        - packages/home_widget_cli/
+      statuses:
+        - type: project
+          target: 95%
+          threshold: 1%
+        - type: patch
+          target: 90%
+    - name: home_widget_generator
+      paths:
+        - packages/home_widget_generator/
+      statuses:
+        - type: project
+          target: 74%
+          threshold: 1%
+        - type: patch
+          target: 90%

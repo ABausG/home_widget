@@ -1,0 +1,28 @@
+---
+title: Styling
+description: Colors, text styles, alignment and insets used by HWWidget.
+---
+
+# Styling
+
+Styling primitives describe how widgets look and lay out. They are passed into the [layout widgets](/generator/widgets) via dedicated parameters (e.g. `style:` on [`HWText`](/generator/widgets/hw-text), `padding:` on [`HWPadding`](/generator/widgets/hw-padding), `decoration:` on [`HWDecoratedBox`](/generator/widgets/hw-decorated-box)).
+
+## Colors
+
+| Type                                                         | Description                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`HWColor`](/generator/styling/hw-color)                     | Fixed, themed and role-based colors backed by system color providers.  |
+
+## Text
+
+| Type                                                         | Description                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`HWTextStyle`](/generator/styling/hw-text-style)            | Font size, weight, color, decorations and role-based system styles for [`HWText`](/generator/widgets/hw-text). |
+
+## Layout
+
+| Type                                                         | Description                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`HWAlignment`](/generator/styling/hw-alignment)             | Cross- and main-axis alignment for [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row). |
+| [`HWEdgeInsets`](/generator/styling/hw-edge-insets)          | Padding values consumed by [`HWPadding`](/generator/widgets/hw-padding). |
+| [`HWBoxDecoration`](/generator/styling/hw-box-decoration)    | Background color and border for [`HWDecoratedBox`](/generator/widgets/hw-decorated-box). |

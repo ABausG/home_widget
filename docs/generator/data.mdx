@@ -1,0 +1,49 @@
+---
+title: Data Types
+description: HWDataType variants used to declare widget data fields.
+---
+
+# Data Types
+
+`HWDataType` describes a single data field stored for a widget. You declare data fields in two places:
+
+- Implicitly, by binding a widget to data (e.g. `HWText(HWInt('count'))`).
+- Explicitly, via [`HWDataOnly`](/generator/widgets/hw-data-only) or `HWConditional` for fields that aren't rendered directly.
+
+Each variant carries a `key` (the storage key) and an optional `defaultValue`.
+
+```dart
+@HomeWidget(
+  name: 'Counter',
+  widget: HWText(HWInt('count', defaultValue: 0)),
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example.app'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+)
+class CounterWidget {}
+```
+
+The generated Dart helper exposes typed setters for each declared field, e.g. `setCount(42)` / `update(count: 42)`.
+
+## Variants
+
+| Variant     | Constructor                                | Dart type             | Description                                                                                  |
+| ----------- | ------------------------------------------ | --------------------- | -------------------------------------------------------------------------------------------- |
+| `HWString`  | `HWString(key, {defaultValue})`            | `String`              | Stored as a string in `SharedPreferences` / `UserDefaults`.                                  |
+| `HWInt`     | `HWInt(key, {defaultValue})`               | `int`                 | Integer value.                                                                               |
+| `HWDouble`  | `HWDouble(key, {defaultValue})`            | `double`              | Double / float value.                                                                        |
+| `HWBool`    | `HWBool(key, {defaultValue})`              | `bool`                | Boolean value.                                                                               |
+| `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
+
+## Defaults
+
+When a `defaultValue` is provided it's used both in the generated Dart helper and on the native side when the key is missing from storage. Without a default, the read path returns `null` (or the language's optional equivalent).
+
+## Nested JSON
+
+`HWJson` lets you read a single leaf out of a JSON blob shared via `home_widget`. Chain `HWJson` to address deeper paths:
+
+```dart
+HWText(HWJson('user', HWJson('profile', HWString('name'))))
+```
+
+This reads `user.profile.name` from a JSON string stored under the `user` key.

@@ -6,10 +6,13 @@ environment:
 
 workspace:
   - packages/home_widget
+  - packages/home_widget_cli
+  - packages/home_widget_generator
   - packages/home_widget/example
   - examples/configurable_widget
   - examples/lockscreen_widgets
   - examples/file_and_images
+  - examples/generator_basics
 
 dev_dependencies:
   melos: ^7.0.0
@@ -53,3 +56,43 @@ melos:
       packageFilters:
         dirExists: ios
         ignore: home_widget
+    test:
+      description: Run all unit tests (excludes integration)
+      steps:
+        - test:flutter
+        - test:dart
+    test:flutter:
+      description: Run Flutter unit tests (excludes integration)
+      exec: flutter test -x integration
+      packageFilters:
+        flutter: true
+        dirExists: test
+    test:dart:
+      description: Run Dart-only unit tests (excludes integration)
+      exec: dart test -x integration
+      packageFilters:
+        flutter: false
+        dirExists: test
+    test:coverage:dart:
+      description: Run Dart-only unit tests with coverage (excludes integration)
+      exec: |
+        dart test --coverage=coverage -x integration
+        dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib --base-directory=$MELOS_ROOT_PATH --package=.
+      packageFilters:
+        flutter: false
+        dirExists: test
+    test:cli:integration:
+      description: Run all CLI integration tests
+      exec: dart test -t integration
+      packageFilters:
+        scope: home_widget_cli
+    test:cli:integration:android:
+      description: Run CLI Android integration tests
+      exec: dart test -t integration_android
+      packageFilters:
+        scope: home_widget_cli
+    test:cli:integration:ios:
+      description: Run CLI iOS integration tests
+      exec: dart test -t integration_ios
+      packageFilters:
+        scope: home_widget_cli

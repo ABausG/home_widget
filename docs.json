@@ -9,115 +9,131 @@
     "github": "abausg",
     "linkedin": "/in/abausg"
   },
+  "tabs": [
+    {
+      "id": "documentation",
+      "title": "Documentation",
+      "href": "/"
+    },
+    {
+      "id": "generator",
+      "title": "Generator",
+      "href": "/generator"
+    },
+    {
+      "id": "cli",
+      "title": "CLI",
+      "href": "/cli"
+    }
+  ],
   "sidebar": [
-    [
-      "Overview",
-      "/"
-    ],
-    [
-      "Usage",
-      [
-        [
-          "Sync Data",
-          "/usage/sync-data"
-        ],
-        [
-          "Update Widget",
-          "/usage/update-widget"
-        ]
+    {
+      "tab": "documentation",
+      "pages": [
+        { "title": "Overview", "href": "/" }
       ]
-    ],
-    [
-      "Platform Setup",
-      [
-        [
-          "iOS",
-          "/setup/ios"
-        ],
-        [
-          "Android",
-          "/setup/android"
-        ]
+    },
+    {
+      "tab": "documentation",
+      "group": "Usage",
+      "pages": [
+        { "title": "Sync Data", "href": "/usage/sync-data" },
+        { "title": "Update Widget", "href": "/usage/update-widget" }
       ]
-    ],
-    [
-      "Features",
-      [
-        [
-          "Render Flutter Widgets",
-          "/features/render-flutter-widgets"
-        ],
-        [
-          "Interactive Widgets",
-          "/features/interactive-widgets"
-        ],
-        [
-          "Detect Clicks",
-          "/features/detect-clicks"
-        ],
-        [
-          "Analytics",
-          "/features/analytics"
-        ],
-        [
-          "Save files and images",
-          "/features/save-files"
-        ],
-        [
-          "Configurable Widgets",
-          "/features/configurable-widgets"
-        ],
-        [
-          "iOS Lock Screen Widgets",
-          "/features/ios-lock-screen"
-        ],
-        [
-          "Pin Widget (Android)",
-          "/features/pin-widget"
-        ],
-        [
-          "Background Updates",
-          "/features/background-updates"
-        ]
+    },
+    {
+      "tab": "documentation",
+      "group": "Platform Setup",
+      "pages": [
+        { "title": "iOS", "href": "/setup/ios" },
+        { "title": "Android", "href": "/setup/android" }
       ]
-    ],
-    [
-      "Migrations",
-      [
-        [
-          "0.9.0",
-          "/migrations/0.9.0"
-        ],
-        [
-          "Swift Package Manager",
-          "/migrations/swift-package-manager"
-        ]
+    },
+    {
+      "tab": "documentation",
+      "group": "Features",
+      "pages": [
+        { "title": "Render Flutter Widgets", "href": "/features/render-flutter-widgets" },
+        { "title": "Interactive Widgets", "href": "/features/interactive-widgets" },
+        { "title": "Detect Clicks", "href": "/features/detect-clicks" },
+        { "title": "Analytics", "href": "/features/analytics" },
+        { "title": "Save files and images", "href": "/features/save-files" },
+        { "title": "Configurable Widgets", "href": "/features/configurable-widgets" },
+        { "title": "iOS Lock Screen Widgets", "href": "/features/ios-lock-screen" },
+        { "title": "Pin Widget (Android)", "href": "/features/pin-widget" },
+        { "title": "Background Updates", "href": "/features/background-updates" }
       ]
-    ],
-    [
-      "Android XML",
-      [
-        [
-          "Overview",
-          "/android-xml/overview"
-        ],
-        [
-          "Setup",
-          "/android-xml/setup"
-        ],
-        [
-          "Render Flutter Widgets",
-          "/android-xml/render-flutter-widget"
-        ],
-        [
-          "Interactive Widgets",
-          "/android-xml/interactive-widgets"
-        ],
-        [
-          "Detect Clicks",
-          "/android-xml/detect-clicks"
-        ]
+    },
+    {
+      "tab": "documentation",
+      "group": "Migrations",
+      "pages": [
+        { "title": "0.9.0", "href": "/migrations/0.9.0" },
+        { "title": "Swift Package Manager", "href": "/migrations/swift-package-manager" }
       ]
-    ]
+    },
+    {
+      "tab": "documentation",
+      "group": "Android XML",
+      "pages": [
+        { "title": "Overview", "href": "/android-xml/overview" },
+        { "title": "Setup", "href": "/android-xml/setup" },
+        { "title": "Render Flutter Widgets", "href": "/android-xml/render-flutter-widget" },
+        { "title": "Interactive Widgets", "href": "/android-xml/interactive-widgets" },
+        { "title": "Detect Clicks", "href": "/android-xml/detect-clicks" }
+      ]
+    },
+    {
+      "tab": "generator",
+      "pages": [
+        { "title": "Overview", "href": "/generator" },
+        { "title": "Getting Started", "href": "/generator/getting-started" },
+        { "title": "Annotation", "href": "/generator/annotation" },
+        { "title": "Data Types", "href": "/generator/data" }
+      ]
+    },
+    {
+      "tab": "generator",
+      "group": "Widgets",
+      "pages": [
+        { "title": "Overview", "href": "/generator/widgets" },
+        { "title": "HWAdaptive", "href": "/generator/widgets/hw-adaptive" },
+        { "title": "HWColoredBox", "href": "/generator/widgets/hw-colored-box" },
+        { "title": "HWColumn", "href": "/generator/widgets/hw-column" },
+        { "title": "HWConditional", "href": "/generator/widgets/hw-conditional" },
+        { "title": "HWDataOnly", "href": "/generator/widgets/hw-data-only" },
+        { "title": "HWDecoratedBox", "href": "/generator/widgets/hw-decorated-box" },
+        { "title": "HWFill", "href": "/generator/widgets/hw-fill" },
+        { "title": "HWPadding", "href": "/generator/widgets/hw-padding" },
+        { "title": "HWRow", "href": "/generator/widgets/hw-row" },
+        { "title": "HWText", "href": "/generator/widgets/hw-text" }
+      ]
+    },
+    {
+      "tab": "generator",
+      "group": "Styling",
+      "pages": [
+        { "title": "Overview", "href": "/generator/styling" },
+        { "title": "HWAlignment", "href": "/generator/styling/hw-alignment" },
+        { "title": "HWBoxDecoration", "href": "/generator/styling/hw-box-decoration" },
+        { "title": "HWColor", "href": "/generator/styling/hw-color" },
+        { "title": "HWEdgeInsets", "href": "/generator/styling/hw-edge-insets" },
+        { "title": "HWTextStyle", "href": "/generator/styling/hw-text-style" }
+      ]
+    },
+    {
+      "tab": "cli",
+      "pages": [
+        { "title": "Overview", "href": "/cli" }
+      ]
+    },
+    {
+      "tab": "cli",
+      "group": "Commands",
+      "pages": [
+        { "title": "create", "href": "/cli/create" },
+        { "title": "generate", "href": "/cli/generate" }
+      ]
+    }
   ]
 }

@@ -1,0 +1,44 @@
+---
+title: home_widget_cli
+description: CLI to scaffold and generate native HomeScreen widget code.
+next: /cli/create
+---
+
+# home_widget_cli
+
+`home_widget_cli` is a Dart command-line tool that helps you set up the native parts of a HomeScreen widget for the [`home_widget`](/) Flutter plugin.
+
+It can:
+
+- [Scaffold](/cli/create) placeholder native widget code for iOS and/or Android.
+- [Generate](/cli/generate) native widget code and a typed Dart helper from [`home_widget_generator`](/generator) schemas.
+
+## Installation
+
+Add it as a dev dependency in your Flutter app:
+
+```yaml
+dev_dependencies:
+  home_widget_cli: ^0.0.1
+```
+
+Then invoke it via `dart run`:
+
+```bash
+dart run home_widget_cli <command> [arguments]
+```
+
+## Global options
+
+| Option       | Description                |
+| ------------ | -------------------------- |
+| `--version`  | Print the CLI version.     |
+| `--verbose`  | Enable verbose output.     |
+| `-h, --help` | Print usage information.   |
+
+## Commands
+
+| Command                  | Description                                                       |
+| ------------------------ | ----------------------------------------------------------------- |
+| [`create`](/cli/create)     | Create placeholder native structure for a new widget.             |
+| [`generate`](/cli/generate) | Generate native widget code from a `home_widget_generator` schema. |
