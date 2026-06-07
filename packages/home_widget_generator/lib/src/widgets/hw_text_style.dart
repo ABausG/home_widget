@@ -178,14 +178,6 @@ class HWTextStyle implements HWGeneratable {
     }
 
     if (resolved.underline == true && resolved.lineThrough == true) {
-      // Assuming Glance doesn't officially expose a combine method like this directly but expects multiple?
-      // Wait, let's verify how Glance TextDecoration combine works?
-      // "val combine = TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))"
-      // Wait, TextDecoration doesn't have combine like that in Glance?
-      // Actually `TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))` is correct for Compose.
-      // Glance version is `TextDecoration.combine(listOf(...))`? No, in Glance, TextDecoration doesn't have an easily discoverable combine method sometimes vs Compose UI.
-      // Wait! The user plan says: "Kotlin: set `textDecoration` to `**TextDecoration.combine(…)**` (or equivalent) when more than one flag is true"
-      // Wait, there's `TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))` in Compose. Let's just use it as suggested if we need to. But let's look closer at the plan: "TextDecoration.combine(...)"
       args.add(
         'textDecoration = TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))',
       );

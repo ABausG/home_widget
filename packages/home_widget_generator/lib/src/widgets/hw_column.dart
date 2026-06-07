@@ -92,97 +92,29 @@ class HWColumn extends HWMultiChildWidget {
       buffer.writeln('${pad}Column {');
     }
 
-    _emitKotlinChildren(buffer, indent + 1, dataExpr);
+    _emitChildrenWithMainAxisAlignment(
+      children,
+      buffer,
+      indent + 1,
+      dataExpr,
+      mainAxisAlignment,
+      (child, childIndent, data) => child.toKotlin(childIndent, dataExpr: data),
+      (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
+    );
 
     buffer.write('$pad}');
     return buffer.toString();
   }
 
-  void _emitKotlinChildren(StringBuffer buffer, int indent, String dataExpr) {
-    final childPad = '    ' * indent;
-
-    switch (mainAxisAlignment) {
-      case HWMainAxisAlignment.center:
-        buffer.writeln(
-          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-        );
-        for (final child in children) {
-          buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
-        }
-        buffer.writeln(
-          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-        );
-      case HWMainAxisAlignment.end:
-        buffer.writeln(
-          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-        );
-        for (final child in children) {
-          buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
-        }
-      case HWMainAxisAlignment.spaceBetween:
-        for (var i = 0; i < children.length; i++) {
-          if (i > 0) {
-            buffer.writeln(
-              '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-            );
-          }
-          buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
-        }
-      case HWMainAxisAlignment.spaceEvenly:
-        buffer.writeln(
-          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-        );
-        for (var i = 0; i < children.length; i++) {
-          if (i > 0) {
-            buffer.writeln(
-              '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-            );
-          }
-          buffer.writeln(children[i].toKotlin(indent, dataExpr: dataExpr));
-        }
-        buffer.writeln(
-          '${childPad}Spacer(modifier = GlanceModifier.defaultWeight())',
-        );
-      case HWMainAxisAlignment.start:
-      case null:
-        for (final child in children) {
-          buffer.writeln(child.toKotlin(indent, dataExpr: dataExpr));
-        }
-    }
-  }
-
   void _emitSwiftChildren(StringBuffer buffer, int indent, String dataExpr) {
-    final childPad = '    ' * indent;
-
-    switch (mainAxisAlignment) {
-      case HWMainAxisAlignment.center:
-        buffer.writeln('${childPad}Spacer()');
-        for (final child in children) {
-          buffer.writeln(child.toSwift(indent, dataExpr: dataExpr));
-        }
-        buffer.writeln('${childPad}Spacer()');
-      case HWMainAxisAlignment.end:
-        buffer.writeln('${childPad}Spacer()');
-        for (final child in children) {
-          buffer.writeln(child.toSwift(indent, dataExpr: dataExpr));
-        }
-      case HWMainAxisAlignment.spaceBetween:
-        for (var i = 0; i < children.length; i++) {
-          if (i > 0) buffer.writeln('${childPad}Spacer()');
-          buffer.writeln(children[i].toSwift(indent, dataExpr: dataExpr));
-        }
-      case HWMainAxisAlignment.spaceEvenly:
-        buffer.writeln('${childPad}Spacer()');
-        for (var i = 0; i < children.length; i++) {
-          if (i > 0) buffer.writeln('${childPad}Spacer()');
-          buffer.writeln(children[i].toSwift(indent, dataExpr: dataExpr));
-        }
-        buffer.writeln('${childPad}Spacer()');
-      case HWMainAxisAlignment.start:
-      case null:
-        for (final child in children) {
-          buffer.writeln(child.toSwift(indent, dataExpr: dataExpr));
-        }
-    }
+    _emitChildrenWithMainAxisAlignment(
+      children,
+      buffer,
+      indent,
+      dataExpr,
+      mainAxisAlignment,
+      (child, childIndent, data) => child.toSwift(childIndent, dataExpr: data),
+      (pad) => '${pad}Spacer()',
+    );
   }
 }

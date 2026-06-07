@@ -87,14 +87,18 @@ class HWString extends HWDataType<String> {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    final fallback = defaultValue != null ? '"$defaultValue"' : 'null';
+    final fallback = defaultValue != null
+        ? '"${_escapeKotlinStringLiteral(defaultValue!)}"'
+        : 'null';
     return '$store.getString("$key", $fallback)';
   }
 
   @override
   String iosReadValue({required String store, required String key}) {
     final read = '$store?.string(forKey: "$key")';
-    if (defaultValue != null) return '($read ?? "$defaultValue")';
+    if (defaultValue != null) {
+      return '($read ?? "${_escapeSwiftStringLiteral(defaultValue!)}")';
+    }
     return read;
   }
 

@@ -100,3 +100,50 @@ sealed class HWWidget implements HWGeneratable {
     required String dataExpr,
   });
 }
+
+void _emitChildrenWithMainAxisAlignment(
+  List<HWWidget> children,
+  StringBuffer buffer,
+  int indent,
+  String dataExpr,
+  HWMainAxisAlignment? alignment,
+  String Function(HWWidget child, int indent, String dataExpr) childGenerator,
+  String Function(String childPad) spacerGenerator,
+) {
+  final childPad = '    ' * indent;
+
+  switch (alignment) {
+    case HWMainAxisAlignment.center:
+      buffer.writeln(spacerGenerator(childPad));
+      for (final child in children) {
+        buffer.writeln(childGenerator(child, indent, dataExpr));
+      }
+      buffer.writeln(spacerGenerator(childPad));
+    case HWMainAxisAlignment.end:
+      buffer.writeln(spacerGenerator(childPad));
+      for (final child in children) {
+        buffer.writeln(childGenerator(child, indent, dataExpr));
+      }
+    case HWMainAxisAlignment.spaceBetween:
+      for (var i = 0; i < children.length; i++) {
+        if (i > 0) {
+          buffer.writeln(spacerGenerator(childPad));
+        }
+        buffer.writeln(childGenerator(children[i], indent, dataExpr));
+      }
+    case HWMainAxisAlignment.spaceEvenly:
+      buffer.writeln(spacerGenerator(childPad));
+      for (var i = 0; i < children.length; i++) {
+        if (i > 0) {
+          buffer.writeln(spacerGenerator(childPad));
+        }
+        buffer.writeln(childGenerator(children[i], indent, dataExpr));
+      }
+      buffer.writeln(spacerGenerator(childPad));
+    case HWMainAxisAlignment.start:
+    case null:
+      for (final child in children) {
+        buffer.writeln(childGenerator(child, indent, dataExpr));
+      }
+  }
+}

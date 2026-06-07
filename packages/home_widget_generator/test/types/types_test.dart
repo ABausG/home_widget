@@ -104,6 +104,26 @@ void main() {
       );
     });
 
+    test('HWString escapes special characters in defaultValue', () {
+      const cases = <(String input, String kotlinEscaped, String swiftEscaped)>[
+        (r'hello"world', r'hello\"world', r'hello\"world'),
+        (r'back\slash', r'back\\slash', r'back\\slash'),
+        (r'dollar$sign', r'dollar\$sign', r'dollar$sign'),
+      ];
+
+      for (final (input, kotlinEscaped, swiftEscaped) in cases) {
+        final type = HWString('key', defaultValue: input);
+        expect(
+          type.androidReadValue(store: 'prefs', key: 'k'),
+          'prefs.getString("k", "$kotlinEscaped")',
+        );
+        expect(
+          type.iosReadValue(store: 'defaults', key: 'k'),
+          '(defaults?.string(forKey: "k") ?? "$swiftEscaped")',
+        );
+      }
+    });
+
     test('androidReadValue and iosReadValue (with and without defaultValue)',
         () {
       const store = 'prefs';

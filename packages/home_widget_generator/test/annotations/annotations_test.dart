@@ -58,6 +58,19 @@ void main() {
       const config = HomeWidgetIOSConfiguration(groupId: 'group.example');
       expect(config.groupId, 'group.example');
     });
+
+    test('HomeWidgetIOSConfiguration equality', () {
+      const config1 = HomeWidgetIOSConfiguration(groupId: 'group.example');
+      const config2 = HomeWidgetIOSConfiguration(groupId: 'group.example');
+      const config3 = HomeWidgetIOSConfiguration(groupId: 'group.other');
+
+      expect(config1, equals(config2));
+      expect(config1.hashCode, equals(config2.hashCode));
+      expect(config1, isNot(equals(config3)));
+    });
+  });
+
+  group('Equality tests', () {
     test('HomeWidget equality', () {
       const config1 = HomeWidget(
         name: 'Test',
@@ -80,16 +93,6 @@ void main() {
       const config2 =
           HomeWidgetAndroidConfiguration(packageName: 'com.example');
       const config3 = HomeWidgetAndroidConfiguration(packageName: 'com.other');
-
-      expect(config1, equals(config2));
-      expect(config1.hashCode, equals(config2.hashCode));
-      expect(config1, isNot(equals(config3)));
-    });
-
-    test('HomeWidgetIOSConfiguration equality', () {
-      const config1 = HomeWidgetIOSConfiguration(groupId: 'group.example');
-      const config2 = HomeWidgetIOSConfiguration(groupId: 'group.example');
-      const config3 = HomeWidgetIOSConfiguration(groupId: 'group.other');
 
       expect(config1, equals(config2));
       expect(config1.hashCode, equals(config2.hashCode));
