@@ -85,3 +85,53 @@ words:
     - codesign
     - Charsets
     - savefile
+    # home_widget_cli / home_widget_generator
+    - ARGB
+    - associatedtype
+    - buildable
+    - buildfile
+    - buildscript
+    - callout
+    - carryforward
+    - cfglist
+    - codegen
+    - crossinline
+    - deinit
+    - fileprivate
+    - fileref
+    - Fqcn
+    - fsex
+    - fsgroup
+    - generatable
+    - Generatable
+    - hwcolorrole
+    - idempotently
+    - INFOPLIST
+    - inout
+    - Ints
+    - IPHONEOS
+    - isnull
+    - jsondbl
+    - jsonint
+    - keyguard
+    - LTRB
+    - multiplatform
+    - nofill
+    - noinline
+    - nopadding
+    - notheme
+    - RUNPATH
+    - scaffolder
+    - SDKROOT
+    - sourcecode
+    - strikethrough
+    - struct
+    - structs
+    - sublist
+    - sysexits
+    - tailrec
+    - tisa
+    - unparseable
+    - vararg
+    - widgetkit
+    - writeln
