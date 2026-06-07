@@ -1,3 +1,14 @@
+## 0.9.2+1
+
+ - **FIX**: Apply kotlin plugin when not built in ([#425](https://github.com/abausg/home_widget/issues/425)). ([fc7e800c](https://github.com/abausg/home_widget/commit/fc7e800c661e2fd6ad951a8df16a04d14e8eacc0))
+
+## 0.9.2
+
+ - **FIX**: Add FlutterFramework to iOS SPM package ([#419](https://github.com/abausg/home_widget/issues/419)). ([85aa4bf2](https://github.com/abausg/home_widget/commit/85aa4bf2f56feddf1b8d4c6f6a3954363308317d))
+ - **FIX**: Support Android Gradle Plugin 9.x ([#420](https://github.com/abausg/home_widget/issues/420)). ([cb2b4ad5](https://github.com/abausg/home_widget/commit/cb2b4ad530da0a599b283cd109fa01d928dae662))
+ - **FIX**: Pin android dependency versions to prevent pre-release pickup ([#418](https://github.com/abausg/home_widget/issues/418)). ([e42f1f7c](https://github.com/abausg/home_widget/commit/e42f1f7cf53f23b0e2e2092463a2ef22f67b6d57))
+ - **FEAT**: Support passing appGroupId directly with functions ([#416](https://github.com/abausg/home_widget/issues/416)). ([55e6f435](https://github.com/abausg/home_widget/commit/55e6f435cb573a570a524d662d2f2d0bd2c50f43))
+
 ## 0.9.1
 
  - **FEAT**: Configurable widgets for Android ([#396](https://github.com/abausg/home_widget/issues/396)). ([faf16897](https://github.com/abausg/home_widget/commit/faf16897d6667b54799c61fa714eec9247dda1c9))

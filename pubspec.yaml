@@ -2,7 +2,7 @@ name: home_widget_workspace
 publish_to: none
 
 environment:
-  sdk: ^3.9.0
+  sdk: ^3.10.0
 
 workspace:
   - packages/home_widget

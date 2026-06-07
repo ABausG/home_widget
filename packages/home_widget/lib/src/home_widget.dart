@@ -25,9 +25,10 @@ class HomeWidget {
     String id,
     T? data, {
     bool deleteFile = true,
+    String? appGroupId,
   }) async {
     if (deleteFile && data == null) {
-      final raw = await getWidgetData<dynamic>(id);
+      final raw = await getWidgetData<dynamic>(id, appGroupId: appGroupId);
       if (raw is String && _isHomeWidgetManagedFilePath(raw)) {
         final file = File(raw);
         if (await file.exists()) {
@@ -40,10 +41,12 @@ class HomeWidget {
       }
     }
 
-    return _channel.invokeMethod<bool>('saveWidgetData', {
+    final arguments = <String, dynamic>{
       'id': id,
       'data': data,
-    });
+      if (appGroupId != null) 'appGroupId': appGroupId,
+    };
+    return _channel.invokeMethod<bool>('saveWidgetData', arguments);
   }
 
   /// Updates the HomeScreen Widget
@@ -99,11 +102,17 @@ class HomeWidget {
   /// Returns Data saved with [saveWidgetData]
   /// [id] of Data Saved
   /// [defaultValue] value to use if no data was found
-  static Future<T?> getWidgetData<T>(String id, {T? defaultValue}) {
-    return _channel.invokeMethod<T>('getWidgetData', {
+  static Future<T?> getWidgetData<T>(
+    String id, {
+    T? defaultValue,
+    String? appGroupId,
+  }) {
+    final arguments = <String, dynamic>{
       'id': id,
       'defaultValue': defaultValue,
-    });
+      if (appGroupId != null) 'appGroupId': appGroupId,
+    };
+    return _channel.invokeMethod<T>('getWidgetData', arguments);
   }
 
   /// Required on iOS to set the AppGroupId [groupId] in order to ensure
@@ -123,8 +132,9 @@ class HomeWidget {
   /// Checks if the App was initially launched via the Widget configure action on Android.
   /// Only works on Android. Ensure to call `HomeWidget.finishHomeWidgetConfigure` once you want to complete the configuration
   static Future<String?> initiallyLaunchedFromHomeWidgetConfigure() {
-    return _channel
-        .invokeMethod<String>('initiallyLaunchedFromHomeWidgetConfigure');
+    return _channel.invokeMethod<String>(
+      'initiallyLaunchedFromHomeWidgetConfigure',
+    );
   }
 
   /// Ends the Widget configure action on Android.
@@ -135,9 +145,9 @@ class HomeWidget {
 
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
-    return _eventChannel
-        .receiveBroadcastStream()
-        .map<Uri?>(_handleReceivedData);
+    return _eventChannel.receiveBroadcastStream().map<Uri?>(
+      _handleReceivedData,
+    );
   }
 
   static Uri? _handleReceivedData(dynamic value) {
@@ -161,8 +171,7 @@ class HomeWidget {
   @Deprecated('Use `registerInteractivityCallback` instead')
   static Future<bool?> registerBackgroundCallback(
     FutureOr<void> Function(Uri?) callback,
-  ) =>
-      registerInteractivityCallback(callback);
+  ) => registerInteractivityCallback(callback);
 
   /// Register a callback that gets called when clicked on a specific View in a HomeWidget
   /// This enables having Interactive Widgets that can call Dart Code
@@ -229,6 +238,7 @@ class HomeWidget {
     String key,
     Uint8List bytes, {
     String extension = 'bin',
+    String? appGroupId,
   }) async {
     final ext = _normalizeExtension(extension);
     _validateKey(key);
@@ -238,17 +248,18 @@ class HomeWidget {
       // coverage:ignore-start
       if (Platform.isIOS) {
         final PathProviderFoundation provider = PathProviderFoundation();
+        final resolvedGroupId = appGroupId ?? HomeWidget.groupId;
         assert(
-          HomeWidget.groupId != null,
+          resolvedGroupId != null,
           'No groupId defined. Did you forget to call `HomeWidget.setAppGroupId`',
         );
         directory = await provider.getContainerPath(
-          appGroupIdentifier: HomeWidget.groupId!,
+          appGroupIdentifier: resolvedGroupId!,
         );
 
         if (directory == null) {
           throw StateError(
-            'Widget storage directory is null for group "${HomeWidget.groupId}". '
+            'Widget storage directory is null for group "$resolvedGroupId". '
             'Verify App Group configuration and HomeWidget.setAppGroupId.',
           );
         }
@@ -264,7 +275,7 @@ class HomeWidget {
       }
       await file.writeAsBytes(bytes);
 
-      await saveWidgetData<String>(key, path);
+      await saveWidgetData<String>(key, path, appGroupId: appGroupId);
 
       return path;
     } catch (e) {
@@ -279,6 +290,7 @@ class HomeWidget {
     String key,
     ImageProvider imageProvider, {
     ImageConfiguration configuration = ImageConfiguration.empty,
+    String? appGroupId,
   }) async {
     _validateKey(key);
     final completer = Completer<Uint8List>();
@@ -288,8 +300,9 @@ class HomeWidget {
       (ImageInfo info, bool synchronousCall) async {
         stream.removeListener(listener);
         try {
-          final ByteData? byteData =
-              await info.image.toByteData(format: ui.ImageByteFormat.png);
+          final ByteData? byteData = await info.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
           // coverage:ignore-start
           if (byteData == null) {
             if (!completer.isCompleted) {
@@ -320,7 +333,7 @@ class HomeWidget {
     );
     stream.addListener(listener);
     final bytes = await completer.future;
-    return saveFile(key, bytes, extension: 'png');
+    return saveFile(key, bytes, extension: 'png', appGroupId: appGroupId);
   }
 
   /// Generate a screenshot based on a given widget.
@@ -335,6 +348,7 @@ class HomeWidget {
     required String key,
     Size logicalSize = const Size(200, 200),
     double? pixelRatio,
+    String? appGroupId,
   }) async {
     pixelRatio ??=
         PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1;
@@ -370,16 +384,16 @@ class HomeWidget {
       /// setting the rootElement with the widget that has to be captured
       final RenderObjectToWidgetElement<RenderBox> rootElement =
           RenderObjectToWidgetAdapter<RenderBox>(
-        container: repaintBoundary,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: Column(
-            // image is center aligned
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [widget],
-          ),
-        ),
-      ).attachToRenderTree(buildOwner);
+            container: repaintBoundary,
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Column(
+                // image is center aligned
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [widget],
+              ),
+            ),
+          ).attachToRenderTree(buildOwner);
 
       ///adding the rootElement to the buildScope
       buildOwner.buildScope(rootElement);
@@ -399,12 +413,14 @@ class HomeWidget {
       /// Flush paint
       pipelineOwner.flushPaint();
 
-      final ui.Image image =
-          await repaintBoundary.toImage(pixelRatio: pixelRatio);
+      final ui.Image image = await repaintBoundary.toImage(
+        pixelRatio: pixelRatio,
+      );
 
       /// The raw image is converted to byte data.
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
 
       // coverage:ignore-start
       if (byteData == null) {
@@ -417,6 +433,7 @@ class HomeWidget {
           key,
           byteData.buffer.asUint8List(),
           extension: 'png',
+          appGroupId: appGroupId,
         );
       } catch (e) {
         throw Exception('Failed to save screenshot to app group container: $e');

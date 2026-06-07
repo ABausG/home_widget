@@ -14,10 +14,7 @@ void callbackDispatcher() async {
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
     return Future.wait<bool?>([
-      HomeWidget.saveWidgetData(
-        'title',
-        'Updated from Background',
-      ),
+      HomeWidget.saveWidgetData('title', 'Updated from Background'),
       HomeWidget.saveWidgetData(
         'message',
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
@@ -116,10 +113,7 @@ class _MyAppState extends State<MyApp> {
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
         HomeWidget.renderFlutterWidget(
-          const Icon(
-            Icons.flutter_dash,
-            size: 200,
-          ),
+          const Icon(Icons.flutter_dash, size: 200),
           logicalSize: const Size(200, 200),
           key: 'dashIcon',
         ),
@@ -150,8 +144,10 @@ class _MyAppState extends State<MyApp> {
   Future _loadData() async {
     try {
       return Future.wait([
-        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
-            .then((value) => _titleController.text = value ?? ''),
+        HomeWidget.getWidgetData<String>(
+          'title',
+          defaultValue: 'Default Title',
+        ).then((value) => _titleController.text = value ?? ''),
         HomeWidget.getWidgetData<String>(
           'message',
           defaultValue: 'Default Message',
@@ -219,10 +215,7 @@ class _MyAppState extends State<MyApp> {
             children: [
               Text('Number of widgets: ${widgets.length}'),
               const Divider(),
-              for (final widget in widgets)
-                Text(
-                  getText(widget),
-                ),
+              for (final widget in widgets) Text(getText(widget)),
             ],
           ),
         ),
@@ -245,24 +238,18 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('HomeWidget Example'),
-      ),
+      appBar: AppBar(title: const Text('HomeWidget Example')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Title',
-                ),
+                decoration: const InputDecoration(hintText: 'Title'),
                 controller: _titleController,
               ),
               TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Body',
-                ),
+                decoration: const InputDecoration(hintText: 'Body'),
                 controller: _messageController,
               ),
               ElevatedButton(

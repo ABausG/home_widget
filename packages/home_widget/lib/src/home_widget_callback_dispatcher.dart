@@ -13,9 +13,11 @@ Future<void> callbackDispatcher() async {
   backgroundChannel.setMethodCallHandler((call) async {
     final args = call.arguments;
 
-    final callback = PluginUtilities.getCallbackFromHandle(
-      CallbackHandle.fromRawHandle(args[0] as int),
-    ) as FutureOr<void> Function(Uri?);
+    final callback =
+        PluginUtilities.getCallbackFromHandle(
+              CallbackHandle.fromRawHandle(args[0] as int),
+            )
+            as FutureOr<void> Function(Uri?);
 
     final rawUri = args[1] as String?;
 
