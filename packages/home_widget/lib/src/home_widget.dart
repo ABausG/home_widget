@@ -132,8 +132,9 @@ class HomeWidget {
   /// Checks if the App was initially launched via the Widget configure action on Android.
   /// Only works on Android. Ensure to call `HomeWidget.finishHomeWidgetConfigure` once you want to complete the configuration
   static Future<String?> initiallyLaunchedFromHomeWidgetConfigure() {
-    return _channel
-        .invokeMethod<String>('initiallyLaunchedFromHomeWidgetConfigure');
+    return _channel.invokeMethod<String>(
+      'initiallyLaunchedFromHomeWidgetConfigure',
+    );
   }
 
   /// Ends the Widget configure action on Android.
@@ -144,9 +145,9 @@ class HomeWidget {
 
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
-    return _eventChannel
-        .receiveBroadcastStream()
-        .map<Uri?>(_handleReceivedData);
+    return _eventChannel.receiveBroadcastStream().map<Uri?>(
+      _handleReceivedData,
+    );
   }
 
   static Uri? _handleReceivedData(dynamic value) {
@@ -170,8 +171,7 @@ class HomeWidget {
   @Deprecated('Use `registerInteractivityCallback` instead')
   static Future<bool?> registerBackgroundCallback(
     FutureOr<void> Function(Uri?) callback,
-  ) =>
-      registerInteractivityCallback(callback);
+  ) => registerInteractivityCallback(callback);
 
   /// Register a callback that gets called when clicked on a specific View in a HomeWidget
   /// This enables having Interactive Widgets that can call Dart Code
@@ -300,8 +300,9 @@ class HomeWidget {
       (ImageInfo info, bool synchronousCall) async {
         stream.removeListener(listener);
         try {
-          final ByteData? byteData =
-              await info.image.toByteData(format: ui.ImageByteFormat.png);
+          final ByteData? byteData = await info.image.toByteData(
+            format: ui.ImageByteFormat.png,
+          );
           // coverage:ignore-start
           if (byteData == null) {
             if (!completer.isCompleted) {
@@ -383,16 +384,16 @@ class HomeWidget {
       /// setting the rootElement with the widget that has to be captured
       final RenderObjectToWidgetElement<RenderBox> rootElement =
           RenderObjectToWidgetAdapter<RenderBox>(
-        container: repaintBoundary,
-        child: Directionality(
-          textDirection: TextDirection.ltr,
-          child: Column(
-            // image is center aligned
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [widget],
-          ),
-        ),
-      ).attachToRenderTree(buildOwner);
+            container: repaintBoundary,
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: Column(
+                // image is center aligned
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [widget],
+              ),
+            ),
+          ).attachToRenderTree(buildOwner);
 
       ///adding the rootElement to the buildScope
       buildOwner.buildScope(rootElement);
@@ -412,12 +413,14 @@ class HomeWidget {
       /// Flush paint
       pipelineOwner.flushPaint();
 
-      final ui.Image image =
-          await repaintBoundary.toImage(pixelRatio: pixelRatio);
+      final ui.Image image = await repaintBoundary.toImage(
+        pixelRatio: pixelRatio,
+      );
 
       /// The raw image is converted to byte data.
-      final ByteData? byteData =
-          await image.toByteData(format: ui.ImageByteFormat.png);
+      final ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
 
       // coverage:ignore-start
       if (byteData == null) {

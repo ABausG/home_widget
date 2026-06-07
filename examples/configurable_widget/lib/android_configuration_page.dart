@@ -34,8 +34,8 @@ class _AndroidConfigurationPageState extends State<AndroidConfigurationPage> {
       _textEditingController.text = storedName ?? 'World';
       _punctuation =
           storedPunctuation != null && punctuations.contains(storedPunctuation)
-              ? storedPunctuation
-              : punctuations.first;
+          ? storedPunctuation
+          : punctuations.first;
       _initialized = true;
     });
   }
@@ -59,9 +59,7 @@ class _AndroidConfigurationPageState extends State<AndroidConfigurationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Configure widget'),
-      ),
+      appBar: AppBar(title: const Text('Configure widget')),
       body: _initialized
           ? ListView(
               children: [
@@ -88,18 +86,18 @@ class _AndroidConfigurationPageState extends State<AndroidConfigurationPage> {
                       });
                     },
                     items: punctuations
-                        .map((option) => DropdownMenuItem(
-                              value: option,
-                              child: Text(option),
-                            ))
+                        .map(
+                          (option) => DropdownMenuItem(
+                            value: option,
+                            child: Text(option),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
               ],
             )
-          : const Center(
-              child: CircularProgressIndicator(),
-            ),
+          : const Center(child: CircularProgressIndicator()),
       bottomNavigationBar: _initialized
           ? Container(
               color: Theme.of(context).colorScheme.surface,

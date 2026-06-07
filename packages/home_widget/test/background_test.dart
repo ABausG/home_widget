@@ -10,23 +10,27 @@ const backgroundChannel = MethodChannel('home_widget/background');
 
 void main() {
   testWidgets('Callback Dispatcher calls callbacks', (tester) async {
-    final callbackHandle =
-        PluginUtilities.getCallbackHandle(testCallback)?.toRawHandle();
+    final callbackHandle = PluginUtilities.getCallbackHandle(
+      testCallback,
+    )?.toRawHandle();
     const testUri = 'homeWidget://homeWidgetTest';
 
-    tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(backgroundChannel, (call) async {
-      if (call.method == 'HomeWidget.backgroundInitialized') {
-        emitEvent(
-          tester,
-          backgroundChannel.codec
-              .encodeMethodCall(MethodCall('', [callbackHandle, testUri])),
-        );
-        return true;
-      } else {
-        return null;
-      }
-    });
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      backgroundChannel,
+      (call) async {
+        if (call.method == 'HomeWidget.backgroundInitialized') {
+          emitEvent(
+            tester,
+            backgroundChannel.codec.encodeMethodCall(
+              MethodCall('', [callbackHandle, testUri]),
+            ),
+          );
+          return true;
+        } else {
+          return null;
+        }
+      },
+    );
 
     await callbackDispatcher();
 
