@@ -10,17 +10,45 @@ on:
     branches:
       - main
       - dev
-    paths:
-      - 'packages/home_widget/**'
-      - '.github/workflows/test.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Tests
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      home_widget: ${{ steps.filter.outputs.home_widget }}
+      home_widget_cli: ${{ steps.filter.outputs.home_widget_cli }}
+      home_widget_generator: ${{ steps.filter.outputs.home_widget_generator }}
+      shared: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            home_widget:
+              - 'packages/home_widget/**'
+            home_widget_cli:
+              - 'packages/home_widget_cli/**'
+            home_widget_generator:
+              - 'packages/home_widget_generator/**'
+            shared:
+              - '.github/workflows/test.yml'
+              - 'codecov.yml'
+              - 'pubspec.yaml'
+
+  test-home-widget:
+    name: home_widget
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      needs.changes.outputs.home_widget == 'true' ||
+      needs.changes.outputs.shared == 'true'
     runs-on: macos-15
     defaults:
       run:
@@ -38,7 +66,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: Golden failures
+          name: Golden failures (home_widget)
           retention-days: 2
           path: |
             **/test/**/failures/**/*.*
@@ -46,5 +74,94 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
+          files: packages/home_widget/coverage/lcov.info
+          flags: home_widget
+          disable_search: true
+          network_prefix: packages/home_widget/
 
+  test-home-widget-generator:
+    name: home_widget_generator
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      needs.changes.outputs.home_widget_generator == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: bluefireteam/melos-action@v3
+      - name: Test
+        run: melos run test:coverage:dart --no-select
+        env:
+          MELOS_PACKAGES: home_widget_generator
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: packages/home_widget_generator/coverage/lcov.info
+          flags: home_widget_generator
+          disable_search: true
+
+  test-home-widget-cli:
+    name: home_widget_cli
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      needs.changes.outputs.home_widget_cli == 'true' ||
+      needs.changes.outputs.home_widget_generator == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: bluefireteam/melos-action@v3
+      - name: Test
+        run: melos run test:coverage:dart --no-select
+        env:
+          MELOS_PACKAGES: home_widget_cli
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: packages/home_widget_cli/coverage/lcov.info
+          flags: home_widget_cli
+          disable_search: true
+
+  test-success:
+    name: Test Success
+    runs-on: ubuntu-latest
+    needs:
+      - changes
+      - test-home-widget
+      - test-home-widget-generator
+      - test-home-widget-cli
+    if: always()
+    steps:
+      - name: Require passing test results
+        run: |
+          failed=0
+          for result in \
+            "${{ needs.changes.result }}" \
+            "${{ needs.test-home-widget.result }}" \
+            "${{ needs.test-home-widget-generator.result }}" \
+            "${{ needs.test-home-widget-cli.result }}"
+          do
+            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
+              echo "Job result: $result"
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "One or more test jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All test jobs passed or were appropriately skipped."

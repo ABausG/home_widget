@@ -73,6 +73,14 @@ melos:
       packageFilters:
         flutter: false
         dirExists: test
+    test:coverage:dart:
+      description: Run Dart-only unit tests with coverage (excludes integration)
+      exec: |
+        dart test --coverage=coverage -x integration
+        dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib --base-directory=$MELOS_ROOT_PATH --package=.
+      packageFilters:
+        flutter: false
+        dirExists: test
     test:cli:integration:
       description: Run all CLI integration tests
       exec: dart test -t integration
