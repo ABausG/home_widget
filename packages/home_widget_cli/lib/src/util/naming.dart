@@ -10,7 +10,16 @@ String toPascalCase(String input) {
     return 'Widget';
   }
 
-  return parts.map((p) => '${p[0].toUpperCase()}${p.substring(1)}').join();
+  return parts.map(_pascalCaseSegment).join();
+}
+
+String _pascalCaseSegment(String segment) {
+  final upper = segment.toUpperCase();
+  final lower = segment.toLowerCase();
+  if (segment == upper && segment != lower) {
+    return '${upper[0]}${lower.substring(1)}';
+  }
+  return '${segment[0].toUpperCase()}${segment.substring(1)}';
 }
 
 /// Converts a PascalCase or camelCase string into snake_case.

@@ -9,7 +9,7 @@ import 'package:test/test.dart';
 /// contains `INFOPLIST_FILE = Runner/Info.plist;` which is how the patcher
 /// identifies Runner configs.
 String _buildPbxproj({required String deploymentTarget}) => '''
-// !&#36;*UTF8*&#36;!
+// !\$*UTF8*\$!
 {
 	archiveVersion = 1;
 	objectVersion = 54;
@@ -51,7 +51,7 @@ String _buildPbxproj({required String deploymentTarget}) => '''
 
 /// Variant with no IPHONEOS_DEPLOYMENT_TARGET at all.
 String _buildPbxprojWithoutDeploymentTarget() => '''
-// !&#36;*UTF8*&#36;!
+// !\$*UTF8*\$!
 {
 	archiveVersion = 1;
 	objectVersion = 54;
@@ -148,7 +148,7 @@ void main() {
     test('does not modify non-Runner configs', () async {
       // A config that does NOT have INFOPLIST_FILE = Runner/Info.plist
       const content = '''
-// !&#36;*UTF8*&#36;!
+// !\$*UTF8*\$!
 {
 	objects = {
 /* Begin XCBuildConfiguration section */
@@ -179,7 +179,7 @@ void main() {
   group('ensureWidgetExtensionDevelopmentTeamInXcodeProject', () {
     test('copies DEVELOPMENT_TEAM from Runner to widget extensions', () async {
       const content = '''
-// !&#36;*UTF8*&#36;!
+// !\$*UTF8*\$!
 {
 	objects = {
 /* Begin XCBuildConfiguration section */
@@ -223,7 +223,7 @@ void main() {
 
     test('does not modify Runner configs', () async {
       const content = '''
-// !&#36;*UTF8*&#36;!
+// !\$*UTF8*\$!
 {
 	objects = {
 /* Begin XCBuildConfiguration section */

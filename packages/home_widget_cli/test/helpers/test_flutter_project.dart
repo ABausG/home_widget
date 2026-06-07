@@ -174,6 +174,15 @@ Future<void> _ensureHomeWidgetDependencyPresent(Directory projectRoot) async {
     throw StateError('dart pub add home_widget failed:\n${result.stderr}');
   }
 
+  // home_widget_generator declares a hosted home_widget constraint; in this
+  // monorepo test harness both packages come from path (temp dirs need an
+  // absolute override path).
+  await File(p.join(projectRoot.path, 'pubspec_overrides.yaml')).writeAsString(
+    'dependency_overrides:\n'
+    '  home_widget:\n'
+    '    path: $homeWidgetPath\n',
+  );
+
   result = await Process.run(
     'dart',
     [

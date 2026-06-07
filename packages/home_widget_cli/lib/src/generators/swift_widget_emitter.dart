@@ -3,7 +3,6 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// Emits SwiftUI view code from a HWWidget tree.
 ///
 /// [dataExpr] is the Swift expression to access data fields.
-/// [dataFields] is the list of fields defined in the widget spec.
 String emitSwiftWidgetBody(
   HWWidget node, {
   required String dataExpr,

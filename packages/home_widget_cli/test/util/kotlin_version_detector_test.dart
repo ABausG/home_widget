@@ -50,7 +50,7 @@ void main() {
       await Directory(p.join(root.path, 'android', 'gradle'))
           .create(recursive: true);
       await File(p.join(root.path, 'android', 'gradle', 'libs.versions.toml'))
-          .writeAsString('[versions]\\nkotlin = "1.9.10"\\n');
+          .writeAsString('[versions]\nkotlin = "1.9.10"\n');
 
       expect(tryDetectAndroidKotlinVersion(root), '1.9.10');
     });

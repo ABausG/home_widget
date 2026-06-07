@@ -155,7 +155,7 @@ final class _TrieNode {
 bool _sameJsonLeaf(JsonDataField a, JsonDataField b) =>
     _segmentsEqual(a.path, b.path) &&
     identical(a.type.runtimeType, b.type.runtimeType) &&
-    identical(a.type.key, b.type.key) &&
+    a.type.key == b.type.key &&
     a.type.defaultValue == b.type.defaultValue;
 
 bool _segmentsEqual(List<String> a, List<String> b) {

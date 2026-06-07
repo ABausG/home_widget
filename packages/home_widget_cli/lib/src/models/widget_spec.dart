@@ -77,7 +77,7 @@ class WidgetSpec {
     return HWColumn(
       children: [
         HWText.fixed(data.name),
-        for (final field in dataFields)
+        for (final field in primitiveDataFields)
           HWRow(
             children: [
               HWText.fixed('${field.key}: '),

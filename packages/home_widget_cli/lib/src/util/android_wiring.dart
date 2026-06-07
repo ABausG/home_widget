@@ -266,45 +266,48 @@ Future<String?> _tryResolveLatestAndroidxReleaseVersion({
   // coverage:ignore-start
   try {
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 4);
-
-    final request = await client.getUrl(uri);
-    request.headers.set(HttpHeaders.acceptHeader, 'application/xml');
-    final response = await request.close().timeout(const Duration(seconds: 6));
-
-    if (response.statusCode != 200) {
-      client.close(force: true);
-      return null;
-    }
-
-    final body = await response.transform(utf8.decoder).join();
-    client.close(force: true);
-
-    final versions = <String>[];
     try {
-      final doc = XmlDocument.parse(body);
-      versions.addAll(
-        doc
-            .findAllElements('version')
-            .map((e) => e.innerText.trim())
-            .where((v) => RegExp(r'^\d+\.\d+\.\d+$').hasMatch(v))
-            .where((v) => v.startsWith('$major.')),
-      );
-    } catch (_) {
-      versions.addAll(
-        RegExp(r'<version>([^<]+)</version>')
-            .allMatches(body)
-            .map((m) => m.group(1))
-            .whereType<String>()
-            .map((v) => v.trim())
-            .where((v) => RegExp(r'^\d+\.\d+\.\d+$').hasMatch(v))
-            .where((v) => v.startsWith('$major.')),
-      );
-    }
+      client.connectionTimeout = const Duration(seconds: 4);
 
-    if (versions.isEmpty) return null;
-    versions.sort(_compareDottedInts3);
-    return versions.last;
+      final request = await client.getUrl(uri);
+      request.headers.set(HttpHeaders.acceptHeader, 'application/xml');
+      final response =
+          await request.close().timeout(const Duration(seconds: 6));
+
+      if (response.statusCode != 200) {
+        return null;
+      }
+
+      final body = await response.transform(utf8.decoder).join();
+
+      final versions = <String>[];
+      try {
+        final doc = XmlDocument.parse(body);
+        versions.addAll(
+          doc
+              .findAllElements('version')
+              .map((e) => e.innerText.trim())
+              .where((v) => RegExp(r'^\d+\.\d+\.\d+$').hasMatch(v))
+              .where((v) => v.startsWith('$major.')),
+        );
+      } catch (_) {
+        versions.addAll(
+          RegExp(r'<version>([^<]+)</version>')
+              .allMatches(body)
+              .map((m) => m.group(1))
+              .whereType<String>()
+              .map((v) => v.trim())
+              .where((v) => RegExp(r'^\d+\.\d+\.\d+$').hasMatch(v))
+              .where((v) => v.startsWith('$major.')),
+        );
+      }
+
+      if (versions.isEmpty) return null;
+      versions.sort(_compareDottedInts3);
+      return versions.last;
+    } finally {
+      client.close(force: true);
+    }
   } catch (_) {
     return null;
   }

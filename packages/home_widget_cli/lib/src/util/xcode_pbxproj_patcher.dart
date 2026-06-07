@@ -294,7 +294,6 @@ $developmentTeamLine\t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\t\t"\$(inherited)",
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t\t"@executable_path/../../Frameworks",
-\t\t\t\t\t"@executable_path/../../Frameworks",
 \t\t\t\t);
 \t\t\t\tMARKETING_VERSION = 1.0;
 \t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = $extBundleId;

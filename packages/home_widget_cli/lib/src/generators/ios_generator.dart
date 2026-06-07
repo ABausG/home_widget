@@ -238,7 +238,13 @@ $loadDataLogic
     final defaultValue = field.defaultValue;
     if (defaultValue == null) return 'nil';
     if (defaultValue is String) {
-      return '"${defaultValue.replaceAll('"', r'\"')}"';
+      final escaped = defaultValue
+          .replaceAll(r'\', r'\\')
+          .replaceAll('"', r'\"')
+          .replaceAll('\n', r'\n')
+          .replaceAll('\r', r'\r')
+          .replaceAll('\t', r'\t');
+      return '"$escaped"';
     }
     return '$defaultValue';
   }

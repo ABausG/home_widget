@@ -27,7 +27,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
               'Themed',
               style: HWTextStyle(
                 color: HWThemedColor(
-                  light: HWFixedColor(0xFFFFF00),
+                  light: HWFixedColor(0xFFFFFF00),
                   dark: HWFixedColor(0xFF00FFFF),
                 ),
               ),
