@@ -10,7 +10,7 @@ next: /generator/getting-started
 
 It builds on top of [`home_widget`](/), which remains the runtime channel for sending data to and refreshing your widgets. The generator does not replace `home_widget`; it sits on top of it and removes the need to write platform-specific UI code yourself.
 
-To run the generator, use the companion [`home_widget_cli`](/cli) tool. It discovers your annotated schemas, runs `build_runner` under the hood, and writes the generated files into your Flutter project.
+To run the generator, use the companion [`home_widget_cli`](/cli) tool. It discovers your annotated schemas with the Dart analyzer and writes the generated files into your Flutter project.
 
 ## What gets generated
 
@@ -35,6 +35,6 @@ The Greeting widget in [Getting Started](/generator/getting-started) is part of 
 
 - [Getting Started](/generator/getting-started) - install the generator and ship your first widget.
 - [Annotation](/generator/annotation) - the `@HomeWidget` annotation and platform configuration options.
-- [Widgets](/generator/widgets/hw-adaptive) - the layout primitives (`HWColumn`, `HWText`, `HWImage`, ...) you use to describe the UI.
+- [Widgets](/generator/widgets) - the layout primitives (`HWColumn`, `HWRow`, `HWText`, `HWConditional`, ...) you use to describe the UI.
 - [Styling](/generator/styling/hw-color) - colors, text styles, padding, and other shared building blocks.
 - [CLI](/cli) - command reference for `home_widget_cli`.
