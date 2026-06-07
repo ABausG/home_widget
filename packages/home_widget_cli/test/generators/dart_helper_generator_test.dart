@@ -27,13 +27,13 @@ void main() {
       expect(
         output,
         contains(
-          "if (countLabel != null) HomeWidget.saveWidgetData<String>('\$_paramPrefix.${'countLabel'}', countLabel),",
+          "if (countLabel != null) HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.${'countLabel'}', countLabel),",
         ),
       );
       expect(
         output,
         contains(
-          "if (count != null) HomeWidget.saveWidgetData<int>('\$_paramPrefix.${'count'}', count),",
+          "if (count != null) HomeWidget.saveWidgetData<int>('\${_\$paramPrefix}.${'count'}', count),",
         ),
       );
 
@@ -44,7 +44,7 @@ void main() {
       expect(
         output,
         contains(
-          "if (countLabel) HomeWidget.saveWidgetData('\$_paramPrefix.${'countLabel'}', null),",
+          "if (countLabel) HomeWidget.saveWidgetData('\${_\$paramPrefix}.${'countLabel'}', null),",
         ),
       );
 
@@ -56,13 +56,13 @@ void main() {
       expect(
         output,
         contains(
-          "countLabel: await HomeWidget.getWidgetData<String>('\$_paramPrefix.${'countLabel'}', defaultValue: 'Label'),",
+          "countLabel: await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.${'countLabel'}', defaultValue: 'Label'),",
         ),
       );
       expect(
         output,
         contains(
-          "count: await HomeWidget.getWidgetData<int>('\$_paramPrefix.${'count'}', defaultValue: 0),",
+          "count: await HomeWidget.getWidgetData<int>('\${_\$paramPrefix}.${'count'}', defaultValue: 0),",
         ),
       );
     });
@@ -89,21 +89,21 @@ void main() {
       expect(
         output,
         contains(
-          "await HomeWidget.saveFile('\$_paramPrefix.fileKey', Uint8List.fromList(utf8.encode(jsonEncode(fileKey.toJson()))), extension: 'json');",
+          "await HomeWidget.saveFile('\${_\$paramPrefix}.fileKey', Uint8List.fromList(utf8.encode(jsonEncode(fileKey.toJson()))), extension: 'json');",
         ),
       );
       expect(
         output,
         isNot(
           contains(
-            "await HomeWidget.saveWidgetData<String>('\$_paramPrefix.fileKey'",
+            "await HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.fileKey'",
           ),
         ),
       );
       expect(
         output,
         contains(
-          "final _fileKeyPath = await HomeWidget.getWidgetData<String>('\$_paramPrefix.fileKey');",
+          "final _fileKeyPath = await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.fileKey');",
         ),
       );
       expect(output, contains('FileKeyJsonData? fileKey;'));
@@ -209,32 +209,51 @@ void main() {
       final output = generator.generate();
 
       expect(output, contains('class NoDataWidgetHomeWidget {'));
-      expect(output, isNot(contains('_paramPrefix')));
+      expect(output, isNot(contains('_\$paramPrefix')));
       expect(output, isNot(contains('saveData')));
       expect(output, isNot(contains('deleteData')));
       expect(output, isNot(contains('getData')));
     });
 
-    test('generates ensureInitialized method', () {
+    test('passes appGroupId on data calls when iOS groupId is configured', () {
       final spec = WidgetSpec(
         data: HomeWidget(
           name: 'ExampleWidget',
           iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
         ),
         className: 'ExampleWidget',
+        dataFields: [HWString('title')],
       );
 
-      final generator = DartHelperGenerator(spec);
-      final output = generator.generate();
+      final output = DartHelperGenerator(spec).generate();
 
+      expect(output, isNot(contains('ensureInitialized')));
+      expect(output, contains("static const String _\$appGroupId = 'group.example';"));
       expect(
         output,
-        contains('static Future<void> ensureInitialized() async {'),
+        contains(
+          "HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.title', title, appGroupId: _\$appGroupId)",
+        ),
       );
       expect(
         output,
-        contains("await HomeWidget.setAppGroupId('group.example');"),
+        contains(
+          "HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.title', appGroupId: _\$appGroupId)",
+        ),
       );
+    });
+
+    test('omits appGroupId when iOS groupId is not configured', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: [HWString('title')],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains('_\$appGroupId')));
+      expect(output, isNot(contains('appGroupId:')));
     });
   });
 }

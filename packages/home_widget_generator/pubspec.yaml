@@ -24,3 +24,4 @@ dev_dependencies:
   path: ^1.9.0
 dependencies:
   analyzer: ^8.4.1
+  home_widget: ^0.9.2

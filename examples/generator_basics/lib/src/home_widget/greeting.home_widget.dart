@@ -7,17 +7,15 @@ import 'package:home_widget/home_widget.dart';
 class GreetingHomeWidget {
   const GreetingHomeWidget._();
 
-  static Future<void> ensureInitialized() async {
-    await HomeWidget.setAppGroupId('group.es.antonborri.generatorBasics');
-  }
+  static const String _$appGroupId = 'group.es.antonborri.generatorBasics';
 
-  static const String _paramPrefix = 'home_widget.Greeting';
+  static const String _$paramPrefix = 'home_widget.Greeting';
 
   static Future<void> saveData({
     String? name,
   }) {
     return Future.wait([
-      if (name != null) HomeWidget.saveWidgetData<String>('$_paramPrefix.name', name),
+      if (name != null) HomeWidget.saveWidgetData<String>('${_$paramPrefix}.name', name, appGroupId: _$appGroupId),
     ]);
   }
 
@@ -25,13 +23,13 @@ class GreetingHomeWidget {
     bool name = false,
   }) {
     return Future.wait([
-      if (name) HomeWidget.saveWidgetData('$_paramPrefix.name', null),
+      if (name) HomeWidget.saveWidgetData('${_$paramPrefix}.name', null, appGroupId: _$appGroupId),
     ]);
   }
 
   static Future<({String? name})> getData() async {
     return (
-      name: await HomeWidget.getWidgetData<String>('$_paramPrefix.name', defaultValue: 'world'),
+      name: await HomeWidget.getWidgetData<String>('${_$paramPrefix}.name', defaultValue: 'world', appGroupId: _$appGroupId),
     );
   }
 

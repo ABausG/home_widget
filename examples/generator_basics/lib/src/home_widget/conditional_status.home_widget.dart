@@ -7,19 +7,17 @@ import 'package:home_widget/home_widget.dart';
 class ConditionalStatusHomeWidget {
   const ConditionalStatusHomeWidget._();
 
-  static Future<void> ensureInitialized() async {
-    await HomeWidget.setAppGroupId('group.es.antonborri.generatorBasics');
-  }
+  static const String _$appGroupId = 'group.es.antonborri.generatorBasics';
 
-  static const String _paramPrefix = 'home_widget.ConditionalStatus';
+  static const String _$paramPrefix = 'home_widget.ConditionalStatus';
 
   static Future<void> saveData({
     bool? hasData,
     bool? enabled,
   }) {
     return Future.wait([
-      if (hasData != null) HomeWidget.saveWidgetData<bool>('$_paramPrefix.hasData', hasData),
-      if (enabled != null) HomeWidget.saveWidgetData<bool>('$_paramPrefix.enabled', enabled),
+      if (hasData != null) HomeWidget.saveWidgetData<bool>('${_$paramPrefix}.hasData', hasData, appGroupId: _$appGroupId),
+      if (enabled != null) HomeWidget.saveWidgetData<bool>('${_$paramPrefix}.enabled', enabled, appGroupId: _$appGroupId),
     ]);
   }
 
@@ -28,15 +26,15 @@ class ConditionalStatusHomeWidget {
     bool enabled = false,
   }) {
     return Future.wait([
-      if (hasData) HomeWidget.saveWidgetData('$_paramPrefix.hasData', null),
-      if (enabled) HomeWidget.saveWidgetData('$_paramPrefix.enabled', null),
+      if (hasData) HomeWidget.saveWidgetData('${_$paramPrefix}.hasData', null, appGroupId: _$appGroupId),
+      if (enabled) HomeWidget.saveWidgetData('${_$paramPrefix}.enabled', null, appGroupId: _$appGroupId),
     ]);
   }
 
   static Future<({bool? hasData, bool? enabled})> getData() async {
     return (
-      hasData: await HomeWidget.getWidgetData<bool>('$_paramPrefix.hasData'),
-      enabled: await HomeWidget.getWidgetData<bool>('$_paramPrefix.enabled', defaultValue: true),
+      hasData: await HomeWidget.getWidgetData<bool>('${_$paramPrefix}.hasData', appGroupId: _$appGroupId),
+      enabled: await HomeWidget.getWidgetData<bool>('${_$paramPrefix}.enabled', defaultValue: true, appGroupId: _$appGroupId),
     );
   }
 

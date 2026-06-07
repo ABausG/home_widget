@@ -62,7 +62,6 @@ dart run home_widget_cli generate
 This produces the iOS and Android widget sources plus a typed helper you can drive from Dart:
 
 ```dart
-await CounterHomeWidget.ensureInitialized();
 await CounterHomeWidget.saveData(count: 42);
 await CounterHomeWidget.updateWidget();
 ```

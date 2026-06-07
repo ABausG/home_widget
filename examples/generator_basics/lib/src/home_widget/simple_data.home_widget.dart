@@ -7,19 +7,17 @@ import 'package:home_widget/home_widget.dart';
 class SimpleDataHomeWidget {
   const SimpleDataHomeWidget._();
 
-  static Future<void> ensureInitialized() async {
-    await HomeWidget.setAppGroupId('group.es.antonborri.generatorBasics');
-  }
+  static const String _$appGroupId = 'group.es.antonborri.generatorBasics';
 
-  static const String _paramPrefix = 'home_widget.SimpleData';
+  static const String _$paramPrefix = 'home_widget.SimpleData';
 
   static Future<void> saveData({
     String? label,
     int? value,
   }) {
     return Future.wait([
-      if (label != null) HomeWidget.saveWidgetData<String>('$_paramPrefix.label', label),
-      if (value != null) HomeWidget.saveWidgetData<int>('$_paramPrefix.value', value),
+      if (label != null) HomeWidget.saveWidgetData<String>('${_$paramPrefix}.label', label, appGroupId: _$appGroupId),
+      if (value != null) HomeWidget.saveWidgetData<int>('${_$paramPrefix}.value', value, appGroupId: _$appGroupId),
     ]);
   }
 
@@ -28,15 +26,15 @@ class SimpleDataHomeWidget {
     bool value = false,
   }) {
     return Future.wait([
-      if (label) HomeWidget.saveWidgetData('$_paramPrefix.label', null),
-      if (value) HomeWidget.saveWidgetData('$_paramPrefix.value', null),
+      if (label) HomeWidget.saveWidgetData('${_$paramPrefix}.label', null, appGroupId: _$appGroupId),
+      if (value) HomeWidget.saveWidgetData('${_$paramPrefix}.value', null, appGroupId: _$appGroupId),
     ]);
   }
 
   static Future<({String? label, int? value})> getData() async {
     return (
-      label: await HomeWidget.getWidgetData<String>('$_paramPrefix.label'),
-      value: await HomeWidget.getWidgetData<int>('$_paramPrefix.value'),
+      label: await HomeWidget.getWidgetData<String>('${_$paramPrefix}.label', appGroupId: _$appGroupId),
+      value: await HomeWidget.getWidgetData<int>('${_$paramPrefix}.value', appGroupId: _$appGroupId),
     );
   }
 

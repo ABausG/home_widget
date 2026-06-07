@@ -7,10 +7,6 @@ import 'package:home_widget/home_widget.dart';
 class BasicCreationHomeWidget {
   const BasicCreationHomeWidget._();
 
-  static Future<void> ensureInitialized() async {
-    await HomeWidget.setAppGroupId('group.es.antonborri.generatorBasics');
-  }
-
 
   static Future<bool?> updateWidget() {
     return HomeWidget.updateWidget(

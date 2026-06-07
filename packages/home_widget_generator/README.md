@@ -69,7 +69,6 @@ Then drive the widget from your app:
 ```dart
 import 'src/home_widget/greeting.home_widget.dart';
 
-await GreetingHomeWidget.ensureInitialized();
 await GreetingHomeWidget.saveData(name: 'Anton');
 await GreetingHomeWidget.updateWidget();
 ```

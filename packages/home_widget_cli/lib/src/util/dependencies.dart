@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 import 'logger.dart';
 
 /// Checks if `home_widget` is in `pubspec.yaml`, and if not, runs
-/// `flutter pub add home_widget`.
+/// `flutter pub add home_widget:^0.9.2`.
 Future<void> ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
   final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
   if (!pubspec.existsSync()) {
@@ -25,7 +25,7 @@ Future<void> ensureFlutterHomeWidgetDependency(Directory projectRoot) async {
   logger.detail('Adding home_widget dependency');
   final result = await Process.run(
     'flutter',
-    ['pub', 'add', 'home_widget'],
+    ['pub', 'add', 'home_widget:^0.9.2'],
     workingDirectory: projectRoot.path,
     runInShell: true,
   );

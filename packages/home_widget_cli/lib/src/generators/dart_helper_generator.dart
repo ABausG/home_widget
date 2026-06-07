@@ -16,6 +16,8 @@ class DartHelperGenerator {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
     final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
+    final appGroupId = spec.data.iOS?.groupId;
+    final usesAppGroupId = hasDataFields && appGroupId != null;
 
     final buffer = StringBuffer();
     buffer.writeln('// dart format off');
@@ -35,18 +37,14 @@ class DartHelperGenerator {
     buffer.writeln('class $className {');
     buffer.writeln('  const $className._();');
     buffer.writeln();
-    buffer.writeln('  static Future<void> ensureInitialized() async {');
-    if (spec.data.iOS != null) {
-      buffer.writeln(
-        "    await HomeWidget.setAppGroupId('${spec.data.iOS!.groupId}');",
-      );
-    }
-    buffer.writeln('  }');
-    buffer.writeln();
 
     if (hasDataFields) {
+      if (usesAppGroupId) {
+        buffer.writeln("  static const String _\$appGroupId = '$appGroupId';");
+        buffer.writeln();
+      }
       buffer.writeln(
-        "  static const String _paramPrefix = 'home_widget.${spec.className}';",
+        "  static const String _\$paramPrefix = 'home_widget.${spec.className}';",
       );
       buffer.writeln();
       buffer.writeln('  static Future<void> saveData({');
@@ -63,13 +61,17 @@ class DartHelperGenerator {
       for (final field in primitiveFields) {
         final type = field.dartType;
         buffer.writeln(
-          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('\$_paramPrefix.${field.key}', ${field.key}),",
+          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
+          r"${_$paramPrefix}." +
+          "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
       for (final group in jsonGroups) {
         buffer.writeln('      if (${group.key} != null) () async {');
         buffer.writeln(
-          "        await HomeWidget.saveFile('\$_paramPrefix.${group.key}', Uint8List.fromList(utf8.encode(jsonEncode(${group.key}.toJson()))), extension: 'json');",
+          "        await HomeWidget.saveFile('"
+          r"${_$paramPrefix}." +
+          "${group.key}', Uint8List.fromList(utf8.encode(jsonEncode(${group.key}.toJson()))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
         );
         buffer.writeln('      }(),');
       }
@@ -88,12 +90,16 @@ class DartHelperGenerator {
       buffer.writeln('    return Future.wait([');
       for (final field in primitiveFields) {
         buffer.writeln(
-          "      if (${field.key}) HomeWidget.saveWidgetData('\$_paramPrefix.${field.key}', null),",
+          "      if (${field.key}) HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}." +
+          "${field.key}', null${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
       for (final group in jsonGroups) {
         buffer.writeln(
-          "      if (${group.key}) HomeWidget.saveWidgetData('\$_paramPrefix.${group.key}', null),",
+          "      if (${group.key}) HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}." +
+          "${group.key}', null${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
       buffer.writeln('    ]);');
@@ -111,7 +117,9 @@ class DartHelperGenerator {
       for (final group in jsonGroups) {
         final jsonClass = _dartJsonClassName(group.key);
         buffer.writeln(
-          "    final _${group.key}Path = await HomeWidget.getWidgetData<String>('\$_paramPrefix.${group.key}');",
+          "    final _${group.key}Path = await HomeWidget.getWidgetData<String>('"
+          r"${_$paramPrefix}." +
+          "${group.key}'${_appGroupIdArg(usesAppGroupId)});",
         );
         buffer.writeln('    $jsonClass? ${group.key};');
         buffer.writeln('    if (_${group.key}Path != null) {');
@@ -141,7 +149,9 @@ class DartHelperGenerator {
               : ', defaultValue: $defaultValue';
         }
         buffer.writeln(
-          "      ${field.key}: await HomeWidget.getWidgetData<$type>('\$_paramPrefix.${field.key}'$defaultLiteral),",
+          "      ${field.key}: await HomeWidget.getWidgetData<$type>('"
+          r"${_$paramPrefix}." +
+          "${field.key}'$defaultLiteral${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
       for (final group in jsonGroups) {
@@ -195,6 +205,9 @@ class DartHelperGenerator {
     return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
         .format(buffer.toString());
   }
+
+  String _appGroupIdArg(bool usesAppGroupId) =>
+      usesAppGroupId ? r', appGroupId: _$appGroupId' : '';
 
   String _dartJsonClassName(String key) => '${toPascalCase(key)}JsonData';
 

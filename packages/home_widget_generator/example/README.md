@@ -55,7 +55,6 @@ class Greeting {}
 Drive it from your app:
 
 ```dart
-await GreetingHomeWidget.ensureInitialized();
 await GreetingHomeWidget.saveData(name: 'Anton');
 await GreetingHomeWidget.updateWidget();
 ```
@@ -183,7 +182,6 @@ class ThemedCounter {}
 Drive it from your app:
 
 ```dart
-await ThemedCounterHomeWidget.ensureInitialized();
 await ThemedCounterHomeWidget.saveData(count: 42);
 await ThemedCounterHomeWidget.updateWidget();
 ```
@@ -218,7 +216,6 @@ class SimpleData {}
 Drive it from your app:
 
 ```dart
-await SimpleDataHomeWidget.ensureInitialized();
 await SimpleDataHomeWidget.saveData(label: 'Hello', value: 42);
 await SimpleDataHomeWidget.updateWidget();
 ```

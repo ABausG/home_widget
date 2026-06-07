@@ -8,25 +8,8 @@ void main() {
   runApp(const MainApp());
 }
 
-class MainApp extends StatefulWidget {
+class MainApp extends StatelessWidget {
   const MainApp({super.key});
-
-  @override
-  State<MainApp> createState() => _MainAppState();
-}
-
-class _MainAppState extends State<MainApp> {
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // All widgets in this example share the same App Group ID, so calling
-    // ensureInitialized on any one of them is enough.
-    SimpleDataHomeWidget.ensureInitialized().then((_) {
-      if (mounted) setState(() => _isInitialized = true);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,9 +17,7 @@ class _MainAppState extends State<MainApp> {
       title: 'home_widget_generator',
       home: Scaffold(
         appBar: AppBar(title: const Text('home_widget_generator')),
-        body: !_isInitialized
-            ? const Center(child: CircularProgressIndicator())
-            : const _HomePage(),
+        body: const _HomePage(),
       ),
     );
   }

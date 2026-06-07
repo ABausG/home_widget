@@ -91,10 +91,7 @@ This page walks through setting up `home_widget_generator`, writing your first w
     ```dart
     import 'src/home_widget/greeting.home_widget.dart';
 
-    Future<void> main() async {
-      WidgetsFlutterBinding.ensureInitialized();
-      await GreetingHomeWidget.ensureInitialized();
-
+    void main() {
       runApp(const MyApp());
     }
 
@@ -104,7 +101,6 @@ This page walks through setting up `home_widget_generator`, writing your first w
     }
     ```
 
-    - `ensureInitialized()` calls `HomeWidget.setAppGroupId(...)` for you using the iOS group id from your annotation. Call it once during app startup.
     - `saveData(...)` writes any of the declared data fields through `home_widget` in a type-safe way. Each field is an optional named parameter, so you can update one or many at a time.
     - `getData()` reads the current values back as a typed record.
     - `deleteData(...)` clears the given fields.
