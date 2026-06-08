@@ -10,6 +10,14 @@ class HomeWidgetBackgroundReceiver : BroadcastReceiver() {
     val flutterLoader = FlutterInjector.instance().flutterLoader()
     flutterLoader.startInitialization(context)
     flutterLoader.ensureInitializationComplete(context, null)
-    HomeWidgetBackgroundWorker.enqueueWork(context, intent)
+    if (intent.getBooleanExtra(EXTRA_DIRECT, false)) {
+      HomeWidgetBackgroundRunner.execute(context, intent, goAsync())
+    } else {
+      HomeWidgetBackgroundWorker.enqueueWork(context, intent)
+    }
+  }
+
+  companion object {
+    const val EXTRA_DIRECT = "es.antonborri.home_widget.extra.DIRECT"
   }
 }
