@@ -1,18 +1,22 @@
 {
+  "$schema": "https://docs.page/schema.json",
   "name": "home_widget",
-  "theme": "#567acb",
+  "description": "Documentation for the home_widget Flutter package and related tools.",
+  "theme": {
+    "primary": "#567acb"
+  },
   "content": {
     "headerDepth": 4
   },
   "social": {
     "x": "@abausg",
-    "github": "abausg",
+    "github": "ABausG/home_widget",
     "linkedin": "/in/abausg"
   },
   "tabs": [
     {
-      "id": "documentation",
-      "title": "Documentation",
+      "id": "home_widget",
+      "title": "home_widget",
       "href": "/"
     },
     {
@@ -28,21 +32,16 @@
   ],
   "sidebar": [
     {
-      "tab": "documentation",
+      "tab": "home_widget",
+      "group": "Getting Started",
       "pages": [
-        { "title": "Overview", "href": "/" }
-      ]
-    },
-    {
-      "tab": "documentation",
-      "group": "Usage",
-      "pages": [
+        { "title": "Overview", "href": "/index" },
         { "title": "Sync Data", "href": "/usage/sync-data" },
         { "title": "Update Widget", "href": "/usage/update-widget" }
       ]
     },
     {
-      "tab": "documentation",
+      "tab": "home_widget",
       "group": "Platform Setup",
       "pages": [
         { "title": "iOS", "href": "/setup/ios" },
@@ -50,7 +49,7 @@
       ]
     },
     {
-      "tab": "documentation",
+      "tab": "home_widget",
       "group": "Features",
       "pages": [
         { "title": "Render Flutter Widgets", "href": "/features/render-flutter-widgets" },
@@ -65,7 +64,7 @@
       ]
     },
     {
-      "tab": "documentation",
+      "tab": "home_widget",
       "group": "Migrations",
       "pages": [
         { "title": "0.9.0", "href": "/migrations/0.9.0" },
@@ -73,7 +72,7 @@
       ]
     },
     {
-      "tab": "documentation",
+      "tab": "home_widget",
       "group": "Android XML",
       "pages": [
         { "title": "Overview", "href": "/android-xml/overview" },
@@ -85,6 +84,7 @@
     },
     {
       "tab": "generator",
+      "group": "Getting Started",
       "pages": [
         { "title": "Overview", "href": "/generator" },
         { "title": "Getting Started", "href": "/generator/getting-started" },
@@ -124,15 +124,14 @@
     {
       "tab": "cli",
       "pages": [
-        { "title": "Overview", "href": "/cli" }
-      ]
-    },
-    {
-      "tab": "cli",
-      "group": "Commands",
-      "pages": [
-        { "title": "create", "href": "/cli/create" },
-        { "title": "generate", "href": "/cli/generate" }
+        { "title": "Overview", "href": "/cli" },
+        {
+          "group": "Commands",
+          "pages": [
+            { "title": "create", "href": "/cli/create" },
+            { "title": "generate", "href": "/cli/generate" }
+          ]
+        }
       ]
     }
   ]
