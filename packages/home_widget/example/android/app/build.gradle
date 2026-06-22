@@ -1,6 +1,5 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
     id "org.jetbrains.kotlin.plugin.compose"
     id "dev.flutter.flutter-gradle-plugin"
 }
@@ -36,10 +35,6 @@ android {
         targetCompatibility JavaVersion.VERSION_21
     }
 
-    kotlin {
-        jvmToolchain(21)
-    }
-
     lintOptions {
         disable 'InvalidPackage'
     }
@@ -73,6 +68,13 @@ android {
         }
     }
     namespace 'es.antonborri.home_widget_example'
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.fromTarget(JavaVersion.VERSION_21.toString())
+    }
+    jvmToolchain(21)
 }
 
 flutter {

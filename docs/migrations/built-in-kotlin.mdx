@@ -1,0 +1,51 @@
+---
+title: Built-in Kotlin
+description: Migrate Android app projects to Flutter's built-in Kotlin support for home_widget
+---
+
+# Built-in Kotlin Migration
+
+Recent Flutter and Android Gradle Plugin versions enable Kotlin support without the legacy migration flags that Flutter added during the transition.
+
+`home_widget` now uses the built-in Kotlin path on Android.
+
+That means:
+
+- `home_widget` no longer supports the legacy `android.builtInKotlin=false` and `android.newDsl=false` compatibility path.
+- Consumers should use Flutter 3.44+ and the matching modern Android toolchain.
+- Projects that still rely on the old Kotlin Gradle Plugin compatibility mode should migrate before upgrading.
+
+If your project was migrated gradually, you might still have these entries in `android/gradle.properties`:
+
+```properties
+android.builtInKotlin=false
+android.newDsl=false
+```
+
+Remove both properties so your Android project uses the current Flutter and AGP defaults.
+
+<Info>
+Flutter can add these flags back during `flutter build` or `flutter run` while your app still depends on plugins that have not fully migrated to built-in Kotlin, or while you are validating older AGP consumers. In that case, finish migrating the remaining plugins or update your Android toolchain before removing the flags again.
+</Info>
+
+## Recommended checks
+
+After removing the legacy flags, verify the following:
+
+1. Your project builds with the Flutter version required by `home_widget`.
+2. Your Android project uses a recent AGP version.
+3. Your widget app still builds successfully with `flutter build apk` or `flutter build appbundle`.
+
+## Notes for home_widget users
+
+- The `home_widget` Android plugin now expects built-in Kotlin support.
+- The migration is usually limited to removing the old Flutter migrator flags from `gradle.properties`.
+- If you keep custom Android build logic, validate that logic on a modern AGP/Kotlin toolchain after the flag removal.
+
+## Upgrade Checklist
+
+Before upgrading, verify the following in your app:
+
+1. `android/gradle.properties` no longer contains the legacy Flutter migrator flags.
+2. Your app and widget modules build successfully with built-in Kotlin enabled.
+3. Your Flutter and Android toolchain already match the baseline required by the package.

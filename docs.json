@@ -68,6 +68,7 @@
       "group": "Migrations",
       "pages": [
         { "title": "0.9.0", "href": "/migrations/0.9.0" },
+        { "title": "Built-in Kotlin", "href": "/migrations/built-in-kotlin" },
         { "title": "Swift Package Manager", "href": "/migrations/swift-package-manager" }
       ]
     },

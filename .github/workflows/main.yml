@@ -33,6 +33,17 @@ jobs:
         run: brew install swift-format ktfmt
       - name: Analyze
         run: melos analyze
+      - name: Migration Guardrails
+        run: |
+          if rg -n "android\.builtInKotlin=false|android\.newDsl=false" examples packages/home_widget/example; then
+            echo "Legacy Android migration flags are still present."
+            exit 1
+          fi
+
+          if rg -n "pod 'home_widget'" packages/home_widget/example/ios/Podfile; then
+            echo "The package example should rely on Swift Package Manager instead of a direct home_widget pod in the widget extension."
+            exit 1
+          fi
       - name: Format
         run: melos format:all
       - name: Publishability
