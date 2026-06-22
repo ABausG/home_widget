@@ -18,6 +18,12 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** HomeWidgetPlugin */
 class HomeWidgetPlugin :
@@ -33,6 +39,9 @@ class HomeWidgetPlugin :
   private var activity: Activity? = null
   private var receiver: BroadcastReceiver? = null
   private val doubleLongPrefix: String = "home_widget.double."
+
+  private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+  private val ioDispatcher = Dispatchers.IO.limitedParallelism(1)
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "home_widget")
@@ -59,18 +68,23 @@ class HomeWidgetPlugin :
               is Double -> prefs.putLong(id, java.lang.Double.doubleToRawLongBits(data))
               is Int -> prefs.putInt(id, data)
               is Long -> prefs.putLong(id, data)
-              else ->
-                  result.error(
-                      "-10",
-                      "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long",
-                      IllegalArgumentException(),
-                  )
+              else -> {
+                result.error(
+                    "-10",
+                    "Invalid Type ${data!!::class.java.simpleName}. Supported types are Boolean, Float, String, Double, Long",
+                    IllegalArgumentException(),
+                )
+                return
+              }
             }
           } else {
             prefs.remove(id)
             prefs.remove("$doubleLongPrefix$id")
           }
-          result.success(prefs.commit())
+          coroutineScope.launch {
+            val committed = withContext(ioDispatcher) { prefs.commit() }
+            result.success(committed)
+          }
         } else {
           result.error(
               "-1",
@@ -84,13 +98,17 @@ class HomeWidgetPlugin :
           val id = call.argument<String>("id")
           val defaultValue = call.argument<Any>("defaultValue")
 
-          val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-
-          val value = prefs.all[id] ?: defaultValue
-
-          if (value is Long && prefs.getBoolean("$doubleLongPrefix$id", false)) {
-            result.success(java.lang.Double.longBitsToDouble(value))
-          } else {
+          coroutineScope.launch {
+            val value =
+                withContext(ioDispatcher) {
+                  val prefs = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+                  val stored = prefs.all[id] ?: defaultValue
+                  if (stored is Long && prefs.getBoolean("$doubleLongPrefix$id", false)) {
+                    java.lang.Double.longBitsToDouble(stored)
+                  } else {
+                    stored
+                  }
+                }
             result.success(value)
           }
         } else {
@@ -264,6 +282,7 @@ class HomeWidgetPlugin :
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     channel.setMethodCallHandler(null)
+    coroutineScope.cancel()
   }
 
   companion object {
