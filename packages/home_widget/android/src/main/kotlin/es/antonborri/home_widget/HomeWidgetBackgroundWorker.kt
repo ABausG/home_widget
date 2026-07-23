@@ -2,6 +2,7 @@ package es.antonborri.home_widget
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -112,13 +113,16 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     private val serviceStarted = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    @JvmOverloads
     fun enqueueWork(context: Context, work: Intent, expedited: Boolean = false) {
       val data = Data.Builder().putString(DATA_KEY, work.data?.toString() ?: "").build()
 
       val workRequestBuilder = OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>()
           .setInputData(data)
 
-      if (expedited) {
+      // Expedited work on API < 31 falls back to a foreground service, which requires
+      // getForegroundInfo() — CoroutineWorker's default throws. Only expedite on 31+.
+      if (expedited && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         workRequestBuilder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
       }
 
