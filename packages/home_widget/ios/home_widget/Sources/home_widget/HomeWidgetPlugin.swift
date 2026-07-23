@@ -321,6 +321,8 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
                         let encoder = JSONEncoder()
                         configuration[propertyName] = arrayValue.map { element -> Any in
                           switch element {
+                          case let null as NSNull:
+                            return null
                           case let number as NSNumber:
                             return number
                           case let string as String:
