@@ -313,38 +313,32 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
                       case let dataValue as Data:
                         configuration[propertyName] = FlutterStandardTypedData(bytes: dataValue)
 
-                      // Handle arrays of Codable types (must come BEFORE generic array case)
+                      // Handle arrays element-wise (must come BEFORE generic array case).
+                      // JSON-native elements pass through unchanged; complex Codable
+                      // elements are encoded to JSON objects; anything else falls back
+                      // to its string representation individually.
                       case let arrayValue as [Any]:
-                        // Try to encode array elements as Codable
                         let encoder = JSONEncoder()
-                        var encodedArray: [[String: Any]] = []
-                        var allEncodedSuccessfully = true
-                        
-                        for element in arrayValue {
-                          if let codableElement = element as? (any Codable) {
-                            do {
-                              let data = try encoder.encode(codableElement)
-                              if let jsonObject = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                                encodedArray.append(jsonObject)
-                              } else {
-                                allEncodedSuccessfully = false
-                                break
-                              }
-                            } catch {
-                              allEncodedSuccessfully = false
-                              break
+                        configuration[propertyName] = arrayValue.map { element -> Any in
+                          switch element {
+                          case let number as NSNumber:
+                            return number
+                          case let string as String:
+                            return string
+                          case let dictionary as [String: Any]:
+                            return dictionary
+                          case let nested as [Any]:
+                            return nested
+                          default:
+                            if let codableElement = element as? (any Codable),
+                              let data = try? encoder.encode(codableElement),
+                              let jsonObject = try? JSONSerialization.jsonObject(
+                                with: data, options: [.fragmentsAllowed])
+                            {
+                              return jsonObject
                             }
-                          } else {
-                            allEncodedSuccessfully = false
-                            break
+                            return "\(element)"
                           }
-                        }
-                        
-                        if allEncodedSuccessfully && !encodedArray.isEmpty {
-                          configuration[propertyName] = encodedArray
-                        } else {
-                          // Fallback to string conversion if encoding fails
-                          configuration[propertyName] = arrayValue.map { "\($0)" }
                         }
                       case let dictionaryValue as [String: Any]:
                         configuration[propertyName] = dictionaryValue
