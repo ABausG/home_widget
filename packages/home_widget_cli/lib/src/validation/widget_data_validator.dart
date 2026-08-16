@@ -2,6 +2,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../generator_error.dart';
 import '../models/widget_spec.dart';
+import '../util/naming.dart';
 
 part 'dart_keywords.dart';
 part 'kotlin_keywords.dart';
@@ -13,11 +14,19 @@ part 'swift_keywords.dart';
 /// generated APIs (Dart named parameters, Kotlin/Swift accessors).
 final RegExp asciiDataNamePattern = RegExp(r'^[A-Za-z][A-Za-z0-9]*$');
 
+/// Placeholder syntaxes that a per-locale map cannot express.
+///
+/// Which plural form or substitution applies depends on runtime data, so these
+/// have to be formatted app-side and pushed through a plain [HWString].
+final RegExp _placeholderPattern = RegExp(r'\{[A-Za-z0-9_]+\}|%[sdf@]|%\d+\$');
+
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
   for (final field in spec.dataFields) {
     _validateDataTypeKeys(field);
   }
+
+  validateLocalization(spec);
 
   for (final group in spec.jsonDataGroups) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
@@ -35,9 +44,185 @@ void validateWidgetData(WidgetSpec spec) {
 }
 
 void _validateDataTypeKeys(HWDataType<dynamic> type) {
+  // Constant localized strings are inlined and never named in generated APIs,
+  // so they deliberately carry an empty key.
+  if (type is HWLocalizedString && type.isConstant) return;
+
   _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
   if (type is HWJson) {
+    if (_containsLocalized(type.child)) {
+      throw GeneratorError(
+        'Localized strings cannot be nested inside HWJson (in "${type.key}"). '
+        'JSON values come from the app at runtime, so translate them there and '
+        'pass the result through a plain HWString.',
+      );
+    }
     _validateDataTypeKeys(type.child);
+  }
+}
+
+bool _containsLocalized(HWDataType<dynamic> type) {
+  if (type is HWLocalizedString) return true;
+  if (type is HWJson) return _containsLocalized(type.child);
+  return false;
+}
+
+/// Validates locale maps, the localization block, and their interaction.
+void validateLocalization(WidgetSpec spec) {
+  final localized = spec.localizedStrings;
+  final localization = spec.data.localization;
+  final hasGalleryTranslations = spec.hasLocalizedGalleryStrings;
+
+  if (localized.isEmpty && !hasGalleryTranslations) return;
+
+  if (localization == null) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}" uses localized strings but has no '
+      'localization: HomeWidgetLocalization(...). It supplies the default '
+      'locale that every fallback resolves to, and the locale set the '
+      'generated Dart localizations class is built from.',
+    );
+  }
+
+  final supported = localization.supportedLocales;
+  if (supported.isEmpty) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": supportedLocales must not be empty.',
+    );
+  }
+  if (!supported.contains(localization.defaultLocale)) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": defaultLocale '
+      '"${localization.defaultLocale}" is not in supportedLocales '
+      '(${supported.join(', ')}).',
+    );
+  }
+
+  final identifiers = <String, String>{};
+  for (final locale in supported) {
+    if (!isWellFormedLocaleTag(locale)) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": "$locale" is not a supported locale tag. '
+        'Use language[-Script][-REGION], e.g. "de", "pt-BR" or "zh-Hant". '
+        'BCP-47 variants and extensions are not supported.',
+      );
+    }
+
+    final identifier = localeIdentifier(locale);
+    final clash = identifiers[identifier];
+    if (clash != null) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": locales "$clash" and "$locale" both map to '
+        'the Dart identifier "$identifier".',
+      );
+    }
+    identifiers[identifier] = locale;
+  }
+
+  // Body strings carry no separate base field, so their map must be complete.
+  for (final field in localized) {
+    final descriptor = field.isConstant
+        ? 'HWText.localized in "${spec.data.name}"'
+        : 'HWString.localized("${field.key}")';
+    _validateLocaleMap(
+      field.defaultValues,
+      supported: supported,
+      descriptor: descriptor,
+      requireDefaultLocale: true,
+      defaultLocale: localization.defaultLocale,
+    );
+  }
+
+  // Gallery strings take their base value from the top-level name/description,
+  // so including the default locale here would be a second source of truth.
+  _validateLocaleMap(
+    localization.name,
+    supported: supported,
+    descriptor: 'localization.name',
+    requireDefaultLocale: false,
+    defaultLocale: localization.defaultLocale,
+  );
+  _validateLocaleMap(
+    localization.description,
+    supported: supported,
+    descriptor: 'localization.description',
+    requireDefaultLocale: false,
+    defaultLocale: localization.defaultLocale,
+  );
+
+  _validateNoConflictingKeys(spec);
+}
+
+void _validateLocaleMap(
+  Map<String, String>? values, {
+  required List<String> supported,
+  required String descriptor,
+  required bool requireDefaultLocale,
+  required String defaultLocale,
+}) {
+  // Omission means "intentionally not translated" and is always allowed; a map
+  // that is present has to be complete, so a forgotten locale is not silent.
+  if (values == null) return;
+
+  if (values.isEmpty) {
+    throw GeneratorError(
+      '$descriptor: locale map is empty. Omit it entirely to leave the string '
+      'untranslated.',
+    );
+  }
+
+  final expected = requireDefaultLocale
+      ? supported
+      : supported.where((l) => l != defaultLocale).toList();
+
+  for (final locale in values.keys) {
+    if (!supported.contains(locale)) {
+      throw GeneratorError(
+        '$descriptor: locale "$locale" is not in supportedLocales '
+        '(${supported.join(', ')}).',
+      );
+    }
+    if (!requireDefaultLocale && locale == defaultLocale) {
+      throw GeneratorError(
+        '$descriptor: remove "$defaultLocale". The default-locale text is the '
+        'top-level name/description; having it here too would be a second '
+        'source of truth.',
+      );
+    }
+  }
+
+  final missing = expected.where((l) => !values.containsKey(l)).toList();
+  if (missing.isNotEmpty) {
+    throw GeneratorError(
+      '$descriptor: missing translations for ${missing.join(', ')}. Repeat the '
+      'base text explicitly if the string is the same in those locales.',
+    );
+  }
+
+  for (final entry in values.entries) {
+    if (_placeholderPattern.hasMatch(entry.value)) {
+      throw GeneratorError(
+        '$descriptor: "${entry.value}" contains a placeholder. Which plural '
+        'form or substitution applies depends on runtime data, so format the '
+        'string in your app and push it through a plain HWString instead.',
+      );
+    }
+  }
+}
+
+/// Two localized strings sharing a key but not their translations would emit
+/// two identically named fields, which will not compile.
+void _validateNoConflictingKeys(WidgetSpec spec) {
+  final seen = <String, HWLocalizedString>{};
+  for (final field in spec.keyedLocalizedStrings) {
+    final existing = seen[field.key];
+    if (existing != null && existing != field) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": two HWString.localized("${field.key}") '
+        'entries declare different translations. Give them distinct keys.',
+      );
+    }
+    seen[field.key] = field;
   }
 }
 

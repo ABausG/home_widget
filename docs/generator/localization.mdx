@@ -1,0 +1,158 @@
+---
+title: Localization
+description: Translate widget text and the widget gallery entry.
+---
+
+# Localization
+
+Widgets can ship translated text and a translated gallery entry (the name and
+description users see when adding the widget). Translations live in the
+annotation, and the generator inlines them into the native code — there are no
+`.xcstrings` or hand-maintained `strings.xml` files to keep in sync.
+
+## Setup
+
+Add a `localization:` block. It supplies the default locale that every fallback
+resolves to, and the locale set the generated Dart class is built from:
+
+```dart
+@HomeWidget(
+  name: 'Greeting',
+  description: 'Shows a greeting',
+  localization: HomeWidgetLocalization(
+    defaultLocale: 'en',
+    supportedLocales: ['en', 'de', 'pt-BR'],
+    name: {'de': 'Begrüßung', 'pt-BR': 'Saudação'},
+    description: {'de': 'Zeigt eine Begrüßung'},
+  ),
+  widget: HWColumn(
+    children: [
+      HWText.localized({'en': 'Hello', 'de': 'Hallo', 'pt-BR': 'Olá'}),
+      HWText(
+        HWString.localized(
+          'greeting',
+          defaultValues: {'en': 'Hello', 'de': 'Hallo', 'pt-BR': 'Olá'},
+        ),
+      ),
+    ],
+  ),
+)
+class Greeting {}
+```
+
+`localization:` is required as soon as any localized string appears.
+
+## Two kinds of localized text
+
+**`HWText.localized({...})`** is fixed at build time. It creates no data field,
+costs no preferences read, and cannot be changed from Dart.
+
+**`HWString.localized(key, defaultValues: {...})`** is a real data field. The
+`defaultValues` are what ships; your app can override any locale at runtime:
+
+```dart
+await GreetingHomeWidget.saveData(
+  greeting: GreetingHomeWidgetLocalizations(
+    en: 'Hi there',
+    de: 'Hallo du',
+    ptBR: 'Oi',
+  ),
+);
+```
+
+Every locale is a **required** parameter, so adding one to `supportedLocales`
+becomes a compile error in your app until it has been translated.
+
+Values are pushed per locale rather than pre-resolved, so the widget picks the
+right one itself — a language change is reflected immediately, without waiting
+for your app to run again.
+
+Resolution order for a keyed string:
+
+1. Runtime override for the exact locale (`pt-BR`)
+2. Runtime override for the language (`pt`)
+3. Runtime override for the default locale
+4. Shipped `defaultValues`, same three steps
+
+`deleteData(greeting: true)` clears the overrides and falls back to the shipped
+translations.
+
+## Mixing translated and fixed strings
+
+Omit a key from `localization` to leave that string untranslated — a brand name,
+for instance:
+
+```dart
+@HomeWidget(
+  name: 'MyAppName',                            // omitted below → stays fixed
+  description: 'Shows your recent activity',
+  localization: HomeWidgetLocalization(
+    defaultLocale: 'en',
+    supportedLocales: ['en', 'de'],
+    description: {'de': 'Zeigt deine letzten Aktivitäten'},
+  ),
+)
+class Activity {}
+```
+
+A map that is *present* must cover every supported locale — a partial map is an
+error rather than a silent gap. If a string really is identical in some locale,
+repeat it explicitly.
+
+Note where the base text lives, since it differs by kind:
+
+| | Base text | Map contains |
+|---|---|---|
+| `name` / `description` | the top-level annotation field | other locales only |
+| `HWText.localized` / `HWString.localized` | — | **every** locale, including the default |
+
+## Locale tags
+
+Use BCP-47 tags (`en`, `de`, `pt-BR`, `zh-Hant`). The generator converts them to
+each platform's convention — Android resource directories are not BCP-47, so
+`pt-BR` becomes `values-pt-rBR` and `zh-Hant` becomes `values-b+zh+Hant`.
+
+In the generated Dart class, tags become camelCase identifiers: `pt-BR` → `ptBR`.
+Reserved words are suffixed, so Icelandic (`is`) becomes `is_`.
+
+## Where translations end up
+
+| | Body text | Gallery name & description |
+|---|---|---|
+| **Android** | inlined in the Glance widget | `res/values[-<qualifier>]/strings.xml` |
+| **iOS** | inlined in the SwiftUI view | inlined in `Widget.swift` |
+
+Android *has* to use resources for the gallery entry: the launcher reads the
+compiled manifest before your widget code ever runs. Those entries are named
+`home_widget_<widget>_label` and `home_widget_<widget>_description`, and are
+**regenerated on every run** — the annotation is the source of truth, so edit
+translations there rather than in `strings.xml`. Nothing outside the
+`home_widget_` prefix is touched.
+
+## Limitations
+
+**Plurals and placeholders are not supported.** Which plural form applies depends
+on runtime data, so a fixed per-locale map cannot express it. The generator
+rejects strings containing `{placeholder}` or `%s`-style markers. Format the
+string in your app with your usual l10n tooling and push the result through a
+plain `HWString`:
+
+```dart
+await GreetingHomeWidget.saveData(
+  itemCount: AppLocalizations.of(context).itemCount(items.length),
+);
+```
+
+The trade-off is that a plain `HWString` holds one already-translated string, so
+it stays stale after a language change until your app next runs.
+
+**Translated text is longer.** German typically runs 30–40% longer than English,
+and widgets are small. Check your layouts in the longest locale you ship.
+
+**The gallery entry cannot be changed at runtime** on either platform. On Android
+the launcher reads it from the compiled manifest, so nothing your app does can
+affect it; it is not offered on iOS alone in order to keep behaviour consistent.
+
+**Reading back** localized fields from `getData()` returns a raw
+`Map<String, String>?` rather than the generated class, because a partial read
+cannot satisfy its required fields.

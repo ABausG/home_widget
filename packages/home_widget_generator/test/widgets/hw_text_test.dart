@@ -424,4 +424,22 @@ void main() {
       });
     });
   });
+
+  group('HWText multi-line content', () {
+    // Regression: the escapers used to leave newlines raw, which produced an
+    // unterminated string literal in both languages.
+    const text = HWText.fixed('line1\nline2\ttabbed');
+
+    test('escapes newlines and tabs in Kotlin', () {
+      final kotlin = text.toKotlin(0, dataExpr: 'null');
+      expect(kotlin.split('\n'), hasLength(1));
+      expect(kotlin, contains(r'line1\nline2\ttabbed'));
+    });
+
+    test('escapes newlines and tabs in Swift', () {
+      final swift = text.toSwift(0, dataExpr: 'null');
+      expect(swift.split('\n'), hasLength(1));
+      expect(swift, contains(r'line1\nline2\ttabbed'));
+    });
+  });
 }

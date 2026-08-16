@@ -1,3 +1,5 @@
+import 'utils/string_literals.dart';
+
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
 sealed class HWDataType<T> {
   final String key;
@@ -76,6 +78,20 @@ class HWString extends HWDataType<String> {
 
   const HWString(super.key, {this.defaultValue});
 
+  /// A string whose shipped value differs per locale, and which can additionally
+  /// be overridden per locale at runtime via the generated `saveData`.
+  ///
+  /// [defaultValues] maps locale tag to text and must include the widget's
+  /// `defaultLocale`. Resolution at render time is exact tag (`pt-BR`) →
+  /// language (`pt`) → default locale.
+  ///
+  /// This is a redirecting const factory rather than a static method because it
+  /// has to be usable inside a `@HomeWidget(...)` annotation.
+  const factory HWString.localized(
+    String key, {
+    required Map<String, String> defaultValues,
+  }) = HWLocalizedString;
+
   @override
   String get dartType => 'String';
 
@@ -88,7 +104,7 @@ class HWString extends HWDataType<String> {
   @override
   String androidReadValue({required String store, required String key}) {
     final fallback = defaultValue != null
-        ? '"${_escapeKotlinStringLiteral(defaultValue!)}"'
+        ? '"${escapeKotlinStringLiteral(defaultValue!)}"'
         : 'null';
     return '$store.getString("$key", $fallback)';
   }
@@ -97,7 +113,7 @@ class HWString extends HWDataType<String> {
   String iosReadValue({required String store, required String key}) {
     final read = '$store?.string(forKey: "$key")';
     if (defaultValue != null) {
-      return '($read ?? "${_escapeSwiftStringLiteral(defaultValue!)}")';
+      return '($read ?? "${escapeSwiftStringLiteral(defaultValue!)}")';
     }
     return read;
   }
@@ -119,15 +135,193 @@ class HWString extends HWDataType<String> {
   String? codegenKotlinDefaultLiteral() {
     final d = defaultValue;
     if (d == null) return null;
-    return '"${_escapeKotlinStringLiteral(d)}"';
+    return '"${escapeKotlinStringLiteral(d)}"';
   }
 
   @override
   String? codegenSwiftDefaultLiteral() {
     final d = defaultValue;
     if (d == null) return null;
-    return '"${_escapeSwiftStringLiteral(d)}"';
+    return '"${escapeSwiftStringLiteral(d)}"';
   }
+}
+
+/// A [HWString] whose shipped value differs per locale.
+///
+/// Two flavours, distinguished by [isConstant]:
+///
+/// * **keyed** (`HWString.localized('greeting', ...)`) — a real data field. The
+///   compiled [defaultValues] are the fallback tier; the app may override any
+///   locale at runtime through the generated `saveData`.
+/// * **constant** (`HWText.localized({...})`) — compile-time only. Carries no
+///   meaningful [key], never reaches the data class, prefs or `saveData`.
+///
+/// [defaultLocale] is not written by the annotation author; the parser stamps it
+/// on from `HomeWidgetLocalization.defaultLocale` so the emitted code knows
+/// which entry is the base value.
+class HWLocalizedString extends HWString {
+  /// Locale tag (`en`, `pt-BR`) to shipped text.
+  final Map<String, String> defaultValues;
+
+  /// True when this string is inlined at build time rather than data-backed.
+  final bool isConstant;
+
+  /// The widget's default locale, stamped on by the parser. Null in
+  /// annotation-space, where it is not knowable.
+  final String? defaultLocale;
+
+  const HWLocalizedString(
+    super.key, {
+    required this.defaultValues,
+  })  : isConstant = false,
+        defaultLocale = null;
+
+  /// Compile-time constant form. The key is unused and deliberately empty:
+  /// a const constructor cannot compute one, and nothing consumes it.
+  const HWLocalizedString.constant({required this.defaultValues})
+      : isConstant = true,
+        defaultLocale = null,
+        super('');
+
+  /// Rebuilt by the parser with [defaultLocale] resolved.
+  const HWLocalizedString.resolved(
+    super.key, {
+    required this.defaultValues,
+    required this.isConstant,
+    required this.defaultLocale,
+  });
+
+  /// Returns a copy carrying [locale] as the default locale.
+  HWLocalizedString withDefaultLocale(String locale) =>
+      HWLocalizedString.resolved(
+        key,
+        defaultValues: defaultValues,
+        isConstant: isConstant,
+        defaultLocale: locale,
+      );
+
+  /// The locale the generated resolver falls back to.
+  ///
+  /// Falls back to the first entry when the parser has not stamped a default
+  /// locale; validation rejects that case, so it only guards direct
+  /// construction in tests.
+  String get baseLocaleTag {
+    final locale = defaultLocale;
+    if (locale != null && defaultValues.containsKey(locale)) return locale;
+    return defaultValues.keys.isEmpty ? '' : defaultValues.keys.first;
+  }
+
+  /// The base-locale text.
+  String get baseValue => defaultValues[baseLocaleTag] ?? '';
+
+  /// `mapOf("en" to "Hello", "de" to "Hallo")`
+  String get kotlinMapLiteral {
+    if (defaultValues.isEmpty) return 'emptyMap()';
+    final entries = defaultValues.entries
+        .map(
+          (e) => '"${escapeKotlinStringLiteral(e.key)}" to '
+              '"${escapeKotlinStringLiteral(e.value)}"',
+        )
+        .join(', ');
+    return 'mapOf($entries)';
+  }
+
+  /// `["en": "Hello", "de": "Hallo"]`
+  String get swiftMapLiteral {
+    if (defaultValues.isEmpty) return '[:]';
+    final entries = defaultValues.entries
+        .map(
+          (e) => '"${escapeSwiftStringLiteral(e.key)}": '
+              '"${escapeSwiftStringLiteral(e.value)}"',
+        )
+        .join(', ');
+    return '[$entries]';
+  }
+
+  @override
+  String androidReadValue({required String store, required String key}) {
+    return 'hwReadLocalized($store, "$key", locale, $kotlinMapLiteral, '
+        '"${escapeKotlinStringLiteral(baseLocaleTag)}")';
+  }
+
+  @override
+  String iosReadValue({required String store, required String key}) {
+    return 'hwReadLocalized($store, "$key", $swiftMapLiteral, '
+        'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    if (!isConstant) return super.kotlinAccess(dataExpr);
+    return 'hwLocalize(hwLocale, $kotlinMapLiteral, '
+        '"${escapeKotlinStringLiteral(baseLocaleTag)}")';
+  }
+
+  @override
+  String swiftAccess(String dataExpr) {
+    if (!isConstant) return super.swiftAccess(dataExpr);
+    return 'hwLocalize($swiftMapLiteral, '
+        'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
+  }
+
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    // The constant resolver already returns a non-null String; adding an elvis
+    // would make Kotlin warn that the right operand is unreachable.
+    if (isConstant) return outerValue;
+    return super
+        .androidToString(outerValue: outerValue, innerValue: innerValue);
+  }
+
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    if (isConstant) return outerValue;
+    return super.iosToString(outerValue: outerValue, innerValue: innerValue);
+  }
+
+  @override
+  String? codegenKotlinDefaultLiteral() =>
+      '"${escapeKotlinStringLiteral(baseValue)}"';
+
+  @override
+  String? codegenSwiftDefaultLiteral() =>
+      '"${escapeSwiftStringLiteral(baseValue)}"';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWLocalizedString &&
+          key == other.key &&
+          isConstant == other.isConstant &&
+          defaultLocale == other.defaultLocale &&
+          _mapEquals(defaultValues, other.defaultValues);
+
+  @override
+  int get hashCode => Object.hash(
+        key,
+        isConstant,
+        defaultLocale,
+        _mapHash(defaultValues),
+      );
+}
+
+/// Dart maps are not structurally equal, so localized strings would never dedupe
+/// in the `Set<HWDataType>` returned by `dataDependencies` without this.
+bool _mapEquals(Map<String, String> a, Map<String, String> b) {
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (!b.containsKey(entry.key) || b[entry.key] != entry.value) return false;
+  }
+  return true;
+}
+
+int _mapHash(Map<String, String> map) {
+  final entries = map.entries.map((e) => '${e.key} ${e.value}').toList()
+    ..sort();
+  return Object.hashAll(entries);
 }
 
 class HWInt extends HWDataType<int> {
@@ -401,9 +595,3 @@ class HWJson extends HWDataType<dynamic> {
   @override
   int get hashCode => Object.hash(key, child, defaultValue);
 }
-
-String _escapeKotlinStringLiteral(String s) =>
-    s.replaceAll(r'\', r'\\').replaceAll(r'$', r'\$').replaceAll('"', r'\"');
-
-String _escapeSwiftStringLiteral(String s) =>
-    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');

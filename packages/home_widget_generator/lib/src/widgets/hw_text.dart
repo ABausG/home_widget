@@ -9,12 +9,28 @@ class HWText extends HWWidget implements HWDataWidget {
   final String? fixedContent;
 
   final HWDataType<dynamic>? dataType;
+
+  /// Raw locale map from [HWText.localized]. See [effectiveDataType].
+  final Map<String, String>? localizedContent;
+
   final HWTextStyle? style;
   final HWTextAlign? textAlign;
 
+  /// The data type this text renders from, wrapping [localizedContent] when the
+  /// widget was built with [HWText.localized].
+  HWDataType<dynamic>? get effectiveDataType {
+    final dataType = this.dataType;
+    if (dataType != null) return dataType;
+    final content = localizedContent;
+    if (content == null) return null;
+    return HWLocalizedString.constant(defaultValues: content);
+  }
+
   @override
-  Set<HWDataType<dynamic>> get dataDependencies =>
-      {if (dataType != null) dataType!};
+  Set<HWDataType<dynamic>> get dataDependencies {
+    final data = effectiveDataType;
+    return {if (data != null) data};
+  }
 
   @override
   Set<String> get kotlinImports {
@@ -43,13 +59,33 @@ class HWText extends HWWidget implements HWDataWidget {
   /// Static/hardcoded text content.
   const HWText.fixed(String content, {this.style, this.textAlign})
       : fixedContent = content,
-        dataType = null;
+        dataType = null,
+        localizedContent = null;
+
+  /// Static text translated at build time.
+  ///
+  /// [content] maps locale tag to text and must include the widget's
+  /// `defaultLocale`. Unlike [HWText.new] with [HWString.localized], this
+  /// creates no data field and cannot be overridden at runtime.
+  ///
+  /// The map is held raw rather than wrapped in an [HWLocalizedString] because
+  /// a const constructor cannot build another object from a parameter.
+  /// [effectiveDataType] does the wrapping, and the parser replaces it with a
+  /// locale-resolved instance.
+  const HWText.localized(
+    Map<String, String> content, {
+    this.style,
+    this.textAlign,
+  })  : fixedContent = null,
+        dataType = null,
+        localizedContent = content;
 
   const HWText(HWDataType<dynamic> data, {this.style, this.textAlign})
       : fixedContent = null,
-        dataType = data;
+        dataType = data,
+        localizedContent = null;
 
-  static HWText fromDartObject(DartObject obj) {
+  static HWText fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     var style = WidgetValueDecoder.decodeTextStyle(obj.getField('style'));
     var textAlign =
         WidgetValueDecoder.decodeTextAlign(obj.getField('textAlign'));
@@ -60,9 +96,28 @@ class HWText extends HWWidget implements HWDataWidget {
       return HWText.fixed(fixedContent, style: style, textAlign: textAlign);
     }
 
+    // Check for an inline locale map (HWText.localized)
+    final localizedContent =
+        WidgetValueDecoder.decodeStringMap(obj.getField('localizedContent'));
+    if (localizedContent != null) {
+      return HWText(
+        HWLocalizedString.resolved(
+          '',
+          defaultValues: localizedContent,
+          isConstant: true,
+          defaultLocale: decoder.defaultLocale,
+        ),
+        style: style,
+        textAlign: textAlign,
+      );
+    }
+
     // Check for data type
     final dataTypeObj = obj.getField('dataType');
-    final dataType = WidgetValueDecoder.decodeDataType(dataTypeObj);
+    final dataType = WidgetValueDecoder.decodeDataType(
+      dataTypeObj,
+      defaultLocale: decoder.defaultLocale,
+    );
     if (dataType != null) {
       return HWText(dataType, style: style, textAlign: textAlign);
     }
@@ -81,9 +136,9 @@ class HWText extends HWWidget implements HWDataWidget {
 
     var viewCall = '';
     if (fixedContent != null) {
-      viewCall = '${pad}Text("${_escapeSwiftString(fixedContent)}")';
-    } else if (dataType != null) {
-      final bound = dataType!;
+      viewCall = '${pad}Text("${escapeSwiftStringLiteral(fixedContent)}")';
+    } else if (effectiveDataType != null) {
+      final bound = effectiveDataType!;
       if (bound is HWJson) {
         final expr = bound.swiftGlanceJsonTextInterpolation(dataExpr);
         viewCall = '${pad}Text($expr)';
@@ -121,9 +176,9 @@ class HWText extends HWWidget implements HWDataWidget {
 
     var textArgs = '';
     if (fixedContent != null) {
-      textArgs = 'text = "${_escapeKotlinString(fixedContent)}"';
-    } else if (dataType != null) {
-      final bound = dataType!;
+      textArgs = 'text = "${escapeKotlinStringLiteral(fixedContent)}"';
+    } else if (effectiveDataType != null) {
+      final bound = effectiveDataType!;
       if (bound is HWJson) {
         textArgs =
             'text = ${bound.kotlinGlanceJsonTextInterpolation(dataExpr)}';
@@ -183,12 +238,4 @@ class HWText extends HWWidget implements HWDataWidget {
         return 'TextAlign.Start'; // default fallback
     }
   }
-
-  String _escapeSwiftString(String s) =>
-      s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-
-  String _escapeKotlinString(String s) => s
-      .replaceAll('\\', '\\\\')
-      .replaceAll('"', '\\"')
-      .replaceAll('\$', '\\\$');
 }

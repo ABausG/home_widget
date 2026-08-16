@@ -89,8 +89,39 @@ class WidgetSpec {
   }
 
   /// Non-JSON [dataFields] (primitives and simple types).
-  List<HWDataType<dynamic>> get primitiveDataFields =>
-      dataFields.where((f) => f is! HWJson).toList();
+  ///
+  /// Constant localized strings are excluded: they are inlined into the widget
+  /// body and must never reach the data class, preferences or `saveData`.
+  List<HWDataType<dynamic>> get primitiveDataFields => dataFields
+      .where((f) => f is! HWJson)
+      .where((f) => !(f is HWLocalizedString && f.isConstant))
+      .toList();
+
+  /// Every localized string in the tree, constant and keyed alike.
+  List<HWLocalizedString> get localizedStrings =>
+      dataFields.whereType<HWLocalizedString>().toList();
+
+  /// Localized strings backed by a data field, i.e. overridable at runtime.
+  List<HWLocalizedString> get keyedLocalizedStrings =>
+      localizedStrings.where((f) => !f.isConstant).toList();
+
+  /// Whether anything in this widget needs the locale resolver emitted.
+  bool get hasLocalizedStrings =>
+      localizedStrings.isNotEmpty || hasLocalizedGalleryStrings;
+
+  /// Whether the gallery name or description carries translations.
+  bool get hasLocalizedGalleryStrings {
+    final localization = data.localization;
+    if (localization == null) return false;
+    return (localization.name?.isNotEmpty ?? false) ||
+        (localization.description?.isNotEmpty ?? false);
+  }
+
+  /// The locale anchoring every fallback chain, or `en` when unset.
+  ///
+  /// Validation requires `localization:` whenever a localized string exists, so
+  /// the fallback only applies to widgets that use none.
+  String get defaultLocale => data.localization?.defaultLocale ?? 'en';
 
   /// JSON fields grouped by root key for nested native struct generation.
   List<JsonDataGroup> get jsonDataGroups {

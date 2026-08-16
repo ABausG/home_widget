@@ -113,7 +113,9 @@ void main() {
 
     final content =
         File(p.join(stringsDir.path, 'strings.xml')).readAsStringSync();
-    expect(content, contains('name="desc_append_home_widget_description"'));
+    expect(content, contains('name="home_widget_desc_append_description"'));
+    // Entries outside the home_widget_ namespace are never touched.
+    expect(content, contains('name="existing_only"'));
   });
 
   test('escapes literal dollar signs in Kotlin string defaults', () async {
@@ -432,7 +434,7 @@ void main() {
     expect(
       xmlContent,
       contains(
-        'android:description="@string/v2_widget_home_widget_description"',
+        'android:description="@string/home_widget_v2_widget_description"',
       ),
     );
 
@@ -447,7 +449,7 @@ void main() {
     final stringsContent = stringsFile.readAsStringSync();
     expect(
       stringsContent,
-      contains('name="v2_widget_home_widget_description"'),
+      contains('name="home_widget_v2_widget_description"'),
     );
     expect(stringsContent, contains('>A v2 widget description<'));
     expect(stringsContent, contains('>A v2 widget description<'));

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
@@ -9,6 +10,7 @@ import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
+import '../util/localization_templates.dart';
 import '../util/naming.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 import 'swift_widget_emitter.dart';
@@ -149,20 +151,45 @@ $loadDataLogic
 ''';
     }
 
+    final localizationHelpers = <String>[
+      if (spec.hasLocalizedStrings) swiftLocalizeHelpers,
+      if (spec.keyedLocalizedStrings.isNotEmpty) swiftLocalizedReadHelper,
+    ];
+    if (localizationHelpers.isNotEmpty) {
+      extraContent = [
+        if (extraContent != null) extraContent,
+        ...localizationHelpers,
+      ].join('\n\n');
+    }
+
+    // Keyed localized strings must be resolved at render time so a system
+    // language change is picked up without waiting for a new timeline. Timeline
+    // entries still carry a snapshot for WidgetKit, but the view re-reads.
+    final reResolveAtRender = spec.keyedLocalizedStrings.isNotEmpty;
+    final dataExpr = !hasDataFields
+        ? 'null'
+        : reResolveAtRender
+            ? 'data'
+            : 'entry.data';
+
+    final viewPrefix = reResolveAtRender
+        ? '    let prefs = UserDefaults(suiteName: "$groupId")\n'
+            '    let data = ${spec.className}Data.fromUserDefaults(prefs)\n'
+        : '';
+
     final treeCode = emitSwiftWidgetBody(
       spec.effectiveWidgetTree,
-      dataExpr: 'entry.data',
+      dataExpr: dataExpr,
       indent: 2,
     );
 
     final customBgColor = spec.data.iOS?.backgroundColor;
     final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
-    final dataExpr = hasDataFields ? 'entry.data' : 'null';
     final hasCustomBg = customBgColor != null;
     final containerBackgroundModifier = hasCustomBg
         ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
         : '.applyContainerBackground()';
-    entryViewBody = '$treeCode\n    $containerBackgroundModifier';
+    entryViewBody = '$viewPrefix$treeCode\n    $containerBackgroundModifier';
 
     String? supportedFamilies;
     if (spec.data.iOS?.supportedFamilies != null &&
@@ -187,6 +214,16 @@ $loadDataLogic
         entryViewBody: entryViewBody,
         displayName: spec.data.name,
         description: spec.data.description,
+        displayNameExpression: _galleryStringExpression(
+          baseValue: spec.data.name,
+          translations: spec.data.localization?.name,
+        ),
+        descriptionExpression: spec.data.description == null
+            ? null
+            : _galleryStringExpression(
+                baseValue: spec.data.description!,
+                translations: spec.data.localization?.description,
+              ),
         supportedFamilies: supportedFamilies,
         swiftViewModifiers: {
           ...spec.effectiveWidgetTree.swiftViewModifiers,
@@ -234,17 +271,36 @@ $loadDataLogic
     }
   }
 
+  /// Swift expression for a gallery string, or null to keep the plain literal.
+  ///
+  /// Returns null when nothing was translated, so widgets that opt out — a
+  /// brand name, say — keep the `LocalizedStringKey` behaviour they have today.
+  String? _galleryStringExpression({
+    required String baseValue,
+    required Map<String, String>? translations,
+  }) {
+    if (translations == null || translations.isEmpty) return null;
+
+    final defaultLocale = spec.defaultLocale;
+    final values = <String, String>{
+      defaultLocale: baseValue,
+      ...translations,
+    };
+    final entries = values.entries
+        .map(
+          (e) => '"${escapeSwiftStringLiteral(e.key)}": '
+              '"${escapeSwiftStringLiteral(e.value)}"',
+        )
+        .join(', ');
+    return 'hwLocalize([$entries], '
+        'baseLocale: "${escapeSwiftStringLiteral(defaultLocale)}")';
+  }
+
   String _swiftDefaultLiteral(HWDataType<dynamic> field) {
     final defaultValue = field.defaultValue;
     if (defaultValue == null) return 'nil';
     if (defaultValue is String) {
-      final escaped = defaultValue
-          .replaceAll(r'\', r'\\')
-          .replaceAll('"', r'\"')
-          .replaceAll('\n', r'\n')
-          .replaceAll('\r', r'\r')
-          .replaceAll('\t', r'\t');
-      return '"$escaped"';
+      return '"${escapeSwiftStringLiteral(defaultValue)}"';
     }
     return '$defaultValue';
   }

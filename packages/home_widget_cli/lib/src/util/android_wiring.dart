@@ -164,12 +164,21 @@ Future<void> ensureAndroidManifestReceiver(
     return;
   }
 
-  if (_androidApplicationHasWidgetReceiver(
+  final existing = _findAndroidWidgetReceiver(
     application,
     receiverFqcn: receiverFqcn,
     widgetClassName: widgetClassName,
     providerInfoName: providerInfoName,
-  )) {
+  );
+
+  if (existing != null) {
+    final desiredLabel = label ?? widgetClassName;
+    final currentLabel = existing.getAttribute('android:label');
+    if (currentLabel != desiredLabel) {
+      existing.setAttribute('android:label', desiredLabel);
+      writeXmlFile(manifestFile, manifestXml);
+      logger.detail('Updated: ${manifestFile.path}');
+    }
     return;
   }
 
@@ -186,26 +195,31 @@ Future<void> ensureAndroidManifestReceiver(
   logger.detail('Updated: ${manifestFile.path}');
 }
 
-bool _androidApplicationHasWidgetReceiver(
+/// Returns the matching widget `<receiver>`, or null when none is registered.
+XmlElement? _findAndroidWidgetReceiver(
   XmlElement application, {
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
 }) {
-  final hasReceiverName = application.childElements
-      .where((e) => e.localName == 'receiver')
-      .any((receiver) {
+  for (final receiver
+      in application.childElements.where((e) => e.localName == 'receiver')) {
     final name = receiver.getAttribute('android:name');
-    if (name == null) return false;
-    if (name == receiverFqcn) return true;
-    return name.contains('${widgetClassName}Receiver');
-  });
-  if (hasReceiverName) return true;
+    if (name == null) continue;
+    if (name == receiverFqcn || name.contains('${widgetClassName}Receiver')) {
+      return receiver;
+    }
+  }
 
-  final hasProviderMeta = application.findAllElements('meta-data').any(
-        (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName',
-      );
-  return hasProviderMeta;
+  for (final receiver
+      in application.childElements.where((e) => e.localName == 'receiver')) {
+    final hasProviderMeta = receiver.findAllElements('meta-data').any(
+          (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName',
+        );
+    if (hasProviderMeta) return receiver;
+  }
+
+  return null;
 }
 
 XmlElement _buildAndroidAppWidgetReceiverElement({

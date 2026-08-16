@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_localized_greeting_label">Lokalisierte Begrüßung</string>
+    <string name="home_widget_localized_greeting_description">Begrüßt dich in deiner Sprache</string>
+</resources>

@@ -99,13 +99,16 @@ dependencies {
       ).called(1);
     });
 
-    test('is idempotent when matching receiver already exists', () async {
+    test('is idempotent when matching receiver already has the label',
+        () async {
       manifestFile.writeAsStringSync(
         '''<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.test">
     <application>
-        <receiver android:name="com.test.FooHomeWidgetReceiver" />
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label" />
     </application>
 </manifest>
 ''',
@@ -116,6 +119,7 @@ dependencies {
         widgetClassName: 'FooHomeWidget',
         appPackageName: 'com.test',
         providerInfoName: 'foo_home_widget',
+        label: '@string/home_widget_foo_label',
       );
       final afterFirst = manifestFile.readAsStringSync();
 
@@ -124,11 +128,47 @@ dependencies {
         widgetClassName: 'FooHomeWidget',
         appPackageName: 'com.test',
         providerInfoName: 'foo_home_widget',
+        label: '@string/home_widget_foo_label',
       );
       final afterSecond = manifestFile.readAsStringSync();
 
       expect(afterFirst, afterSecond);
       verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
+    });
+
+    test('updates android:label when an existing receiver is stale', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="FooHomeWidget"
+            android:exported="true">
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(
+          updated, contains('android:label="@string/home_widget_foo_label"'));
+      expect(updated, isNot(contains('android:label="FooHomeWidget"')));
+      verify(() => mockLogger.detail(any(that: contains('Updated:'))))
+          .called(1);
     });
 
     test('treats relative receiver name containing WidgetReceiver as present',
@@ -138,7 +178,9 @@ dependencies {
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.test">
     <application>
-        <receiver android:name=".FooHomeWidgetReceiver" />
+        <receiver
+            android:name=".FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label" />
     </application>
 </manifest>
 ''',
@@ -149,6 +191,7 @@ dependencies {
         widgetClassName: 'FooHomeWidget',
         appPackageName: 'com.test',
         providerInfoName: 'foo_home_widget',
+        label: '@string/home_widget_foo_label',
       );
 
       verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));

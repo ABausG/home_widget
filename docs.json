@@ -89,7 +89,8 @@
         { "title": "Overview", "href": "/generator" },
         { "title": "Getting Started", "href": "/generator/getting-started" },
         { "title": "Annotation", "href": "/generator/annotation" },
-        { "title": "Data Types", "href": "/generator/data" }
+        { "title": "Data Types", "href": "/generator/data" },
+        { "title": "Localization", "href": "/generator/localization" }
       ]
     },
     {
