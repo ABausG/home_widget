@@ -11,7 +11,9 @@ void main() {
 
       expect(source, contains('class FooHomeWidgetReceiver'));
       expect(
-          source, contains('override val glanceAppWidget = FooHomeWidget()'));
+        source,
+        contains('override val glanceAppWidget = FooHomeWidget()'),
+      );
       expect(source, isNot(contains('onReceive')));
       expect(source, isNot(contains('ACTION_LOCALE_CHANGED')));
       expect(source, isNot(contains('kotlinx.coroutines')));

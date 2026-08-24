@@ -104,7 +104,7 @@ void main() {
         defaultTranslations: const {
           'pt-BR': 'Ola',
           'de': 'Hallo',
-          'en': 'Hello'
+          'en': 'Hello',
         },
       );
       expect(reordered.resourceName, constant.resourceName);
@@ -115,7 +115,7 @@ void main() {
         defaultTranslations: const {
           'en': 'Hello',
           'de': 'Hallo!',
-          'pt-BR': 'Ola'
+          'pt-BR': 'Ola',
         },
       );
       expect(edited.resourceName, isNot(constant.resourceName));

@@ -228,8 +228,10 @@ void main() {
       final output = DartHelperGenerator(spec).generate();
 
       expect(output, isNot(contains('ensureInitialized')));
-      expect(output,
-          contains("static const String _\$appGroupId = 'group.example';"));
+      expect(
+        output,
+        contains("static const String _\$appGroupId = 'group.example';"),
+      );
       expect(
         output,
         contains(

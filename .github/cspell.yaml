@@ -135,3 +135,21 @@ words:
     - vararg
     - widgetkit
     - writeln
+    - xcstrings
+    - uncompilable
+    # generator localization docs/examples (German + Portuguese sample text)
+    - Lokalisierte
+    - Begrüßung
+    - Begrüßt
+    - dich
+    - deiner
+    - deine
+    - Sprache
+    - letzten
+    - Aktivitäten
+    - Zeigt
+    - Saudação
+    - Localizada
+    - Cumprimenta
+    - você
+    - idioma

@@ -165,7 +165,9 @@ dependencies {
 
       final updated = manifestFile.readAsStringSync();
       expect(
-          updated, contains('android:label="@string/home_widget_foo_label"'));
+        updated,
+        contains('android:label="@string/home_widget_foo_label"'),
+      );
       expect(updated, isNot(contains('android:label="FooHomeWidget"')));
       verify(() => mockLogger.detail(any(that: contains('Updated:'))))
           .called(1);

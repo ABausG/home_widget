@@ -299,7 +299,9 @@ void main() {
       final keyedManifest =
           await manifestAfter(keyedRoot, _spec(widget: HWText(_localized())));
       expect(
-          receiverSource(keyedRoot), contains('Intent.ACTION_LOCALE_CHANGED'));
+        receiverSource(keyedRoot),
+        contains('Intent.ACTION_LOCALE_CHANGED'),
+      );
       expect(keyedManifest, contains('android.intent.action.LOCALE_CHANGED'));
 
       // ...and so is a constant, which reads through `R.string`.
@@ -313,7 +315,9 @@ void main() {
         contains('Intent.ACTION_LOCALE_CHANGED'),
       );
       expect(
-          constantManifest, contains('android.intent.action.LOCALE_CHANGED'));
+        constantManifest,
+        contains('android.intent.action.LOCALE_CHANGED'),
+      );
 
       // A widget with no localized content renders nothing that goes stale.
       final plainRoot = await _project();
@@ -408,7 +412,9 @@ void main() {
       expect(kotlin, contains('org.json.JSONObject(raw)'));
       expect(kotlin, contains('} catch (_: Exception) {'));
       expect(
-          kotlin, contains('return hwLocalize(locales, values, baseLocale)'));
+        kotlin,
+        contains('return hwLocalize(locales, values, baseLocale)'),
+      );
       // Non-string members of the object are skipped rather than coerced.
       expect(kotlin, contains('if (value is String) parsed[name] = value'));
     });
@@ -576,7 +582,9 @@ void main() {
       ).generate();
 
       expect(
-          _strings(root, 'fr'), isNot(contains('home_widget_greeting_label')));
+        _strings(root, 'fr'),
+        isNot(contains('home_widget_greeting_label')),
+      );
       expect(_strings(root, 'de'), contains('home_widget_greeting_label'));
     });
 
@@ -609,7 +617,9 @@ void main() {
 
       // Our entry is pruned from the stale locale...
       expect(
-          _strings(root, 'fr'), isNot(contains('home_widget_greeting_label')));
+        _strings(root, 'fr'),
+        isNot(contains('home_widget_greeting_label')),
+      );
       // ...but the user's own string in that file survives.
       expect(_strings(root, 'fr'), contains('app_name'));
       // ...and a non-locale qualifier is never swept.
@@ -990,7 +1000,9 @@ android {
       expect(swift, isNot(contains('Locale.preferredLanguages.first')));
       expect(swift, contains('for tag in locales {'));
       expect(
-          swift, contains('if let match = values[language] { return match }'));
+        swift,
+        contains('if let match = values[language] { return match }'),
+      );
       expect(swift, contains('return values[baseLocale]'));
     });
 
@@ -1003,13 +1015,15 @@ android {
       expect(
         swift,
         contains(
-            r'$0.split(separator: "-").first.map(String.init) == language'),
+          r'$0.split(separator: "-").first.map(String.init) == language',
+        ),
       );
       // Deterministic when several regions match.
       expect(
         swift,
         contains(
-            'if let sibling = siblings.min(), let match = values[sibling]'),
+          'if let sibling = siblings.min(), let match = values[sibling]',
+        ),
       );
       // The sibling tier runs inside the per-locale loop, i.e. before the
       // default-locale fallback.
