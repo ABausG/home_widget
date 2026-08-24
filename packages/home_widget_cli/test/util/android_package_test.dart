@@ -64,4 +64,75 @@ defaultConfig {
 """);
     expect(tryDetectAndroidPackage(root), 'com.from.gradle');
   });
+
+  test('reads applicationId from the Kotlin DSL build.gradle.kts', () {
+    File(p.join(root.path, 'android', 'app', 'build.gradle.kts'))
+        .writeAsStringSync('''
+android {
+    defaultConfig {
+        applicationId = "com.from.kts"
+    }
+}
+''');
+    expect(tryDetectAndroidPackage(root), 'com.from.kts');
+  });
+
+  test('reads the namespace from a Groovy build.gradle', () {
+    File(p.join(root.path, 'android', 'app', 'build.gradle'))
+        .writeAsStringSync("""
+android {
+    namespace 'com.the.namespace'
+
+    defaultConfig {
+        applicationId 'com.other.id'
+    }
+}
+""");
+    expect(tryDetectAndroidNamespace(root), 'com.the.namespace');
+  });
+
+  test('reads the namespace from a Kotlin DSL build.gradle.kts', () {
+    File(p.join(root.path, 'android', 'app', 'build.gradle.kts'))
+        .writeAsStringSync('''
+android {
+    namespace = "com.kts.namespace"
+
+    defaultConfig {
+        applicationId = "com.other.id"
+    }
+}
+''');
+    expect(tryDetectAndroidNamespace(root), 'com.kts.namespace');
+  });
+
+  test('falls back to the manifest package when no namespace is declared', () {
+    File(p.join(root.path, 'android', 'app', 'build.gradle'))
+        .writeAsStringSync("""
+android {
+    defaultConfig {
+        applicationId 'com.other.id'
+    }
+}
+""");
+    File(
+      p.join(
+        root.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'AndroidManifest.xml',
+      ),
+    ).writeAsStringSync('''
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.legacy.pkg">
+</manifest>
+''');
+    expect(tryDetectAndroidNamespace(root), 'com.legacy.pkg');
+  });
+
+  test('returns null when neither namespace nor manifest package exists', () {
+    expect(tryDetectAndroidNamespace(root), isNull);
+  });
 }

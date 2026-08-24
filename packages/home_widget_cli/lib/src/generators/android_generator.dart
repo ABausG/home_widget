@@ -225,13 +225,23 @@ class AndroidGenerator {
       layoutImports.add('import java.io.File');
       layoutImports.add('import org.json.JSONObject');
     }
-    // `R` is generated under the module namespace. It resolves unqualified in
-    // the common case where the widget lives in that package, but an annotation
-    // that overrides `packageName` puts the file somewhere else.
-    if (spec.constantLocalizedStrings.isNotEmpty &&
-        detectedPackage != null &&
-        detectedPackage != packageName) {
-      layoutImports.add('import $detectedPackage.R');
+    // `R` is generated under the Gradle namespace, which is not necessarily the
+    // package this file is written into: an annotation that overrides
+    // `packageName` puts it somewhere else. Unqualified `R` only resolves when
+    // the two coincide, so anywhere else the import has to be explicit.
+    if (spec.constantLocalizedStrings.isNotEmpty) {
+      final rPackage =
+          tryDetectAndroidNamespace(projectRoot) ?? detectedPackage;
+      if (rPackage == null) {
+        logger.warn(
+          'Warning: could not detect the Android namespace. '
+          '${widgetFile.path} references R.string, so the build will fail with '
+          'an unresolved reference. Set android.packageName to the module '
+          'namespace, or add the import manually.',
+        );
+      } else if (rPackage != packageName) {
+        layoutImports.add('import $rPackage.R');
+      }
     }
 
     await widgetFile.writeAsString(

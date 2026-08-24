@@ -6,11 +6,16 @@ import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_cli/src/util/naming.dart';
 import 'package:home_widget_cli/src/validation/widget_data_validator.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:mason_logger/mason_logger.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+
+class _MockLogger extends Mock implements Logger {}
 
 const _localization = HomeWidgetLocalization(
   defaultLocale: 'en',
@@ -42,6 +47,8 @@ WidgetSpec _spec({
   HomeWidgetLocalization? localization = _localization,
   String? description,
   String name = 'Greeting',
+  HomeWidgetAndroidConfiguration? android =
+      const HomeWidgetAndroidConfiguration(packageName: 'com.example'),
 }) {
   final tree = widget;
   return WidgetSpec(
@@ -49,7 +56,7 @@ WidgetSpec _spec({
       name: name,
       description: description,
       widget: tree,
-      android: const HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      android: android,
       iOS: const HomeWidgetIOSConfiguration(groupId: 'group.example'),
       localization: localization,
     ),
@@ -129,6 +136,7 @@ void main() {
       expect(localeIdentifier('en'), 'en');
       expect(localeIdentifier('pt-BR'), 'ptBR');
       expect(localeIdentifier('zh-Hant'), 'zhHANT');
+      expect(localeIdentifier('es-419'), 'es419');
     });
 
     test('escapes Dart reserved words', () {
@@ -143,6 +151,14 @@ void main() {
       expect(androidLocaleQualifier('pt-BR'), 'pt-rBR');
       expect(androidLocaleQualifier('zh-Hant'), 'b+zh+Hant');
       expect(androidLocaleQualifier('zh-Hant-TW'), 'b+zh+Hant+TW');
+    });
+
+    test('routes a UN M.49 region through the BCP-47 form', () {
+      // `values-es-r419` is not a qualifier Android understands: the legacy
+      // form takes an ISO 3166-1 alpha-2 region and nothing else.
+      expect(androidLocaleQualifier('es-419'), 'b+es+419');
+      expect(androidLocaleQualifier('es_419'), 'b+es+419');
+      expect(androidLocaleQualifier('sr-Latn-419'), 'b+sr+Latn+419');
     });
 
     test('accepts language[-Script][-REGION] tags', () {
@@ -553,6 +569,161 @@ void main() {
       expect(content, isNot(contains('"greeting_home_widget_description"')));
       // A similarly named entry that is not an exact match survives.
       expect(content, contains('greeting_home_widget_description_custom'));
+    });
+
+    test('writes a UN M.49 locale to its BCP-47 resource directory', () async {
+      final root = await _project();
+      final constant = _localized(
+        isConstant: true,
+        values: const {'en': 'Hello', 'es-419': 'Hola'},
+      );
+      final spec = _spec(
+        widget: HWText(constant),
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'es-419'],
+        ),
+      );
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      expect(
+        _strings(root, 'b+es+419'),
+        contains('name="${constant.resourceName}">Hola'),
+      );
+      // `values-es-r419` is not a qualifier Android resolves, so it must never
+      // be written.
+      expect(
+        Directory(
+          p.join(root.path, 'android/app/src/main/res/values-es-r419'),
+        ).existsSync(),
+        isFalse,
+      );
+    });
+  });
+
+  group('Android R import', () {
+    late _MockLogger mockLogger;
+
+    setUp(() {
+      final saved = logger;
+      mockLogger = _MockLogger();
+      logger = mockLogger;
+      when(() => mockLogger.detail(any())).thenReturn(null);
+      when(() => mockLogger.info(any())).thenReturn(null);
+      when(() => mockLogger.warn(any())).thenReturn(null);
+      addTearDown(() => logger = saved);
+    });
+
+    Future<void> writeGradle(Directory root, String content) async {
+      final file = File(p.join(root.path, 'android', 'app', 'build.gradle'));
+      await file.create(recursive: true);
+      await file.writeAsString(content);
+    }
+
+    Future<String> generateKotlin(
+      Directory root,
+      WidgetSpec spec, {
+      String packageDir = 'com/example',
+    }) async {
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+      return File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/$packageDir/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    // `ensureAndroidManifestReceiver` warns about the absent manifest in these
+    // fixtures, so the assertion has to name the warning under test.
+    void verifyNoNamespaceWarning() => verifyNever(
+          () => mockLogger.warn(
+            any(that: contains('could not detect the Android namespace')),
+          ),
+        );
+
+    test('imports R from the namespace, not from the widget package', () async {
+      final root = await _project();
+      await writeGradle(root, """
+android {
+    namespace 'com.the.namespace'
+}
+""");
+
+      final kotlin = await generateKotlin(
+        root,
+        _spec(widget: HWText(_localized(isConstant: true))),
+      );
+
+      expect(kotlin, contains('import com.the.namespace.R'));
+      verifyNoNamespaceWarning();
+    });
+
+    test('imports the namespace R even when applicationId differs', () async {
+      final root = await _project();
+      await writeGradle(root, """
+android {
+    namespace 'com.the.namespace'
+
+    defaultConfig {
+        applicationId 'com.other.app'
+    }
+}
+""");
+
+      // No packageName configured: the file lands next to the applicationId,
+      // which is not where `R` is generated.
+      final kotlin = await generateKotlin(
+        root,
+        _spec(
+          widget: HWText(_localized(isConstant: true)),
+          android: null,
+        ),
+        packageDir: 'com/other/app',
+      );
+
+      expect(kotlin, contains('import com.the.namespace.R'));
+    });
+
+    test('emits no import when the widget already lives in the namespace',
+        () async {
+      final root = await _project();
+      await writeGradle(root, '''
+android {
+    namespace = "com.example"
+}
+''');
+
+      final kotlin = await generateKotlin(
+        root,
+        _spec(widget: HWText(_localized(isConstant: true))),
+      );
+
+      expect(kotlin, contains('R.string.'));
+      expect(kotlin, isNot(contains('import com.example.R')));
+      verifyNoNamespaceWarning();
+    });
+
+    test('warns when the namespace cannot be detected', () async {
+      final root = await _project();
+
+      await generateKotlin(
+        root,
+        _spec(widget: HWText(_localized(isConstant: true))),
+      );
+
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf(
+              contains('could not detect the Android namespace'),
+              contains('GreetingHomeWidget.kt'),
+              contains('R.string'),
+            ),
+          ),
+        ),
+      ).called(1);
     });
   });
 

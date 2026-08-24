@@ -67,8 +67,9 @@ String localeIdentifier(String tag) {
 /// Converts a BCP-47 locale tag into an Android resource directory qualifier.
 ///
 /// Android does not use BCP-47 directly: a region needs the `r` prefix
-/// (`pt-BR` → `pt-rBR`), and anything carrying a script subtag needs the API-21
-/// `b+` form (`zh-Hant` → `b+zh+Hant`).
+/// (`pt-BR` → `pt-rBR`), and anything the legacy form cannot express needs the
+/// BCP-47 `b+` form (`zh-Hant` → `b+zh+Hant`, `es-419` → `b+es+419`).
+/// `b+` qualifiers have been understood since API 17.
 String androidLocaleQualifier(String tag) {
   final parts =
       tag.split(RegExp(r'[^A-Za-z0-9]+')).where((p) => p.isNotEmpty).toList();
@@ -77,10 +78,13 @@ String androidLocaleQualifier(String tag) {
   final language = parts.first.toLowerCase();
   if (parts.length == 1) return language;
 
-  // A 4-letter subtag is a script (Hant, Latn), which the legacy form cannot
-  // express at all.
-  final hasScript = parts.length > 2 || parts[1].length == 4;
-  if (hasScript) {
+  // The legacy form can only express a 2-letter-or-3-letter language plus
+  // `-r` + ISO 3166-1 alpha-2 region. A 4-letter script (Hant, Latn) and a
+  // UN M.49 numeric region (es-419) both need the BCP-47 `b+` form.
+  final needsBcp47 = parts.length > 2 ||
+      parts[1].length == 4 ||
+      !RegExp(r'^[A-Za-z]{2}$').hasMatch(parts[1]);
+  if (needsBcp47) {
     final rest = parts.skip(1).map((p) {
       if (p.length == 4) {
         return '${p[0].toUpperCase()}${p.substring(1).toLowerCase()}';
