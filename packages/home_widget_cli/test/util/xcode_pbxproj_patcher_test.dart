@@ -1,7 +1,64 @@
 import 'dart:io';
 
+import 'package:home_widget_cli/src/util/fnv_hash.dart';
 import 'package:home_widget_cli/src/util/xcode_pbxproj_patcher.dart';
 import 'package:test/test.dart';
+
+/// Project shaped like one the generator has already added an extension to:
+/// an empty Resources phase, a group for the extension folder, and the
+/// `knownRegions` list `flutter create` produces.
+String _buildPbxprojWithExtension() {
+  final resourcesPhaseId = xcodeObjectId('phase:resources:GreetingHomeWidget');
+  final groupId = xcodeObjectId('group:GreetingHomeWidget');
+  return '''
+// !\$*UTF8*\$!
+{
+	objects = {
+
+/* Begin PBXBuildFile section */
+		11111111111111111111AAAA /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22222222222222222222BBBB /* Widget.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		22222222222222222222BBBB /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		$groupId /* GreetingHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				22222222222222222222BBBB /* Widget.swift */,
+			);
+			path = GreetingHomeWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXResourcesBuildPhase section */
+		$resourcesPhaseId /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXProject section */
+		97C146E61CF9000F007C117D /* Project object */ = {
+			isa = PBXProject;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 97C146E51CF9000F007C117D;
+		};
+/* End PBXProject section */
+
+	};
+}
+''';
+}
 
 /// Minimal pbxproj snippet with Runner build configurations.
 ///
@@ -173,6 +230,68 @@ void main() {
       final result = pbxprojFile.readAsStringSync();
       // Should still be 12.0 — non-Runner config should not be touched.
       expect(result, contains('IPHONEOS_DEPLOYMENT_TARGET = 12.0;'));
+    });
+  });
+
+  group('ensureLocalizableCatalogInXcodeProject', () {
+    Future<String> wire({List<String> locales = const ['en', 'de', 'pt-BR']}) {
+      return ensureLocalizableCatalogInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+        locales: locales,
+      ).then((_) => pbxprojFile.readAsStringSync());
+    }
+
+    test('adds the catalog as a resource of the extension', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+
+      final result = await wire();
+
+      expect(
+        result,
+        contains('lastKnownFileType = text.json.xcstrings; '
+            'path = Localizable.xcstrings;'),
+      );
+      expect(
+        result,
+        contains('/* Localizable.xcstrings in Resources */ = '
+            '{isa = PBXBuildFile;'),
+      );
+      // Listed in the Resources phase, or it never ships.
+      final resourcesPhase = RegExp(
+        r'isa = PBXResourcesBuildPhase;[\s\S]*?files = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(resourcesPhase, contains('Localizable.xcstrings in Resources'));
+      // And visible in the extension's group in Xcode.
+      final group = RegExp(
+        r'isa = PBXGroup;[\s\S]*?children = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(group, contains('/* Localizable.xcstrings */'));
+    });
+
+    test('adds every configured locale to knownRegions', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+
+      final result = await wire();
+
+      final regions = RegExp(
+        r'knownRegions = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(regions, contains('de,'));
+      // A tag that is not a bare identifier has to be quoted.
+      expect(regions, contains('"pt-BR",'));
+      // Existing entries are kept, and `en` is not duplicated.
+      expect(regions, contains('Base,'));
+      expect('en'.allMatches(regions).length, 1);
+    });
+
+    test('is idempotent', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+
+      final first = await wire();
+      final second = await wire();
+
+      expect(second, first);
     });
   });
 

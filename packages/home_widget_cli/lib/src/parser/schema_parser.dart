@@ -8,6 +8,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
 import '../models/widget_spec.dart';
+import '../util/naming.dart';
 import '../validation/widget_data_validator.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s using Analyzer resolution.
@@ -82,6 +83,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
     widgetTree = WidgetValueDecoder(
       widgetField,
       defaultLocale: localization?.defaultLocale,
+      resourcePrefix: widgetResourcePrefix(generatedClassName),
     ).decode();
   }
 

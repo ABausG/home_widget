@@ -6,7 +6,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// data field, so the app can override any locale at runtime:
 ///
 ///   await LocalizedGreetingHomeWidget.saveData(
-///     greeting: LocalizedGreetingHomeWidgetLocalizations(
+///     greeting: LocalizedGreetingHomeWidgetTranslations(
 ///       en: 'Hi there', de: 'Hallo du', ptBR: 'Oi',
 ///     ),
 ///   );
@@ -42,7 +42,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWText(
         HWString.localized(
           'greeting',
-          defaultValues: {'en': 'Hello', 'de': 'Hallo', 'pt-BR': 'Olá'},
+          defaultTranslations: {'en': 'Hello', 'de': 'Hallo', 'pt-BR': 'Olá'},
         ),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,

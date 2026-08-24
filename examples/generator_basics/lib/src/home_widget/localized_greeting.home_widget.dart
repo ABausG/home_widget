@@ -2,6 +2,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
 
+import 'dart:convert';
 import 'package:home_widget/home_widget.dart';
 
 class LocalizedGreetingHomeWidget {
@@ -11,11 +12,22 @@ class LocalizedGreetingHomeWidget {
 
   static const String _$paramPrefix = 'home_widget.LocalizedGreeting';
 
+  /// The translations compiled into the widget for `greeting`.
+  ///
+  /// `getData` merges anything stored by `saveData` over these, so a
+  /// locale the app never pushed still resolves to shipped text.
+  static const LocalizedGreetingHomeWidgetTranslations greetingDefaults =
+      LocalizedGreetingHomeWidgetTranslations(
+        en: 'Hello',
+        de: 'Hallo',
+        ptBR: 'Olá',
+      );
+
   static Future<void> saveData({
-    LocalizedGreetingHomeWidgetLocalizations? greeting,
+    LocalizedGreetingHomeWidgetTranslations? greeting,
   }) {
     return Future.wait([
-      if (greeting != null) ...greeting.toMap().entries.map((entry) => HomeWidget.saveWidgetData<String>('${_$paramPrefix}.greeting.${entry.key}', entry.value, appGroupId: _$appGroupId)),
+      if (greeting != null) HomeWidget.saveWidgetData<String>('${_$paramPrefix}.greeting', jsonEncode(greeting.toMap()), appGroupId: _$appGroupId),
     ]);
   }
 
@@ -23,13 +35,19 @@ class LocalizedGreetingHomeWidget {
     bool greeting = false,
   }) {
     return Future.wait([
-      if (greeting) ...const ['en', 'de', 'pt-BR'].map((locale) => HomeWidget.saveWidgetData('${_$paramPrefix}.greeting.$locale', null, appGroupId: _$appGroupId)),
+      if (greeting) HomeWidget.saveWidgetData('${_$paramPrefix}.greeting', null, appGroupId: _$appGroupId),
     ]);
   }
 
-  static Future<({Map<String, String>? greeting})> getData() async {
+  /// Reads every stored value back.
+  ///
+  /// Localized fields come back fully populated: anything stored by [saveData]
+  /// is merged over the compiled defaults, so every locale always has text.
+  /// To read the raw stored blob instead — to tell an override apart from a
+  /// shipped default — use `HomeWidget.getWidgetData` on the preferences key.
+  static Future<({LocalizedGreetingHomeWidgetTranslations greeting})> getData() async {
     return (
-      greeting: await _$readLocalized('${_$paramPrefix}.greeting'),
+      greeting: _$mergeTranslations(greetingDefaults, await _$readLocalized('${_$paramPrefix}.greeting')),
     );
   }
 
@@ -42,17 +60,37 @@ class LocalizedGreetingHomeWidget {
   }
 
   static Future<Map<String, String>?> _$readLocalized(String key) async {
-    final values = <String, String>{};
-    for (final locale in const ['en', 'de', 'pt-BR']) {
-      final value = await HomeWidget.getWidgetData<String>('$key.$locale', appGroupId: _$appGroupId);
-      if (value != null) values[locale] = value;
+    final raw = await HomeWidget.getWidgetData<String>(key, appGroupId: _$appGroupId);
+    if (raw == null) return null;
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
     }
+    if (decoded is! Map) return null;
+    final values = <String, String>{};
+    decoded.forEach((locale, value) {
+      if (locale is String && value is String) values[locale] = value;
+    });
     return values.isEmpty ? null : values;
+  }
+
+  static LocalizedGreetingHomeWidgetTranslations _$mergeTranslations(
+    LocalizedGreetingHomeWidgetTranslations defaults,
+    Map<String, String>? stored,
+  ) {
+    if (stored == null) return defaults;
+    return LocalizedGreetingHomeWidgetTranslations(
+      en: stored['en'] ?? defaults.en,
+      de: stored['de'] ?? defaults.de,
+      ptBR: stored['pt-BR'] ?? defaults.ptBR,
+    );
   }
 }
 
-class LocalizedGreetingHomeWidgetLocalizations {
-  const LocalizedGreetingHomeWidgetLocalizations({
+class LocalizedGreetingHomeWidgetTranslations {
+  const LocalizedGreetingHomeWidgetTranslations({
     required this.en,
     required this.de,
     required this.ptBR,
@@ -67,4 +105,35 @@ class LocalizedGreetingHomeWidgetLocalizations {
         'de': de,
         'pt-BR': ptBR,
       };
+
+  /// The text this set resolves to for the BCP-47 locale [tag].
+  ///
+  /// Tries the exact tag (`pt-PT`), then the bare language (`pt`),
+  /// then any entry with the same language but a different region or
+  /// script (`pt-BR`; the lexicographically smallest wins if several
+  /// match), and finally the widget's default locale. `_` is treated
+  /// as `-`.
+  ///
+  /// The widget natively runs these same steps against *every* entry
+  /// of the OS preferred-language list in order; this answers for one
+  /// explicit tag, which is what previews and tests need.
+  String resolve(String tag) {
+    final values = toMap();
+    final normalized = tag.replaceAll('_', '-');
+    final exact = values[normalized];
+    if (exact != null) return exact;
+    final language = normalized.split('-').first;
+    final byLanguage = values[language];
+    if (byLanguage != null) return byLanguage;
+    String? sibling;
+    for (final key in values.keys) {
+      if (key.split('-').first != language) continue;
+      if (sibling == null || key.compareTo(sibling) < 0) sibling = key;
+    }
+    if (sibling != null) {
+      final match = values[sibling];
+      if (match != null) return match;
+    }
+    return en;
+  }
 }

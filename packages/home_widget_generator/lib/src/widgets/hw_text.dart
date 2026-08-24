@@ -23,7 +23,7 @@ class HWText extends HWWidget implements HWDataWidget {
     if (dataType != null) return dataType;
     final content = localizedContent;
     if (content == null) return null;
-    return HWLocalizedString.constant(defaultValues: content);
+    return HWLocalizedString.constant(defaultTranslations: content);
   }
 
   @override
@@ -103,9 +103,10 @@ class HWText extends HWWidget implements HWDataWidget {
       return HWText(
         HWLocalizedString.resolved(
           '',
-          defaultValues: localizedContent,
+          defaultTranslations: localizedContent,
           isConstant: true,
           defaultLocale: decoder.defaultLocale,
+          resourcePrefix: decoder.resourcePrefix,
         ),
         style: style,
         textAlign: textAlign,
@@ -117,6 +118,7 @@ class HWText extends HWWidget implements HWDataWidget {
     final dataType = WidgetValueDecoder.decodeDataType(
       dataTypeObj,
       defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
     );
     if (dataType != null) {
       return HWText(dataType, style: style, textAlign: textAlign);

@@ -456,6 +456,116 @@ $developmentTeamLine\t\t\t\tCURRENT_PROJECT_VERSION = 1;
   );
 }
 
+/// Wires `<widgetClassName>/Localizable.xcstrings` into the extension target.
+///
+/// The catalog only ships if it is a resource of the extension, and its
+/// translations only apply if the project lists their locales in
+/// `knownRegions`. Both are patched in place and both are idempotent: a second
+/// run over the same project changes nothing.
+///
+/// Projects using file-system-synchronized groups (Xcode 16 `flutter create`)
+/// already build every file in the extension folder, so only `knownRegions`
+/// needs patching there — adding an explicit reference on top of the synced
+/// folder would make Xcode copy the catalog twice and fail the build.
+Future<void> ensureLocalizableCatalogInXcodeProject({
+  required File pbxprojFile,
+  required String widgetClassName,
+  required List<String> locales,
+}) async {
+  final text = await pbxprojFile.readAsString();
+  var updated = text;
+
+  final usesSynchronizedGroups =
+      text.contains('/* Begin PBXFileSystemSynchronizedRootGroup section */');
+
+  if (!usesSynchronizedGroups) {
+    final ids = _WidgetExtensionIds(widgetClassName);
+    final fileRefId = xcodeObjectId(
+      'fileref:Localizable.xcstrings:$widgetClassName',
+    );
+    final buildFileId = xcodeObjectId(
+      'buildfile:Localizable.xcstrings:$widgetClassName',
+    );
+
+    if (!updated.contains(fileRefId)) {
+      updated = _insertIntoSection(
+        updated,
+        section: 'PBXFileReference',
+        content:
+            '\t\t$fileRefId /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };',
+      );
+      updated = _insertIntoSection(
+        updated,
+        section: 'PBXBuildFile',
+        content:
+            '\t\t$buildFileId /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* Localizable.xcstrings */; };',
+      );
+    }
+
+    updated = _patchNativeTargetListAddId(
+      updated,
+      targetId: ids.resourcesPhaseId,
+      listKey: 'files',
+      idToAdd: '$buildFileId /* Localizable.xcstrings in Resources */',
+    );
+    updated = _patchGroupChildrenAddId(
+      updated,
+      groupId: ids.widgetGroupId,
+      idToAdd: '$fileRefId /* Localizable.xcstrings */',
+    );
+  }
+
+  updated = _patchKnownRegions(updated, locales: locales);
+
+  if (updated == text) return;
+
+  await pbxprojFile.writeAsString(updated);
+  logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+  logger.detail(
+    'Wired $widgetClassName/Localizable.xcstrings into the extension target.',
+  );
+}
+
+/// Adds any missing [locales] to the project's `knownRegions`.
+///
+/// Xcode quotes anything that is not a bare identifier, so `pt-BR` has to be
+/// written `"pt-BR"` — and matched that way when checking for duplicates.
+String _patchKnownRegions(String pbxproj, {required List<String> locales}) {
+  final listRegex = RegExp(
+    r'(^\s*knownRegions\s*=\s*\(\s*$)([\s\S]*?)(^\s*\);\s*$)',
+    multiLine: true,
+  );
+  final match = listRegex.firstMatch(pbxproj);
+  if (match == null) return pbxproj;
+
+  final before = match.group(1)!;
+  var inner = match.group(2)!;
+  final after = match.group(3)!;
+
+  final existing = inner
+      .split('\n')
+      .map((line) => line.trim().replaceAll(',', '').replaceAll('"', ''))
+      .where((line) => line.isNotEmpty)
+      .toSet();
+
+  final missing =
+      locales.where((locale) => !existing.contains(locale)).toList();
+  if (missing.isEmpty) return pbxproj;
+
+  if (!inner.endsWith('\n')) inner = '$inner\n';
+  for (final locale in missing) {
+    final entry =
+        RegExp(r'^[A-Za-z0-9_]+$').hasMatch(locale) ? locale : '"$locale"';
+    inner = '$inner\t\t\t\t$entry,\n';
+  }
+
+  return pbxproj.replaceRange(
+    match.start,
+    match.end,
+    '$before$inner$after',
+  );
+}
+
 /// Ensures the Runner target uses `Runner/Runner.entitlements` for code signing.
 ///
 /// The iOS scaffolder creates `ios/Runner/Runner.entitlements`, but Xcode only
@@ -1060,8 +1170,12 @@ String _patchGroupChildrenAddId(
   required String groupId,
   required String idToAdd,
 }) {
+  // The comment is optional: the project's main group carries none, while named
+  // groups such as `/* Products */` or a widget's own folder do.
   final groupBlockRegex = RegExp(
-    r'^\s*' + RegExp.escape(groupId) + r'\s*=\s*\{[\s\S]*?\n\s*\};\s*$',
+    r'^\s*' +
+        RegExp.escape(groupId) +
+        r'(?: /\* .*? \*/)?\s*=\s*\{[\s\S]*?\n\s*\};\s*$',
     multiLine: true,
   );
   final block = groupBlockRegex.firstMatch(pbxproj)?.group(0);

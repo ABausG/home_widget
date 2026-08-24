@@ -27,6 +27,7 @@ void validateWidgetData(WidgetSpec spec) {
   }
 
   validateLocalization(spec);
+  _validateConditionalData(spec);
 
   for (final group in spec.jsonDataGroups) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
@@ -65,6 +66,47 @@ bool _containsLocalized(HWDataType<dynamic> type) {
   if (type is HWLocalizedString) return true;
   if (type is HWJson) return _containsLocalized(type.child);
   return false;
+}
+
+/// Rejects conditionals whose branch can never be taken.
+///
+/// Only [HWDataExists] is null-check shaped. [HWBoolConditional] rejects
+/// anything that is not an `HWBool` (or an `HWJson` wrapping one) while
+/// decoding, so a localized string can never reach it.
+void _validateConditionalData(WidgetSpec spec) {
+  for (final widget in _walkWidgets(spec.effectiveWidgetTree)) {
+    if (widget is! HWDataExists) continue;
+    final data = widget.data;
+    if (data is! HWLocalizedString) continue;
+
+    final descriptor = data.isConstant
+        ? 'HWText.localized'
+        : 'HWString.localized("${data.key}")';
+    throw GeneratorError(
+      'Widget "${spec.data.name}": HWDataExists cannot test $descriptor. '
+      'A localized string always has a value — its compiled default — so the '
+      'check is always true and the whenAbsent branch is never rendered. Use a '
+      'plain HWString if you want to switch on whether a value is present.',
+    );
+  }
+}
+
+/// Depth-first walk over a widget tree, including the root.
+Iterable<HWWidget> _walkWidgets(HWWidget widget) sync* {
+  yield widget;
+  if (widget is HWSingleChildWidget) {
+    yield* _walkWidgets(widget.child);
+  } else if (widget is HWMultiChildWidget) {
+    for (final child in widget.children) {
+      yield* _walkWidgets(child);
+    }
+  } else if (widget is HWConditional) {
+    yield* _walkWidgets(widget.firstBranch);
+    yield* _walkWidgets(widget.secondBranch);
+  } else if (widget is HWAdaptive) {
+    yield* _walkWidgets(widget.ios);
+    yield* _walkWidgets(widget.android);
+  }
 }
 
 /// Validates locale maps, the localization block, and their interaction.
@@ -125,7 +167,7 @@ void validateLocalization(WidgetSpec spec) {
         ? 'HWText.localized in "${spec.data.name}"'
         : 'HWString.localized("${field.key}")';
     _validateLocaleMap(
-      field.defaultValues,
+      field.defaultTranslations,
       supported: supported,
       descriptor: descriptor,
       requireDefaultLocale: true,

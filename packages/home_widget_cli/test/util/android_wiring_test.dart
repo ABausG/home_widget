@@ -196,5 +196,49 @@ dependencies {
 
       verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
     });
+
+    test('does not match a receiver whose name merely ends with the class name',
+        () async {
+      // `FooHomeWidgetReceiver` is a suffix of `AdaptiveFooHomeWidgetReceiver`;
+      // a substring match would find (and relabel) the wrong widget's receiver.
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.AdaptiveFooHomeWidgetReceiver"
+            android:label="@string/home_widget_adaptive_foo_label"
+            android:exported="true">
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/adaptive_foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      // The other widget's receiver keeps its label untouched...
+      expect(
+        updated,
+        contains('android:label="@string/home_widget_adaptive_foo_label"'),
+      );
+      // ...and Foo gets its own receiver element added.
+      expect(
+        updated,
+        contains('android:name="com.test.FooHomeWidgetReceiver"'),
+      );
+      expect(updated, contains('@xml/foo_home_widget'));
+    });
   });
 }

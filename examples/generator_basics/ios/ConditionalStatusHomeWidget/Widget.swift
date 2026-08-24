@@ -9,13 +9,10 @@ import WidgetKit
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ConditionalStatusHomeWidgetEntry {
-    ConditionalStatusHomeWidgetEntry(
-      date: Date(), data: ConditionalStatusData.fromUserDefaults(nil))
+    ConditionalStatusHomeWidgetEntry(date: Date(), data: ConditionalStatusData.fromUserDefaults(nil))
   }
 
-  func getSnapshot(
-    in context: Context, completion: @escaping (ConditionalStatusHomeWidgetEntry) -> Void
-  ) {
+  func getSnapshot(in context: Context, completion: @escaping (ConditionalStatusHomeWidgetEntry) -> Void) {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = ConditionalStatusData.fromUserDefaults(prefs)
 
@@ -27,9 +24,7 @@ struct Provider: TimelineProvider {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = ConditionalStatusData.fromUserDefaults(prefs)
 
-    completion(
-      Timeline(
-        entries: [ConditionalStatusHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
+    completion(Timeline(entries: [ConditionalStatusHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
 
   }
 }
@@ -39,45 +34,40 @@ struct ConditionalStatusHomeWidgetEntry: TimelineEntry {
   let data: ConditionalStatusData
 }
 
+
 struct ConditionalStatusHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    Group {
-      if entry.data.hasData != nil {
-        if entry.data.enabled == true {
-          VStack(alignment: .center) {
-            Spacer()
-            Text("Enabled")
-              .font(.headline).foregroundColor(
-                Color(
-                  red: 0.08627450980392157, green: 0.6392156862745098, blue: 0.2901960784313726,
-                  opacity: 1.0))
-            Spacer()
-          }
-        } else {
-          VStack(alignment: .center) {
-            Spacer()
-            Text("Disabled")
-              .font(.headline).foregroundColor(
-                Color(
-                  red: 0.8627450980392157, green: 0.14901960784313725, blue: 0.14901960784313725,
-                  opacity: 1.0))
-            Spacer()
-          }
+        Group {
+            if entry.data.hasData != nil {
+                if entry.data.enabled == true {
+                    VStack(alignment: .center) {
+                        Spacer()
+                        Text("Enabled")
+                            .font(.headline).foregroundColor(Color(red: 0.08627450980392157, green: 0.6392156862745098, blue: 0.2901960784313726, opacity: 1.0))
+                        Spacer()
+                    }
+                } else {
+                    VStack(alignment: .center) {
+                        Spacer()
+                        Text("Disabled")
+                            .font(.headline).foregroundColor(Color(red: 0.8627450980392157, green: 0.14901960784313725, blue: 0.14901960784313725, opacity: 1.0))
+                        Spacer()
+                    }
+                }
+            } else {
+                VStack(alignment: .center) {
+                    Spacer()
+                    Text("No Data")
+                        .font(.headline)
+                    Text("Open the app")
+                        .font(.caption).foregroundColor(Color.secondary)
+                    Spacer()
+                }
+            }
         }
-      } else {
-        VStack(alignment: .center) {
-          Spacer()
-          Text("No Data")
-            .font(.headline)
-          Text("Open the app")
-            .font(.caption).foregroundColor(Color.secondary)
-          Spacer()
-        }
-      }
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     .applyContainerBackground()
   }
 }
@@ -120,3 +110,4 @@ struct ConditionalStatusData {
     )
   }
 }
+

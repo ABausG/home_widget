@@ -12,6 +12,7 @@ import '../util/fs.dart';
 import '../util/ios_templates.dart';
 import '../util/localization_templates.dart';
 import '../util/naming.dart';
+import '../util/string_catalog.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 import 'swift_widget_emitter.dart';
 
@@ -151,9 +152,12 @@ $loadDataLogic
 ''';
     }
 
+    // Constants and gallery strings resolve through the string catalog, so only
+    // keyed strings — whose runtime overrides live in a UserDefaults blob —
+    // still need the resolver.
     final localizationHelpers = <String>[
-      if (spec.hasLocalizedStrings) swiftLocalizeHelpers,
-      if (spec.keyedLocalizedStrings.isNotEmpty) swiftLocalizedReadHelper,
+      if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
+      if (spec.needsLocaleHelpers) swiftLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       extraContent = [
@@ -165,7 +169,7 @@ $loadDataLogic
     // Keyed localized strings must be resolved at render time so a system
     // language change is picked up without waiting for a new timeline. Timeline
     // entries still carry a snapshot for WidgetKit, but the view re-reads.
-    final reResolveAtRender = spec.keyedLocalizedStrings.isNotEmpty;
+    final reResolveAtRender = spec.needsLocaleHelpers;
     final dataExpr = !hasDataFields
         ? 'null'
         : reResolveAtRender
@@ -215,13 +219,13 @@ $loadDataLogic
         displayName: spec.data.name,
         description: spec.data.description,
         displayNameExpression: _galleryStringExpression(
-          baseValue: spec.data.name,
+          resourceName: spec.labelResourceName,
           translations: spec.data.localization?.name,
         ),
         descriptionExpression: spec.data.description == null
             ? null
             : _galleryStringExpression(
-                baseValue: spec.data.description!,
+                resourceName: spec.descriptionResourceName,
                 translations: spec.data.localization?.description,
               ),
         supportedFamilies: supportedFamilies,
@@ -242,6 +246,20 @@ $loadDataLogic
 
     await infoPlist.writeAsString(iosInfoPlistTemplate());
     logger.detail('Generated: ${infoPlist.path}');
+
+    final catalogEntries = _stringCatalogEntries();
+    final catalogFile = File(
+      p.join(extensionDir.path, 'Localizable.xcstrings'),
+    );
+    if (catalogEntries.isNotEmpty) {
+      await catalogFile.writeAsString(
+        stringCatalogJson(
+          sourceLanguage: spec.defaultLocale,
+          entries: catalogEntries,
+        ),
+      );
+      logger.detail('Generated: ${catalogFile.path}');
+    }
 
     await ensureAppGroupEntitlement(
       entitlementsFile: extensionEntitlements,
@@ -267,6 +285,16 @@ $loadDataLogic
 
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
       await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
+
+      // Never wire a catalog we did not write: a stale reference to a missing
+      // file fails the build.
+      if (catalogEntries.isNotEmpty) {
+        await ensureLocalizableCatalogInXcodeProject(
+          pbxprojFile: xcodeproj,
+          widgetClassName: widgetClassName,
+          locales: spec.supportedLocales,
+        );
+      }
       logger.detail('Updated: ${xcodeproj.path}');
     }
   }
@@ -276,24 +304,50 @@ $loadDataLogic
   /// Returns null when nothing was translated, so widgets that opt out — a
   /// brand name, say — keep the `LocalizedStringKey` behaviour they have today.
   String? _galleryStringExpression({
-    required String baseValue,
+    required String resourceName,
     required Map<String, String>? translations,
   }) {
     if (translations == null || translations.isEmpty) return null;
+    return 'NSLocalizedString("$resourceName", comment: "")';
+  }
 
+  /// The entries the extension's string catalog has to carry.
+  ///
+  /// Maps resource name to locale tag → text, always including the default
+  /// locale. Empty when the widget has nothing fixed to translate, in which
+  /// case no catalog is written and none is wired into the Xcode project.
+  Map<String, Map<String, String>> _stringCatalogEntries() {
     final defaultLocale = spec.defaultLocale;
-    final values = <String, String>{
-      defaultLocale: baseValue,
-      ...translations,
-    };
-    final entries = values.entries
-        .map(
-          (e) => '"${escapeSwiftStringLiteral(e.key)}": '
-              '"${escapeSwiftStringLiteral(e.value)}"',
-        )
-        .join(', ');
-    return 'hwLocalize([$entries], '
-        'baseLocale: "${escapeSwiftStringLiteral(defaultLocale)}")';
+    final entries = <String, Map<String, String>>{};
+
+    for (final constant in spec.constantLocalizedStrings) {
+      entries[constant.resourceName] = {
+        defaultLocale: constant.baseValue,
+        ...constant.defaultTranslations,
+      };
+    }
+
+    final localization = spec.data.localization;
+    final nameTranslations = localization?.name;
+    if (nameTranslations != null && nameTranslations.isNotEmpty) {
+      entries[spec.labelResourceName] = {
+        defaultLocale: spec.data.name,
+        ...nameTranslations,
+      };
+    }
+
+    final descriptionTranslations = localization?.description;
+    final description = spec.data.description;
+    if (description != null &&
+        descriptionTranslations != null &&
+        descriptionTranslations.isNotEmpty) {
+      entries[spec.descriptionResourceName] = {
+        defaultLocale: description,
+        ...descriptionTranslations,
+      };
+    }
+
+    return entries;
   }
 
   String _swiftDefaultLiteral(HWDataType<dynamic> field) {

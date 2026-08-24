@@ -15,7 +15,15 @@ class WidgetValueDecoder {
   /// is the base value by the time any code is emitted.
   final String? defaultLocale;
 
-  WidgetValueDecoder(this.object, {this.defaultLocale});
+  /// Namespace for the platform string resources holding constant translations,
+  /// as `home_widget_<snake_widget_class>`.
+  ///
+  /// Threaded through decoding for the same reason as [defaultLocale]: the
+  /// resource name depends on which widget the string ended up in, which only
+  /// the caller knows.
+  final String? resourcePrefix;
+
+  WidgetValueDecoder(this.object, {this.defaultLocale, this.resourcePrefix});
 
   HWWidget decode() {
     if (object == null || object!.isNull) {
@@ -55,7 +63,11 @@ class WidgetValueDecoder {
   }
 
   HWWidget decodeRecursive(DartObject? obj) {
-    return WidgetValueDecoder(obj, defaultLocale: defaultLocale).decode();
+    return WidgetValueDecoder(
+      obj,
+      defaultLocale: defaultLocale,
+      resourcePrefix: resourcePrefix,
+    ).decode();
   }
 
   static T? decodeEnum<T>(DartObject? obj, List<T> values) {
@@ -185,14 +197,14 @@ class WidgetValueDecoder {
     return decodeEnum(obj, HWTextAlign.values);
   }
 
-  /// Reads a `defaultValues` locale map, or null when [obj] is not a localized
-  /// string.
+  /// Reads a `defaultTranslations` locale map, or null when [obj] is not a
+  /// localized string.
   ///
   /// Dispatch is on the presence of the field rather than on the type name: a
   /// redirecting const factory is not guaranteed to report the target class,
   /// and a silent miss here would drop every translation.
   static Map<String, String>? decodeLocalizedValues(DartObject obj) =>
-      decodeStringMap(getField(obj, 'defaultValues'));
+      decodeStringMap(getField(obj, 'defaultTranslations'));
 
   /// Decodes a `Map<String, String>` constant, or null when [obj] is absent or
   /// not a map.
@@ -215,6 +227,7 @@ class WidgetValueDecoder {
   static HWDataType<dynamic>? decodeDataType(
     DartObject? obj, {
     String? defaultLocale,
+    String? resourcePrefix,
   }) {
     if (obj == null || obj.isNull) return null;
 
@@ -229,9 +242,10 @@ class WidgetValueDecoder {
     if (localizedValues != null) {
       return HWLocalizedString.resolved(
         key,
-        defaultValues: localizedValues,
+        defaultTranslations: localizedValues,
         isConstant: getField(obj, 'isConstant')?.toBoolValue() ?? false,
         defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
       );
     }
 
@@ -249,7 +263,11 @@ class WidgetValueDecoder {
       return HWBool(key, defaultValue: defaultValue);
     } else if (typeName == 'HWJson') {
       final childObj = getField(obj, 'child');
-      final child = decodeDataType(childObj, defaultLocale: defaultLocale);
+      final child = decodeDataType(
+        childObj,
+        defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
+      );
       if (child == null) return null;
       if (child is! HWString &&
           child is! HWInt &&

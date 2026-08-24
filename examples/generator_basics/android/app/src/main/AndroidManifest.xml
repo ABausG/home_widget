@@ -31,7 +31,7 @@
             android:value="2" />
         <receiver
             android:name="es.antonborri.generator_basics.ConditionalStatusHomeWidgetReceiver"
-            android:label="Conditional Status"
+            android:label="@string/home_widget_conditional_status_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -42,7 +42,7 @@
         </receiver>
         <receiver
             android:name="es.antonborri.generator_basics.AdaptiveGreetingHomeWidgetReceiver"
-            android:label="Adaptive Greeting"
+            android:label="@string/home_widget_adaptive_greeting_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -53,7 +53,7 @@
         </receiver>
         <receiver
             android:name="es.antonborri.generator_basics.ThemedCounterHomeWidgetReceiver"
-            android:label="Themed Counter"
+            android:label="@string/home_widget_themed_counter_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -64,7 +64,7 @@
         </receiver>
         <receiver
             android:name="es.antonborri.generator_basics.BasicCreationHomeWidgetReceiver"
-            android:label="Basic Creation"
+            android:label="@string/home_widget_basic_creation_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -75,7 +75,7 @@
         </receiver>
         <receiver
             android:name="es.antonborri.generator_basics.SimpleDataHomeWidgetReceiver"
-            android:label="Simple Data"
+            android:label="@string/home_widget_simple_data_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -86,7 +86,7 @@
         </receiver>
         <receiver
             android:name="es.antonborri.generator_basics.GreetingHomeWidgetReceiver"
-            android:label="Greeting"
+            android:label="@string/home_widget_greeting_label"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

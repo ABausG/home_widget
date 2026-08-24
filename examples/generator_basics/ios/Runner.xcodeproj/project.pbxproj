@@ -52,6 +52,7 @@
 		F75562003C66D77F33700356 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57A6DC8BCEEFBAB8C4EA2B75 /* WidgetKit.framework */; };
 		FC33104FCD2E58ECD7D4E6DD /* GreetingHomeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5BCC929270044FD56361CD74 /* GreetingHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		FCF1885877750949AF7E0106 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = CB0FC4F5287E60E031CB11E7 /* SwiftUI.framework */; };
+		68B5B06267515CAF6416AAE8 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CDF98DF3A136E38ACDC0EEFD /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -277,6 +278,7 @@
 		F0F47542A752AA8A6E8F9B15 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDA93D1F525FF7BCA2596749 /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
 		FFBC868A10CA240736EA97A4 /* BasicCreationHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BasicCreationHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		CDF98DF3A136E38ACDC0EEFD /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -388,6 +390,7 @@
 				7FDBF64B8C639418454840DD /* Widget.swift */,
 				CF89D343EB2BA338D02185E5 /* WidgetBundle.swift */,
 				C91FCCFC4573FF57DB6E877A /* Info.plist */,
+				CDF98DF3A136E38ACDC0EEFD /* Localizable.xcstrings */,
 			);
 			path = LocalizedGreetingHomeWidget;
 			sourceTree = "<group>";
@@ -732,6 +735,8 @@
 			knownRegions = (
 				en,
 				Base,
+				de,
+				"pt-BR",
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (
@@ -798,6 +803,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				68B5B06267515CAF6416AAE8 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

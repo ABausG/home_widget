@@ -202,11 +202,20 @@ XmlElement? _findAndroidWidgetReceiver(
   required String widgetClassName,
   required String providerInfoName,
 }) {
+  // Match the class name as a whole trailing segment — fully qualified
+  // (`com.pkg.FooReceiver`), relative (`.FooReceiver`) or bare (`FooReceiver`).
+  // A substring check would be wrong: `GreetingHomeWidgetReceiver` is contained
+  // in `AdaptiveGreetingHomeWidgetReceiver`, so one widget would find and
+  // mutate another widget's receiver.
+  final receiverClassPattern = RegExp(
+    '(^|\\.)${RegExp.escape('${widgetClassName}Receiver')}\$',
+  );
+
   for (final receiver
       in application.childElements.where((e) => e.localName == 'receiver')) {
     final name = receiver.getAttribute('android:name');
     if (name == null) continue;
-    if (name == receiverFqcn || name.contains('${widgetClassName}Receiver')) {
+    if (name == receiverFqcn || receiverClassPattern.hasMatch(name)) {
       return receiver;
     }
   }

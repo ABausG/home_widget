@@ -1,3 +1,6 @@
+import 'package:meta/meta.dart';
+
+import 'utils/content_hash.dart';
 import 'utils/string_literals.dart';
 
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
@@ -81,15 +84,17 @@ class HWString extends HWDataType<String> {
   /// A string whose shipped value differs per locale, and which can additionally
   /// be overridden per locale at runtime via the generated `saveData`.
   ///
-  /// [defaultValues] maps locale tag to text and must include the widget's
-  /// `defaultLocale`. Resolution at render time is exact tag (`pt-BR`) →
-  /// language (`pt`) → default locale.
+  /// [defaultTranslations] maps locale tag to text and must include the
+  /// widget's `defaultLocale`. At render time each of the user's preferred
+  /// languages is tried in order — exact tag (`pt-PT`), then language (`pt`),
+  /// then any key sharing that language with a different region or script
+  /// (`pt-BR`) — before falling back to the default locale.
   ///
   /// This is a redirecting const factory rather than a static method because it
   /// has to be usable inside a `@HomeWidget(...)` annotation.
   const factory HWString.localized(
     String key, {
-    required Map<String, String> defaultValues,
+    required Map<String, String> defaultTranslations,
   }) = HWLocalizedString;
 
   @override
@@ -151,17 +156,20 @@ class HWString extends HWDataType<String> {
 /// Two flavours, distinguished by [isConstant]:
 ///
 /// * **keyed** (`HWString.localized('greeting', ...)`) — a real data field. The
-///   compiled [defaultValues] are the fallback tier; the app may override any
-///   locale at runtime through the generated `saveData`.
+///   compiled [defaultTranslations] are the fallback tier; the app may override
+///   any locale at runtime through the generated `saveData`.
 /// * **constant** (`HWText.localized({...})`) — compile-time only. Carries no
 ///   meaningful [key], never reaches the data class, prefs or `saveData`.
+///   Its translations ship as platform string resources, keyed by
+///   [resourceName], so the OS resolves them with the user's full
+///   preferred-language list and per-app language settings.
 ///
-/// [defaultLocale] is not written by the annotation author; the parser stamps it
-/// on from `HomeWidgetLocalization.defaultLocale` so the emitted code knows
-/// which entry is the base value.
+/// [defaultLocale] and [resourcePrefix] are not written by the annotation
+/// author; the parser stamps them on so the emitted code knows which entry is
+/// the base value and which resource holds the translations.
 class HWLocalizedString extends HWString {
   /// Locale tag (`en`, `pt-BR`) to shipped text.
-  final Map<String, String> defaultValues;
+  final Map<String, String> defaultTranslations;
 
   /// True when this string is inlined at build time rather than data-backed.
   final bool isConstant;
@@ -170,35 +178,72 @@ class HWLocalizedString extends HWString {
   /// annotation-space, where it is not knowable.
   final String? defaultLocale;
 
+  /// Namespace for [resourceName], stamped on by the parser as
+  /// `home_widget_<snake_widget_class>`.
+  ///
+  /// Null in annotation-space: a const constructor cannot know which widget it
+  /// ends up in.
+  final String? resourcePrefix;
+
   const HWLocalizedString(
     super.key, {
-    required this.defaultValues,
+    required this.defaultTranslations,
   })  : isConstant = false,
-        defaultLocale = null;
+        defaultLocale = null,
+        resourcePrefix = null;
 
   /// Compile-time constant form. The key is unused and deliberately empty:
   /// a const constructor cannot compute one, and nothing consumes it.
-  const HWLocalizedString.constant({required this.defaultValues})
+  ///
+  /// Parser plumbing: annotation authors reach this through
+  /// [HWText.localized], never directly. Outside the semver contract — it may
+  /// change shape in any release.
+  @internal
+  const HWLocalizedString.constant({required this.defaultTranslations})
       : isConstant = true,
         defaultLocale = null,
+        resourcePrefix = null,
         super('');
 
-  /// Rebuilt by the parser with [defaultLocale] resolved.
+  /// Rebuilt by the parser with [defaultLocale] and [resourcePrefix] resolved.
+  ///
+  /// Parser plumbing: only the annotation decoder constructs these, and only
+  /// once it knows which widget the string belongs to. Outside the semver
+  /// contract — it may change shape in any release.
+  @internal
   const HWLocalizedString.resolved(
     super.key, {
-    required this.defaultValues,
+    required this.defaultTranslations,
     required this.isConstant,
     required this.defaultLocale,
+    this.resourcePrefix,
   });
 
   /// Returns a copy carrying [locale] as the default locale.
+  ///
+  /// Parser plumbing: used while stamping widget-level context onto decoded
+  /// strings. Outside the semver contract — it may change shape in any release.
+  @internal
   HWLocalizedString withDefaultLocale(String locale) =>
       HWLocalizedString.resolved(
         key,
-        defaultValues: defaultValues,
+        defaultTranslations: defaultTranslations,
         isConstant: isConstant,
         defaultLocale: locale,
+        resourcePrefix: resourcePrefix,
       );
+
+  /// The platform string resource holding this constant's translations.
+  ///
+  /// `home_widget_<snake_widget_class>_t_<hash>`, where the hash covers the
+  /// translations: identical maps within one widget collapse onto one resource,
+  /// and editing a translation yields a new name so the generator can prune the
+  /// entry it replaces.
+  ///
+  /// Falls back to the bare `home_widget_` namespace when the parser has not
+  /// stamped a prefix, which only happens for directly constructed instances.
+  String get resourceName =>
+      '${resourcePrefix ?? 'home_widget'}_t_${localizedContentHash(defaultTranslations)}';
 
   /// The locale the generated resolver falls back to.
   ///
@@ -207,17 +252,21 @@ class HWLocalizedString extends HWString {
   /// construction in tests.
   String get baseLocaleTag {
     final locale = defaultLocale;
-    if (locale != null && defaultValues.containsKey(locale)) return locale;
-    return defaultValues.keys.isEmpty ? '' : defaultValues.keys.first;
+    if (locale != null && defaultTranslations.containsKey(locale)) {
+      return locale;
+    }
+    return defaultTranslations.keys.isEmpty
+        ? ''
+        : defaultTranslations.keys.first;
   }
 
   /// The base-locale text.
-  String get baseValue => defaultValues[baseLocaleTag] ?? '';
+  String get baseValue => defaultTranslations[baseLocaleTag] ?? '';
 
   /// `mapOf("en" to "Hello", "de" to "Hallo")`
   String get kotlinMapLiteral {
-    if (defaultValues.isEmpty) return 'emptyMap()';
-    final entries = defaultValues.entries
+    if (defaultTranslations.isEmpty) return 'emptyMap()';
+    final entries = defaultTranslations.entries
         .map(
           (e) => '"${escapeKotlinStringLiteral(e.key)}" to '
               '"${escapeKotlinStringLiteral(e.value)}"',
@@ -228,8 +277,8 @@ class HWLocalizedString extends HWString {
 
   /// `["en": "Hello", "de": "Hallo"]`
   String get swiftMapLiteral {
-    if (defaultValues.isEmpty) return '[:]';
-    final entries = defaultValues.entries
+    if (defaultTranslations.isEmpty) return '[:]';
+    final entries = defaultTranslations.entries
         .map(
           (e) => '"${escapeSwiftStringLiteral(e.key)}": '
               '"${escapeSwiftStringLiteral(e.value)}"',
@@ -240,7 +289,7 @@ class HWLocalizedString extends HWString {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    return 'hwReadLocalized($store, "$key", locale, $kotlinMapLiteral, '
+    return 'hwReadLocalized($store, "$key", locales, $kotlinMapLiteral, '
         '"${escapeKotlinStringLiteral(baseLocaleTag)}")';
   }
 
@@ -250,18 +299,24 @@ class HWLocalizedString extends HWString {
         'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
   }
 
+  /// Constants read from `res/values[-<locale>]/strings.xml`.
+  ///
+  /// `context` is a parameter of the generated `WidgetContent`, and the
+  /// generated file's package is the app package, so `R` resolves unqualified.
   @override
   String kotlinAccess(String dataExpr) {
     if (!isConstant) return super.kotlinAccess(dataExpr);
-    return 'hwLocalize(hwLocale, $kotlinMapLiteral, '
-        '"${escapeKotlinStringLiteral(baseLocaleTag)}")';
+    return 'context.getString(R.string.$resourceName)';
   }
 
+  /// Constants read from the extension's `Localizable.xcstrings` catalog.
+  ///
+  /// `NSLocalizedString` returns the key itself on a miss, which can only
+  /// happen if the catalog was removed from the target by hand.
   @override
   String swiftAccess(String dataExpr) {
     if (!isConstant) return super.swiftAccess(dataExpr);
-    return 'hwLocalize($swiftMapLiteral, '
-        'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
+    return 'NSLocalizedString("$resourceName", comment: "")';
   }
 
   @override
@@ -297,14 +352,19 @@ class HWLocalizedString extends HWString {
           key == other.key &&
           isConstant == other.isConstant &&
           defaultLocale == other.defaultLocale &&
-          _mapEquals(defaultValues, other.defaultValues);
+          resourcePrefix == other.resourcePrefix &&
+          _mapEquals(defaultTranslations, other.defaultTranslations);
 
+  /// Content hashing reuses [localizedContentHash]: equal maps produce equal
+  /// hashes, which is all `hashCode` must guarantee (equality itself is
+  /// [_mapEquals]).
   @override
   int get hashCode => Object.hash(
         key,
         isConstant,
         defaultLocale,
-        _mapHash(defaultValues),
+        resourcePrefix,
+        localizedContentHash(defaultTranslations),
       );
 }
 
@@ -316,12 +376,6 @@ bool _mapEquals(Map<String, String> a, Map<String, String> b) {
     if (!b.containsKey(entry.key) || b[entry.key] != entry.value) return false;
   }
   return true;
-}
-
-int _mapHash(Map<String, String> map) {
-  final entries = map.entries.map((e) => '${e.key} ${e.value}').toList()
-    ..sort();
-  return Object.hashAll(entries);
 }
 
 class HWInt extends HWDataType<int> {

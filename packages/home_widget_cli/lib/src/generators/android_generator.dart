@@ -46,9 +46,9 @@ class AndroidGenerator {
       return;
     }
 
-    final packageName = spec.data.android?.packageName ??
-        tryDetectAndroidPackage(projectRoot) ??
-        'com.example';
+    final detectedPackage = tryDetectAndroidPackage(projectRoot);
+    final packageName =
+        spec.data.android?.packageName ?? detectedPackage ?? 'com.example';
     final packagePath = packageName.split('.').join(p.separator);
 
     final widgetClassName = '${spec.className}HomeWidget';
@@ -96,8 +96,9 @@ class AndroidGenerator {
         '        private const val PREFERENCES_PREFIX = "home_widget.${spec.className}"',
       );
       buffer.writeln();
-      final localeParam =
-          spec.keyedLocalizedStrings.isNotEmpty ? ', locale: String' : '';
+      final localeParam = spec.keyedLocalizedStrings.isNotEmpty
+          ? ', locales: List<String>'
+          : '';
       buffer.writeln(
         '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam): $className {',
       );
@@ -135,9 +136,11 @@ class AndroidGenerator {
       dataClassContent = buffer.toString();
     }
 
+    // Constants resolve through `R.string`, so only keyed strings — whose
+    // runtime overrides live in a preferences blob — still need the resolver.
     final localizationHelpers = <String>[
-      if (spec.hasLocalizedStrings) kotlinLocalizeHelpers,
-      if (spec.keyedLocalizedStrings.isNotEmpty) kotlinLocalizedReadHelper,
+      if (spec.needsLocaleHelpers) kotlinLocalizeHelpers,
+      if (spec.needsLocaleHelpers) kotlinLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       dataClassContent = [
@@ -146,13 +149,12 @@ class AndroidGenerator {
       ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
-    if (spec.hasLocalizedStrings) {
-      bodyBuffer.writeln('    val hwLocale = hwCurrentLocale(context)');
+    if (spec.needsLocaleHelpers) {
+      bodyBuffer.writeln('    val hwLocales = hwCurrentLocales(context)');
     }
     if (hasDataFields) {
       final className = '${spec.className}Data';
-      final localeArg =
-          spec.keyedLocalizedStrings.isNotEmpty ? ', hwLocale' : '';
+      final localeArg = spec.needsLocaleHelpers ? ', hwLocales' : '';
       bodyBuffer.writeln('    val prefs = currentState.preferences');
       bodyBuffer.writeln(
         '    val widgetData = $className.fromPreferences(prefs$localeArg)',
@@ -223,6 +225,14 @@ class AndroidGenerator {
       layoutImports.add('import java.io.File');
       layoutImports.add('import org.json.JSONObject');
     }
+    // `R` is generated under the module namespace. It resolves unqualified in
+    // the common case where the widget lives in that package, but an annotation
+    // that overrides `packageName` puts the file somewhere else.
+    if (spec.constantLocalizedStrings.isNotEmpty &&
+        detectedPackage != null &&
+        detectedPackage != packageName) {
+      layoutImports.add('import $detectedPackage.R');
+    }
 
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
@@ -250,9 +260,8 @@ class AndroidGenerator {
     final localization = spec.data.localization;
 
     // Everything under `home_widget_` is ours and is rewritten on every run.
-    final resourcePrefix = 'home_widget_${toSnakeCase(spec.className)}';
-    final labelResourceName = '${resourcePrefix}_label';
-    final descriptionResourceName = '${resourcePrefix}_description';
+    final labelResourceName = spec.labelResourceName;
+    final descriptionResourceName = spec.descriptionResourceName;
 
     await _writeLocalizedStringResource(
       projectRoot,
@@ -271,6 +280,28 @@ class AndroidGenerator {
       );
       descriptionResource = '@string/$descriptionResourceName';
     }
+
+    // Constant translations ship as resources so the platform resolves them
+    // with the user's full language list and any per-app language override.
+    final constantResourceNames = <String>{};
+    for (final constant in spec.constantLocalizedStrings) {
+      constantResourceNames.add(constant.resourceName);
+      await _writeLocalizedStringResource(
+        projectRoot,
+        name: constant.resourceName,
+        baseValue: constant.baseValue,
+        translations: {
+          for (final entry in constant.defaultTranslations.entries)
+            if (entry.key != constant.baseLocaleTag) entry.key: entry.value,
+        },
+      );
+    }
+
+    await _pruneStaleConstantResources(
+      projectRoot,
+      prefix: spec.resourcePrefix,
+      live: constantResourceNames,
+    );
 
     await _removeLegacyStringResource(
       projectRoot,
@@ -459,6 +490,55 @@ class AndroidGenerator {
       }
       writeXmlFile(stringsFile, doc);
       logger.detail('Removed stale "$name" from ${stringsFile.path}');
+    }
+  }
+
+  /// Removes constant-translation entries this widget no longer generates.
+  ///
+  /// The resource name carries a hash of the translations, so editing one
+  /// produces a new name rather than overwriting the old entry. Without this
+  /// sweep every edit would leave its predecessor behind, and the app would go
+  /// on shipping strings that no longer appear anywhere in the annotation.
+  ///
+  /// Only `<prefix>_t_*` is considered: gallery entries, other widgets and
+  /// hand-written strings all fall outside it.
+  Future<void> _pruneStaleConstantResources(
+    Directory projectRoot, {
+    required String prefix,
+    required Set<String> live,
+  }) async {
+    final resDir = Directory(
+      p.join(projectRoot.path, 'android', 'app', 'src', 'main', 'res'),
+    );
+    if (!resDir.existsSync()) return;
+
+    final ownedPattern = RegExp('^${RegExp.escape(prefix)}_t_[0-9a-f]+\$');
+
+    for (final entity in resDir.listSync().whereType<Directory>()) {
+      final dirName = p.basename(entity.path);
+      if (dirName != 'values' && !_localeValuesDirPattern.hasMatch(dirName)) {
+        continue;
+      }
+
+      final stringsFile = File(p.join(entity.path, 'strings.xml'));
+      if (!stringsFile.existsSync()) continue;
+
+      final doc = tryParseXmlFile(stringsFile);
+      if (doc == null) continue;
+
+      final stale = doc.rootElement.childElements.where((e) {
+        if (e.localName != 'string') return false;
+        final name = e.getAttribute('name');
+        if (name == null || !ownedPattern.hasMatch(name)) return false;
+        return !live.contains(name);
+      }).toList();
+      if (stale.isEmpty) continue;
+
+      for (final element in stale) {
+        element.remove();
+      }
+      writeXmlFile(stringsFile, doc);
+      logger.detail('Removed stale translations from ${stringsFile.path}');
     }
   }
 

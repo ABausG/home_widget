@@ -118,6 +118,14 @@ const Set<String> _reservedDartWords = {
   'switch', 'this', 'throw', 'true', 'try', 'var', 'void', 'while', 'with',
 };
 
+/// The namespace every platform resource this widget owns is written under.
+///
+/// Everything matching `home_widget_<snake_widget_class>_` is generated output:
+/// the generator rewrites and prunes inside it freely, and never touches
+/// anything outside it.
+String widgetResourcePrefix(String className) =>
+    'home_widget_${toSnakeCase(className)}';
+
 /// Converts a PascalCase or camelCase string into snake_case.
 String toSnakeCase(String input) {
   final trimmed = input.trim();

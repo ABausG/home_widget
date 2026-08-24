@@ -75,6 +75,7 @@ class HWDataExists extends HWConditional {
     final data = WidgetValueDecoder.decodeDataType(
       dataObj,
       defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
     );
     if (data == null) {
       // coverage:ignore-start
@@ -135,6 +136,7 @@ class HWBoolConditional extends HWConditional {
     final data = WidgetValueDecoder.decodeDataType(
       dataObj,
       defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
     );
     if (data == null || !_isSupportedBoolData(data)) {
       // coverage:ignore-start

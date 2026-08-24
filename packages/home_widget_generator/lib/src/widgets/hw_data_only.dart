@@ -13,6 +13,7 @@ class HWDataOnly extends HWWidget implements HWDataWidget {
       final decoded = WidgetValueDecoder.decodeDataType(
         d,
         defaultLocale: decoder.defaultLocale,
+        resourcePrefix: decoder.resourcePrefix,
       );
       // coverage:ignore-start
       if (decoded == null) {

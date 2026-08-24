@@ -1,7 +1,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-import SwiftUI
 import WidgetKit
+import SwiftUI
 
 @main
 struct ThemedCounterHomeWidgetBundle: WidgetBundle {

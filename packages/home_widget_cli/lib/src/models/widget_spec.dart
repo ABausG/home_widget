@@ -1,5 +1,7 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
+import '../util/naming.dart';
+
 /// A JSON object field grouped by its root key for native codegen.
 class JsonDataGroup {
   /// The root JSON key (e.g. `profile` in `profile.user.name`).
@@ -105,9 +107,40 @@ class WidgetSpec {
   List<HWLocalizedString> get keyedLocalizedStrings =>
       localizedStrings.where((f) => !f.isConstant).toList();
 
-  /// Whether anything in this widget needs the locale resolver emitted.
-  bool get hasLocalizedStrings =>
-      localizedStrings.isNotEmpty || hasLocalizedGalleryStrings;
+  /// Localized strings fixed at build time, one entry per platform resource.
+  ///
+  /// Deduplicated by resource name: two identical maps in one widget describe
+  /// the same resource and must not be written twice.
+  List<HWLocalizedString> get constantLocalizedStrings {
+    final seen = <String>{};
+    return [
+      for (final string in localizedStrings)
+        if (string.isConstant && seen.add(string.resourceName)) string,
+    ];
+  }
+
+  /// Whether the generated native code needs the locale-resolution helpers.
+  ///
+  /// Only keyed strings do: their runtime overrides live in one preferences
+  /// blob that the widget has to resolve itself. Constants and gallery strings
+  /// are platform resources, resolved by the OS.
+  bool get needsLocaleHelpers => keyedLocalizedStrings.isNotEmpty;
+
+  /// Namespace for every platform resource this widget owns.
+  String get resourcePrefix => widgetResourcePrefix(className);
+
+  /// Resource holding the gallery title.
+  String get labelResourceName => '${resourcePrefix}_label';
+
+  /// Resource holding the gallery description.
+  String get descriptionResourceName => '${resourcePrefix}_description';
+
+  /// Every locale this widget ships text for, default locale first.
+  List<String> get supportedLocales {
+    final configured = data.localization?.supportedLocales ?? const <String>[];
+    final locales = <String>{defaultLocale, ...configured};
+    return locales.toList();
+  }
 
   /// Whether the gallery name or description carries translations.
   bool get hasLocalizedGalleryStrings {

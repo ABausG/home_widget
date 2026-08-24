@@ -48,13 +48,15 @@ void main() {
       String key = 'greeting',
       bool isConstant = false,
       String? defaultLocale = 'en',
-      Map<String, String> defaultValues = values,
+      Map<String, String> defaultTranslations = values,
+      String? resourcePrefix = 'home_widget_greeting',
     }) =>
         HWLocalizedString.resolved(
           key,
-          defaultValues: defaultValues,
+          defaultTranslations: defaultTranslations,
           isConstant: isConstant,
           defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
         );
 
     test('dedupes in a Set despite Dart maps not being structurally equal', () {
@@ -67,7 +69,7 @@ void main() {
     test('differing translations are not equal', () {
       expect(
         localized(),
-        isNot(equals(localized(defaultValues: const {'en': 'Hi'}))),
+        isNot(equals(localized(defaultTranslations: const {'en': 'Hi'}))),
       );
     });
 
@@ -80,17 +82,56 @@ void main() {
       expect(localized(defaultLocale: null).baseLocaleTag, 'en');
     });
 
-    test('constant form inlines the resolver into the access expression', () {
+    test('constant form reads the platform string resource', () {
       final constant = localized(key: '', isConstant: true);
+      final name = constant.resourceName;
+      expect(name, matches(r'^home_widget_greeting_t_[0-9a-f]{8}$'));
       expect(
         constant.kotlinAccess('widgetData'),
-        'hwLocalize(hwLocale, mapOf("en" to "Hello", "de" to "Hallo", '
-        '"pt-BR" to "Ola"), "en")',
+        'context.getString(R.string.$name)',
       );
       expect(
         constant.swiftAccess('entry.data'),
-        'hwLocalize(["en": "Hello", "de": "Hallo", "pt-BR": "Ola"], '
-        'baseLocale: "en")',
+        'NSLocalizedString("$name", comment: "")',
+      );
+    });
+
+    test('the resource name follows the content, not the ordering', () {
+      final constant = localized(key: '', isConstant: true);
+      final reordered = localized(
+        key: '',
+        isConstant: true,
+        defaultTranslations: const {
+          'pt-BR': 'Ola',
+          'de': 'Hallo',
+          'en': 'Hello'
+        },
+      );
+      expect(reordered.resourceName, constant.resourceName);
+
+      final edited = localized(
+        key: '',
+        isConstant: true,
+        defaultTranslations: const {
+          'en': 'Hello',
+          'de': 'Hallo!',
+          'pt-BR': 'Ola'
+        },
+      );
+      expect(edited.resourceName, isNot(constant.resourceName));
+    });
+
+    test('the resource name is namespaced by the widget', () {
+      final other = localized(
+        key: '',
+        isConstant: true,
+        resourcePrefix: 'home_widget_other',
+      );
+      expect(other.resourceName, startsWith('home_widget_other_t_'));
+      // An unstamped instance still lands under the generated namespace.
+      expect(
+        localized(key: '', isConstant: true, resourcePrefix: null).resourceName,
+        startsWith('home_widget_t_'),
       );
     });
 
@@ -105,9 +146,15 @@ void main() {
 
     test('keyed form reads through preferences first', () {
       final keyed = localized();
+      // One key holds every translation, and the preferred-language list is
+      // threaded in so the helper can walk it.
       expect(
         keyed.androidReadValue(store: 'prefs', key: 'p.greeting'),
-        startsWith('hwReadLocalized(prefs, "p.greeting", locale, mapOf('),
+        startsWith('hwReadLocalized(prefs, "p.greeting", locales, mapOf('),
+      );
+      expect(
+        keyed.iosReadValue(store: 'defaults', key: 'p.greeting'),
+        startsWith('hwReadLocalized(defaults, "p.greeting", ['),
       );
       expect(
         keyed.iosReadValue(store: 'defaults', key: 'p.greeting'),
@@ -122,7 +169,7 @@ void main() {
 
     test('escapes characters that would break the generated literal', () {
       final tricky = localized(
-        defaultValues: const {'en': 'a"b\\c\nd\$e'},
+        defaultTranslations: const {'en': 'a"b\\c\nd\$e'},
         defaultLocale: 'en',
       );
       expect(tricky.kotlinMapLiteral, contains(r'\"'));
@@ -138,7 +185,7 @@ void main() {
 @HomeWidget(
   name: 'Greeting',
   widget: HWText(HWString.localized('greeting',
-      defaultValues: {'en': 'Hello', 'de': 'Hallo'})),
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'})),
 )
 class Greeting {}
 ''');
@@ -149,7 +196,7 @@ class Greeting {}
     final localized = data! as HWLocalizedString;
     expect(localized.key, 'greeting');
     expect(localized.isConstant, isFalse);
-    expect(localized.defaultValues, {'en': 'Hello', 'de': 'Hallo'});
+    expect(localized.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
   });
 
   test('HWText.localized decodes to a constant localized string', () async {
@@ -166,6 +213,6 @@ class Greeting {}
     expect(data, isA<HWLocalizedString>());
     final localized = data! as HWLocalizedString;
     expect(localized.isConstant, isTrue);
-    expect(localized.defaultValues, {'en': 'Hello', 'de': 'Hallo'});
+    expect(localized.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
   });
 }
