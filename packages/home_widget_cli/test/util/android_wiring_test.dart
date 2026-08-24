@@ -313,6 +313,159 @@ dependencies {
           .called(1);
     });
 
+    test(
+        'declares android:exported when creating the first intent-filter on an '
+        'existing receiver', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label">
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(updated, contains('android:exported="true"'));
+      expect(updated, contains('<intent-filter>'));
+      expect(
+        updated,
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+    });
+
+    test('keeps an explicit android:exported="false" when adding the filter',
+        () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label"
+            android:exported="false">
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(updated, contains('android:exported="false"'));
+      expect(updated, isNot(contains('android:exported="true"')));
+      expect(
+        updated,
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+    });
+
+    test('does not add android:exported when the intent-filter already exists',
+        () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(
+        updated,
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+      expect(updated, isNot(contains('android:exported')));
+    });
+
+    test('keeps an existing android:label when the caller omits one', () async {
+      const original = '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''';
+      manifestFile.writeAsStringSync(original);
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(
+        updated,
+        contains('android:label="@string/home_widget_foo_label"'),
+      );
+      expect(updated, isNot(contains('android:label="FooHomeWidget"')));
+      expect(updated, original);
+      verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
+    });
+
     test('does not match a receiver whose name merely ends with the class name',
         () async {
       // `FooHomeWidgetReceiver` is a suffix of `AdaptiveFooHomeWidgetReceiver`;

@@ -180,7 +180,12 @@ Future<void> ensureAndroidManifestReceiver(
   if (existing != null) {
     var changed = false;
 
-    final desiredLabel = label ?? widgetClassName;
+    // Never downgrade a label the caller did not ask about: without the
+    // fallback to the current attribute, a call that omits [label] would
+    // rewrite an existing `@string/…` resource reference to the bare class
+    // name.
+    final desiredLabel =
+        label ?? existing.getAttribute('android:label') ?? widgetClassName;
     final currentLabel = existing.getAttribute('android:label');
     if (currentLabel != desiredLabel) {
       existing.setAttribute('android:label', desiredLabel);
@@ -277,6 +282,16 @@ bool _ensureLocaleChangedAction(XmlElement receiver) {
       .firstWhere((e) => e != null, orElse: () => null);
 
   if (filter == null) {
+    // Giving a component its first intent-filter makes `android:exported`
+    // mandatory on API 31+: a component with an intent-filter that does not
+    // declare it fails to build/install. A hand-written receiver adopted by
+    // name match may not declare it, so supply the same default as a
+    // generated receiver — but never overwrite an explicit author choice.
+    // (This is purely about the manifest merger's requirement; system
+    // broadcasts such as LOCALE_CHANGED are delivered either way.)
+    if (receiver.getAttribute('android:exported') == null) {
+      receiver.setAttribute('android:exported', 'true');
+    }
     receiver.children.add(
       XmlElement(
         XmlName('intent-filter'),
