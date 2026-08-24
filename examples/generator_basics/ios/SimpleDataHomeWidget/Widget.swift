@@ -24,7 +24,8 @@ struct Provider: TimelineProvider {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = SimpleDataData.fromUserDefaults(prefs)
 
-    completion(Timeline(entries: [SimpleDataHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
+    completion(
+      Timeline(entries: [SimpleDataHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
 
   }
 }
@@ -34,22 +35,21 @@ struct SimpleDataHomeWidgetEntry: TimelineEntry {
   let data: SimpleDataData
 }
 
-
 struct SimpleDataHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-        VStack {
-            Text("Simple Data")
-            HStack {
-                Text("label: ")
-                Text(entry.data.label ?? "")
-            }
-            HStack {
-                Text("value: ")
-                Text(entry.data.value != nil ? "\(entry.data.value!)" : "0")
-            }
-        }
+    VStack {
+      Text("Simple Data")
+      HStack {
+        Text("label: ")
+        Text(entry.data.label ?? "")
+      }
+      HStack {
+        Text("value: ")
+        Text(entry.data.value != nil ? "\(entry.data.value!)" : "0")
+      }
+    }
     .applyContainerBackground()
   }
 }
@@ -92,4 +92,3 @@ struct SimpleDataData {
     )
   }
 }
-

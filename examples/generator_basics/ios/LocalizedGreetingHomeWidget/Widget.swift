@@ -9,10 +9,13 @@ import WidgetKit
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> LocalizedGreetingHomeWidgetEntry {
-    LocalizedGreetingHomeWidgetEntry(date: Date(), data: LocalizedGreetingData.fromUserDefaults(nil))
+    LocalizedGreetingHomeWidgetEntry(
+      date: Date(), data: LocalizedGreetingData.fromUserDefaults(nil))
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (LocalizedGreetingHomeWidgetEntry) -> Void) {
+  func getSnapshot(
+    in context: Context, completion: @escaping (LocalizedGreetingHomeWidgetEntry) -> Void
+  ) {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
 
@@ -24,7 +27,9 @@ struct Provider: TimelineProvider {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
 
-    completion(Timeline(entries: [LocalizedGreetingHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
+    completion(
+      Timeline(
+        entries: [LocalizedGreetingHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
 
   }
 }
@@ -34,19 +39,18 @@ struct LocalizedGreetingHomeWidgetEntry: TimelineEntry {
   let data: LocalizedGreetingData
 }
 
-
 struct LocalizedGreetingHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
-        VStack(alignment: .leading) {
-            Text(NSLocalizedString("home_widget_localized_greeting_t_1e28f816", comment: ""))
-                .font(.caption)
-            Text(data.greeting ?? "")
-                .font(.title).fontWeight(.bold)
-        }
+    VStack(alignment: .leading) {
+      Text(NSLocalizedString("home_widget_localized_greeting_t_1e28f816", comment: ""))
+        .font(.caption)
+      Text(data.greeting ?? "")
+        .font(.title).fontWeight(.bold)
+    }
     .applyContainerBackground()
   }
 }
@@ -58,7 +62,9 @@ struct LocalizedGreetingHomeWidget: Widget {
     StaticConfiguration(kind: kind, provider: Provider()) { entry in
       LocalizedGreetingHomeWidgetEntryView(entry: entry)
     }
-    .configurationDisplayName(NSLocalizedString("home_widget_localized_greeting_label", comment: ""))
+    .configurationDisplayName(
+      NSLocalizedString("home_widget_localized_greeting_label", comment: "")
+    )
     .description(NSLocalizedString("home_widget_localized_greeting_description", comment: ""))
     .supportedFamilies([.systemSmall])
   }
@@ -84,11 +90,12 @@ struct LocalizedGreetingData {
 
   static func fromUserDefaults(_ defaults: UserDefaults?) -> LocalizedGreetingData {
     return LocalizedGreetingData(
-      greeting: hwReadLocalized(defaults, "\(paramPrefix).greeting", ["en": "Hello", "de": "Hallo", "pt-BR": "Olá"], baseLocale: "en"),
+      greeting: hwReadLocalized(
+        defaults, "\(paramPrefix).greeting", ["en": "Hello", "de": "Hallo", "pt-BR": "Olá"],
+        baseLocale: "en"),
     )
   }
 }
-
 
 func hwCurrentLocales() -> [String] {
   let preferred = Locale.preferredLanguages.map {
@@ -137,7 +144,8 @@ func hwReadLocalized(
 ) -> String {
   let locales = hwCurrentLocales()
   if let stored = hwDecodeLocalized(defaults?.string(forKey: key)),
-     let match = hwResolveLocalized(locales, stored, baseLocale: baseLocale) {
+    let match = hwResolveLocalized(locales, stored, baseLocale: baseLocale)
+  {
     return match
   }
   return hwResolveLocalized(locales, values, baseLocale: baseLocale) ?? ""
@@ -146,7 +154,8 @@ func hwReadLocalized(
 func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
   guard let raw, let data = raw.data(using: .utf8) else { return nil }
   guard let object = try? JSONSerialization.jsonObject(with: data),
-        let json = object as? [String: Any] else { return nil }
+    let json = object as? [String: Any]
+  else { return nil }
   var values: [String: String] = [:]
   for (name, value) in json {
     if let text = value as? String { values[name] = text }

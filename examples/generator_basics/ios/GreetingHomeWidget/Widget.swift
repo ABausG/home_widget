@@ -24,7 +24,8 @@ struct Provider: TimelineProvider {
     let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
     let data = GreetingData.fromUserDefaults(prefs)
 
-    completion(Timeline(entries: [GreetingHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
+    completion(
+      Timeline(entries: [GreetingHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
 
   }
 }
@@ -34,17 +35,16 @@ struct GreetingHomeWidgetEntry: TimelineEntry {
   let data: GreetingData
 }
 
-
 struct GreetingHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-        VStack(alignment: .leading) {
-            Text("Hello")
-                .font(.caption)
-            Text(entry.data.name ?? "")
-                .font(.title).fontWeight(.bold)
-        }
+    VStack(alignment: .leading) {
+      Text("Hello")
+        .font(.caption)
+      Text(entry.data.name ?? "")
+        .font(.title).fontWeight(.bold)
+    }
     .applyContainerBackground()
   }
 }
@@ -85,4 +85,3 @@ struct GreetingData {
     )
   }
 }
-
