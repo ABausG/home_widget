@@ -115,11 +115,17 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 }
 
 /// Ensures the widget receiver is registered in `AndroidManifest.xml`.
+///
+/// [handleLocaleChange] adds `android.intent.action.LOCALE_CHANGED` to the
+/// receiver's intent-filter so a placed widget re-renders after a system
+/// language change. Set it for widgets that render localized content
+/// themselves.
 Future<void> ensureAndroidManifestReceiver(
   Directory projectRoot, {
   required String widgetClassName,
   required String appPackageName,
   required String providerInfoName,
+  bool handleLocaleChange = false,
   String? label,
 }) async {
   final manifestFile = File(
@@ -172,10 +178,23 @@ Future<void> ensureAndroidManifestReceiver(
   );
 
   if (existing != null) {
+    var changed = false;
+
     final desiredLabel = label ?? widgetClassName;
     final currentLabel = existing.getAttribute('android:label');
     if (currentLabel != desiredLabel) {
       existing.setAttribute('android:label', desiredLabel);
+      changed = true;
+    }
+
+    if (handleLocaleChange && _ensureLocaleChangedAction(existing)) {
+      changed = true;
+    }
+    // Deliberately add-only: a widget that stops being localized keeps the
+    // action, since removing it would mean deciding whether a hand-written
+    // entry was ours to delete.
+
+    if (changed) {
       writeXmlFile(manifestFile, manifestXml);
       logger.detail('Updated: ${manifestFile.path}');
     }
@@ -187,6 +206,7 @@ Future<void> ensureAndroidManifestReceiver(
       receiverFqcn: receiverFqcn,
       widgetClassName: widgetClassName,
       providerInfoName: providerInfoName,
+      handleLocaleChange: handleLocaleChange,
       label: label,
     ),
   );
@@ -231,10 +251,51 @@ XmlElement? _findAndroidWidgetReceiver(
   return null;
 }
 
+const String _appWidgetUpdateAction =
+    'android.appwidget.action.APPWIDGET_UPDATE';
+const String _localeChangedAction = 'android.intent.action.LOCALE_CHANGED';
+
+XmlElement _actionElement(String name) => XmlElement(
+      XmlName('action'),
+      [XmlAttribute(XmlName('android:name'), name)],
+      const [],
+    );
+
+/// Adds `LOCALE_CHANGED` to [receiver]'s intent-filter if it is not there yet.
+///
+/// Returns whether the document was modified, so the caller only rewrites the
+/// manifest when something actually changed.
+bool _ensureLocaleChangedAction(XmlElement receiver) {
+  final alreadyPresent = receiver
+      .findAllElements('action')
+      .any((e) => e.getAttribute('android:name') == _localeChangedAction);
+  if (alreadyPresent) return false;
+
+  final filter = receiver.childElements
+      .where((e) => e.localName == 'intent-filter')
+      .cast<XmlElement?>()
+      .firstWhere((e) => e != null, orElse: () => null);
+
+  if (filter == null) {
+    receiver.children.add(
+      XmlElement(
+        XmlName('intent-filter'),
+        const [],
+        [_actionElement(_localeChangedAction)],
+      ),
+    );
+    return true;
+  }
+
+  filter.children.add(_actionElement(_localeChangedAction));
+  return true;
+}
+
 XmlElement _buildAndroidAppWidgetReceiverElement({
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
+  bool handleLocaleChange = false,
   String? label,
 }) {
   return XmlElement(
@@ -249,16 +310,8 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
         XmlName('intent-filter'),
         const [],
         [
-          XmlElement(
-            XmlName('action'),
-            [
-              XmlAttribute(
-                XmlName('android:name'),
-                'android.appwidget.action.APPWIDGET_UPDATE',
-              ),
-            ],
-            const [],
-          ),
+          _actionElement(_appWidgetUpdateAction),
+          if (handleLocaleChange) _actionElement(_localeChangedAction),
         ],
       ),
       XmlElement(

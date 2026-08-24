@@ -38,6 +38,17 @@ class AndroidGenerator {
     final jsonGroups = spec.jsonDataGroups;
     final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
 
+    // One predicate for the `locales` parameter and the argument passed to it:
+    // gating the two on separately-spelled but "equivalent" conditions is how
+    // uncompilable Kotlin gets reported as a successful generation.
+    final needsLocaleArg = spec.needsLocaleHelpers;
+
+    // Whether this widget renders localized text itself, and so goes stale on
+    // a system language change unless the receiver re-renders it. Gallery
+    // strings do not count — the launcher resolves those on its own.
+    final rendersLocalizedContent = spec.constantLocalizedStrings.isNotEmpty ||
+        spec.keyedLocalizedStrings.isNotEmpty;
+
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
       logger.warn(
@@ -96,9 +107,7 @@ class AndroidGenerator {
         '        private const val PREFERENCES_PREFIX = "home_widget.${spec.className}"',
       );
       buffer.writeln();
-      final localeParam = spec.keyedLocalizedStrings.isNotEmpty
-          ? ', locales: List<String>'
-          : '';
+      final localeParam = needsLocaleArg ? ', locales: List<String>' : '';
       buffer.writeln(
         '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam): $className {',
       );
@@ -139,8 +148,8 @@ class AndroidGenerator {
     // Constants resolve through `R.string`, so only keyed strings — whose
     // runtime overrides live in a preferences blob — still need the resolver.
     final localizationHelpers = <String>[
-      if (spec.needsLocaleHelpers) kotlinLocalizeHelpers,
-      if (spec.needsLocaleHelpers) kotlinLocalizedReadHelper,
+      if (needsLocaleArg) kotlinLocalizeHelpers,
+      if (needsLocaleArg) kotlinLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       dataClassContent = [
@@ -149,12 +158,12 @@ class AndroidGenerator {
       ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
-    if (spec.needsLocaleHelpers) {
+    if (needsLocaleArg) {
       bodyBuffer.writeln('    val hwLocales = hwCurrentLocales(context)');
     }
     if (hasDataFields) {
       final className = '${spec.className}Data';
-      final localeArg = spec.needsLocaleHelpers ? ', hwLocales' : '';
+      final localeArg = needsLocaleArg ? ', hwLocales' : '';
       bodyBuffer.writeln('    val prefs = currentState.preferences');
       bodyBuffer.writeln(
         '    val widgetData = $className.fromPreferences(prefs$localeArg)',
@@ -262,6 +271,7 @@ class AndroidGenerator {
       androidGlanceReceiverTemplate(
         packageName: packageName,
         widgetClassName: widgetClassName,
+        handleLocaleChange: rendersLocalizedContent,
       ),
     );
     logger.detail('Generated: ${receiverFile.path}');
@@ -346,6 +356,7 @@ class AndroidGenerator {
       widgetClassName: widgetClassName,
       appPackageName: packageName,
       providerInfoName: providerInfoName,
+      handleLocaleChange: rendersLocalizedContent,
       label: '@string/$labelResourceName',
     );
   }

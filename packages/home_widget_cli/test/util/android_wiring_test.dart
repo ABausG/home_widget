@@ -197,6 +197,122 @@ dependencies {
       verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
     });
 
+    test('adds LOCALE_CHANGED to a newly created receiver', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(
+        updated,
+        contains('android:name="android.appwidget.action.APPWIDGET_UPDATE"'),
+      );
+      expect(
+        updated,
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+    });
+
+    test('leaves a non-localized widget receiver without LOCALE_CHANGED',
+        () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(
+        updated,
+        contains('android:name="android.appwidget.action.APPWIDGET_UPDATE"'),
+      );
+      expect(updated, isNot(contains('LOCALE_CHANGED')));
+    });
+
+    test('adds LOCALE_CHANGED to an existing receiver that lacks it', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+      final afterFirst = manifestFile.readAsStringSync();
+
+      expect(
+        afterFirst,
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+      expect(
+        afterFirst,
+        contains('android:name="android.appwidget.action.APPWIDGET_UPDATE"'),
+      );
+      expect('LOCALE_CHANGED'.allMatches(afterFirst).length, 1);
+
+      // A second run must not append the action again.
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      expect(manifestFile.readAsStringSync(), afterFirst);
+      verify(() => mockLogger.detail(any(that: contains('Updated:'))))
+          .called(1);
+    });
+
     test('does not match a receiver whose name merely ends with the class name',
         () async {
       // `FooHomeWidgetReceiver` is a suffix of `AdaptiveFooHomeWidgetReceiver`;

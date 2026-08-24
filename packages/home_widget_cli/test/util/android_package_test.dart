@@ -77,6 +77,31 @@ android {
     expect(tryDetectAndroidPackage(root), 'com.from.kts');
   });
 
+  test('does not read a same-suffix property as the applicationId', () {
+    File(p.join(root.path, 'android', 'app', 'build.gradle'))
+        .writeAsStringSync("""
+android {
+    defaultConfig {
+        testApplicationId "com.example.test"
+    }
+}
+""");
+    expect(tryDetectAndroidPackage(root), isNull);
+  });
+
+  test('prefers the real applicationId over a same-suffix property', () {
+    File(p.join(root.path, 'android', 'app', 'build.gradle'))
+        .writeAsStringSync("""
+android {
+    defaultConfig {
+        testApplicationId "com.example.test"
+        applicationId "com.example.real"
+    }
+}
+""");
+    expect(tryDetectAndroidPackage(root), 'com.example.real');
+  });
+
   test('reads the namespace from a Groovy build.gradle', () {
     File(p.join(root.path, 'android', 'app', 'build.gradle'))
         .writeAsStringSync("""

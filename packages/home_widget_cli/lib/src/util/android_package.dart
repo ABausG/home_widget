@@ -89,8 +89,13 @@ String? tryDetectAndroidNamespace(Directory projectRoot) {
 }
 
 /// Matches both the Groovy (`x "y"`) and Kotlin DSL (`x = "y"`) spellings.
-RegExp _gradleAssignment(String property) =>
-    RegExp('''$property(?:\\s*=\\s*|\\s+)['"]([^'"]+)['"]''');
+///
+/// The leading guard keeps the match from starting mid-identifier, so a
+/// same-suffix property (`myapplicationId`) is not read as `applicationId`.
+RegExp _gradleAssignment(String property) => RegExp(
+      '''(?:^|[^A-Za-z0-9_.])$property(?:\\s*=\\s*|\\s+)['"]([^'"]+)['"]''',
+      multiLine: true,
+    );
 
 String? _tryReadNamespaceFromGradle(File gradleFile) {
   if (!gradleFile.existsSync()) return null;

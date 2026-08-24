@@ -135,7 +135,8 @@ void main() {
     test('produces Dart identifiers', () {
       expect(localeIdentifier('en'), 'en');
       expect(localeIdentifier('pt-BR'), 'ptBR');
-      expect(localeIdentifier('zh-Hant'), 'zhHANT');
+      expect(localeIdentifier('zh-Hant'), 'zhHant');
+      expect(localeIdentifier('zh-Hant-TW'), 'zhHantTW');
       expect(localeIdentifier('es-419'), 'es419');
     });
 
@@ -268,6 +269,77 @@ void main() {
       expect(_strings(root, 'de'), isNot(contains(before.resourceName)));
       // Anything outside our prefix is left alone.
       expect(_strings(root), contains('app_name'));
+    });
+
+    test('wires a locale-change refresh only for localized widgets', () async {
+      String receiverSource(Directory root) => File(
+            p.join(
+              root.path,
+              'android/app/src/main/kotlin/com/example/'
+              'GreetingHomeWidgetReceiver.kt',
+            ),
+          ).readAsStringSync();
+
+      Future<String> manifestAfter(Directory root, WidgetSpec spec) async {
+        final manifest = File(
+          p.join(root.path, 'android/app/src/main/AndroidManifest.xml'),
+        );
+        await manifest.writeAsString('''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+    </application>
+</manifest>
+''');
+        await AndroidGenerator(spec: spec, projectRoot: root).generate();
+        return manifest.readAsStringSync();
+      }
+
+      // A keyed string is resolved at render time...
+      final keyedRoot = await _project();
+      final keyedManifest =
+          await manifestAfter(keyedRoot, _spec(widget: HWText(_localized())));
+      expect(
+          receiverSource(keyedRoot), contains('Intent.ACTION_LOCALE_CHANGED'));
+      expect(keyedManifest, contains('android.intent.action.LOCALE_CHANGED'));
+
+      // ...and so is a constant, which reads through `R.string`.
+      final constantRoot = await _project();
+      final constantManifest = await manifestAfter(
+        constantRoot,
+        _spec(widget: HWText(_localized(isConstant: true))),
+      );
+      expect(
+        receiverSource(constantRoot),
+        contains('Intent.ACTION_LOCALE_CHANGED'),
+      );
+      expect(
+          constantManifest, contains('android.intent.action.LOCALE_CHANGED'));
+
+      // A widget with no localized content renders nothing that goes stale.
+      final plainRoot = await _project();
+      final plainManifest = await manifestAfter(
+        plainRoot,
+        _spec(widget: HWText.fixed('Hello'), localization: null),
+      );
+      expect(receiverSource(plainRoot), isNot(contains('onReceive')));
+      expect(plainManifest, isNot(contains('LOCALE_CHANGED')));
+
+      // Gallery translations do not count: the launcher resolves the name and
+      // description itself, without the widget being re-rendered.
+      final galleryRoot = await _project();
+      final galleryManifest = await manifestAfter(
+        galleryRoot,
+        _spec(
+          widget: HWText.fixed('Hello'),
+          localization: const HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+            name: {'de': 'Begrüßung'},
+          ),
+        ),
+      );
+      expect(receiverSource(galleryRoot), isNot(contains('onReceive')));
+      expect(galleryManifest, isNot(contains('LOCALE_CHANGED')));
     });
 
     test('threads the locales into the data class for keyed strings', () async {

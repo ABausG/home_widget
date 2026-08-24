@@ -41,8 +41,9 @@ bool isWellFormedLocaleTag(String tag) =>
 
 /// Converts a BCP-47 locale tag into a Dart identifier.
 ///
-/// `pt-BR` becomes `ptBR`. Reserved words get a trailing underscore — Icelandic
-/// is `is`, which would otherwise generate code that does not compile.
+/// `pt-BR` becomes `ptBR`, `zh-Hant` becomes `zhHant`. Reserved words get a
+/// trailing underscore — Icelandic is `is`, which would otherwise generate code
+/// that does not compile.
 String localeIdentifier(String tag) {
   final parts =
       tag.split(RegExp(r'[^A-Za-z0-9]+')).where((p) => p.isNotEmpty).toList();
@@ -50,10 +51,10 @@ String localeIdentifier(String tag) {
 
   final buffer = StringBuffer(parts.first.toLowerCase());
   for (final part in parts.skip(1)) {
+    // A 4-letter subtag is a script (`Hant`, `Latn`) and reads as Pascal case;
+    // regions stay upper (`BR`, `TW`), and numeric ones (`419`) are unaffected.
     buffer.write(
-      _pascalCaseSegment(part).toUpperCase() == part.toUpperCase()
-          ? part.toUpperCase()
-          : _pascalCaseSegment(part),
+      part.length == 4 ? _pascalCaseSegment(part) : part.toUpperCase(),
     );
   }
 
