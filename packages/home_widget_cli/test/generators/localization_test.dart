@@ -79,7 +79,7 @@ Future<Directory> _project() async {
 }
 
 /// Runs the generated translations class in a subprocess, so the resolution
-/// and merge tests assert behaviour rather than source text.
+/// and merge tests assert behavior rather than source text.
 ///
 /// Only the translations class and the merge helper are lifted out — neither
 /// touches `package:home_widget`, so the extract runs with no package config.

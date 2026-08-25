@@ -19,7 +19,7 @@
 /// Android's parent-locale matching for free. Without it a `pt-PT` device would
 /// render constants in Portuguese and keyed strings in the default locale.
 /// Several siblings can match (`pt-BR` and `pt-MZ`); the lexicographically
-/// smallest key wins so generation and behaviour stay deterministic.
+/// smallest key wins so generation and behavior stay deterministic.
 ///
 /// The base value is looked up in the map under `baseLocale` rather than passed
 /// separately, so the same string is never emitted twice.

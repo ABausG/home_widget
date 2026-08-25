@@ -302,7 +302,7 @@ $loadDataLogic
   /// Swift expression for a gallery string, or null to keep the plain literal.
   ///
   /// Returns null when nothing was translated, so widgets that opt out — a
-  /// brand name, say — keep the `LocalizedStringKey` behaviour they have today.
+  /// brand name, say — keep the `LocalizedStringKey` behavior they have today.
   String? _galleryStringExpression({
     required String resourceName,
     required Map<String, String>? translations,

@@ -26,8 +26,8 @@ String _pascalCaseSegment(String segment) {
 ///
 /// Deliberately narrower than full BCP-47. Variants and extensions
 /// (`de-CH-1901`, `zh-Hant-TW-u-ca-chinese`) parse fine but there is no
-/// implemented mapping for them, so rejecting them turns silent misgeneration
-/// into a clear error.
+/// implemented mapping for them, so rejecting them turns silently wrong
+/// output into a clear error.
 final RegExp _localeTagPattern = RegExp(
   r'^[A-Za-z]{2,3}(-[A-Za-z]{4})?(-([A-Za-z]{2}|[0-9]{3}))?$',
 );

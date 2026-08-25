@@ -137,6 +137,12 @@ words:
     - writeln
     - xcstrings
     - uncompilable
+    - dedupe
+    - myapplication
+    - classpath
+    - subtag
+    - aapt
+ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)
     - Lokalisierte
     - Begrüßung
@@ -153,3 +159,12 @@ words:
     - Cumprimenta
     - você
     - idioma
+    # localization test fixtures (German + Portuguese sample text)
+    - Meine
+    - Begruessung
+    - etwas
+    - Mostra
+    - Aktivitaet
+    - Servus
+    - itens
+    - Grüezi
