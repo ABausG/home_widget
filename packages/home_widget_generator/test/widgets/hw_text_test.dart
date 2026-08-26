@@ -15,6 +15,56 @@ void main() {
         expect(text, isA<HWText>());
         expect(text, isA<HWWidget>());
       });
+
+      test('localized constructor holds the raw locale map', () {
+        const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
+        expect(text, isA<HWWidget>());
+        expect(text.fixedContent, isNull);
+        // The map cannot be wrapped by a const constructor, so it stays raw.
+        expect(text.dataType, isNull);
+        expect(text.localizedContent, {'en': 'Hello', 'de': 'Hallo'});
+      });
+
+      test('effectiveDataType wraps a localized map in a constant string', () {
+        const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
+        final effective = text.effectiveDataType;
+        expect(effective, isA<HWLocalizedString>());
+        final localized = effective! as HWLocalizedString;
+        expect(localized.isConstant, isTrue);
+        expect(localized.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
+        // The wrapper is what the generator collects as a dependency.
+        expect(text.dataDependencies, {localized});
+      });
+
+      test('effectiveDataType prefers an explicit data type', () {
+        const text = HWText(HWString('key'));
+        expect(text.effectiveDataType, const HWString('key'));
+        expect(text.dataDependencies, {const HWString('key')});
+      });
+
+      test('effectiveDataType is null for fixed text', () {
+        const text = HWText.fixed('Hello');
+        expect(text.effectiveDataType, isNull);
+        expect(text.dataDependencies, isEmpty);
+      });
+    });
+
+    group('nested JSON data', () {
+      const text = HWText(HWJson('payload', HWInt('count', defaultValue: 3)));
+
+      test('Kotlin applies the leaf default before stringifying', () {
+        expect(
+          text.toKotlin(0, dataExpr: 'widgetData'),
+          'Text(text = ((widgetData.payload?.count ?: 3)?.toString() ?: "0"))',
+        );
+      });
+
+      test('Swift describes the resolved value', () {
+        final swift = text.toSwift(0, dataExpr: 'entry.data');
+        expect(swift, startsWith('Text(String(describing: '));
+        expect(swift, contains('entry.data.payload?.count'));
+        expect(swift, contains('?? (3)'));
+      });
     });
 
     group('iOS (SwiftUI)', () {

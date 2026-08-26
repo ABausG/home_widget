@@ -441,6 +441,29 @@ class TestWidget {}
       );
     });
 
+    test('parses a nested HWJson path', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText(
+    HWJson('profile', HWJson('address', HWString('city'))),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final text = widget as HWText;
+      expect(
+        text.dataType,
+        const HWJson('profile', HWJson('address', HWString('city'))),
+      );
+      // A JSON child is a legal leaf wrapper, so the path keeps descending.
+      expect(
+        (text.dataType! as HWJson).pathSegments,
+        ['address', 'city'],
+      );
+    });
+
     test('throws when HWJson has no child field', () async {
       final e = await expectParseError('''
 @HomeWidget(

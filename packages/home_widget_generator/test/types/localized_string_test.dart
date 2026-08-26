@@ -167,6 +167,119 @@ void main() {
       );
     });
 
+    test('the public keyed constructor ships translations unstamped', () {
+      const keyed = HWLocalizedString('greeting', defaultTranslations: values);
+      expect(keyed.key, 'greeting');
+      expect(keyed.isConstant, isFalse);
+      // Annotation-space cannot know either of these.
+      expect(keyed.defaultLocale, isNull);
+      expect(keyed.resourcePrefix, isNull);
+      // With no locale stamped on, the first entry anchors the fallback chain.
+      expect(keyed.baseLocaleTag, 'en');
+      expect(keyed.baseValue, 'Hello');
+    });
+
+    test('the constant constructor carries an empty key', () {
+      const constant = HWLocalizedString.constant(defaultTranslations: values);
+      expect(constant.key, '');
+      expect(constant.isConstant, isTrue);
+      expect(constant.defaultLocale, isNull);
+      expect(constant.defaultTranslations, values);
+    });
+
+    test('withDefaultLocale re-anchors the base value and keeps the rest', () {
+      final constant = localized(key: '', isConstant: true);
+      final german = constant.withDefaultLocale('de');
+      expect(german.defaultLocale, 'de');
+      expect(german.baseLocaleTag, 'de');
+      expect(german.baseValue, 'Hallo');
+      expect(german.isConstant, isTrue);
+      expect(german.key, '');
+      expect(german.resourcePrefix, 'home_widget_greeting');
+      // Only the anchor moved, so the shipped resource is unchanged.
+      expect(german.resourceName, constant.resourceName);
+    });
+
+    test('withDefaultLocale ignores a locale it has no translation for', () {
+      expect(localized().withDefaultLocale('fr').baseLocaleTag, 'en');
+    });
+
+    test('keyed form keeps the null-coalescing fallback on iOS', () {
+      expect(
+        localized().iosToString(outerValue: 'd.greeting', innerValue: 'x'),
+        'd.greeting ?? ""',
+      );
+    });
+
+    test('codegen defaults fall back to the base-locale text', () {
+      expect(localized().codegenKotlinDefaultLiteral(), '"Hello"');
+      expect(localized().codegenSwiftDefaultLiteral(), '"Hello"');
+      expect(
+        localized(defaultLocale: 'de').codegenKotlinDefaultLiteral(),
+        '"Hallo"',
+      );
+      expect(
+        localized(defaultLocale: 'de').codegenSwiftDefaultLiteral(),
+        '"Hallo"',
+      );
+    });
+
+    test('codegen defaults escape per target language', () {
+      final tricky = localized(defaultTranslations: const {'en': r'a"b$c'});
+      expect(tricky.codegenKotlinDefaultLiteral(), r'"a\"b\$c"');
+      expect(tricky.codegenSwiftDefaultLiteral(), r'"a\"b$c"');
+    });
+
+    test('an empty translation map degrades to empty literals', () {
+      final empty = localized(defaultTranslations: const {});
+      expect(empty.baseLocaleTag, '');
+      expect(empty.baseValue, '');
+      expect(empty.kotlinMapLiteral, 'emptyMap()');
+      expect(empty.swiftMapLiteral, '[:]');
+      expect(empty.codegenKotlinDefaultLiteral(), '""');
+      expect(empty.codegenSwiftDefaultLiteral(), '""');
+    });
+
+    test('map literals list every translation', () {
+      expect(
+        localized().kotlinMapLiteral,
+        'mapOf("en" to "Hello", "de" to "Hallo", "pt-BR" to "Ola")',
+      );
+      expect(
+        localized().swiftMapLiteral,
+        '["en": "Hello", "de": "Hallo", "pt-BR": "Ola"]',
+      );
+    });
+
+    test('equality distinguishes the stamped parser context', () {
+      expect(localized(), isNot(equals(localized(defaultLocale: 'de'))));
+      expect(localized(), isNot(equals(localized(key: 'other'))));
+      expect(
+        localized(),
+        isNot(equals(localized(resourcePrefix: 'home_widget_other'))),
+      );
+      expect(localized(), isNot(equals(localized(isConstant: true))));
+      expect(localized() == Object(), isFalse);
+    });
+
+    test('hashCode follows translation content, not ordering', () {
+      expect(localized().hashCode, localized().hashCode);
+      expect(
+        localized().hashCode,
+        localized(
+          defaultTranslations: const {
+            'pt-BR': 'Ola',
+            'de': 'Hallo',
+            'en': 'Hello',
+          },
+        ).hashCode,
+      );
+      expect(
+        localized().hashCode,
+        isNot(localized(defaultTranslations: const {'en': 'Hi'}).hashCode),
+      );
+    });
+
     test('escapes characters that would break the generated literal', () {
       final tricky = localized(
         defaultTranslations: const {'en': 'a"b\\c\nd\$e'},

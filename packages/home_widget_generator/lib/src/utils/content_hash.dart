@@ -20,14 +20,9 @@ int _fnv1a32(String input) {
   return hash;
 }
 
-/// The joiner between `locale=value` entries: U+0000, which cannot occur
-/// inside a locale tag or its text, so distinct entry lists can never collapse
-/// onto one input string.
-///
-/// Spelled [String.fromCharCode] deliberately: a raw NUL byte in the source
-/// makes tools treat this file as binary and hide it from searches. Changing
-/// the joiner would change every generated resource name — it is part of the
-/// output contract.
+/// U+0000, spelled [String.fromCharCode] deliberately — a raw NUL byte makes
+/// tools treat this file as binary. Do not change the joiner: it is part of
+/// the output contract, every generated resource name depends on it.
 final String _joiner = String.fromCharCode(0);
 
 /// An 8-character hex digest of [values].
