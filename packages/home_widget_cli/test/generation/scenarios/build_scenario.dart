@@ -9,6 +9,7 @@ class BuildScenario {
     required this.description,
     required this.className,
     required this.widgetSource,
+    this.expectsScheduledUpdateWiring = false,
   });
 
   /// Human-readable description, used as the test name.
@@ -21,4 +22,9 @@ class BuildScenario {
 
   /// Full contents of the `widget.dart` file written into the test project.
   final String widgetSource;
+
+  /// Whether the scenario has time-based fields, so the Android runner should
+  /// assert that the CLI registered the plugin's scheduled update receiver in
+  /// the app's `AndroidManifest.xml`.
+  final bool expectsScheduledUpdateWiring;
 }

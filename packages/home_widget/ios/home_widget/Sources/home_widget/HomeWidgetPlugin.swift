@@ -188,6 +188,16 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
             code: "-3", message: "InvalidArguments updateWidget must be called with name",
             details: nil))
       }
+    } else if call.method == "scheduleWidgetUpdates"
+      || call.method == "cancelScheduledWidgetUpdates"
+    {
+      // No-op on iOS: WidgetKit handles time based content natively through the Widget's
+      // TimelineProvider, so there is nothing to schedule or cancel here.
+      result(true)
+    } else if call.method == "canScheduleExactWidgetUpdates" {
+      // WidgetKit timeline entries are always rendered at their exact date, there is no
+      // permission that could downgrade them.
+      result(true)
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
       if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)

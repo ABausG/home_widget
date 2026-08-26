@@ -1,6 +1,7 @@
 package es.antonborri.home_widget
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.BroadcastReceiver
@@ -122,6 +123,45 @@ class HomeWidgetPlugin :
               classException,
           )
         }
+      }
+      "scheduleWidgetUpdates" -> {
+        val qualifiedName = call.argument<String>("qualifiedAndroidName")
+        val className = call.argument<String>("android") ?: call.argument<String>("name")
+        val updateTimes =
+            call.argument<List<Number>>("updateTimes")?.map { it.toLong() } ?: emptyList()
+        try {
+          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
+          HomeWidgetScheduler.schedule(context, javaClass.name, updateTimes)
+          result.success(true)
+        } catch (classException: ClassNotFoundException) {
+          result.error(
+              "-6",
+              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
+              classException,
+          )
+        }
+      }
+      "cancelScheduledWidgetUpdates" -> {
+        val qualifiedName = call.argument<String>("qualifiedAndroidName")
+        val className = call.argument<String>("android") ?: call.argument<String>("name")
+        try {
+          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
+          HomeWidgetScheduler.cancel(context, javaClass.name)
+          result.success(true)
+        } catch (classException: ClassNotFoundException) {
+          result.error(
+              "-7",
+              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
+              classException,
+          )
+        }
+      }
+      "canScheduleExactWidgetUpdates" -> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+          return result.success(true)
+        }
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        return result.success(alarmManager?.canScheduleExactAlarms() ?: false)
       }
       "setAppGroupId" -> {
         result.success(true)
@@ -269,7 +309,9 @@ class HomeWidgetPlugin :
   companion object {
     internal const val PREFERENCES = "HomeWidgetPreferences"
 
-    private const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
+    /** Name of the SharedPreferences the plugin uses for its own bookkeeping. */
+    internal const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
+
     private const val CALLBACK_DISPATCHER_HANDLE = "callbackDispatcherHandle"
     private const val CALLBACK_HANDLE = "callbackHandle"
 

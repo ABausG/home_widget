@@ -71,6 +71,98 @@ class HomeWidget {
     });
   }
 
+  /// Schedules updates of the HomeScreen Widget at the given [updateTimes]
+  ///
+  /// This is only relevant on Android. There the plugin uses `AlarmManager` to
+  /// broadcast a Widget update at each of the given times.
+  /// On iOS this is a no-op because WidgetKit handles timelines natively.
+  ///
+  /// Any previously scheduled updates for the same Widget are replaced.
+  /// Passing an empty list is equivalent to [cancelScheduledWidgetUpdates].
+  /// Times in the past are ignored.
+  ///
+  /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
+  ///
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
+  ///
+  /// For exact alarms on Android 12+ the app needs to hold the
+  /// `SCHEDULE_EXACT_ALARM` or `USE_EXACT_ALARM` permission. The plugin does not
+  /// declare it. Without it updates are still scheduled, just inexact.
+  /// Use [canScheduleExactWidgetUpdates] to find out which of the two applies.
+  ///
+  /// On Android the app also has to register
+  /// `es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver` in its own
+  /// `AndroidManifest.xml` (together with the `RECEIVE_BOOT_COMPLETED`
+  /// permission) for the updates to be delivered and to survive a reboot.
+  ///
+  /// ## Timezones and DST
+  ///
+  /// [updateTimes] are absolute instants, not wall-clock times — only the
+  /// underlying epoch milliseconds are sent to the platform, so a local
+  /// [DateTime] and its `toUtc()` equivalent schedule the exact same update.
+  /// A recurring wall-clock schedule such as "every day at 06:00 local time"
+  /// is therefore not maintained across a DST change or a timezone change by
+  /// the plugin: the app has to recompute the times and call this method
+  /// again if the drift matters.
+  static Future<bool?> scheduleWidgetUpdates(
+    List<DateTime> updateTimes, {
+    String? name,
+    String? androidName,
+    String? qualifiedAndroidName,
+  }) {
+    final millis =
+        updateTimes.map((time) => time.millisecondsSinceEpoch).toList()..sort();
+    return _channel.invokeMethod('scheduleWidgetUpdates', {
+      'updateTimes': millis,
+      'name': name,
+      'android': androidName,
+      'qualifiedAndroidName': qualifiedAndroidName,
+    });
+  }
+
+  /// Cancels all updates scheduled with [scheduleWidgetUpdates]
+  ///
+  /// This is only relevant on Android. On iOS this is a no-op because WidgetKit
+  /// handles timelines natively.
+  ///
+  /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
+  ///
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
+  static Future<bool?> cancelScheduledWidgetUpdates({
+    String? name,
+    String? androidName,
+    String? qualifiedAndroidName,
+  }) {
+    return _channel.invokeMethod('cancelScheduledWidgetUpdates', {
+      'name': name,
+      'android': androidName,
+      'qualifiedAndroidName': qualifiedAndroidName,
+    });
+  }
+
+  /// Whether [scheduleWidgetUpdates] can schedule *exact* updates
+  ///
+  /// On iOS this is always `true`: WidgetKit renders timeline entries at their
+  /// exact date and no permission can downgrade that.
+  ///
+  /// On Android this is `true` below Android 12 (API 31). From Android 12 on it
+  /// reflects `AlarmManager.canScheduleExactAlarms()`, which requires the app to
+  /// declare either
+  /// * `android.permission.SCHEDULE_EXACT_ALARM` — granted by default on
+  ///   Android 13+, revocable by the user, or
+  /// * `android.permission.USE_EXACT_ALARM` — always granted, but only allowed
+  ///   for apps whose core function needs exact alarms (Google Play reviews it).
+  ///
+  /// The plugin declares neither so apps can choose. When this returns `false`,
+  /// [scheduleWidgetUpdates] does not throw — it silently falls back to inexact
+  /// alarms, which the system may delay (typically by minutes, more while the
+  /// device is dozing).
+  static Future<bool?> canScheduleExactWidgetUpdates() {
+    return _channel.invokeMethod('canScheduleExactWidgetUpdates');
+  }
+
   /// Determines whether pinning HomeScreen Widget is supported.
   static Future<bool?> isRequestPinWidgetSupported() {
     return _channel.invokeMethod('isRequestPinWidgetSupported');

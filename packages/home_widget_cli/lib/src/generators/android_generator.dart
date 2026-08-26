@@ -36,7 +36,11 @@ class AndroidGenerator {
   Future<void> generate() async {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
+    final timedPrimitiveFields = spec.timedPrimitiveDataFields;
+    final timedJsonGroups = spec.timedJsonDataGroups;
+    final hasTimedFields = spec.timedDataFields.isNotEmpty;
+    final hasDataFields =
+        primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedFields;
 
     // The Kotlin `locales` parameter and every argument passed to it have to be
     // gated on this one flag; two separately-spelled "equivalent" conditions
@@ -99,6 +103,13 @@ class AndroidGenerator {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln('    val ${group.key}: $jsonClass? = null,');
       }
+      for (final field in timedPrimitiveFields) {
+        buffer.writeln('    val ${field.key}: ${field.kotlinType}? = null,');
+      }
+      for (final group in timedJsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln('    val ${group.key}: $jsonClass? = null,');
+      }
       buffer.writeln(') {');
       buffer.writeln('    companion object {');
       buffer.writeln(
@@ -106,9 +117,18 @@ class AndroidGenerator {
       );
       buffer.writeln();
       final localeParam = needsLocaleArg ? ', locales: List<String>' : '';
-      buffer.writeln(
-        '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam): $className {',
-      );
+      if (hasTimedFields) {
+        buffer.writeln(
+          '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam, now: Long = System.currentTimeMillis()): $className {',
+        );
+        buffer.writeln(
+          '            val timedValues = resolveTimedValues(prefs, now)',
+        );
+      } else {
+        buffer.writeln(
+          '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam): $className {',
+        );
+      }
       buffer.writeln('            return $className(');
 
       for (final field in primitiveFields) {
@@ -125,12 +145,33 @@ class AndroidGenerator {
         );
       }
 
+      for (final field in timedPrimitiveFields) {
+        final valueExpr = _androidLeafReadExpression(
+          objExpr: 'timedValues',
+          key: field.key,
+          type: field,
+        );
+        buffer.writeln('                ${field.key} = $valueExpr,');
+      }
+      for (final group in timedJsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln(
+          '                ${group.key} = $jsonClass.fromJson(timedValues.optJSONObject("${group.key}")),',
+        );
+      }
+
       buffer.writeln('            )');
       buffer.writeln('        }');
+      if (hasTimedFields) {
+        buffer.writeln();
+        _writeKotlinTimedDataResolver(buffer);
+      }
       buffer.writeln('    }');
       buffer.writeln('}');
-      for (final group in jsonGroups) {
+      final emittedJsonClasses = <String>{};
+      for (final group in [...jsonGroups, ...timedJsonGroups]) {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        if (!emittedJsonClasses.add(jsonClass)) continue;
         buffer.writeln();
         final tree = _buildJsonTree(group.children);
         _writeAndroidJsonNodeClass(
@@ -228,7 +269,7 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.Alignment');
       layoutImports.add('import androidx.glance.layout.Box');
     }
-    if (jsonGroups.isNotEmpty) {
+    if (jsonGroups.isNotEmpty || hasTimedFields) {
       layoutImports.add('import java.io.File');
       layoutImports.add('import org.json.JSONObject');
     }
@@ -345,6 +386,12 @@ class AndroidGenerator {
       handleLocaleChange: rendersLocalizedContent,
       label: '@string/$labelResourceName',
     );
+    if (spec.timedDataFields.isNotEmpty) {
+      // Time-based content drives itself through HomeWidget.scheduleWidgetUpdates
+      // on Android, which needs the plugin's scheduling receiver declared by the
+      // consuming app. Specs without timed fields must not touch the manifest.
+      await ensureAndroidManifestScheduledUpdates(projectRoot);
+    }
   }
 
   Directory _resDir(Directory projectRoot) => Directory(
@@ -459,6 +506,50 @@ class AndroidGenerator {
 
       if (entity.listSync().isEmpty) await entity.delete();
     }
+  }
+
+  /// Emits the companion-object helper resolving the timed data entry that is
+  /// active at `now` (greatest timestamp <= now), or an empty object.
+  void _writeKotlinTimedDataResolver(StringBuffer buffer) {
+    buffer.writeln(
+      '        private fun resolveTimedValues(prefs: android.content.SharedPreferences, now: Long): org.json.JSONObject {',
+    );
+    buffer.writeln(
+      '            val path = prefs.getString("\${PREFERENCES_PREFIX}.timedData", null) ?: return org.json.JSONObject()',
+    );
+    buffer.writeln('            return try {');
+    buffer.writeln('                val file = java.io.File(path)');
+    buffer.writeln(
+      '                if (!file.exists()) return org.json.JSONObject()',
+    );
+    buffer.writeln(
+      '                val json = org.json.JSONObject(file.readText())',
+    );
+    buffer.writeln('                var activeKey: String? = null');
+    buffer.writeln('                var activeTimestamp = 0L');
+    buffer.writeln('                val keys = json.keys()');
+    buffer.writeln('                while (keys.hasNext()) {');
+    buffer.writeln('                    val key = keys.next()');
+    buffer.writeln(
+      '                    val timestamp = key.toLongOrNull() ?: continue',
+    );
+    buffer.writeln(
+      '                    if (timestamp <= now && (activeKey == null || timestamp > activeTimestamp)) {',
+    );
+    buffer.writeln('                        activeKey = key');
+    buffer.writeln('                        activeTimestamp = timestamp');
+    buffer.writeln('                    }');
+    buffer.writeln('                }');
+    buffer.writeln(
+      '                val resolvedKey = activeKey ?: return org.json.JSONObject()',
+    );
+    buffer.writeln(
+      '                json.optJSONObject(resolvedKey) ?: org.json.JSONObject()',
+    );
+    buffer.writeln('            } catch (_: Exception) {');
+    buffer.writeln('                org.json.JSONObject()');
+    buffer.writeln('            }');
+    buffer.writeln('        }');
   }
 
   String _kotlinDefaultLiteral(HWDataType<dynamic> field) {

@@ -1,0 +1,130 @@
+---
+title: Time-based Content
+description: Schedule widget content to change automatically at specific points in time with HWTimedData.
+---
+
+# Time-based Content
+
+Wrap any [`HWDataType`](/generator/data) with `HWTimedData` to have its value change automatically at specific points in time, without opening the app or running background code. This is the same idea weather and calendar apps use to show upcoming conditions or events ahead of time.
+
+```dart
+HWText(HWTimedData(HWString('label')))
+HWText(HWTimedData(HWInt('temperature')))
+HWText(HWTimedData(HWJson('weather', HWString('condition'))))
+```
+
+Any `HWDataType` variant can be wrapped, including `HWJson` — the nested value is read from the entry active at the current time, exactly like reading from regular storage otherwise.
+
+## Example
+
+```dart
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Weather',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example.app'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWColumn(
+    children: [
+      HWText(HWString('location')),
+      HWText(HWTimedData(HWString('label', defaultValue: 'Sunny'))),
+      HWText(HWTimedData(HWInt('temperature'))),
+      HWText(HWTimedData(HWJson('weather', HWString('condition')))),
+    ],
+  ),
+)
+class Weather {}
+```
+
+Alongside the usual `WeatherHomeWidget` helper, this generates a `WeatherTimedData` class with one nullable field per timed key. A wrapped `HWJson` gets a generated nested class, the same as for [regular JSON fields](/generator/data#nested-json):
+
+```dart
+class WeatherTimedData {
+  final String? label;
+  final int? temperature;
+  final WeatherJsonData? weather;
+
+  const WeatherTimedData({this.label, this.temperature, this.weather});
+}
+```
+
+`saveData` gains a `timedData` parameter, keyed by the point in time each entry becomes active:
+
+```dart
+await WeatherHomeWidget.saveData(
+  location: 'Berlin',
+  timedData: {
+    DateTime(2026, 8, 14, 6, 0): const WeatherTimedData(
+      label: 'Sunny',
+      temperature: 18,
+      weather: WeatherJsonData(condition: 'sun'),
+    ),
+    DateTime(2026, 8, 14, 18, 0): const WeatherTimedData(
+      label: 'Rainy',
+      temperature: 12,
+      weather: WeatherJsonData(condition: 'rain'),
+    ),
+  },
+);
+await WeatherHomeWidget.updateWidget();
+```
+
+<Info>
+`saveData` only writes the schedule — always call `updateWidget()` afterwards. On iOS a widget keeps rendering the timeline it was last handed, so a freshly saved schedule is not picked up until `updateWidget()` (which calls `reloadTimelines`) runs, or until the previously built timeline runs out. On Android the alarms for the new times are armed by `saveData` itself, but the widget keeps showing the old content until it is updated.
+</Info>
+
+The whole map is written as a single JSON file (via the same `HomeWidget.saveFile` mechanism used for [nested JSON](/generator/data#nested-json)), keyed by epoch-millisecond UTC timestamps. `getData()` returns it back as `Map<DateTime, WeatherTimedData>?`, and `deleteData(timedData: true)` removes it.
+
+The keys returned by `getData()` are **local-time** `DateTime`s, so they compare equal to a local `DateTime` for the same instant — a map that was saved with local keys round-trips with `containsKey`. Because timestamps are stored as epoch milliseconds, sub-millisecond precision of the keys is not preserved.
+
+## Resolution
+
+At any point in time, the **active entry** is the one with the greatest timestamp at or before "now". Its values fill the timed fields for that moment. If a field is missing from the active entry, it falls back to that field's own `defaultValue`, then `null` — the same rule as regular data fields. If there is no entry at or before now (empty map, every entry still in the future, or nothing has been saved yet), every timed field uses its default. Entries never merge with one another — each one stands entirely on its own.
+
+## Timezones and DST
+
+Entry keys are **absolute instants**, not wall-clock times. Only the epoch milliseconds of each key are persisted, so a local `DateTime` and its `toUtc()` equivalent describe the exact same entry.
+
+Nothing re-interprets a schedule when the device's clock rules change. A schedule that means "every morning at 06:00 local time" is computed once, at save time; after a DST switch or after the user travels into another timezone, those instants still fire at the moment they were computed for — which is now 05:00 or 07:00 local. If that drift matters, recompute the map and save it again (for example on app launch, or from a background refresh).
+
+## How many entries
+
+Keep the map modest — **tens of entries, not hundreds**. Every entry carries its own copy of the timed values (entries never merge), so the stored JSON grows with the entry count, and on iOS every future entry becomes a WidgetKit timeline entry that has to be built and held in memory when the timeline is requested. A day or two of hourly steps is a comfortable size; a full year of them is not. When the schedule runs out, the widget simply keeps showing the last entry until a new schedule is saved (iOS uses an `.atEnd` reload policy, so WidgetKit asks for a new timeline once the last entry is reached).
+
+## Clearing
+
+- Saving a **non-empty** `timedData` map replaces the whole schedule.
+- Saving an **empty map**, or calling `deleteData(timedData: true)`, deletes the stored file and cancels the underlying schedule — see below.
+- `timedData: null` (the default) leaves the existing schedule untouched, like every other `saveData` parameter.
+
+## How it works per platform
+
+<Accordion title="iOS">
+The generated `TimelineProvider.getTimeline` loads every stored entry and builds a real WidgetKit timeline: one entry for "now" plus one for each entry timestamp still in the future, each resolved with the values active at its own time. WidgetKit swaps the displayed content at the right moments on its own — no app process, background task, or notification is involved. `getSnapshot` and the placeholder resolve a single entry for the current time.
+</Accordion>
+
+<Accordion title="Android">
+There is no OS-level timeline API for home screen widgets on Android, so the generated helper schedules the swaps itself by calling `HomeWidget.scheduleWidgetUpdates` (see [Update Widget](/usage/update-widget#scheduled-updates) for the underlying plugin API and its exactness/permission caveats). Each time a scheduled update fires, the widget receives a normal broadcast update and the Glance content re-resolves the active entry for "now" from the same stored JSON — the generated `fromPreferences` gains a `now` parameter for this purpose.
+
+Delivering those alarms requires `es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver` to be registered in your app's `AndroidManifest.xml`. **You do not have to add it yourself:** as soon as a widget schema uses `HWTimedData`, `home_widget_cli` adds the receiver and the `RECEIVE_BOOT_COMPLETED` permission to `android/app/src/main/AndroidManifest.xml` when it generates. The entry is added idempotently, and schemas without timed fields leave the manifest untouched. The resulting entry looks like this:
+
+```xml
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+<application>
+    <receiver
+        android:name="es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver"
+        android:exported="false">
+        <intent-filter>
+            <action android:name="android.intent.action.BOOT_COMPLETED" />
+            <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+        </intent-filter>
+    </receiver>
+</application>
+```
+
+The boot actions are what makes a schedule survive a reboot or an app update — alarms are dropped by the system in both cases and this receiver re-arms them. Alarms are also cleaned up automatically: once the last instance of a widget is removed from the home screen, its remaining scheduled updates are dropped.
+
+On Android 12 and above the swaps only happen at the exact minute if the app holds an exact-alarm permission; otherwise they are scheduled inexactly and the system may delay them. Use [`HomeWidget.canScheduleExactWidgetUpdates()`](/usage/update-widget#scheduled-updates) to find out which applies. Scheduling is a side effect of `saveData`: if it fails for any reason the data is still persisted, and `saveData` does not throw because of it.
+
+</Accordion>

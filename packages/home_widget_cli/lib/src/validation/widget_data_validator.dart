@@ -20,15 +20,32 @@ final RegExp asciiDataNamePattern = RegExp(r'^[A-Za-z][A-Za-z0-9]*$');
 /// have to be formatted app-side and pushed through a plain [HWString].
 final RegExp _placeholderPattern = RegExp(r'\{[A-Za-z0-9_]+\}|%[sdf@]|%\d+\$');
 
+/// Data name reserved for the generated timed data parameter / storage key.
+const String reservedTimedDataName = 'timedData';
+
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
+  // `timedData` only collides with generated API surface when the spec
+  // actually has time-based fields (the `saveData(timedData: ...)` parameter,
+  // the `deleteData(timedData: ...)` flag and the `.timedData` storage key are
+  // only emitted then). Specs without timed fields may use the name freely.
+  final reservesTimedDataName = spec.timedDataFields.isNotEmpty;
+
   for (final field in spec.dataFields) {
     _validateDataTypeKeys(field);
+    if (reservesTimedDataName && field.key == reservedTimedDataName) {
+      throw GeneratorError(
+        'Invalid data name "$reservedTimedDataName" '
+        '(${_describeLeafContext(field)}): '
+        'reserved for the generated timed data parameter.',
+      );
+    }
   }
 
   _validateNoConflictingKeys(spec);
   validateLocalization(spec);
   _validateConditionalData(spec);
+  _validateTimedDataKeys(spec);
 
   for (final group in spec.jsonDataGroups) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
@@ -50,6 +67,10 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
   // so they deliberately carry an empty key.
   if (type is HWLocalizedString && type.isConstant) return;
 
+  if (type is HWTimedData<dynamic>) {
+    _validateDataTypeKeys(type.data);
+    return;
+  }
   _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
   if (type is HWJson) {
     _validateDataTypeKeys(type.child);
@@ -293,6 +314,26 @@ String _describeDataField(HWDataType<dynamic> field) {
   final defaultValue = field.defaultValue;
   if (defaultValue == null) return '${field.runtimeType}';
   return '${field.runtimeType}(defaultValue: $defaultValue)';
+}
+
+/// Rejects keys that are declared both time-based and regular, because both
+/// would map onto the same storage key and the same generated parameter name.
+void _validateTimedDataKeys(WidgetSpec spec) {
+  final timedKeys = <String>{
+    for (final field in spec.timedDataFields) field.key,
+  };
+  if (timedKeys.isEmpty) return;
+
+  for (final field in spec.dataFields) {
+    if (field is HWTimedData) continue;
+    if (timedKeys.contains(field.key)) {
+      throw GeneratorError(
+        'Conflicting data name "${field.key}": declared both as time-based '
+        '(HWTimedData) and as regular data. Use a different name for one '
+        'of them.',
+      );
+    }
+  }
 }
 
 String _describeLeafContext(HWDataType<dynamic> type) {

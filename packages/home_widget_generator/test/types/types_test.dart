@@ -55,6 +55,100 @@ void main() {
       expect(type.kotlinAccess('widgetData'), 'widgetData.fileKey?.flag');
     });
 
+    test('HWTimedData delegates to the wrapped data type', () {
+      const wrapped = HWString('label', defaultValue: 'Sunny');
+      const type = HWTimedData(wrapped);
+
+      expect(type.key, 'label');
+      expect(type.defaultValue, 'Sunny');
+      expect(type.dartType, 'String');
+      expect(type.kotlinType, 'String');
+      expect(type.swiftType, 'String');
+      expect(
+        type.androidReadValue(store: 'prefs', key: 'k'),
+        wrapped.androidReadValue(store: 'prefs', key: 'k'),
+      );
+      expect(
+        type.iosReadValue(store: 'defaults', key: 'k'),
+        wrapped.iosReadValue(store: 'defaults', key: 'k'),
+      );
+      expect(
+        type.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
+        wrapped.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
+      );
+      expect(
+        type.iosToString(outerValue: 'data.x', innerValue: 'data.x'),
+        wrapped.iosToString(outerValue: 'data.x', innerValue: 'data.x'),
+      );
+      expect(type.swiftAccess('entry.data'), 'entry.data.label');
+      expect(type.kotlinAccess('widgetData'), 'widgetData.label');
+      expect(type.codegenKotlinDefaultLiteral(), '"Sunny"');
+      expect(type.codegenSwiftDefaultLiteral(), '"Sunny"');
+    });
+
+    test('HWTimedData delegates JSON accessors and read expressions', () {
+      const wrapped =
+          HWJson('weather', HWString('condition', defaultValue: 'x'));
+      const type = HWTimedData(wrapped);
+
+      expect(type.key, 'weather');
+      expect(type.dartType, 'Map<String, dynamic>');
+      expect(type.swiftAccess('entry.data'), wrapped.swiftAccess('entry.data'));
+      expect(type.kotlinAccess('data'), wrapped.kotlinAccess('data'));
+      expect(
+        type.swiftReadExpr('entry.data'),
+        wrapped.swiftReadExpr('entry.data'),
+      );
+      expect(type.kotlinReadExpr('data'), wrapped.kotlinReadExpr('data'));
+    });
+
+    test('HWTimedData equality and hashCode are based on the wrapped type', () {
+      expect(
+        const HWTimedData(HWString('a')),
+        equals(const HWTimedData(HWString('a'))),
+      );
+      expect(
+        const HWTimedData(HWString('a')).hashCode,
+        const HWTimedData(HWString('a')).hashCode,
+      );
+      expect(
+        const HWTimedData(HWString('a')),
+        isNot(equals(const HWTimedData(HWString('b')))),
+      );
+      expect(
+        const HWTimedData(HWString('a')),
+        isNot(equals(const HWTimedData(HWString('a', defaultValue: 'v')))),
+      );
+      expect(
+        const HWTimedData(HWString('a')),
+        isNot(equals(const HWString('a'))),
+      );
+      expect(
+        const HWString('a'),
+        isNot(equals(const HWTimedData(HWString('a')))),
+      );
+    });
+
+    test('HWTimedData hashCode matches == across type arguments', () {
+      const HWDataType<dynamic> dynamicallyTyped =
+          HWTimedData<dynamic>(HWString('a'));
+      const HWDataType<dynamic> stringTyped =
+          HWTimedData<String>(HWString('a'));
+
+      expect(dynamicallyTyped, equals(stringTyped));
+      expect(dynamicallyTyped.hashCode, stringTyped.hashCode);
+    });
+
+    test('unwrapped returns the type itself except for HWTimedData', () {
+      const plain = HWString('a');
+      const json = HWJson('weather', HWString('condition'));
+
+      expect(plain.unwrapped, same(plain));
+      expect(json.unwrapped, same(json));
+      expect(const HWTimedData(plain).unwrapped, same(plain));
+      expect(const HWTimedData(json).unwrapped, same(json));
+    });
+
     test('Equality works', () {
       expect(const HWString('a'), equals(const HWString('a')));
       expect(const HWString('a'), isNot(equals(const HWString('b'))));

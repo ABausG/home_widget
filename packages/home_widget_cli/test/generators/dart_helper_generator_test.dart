@@ -246,6 +246,214 @@ void main() {
       );
     });
 
+    test('generates timed data class and saveData timedData branch', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWString('title'),
+          HWTimedData(HWString('label', defaultValue: 'Sunny')),
+          HWTimedData(HWInt('temperature')),
+          HWTimedData(HWJson('weather', HWString('condition'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      // Timed data class
+      expect(output, contains('class ExampleWidgetTimedData {'));
+      expect(output, contains('final String? label;'));
+      expect(output, contains('final int? temperature;'));
+      expect(output, contains('final WeatherJsonData? weather;'));
+      expect(output, contains('const ExampleWidgetTimedData({'));
+      expect(
+        output,
+        contains('factory ExampleWidgetTimedData.fromJson('
+            'Map<String, dynamic>? json) {'),
+      );
+      expect(output, contains("label: _readString(json['label']) ?? 'Sunny',"));
+      expect(output, contains("temperature: _readInt(json['temperature']),"));
+      expect(
+        output,
+        contains(
+          "weather: json['weather'] is Map<String, dynamic> ? WeatherJsonData.fromJson(json['weather'] as Map<String, dynamic>) : null,",
+        ),
+      );
+      expect(output, contains("if (label != null) 'label': label,"));
+      expect(
+        output,
+        contains("if (weather != null) 'weather': weather!.toJson(),"),
+      );
+
+      // Nested JSON class for the timed HWJson root
+      expect(output, contains('class WeatherJsonData {'));
+      expect(output, contains('final String? condition;'));
+
+      // JSON helper imports/readers are required for timed data too
+      expect(output, contains("import 'dart:convert';"));
+      expect(output, contains("import 'dart:io';"));
+      expect(output, contains("import 'dart:typed_data';"));
+      expect(output, contains('String? _readString(Object? value)'));
+      expect(output, contains('int? _readInt(Object? value)'));
+
+      // Only readers that are actually referenced are emitted, otherwise the
+      // generated file trips the unused_element analyzer warning.
+      expect(output, isNot(contains('_readDouble')));
+      expect(output, isNot(contains('_readBool')));
+
+      // saveData
+      expect(
+        output,
+        contains('Map<DateTime, ExampleWidgetTimedData>? timedData,'),
+      );
+      expect(output, contains('if (timedData != null) () async {'));
+      expect(
+        output,
+        contains('final _timedTimes = timedData.keys.toList()..sort();'),
+      );
+      expect(
+        output,
+        contains(
+          "await HomeWidget.saveFile('\${_\$paramPrefix}.timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json');",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '_time.toUtc().millisecondsSinceEpoch.toString(): timedData[_time]!.toJson(),',
+        ),
+      );
+      // Scheduling is a side effect and must never fail the data write.
+      expect(
+        output,
+        contains(
+          "        try {\n"
+          "          await HomeWidget.scheduleWidgetUpdates(_timedTimes, androidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
+          "        } catch (_) {\n",
+        ),
+      );
+      // empty map clears the file and cancels the schedule
+      expect(output, contains('if (_timedTimes.isEmpty) {'));
+      expect(
+        output,
+        contains(
+          "await HomeWidget.saveWidgetData('\${_\$paramPrefix}.timedData', null);",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "          try {\n"
+          "            await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
+          "          } catch (_) {\n",
+        ),
+      );
+
+      // deleteData
+      expect(output, contains('bool timedData = false,'));
+      expect(output, contains('if (timedData) () async {'));
+      expect(
+        output,
+        contains(
+          "        try {\n"
+          "          await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
+          "        } catch (_) {\n",
+        ),
+      );
+
+      // getData
+      expect(
+        output,
+        contains(
+          '  /// The keys of [timedData] are local-time [DateTime]s, so they '
+          'compare equal to a',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<({String? title, Map<DateTime, ExampleWidgetTimedData>? timedData})> getData()',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "final _timedDataPath = await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.timedData');",
+        ),
+      );
+      expect(
+        output,
+        contains('Map<DateTime, ExampleWidgetTimedData>? timedData;'),
+      );
+      expect(
+        output,
+        contains(
+          'entries[DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal()] = ExampleWidgetTimedData.fromJson(value is Map<String, dynamic> ? value : null);',
+        ),
+      );
+      expect(output, contains('timedData: timedData,'));
+    });
+
+    test('passes appGroupId on timed data calls', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [HWTimedData(HWString('label'))],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          "await HomeWidget.saveFile('\${_\$paramPrefix}.timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json', appGroupId: _\$appGroupId);",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "final _timedDataPath = await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.timedData', appGroupId: _\$appGroupId);",
+        ),
+      );
+      // Falls back to the bare receiver name when no package name is set
+      expect(
+        output,
+        contains(
+          "await HomeWidget.scheduleWidgetUpdates(_timedTimes, androidName: 'ExampleWidgetHomeWidgetReceiver');",
+        ),
+      );
+    });
+
+    test('omits timed data members when there are no timed fields', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [HWString('title')],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains('TimedData')));
+      expect(output, isNot(contains('timedData')));
+      expect(output, isNot(contains('scheduleWidgetUpdates')));
+      expect(output, isNot(contains('cancelScheduledWidgetUpdates')));
+      expect(
+        output,
+        contains('static Future<void> saveData({\n    String? title,\n  }) {'),
+      );
+      expect(
+        output,
+        contains('static Future<({String? title})> getData() async {'),
+      );
+      expect(output, isNot(contains("import 'dart:convert';")));
+    });
+
     test('omits appGroupId when iOS groupId is not configured', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'ExampleWidget'),

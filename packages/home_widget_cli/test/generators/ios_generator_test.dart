@@ -464,6 +464,200 @@ void main() {
     expect(content, contains('disableContentMarginsIfNeeded'));
   });
 
+  test('generates Swift widget with timed primitive data', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TimedWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+      ),
+      className: 'TimedWidget',
+      dataFields: const [
+        HWString('title'),
+        HWTimedData(HWString('label')),
+        HWTimedData(HWInt('temperature', defaultValue: 7)),
+      ],
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/TimedWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // Timed fields become regular properties of the data struct.
+    expect(content, contains('let label: String?'));
+    expect(content, contains('let temperature: Int?'));
+
+    // fromUserDefaults resolves at a point in time.
+    expect(content, contains('static func fromUserDefaults('));
+    expect(content, contains('    at date: Date = Date(),'));
+    expect(
+      content,
+      contains(
+        '    timedEntries: [(date: Date, values: [String: Any])]? = nil',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)',
+      ),
+    );
+    expect(content, contains('label: timedValues["label"] as? String,'));
+    expect(
+      content,
+      contains('temperature: (timedValues["temperature"] as? Int) ?? 7,'),
+    );
+
+    // Loader reads the file path from the timedData preference key.
+    expect(
+      content,
+      contains(
+        'fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(date: Date, values: [String: Any])] {',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'guard let path = defaults?.string(forKey: "\\(paramPrefix).timedData") else { return [] }',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'entries.append((date: Date(timeIntervalSince1970: millis / 1000), values: values))',
+      ),
+    );
+
+    // Resolver picks the greatest timestamp <= the resolution date.
+    expect(
+      content,
+      contains(
+        'fileprivate static func activeTimedValues(_ entries: [(date: Date, values: [String: Any])], at date: Date) -> [String: Any] {',
+      ),
+    );
+    expect(content, contains('if entry.date > date { break }'));
+
+    // getTimeline loads once and emits one entry per future timestamp.
+    expect(
+      content,
+      contains('let timedEntries = TimedWidgetData.loadTimedEntries(prefs)'),
+    );
+    expect(
+      content,
+      contains(
+        'data: TimedWidgetData.fromUserDefaults(prefs, at: now, timedEntries: timedEntries)',
+      ),
+    );
+    expect(
+      content,
+      contains('for timedEntry in timedEntries where timedEntry.date > now {'),
+    );
+    expect(
+      content,
+      contains(
+        'data: TimedWidgetData.fromUserDefaults(prefs, at: timedEntry.date, timedEntries: timedEntries)',
+      ),
+    );
+    expect(
+      content,
+      contains('completion(Timeline(entries: entries, policy: .atEnd))'),
+    );
+
+    // placeholder/getSnapshot keep resolving at "now" with the default args.
+    expect(
+      content,
+      contains(
+        'TimedWidgetHomeWidgetEntry(date: Date(), data: TimedWidgetData.fromUserDefaults(nil))',
+      ),
+    );
+    expect(
+      content,
+      contains('let data = TimedWidgetData.fromUserDefaults(prefs)'),
+    );
+  });
+
+  test('generates Swift widget with timed JSON data structs', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TimedJsonWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+      ),
+      className: 'TimedJsonWidget',
+      dataFields: const [
+        HWTimedData(HWJson('weather', HWString('condition'))),
+        HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+      ],
+      widgetTree: const HWText(
+        HWTimedData(HWJson('weather', HWString('condition'))),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/TimedJsonWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, contains('let weather: TimedJsonWidgetWeatherJsonData?'));
+    expect(
+      content,
+      contains(
+        'weather: TimedJsonWidgetWeatherJsonData.fromJson(timedValues["weather"] as? [String: Any]),',
+      ),
+    );
+    // Nested structs are emitted even though timed groups are absent from
+    // jsonDataGroups.
+    expect(content, contains('struct TimedJsonWidgetWeatherJsonData {'));
+    expect(
+      content,
+      contains('struct TimedJsonWidgetWeatherJsonDataWind {'),
+    );
+    expect(
+      content,
+      contains(
+        'wind: TimedJsonWidgetWeatherJsonDataWind.fromJson(values["wind"] as? [String: Any]),',
+      ),
+    );
+    expect(content, contains('Text(entry.data.weather?.condition ?? "")'));
+  });
+
+  test('keeps single-entry timeline for specs without timed fields', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'ExampleWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+      ),
+      className: 'ExampleWidget',
+      dataFields: const [
+        HWInt('count'),
+        HWJson('fileKey', HWString('title')),
+      ],
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/ExampleWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        'completion(Timeline(entries: [ExampleWidgetHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'static func fromUserDefaults(_ defaults: UserDefaults?) -> ExampleWidgetData {',
+      ),
+    );
+    expect(content, isNot(contains('loadTimedEntries')));
+    expect(content, isNot(contains('activeTimedValues')));
+    expect(content, isNot(contains('timedData')));
+  });
+
   test('escapes embedded quotes in Swift string defaults for JSON fields',
       () async {
     final spec = WidgetSpec(

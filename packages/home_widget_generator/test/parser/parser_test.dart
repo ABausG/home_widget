@@ -495,6 +495,66 @@ class TestWidget {}
       expect(leaf.baseLocaleTag, 'en');
     });
 
+    test('parses HWTimedData wrapping primitives', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataOnly([
+    HWTimedData(HWString('label', defaultValue: 'Sunny')),
+    HWTimedData(HWInt('somethingelse')),
+  ]),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final data = (widget as HWDataOnly).data;
+      expect(
+        data,
+        const [
+          HWTimedData(HWString('label', defaultValue: 'Sunny')),
+          HWTimedData(HWInt('somethingelse')),
+        ],
+      );
+      expect(data.first.key, 'label');
+      expect(data.first.defaultValue, 'Sunny');
+    });
+
+    test('parses HWTimedData wrapping HWJson', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataOnly([
+    HWTimedData(HWJson('weather', HWString('condition', defaultValue: 'sun'))),
+  ]),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(
+        (widget as HWDataOnly).data,
+        const [
+          HWTimedData(
+            HWJson('weather', HWString('condition', defaultValue: 'sun')),
+          ),
+        ],
+      );
+    });
+
+    test('throws when HWTimedData is nested inside HWTimedData', () async {
+      final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataExists(
+    data: HWTimedData(HWTimedData(HWString('label'))),
+    whenPresent: HWText.fixed('yes'),
+    whenAbsent: HWText.fixed('no'),
+  ),
+)
+class TestWidget {}
+''');
+      expect(e.message, 'HWTimedData cannot be nested inside HWTimedData');
+    });
+
     test('throws when HWJson has no child field', () async {
       final e = await expectParseError('''
 @HomeWidget(

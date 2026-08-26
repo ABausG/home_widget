@@ -64,6 +64,14 @@ sealed class HWDataType<T> {
   /// or null when there is no default.
   String? codegenSwiftDefaultLiteral() => null; // coverage:ignore-line
 
+  /// This type with any time-based wrapper removed.
+  ///
+  /// Returns `this` for every variant except [HWTimedData], which returns the
+  /// type it wraps. Use this wherever code needs to branch on the concrete
+  /// data variant (for example `is HWJson`) regardless of whether the field is
+  /// time-based.
+  HWDataType<dynamic> get unwrapped => this;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -610,3 +618,97 @@ class HWJson extends HWDataType<dynamic> {
   @override
   int get hashCode => Object.hash(key, child, defaultValue);
 }
+
+/// Marks a data field as time-based.
+///
+/// Wraps any other [HWDataType]. Values for timed fields are not stored as
+/// individual entries; instead they are provided through the generated
+/// `saveData(timedData: ...)` parameter as a timeline of future values, stored
+/// as a single JSON object. Native code resolves the value whose timestamp is
+/// the latest one not after the render time. On iOS the timeline additionally
+/// drives WidgetKit timeline entries; on Android it drives scheduled widget
+/// updates.
+class HWTimedData<T> extends HWDataType<T> {
+  /// The wrapped data type whose value is resolved from the timeline.
+  final HWDataType<T> data;
+
+  const HWTimedData(this.data) : super('');
+
+  @override
+  String get key => data.key;
+
+  @override
+  T? get defaultValue => data.defaultValue;
+
+  @override
+  String get dartType => data.dartType;
+
+  @override
+  String get kotlinType => data.kotlinType;
+
+  @override
+  String get swiftType => data.swiftType;
+
+  @override
+  String androidReadValue({required String store, required String key}) =>
+      data.androidReadValue(store: store, key: key);
+
+  @override
+  String iosReadValue({required String store, required String key}) =>
+      data.iosReadValue(store: store, key: key);
+
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) =>
+      data.androidToString(outerValue: outerValue, innerValue: innerValue);
+
+  @override
+  String iosToString({
+    required String outerValue,
+    required String innerValue,
+  }) =>
+      data.iosToString(outerValue: outerValue, innerValue: innerValue);
+
+  @override
+  String swiftAccess(String dataExpr) => data.swiftAccess(dataExpr);
+
+  @override
+  String kotlinAccess(String dataExpr) => data.kotlinAccess(dataExpr);
+
+  @override
+  String kotlinReadExpr(String dataExpr) => data.kotlinReadExpr(dataExpr);
+
+  @override
+  String swiftReadExpr(String dataExpr) => data.swiftReadExpr(dataExpr);
+
+  @override
+  String? codegenKotlinDefaultLiteral() => data.codegenKotlinDefaultLiteral();
+
+  @override
+  String? codegenSwiftDefaultLiteral() => data.codegenSwiftDefaultLiteral();
+
+  @override
+  HWDataType<dynamic> get unwrapped => data;
+
+  /// Stable stand-in for the class identity in [hashCode].
+  ///
+  /// [operator ==] compares with `is HWTimedData` (ignoring the type argument),
+  /// so `runtimeType` must not take part in the hash: `HWTimedData<String>` and
+  /// `HWTimedData<dynamic>` wrapping equal data are equal and must hash equal.
+  static const String _hashTag = 'HWTimedData';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is HWTimedData && data == other.data;
+
+  @override
+  int get hashCode => Object.hash(_hashTag, data);
+}
+
+String _escapeKotlinStringLiteral(String s) =>
+    s.replaceAll(r'\', r'\\').replaceAll(r'$', r'\$').replaceAll('"', r'\"');
+
+String _escapeSwiftStringLiteral(String s) =>
+    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');

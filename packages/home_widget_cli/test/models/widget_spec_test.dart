@@ -214,6 +214,64 @@ void main() {
     });
   });
 
+  group('WidgetSpec timed data', () {
+    test('timedPrimitiveDataFields unwraps non-json timed fields', () {
+      const label = HWString('label');
+      const count = HWInt('count');
+      final spec = _spec(
+        dataFields: const [
+          HWString('plain'),
+          HWTimedData(label),
+          HWTimedData(count),
+          HWTimedData(HWJson('weather', HWString('condition'))),
+        ],
+      );
+
+      expect(spec.timedPrimitiveDataFields, equals([label, count]));
+      expect(spec.primitiveDataFields, equals(const [HWString('plain')]));
+    });
+
+    test('timedJsonDataGroups groups timed json fields by root key', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+          HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+          HWTimedData(HWJson('other', HWString('x'))),
+        ],
+      );
+
+      final groups = spec.timedJsonDataGroups;
+      expect(groups.map((g) => g.key).toList(), ['weather', 'other']);
+      expect(groups.first.children.length, 2);
+      expect(groups.first.children[0].path, ['condition']);
+      expect(groups.first.children[1].path, ['wind', 'speed']);
+    });
+
+    test('timed json groups do not leak into jsonDataGroups', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+        ],
+      );
+
+      expect(spec.jsonDataGroups, isEmpty);
+      expect(spec.timedJsonDataGroups, hasLength(1));
+    });
+
+    test('returns empty timed collections without timed fields', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('label'),
+          HWJson('root', HWString('inner')),
+        ],
+      );
+
+      expect(spec.timedDataFields, isEmpty);
+      expect(spec.timedPrimitiveDataFields, isEmpty);
+      expect(spec.timedJsonDataGroups, isEmpty);
+    });
+  });
+
   group('WidgetSpec equality', () {
     test('equal specs are equal and share hashCode', () {
       final a = _spec();

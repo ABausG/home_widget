@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:label="home_widget_generator"
         android:name="${applicationName}"
@@ -106,6 +107,25 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/localized_greeting_home_widget" />
+        </receiver>
+        <receiver
+            android:name="es.antonborri.generator_basics.ForecastHomeWidgetReceiver"
+            android:label="Forecast"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/forecast_home_widget" />
+        </receiver>
+        <receiver
+            android:name="es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
         </receiver>
     </application>
     <!-- Required to query activities that can process text, see:

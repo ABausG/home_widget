@@ -450,6 +450,180 @@ void main() {
     );
   });
 
+  test('generates Kotlin widget with timed primitive data', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TimedWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.timed'),
+      ),
+      className: 'TimedWidget',
+      dataFields: const [
+        HWString('title'),
+        HWTimedData(HWString('label')),
+        HWTimedData(HWInt('temperature', defaultValue: 7)),
+      ],
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/timed/TimedWidgetHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    // Timed fields are regular data class properties.
+    expect(content, contains('val label: String? = null,'));
+    expect(content, contains('val temperature: Int? = null,'));
+
+    // fromPreferences gains the resolution time only when timed fields exist.
+    expect(
+      content,
+      contains(
+        'fun fromPreferences(prefs: android.content.SharedPreferences, now: Long = System.currentTimeMillis()): TimedWidgetData {',
+      ),
+    );
+    expect(
+      content,
+      contains('val timedValues = resolveTimedValues(prefs, now)'),
+    );
+    expect(
+      content,
+      contains(
+        'label = if (timedValues.has("label") && !timedValues.isNull("label")) '
+        'timedValues.optString("label") else null,',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'temperature = if (timedValues.has("temperature") && '
+        '!timedValues.isNull("temperature")) '
+        'timedValues.optInt("temperature") else 7,',
+      ),
+    );
+
+    // Resolver: file path from prefs, greatest timestamp <= now.
+    expect(
+      content,
+      contains(
+        'private fun resolveTimedValues(prefs: android.content.SharedPreferences, now: Long): org.json.JSONObject {',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'val path = prefs.getString("\${PREFERENCES_PREFIX}.timedData", null) '
+        '?: return org.json.JSONObject()',
+      ),
+    );
+    expect(content, contains('val timestamp = key.toLongOrNull() ?: continue'));
+    expect(
+      content,
+      contains(
+        'if (timestamp <= now && (activeKey == null || timestamp > activeTimestamp)) {',
+      ),
+    );
+    expect(
+      content,
+      contains('json.optJSONObject(resolvedKey) ?: org.json.JSONObject()'),
+    );
+
+    // The Glance tree keeps calling fromPreferences unchanged.
+    expect(
+      content,
+      contains('val widgetData = TimedWidgetData.fromPreferences(prefs)'),
+    );
+    expect(content, contains('Text(text = widgetData.label ?: "")'));
+  });
+
+  test('generates Kotlin widget with timed JSON data classes', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TimedJsonWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.timedjson'),
+      ),
+      className: 'TimedJsonWidget',
+      dataFields: const [
+        HWTimedData(HWJson('weather', HWString('condition'))),
+        HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+      ],
+      widgetTree: const HWText(
+        HWTimedData(HWJson('weather', HWString('condition'))),
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/timedjson/TimedJsonWidgetHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('val weather: TimedJsonWidgetWeatherJsonData? = null,'),
+    );
+    expect(
+      content,
+      contains(
+        'weather = TimedJsonWidgetWeatherJsonData.fromJson(timedValues.optJSONObject("weather")),',
+      ),
+    );
+    // Nested classes are emitted even though timed groups are absent from
+    // jsonDataGroups.
+    expect(content, contains('data class TimedJsonWidgetWeatherJsonData('));
+    expect(content, contains('data class TimedJsonWidgetWeatherJsonDataWind('));
+    expect(
+      content,
+      contains(
+        'TimedJsonWidgetWeatherJsonDataWind.fromJson(json.optJSONObject("wind"))',
+      ),
+    );
+    expect(content, contains('import org.json.JSONObject'));
+    expect(
+      content,
+      contains('Text(text = widgetData.weather?.condition ?: "")'),
+    );
+  });
+
+  test('keeps fromPreferences unchanged for specs without timed fields',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NoTimed',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.notimed'),
+      ),
+      className: 'NoTimed',
+      dataFields: const [
+        HWInt('count'),
+        HWJson('fileKey', HWString('title')),
+      ],
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/notimed/NoTimedHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        'fun fromPreferences(prefs: android.content.SharedPreferences): NoTimedData {',
+      ),
+    );
+    expect(content, isNot(contains('resolveTimedValues')));
+    expect(content, isNot(contains('timedData')));
+    expect(content, isNot(contains('System.currentTimeMillis()')));
+  });
+
   test('generates provider info XML and string resources with v2 fields',
       () async {
     final spec = WidgetSpec(

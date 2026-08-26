@@ -167,6 +167,32 @@ void main() {
       expect(spec.dataFields.first.key, 'label');
     });
 
+    test('collects timed data fields from widget tree', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Timed Data',
+          widget: HWColumn(
+            children: [
+              HWText(HWTimedData(HWString('label'))),
+              HWText(HWString('title')),
+            ],
+          ),
+        )
+        class TimedWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.timedDataFields,
+        const [HWTimedData(HWString('label'))],
+      );
+      expect(spec.timedDataFields.single.key, 'label');
+      expect(spec.primitiveDataFields, const [HWString('title')]);
+    });
+
     test('parses supportedFamilies on iOS configuration', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

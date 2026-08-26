@@ -217,6 +217,132 @@ Future<void> ensureAndroidManifestReceiver(
   }
 }
 
+/// Fully qualified name of the plugin receiver that re-broadcasts scheduled
+/// widget updates and re-arms alarms after a reboot or app update.
+const String scheduledUpdateReceiverFqcn =
+    'es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver';
+
+/// Ensures the app manifest declares everything `HomeWidget.scheduleWidgetUpdates`
+/// needs on Android.
+///
+/// The plugin ships the receiver class but deliberately does not register it in
+/// its own manifest (that would add `RECEIVE_BOOT_COMPLETED` to every app using
+/// `home_widget`), so apps with time-based widget content must declare it
+/// themselves:
+///
+/// - `android.permission.RECEIVE_BOOT_COMPLETED`
+/// - a non-exported receiver for [scheduledUpdateReceiverFqcn] handling
+///   `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`
+///
+/// Idempotent: an existing permission or receiver declaration is left untouched
+/// and the file is not rewritten. Only called for specs that actually have
+/// time-based fields, so manifests of other projects stay byte-identical.
+Future<void> ensureAndroidManifestScheduledUpdates(
+  Directory projectRoot,
+) async {
+  final manifestFile = File(
+    p.join(
+      projectRoot.path,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    ),
+  );
+  if (!manifestFile.existsSync()) {
+    logger.warn(
+      'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
+      'scheduled update wiring. Time-based widget content will not update on '
+      'Android until the HomeWidgetScheduledUpdateReceiver is registered.',
+    );
+    return;
+  }
+
+  final manifestXml = tryParseXmlFile(manifestFile);
+  if (manifestXml == null) {
+    logger.warn(
+      'Warning: Could not parse AndroidManifest.xml as XML; skipping scheduled '
+      'update wiring.',
+    );
+    return;
+  }
+
+  final manifest = manifestXml.rootElement;
+  final application = manifest.childElements
+      .where((e) => e.localName == 'application')
+      .cast<XmlElement?>()
+      .firstWhere((e) => e != null, orElse: () => null);
+
+  if (application == null) {
+    logger.warn(
+      'Warning: Could not find <application> in AndroidManifest.xml; skipping '
+      'scheduled update wiring.',
+    );
+    return;
+  }
+
+  var changed = false;
+
+  const bootPermission = 'android.permission.RECEIVE_BOOT_COMPLETED';
+  final hasBootPermission = manifest.childElements
+      .where((e) => e.localName == 'uses-permission')
+      .any((e) => e.getAttribute('android:name') == bootPermission);
+  if (!hasBootPermission) {
+    manifest.children.insert(
+      0,
+      XmlElement(
+        XmlName('uses-permission'),
+        [XmlAttribute(XmlName('android:name'), bootPermission)],
+        const [],
+      ),
+    );
+    changed = true;
+  }
+
+  final hasReceiver = application.childElements
+      .where((e) => e.localName == 'receiver')
+      .map((e) => e.getAttribute('android:name'))
+      .contains(scheduledUpdateReceiverFqcn);
+  if (!hasReceiver) {
+    application.children.add(_buildScheduledUpdateReceiverElement());
+    changed = true;
+  }
+
+  if (!changed) return;
+
+  writeXmlFile(manifestFile, manifestXml);
+  logger.detail('Updated: ${manifestFile.path}');
+}
+
+XmlElement _buildScheduledUpdateReceiverElement() {
+  return XmlElement(
+    XmlName('receiver'),
+    [
+      XmlAttribute(XmlName('android:name'), scheduledUpdateReceiverFqcn),
+      XmlAttribute(XmlName('android:exported'), 'false'),
+    ],
+    [
+      XmlElement(
+        XmlName('intent-filter'),
+        const [],
+        [
+          for (final action in const [
+            'android.intent.action.BOOT_COMPLETED',
+            'android.intent.action.MY_PACKAGE_REPLACED',
+          ])
+            XmlElement(
+              XmlName('action'),
+              [XmlAttribute(XmlName('android:name'), action)],
+              const [],
+            ),
+        ],
+      ),
+    ],
+    false,
+  );
+}
+
 /// Returns the matching widget `<receiver>`, or null when none is registered.
 XmlElement? _findAndroidWidgetReceiver(
   XmlElement application, {

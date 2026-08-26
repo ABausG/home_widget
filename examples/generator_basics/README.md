@@ -17,15 +17,22 @@ small and each one demonstrates a different feature of the generator:
   using `HWDataExists` and `HWBoolConditional`.
 - `localized_greeting.dart` – translated body text and gallery entry via
   `HWText.localized` and `HWString.localized`.
+- `forecast.dart` – time-based content via `HWTimedData`: the widget swaps its
+  own values at the times passed to `saveData(timedData: {...})`.
 
 ## Generating the native code
 
 Run the CLI from the project root:
 
 ```bash
-dart run home_widget_cli generate
+dart run home_widget_cli:home_widget generate
 ```
 
 This reads every `*.dart` file under `home_widget/`, writes the Dart helpers to
 `lib/src/home_widget/<name>.home_widget.dart`, and scaffolds the native widget
 targets for both Android and iOS.
+
+Because `forecast.dart` uses `HWTimedData`, the CLI also registers
+`HomeWidgetScheduledUpdateReceiver` and the `RECEIVE_BOOT_COMPLETED` permission
+in `android/app/src/main/AndroidManifest.xml` — that is what delivers the
+scheduled content swaps on Android.

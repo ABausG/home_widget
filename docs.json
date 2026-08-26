@@ -90,7 +90,8 @@
         { "title": "Getting Started", "href": "/generator/getting-started" },
         { "title": "Annotation", "href": "/generator/annotation" },
         { "title": "Data Types", "href": "/generator/data" },
-        { "title": "Localization", "href": "/generator/localization" }
+        { "title": "Localization", "href": "/generator/localization" },
+        { "title": "Time-based Content", "href": "/generator/timed-data" }
       ]
     },
     {

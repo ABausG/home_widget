@@ -16,9 +16,26 @@ class DartHelperGenerator {
   String generate() {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
+    final timedFields = spec.timedDataFields;
+    final hasTimedData = timedFields.isNotEmpty;
+    // Timed JSON groups are intentionally absent from [spec.jsonDataGroups]
+    // (timed fields live inside the timed data file), but they reuse the exact
+    // same generated `*JsonData` classes. The validator forbids sharing a root
+    // key between a timed and an untimed field, so class names never collide.
+    final timedJsonGroups = spec.timedJsonDataGroups;
+    final timedClass = '${spec.className}TimedData';
+    final hasDataFields =
+        primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedData;
     final appGroupId = spec.data.iOS?.groupId;
     final usesAppGroupId = hasDataFields && appGroupId != null;
+
+    final receiverName = '${spec.className}HomeWidgetReceiver';
+    final String androidName;
+    if (spec.data.android != null && spec.data.android!.packageName != null) {
+      androidName = '${spec.data.android!.packageName}.$receiverName';
+    } else {
+      androidName = receiverName;
+    }
 
     final buffer = StringBuffer();
     buffer.writeln('// dart format off');
@@ -27,7 +44,7 @@ class DartHelperGenerator {
     buffer.writeln();
     // Localized fields store their translations as a single JSON blob, so they
     // need `dart:convert` too — but none of the file plumbing JSON groups use.
-    if (jsonGroups.isNotEmpty || _localizedFields.isNotEmpty) {
+    if (jsonGroups.isNotEmpty || _localizedFields.isNotEmpty || hasTimedData) {
       buffer.writeln("import 'dart:convert';");
     }
     if (jsonGroups.isNotEmpty) {
@@ -67,6 +84,9 @@ class DartHelperGenerator {
         final jsonClass = _dartJsonClassName(group.key);
         buffer.writeln('    $jsonClass? ${group.key},');
       }
+      if (hasTimedData) {
+        buffer.writeln('    Map<DateTime, $timedClass>? timedData,');
+      }
       buffer.writeln('  }) {');
       buffer.writeln('    return Future.wait([');
       for (final field in primitiveFields) {
@@ -95,6 +115,45 @@ class DartHelperGenerator {
         );
         buffer.writeln('      }(),');
       }
+      if (hasTimedData) {
+        buffer.writeln('      if (timedData != null) () async {');
+        buffer.writeln(
+          '        final _timedTimes = timedData.keys.toList()..sort();',
+        );
+        buffer.writeln('        if (_timedTimes.isEmpty) {');
+        buffer.writeln(
+          "          await HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}."
+          "timedData', null${_appGroupIdArg(usesAppGroupId)});",
+        );
+        _writeGuardedScheduleCall(
+          buffer,
+          indent: '          ',
+          call: 'HomeWidget.cancelScheduledWidgetUpdates('
+              "androidName: '$androidName')",
+        );
+        buffer.writeln('          return;');
+        buffer.writeln('        }');
+        buffer.writeln('        final _timedJson = <String, dynamic>{');
+        buffer.writeln('          for (final _time in _timedTimes)');
+        buffer.writeln(
+          '            _time.toUtc().millisecondsSinceEpoch.toString(): '
+          'timedData[_time]!.toJson(),',
+        );
+        buffer.writeln('        };');
+        buffer.writeln(
+          "        await HomeWidget.saveFile('"
+          r"${_$paramPrefix}."
+          "timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
+        );
+        _writeGuardedScheduleCall(
+          buffer,
+          indent: '        ',
+          call: 'HomeWidget.scheduleWidgetUpdates(_timedTimes, '
+              "androidName: '$androidName')",
+        );
+        buffer.writeln('      }(),');
+      }
       buffer.writeln('    ]);');
       buffer.writeln('  }');
       buffer.writeln();
@@ -105,6 +164,9 @@ class DartHelperGenerator {
       }
       for (final group in jsonGroups) {
         buffer.writeln('    bool ${group.key} = false,');
+      }
+      if (hasTimedData) {
+        buffer.writeln('    bool timedData = false,');
       }
       buffer.writeln('  }) {');
       buffer.writeln('    return Future.wait([');
@@ -124,6 +186,21 @@ class DartHelperGenerator {
           "${group.key}', null${_appGroupIdArg(usesAppGroupId)}),",
         );
       }
+      if (hasTimedData) {
+        buffer.writeln('      if (timedData) () async {');
+        buffer.writeln(
+          "        await HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}."
+          "timedData', null${_appGroupIdArg(usesAppGroupId)});",
+        );
+        _writeGuardedScheduleCall(
+          buffer,
+          indent: '        ',
+          call: 'HomeWidget.cancelScheduledWidgetUpdates('
+              "androidName: '$androidName')",
+        );
+        buffer.writeln('      }(),');
+      }
       buffer.writeln('    ]);');
       buffer.writeln('  }');
       buffer.writeln();
@@ -135,11 +212,14 @@ class DartHelperGenerator {
               : '${f.dartType}? ${f.key}',
         ),
         ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
+        if (hasTimedData) 'Map<DateTime, $timedClass>? timedData',
       ];
       final recordFields = recordFieldParts.join(', ');
-      if (_localizedFields.isNotEmpty) {
+      if (_localizedFields.isNotEmpty || hasTimedData) {
         buffer.writeln('  /// Reads every stored value back.');
         buffer.writeln('  ///');
+      }
+      if (_localizedFields.isNotEmpty) {
         buffer.writeln(
           '  /// Localized fields come back fully populated: anything stored '
           'by [saveData]',
@@ -155,6 +235,23 @@ class DartHelperGenerator {
         buffer.writeln(
           '  /// shipped default — use `HomeWidget.getWidgetData` on the '
           'preferences key.',
+        );
+        if (hasTimedData) {
+          buffer.writeln('  ///');
+        }
+      }
+      if (hasTimedData) {
+        buffer.writeln(
+          '  /// The keys of [timedData] are local-time [DateTime]s, so they '
+          'compare equal to a',
+        );
+        buffer.writeln(
+          '  /// local [DateTime] for the same instant. Timestamps are stored '
+          'as epoch',
+        );
+        buffer.writeln(
+          '  /// milliseconds: sub-millisecond precision of the saved keys is '
+          'not preserved.',
         );
       }
       buffer.writeln(
@@ -181,6 +278,39 @@ class DartHelperGenerator {
         );
         buffer.writeln('      } on Exception {');
         buffer.writeln('        ${group.key} = null;');
+        buffer.writeln('      }');
+        buffer.writeln('    }');
+      }
+      if (hasTimedData) {
+        buffer.writeln(
+          "    final _timedDataPath = await HomeWidget.getWidgetData<String>('"
+          r"${_$paramPrefix}."
+          "timedData'${_appGroupIdArg(usesAppGroupId)});",
+        );
+        buffer.writeln('    Map<DateTime, $timedClass>? timedData;');
+        buffer.writeln('    if (_timedDataPath != null) {');
+        buffer.writeln('      try {');
+        buffer.writeln(
+          '        final raw = await File(_timedDataPath).readAsString();',
+        );
+        buffer.writeln('        final decoded = jsonDecode(raw);');
+        buffer.writeln('        if (decoded is Map<String, dynamic>) {');
+        buffer.writeln('          final entries = <DateTime, $timedClass>{};');
+        buffer.writeln('          for (final entry in decoded.entries) {');
+        buffer.writeln(
+          '            final millis = int.tryParse(entry.key);',
+        );
+        buffer.writeln('            if (millis == null) continue;');
+        buffer.writeln('            final value = entry.value;');
+        buffer.writeln(
+          '            entries[DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal()] = '
+          '$timedClass.fromJson(value is Map<String, dynamic> ? value : null);',
+        );
+        buffer.writeln('          }');
+        buffer.writeln('          timedData = entries;');
+        buffer.writeln('        }');
+        buffer.writeln('      } on Exception {');
+        buffer.writeln('        timedData = null;');
         buffer.writeln('      }');
         buffer.writeln('    }');
       }
@@ -212,6 +342,9 @@ class DartHelperGenerator {
       for (final group in jsonGroups) {
         buffer.writeln('      ${group.key}: ${group.key},');
       }
+      if (hasTimedData) {
+        buffer.writeln('      timedData: timedData,');
+      }
       buffer.writeln('    );');
       buffer.writeln('  }');
       buffer.writeln();
@@ -219,14 +352,6 @@ class DartHelperGenerator {
 
     buffer.writeln();
     buffer.writeln('  static Future<bool?> updateWidget() {');
-
-    String? androidName;
-    final receiverName = '${spec.className}HomeWidgetReceiver';
-    if (spec.data.android != null && spec.data.android!.packageName != null) {
-      androidName = '${spec.data.android!.packageName}.$receiverName';
-    } else {
-      androidName = receiverName;
-    }
 
     final iosName =
         spec.data.iOS != null ? '${spec.className}HomeWidget' : null;
@@ -253,7 +378,16 @@ class DartHelperGenerator {
       _writeTranslationsClass(buffer);
     }
 
-    for (final group in jsonGroups) {
+    if (hasTimedData) {
+      buffer.writeln();
+      _writeDartTimedDataClass(
+        buffer: buffer,
+        className: timedClass,
+        timedFields: timedFields,
+      );
+    }
+
+    for (final group in [...jsonGroups, ...timedJsonGroups]) {
       final jsonClass = _dartJsonClassName(group.key);
       final tree = _buildJsonTree(group.children);
       buffer.writeln();
@@ -264,9 +398,15 @@ class DartHelperGenerator {
         isRoot: true,
       );
     }
-    if (jsonGroups.isNotEmpty) {
+    final usedReaders = <String>{
+      for (final group in [...jsonGroups, ...timedJsonGroups])
+        for (final field in group.children) _dartReadFunction(field.type),
+      for (final member in _timedMembers(timedFields))
+        if (!member.jsonRoot) _dartReadFunction(member.leafType!),
+    };
+    if (usedReaders.isNotEmpty) {
       buffer.writeln();
-      _writeDartJsonReaders(buffer);
+      _writeDartJsonReaders(buffer, usedReaders);
     }
 
     return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
@@ -485,6 +625,25 @@ class DartHelperGenerator {
     return localeIdentifier(locales.first);
   }
 
+  /// Emits an `await`ed scheduling [call] wrapped in a try/catch.
+  ///
+  /// Scheduling widget updates is a side effect of persisting timed data; a
+  /// platform failure there (missing permission, unavailable alarm manager,
+  /// no plugin implementation on the host platform) must never make the
+  /// `saveData`/`deleteData` future report a failed write.
+  void _writeGuardedScheduleCall(
+    StringBuffer buffer, {
+    required String indent,
+    required String call,
+  }) {
+    buffer.writeln('${indent}try {');
+    buffer.writeln('$indent  await $call;');
+    buffer.writeln('$indent} catch (_) {');
+    buffer
+        .writeln('$indent  // Scheduling is best effort; the data was saved.');
+    buffer.writeln('$indent}');
+  }
+
   String _appGroupIdArg(bool usesAppGroupId) =>
       usesAppGroupId ? r', appGroupId: _$appGroupId' : '';
 
@@ -579,19 +738,113 @@ class DartHelperGenerator {
     }
   }
 
-  void _writeDartJsonReaders(StringBuffer buffer) {
-    buffer.writeln(
-      'String? _readString(Object? value) => value is String ? value : null;',
-    );
-    buffer.writeln(
-      'int? _readInt(Object? value) => value is num ? value.toInt() : null;',
-    );
-    buffer.writeln(
-      'double? _readDouble(Object? value) => value is num ? value.toDouble() : null;',
-    );
-    buffer.writeln(
-      'bool? _readBool(Object? value) => value is bool ? value : null;',
-    );
+  /// Members of the generated `<ClassName>TimedData` class, in declaration
+  /// order, with JSON root keys collapsed to a single member.
+  List<_TimedMember> _timedMembers(List<HWTimedData<dynamic>> timedFields) {
+    final members = <_TimedMember>[];
+    for (final timed in timedFields) {
+      final field = timed.data;
+      if (field is HWJson) {
+        if (members.any((m) => m.key == field.key)) continue;
+        members.add(
+          _TimedMember(
+            key: field.key,
+            type: _dartJsonClassName(field.key),
+            jsonRoot: true,
+          ),
+        );
+      } else {
+        if (members.any((m) => m.key == field.key)) continue;
+        members.add(
+          _TimedMember(
+            key: field.key,
+            type: field.dartType,
+            jsonRoot: false,
+            leafType: field,
+          ),
+        );
+      }
+    }
+    return members;
+  }
+
+  void _writeDartTimedDataClass({
+    required StringBuffer buffer,
+    required String className,
+    required List<HWTimedData<dynamic>> timedFields,
+  }) {
+    final members = _timedMembers(timedFields);
+
+    buffer.writeln('class $className {');
+    for (final member in members) {
+      buffer.writeln('  final ${member.type}? ${member.key};');
+    }
+    buffer.writeln();
+    buffer.writeln('  const $className({');
+    for (final member in members) {
+      buffer.writeln('    this.${member.key},');
+    }
+    buffer.writeln('  });');
+    buffer.writeln();
+    buffer
+        .writeln('  factory $className.fromJson(Map<String, dynamic>? json) {');
+    buffer.writeln('    json ??= const {};');
+    buffer.writeln('    return $className(');
+    for (final member in members) {
+      final key = member.key;
+      if (member.jsonRoot) {
+        buffer.writeln(
+          "      $key: json['$key'] is Map<String, dynamic> ? ${member.type}.fromJson(json['$key'] as Map<String, dynamic>) : null,",
+        );
+      } else {
+        final leafType = member.leafType!;
+        final fallback = _dartDefaultLiteral(leafType);
+        buffer.writeln(
+          "      $key: ${_dartReadFunction(leafType)}(json['$key'])$fallback,",
+        );
+      }
+    }
+    buffer.writeln('    );');
+    buffer.writeln('  }');
+    buffer.writeln();
+    buffer.writeln('  Map<String, dynamic> toJson() {');
+    buffer.writeln('    return {');
+    for (final member in members) {
+      final key = member.key;
+      if (member.jsonRoot) {
+        buffer.writeln("      if ($key != null) '$key': $key!.toJson(),");
+      } else {
+        buffer.writeln("      if ($key != null) '$key': $key,");
+      }
+    }
+    buffer.writeln('    };');
+    buffer.writeln('  }');
+    buffer.writeln('}');
+  }
+
+  /// Emits only the `_read*` helpers in [usedReaders] so generated files never
+  /// contain unused private functions (which trip `unused_element`).
+  void _writeDartJsonReaders(StringBuffer buffer, Set<String> usedReaders) {
+    if (usedReaders.contains('_readString')) {
+      buffer.writeln(
+        'String? _readString(Object? value) => value is String ? value : null;',
+      );
+    }
+    if (usedReaders.contains('_readInt')) {
+      buffer.writeln(
+        'int? _readInt(Object? value) => value is num ? value.toInt() : null;',
+      );
+    }
+    if (usedReaders.contains('_readDouble')) {
+      buffer.writeln(
+        'double? _readDouble(Object? value) => value is num ? value.toDouble() : null;',
+      );
+    }
+    if (usedReaders.contains('_readBool')) {
+      buffer.writeln(
+        'bool? _readBool(Object? value) => value is bool ? value : null;',
+      );
+    }
   }
 
   String _dartReadFunction(HWDataType<dynamic> field) {
@@ -622,4 +875,19 @@ class DartHelperGenerator {
 class _JsonPathNode {
   final Map<String, _JsonPathNode> children = {};
   HWDataType<dynamic>? leafType;
+}
+
+/// A single member of the generated `<ClassName>TimedData` class.
+class _TimedMember {
+  final String key;
+  final String type;
+  final bool jsonRoot;
+  final HWDataType<dynamic>? leafType;
+
+  const _TimedMember({
+    required this.key,
+    required this.type,
+    required this.jsonRoot,
+    this.leafType,
+  });
 }

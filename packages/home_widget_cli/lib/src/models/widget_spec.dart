@@ -79,7 +79,7 @@ class WidgetSpec {
     return HWColumn(
       children: [
         HWText.fixed(galleryName),
-        for (final field in primitiveDataFields)
+        for (final field in [...primitiveDataFields, ...timedDataFields])
           HWRow(
             children: [
               HWText.fixed('${field.key}: '),
@@ -90,12 +90,12 @@ class WidgetSpec {
     );
   }
 
-  /// Non-JSON [dataFields] (primitives and simple types).
+  /// Non-JSON, non-timed [dataFields] (primitives and simple types).
   ///
   /// Constant localized strings are excluded: they are inlined into the widget
   /// body and must never reach the data class, preferences or `saveData`.
   List<HWDataType<dynamic>> get primitiveDataFields => dataFields
-      .where((f) => f is! HWJson)
+      .where((f) => f is! HWJson && f is! HWTimedData)
       .where((f) => !(f is HWLocalizedString && f.isConstant))
       .toList();
 
@@ -203,12 +203,72 @@ class WidgetSpec {
   /// the fallback only applies to widgets that use none.
   String get defaultLocale => data.localization?.defaultLocale ?? 'en';
 
+  /// Time-based [dataFields], ordered and de-duplicated.
+  List<HWTimedData<dynamic>> get timedDataFields {
+    final result = <HWTimedData<dynamic>>[];
+    for (final field in dataFields.whereType<HWTimedData<dynamic>>()) {
+      if (!result.contains(field)) {
+        result.add(field);
+      }
+    }
+    return result;
+  }
+
+  /// Timed fields wrapping a non-[HWJson] type, unwrapped to the inner type.
+  ///
+  /// Ordered and de-duplicated, mirroring [timedDataFields].
+  List<HWDataType<dynamic>> get timedPrimitiveDataFields => [
+        for (final field in timedDataFields)
+          if (field.data is! HWJson) field.data,
+      ];
+
+  /// Timed [HWJson] fields grouped by root key, mirroring [jsonDataGroups].
+  ///
+  /// These groups are intentionally absent from [jsonDataGroups]; native
+  /// generators must emit their nested structs/classes from here.
+  List<JsonDataGroup> get timedJsonDataGroups => _groupJsonFields(
+        timedDataFields.map((f) => f.data).whereType<HWJson>(),
+      );
+
   /// JSON fields grouped by root key for nested native struct generation.
   List<JsonDataGroup> get jsonDataGroups {
     final orderedKeys = <String>[];
     final groupedChildren = <String, List<JsonDataField>>{};
 
     for (final field in dataFields.whereType<HWJson>()) {
+      if (!orderedKeys.contains(field.key)) {
+        orderedKeys.add(field.key);
+        groupedChildren[field.key] = <JsonDataField>[];
+      }
+
+      final leafType = field.leafType;
+      final path = field.pathSegments;
+      final existing = groupedChildren[field.key]!;
+      if (existing.any((e) => _samePath(e.path, path) && e.type == leafType)) {
+        continue;
+      }
+      groupedChildren[field.key]!.add(
+        JsonDataField(
+          path: path,
+          type: leafType,
+        ),
+      );
+    }
+
+    return [
+      for (final key in orderedKeys)
+        JsonDataGroup(
+          key: key,
+          children: groupedChildren[key]!,
+        ),
+    ];
+  }
+
+  List<JsonDataGroup> _groupJsonFields(Iterable<HWJson> fields) {
+    final orderedKeys = <String>[];
+    final groupedChildren = <String, List<JsonDataField>>{};
+
+    for (final field in fields) {
       if (!orderedKeys.contains(field.key)) {
         orderedKeys.add(field.key);
         groupedChildren[field.key] = <JsonDataField>[];

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
+import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
@@ -114,6 +115,50 @@ class _HomePageState extends State<_HomePage> {
         const Divider(),
 
         // -------------------------------------------------------------------
+        // Forecast: HWTimedData, the widget swaps its content on its own.
+        // -------------------------------------------------------------------
+        const _SectionHeader(
+          title: 'Forecast',
+          subtitle:
+              'saveData(timedData: {...}) + updateWidget(). The widget switches '
+              'to the next entry on its own, one per minute — no app process '
+              'involved.',
+        ),
+        ListTile(
+          title: const Text('Save a 4-entry forecast'),
+          subtitle: const Text('Starts now, one entry per minute'),
+          trailing: const Icon(Icons.schedule_send),
+          onTap: () async {
+            final now = DateTime.now();
+            await ForecastHomeWidget.saveData(
+              city: 'Berlin',
+              timedData: {
+                for (final (index, (condition, temperature))
+                    in _forecast.indexed)
+                  now.add(Duration(minutes: index)): ForecastTimedData(
+                    condition: condition,
+                    temperature: temperature,
+                  ),
+              },
+            );
+            // saveData only writes the schedule — updateWidget() is what makes
+            // the Widget pick up the new timeline (reloadTimelines on iOS).
+            await ForecastHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Clear the forecast'),
+          subtitle: const Text('deleteData(timedData: true) + updateWidget()'),
+          trailing: const Icon(Icons.clear),
+          onTap: () async {
+            await ForecastHomeWidget.deleteData(timedData: true);
+            await ForecastHomeWidget.updateWidget();
+          },
+        ),
+
+        const Divider(),
+
+        // -------------------------------------------------------------------
         // Conditional Status: HWDataExists + HWBoolConditional.
         // -------------------------------------------------------------------
         const _SectionHeader(title: 'Conditional Status'),
@@ -177,6 +222,13 @@ class _HomePageState extends State<_HomePage> {
     'Bonjour',
     'Ciao',
     'Olá',
+  ];
+
+  static const _forecast = <(String, int)>[
+    ('Sunny', 21),
+    ('Cloudy', 19),
+    ('Rainy', 15),
+    ('Clear', 12),
   ];
 }
 

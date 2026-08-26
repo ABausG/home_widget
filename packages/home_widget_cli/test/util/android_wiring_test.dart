@@ -6,6 +6,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:xml/xml.dart';
 
 class MockLogger extends Mock implements Logger {}
 
@@ -510,6 +511,190 @@ dependencies {
         contains('android:name="com.test.FooHomeWidgetReceiver"'),
       );
       expect(updated, contains('@xml/foo_home_widget'));
+    });
+  });
+
+  group('ensureAndroidManifestScheduledUpdates', () {
+    late File manifestFile;
+
+    setUp(() {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'main'),
+      )..createSync(recursive: true);
+      manifestFile = File(p.join(dir.path, 'AndroidManifest.xml'));
+    });
+
+    void writeBareManifest() {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application android:label="test">
+        <activity android:name=".MainActivity" />
+    </application>
+</manifest>
+''',
+      );
+    }
+
+    test('warns when the manifest is missing', () async {
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('AndroidManifest.xml not found')),
+        ),
+      ).called(1);
+    });
+
+    test('warns when the manifest is not parsable XML', () async {
+      manifestFile.writeAsStringSync('not xml <<<');
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not parse AndroidManifest.xml')),
+        ),
+      ).called(1);
+    });
+
+    test('warns when manifest has no application element', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not find <application>')),
+        ),
+      ).called(1);
+    });
+
+    test('adds the boot permission and the scheduling receiver', () async {
+      writeBareManifest();
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      final content = manifestFile.readAsStringSync();
+      expect(
+        content,
+        contains(
+          '<uses-permission android:name='
+          '"android.permission.RECEIVE_BOOT_COMPLETED" />',
+        ),
+      );
+      expect(content, contains('android:name="$scheduledUpdateReceiverFqcn"'));
+      expect(content, contains('android:exported="false"'));
+      expect(
+        content,
+        contains(
+          '<action android:name="android.intent.action.BOOT_COMPLETED" />',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />',
+        ),
+      );
+
+      // The receiver belongs inside <application>, the permission outside it.
+      final document = XmlDocument.parse(content);
+      final application = document.rootElement.childElements
+          .firstWhere((e) => e.localName == 'application');
+      expect(
+        application.childElements
+            .where((e) => e.localName == 'receiver')
+            .map((e) => e.getAttribute('android:name')),
+        contains(scheduledUpdateReceiverFqcn),
+      );
+      expect(
+        document.rootElement.childElements
+            .where((e) => e.localName == 'uses-permission')
+            .length,
+        1,
+      );
+
+      verify(
+        () => mockLogger.detail(any(that: contains('Updated:'))),
+      ).called(1);
+    });
+
+    test('is idempotent across repeated runs', () async {
+      writeBareManifest();
+
+      await ensureAndroidManifestScheduledUpdates(root);
+      final afterFirst = manifestFile.readAsStringSync();
+
+      await ensureAndroidManifestScheduledUpdates(root);
+      final afterSecond = manifestFile.readAsStringSync();
+
+      expect(afterSecond, afterFirst);
+      verify(
+        () => mockLogger.detail(any(that: contains('Updated:'))),
+      ).called(1);
+    });
+
+    test('leaves a manifest that already declares both untouched', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:label="test">
+        <receiver
+            android:name="$scheduledUpdateReceiverFqcn"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+      final before = manifestFile.readAsStringSync();
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      expect(manifestFile.readAsStringSync(), before);
+      verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
+    });
+
+    test('adds only the missing receiver when the permission exists', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:label="test" />
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      final document = XmlDocument.parse(manifestFile.readAsStringSync());
+      expect(
+        document.rootElement.childElements
+            .where((e) => e.localName == 'uses-permission')
+            .length,
+        1,
+      );
+      expect(
+        document.rootElement
+            .findAllElements('receiver')
+            .map((e) => e.getAttribute('android:name')),
+        contains(scheduledUpdateReceiverFqcn),
+      );
     });
   });
 }
