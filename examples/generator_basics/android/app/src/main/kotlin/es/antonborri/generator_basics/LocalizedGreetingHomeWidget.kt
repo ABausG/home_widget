@@ -110,8 +110,8 @@ private fun hwCurrentLocales(context: android.content.Context): List<String> {
   return tags
 }
 
-// Returns null when nothing in [values] matches, so a caller holding a second
-// tier of translations can fall through to it.
+// Returns null when nothing in [values] matches, including under the base
+// locale, so callers can decide what an empty translation set means.
 private fun hwResolveLocalized(
     locales: List<String>,
     values: Map<String, String>,
@@ -157,13 +157,9 @@ private fun hwReadLocalized(
     values: Map<String, String>,
     baseLocale: String,
 ): String {
-  val stored = hwDecodeLocalized(prefs.getString(key, null))
-  if (stored != null) {
-    hwResolveLocalized(locales, stored, baseLocale)?.let {
-      return it
-    }
-  }
-  return hwLocalize(locales, values, baseLocale)
+  val merged = values.toMutableMap()
+  hwDecodeLocalized(prefs.getString(key, null))?.let { merged.putAll(it) }
+  return hwLocalize(locales, merged, baseLocale)
 }
 
 private fun hwDecodeLocalized(raw: String?): Map<String, String>? {

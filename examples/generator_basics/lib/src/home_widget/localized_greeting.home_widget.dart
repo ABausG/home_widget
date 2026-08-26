@@ -111,15 +111,18 @@ class LocalizedGreetingHomeWidgetTranslations {
   /// Tries the exact tag (`pt-PT`), then the bare language (`pt`),
   /// then any entry with the same language but a different region or
   /// script (`pt-BR`; the lexicographically smallest wins if several
-  /// match), and finally the widget's default locale. `_` is treated
-  /// as `-`.
+  /// match), and finally the widget's default locale. Matching is
+  /// case-insensitive, and `_` is treated as `-`.
   ///
   /// The widget natively runs these same steps against *every* entry
   /// of the OS preferred-language list in order; this answers for one
   /// explicit tag, which is what previews and tests need.
   String resolve(String tag) {
-    final values = toMap();
-    final normalized = tag.replaceAll('_', '-');
+    final values = {
+      for (final entry in toMap().entries)
+        entry.key.toLowerCase(): entry.value,
+    };
+    final normalized = tag.replaceAll('_', '-').toLowerCase();
     final exact = values[normalized];
     if (exact != null) return exact;
     final language = normalized.split('-').first;

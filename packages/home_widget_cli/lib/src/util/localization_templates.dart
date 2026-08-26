@@ -2,10 +2,12 @@
 ///
 /// These serve keyed strings only. A keyed string's runtime override lives in
 /// one preferences blob and its fallback is compiled into the widget, so
-/// neither tier is a platform resource and the widget has to do the matching
-/// itself. Constant strings (`HWText.localized`) and the gallery name and
-/// description are platform resources, resolved by the OS, and never reach
-/// these helpers.
+/// neither is a platform resource and the widget has to do the matching itself.
+/// The two are combined into one map before any matching happens — the blob
+/// overrides the compiled text locale by locale — so resolution always walks a
+/// single, complete set of translations. Constant strings (`HWText.localized`)
+/// and the gallery name and description are platform resources, resolved by the
+/// OS, and never reach these helpers.
 ///
 /// Resolution walks the user's *entire* preferred-language list in order — a
 /// device set to `[de-AT, fr, en]` should get French before it falls back to the
@@ -54,8 +56,8 @@ private fun hwCurrentLocales(context: android.content.Context): List<String> {
     return tags
 }
 
-// Returns null when nothing in [values] matches, so a caller holding a second
-// tier of translations can fall through to it.
+// Returns null when nothing in [values] matches, including under the base
+// locale, so callers can decide what an empty translation set means.
 private fun hwResolveLocalized(
     locales: List<String>,
     values: Map<String, String>,
@@ -91,13 +93,17 @@ private fun hwLocalize(
 /// Kotlin reader for a keyed localized string.
 ///
 /// The stored value is a single JSON object mapping locale tag to text, written
-/// by the generated Dart `saveData`. It is checked before the compiled
-/// translations so a value pushed from Dart wins, and resolution happens inside
-/// it on every render so a locale change is picked up without the app having to
+/// by the generated Dart `saveData`. It is laid over the compiled translations
+/// one locale at a time — a locale the blob carries wins, a locale it omits
+/// keeps its compiled text — and only the combined map is resolved. That is the
+/// same merge the generated Dart `getData` performs, so an app read and a widget
+/// render never disagree, and it keeps a blob written before a locale was added
+/// from hiding that locale's shipped translation. Resolution runs on every
+/// render, so a system language change is picked up without the app having to
 /// run again.
 ///
-/// Anything unreadable — absent, malformed, not an object, no matching locale —
-/// falls through to the compiled defaults rather than throwing.
+/// Anything unreadable — absent, malformed, not an object — leaves the compiled
+/// translations untouched rather than throwing.
 const String kotlinLocalizedReadHelper = '''
 private fun hwReadLocalized(
     prefs: android.content.SharedPreferences,
@@ -106,11 +112,9 @@ private fun hwReadLocalized(
     values: Map<String, String>,
     baseLocale: String,
 ): String {
-    val stored = hwDecodeLocalized(prefs.getString(key, null))
-    if (stored != null) {
-        hwResolveLocalized(locales, stored, baseLocale)?.let { return it }
-    }
-    return hwLocalize(locales, values, baseLocale)
+    val merged = values.toMutableMap()
+    hwDecodeLocalized(prefs.getString(key, null))?.let { merged.putAll(it) }
+    return hwLocalize(locales, merged, baseLocale)
 }
 
 private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
@@ -145,8 +149,8 @@ func hwCurrentLocales() -> [String] {
   return preferred
 }
 
-// Returns nil when nothing in `values` matches, so a caller holding a second
-// tier of translations can fall through to it.
+// Returns nil when nothing in `values` matches, including under the base
+// locale, so callers can decide what an empty translation set means.
 func hwResolveLocalized(
   _ locales: [String],
   _ values: [String: String],
@@ -176,8 +180,9 @@ func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
 
 /// Swift reader for a keyed localized string.
 ///
-/// Mirrors [kotlinLocalizedReadHelper]: one stored JSON object per key, checked
-/// before the compiled translations, and never fatal when unreadable.
+/// Mirrors [kotlinLocalizedReadHelper]: one stored JSON object per key, laid
+/// over the compiled translations locale by locale before anything is resolved,
+/// and never fatal when unreadable.
 const String swiftLocalizedReadHelper = '''
 func hwReadLocalized(
   _ defaults: UserDefaults?,
@@ -185,12 +190,11 @@ func hwReadLocalized(
   _ values: [String: String],
   baseLocale: String
 ) -> String {
-  let locales = hwCurrentLocales()
-  if let stored = hwDecodeLocalized(defaults?.string(forKey: key)),
-     let match = hwResolveLocalized(locales, stored, baseLocale: baseLocale) {
-    return match
+  var merged = values
+  if let stored = hwDecodeLocalized(defaults?.string(forKey: key)) {
+    merged.merge(stored) { _, new in new }
   }
-  return hwResolveLocalized(locales, values, baseLocale: baseLocale) ?? ""
+  return hwLocalize(merged, baseLocale: baseLocale)
 }
 
 func hwDecodeLocalized(_ raw: String?) -> [String: String]? {

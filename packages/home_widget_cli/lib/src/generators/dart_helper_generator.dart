@@ -415,6 +415,10 @@ class DartHelperGenerator {
   /// Mirrors `hwResolveLocalized` in the Kotlin and Swift helpers step for
   /// step, including the lexicographically smallest region/script sibling, so
   /// a preview cannot disagree with what the widget renders.
+  ///
+  /// Matching is case-insensitive: BCP-47 tags are case-insensitive by spec,
+  /// and the native resolvers only ever see canonically cased tags, so folding
+  /// case here can never conflate two genuinely different tags.
   void _writeResolve(StringBuffer buffer) {
     final baseIdentifier = _baseLocaleIdentifier;
     buffer.writeln(
@@ -431,9 +435,11 @@ class DartHelperGenerator {
       '  /// script (`pt-BR`; the lexicographically smallest wins if several',
     );
     buffer.writeln(
-      "  /// match), and finally the widget's default locale. `_` is treated",
+      "  /// match), and finally the widget's default locale. Matching is",
     );
-    buffer.writeln('  /// as `-`.');
+    buffer.writeln(
+      '  /// case-insensitive, and `_` is treated as `-`.',
+    );
     buffer.writeln('  ///');
     buffer.writeln(
       '  /// The widget natively runs these same steps against *every* entry',
@@ -445,14 +451,19 @@ class DartHelperGenerator {
       '  /// explicit tag, which is what previews and tests need.',
     );
     buffer.writeln('  String resolve(String tag) {');
+    // Tags are case-insensitive per BCP-47, so both sides fold to lower case.
+    buffer.writeln('    final values = {');
+    buffer.writeln('      for (final entry in toMap().entries)');
+    buffer.writeln('        entry.key.toLowerCase(): entry.value,');
+    buffer.writeln('    };');
+    buffer.writeln(
+      "    final normalized = tag.replaceAll('_', '-').toLowerCase();",
+    );
     if (baseIdentifier == null) {
-      buffer
-          .writeln('    return toMap()[tag.replaceAll(\'_\', \'-\')] ?? \'\';');
+      buffer.writeln("    return values[normalized] ?? '';");
       buffer.writeln('  }');
       return;
     }
-    buffer.writeln('    final values = toMap();');
-    buffer.writeln("    final normalized = tag.replaceAll('_', '-');");
     buffer.writeln('    final exact = values[normalized];');
     buffer.writeln('    if (exact != null) return exact;');
     buffer.writeln("    final language = normalized.split('-').first;");

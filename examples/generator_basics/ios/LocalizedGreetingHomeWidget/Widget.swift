@@ -107,8 +107,8 @@ func hwCurrentLocales() -> [String] {
   return preferred
 }
 
-// Returns nil when nothing in `values` matches, so a caller holding a second
-// tier of translations can fall through to it.
+// Returns nil when nothing in `values` matches, including under the base
+// locale, so callers can decide what an empty translation set means.
 func hwResolveLocalized(
   _ locales: [String],
   _ values: [String: String],
@@ -142,13 +142,11 @@ func hwReadLocalized(
   _ values: [String: String],
   baseLocale: String
 ) -> String {
-  let locales = hwCurrentLocales()
-  if let stored = hwDecodeLocalized(defaults?.string(forKey: key)),
-    let match = hwResolveLocalized(locales, stored, baseLocale: baseLocale)
-  {
-    return match
+  var merged = values
+  if let stored = hwDecodeLocalized(defaults?.string(forKey: key)) {
+    merged.merge(stored) { _, new in new }
   }
-  return hwResolveLocalized(locales, values, baseLocale: baseLocale) ?? ""
+  return hwLocalize(merged, baseLocale: baseLocale)
 }
 
 func hwDecodeLocalized(_ raw: String?) -> [String: String]? {

@@ -411,12 +411,50 @@ void main() {
       // Malformed JSON must not reach the widget as an exception.
       expect(kotlin, contains('org.json.JSONObject(raw)'));
       expect(kotlin, contains('} catch (_: Exception) {'));
+      // A null decode leaves the merged map as the compiled values alone.
       expect(
         kotlin,
-        contains('return hwLocalize(locales, values, baseLocale)'),
+        contains('hwDecodeLocalized(prefs.getString(key, null))?.let '
+            '{ merged.putAll(it) }'),
+      );
+      expect(
+        kotlin,
+        contains('return hwLocalize(locales, merged, baseLocale)'),
       );
       // Non-string members of the object are skipped rather than coerced.
       expect(kotlin, contains('if (value is String) parsed[name] = value'));
+    });
+
+    test('overlays the stored blob onto the compiled map per locale', () async {
+      final root = await _project();
+      final spec = _spec(widget: HWText(_localized()));
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      final kotlin = File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/com/example/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+
+      final read = kotlin.substring(
+        kotlin.indexOf('private fun hwReadLocalized('),
+        kotlin.indexOf('private fun hwDecodeLocalized('),
+      );
+
+      // The compiled translations are the base of the map the blob lands on,
+      // so a locale the blob omits keeps its shipped text instead of dropping
+      // to the base locale. Matches the Dart `_$mergeTranslations` semantics.
+      expect(read, contains('val merged = values.toMutableMap()'));
+      expect(read, contains('merged.putAll(it)'));
+      expect(
+          read.indexOf('merged.putAll'), lessThan(read.indexOf('hwLocalize')));
+      // Exactly one resolution over the merged map — no separate stored tier
+      // that could terminate on the stored base locale.
+      expect('hwLocalize('.allMatches(read).length, 1);
+      expect(read, isNot(contains('hwResolveLocalized(')));
+      expect(read, isNot(contains('hwResolveLocalized(locales, stored')));
     });
 
     test('resolution walks every preferred locale, not just the first',
@@ -982,13 +1020,36 @@ android {
       expect(swift, contains('let json = object as? [String: Any] else'));
       // Non-string members of the object are skipped rather than coerced.
       expect(swift, contains('if let text = value as? String'));
+      // A nil decode leaves the merged map as the compiled values alone.
       expect(
         swift,
         contains(
-          'return hwResolveLocalized(locales, values, baseLocale: baseLocale) '
-          '?? ""',
+          'if let stored = hwDecodeLocalized(defaults?.string(forKey: key)) {',
         ),
       );
+      expect(
+          swift, contains('return hwLocalize(merged, baseLocale: baseLocale)'));
+    });
+
+    test('overlays the stored blob onto the compiled map per locale', () async {
+      final swift = await generateSwift(_spec(widget: HWText(_localized())));
+
+      final read = swift.substring(
+        swift.indexOf('func hwReadLocalized('),
+        swift.indexOf('func hwDecodeLocalized('),
+      );
+
+      // The compiled translations are the base of the map the blob lands on,
+      // so a locale the blob omits keeps its shipped text instead of dropping
+      // to the base locale. Matches the Dart `_$mergeTranslations` semantics.
+      expect(read, contains('var merged = values'));
+      expect(read, contains('merged.merge(stored) { _, new in new }'));
+      expect(
+          read.indexOf('merged.merge'), lessThan(read.indexOf('hwLocalize')));
+      // Exactly one resolution over the merged map — no separate stored tier
+      // that could terminate on the stored base locale.
+      expect('hwLocalize('.allMatches(read).length, 1);
+      expect(read, isNot(contains('hwResolveLocalized(')));
     });
 
     test('resolution walks every preferred locale, not just the first',
@@ -1171,6 +1232,14 @@ android {
       final dart = generate(_spec(widget: HWText(_localized())));
 
       expect(dart, contains('String resolve(String tag) {'));
+      // Both sides of every lookup are folded, so matching is case-insensitive.
+      expect(dart, contains('entry.key.toLowerCase(): entry.value,'));
+      expect(
+        dart,
+        contains(
+          "final normalized = tag.replaceAll('_', '-').toLowerCase();",
+        ),
+      );
       // Region/script sibling, lexicographically smallest on ties — the same
       // rule the Kotlin and Swift helpers apply.
       expect(
@@ -1218,6 +1287,60 @@ print(merged.ptBR);
         'Hello',
         'Ola',
       ]);
+    });
+
+    test('resolve matches tags case-insensitively', () async {
+      final dart = generate(_spec(widget: HWText(_localized())));
+
+      final output = await _runGenerated(dart, '''
+const defaults = GreetingHomeWidgetTranslations(
+  en: 'Hello', de: 'Hallo', ptBR: 'Ola',
+);
+print(defaults.resolve('DE'));      // upper-cased language
+print(defaults.resolve('Pt_br'));   // mixed case plus '_'
+print(defaults.resolve('pt-BR'));   // the canonical tag still works
+print(defaults.resolve('DE-at'));   // bare-language tier, folded
+print(defaults.resolve('FR'));      // unknown language, default locale
+''');
+
+      expect(output.split('\n'), [
+        'Hallo',
+        'Ola',
+        'Ola',
+        'Hallo',
+        'Hello',
+      ]);
+    });
+
+    test('a case-folded exact hit beats a sibling region', () async {
+      final dart = generate(
+        _spec(
+          widget: HWText(
+            _localized(
+              values: const {
+                'en': 'Hello',
+                'pt-BR': 'Ola BR',
+                'pt-PT': 'Ola PT',
+              },
+            ),
+          ),
+          localization: const HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'pt-BR', 'pt-PT'],
+          ),
+        ),
+      );
+
+      final output = await _runGenerated(dart, '''
+const defaults = GreetingHomeWidgetTranslations(
+  en: 'Hello', ptBR: 'Ola BR', ptPT: 'Ola PT',
+);
+print(defaults.resolve('pt-pt'));   // exact hit, not the pt-BR sibling
+print(defaults.resolve('PT-PT'));   // same, fully upper-cased
+print(defaults.resolve('pt-MZ'));   // no exact hit; smallest sibling wins
+''');
+
+      expect(output.split('\n'), ['Ola PT', 'Ola PT', 'Ola BR']);
     });
 
     test('the sibling tier breaks ties on the smallest key', () async {
