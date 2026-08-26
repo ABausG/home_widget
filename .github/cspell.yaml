@@ -29,7 +29,8 @@ ignorePaths:
         "**/.gitignore",
         "**/*.intentdefinition",
         "**/ios/Flutter/**",
-        "**/*.iml"
+        "**/*.iml",
+        "**/test/**"
     ]
 dictionaries:
   - names
@@ -159,12 +160,3 @@ ignoreWords:
     - Cumprimenta
     - você
     - idioma
-    # localization test fixtures (German + Portuguese sample text)
-    - Meine
-    - Begruessung
-    - etwas
-    - Mostra
-    - Aktivitaet
-    - Servus
-    - itens
-    - Grüezi
