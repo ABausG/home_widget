@@ -313,9 +313,35 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
                       case let dataValue as Data:
                         configuration[propertyName] = FlutterStandardTypedData(bytes: dataValue)
 
+                      // Handle arrays element-wise (must come BEFORE generic array case).
+                      // JSON-native elements pass through unchanged; complex Codable
+                      // elements are encoded to JSON objects; anything else falls back
+                      // to its string representation individually.
                       case let arrayValue as [Any]:
-                        configuration[propertyName] = arrayValue
-
+                        let encoder = JSONEncoder()
+                        configuration[propertyName] = arrayValue.map { element -> Any in
+                          switch element {
+                          case let null as NSNull:
+                            return null
+                          case let number as NSNumber:
+                            return number
+                          case let string as String:
+                            return string
+                          case let dictionary as [String: Any]:
+                            return dictionary
+                          case let nested as [Any]:
+                            return nested
+                          default:
+                            if let codableElement = element as? (any Codable),
+                              let data = try? encoder.encode(codableElement),
+                              let jsonObject = try? JSONSerialization.jsonObject(
+                                with: data, options: [.fragmentsAllowed])
+                            {
+                              return jsonObject
+                            }
+                            return "\(element)"
+                          }
+                        }
                       case let dictionaryValue as [String: Any]:
                         configuration[propertyName] = dictionaryValue
 
