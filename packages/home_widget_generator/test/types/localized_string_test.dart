@@ -179,29 +179,26 @@ void main() {
       expect(keyed.baseValue, 'Hello');
     });
 
-    test('the constant constructor carries an empty key', () {
-      const constant = HWLocalizedString.constant(defaultTranslations: values);
+    test('the constant form carries an empty key', () {
+      final constant = localized(key: '', isConstant: true);
       expect(constant.key, '');
       expect(constant.isConstant, isTrue);
-      expect(constant.defaultLocale, isNull);
       expect(constant.defaultTranslations, values);
     });
 
-    test('withDefaultLocale re-anchors the base value and keeps the rest', () {
-      final constant = localized(key: '', isConstant: true);
-      final german = constant.withDefaultLocale('de');
-      expect(german.defaultLocale, 'de');
+    test('the anchor locale selects the base value without moving the resource',
+        () {
+      final english = localized(key: '', isConstant: true);
+      final german = localized(key: '', isConstant: true, defaultLocale: 'de');
       expect(german.baseLocaleTag, 'de');
       expect(german.baseValue, 'Hallo');
-      expect(german.isConstant, isTrue);
-      expect(german.key, '');
-      expect(german.resourcePrefix, 'home_widget_greeting');
       // Only the anchor moved, so the shipped resource is unchanged.
-      expect(german.resourceName, constant.resourceName);
+      expect(german.resourceName, english.resourceName);
     });
 
-    test('withDefaultLocale ignores a locale it has no translation for', () {
-      expect(localized().withDefaultLocale('fr').baseLocaleTag, 'en');
+    test('an anchor locale with no translation falls back to the first entry',
+        () {
+      expect(localized(defaultLocale: 'fr').baseLocaleTag, 'en');
     });
 
     test('keyed form keeps the null-coalescing fallback on iOS', () {

@@ -1,3 +1,5 @@
+import 'utils/content_hash.dart';
+import 'utils/map_equals.dart';
 import 'widgets/hw_color.dart';
 import 'widgets/hw_widget.dart';
 
@@ -276,10 +278,16 @@ class HomeWidgetLocalization {
   /// Every locale this widget ships text for, including [defaultLocale].
   final List<String> supportedLocales;
 
-  /// Translations of [HomeWidget.name], excluding [defaultLocale].
+  /// Translations of [HomeWidget.name].
+  ///
+  /// May carry a [defaultLocale] entry, which then takes precedence over
+  /// [HomeWidget.name]. Every other supported locale must be present.
   final Map<String, String>? name;
 
-  /// Translations of [HomeWidget.description], excluding [defaultLocale].
+  /// Translations of [HomeWidget.description].
+  ///
+  /// May carry a [defaultLocale] entry, which then takes precedence over
+  /// [HomeWidget.description]. Every other supported locale must be present.
   final Map<String, String>? description;
 
   const HomeWidgetLocalization({
@@ -295,15 +303,15 @@ class HomeWidgetLocalization {
       other is HomeWidgetLocalization &&
           defaultLocale == other.defaultLocale &&
           _listEquals(supportedLocales, other.supportedLocales) &&
-          _mapEquals(name, other.name) &&
-          _mapEquals(description, other.description);
+          mapEquals(name, other.name) &&
+          mapEquals(description, other.description);
 
   @override
   int get hashCode => Object.hash(
         defaultLocale,
         Object.hashAll(supportedLocales),
-        name == null ? null : Object.hashAll(_sortedPairs(name!)),
-        description == null ? null : Object.hashAll(_sortedPairs(description!)),
+        name == null ? null : localizedContentHash(name!),
+        description == null ? null : localizedContentHash(description!),
       );
 }
 
@@ -314,18 +322,6 @@ bool _listEquals(List<String> a, List<String> b) {
   }
   return true;
 }
-
-bool _mapEquals(Map<String, String>? a, Map<String, String>? b) {
-  if (a == null || b == null) return a == b;
-  if (a.length != b.length) return false;
-  for (final entry in a.entries) {
-    if (!b.containsKey(entry.key) || b[entry.key] != entry.value) return false;
-  }
-  return true;
-}
-
-List<String> _sortedPairs(Map<String, String> map) =>
-    map.entries.map((e) => '${e.key} ${e.value}').toList()..sort();
 
 /// Annotation for generating home_widget native code.
 class HomeWidget {

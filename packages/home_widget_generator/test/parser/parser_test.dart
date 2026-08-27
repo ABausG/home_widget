@@ -464,6 +464,37 @@ class TestWidget {}
       );
     });
 
+    test('parses a localized HWJson leaf without losing its translations',
+        () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  localization: HomeWidgetLocalization(
+    defaultLocale: 'en',
+    supportedLocales: ['en', 'de'],
+  ),
+  widget: HWText(
+    HWJson(
+      'profile',
+      HWString.localized(
+        'name',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      ),
+    ),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final json = (widget as HWText).dataType! as HWJson;
+      final leaf = json.leafType as HWLocalizedString;
+
+      expect(json.pathSegments, ['name']);
+      expect(leaf.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
+      expect(leaf.isConstant, isFalse);
+      expect(leaf.baseLocaleTag, 'en');
+    });
+
     test('throws when HWJson has no child field', () async {
       final e = await expectParseError('''
 @HomeWidget(

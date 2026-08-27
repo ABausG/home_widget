@@ -101,10 +101,40 @@ String androidLocaleQualifier(String tag) {
 /// Escapes [value] for use as the text of an Android `<string>` resource.
 ///
 /// XML escaping is handled by the serializer; this covers the aapt-level rules
-/// on top of it. Apostrophes are the common one — they appear in most French
-/// and Italian copy and are a build error unescaped.
-String androidStringResourceText(String value) =>
-    value.replaceAll(r'\', r'\\').replaceAll("'", r"\'").replaceAll('"', r'\"');
+/// on top of it:
+///
+/// * Apostrophes are the common one — they appear in most French and Italian
+///   copy and are a build error unescaped.
+/// * A literal newline or tab is collapsed to a single space, so the same
+///   translation would wrap on iOS and run together on Android. Both become
+///   their two-character escape instead.
+/// * A leading `@` or `?` reads as a resource or theme attribute reference
+///   (`@you` fails the build looking for a type named `you`), so it is escaped.
+/// * Leading and trailing whitespace is trimmed unless the value is quoted,
+///   which is what the surrounding `"` are for.
+String androidStringResourceText(String value) {
+  // Backslashes first: every rule below introduces more of them.
+  var escaped = value
+      .replaceAll(r'\', r'\\')
+      .replaceAll("'", r"\'")
+      .replaceAll('"', r'\"')
+      .replaceAll('\r\n', r'\n')
+      .replaceAll('\n', r'\n')
+      .replaceAll('\r', r'\n')
+      .replaceAll('\t', r'\t');
+
+  if (escaped.startsWith('@') || escaped.startsWith('?')) {
+    escaped = '\\$escaped';
+  }
+
+  // Only spaces survive the escaping above as literal whitespace, so they are
+  // the only reason to quote.
+  if (escaped.startsWith(' ') || escaped.endsWith(' ')) {
+    escaped = '"$escaped"';
+  }
+
+  return escaped;
+}
 
 /// Whether a `<string>` needs `formatted="false"`.
 ///

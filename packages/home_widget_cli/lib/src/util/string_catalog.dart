@@ -2,10 +2,8 @@ import 'dart:convert';
 
 /// Builds the contents of an Xcode String Catalog (`Localizable.xcstrings`).
 ///
-/// The catalog is the iOS counterpart to `res/values-<locale>/strings.xml`:
-/// translations that are fixed at build time ship as a resource so the system
-/// resolves them against the user's full preferred-language list, instead of
-/// the widget matching locales itself at render time.
+/// The iOS counterpart to `res/values-<locale>/strings.xml`, carrying the
+/// translations that are fixed at build time.
 ///
 /// [entries] maps resource name to a locale-tag → text map, which must include
 /// the [sourceLanguage] entry. Keys and locales are sorted so regenerating an

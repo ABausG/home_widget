@@ -29,10 +29,13 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | Variant     | Constructor                                | Dart type             | Description                                                                                  |
 | ----------- | ------------------------------------------ | --------------------- | -------------------------------------------------------------------------------------------- |
 | `HWString`  | `HWString(key, {defaultValue})`            | `String`              | Stored as a string in `SharedPreferences` / `UserDefaults`.                                  |
+| `HWString.localized` | `HWString.localized(key, {required defaultTranslations})` | generated translations class | Per-locale text. `defaultTranslations` maps locale tag to the text shipped with the widget; your app can override any locale at runtime. |
 | `HWInt`     | `HWInt(key, {defaultValue})`               | `int`                 | Integer value.                                                                               |
 | `HWDouble`  | `HWDouble(key, {defaultValue})`            | `double`              | Double / float value.                                                                        |
 | `HWBool`    | `HWBool(key, {defaultValue})`              | `bool`                | Boolean value.                                                                               |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
+
+`HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
 ## Defaults
 
@@ -47,3 +50,5 @@ HWText(HWJson('user', HWJson('profile', HWString('name'))))
 ```
 
 This reads `user.profile.name` from a JSON string stored under the `user` key.
+
+A leaf may also be an `HWString.localized`. The value found at the JSON path wins; when the path yields nothing, the leaf's `defaultTranslations` are resolved against the device locale instead — see [Localization](/generator/localization).

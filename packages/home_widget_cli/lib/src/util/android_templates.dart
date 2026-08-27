@@ -87,65 +87,31 @@ ${extraContent ?? ''}
 
 /// Generates the Kotlin code for the HomeWidgetGlanceWidgetReceiver.
 ///
+/// Do not add an `onReceive` override for `ACTION_LOCALE_CHANGED`: Glance's
+/// `GlanceAppWidgetReceiver` already handles it and consumes the receiver's
+/// single `goAsync()` result, so a second call returns null and crashes.
+/// `ensureAndroidManifestReceiver` declares the intent-filter that gets the
+/// broadcast here.
+///
 /// [packageName]: The Android package name.
 /// [widgetClassName]: The class name of the widget.
-/// [handleLocaleChange]: Whether the receiver re-renders on
-///   `ACTION_LOCALE_CHANGED`. Set it when the widget renders localized content
-///   itself; without it a placed widget keeps the old language until something
-///   else happens to update it.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceReceiverTemplate({
   required String packageName,
   required String widgetClassName,
-  bool handleLocaleChange = false,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
-
-  // kotlinx-coroutines is on the classpath transitively via Glance, so no extra
-  // Gradle dependency is needed for the coroutine used below.
-  final imports = <String>[
-    if (handleLocaleChange) 'import android.content.Context',
-    if (handleLocaleChange) 'import android.content.Intent',
-    if (handleLocaleChange) 'import androidx.glance.appwidget.updateAll',
-    'import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver',
-    if (handleLocaleChange) 'import kotlinx.coroutines.CoroutineScope',
-    if (handleLocaleChange) 'import kotlinx.coroutines.Dispatchers',
-    if (handleLocaleChange) 'import kotlinx.coroutines.launch',
-  ];
-
-  // A placed widget is only re-rendered when something asks it to, and
-  // `updatePeriodMillis` is 0. `ACTION_LOCALE_CHANGED` is exempt from the
-  // implicit-broadcast restrictions, so a manifest-declared receiver still
-  // gets it and can re-resolve every string in the new language.
-  final localeChangeOverride = !handleLocaleChange
-      ? ''
-      : '''
-
-  override fun onReceive(context: Context, intent: Intent) {
-    super.onReceive(context, intent)
-    if (intent.action == Intent.ACTION_LOCALE_CHANGED) {
-      val pendingResult = goAsync()
-      CoroutineScope(Dispatchers.Default).launch {
-        try {
-          $widgetClassName().updateAll(context)
-        } finally {
-          pendingResult.finish()
-        }
-      }
-    }
-  }
-''';
 
   return '''
 $head
 package $packageName
 
-${imports.join('\n')}
+import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
 class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassName>() {
   override val glanceAppWidget = $widgetClassName()
-$localeChangeOverride}
+}
 ''';
 }
 

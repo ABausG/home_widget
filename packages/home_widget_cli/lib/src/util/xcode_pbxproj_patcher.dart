@@ -16,10 +16,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   final text = await pbxprojFile.readAsString();
 
   final hasFileSystemSynchronizedSections =
-      text.contains('/* Begin PBXFileSystemSynchronizedRootGroup section */') &&
-          text.contains(
-            '/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */',
-          );
+      _projectSupportsSynchronizedGroups(text);
 
   // Idempotency: if a target with this name already exists, do nothing.
   if (RegExp(
@@ -475,11 +472,10 @@ Future<void> ensureLocalizableCatalogInXcodeProject({
   final text = await pbxprojFile.readAsString();
   var updated = text;
 
-  final usesSynchronizedGroups =
-      text.contains('/* Begin PBXFileSystemSynchronizedRootGroup section */');
+  final ids = _WidgetExtensionIds(widgetClassName);
+  final usesSynchronizedGroups = _widgetUsesSynchronizedGroup(text, ids);
 
   if (!usesSynchronizedGroups) {
-    final ids = _WidgetExtensionIds(widgetClassName);
     final fileRefId = xcodeObjectId(
       'fileref:Localizable.xcstrings:$widgetClassName',
     );
@@ -524,6 +520,31 @@ Future<void> ensureLocalizableCatalogInXcodeProject({
   logger.detail(
     'Wired $widgetClassName/Localizable.xcstrings into the extension target.',
   );
+}
+
+/// Whether the scaffolder would give a new extension a synchronized root group.
+///
+/// Both sections have to exist: `_insertIntoSection` silently does nothing for
+/// an absent section, which would leave the group referencing a membership
+/// exception set that was never written.
+bool _projectSupportsSynchronizedGroups(String pbxproj) =>
+    pbxproj
+        .contains('/* Begin PBXFileSystemSynchronizedRootGroup section */') &&
+    pbxproj.contains(
+      '/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */',
+    );
+
+/// Whether *this widget's* extension folder is a synchronized group.
+///
+/// Per-widget, not per-project: a project can hold both kinds at once, and a
+/// project-global guess that disagrees with the group the scaffolder actually
+/// created wires the catalog into nothing while still reporting success.
+bool _widgetUsesSynchronizedGroup(String pbxproj, _WidgetExtensionIds ids) {
+  if (pbxproj.contains(ids.fsRootGroupId)) return true;
+  if (pbxproj.contains(ids.widgetGroupId)) return false;
+  // Neither group exists yet, so nothing has been decided: answer the same way
+  // the scaffolder will when it creates one.
+  return _projectSupportsSynchronizedGroups(pbxproj);
 }
 
 /// Adds any missing [locales] to the project's `knownRegions`.

@@ -79,43 +79,110 @@ void main() {
     expect(content, contains('GlanceTheme.colors'));
   });
 
-  test('appends description string into existing strings.xml via update path',
+  test('writes its own resource file and never touches the user strings.xml',
       () async {
-    final stringsDir = Directory(
-      p.join(
-        tempDir.path,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        'values',
-      ),
+    final valuesDir = Directory(
+      p.join(tempDir.path, 'android', 'app', 'src', 'main', 'res', 'values'),
     )..createSync(recursive: true);
-    File(p.join(stringsDir.path, 'strings.xml')).writeAsStringSync(
-      '''<?xml version="1.0" encoding="utf-8"?>
+    final stringsFile = File(p.join(valuesDir.path, 'strings.xml'));
+    // Styled markup, a comment, and the author's own indentation: everything a
+    // whole-document reserialization would reflow. Pretty printing splits the
+    // text around <b>, and aapt then ships "Hello world , welcome!".
+    const original = '''<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="existing_only">existing</string>
+  <!-- Greeting shown on the home screen. -->
+  <string name="greeting">Hello <b>world</b>, welcome!</string>
+  <string name="app_name">Example</string>
 </resources>
-''',
-    );
+''';
+    stringsFile.writeAsStringSync(original);
 
     final spec = WidgetSpec(
       data: HomeWidget(
-        name: 'DescAppend',
-        description: 'From unit test strings patch',
+        name: 'Styled',
+        description: 'A description',
         android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
       ),
-      className: 'DescAppend',
+      className: 'Styled',
     );
 
     await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
 
-    final content =
-        File(p.join(stringsDir.path, 'strings.xml')).readAsStringSync();
-    expect(content, contains('name="home_widget_desc_append_description"'));
-    // Entries outside the home_widget_ namespace are never touched.
-    expect(content, contains('name="existing_only"'));
+    expect(stringsFile.readAsStringSync(), original);
+
+    final owned = File(p.join(valuesDir.path, 'home_widget_styled.xml'));
+    final afterFirst = owned.readAsStringSync();
+    expect(
+      afterFirst,
+      contains('<string name="home_widget_styled_label">Styled</string>'),
+    );
+    expect(
+      afterFirst,
+      contains('<string name="home_widget_styled_description">A description'
+          '</string>'),
+    );
+
+    // A second run has nothing to change, so it must not rewrite the file or
+    // claim it did.
+    clearInteractions(mockLogger);
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    expect(owned.readAsStringSync(), afterFirst);
+    expect(stringsFile.readAsStringSync(), original);
+    verifyNever(
+      () => mockLogger.detail(any(that: contains('home_widget_styled.xml'))),
+    );
+  });
+
+  test('drops the owned file, and the directory, when a locale goes away',
+      () async {
+    WidgetSpec specFor(List<String> locales, Map<String, String> names) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Greeter',
+            android: const HomeWidgetAndroidConfiguration(
+              packageName: 'com.example',
+            ),
+            localization: HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: locales,
+              name: names,
+            ),
+          ),
+          className: 'Greeter',
+        );
+
+    await AndroidGenerator(
+      spec: specFor(
+        const ['en', 'de', 'fr'],
+        const {'de': 'Begruesser', 'fr': 'Salutation'},
+      ),
+      projectRoot: tempDir,
+    ).generate();
+
+    final resDir = p.join(tempDir.path, 'android/app/src/main/res');
+    final german = File(p.join(resDir, 'values-de/home_widget_greeter.xml'));
+    final french = File(p.join(resDir, 'values-fr/home_widget_greeter.xml'));
+    expect(
+      german.readAsStringSync(),
+      contains('<string name="home_widget_greeter_label">Begruesser</string>'),
+    );
+    expect(french.existsSync(), isTrue);
+
+    // A file the generator does not own keeps its directory alive.
+    File(p.join(resDir, 'values-fr/strings.xml')).writeAsStringSync(
+      '<?xml version="1.0" encoding="utf-8"?>\n<resources />\n',
+    );
+
+    await AndroidGenerator(
+      spec: specFor(const ['en'], const {}),
+      projectRoot: tempDir,
+    ).generate();
+
+    expect(german.existsSync(), isFalse);
+    expect(Directory(p.join(resDir, 'values-de')).existsSync(), isFalse);
+    expect(french.existsSync(), isFalse);
+    expect(Directory(p.join(resDir, 'values-fr')).existsSync(), isTrue);
   });
 
   test('escapes literal dollar signs in Kotlin string defaults', () async {
@@ -383,7 +450,8 @@ void main() {
     );
   });
 
-  test('generates provider info XML and strings.xml with v2 fields', () async {
+  test('generates provider info XML and string resources with v2 fields',
+      () async {
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'V2Widget',
@@ -442,7 +510,7 @@ void main() {
     final stringsFile = File(
       p.join(
         tempDir.path,
-        'android/app/src/main/res/values/strings.xml',
+        'android/app/src/main/res/values/home_widget_v2_widget.xml',
       ),
     );
     expect(stringsFile.existsSync(), isTrue);
@@ -451,7 +519,6 @@ void main() {
       stringsContent,
       contains('name="home_widget_v2_widget_description"'),
     );
-    expect(stringsContent, contains('>A v2 widget description<'));
     expect(stringsContent, contains('>A v2 widget description<'));
   });
 

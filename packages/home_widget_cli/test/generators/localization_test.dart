@@ -42,6 +42,17 @@ HWLocalizedString _localized({
       resourcePrefix: 'home_widget_greeting',
     );
 
+/// A localized string sitting at `profile.name` of a JSON group.
+HWJson _localizedLeaf({
+  String key = 'name',
+  Map<String, String> values = const {
+    'en': 'Hello',
+    'de': 'Hallo',
+    'pt-BR': 'Ola',
+  },
+}) =>
+    HWJson('profile', _localized(key: key, values: values));
+
 WidgetSpec _spec({
   required HWWidget widget,
   HomeWidgetLocalization? localization = _localization,
@@ -113,22 +124,38 @@ Future<String> _runGenerated(String dart, String body) async {
   return (result.stdout as String).trim();
 }
 
+/// The `Greeting` widget's generated resource file for one locale, or `''`
+/// when the generator wrote none.
 String _strings(Directory root, [String? qualifier]) {
-  final dirName = qualifier == null ? 'values' : 'values-$qualifier';
-  final file = File(
-    p.join(
-      root.path,
-      'android',
-      'app',
-      'src',
-      'main',
-      'res',
-      dirName,
-      'strings.xml',
-    ),
-  );
+  final file = _ownedFile(root, qualifier);
   return file.existsSync() ? file.readAsStringSync() : '';
 }
+
+File _ownedFile(Directory root, [String? qualifier]) => File(
+      p.join(
+        root.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'res',
+        qualifier == null ? 'values' : 'values-$qualifier',
+        'home_widget_greeting.xml',
+      ),
+    );
+
+File _userStrings(Directory root, [String? qualifier]) => File(
+      p.join(
+        root.path,
+        'android',
+        'app',
+        'src',
+        'main',
+        'res',
+        qualifier == null ? 'values' : 'values-$qualifier',
+        'strings.xml',
+      ),
+    );
 
 void main() {
   group('locale tag conversion', () {
@@ -236,16 +263,15 @@ void main() {
 
     test('prunes the entries of an edited constant', () async {
       final root = await _project();
-      final valuesDir = Directory(
-        p.join(root.path, 'android/app/src/main/res/values'),
-      );
-      await valuesDir.create(recursive: true);
-      await File(p.join(valuesDir.path, 'strings.xml')).writeAsString('''
+      const userContent = '''
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Meine App</string>
 </resources>
-''');
+''';
+      final userStrings = _userStrings(root);
+      await userStrings.create(recursive: true);
+      await userStrings.writeAsString(userContent);
 
       final before = _localized(isConstant: true);
       await AndroidGenerator(
@@ -267,11 +293,12 @@ void main() {
       expect(_strings(root), isNot(contains(before.resourceName)));
       expect(_strings(root, 'de'), contains(after.resourceName));
       expect(_strings(root, 'de'), isNot(contains(before.resourceName)));
-      // Anything outside our prefix is left alone.
-      expect(_strings(root), contains('app_name'));
+      // The app's own resource file is never read or written.
+      expect(userStrings.readAsStringSync(), userContent);
     });
 
-    test('wires a locale-change refresh only for localized widgets', () async {
+    test('declares the locale-change filter only for localized widgets',
+        () async {
       String receiverSource(Directory root) => File(
             p.join(
               root.path,
@@ -298,11 +325,11 @@ void main() {
       final keyedRoot = await _project();
       final keyedManifest =
           await manifestAfter(keyedRoot, _spec(widget: HWText(_localized())));
-      expect(
-        receiverSource(keyedRoot),
-        contains('Intent.ACTION_LOCALE_CHANGED'),
-      );
       expect(keyedManifest, contains('android.intent.action.LOCALE_CHANGED'));
+      // ...but the refresh itself is Glance's job, so the generated receiver
+      // stays override-free; see androidGlanceReceiverTemplate.
+      expect(receiverSource(keyedRoot), isNot(contains('onReceive')));
+      expect(receiverSource(keyedRoot), isNot(contains('goAsync')));
 
       // ...and so is a constant, which reads through `R.string`.
       final constantRoot = await _project();
@@ -311,13 +338,18 @@ void main() {
         _spec(widget: HWText(_localized(isConstant: true))),
       );
       expect(
-        receiverSource(constantRoot),
-        contains('Intent.ACTION_LOCALE_CHANGED'),
-      );
-      expect(
         constantManifest,
         contains('android.intent.action.LOCALE_CHANGED'),
       );
+      expect(receiverSource(constantRoot), isNot(contains('onReceive')));
+
+      // ...and so is a JSON leaf's compiled fallback.
+      final jsonRoot = await _project();
+      final jsonManifest = await manifestAfter(
+        jsonRoot,
+        _spec(widget: HWText(_localizedLeaf())),
+      );
+      expect(jsonManifest, contains('android.intent.action.LOCALE_CHANGED'));
 
       // A widget with no localized content renders nothing that goes stale.
       final plainRoot = await _project();
@@ -368,6 +400,66 @@ void main() {
       );
       expect(kotlin, contains('fromPreferences(prefs, hwLocales)'));
       expect(kotlin, contains('private fun hwReadLocalized('));
+    });
+
+    test('falls back to the leaf translations when the JSON path is absent',
+        () async {
+      final root = await _project();
+      final spec = _spec(widget: HWText(_localizedLeaf()));
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      final kotlin = File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/com/example/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+
+      expect(
+        kotlin,
+        contains(
+          'text = (widgetData.profile?.name ?: hwResolveLocalized(hwLocales, '
+          'mapOf("en" to "Hello", "de" to "Hallo", "pt-BR" to "Ola"), "en") '
+          '?: "Hello")',
+        ),
+      );
+      // The stored JSON stays the source of truth: no baked-in leaf default.
+      expect(kotlin, contains('val name: String? = null'));
+      expect(
+        kotlin,
+        contains('name = if (json.has("name") && !json.isNull("name")) '
+            'json.optString("name") else null'),
+      );
+    });
+
+    test('emits the resolver but no blob reader for a JSON-only widget',
+        () async {
+      final root = await _project();
+      final spec = _spec(widget: HWText(_localizedLeaf()));
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      final kotlin = File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/com/example/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+
+      expect(kotlin, contains('val hwLocales = hwCurrentLocales(context)'));
+      expect(kotlin, contains('private fun hwCurrentLocales('));
+      expect(kotlin, contains('private fun hwResolveLocalized('));
+      // Nothing reads a preferences blob, so the reader and the `locales`
+      // parameter would be dead code.
+      expect(kotlin, isNot(contains('private fun hwReadLocalized(')));
+      expect(kotlin, isNot(contains('private fun hwLocalize(')));
+      expect(
+        kotlin,
+        contains(
+          'fun fromPreferences(prefs: android.content.SharedPreferences)',
+        ),
+      );
     });
 
     test('reads one key holding every translation', () async {
@@ -449,7 +541,9 @@ void main() {
       expect(read, contains('val merged = values.toMutableMap()'));
       expect(read, contains('merged.putAll(it)'));
       expect(
-          read.indexOf('merged.putAll'), lessThan(read.indexOf('hwLocalize')));
+        read.indexOf('merged.putAll'),
+        lessThan(read.indexOf('hwLocalize')),
+      );
       // Exactly one resolution over the merged map — no separate stored tier
       // that could terminate on the stored base locale.
       expect('hwLocalize('.allMatches(read).length, 1);
@@ -478,12 +572,75 @@ void main() {
         contains('private fun hwCurrentLocales(context: android.content.Context'
             '): List<String>'),
       );
-      // ...and each entry is tried, exact tag then language, before the
-      // widget's default locale applies.
+      // ...and each entry is tried in turn, before the widget's default locale
+      // applies.
       expect(kotlin, contains('for (locale in locales) {'));
-      expect(kotlin, contains("val language = tag.substringBefore('-')"));
-      expect(kotlin, contains('values[language]?.let { return it }'));
       expect(kotlin, contains('return values[baseLocale]'));
+    });
+
+    test('emits canonical BCP-47 tags rather than legacy ISO-639 codes',
+        () async {
+      final root = await _project();
+      final spec = _spec(widget: HWText(_localized()));
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      final kotlin = File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/com/example/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+
+      final collect = kotlin.substring(
+        kotlin.indexOf('private fun hwCurrentLocales('),
+        kotlin.indexOf('private fun hwResolveLocalized('),
+      );
+
+      // `Locale.getLanguage()` still answers with the obsolete codes (iw for
+      // he, in for id, ji for yi) and drops the script subtag, so a Hebrew or
+      // Traditional-Chinese device would never match its key. toLanguageTag()
+      // canonicalizes both.
+      expect(collect, contains('locale.toLanguageTag()'));
+      expect(
+        collect,
+        contains('java.util.Locale.getDefault().toLanguageTag()'),
+      );
+      expect(collect, isNot(contains('locale.language')));
+      expect(collect, isNot(contains('locale.country')));
+    });
+
+    test('truncates one subtag at a time before any sibling scan', () async {
+      final root = await _project();
+      final spec = _spec(widget: HWText(_localized()));
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      final kotlin = File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/com/example/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+
+      final resolve = kotlin.substring(
+        kotlin.indexOf('private fun hwResolveLocalized('),
+        kotlin.indexOf('private fun hwLocalize('),
+      );
+
+      // zh-Hant-TW -> zh-Hant -> zh, so a script subtag is honoured before the
+      // sibling scan could flatten it to whichever key sorts first.
+      expect(resolve, contains('values[candidate]?.let { return it }'));
+      expect(resolve, contains("val cut = candidate.lastIndexOf('-')"));
+      expect(resolve, contains('candidate = candidate.substring(0, cut)'));
+      // The bare language falls out of the truncation loop rather than being
+      // cut straight off the front of the tag.
+      expect(resolve, isNot(contains("tag.substringBefore('-')")));
+      // Truncation is exhausted before the sibling scan starts.
+      expect(
+        resolve.indexOf('candidate = candidate.substring(0, cut)'),
+        lessThan(resolve.indexOf('for (key in values.keys) {')),
+      );
     });
 
     test('falls onto a region sibling before the default locale', () async {
@@ -499,8 +656,8 @@ void main() {
         ),
       ).readAsStringSync();
 
-      // pt-PT has neither an exact nor a bare-language entry, so it has to
-      // reach pt-BR the way Android's own resource matching would.
+      // pt-PT survives neither the exact lookup nor truncation to pt, so it
+      // has to reach pt-BR the way Android's own resource matching would.
       expect(kotlin, contains('for (key in values.keys) {'));
       expect(
         kotlin,
@@ -542,6 +699,68 @@ void main() {
       expect(
         _strings(root, 'pt-rBR'),
         contains('name="home_widget_greeting_description">Mostra algo'),
+      );
+    });
+
+    test('a default-locale gallery entry outranks the top-level text',
+        () async {
+      final root = await _project();
+      final spec = _spec(
+        widget: const HWText.fixed('body'),
+        description: 'Base description',
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          name: {'en': 'Daily greeting', 'de': 'Begruessung'},
+          description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+        ),
+      );
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      expect(
+        _strings(root),
+        contains(
+          '<string name="home_widget_greeting_label">Daily greeting</string>',
+        ),
+      );
+      expect(
+        _strings(root),
+        contains('name="home_widget_greeting_description">Shows a greeting'),
+      );
+      expect(_strings(root, 'de'), contains('Begruessung'));
+      // The default locale belongs in values/, never in a qualified directory.
+      expect(_strings(root, 'en'), isEmpty);
+    });
+
+    test('emits a description declared only by the localization map', () async {
+      final root = await _project();
+      final spec = _spec(
+        widget: const HWText.fixed('body'),
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+        ),
+      );
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      expect(
+        _strings(root),
+        contains('name="home_widget_greeting_description">Shows a greeting'),
+      );
+      expect(_strings(root, 'de'), contains('Zeigt etwas'));
+
+      final providerInfo = File(
+        p.join(
+          root.path,
+          'android/app/src/main/res/xml/greeting_home_widget.xml',
+        ),
+      ).readAsStringSync();
+      expect(
+        providerInfo,
+        contains('@string/home_widget_greeting_description'),
       );
     });
 
@@ -626,20 +845,22 @@ void main() {
       expect(_strings(root, 'de'), contains('home_widget_greeting_label'));
     });
 
-    test('pruning leaves other resources and non-locale dirs alone', () async {
+    test('pruning leaves other files and non-locale dirs alone', () async {
       final root = await _project();
-      final resDir = p.join(root.path, 'android/app/src/main/res');
 
-      for (final dir in ['values-fr', 'values-night']) {
-        await Directory(p.join(resDir, dir)).create(recursive: true);
-        await File(p.join(resDir, dir, 'strings.xml')).writeAsString('''
+      const stale = '''
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="home_widget_greeting_label">stale</string>
-    <string name="app_name">Meine App</string>
 </resources>
-''');
+''';
+      for (final qualifier in ['fr', 'night']) {
+        final file = _ownedFile(root, qualifier);
+        await file.create(recursive: true);
+        await file.writeAsString(stale);
       }
+      final french = _userStrings(root, 'fr');
+      await french.writeAsString(stale);
 
       await AndroidGenerator(
         spec: _spec(
@@ -653,42 +874,13 @@ void main() {
         projectRoot: root,
       ).generate();
 
-      // Our entry is pruned from the stale locale...
-      expect(
-        _strings(root, 'fr'),
-        isNot(contains('home_widget_greeting_label')),
-      );
-      // ...but the user's own string in that file survives.
-      expect(_strings(root, 'fr'), contains('app_name'));
+      // Our file is dropped from the stale locale...
+      expect(_ownedFile(root, 'fr').existsSync(), isFalse);
+      // ...but every other file in that directory survives, so the directory
+      // stays too.
+      expect(french.readAsStringSync(), stale);
       // ...and a non-locale qualifier is never swept.
-      expect(_strings(root, 'night'), contains('home_widget_greeting_label'));
-    });
-
-    test('removes the legacy unprefixed description entry', () async {
-      final root = await _project();
-      final valuesDir = Directory(
-        p.join(root.path, 'android/app/src/main/res/values'),
-      );
-      await valuesDir.create(recursive: true);
-      await File(p.join(valuesDir.path, 'strings.xml')).writeAsString('''
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="greeting_home_widget_description">stale</string>
-    <string name="greeting_home_widget_description_custom">mine</string>
-</resources>
-''');
-
-      final spec = _spec(
-        widget: const HWText.fixed('body'),
-        description: 'Fresh',
-        localization: null,
-      );
-      await AndroidGenerator(spec: spec, projectRoot: root).generate();
-
-      final content = _strings(root);
-      expect(content, isNot(contains('"greeting_home_widget_description"')));
-      // A similarly named entry that is not an exact match survives.
-      expect(content, contains('greeting_home_widget_description_custom'));
+      expect(_strings(root, 'night'), stale);
     });
 
     test('writes a UN M.49 locale to its BCP-47 resource directory', () async {
@@ -949,6 +1141,58 @@ android {
       );
     });
 
+    test('a default-locale gallery entry outranks the top-level text',
+        () async {
+      final spec = _spec(
+        widget: const HWText.fixed('body'),
+        description: 'Base description',
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          name: {'en': 'Daily greeting', 'de': 'Begruessung'},
+          description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+        ),
+      );
+
+      final catalog = await generateCatalog(spec);
+      final strings = catalog['strings'] as Map<String, dynamic>;
+
+      String value(String name, String locale) {
+        final localizations = (strings[name]
+            as Map<String, dynamic>)['localizations'] as Map<String, dynamic>;
+        return ((localizations[locale] as Map)['stringUnit'] as Map)['value']
+            as String;
+      }
+
+      expect(value('home_widget_greeting_label', 'en'), 'Daily greeting');
+      expect(
+        value('home_widget_greeting_description', 'en'),
+        'Shows a greeting',
+      );
+    });
+
+    test('emits a description declared only by the localization map', () async {
+      final spec = _spec(
+        widget: const HWText.fixed('body'),
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+        ),
+      );
+
+      final swift = await generateSwift(spec);
+      expect(
+        swift,
+        contains('.description(NSLocalizedString('
+            '"home_widget_greeting_description", comment: ""))'),
+      );
+
+      final catalog = await generateCatalog(spec);
+      final strings = catalog['strings'] as Map<String, dynamic>;
+      expect(strings.keys, contains('home_widget_greeting_description'));
+    });
+
     test('keeps a plain literal when the gallery is not translated', () async {
       final swift = await generateSwift(
         _spec(
@@ -1001,6 +1245,35 @@ android {
       expect(swift, isNot(contains('Text(entry.data.greeting')));
     });
 
+    test('falls back to the leaf translations when the JSON path is absent',
+        () async {
+      final swift =
+          await generateSwift(_spec(widget: HWText(_localizedLeaf())));
+
+      expect(
+        swift,
+        contains(
+          'Text(((data.profile?.name) ?? hwResolveLocalized(hwCurrentLocales(), '
+          '["en": "Hello", "de": "Hallo", "pt-BR": "Ola"], baseLocale: "en") '
+          '?? "Hello"))',
+        ),
+      );
+      // The stored JSON stays the source of truth: no baked-in leaf default.
+      expect(swift, contains('let name: String?'));
+      expect(swift, contains('name: (values["name"] as? String) ?? nil,'));
+    });
+
+    test('emits the resolver but no blob reader for a JSON-only widget',
+        () async {
+      final swift =
+          await generateSwift(_spec(widget: HWText(_localizedLeaf())));
+
+      expect(swift, contains('func hwCurrentLocales() -> [String]'));
+      expect(swift, contains('func hwResolveLocalized('));
+      expect(swift, isNot(contains('func hwReadLocalized(')));
+      expect(swift, isNot(contains('func hwLocalize(')));
+    });
+
     test('reads one key holding every translation', () async {
       final swift = await generateSwift(_spec(widget: HWText(_localized())));
 
@@ -1028,7 +1301,9 @@ android {
         ),
       );
       expect(
-          swift, contains('return hwLocalize(merged, baseLocale: baseLocale)'));
+        swift,
+        contains('return hwLocalize(merged, baseLocale: baseLocale)'),
+      );
     });
 
     test('overlays the stored blob onto the compiled map per locale', () async {
@@ -1045,7 +1320,9 @@ android {
       expect(read, contains('var merged = values'));
       expect(read, contains('merged.merge(stored) { _, new in new }'));
       expect(
-          read.indexOf('merged.merge'), lessThan(read.indexOf('hwLocalize')));
+        read.indexOf('merged.merge'),
+        lessThan(read.indexOf('hwLocalize')),
+      );
       // Exactly one resolution over the merged map — no separate stored tier
       // that could terminate on the stored base locale.
       expect('hwLocalize('.allMatches(read).length, 1);
@@ -1060,18 +1337,47 @@ android {
       expect(swift, contains('let preferred = Locale.preferredLanguages.map'));
       expect(swift, isNot(contains('Locale.preferredLanguages.first')));
       expect(swift, contains('for tag in locales {'));
-      expect(
-        swift,
-        contains('if let match = values[language] { return match }'),
-      );
       expect(swift, contains('return values[baseLocale]'));
+    });
+
+    test('truncates one subtag at a time before any sibling scan', () async {
+      final swift = await generateSwift(_spec(widget: HWText(_localized())));
+
+      final resolve = swift.substring(
+        swift.indexOf('func hwResolveLocalized('),
+        swift.indexOf('func hwLocalize('),
+      );
+
+      // zh-Hant-TW -> zh-Hant -> zh, mirroring the Kotlin and Dart chains, so
+      // a Traditional-Chinese device cannot land on a Simplified key just
+      // because it sorts first.
+      expect(
+        resolve,
+        contains('if let match = values[candidate] { return match }'),
+      );
+      expect(
+        resolve,
+        contains('guard let cut = candidate.lastIndex(of: "-")'),
+      );
+      expect(
+        resolve,
+        contains('candidate = String(candidate[candidate.startIndex..<cut])'),
+      );
+      // The bare language falls out of the truncation loop rather than being
+      // cut straight off the front of the tag.
+      expect(resolve, isNot(contains('tag.split(separator: "-").first')));
+      // Truncation is exhausted before the sibling scan starts.
+      expect(
+        resolve.indexOf('candidate = String(candidate[candidate.startIndex'),
+        lessThan(resolve.indexOf('let siblings = values.keys.filter {')),
+      );
     });
 
     test('falls onto a region sibling before the default locale', () async {
       final swift = await generateSwift(_spec(widget: HWText(_localized())));
 
-      // pt-PT has neither an exact nor a bare-language entry, so it has to
-      // reach pt-BR rather than dropping to the widget's default locale.
+      // pt-PT survives neither the exact lookup nor truncation to pt, so it
+      // has to reach pt-BR rather than dropping to the widget's default locale.
       expect(swift, contains('let siblings = values.keys.filter {'));
       expect(
         swift,
@@ -1247,8 +1553,21 @@ android {
         contains('if (sibling == null || key.compareTo(sibling) < 0) '
             'sibling = key;'),
       );
-      // The default locale is the last resort, after the sibling tier.
       final resolveBody = dart.substring(dart.indexOf('String resolve('));
+      // Progressive truncation comes first, as in Kotlin and Swift; the bare
+      // language is what the loop ends on rather than a split off the front.
+      expect(resolveBody, contains("final cut = candidate.lastIndexOf('-');"));
+      expect(resolveBody, contains('candidate = candidate.substring(0, cut);'));
+      expect(resolveBody, contains('final language = candidate;'));
+      expect(
+        resolveBody,
+        isNot(contains("final language = normalized.split('-').first;")),
+      );
+      expect(
+        resolveBody.indexOf('candidate = candidate.substring(0, cut);'),
+        lessThan(resolveBody.indexOf('sibling')),
+      );
+      // The default locale is the last resort, after the sibling tier.
       expect(
         resolveBody.indexOf('sibling'),
         lessThan(resolveBody.indexOf('return en;')),
@@ -1374,6 +1693,125 @@ print(defaults.resolve('pt-MZ'));   // exact still beats the sibling scan
       expect(output.split('\n'), ['Ola BR', 'Ola BR', 'Ola MZ']);
     });
 
+    test('truncation reaches the script entry before any sibling', () async {
+      final dart = generate(
+        _spec(
+          widget: HWText(
+            _localized(
+              values: const {
+                'en': 'Hello',
+                'zh-Hans': 'Jian',
+                'zh-Hant': 'Fan',
+              },
+            ),
+          ),
+          localization: const HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'zh-Hans', 'zh-Hant'],
+          ),
+        ),
+      );
+
+      final output = await _runGenerated(dart, '''
+const defaults = GreetingHomeWidgetTranslations(
+  en: 'Hello', zhHans: 'Jian', zhHant: 'Fan',
+);
+print(defaults.resolve('zh-Hant-TW'));  // truncates to zh-Hant, not min()
+print(defaults.resolve('zh-Hans-CN'));  // and to zh-Hans the same way
+print(defaults.resolve('zh-Hant'));     // exact hit
+// Neither a script subtag nor a bare `zh` entry: only here does the
+// deterministic smallest-sibling tie-break apply.
+print(defaults.resolve('zh'));
+print(defaults.resolve('ja'));          // unrelated language, default locale
+''');
+
+      // A zh-Hant-TW device used to land on zh-Hans, because the old chain
+      // went straight from the full tag to the bare language and then to the
+      // lexicographically smallest sibling.
+      expect(output.split('\n'), ['Fan', 'Jian', 'Fan', 'Jian', 'Hello']);
+    });
+
+    test('truncation outranks the sibling tier', () async {
+      final dart = generate(
+        _spec(
+          widget: HWText(
+            _localized(
+              values: const {
+                'en': 'Hello',
+                'pt': 'Ola',
+                'pt-BR': 'Ola BR',
+              },
+            ),
+          ),
+          localization: const HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'pt', 'pt-BR'],
+          ),
+        ),
+      );
+
+      final output = await _runGenerated(dart, '''
+const defaults = GreetingHomeWidgetTranslations(
+  en: 'Hello', pt: 'Ola', ptBR: 'Ola BR',
+);
+print(defaults.resolve('pt-PT'));     // truncates to pt before scanning pt-BR
+print(defaults.resolve('pt-PT-x-a')); // several subtags, dropped one by one
+print(defaults.resolve('pt-BR'));     // exact match still wins outright
+''');
+
+      expect(output.split('\n'), ['Ola', 'Ola', 'Ola BR']);
+    });
+
+    test('legacy ISO-639 codes are canonicalized before Dart sees them',
+        () async {
+      final dart = generate(
+        _spec(
+          widget: HWText(
+            _localized(
+              values: const {'en': 'Hello', 'he': 'Shalom', 'id': 'Halo'},
+            ),
+          ),
+          localization: const HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'he', 'id'],
+          ),
+        ),
+      );
+
+      final output = await _runGenerated(dart, '''
+const defaults = GreetingHomeWidgetTranslations(
+  en: 'Hello', he: 'Shalom', id: 'Halo',
+);
+print(defaults.resolve('he'));      // the modern tag matches
+print(defaults.resolve('he-IL'));   // and truncates to it
+print(defaults.resolve('id'));
+// `iw`/`in` are the obsolete codes `java.util.Locale.getLanguage()` hands
+// back. Nothing maps them here — the Kotlin helper canonicalizes at the
+// source with `toLanguageTag()`, so the widget never resolves one.
+print(defaults.resolve('iw'));
+print(defaults.resolve('in'));
+''');
+
+      expect(output.split('\n'), [
+        'Shalom',
+        'Shalom',
+        'Halo',
+        'Hello',
+        'Hello',
+      ]);
+    });
+
+    test('a localized JSON leaf stays a plain nullable field', () {
+      final dart = generate(_spec(widget: HWText(_localizedLeaf())));
+
+      // The app owns the JSON, so the Dart side neither ships the translations
+      // nor bakes in a default.
+      expect(dart, isNot(contains('HomeWidgetTranslations')));
+      expect(dart, isNot(contains("'Hello'")));
+      expect(dart, contains('final String? name;'));
+      expect(dart, contains("name: _readString(json['name'])"));
+    });
+
     test('constant strings never reach the Dart API', () {
       final dart = generate(
         _spec(widget: HWText(_localized(isConstant: true))),
@@ -1439,7 +1877,7 @@ print(defaults.resolve('pt-MZ'));   // exact still beats the sibling scan
       );
     });
 
-    test('rejects the default locale in a gallery map', () {
+    test('accepts the default locale in a gallery map', () {
       expect(
         () => validate(
           _spec(
@@ -1451,11 +1889,81 @@ print(defaults.resolve('pt-MZ'));   // exact still beats the sibling scan
             ),
           ),
         ),
+        returnsNormally,
+      );
+    });
+
+    test('requires gallery base text from the map or the annotation', () {
+      expect(
+        () => validate(
+          _spec(
+            widget: const HWText.fixed('body'),
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en', 'de'],
+              description: {'de': 'Zeigt etwas'},
+            ),
+          ),
+        ),
         throwsA(
           isA<GeneratorError>().having(
             (e) => e.toString(),
             'message',
-            contains('second source of truth'),
+            allOf(
+              contains('localization.description'),
+              contains('no default-locale text'),
+            ),
+          ),
+        ),
+      );
+
+      // Either source on its own is enough.
+      expect(
+        () => validate(
+          _spec(
+            widget: const HWText.fixed('body'),
+            description: 'Shows a greeting',
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en', 'de'],
+              description: {'de': 'Zeigt etwas'},
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+      expect(
+        () => validate(
+          _spec(
+            widget: const HWText.fixed('body'),
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en', 'de'],
+              description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a placeholder in the default-locale gallery entry', () {
+      expect(
+        () => validate(
+          _spec(
+            widget: const HWText.fixed('body'),
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en', 'de'],
+              name: {'en': '{count} items', 'de': '{count} Dinge'},
+            ),
+          ),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('placeholder'),
           ),
         ),
       );
@@ -1486,15 +1994,64 @@ print(defaults.resolve('pt-MZ'));   // exact still beats the sibling scan
       );
     });
 
-    test('rejects a localized string nested in HWJson', () {
-      final json = HWJson('profile', _localized());
+    test('validates a localized string nested in HWJson like any other', () {
       expect(
-        () => validate(_spec(widget: HWText(json))),
+        () => validate(_spec(widget: HWText(_localizedLeaf()))),
+        returnsNormally,
+      );
+
+      expect(
+        () => validate(
+          _spec(
+            widget: HWText(
+              _localizedLeaf(values: const {'en': 'Hello', 'de': 'Hallo'}),
+            ),
+          ),
+        ),
         throwsA(
           isA<GeneratorError>().having(
             (e) => e.toString(),
             'message',
-            contains('cannot be nested inside HWJson'),
+            contains('missing translations for pt-BR'),
+          ),
+        ),
+      );
+
+      expect(
+        () => validate(
+          _spec(
+            widget: HWText(
+              _localizedLeaf(
+                values: const {
+                  'en': 'Hello',
+                  'de': 'Hallo',
+                  'pt-BR': 'Ola',
+                  'fr': 'Bonjour',
+                },
+              ),
+            ),
+          ),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('is not in supportedLocales'),
+          ),
+        ),
+      );
+    });
+
+    test('requires a localization block for a JSON leaf too', () {
+      expect(
+        () => validate(
+          _spec(widget: HWText(_localizedLeaf()), localization: null),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('has no localization'),
           ),
         ),
       );

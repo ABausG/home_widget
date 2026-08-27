@@ -108,11 +108,12 @@ class LocalizedGreetingHomeWidgetTranslations {
 
   /// The text this set resolves to for the BCP-47 locale [tag].
   ///
-  /// Tries the exact tag (`pt-PT`), then the bare language (`pt`),
-  /// then any entry with the same language but a different region or
-  /// script (`pt-BR`; the lexicographically smallest wins if several
-  /// match), and finally the widget's default locale. Matching is
-  /// case-insensitive, and `_` is treated as `-`.
+  /// Tries the exact tag (`pt-PT`), then the tag with its last subtag
+  /// dropped, and so on down to the bare language (`zh-Hant-TW` →
+  /// `zh-Hant` → `zh`), then any entry with the same language but a
+  /// different region or script (`pt-BR`; the lexicographically
+  /// smallest wins if several match), and finally the widget's default
+  /// locale. Matching is case-insensitive, and `_` is treated as `-`.
   ///
   /// The widget natively runs these same steps against *every* entry
   /// of the OS preferred-language list in order; this answers for one
@@ -123,11 +124,15 @@ class LocalizedGreetingHomeWidgetTranslations {
         entry.key.toLowerCase(): entry.value,
     };
     final normalized = tag.replaceAll('_', '-').toLowerCase();
-    final exact = values[normalized];
-    if (exact != null) return exact;
-    final language = normalized.split('-').first;
-    final byLanguage = values[language];
-    if (byLanguage != null) return byLanguage;
+    var candidate = normalized;
+    while (true) {
+      final match = values[candidate];
+      if (match != null) return match;
+      final cut = candidate.lastIndexOf('-');
+      if (cut <= 0) break;
+      candidate = candidate.substring(0, cut);
+    }
+    final language = candidate;
     String? sibling;
     for (final key in values.keys) {
       if (key.split('-').first != language) continue;

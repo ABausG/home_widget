@@ -89,46 +89,35 @@ private fun hwCurrentLocales(context: android.content.Context): List<String> {
   val tags = mutableListOf<String>()
   for (index in 0 until configured.size()) {
     val locale = configured[index] ?: continue
-    val tag =
-        if (locale.country.isNullOrEmpty()) {
-          locale.language
-        } else {
-          "${locale.language}-${locale.country}"
-        }
-    if (tag.isNotEmpty()) tags.add(tag.replace('_', '-'))
+    val tag = locale.toLanguageTag()
+    if (tag.isNotEmpty() && tag != "und") tags.add(tag)
   }
   if (tags.isEmpty()) {
-    val fallback = java.util.Locale.getDefault()
-    tags.add(
-        if (fallback.country.isNullOrEmpty()) {
-          fallback.language
-        } else {
-          "${fallback.language}-${fallback.country}"
-        }
-    )
+    val fallback = java.util.Locale.getDefault().toLanguageTag()
+    if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
   }
   return tags
 }
 
-// Returns null when nothing in [values] matches, including under the base
-// locale, so callers can decide what an empty translation set means.
+// Returns null when nothing matches, including under the base locale.
 private fun hwResolveLocalized(
     locales: List<String>,
     values: Map<String, String>,
     baseLocale: String,
 ): String? {
   for (locale in locales) {
-    val tag = locale.replace('_', '-')
-    values[tag]?.let {
-      return it
+    // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
+    var candidate = locale.replace('_', '-')
+    while (true) {
+      values[candidate]?.let {
+        return it
+      }
+      val cut = candidate.lastIndexOf('-')
+      if (cut <= 0) break
+      candidate = candidate.substring(0, cut)
     }
-    val language = tag.substringBefore('-')
-    values[language]?.let {
-      return it
-    }
-    // Same language, different region or script (pt-PT -> pt-BR). Keeps
-    // keyed strings on the translation the OS already picks for resources.
-    // Smallest key wins so the choice is stable across runs.
+    val language = candidate
+    // Same language, different region or script (pt-PT -> pt-BR).
     var sibling: String? = null
     for (key in values.keys) {
       if (key.substringBefore('-') != language) continue
@@ -143,12 +132,6 @@ private fun hwResolveLocalized(
   }
   return values[baseLocale]
 }
-
-private fun hwLocalize(
-    locales: List<String>,
-    values: Map<String, String>,
-    baseLocale: String,
-): String = hwResolveLocalized(locales, values, baseLocale) ?: ""
 
 private fun hwReadLocalized(
     prefs: android.content.SharedPreferences,
@@ -178,3 +161,9 @@ private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
     null
   }
 }
+
+private fun hwLocalize(
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String = hwResolveLocalized(locales, values, baseLocale) ?: ""

@@ -71,8 +71,6 @@ class DartHelperGenerator {
       buffer.writeln('    return Future.wait([');
       for (final field in primitiveFields) {
         if (field is HWLocalizedString) {
-          // Every translation lands in one entry, so a save is atomic from the
-          // widget's point of view: it never observes a half-updated set.
           buffer.writeln(
             "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
             r"${_$paramPrefix}."
@@ -111,8 +109,8 @@ class DartHelperGenerator {
       buffer.writeln('  }) {');
       buffer.writeln('    return Future.wait([');
       for (final field in primitiveFields) {
-        // Localized fields need no special case: their translations live in a
-        // single entry, so clearing that key clears all of them.
+        // Localized fields need no special case: all their translations live in
+        // one entry, so clearing that key clears all of them.
         buffer.writeln(
           "      if (${field.key}) HomeWidget.saveWidgetData('"
           r"${_$paramPrefix}."
@@ -287,20 +285,13 @@ class DartHelperGenerator {
   String get _translationsClassName =>
       '${spec.className}HomeWidgetTranslations';
 
-  /// The identifier of the field holding [field]'s compiled translations.
-  ///
-  /// One per keyed string rather than a single `defaults`: a widget may declare
-  /// several localized fields, each with its own map.
+  /// The identifier of the field holding [field]'s compiled translations. One
+  /// per keyed string, since a widget may declare several.
   String _defaultsFieldName(HWLocalizedString field) => '${field.key}Defaults';
 
-  /// The compiled translations for one keyed string, exposed so callers can
-  /// read the shipped text without going through `getData`.
-  ///
-  /// Lives on the helper class rather than on the translations class: that is
-  /// where `saveData`/`getData` already are, so the shipped values show up in
-  /// completion right next to the calls that override and read them, and one
-  /// widget can carry several of these without the shared translations class
-  /// having to name them.
+  /// The compiled translations for one keyed string, exposed on the helper
+  /// class so callers can read the shipped text without going through
+  /// `getData`.
   void _writeDefaultsConstant(StringBuffer buffer, HWLocalizedString field) {
     buffer.writeln(
       '  /// The translations compiled into the widget for `${field.key}`.',
@@ -327,10 +318,6 @@ class DartHelperGenerator {
   }
 
   /// Merges a stored translation blob over the compiled defaults.
-  ///
-  /// The defaults are validator-guaranteed to cover every supported locale, so
-  /// every required field is satisfied whatever the blob turned out to hold —
-  /// the result is total and non-null.
   void _writeTranslationsMerger(StringBuffer buffer) {
     buffer.writeln(
       '  static $_translationsClassName _\$mergeTranslations(',
@@ -351,11 +338,8 @@ class DartHelperGenerator {
     buffer.writeln('  }');
   }
 
-  /// Reads the stored translation blob for [key] back into a map.
-  ///
-  /// Returns a raw map rather than [_translationsClassName]: a partial read
-  /// cannot satisfy that type's required fields on its own. `getData` closes
-  /// the gap by merging the result over the compiled defaults.
+  /// Reads the stored translation blob for [key] back into a raw map, which
+  /// `getData` then merges over the compiled defaults.
   ///
   /// Mirrors the leniency of the native readers — anything that is not a JSON
   /// object of strings reads back as null instead of throwing.
@@ -412,13 +396,8 @@ class DartHelperGenerator {
 
   /// `resolve(tag)` — the widget's own matching chain, for one explicit tag.
   ///
-  /// Mirrors `hwResolveLocalized` in the Kotlin and Swift helpers step for
-  /// step, including the lexicographically smallest region/script sibling, so
-  /// a preview cannot disagree with what the widget renders.
-  ///
-  /// Matching is case-insensitive: BCP-47 tags are case-insensitive by spec,
-  /// and the native resolvers only ever see canonically cased tags, so folding
-  /// case here can never conflate two genuinely different tags.
+  /// Must stay in step with `hwResolveLocalized` in the Kotlin and Swift
+  /// helpers, or a preview would disagree with what the widget renders.
   void _writeResolve(StringBuffer buffer) {
     final baseIdentifier = _baseLocaleIdentifier;
     buffer.writeln(
@@ -426,19 +405,22 @@ class DartHelperGenerator {
     );
     buffer.writeln('  ///');
     buffer.writeln(
-      '  /// Tries the exact tag (`pt-PT`), then the bare language (`pt`),',
+      '  /// Tries the exact tag (`pt-PT`), then the tag with its last subtag',
     );
     buffer.writeln(
-      '  /// then any entry with the same language but a different region or',
+      '  /// dropped, and so on down to the bare language (`zh-Hant-TW` →',
     );
     buffer.writeln(
-      '  /// script (`pt-BR`; the lexicographically smallest wins if several',
+      '  /// `zh-Hant` → `zh`), then any entry with the same language but a',
     );
     buffer.writeln(
-      "  /// match), and finally the widget's default locale. Matching is",
+      '  /// different region or script (`pt-BR`; the lexicographically',
     );
     buffer.writeln(
-      '  /// case-insensitive, and `_` is treated as `-`.',
+      "  /// smallest wins if several match), and finally the widget's default",
+    );
+    buffer.writeln(
+      '  /// locale. Matching is case-insensitive, and `_` is treated as `-`.',
     );
     buffer.writeln('  ///');
     buffer.writeln(
@@ -452,6 +434,8 @@ class DartHelperGenerator {
     );
     buffer.writeln('  String resolve(String tag) {');
     // Tags are case-insensitive per BCP-47, so both sides fold to lower case.
+    // The native resolvers only ever see canonically cased tags, so folding
+    // here cannot conflate two genuinely different tags.
     buffer.writeln('    final values = {');
     buffer.writeln('      for (final entry in toMap().entries)');
     buffer.writeln('        entry.key.toLowerCase(): entry.value,');
@@ -464,11 +448,16 @@ class DartHelperGenerator {
       buffer.writeln('  }');
       return;
     }
-    buffer.writeln('    final exact = values[normalized];');
-    buffer.writeln('    if (exact != null) return exact;');
-    buffer.writeln("    final language = normalized.split('-').first;");
-    buffer.writeln('    final byLanguage = values[language];');
-    buffer.writeln('    if (byLanguage != null) return byLanguage;');
+    // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
+    buffer.writeln('    var candidate = normalized;');
+    buffer.writeln('    while (true) {');
+    buffer.writeln('      final match = values[candidate];');
+    buffer.writeln('      if (match != null) return match;');
+    buffer.writeln("      final cut = candidate.lastIndexOf('-');");
+    buffer.writeln('      if (cut <= 0) break;');
+    buffer.writeln('      candidate = candidate.substring(0, cut);');
+    buffer.writeln('    }');
+    buffer.writeln('    final language = candidate;');
     buffer.writeln('    String? sibling;');
     buffer.writeln('    for (final key in values.keys) {');
     buffer.writeln("      if (key.split('-').first != language) continue;");
@@ -485,7 +474,7 @@ class DartHelperGenerator {
   }
 
   /// The field holding the widget's default-locale text, or null when there is
-  /// no usable default locale (only reachable for specs validation rejects).
+  /// no usable default locale.
   String? get _baseLocaleIdentifier {
     final locales = _supportedLocales;
     if (locales.isEmpty) return null;

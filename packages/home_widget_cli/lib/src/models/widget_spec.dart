@@ -78,7 +78,7 @@ class WidgetSpec {
 
     return HWColumn(
       children: [
-        HWText.fixed(data.name),
+        HWText.fixed(galleryName),
         for (final field in primitiveDataFields)
           HWRow(
             children: [
@@ -99,9 +99,22 @@ class WidgetSpec {
       .where((f) => !(f is HWLocalizedString && f.isConstant))
       .toList();
 
-  /// Every localized string in the tree, constant and keyed alike.
+  /// Every localized string declared as a top-level data field.
   List<HWLocalizedString> get localizedStrings =>
       dataFields.whereType<HWLocalizedString>().toList();
+
+  /// Localized strings sitting at the leaf of a JSON path, which supply the
+  /// fallback used when the path resolves to nothing.
+  List<HWLocalizedString> get jsonLocalizedStrings => [
+        for (final field in dataFields.whereType<HWJson>())
+          if (field.leafType case final HWLocalizedString leaf) leaf,
+      ];
+
+  /// Every localized string this widget carries, wherever it is declared.
+  List<HWLocalizedString> get allLocalizedStrings => [
+        ...localizedStrings,
+        ...jsonLocalizedStrings,
+      ];
 
   /// Localized strings backed by a data field, i.e. overridable at runtime.
   List<HWLocalizedString> get keyedLocalizedStrings =>
@@ -121,10 +134,19 @@ class WidgetSpec {
 
   /// Whether the generated native code needs the locale-resolution helpers.
   ///
-  /// Only keyed strings do: their runtime overrides live in one preferences
-  /// blob that the widget has to resolve itself. Constants and gallery strings
-  /// are platform resources, resolved by the OS.
-  bool get needsLocaleHelpers => keyedLocalizedStrings.isNotEmpty;
+  /// Constants and gallery strings do not: they are platform resources,
+  /// resolved by the OS.
+  bool get needsLocaleHelpers =>
+      keyedLocalizedStrings.isNotEmpty || jsonLocalizedStrings.isNotEmpty;
+
+  /// Whether the generated native code reads a translation blob back out of
+  /// preferences, which only keyed data fields do.
+  bool get needsLocalizedRead => keyedLocalizedStrings.isNotEmpty;
+
+  /// Whether the widget resolves any text itself, and so goes stale on a system
+  /// language change unless it re-renders.
+  bool get rendersLocalizedContent =>
+      constantLocalizedStrings.isNotEmpty || needsLocaleHelpers;
 
   /// Namespace for every platform resource this widget owns.
   String get resourcePrefix => widgetResourcePrefix(className);
@@ -141,6 +163,31 @@ class WidgetSpec {
     final locales = <String>{defaultLocale, ...configured};
     return locales.toList();
   }
+
+  /// The gallery title in the default locale, where
+  /// `localization.name[defaultLocale]` wins over the top-level `name`.
+  String get galleryName =>
+      _defaultLocaleText(data.localization?.name) ?? data.name;
+
+  /// The gallery description in the default locale, or null when there is none.
+  String? get galleryDescription =>
+      _defaultLocaleText(data.localization?.description) ??
+      _nonEmpty(data.description);
+
+  /// [values] minus the default locale, which lives in the base resource.
+  Map<String, String>? galleryTranslations(Map<String, String>? values) {
+    if (values == null) return null;
+    return {
+      for (final entry in values.entries)
+        if (entry.key != defaultLocale) entry.key: entry.value,
+    };
+  }
+
+  String? _defaultLocaleText(Map<String, String>? values) =>
+      _nonEmpty(values?[defaultLocale]);
+
+  static String? _nonEmpty(String? value) =>
+      value == null || value.isEmpty ? null : value;
 
   /// Whether the gallery name or description carries translations.
   bool get hasLocalizedGalleryStrings {

@@ -26,6 +26,7 @@ void validateWidgetData(WidgetSpec spec) {
     _validateDataTypeKeys(field);
   }
 
+  _validateNoConflictingKeys(spec);
   validateLocalization(spec);
   _validateConditionalData(spec);
 
@@ -51,21 +52,8 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
 
   _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
   if (type is HWJson) {
-    if (_containsLocalized(type.child)) {
-      throw GeneratorError(
-        'Localized strings cannot be nested inside HWJson (in "${type.key}"). '
-        'JSON values come from the app at runtime, so translate them there and '
-        'pass the result through a plain HWString.',
-      );
-    }
     _validateDataTypeKeys(type.child);
   }
-}
-
-bool _containsLocalized(HWDataType<dynamic> type) {
-  if (type is HWLocalizedString) return true;
-  if (type is HWJson) return _containsLocalized(type.child);
-  return false;
 }
 
 /// Rejects conditionals whose branch can never be taken.
@@ -111,7 +99,7 @@ Iterable<HWWidget> _walkWidgets(HWWidget widget) sync* {
 
 /// Validates locale maps, the localization block, and their interaction.
 void validateLocalization(WidgetSpec spec) {
-  final localized = spec.localizedStrings;
+  final localized = spec.allLocalizedStrings;
   final localization = spec.data.localization;
   final hasGalleryTranslations = spec.hasLocalizedGalleryStrings;
 
@@ -175,24 +163,47 @@ void validateLocalization(WidgetSpec spec) {
     );
   }
 
-  // Gallery strings take their base value from the top-level name/description,
-  // so including the default locale here would be a second source of truth.
-  _validateLocaleMap(
+  _validateGalleryString(
     localization.name,
+    baseText: spec.galleryName,
     supported: supported,
     descriptor: 'localization.name',
-    requireDefaultLocale: false,
+    baseParameter: 'name',
     defaultLocale: localization.defaultLocale,
   );
-  _validateLocaleMap(
+  _validateGalleryString(
     localization.description,
+    baseText: spec.galleryDescription,
     supported: supported,
     descriptor: 'localization.description',
-    requireDefaultLocale: false,
+    baseParameter: 'description',
     defaultLocale: localization.defaultLocale,
   );
+}
 
-  _validateNoConflictingKeys(spec);
+void _validateGalleryString(
+  Map<String, String>? values, {
+  required String? baseText,
+  required List<String> supported,
+  required String descriptor,
+  required String baseParameter,
+  required String defaultLocale,
+}) {
+  if (values != null && (baseText == null || baseText.isEmpty)) {
+    throw GeneratorError(
+      '$descriptor: no default-locale text. Add a "$defaultLocale" entry, or '
+      'set the top-level $baseParameter. Without either there is nothing to '
+      'show in the widget gallery outside the translated locales.',
+    );
+  }
+
+  _validateLocaleMap(
+    values,
+    supported: supported,
+    descriptor: descriptor,
+    requireDefaultLocale: false,
+    defaultLocale: defaultLocale,
+  );
 }
 
 void _validateLocaleMap(
@@ -224,13 +235,6 @@ void _validateLocaleMap(
         '(${supported.join(', ')}).',
       );
     }
-    if (!requireDefaultLocale && locale == defaultLocale) {
-      throw GeneratorError(
-        '$descriptor: remove "$defaultLocale". The default-locale text is the '
-        'top-level name/description; having it here too would be a second '
-        'source of truth.',
-      );
-    }
   }
 
   final missing = expected.where((l) => !values.containsKey(l)).toList();
@@ -252,20 +256,43 @@ void _validateLocaleMap(
   }
 }
 
-/// Two localized strings sharing a key but not their translations would emit
-/// two identically named fields, which will not compile.
+/// Two data fields sharing a key but not their type or shape would emit two
+/// identically named properties on the generated data class, which will not
+/// compile. JSON leaf keys live in their own nested class per root key and are
+/// checked by the path trie instead.
 void _validateNoConflictingKeys(WidgetSpec spec) {
-  final seen = <String, HWLocalizedString>{};
-  for (final field in spec.keyedLocalizedStrings) {
+  final seen = <String, HWDataType<dynamic>>{};
+  for (final field in spec.dataFields) {
+    if (field is HWLocalizedString && field.isConstant) continue;
+
     final existing = seen[field.key];
-    if (existing != null && existing != field) {
+    if (existing == null) {
+      seen[field.key] = field;
+      continue;
+    }
+    if (existing == field) continue;
+    if (existing is HWJson && field is HWJson) continue;
+
+    if (existing is HWLocalizedString && field is HWLocalizedString) {
       throw GeneratorError(
         'Widget "${spec.data.name}": two HWString.localized("${field.key}") '
         'entries declare different translations. Give them distinct keys.',
       );
     }
-    seen[field.key] = field;
+    throw GeneratorError(
+      'Widget "${spec.data.name}": the key "${field.key}" is declared as '
+      '${_describeDataField(existing)} and ${_describeDataField(field)}. '
+      'Both would generate the same field, so give them distinct keys.',
+    );
   }
+}
+
+String _describeDataField(HWDataType<dynamic> field) {
+  if (field is HWLocalizedString) return 'HWString.localized';
+  if (field is HWJson) return 'HWJson';
+  final defaultValue = field.defaultValue;
+  if (defaultValue == null) return '${field.runtimeType}';
+  return '${field.runtimeType}(defaultValue: $defaultValue)';
 }
 
 String _describeLeafContext(HWDataType<dynamic> type) {

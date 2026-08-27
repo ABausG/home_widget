@@ -8,7 +8,7 @@ description: Translate widget text and the widget gallery entry.
 Widgets can ship translated text and a translated gallery entry (the name and
 description users see when adding the widget). Translations live in the
 annotation; the generator regenerates every platform file from them on each
-run, so you never hand-maintain `strings.xml` or `Localizable.xcstrings`
+run, so you never hand-maintain string resources or `Localizable.xcstrings`
 yourself.
 
 ## Setup
@@ -23,7 +23,7 @@ resolves to, and the locale set the generated Dart class is built from:
   localization: HomeWidgetLocalization(
     defaultLocale: 'en',
     supportedLocales: ['en', 'de', 'pt-BR'],
-    // No 'en' key here — the base text is the top-level name/description.
+    // 'en' omitted, so the base text stays the top-level name/description.
     name: {'de': 'Lokalisierte Begrüßung', 'pt-BR': 'Saudação Localizada'},
     description: {
       'de': 'Begrüßt dich in deiner Sprache',
@@ -50,9 +50,10 @@ class LocalizedGreeting {}
 ## Two kinds of localized text
 
 **`HWText.localized({...})`** is fixed at build time — no data field, not
-changeable from Dart. It ships as a platform string resource (`strings.xml` on
-Android, a `Localizable.xcstrings` entry on iOS) and is resolved by the OS like
-any other app string, against the user's full preferred-language list.
+changeable from Dart. It ships as a platform string resource (an Android
+`<string>` resource, a `Localizable.xcstrings` entry on iOS) and is resolved by
+the OS like any other app string, against the user's full preferred-language
+list.
 
 **`HWString.localized(key, defaultTranslations: {...})`** is a real data field.
 The `defaultTranslations` are what ships; your app can override any locale at
@@ -89,13 +90,46 @@ await LocalizedGreetingHomeWidget.saveData(
 of `BuildContext`.) Flutter's `Locale` takes language and country as
 **separate** arguments — `Locale('pt', 'BR')`, not `Locale('pt-BR')`.
 
-Unlike a plain `HWString`, this one is resolved by the widget itself: it
-honors the device's *entire* preferred-language list with sensible regional
-fallback, the same way the OS resolves the fixed strings above — a pt-PT
-device gets `pt-BR` text rather than falling straight to the default locale. A
-system language change is reflected immediately, without your app running
-again. `deleteData(greeting: true)` clears the override and falls back to the
-shipped `defaultTranslations`.
+Unlike a plain `HWString`, this one is resolved by the widget itself, at render
+time, against the device's *entire* preferred-language list — a pt-PT device
+gets `pt-BR` text rather than falling straight to the default locale. See [How a
+locale is matched](#how-a-locale-is-matched). `deleteData(greeting: true)`
+clears the override and falls back to the shipped `defaultTranslations`.
+
+A key names exactly one field. Declaring `greeting` as both `HWString('greeting')`
+and `HWString.localized('greeting')` — or twice with different translations, or
+an `HWInt` with two different defaults — is a generator error naming the key,
+since both declarations would generate the same property.
+
+## How a locale is matched
+
+`HWText.localized` and the gallery entry are platform string resources, so the
+OS matches them. Everything the widget resolves itself — keyed strings and
+localized JSON leaves — runs the same chain on Android, iOS and in the generated
+Dart `resolve(tag)`:
+
+1. The exact tag (`pt-PT`).
+2. The tag with its last subtag dropped, repeatedly, down to the bare language
+   (`zh-Hant-TW` → `zh-Hant` → `zh`).
+3. Any entry sharing that language but carrying a different region or script
+   (`pt-PT` → `pt-BR`). If several match, the lexicographically smallest key
+   wins, so the choice is stable across runs.
+4. The widget's default locale.
+
+Steps 1–3 run for each entry of the device's preferred-language list in turn,
+and only once the whole list is exhausted does step 4 apply — a device set to
+`[de-AT, fr, en]` gets French rather than the default locale when `de` is not
+translated.
+
+On Android the device tags come from `toLanguageTag()`, so legacy language codes
+are canonicalized (`iw` → `he`, `in` → `id`) and a script subtag such as `Hant`
+survives to be matched.
+
+Because resolution happens at render time, a re-render is all it takes to pick up
+a new system language. On Android the generated receiver's intent-filter includes
+`LOCALE_CHANGED`, so placed widgets re-render when the user switches language.
+iOS has no equivalent hook: the new language shows up the next time WidgetKit
+renders the widget.
 
 ## Reading translations back
 
@@ -117,8 +151,9 @@ LocalizedGreetingHomeWidget.greetingDefaults.en; // 'Hello'
 ```
 
 `resolve(tag)` applies the widget's own matching for a single explicit tag —
-useful for previews and tests, with `_` treated as `-`. On device, `getData()`
-already does this across the user's whole preferred-language list.
+useful for previews and tests, case-insensitively and with `_` treated as `-`.
+On device the widget runs those same steps itself, across the user's whole
+preferred-language list.
 
 Because `getData` merges, it cannot tell a saved override apart from a shipped
 default. If you need that distinction, read the preferences key yourself with
@@ -144,19 +179,47 @@ class Activity {}
 ```
 
 A map that is *present* must cover every supported locale — a partial map is an
-error rather than a silent gap. If a string really is identical in some locale,
+error rather than a silent gap. The gallery maps are the one exception: their
+default-locale entry is optional, because the top-level `name` / `description`
+can supply that text instead. If a string really is identical in some locale,
 repeat it explicitly.
 
 Note where the base text lives, since it differs by kind:
 
 | | Base text | Map contains |
 |---|---|---|
-| `name` / `description` | the top-level annotation field | other locales only |
+| `name` / `description` | `map[defaultLocale]` when present, otherwise the top-level annotation field | every other supported locale; the default locale optionally |
 | `HWText.localized` / `HWString.localized` | — | **every** locale, including the default |
 
-A localized string cannot be nested inside an `HWJson` group — JSON field
-values come from the app at runtime, so translate them there and pass the
-result through a plain `HWString`.
+Supplying a gallery map with neither a default-locale entry nor the matching
+top-level field is an error — there would be nothing to show outside the
+translated locales. This bites `description` in particular, since the annotation
+can leave it out entirely.
+
+### Localized strings inside `HWJson`
+
+An `HWJson` path may end on an `HWString.localized`. The JSON your app writes
+stays the source of truth: whatever the path resolves to is rendered as-is.
+Only when the path yields nothing — key missing, blob never written, value
+unreadable — does the widget fall back to `defaultTranslations`, resolved
+against the device locale like any other localized string.
+
+```dart
+HWText(
+  HWJson(
+    'profile',
+    HWString.localized(
+      'greeting',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo', 'pt-BR': 'Olá'},
+    ),
+  ),
+)
+```
+
+The map is validated exactly like any other one: complete, default locale
+required, locales drawn from `supportedLocales`, no placeholders. It does not
+reach the generated translations class, though — a JSON leaf is written as part
+of your JSON blob, not through `saveData`.
 
 ## Locale tags
 
@@ -173,17 +236,26 @@ Reserved words are suffixed, so Icelandic (`is`) becomes `is_`.
 
 | | Fixed (`HWText.localized`) | Runtime-overridable (`HWString.localized`) | Gallery name & description |
 |---|---|---|---|
-| **Android** | `res/values[-<qualifier>]/strings.xml` (`home_widget_<snake_widget>_t_<hash>`) | one SharedPreferences key holding the JSON blob | `res/values[-<qualifier>]/strings.xml` (`home_widget_<snake_widget>_label` / `_description`) |
+| **Android** | `res/values[-<qualifier>]/home_widget_<snake_widget>.xml` (`home_widget_<snake_widget>_t_<hash>`) | one SharedPreferences key holding the JSON blob | `res/values[-<qualifier>]/home_widget_<snake_widget>.xml` (`home_widget_<snake_widget>_label` / `_description`) |
 | **iOS** | `Localizable.xcstrings` (`home_widget_<snake_widget>_t_<hash>`) | one UserDefaults key holding the same JSON blob | `Localizable.xcstrings` when translated, otherwise a plain string literal |
 
 The iOS catalog is generated and wired into the Xcode project automatically,
 and requires Xcode 15 or newer.
 
+A localized JSON leaf stores nothing of its own: its text arrives inside the
+JSON blob your app writes under the JSON root key, and only its fallback map is
+compiled into the widget.
+
+On Android each widget gets its own resource file, rewritten in full on every
+run and deleted from any locale directory the widget no longer ships text for;
+your app's `strings.xml` is never read or written. Your own translations
+therefore stay exactly where you put them.
+
 Resource names for fixed strings hash the translation content, so identical
-maps collapse onto one resource and an edited translation gets a fresh name;
-the generator prunes whichever entry it replaces, so nothing you delete from
-the annotation lingers behind. Android gallery entries are regenerated the
-same way — edit translations in the annotation, not in `strings.xml`.
+maps collapse onto one resource and an edited translation gets a fresh name.
+Since the generated file is rewritten whole, nothing you delete from the
+annotation lingers behind — edit translations in the annotation, not in the
+generated resource file.
 
 ## Access from native code
 

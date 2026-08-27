@@ -38,16 +38,14 @@ class AndroidGenerator {
     final jsonGroups = spec.jsonDataGroups;
     final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
 
-    // One predicate for the `locales` parameter and the argument passed to it:
-    // gating the two on separately-spelled but "equivalent" conditions is how
-    // uncompilable Kotlin gets reported as a successful generation.
-    final needsLocaleArg = spec.needsLocaleHelpers;
+    // The Kotlin `locales` parameter and every argument passed to it have to be
+    // gated on this one flag; two separately-spelled "equivalent" conditions
+    // emit Kotlin that does not compile.
+    final needsLocaleArg = spec.needsLocalizedRead;
+    final needsResolver = spec.needsLocaleHelpers;
 
-    // Whether this widget renders localized text itself, and so goes stale on
-    // a system language change unless the receiver re-renders it. Gallery
-    // strings do not count — the launcher resolves those on its own.
-    final rendersLocalizedContent = spec.constantLocalizedStrings.isNotEmpty ||
-        spec.keyedLocalizedStrings.isNotEmpty;
+    // Gallery strings do not count — the launcher resolves those on its own.
+    final rendersLocalizedContent = spec.rendersLocalizedContent;
 
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
@@ -145,10 +143,10 @@ class AndroidGenerator {
       dataClassContent = buffer.toString();
     }
 
-    // Constants resolve through `R.string`, so only keyed strings — whose
-    // runtime overrides live in a preferences blob — still need the resolver.
+    // Constants resolve through `R.string`; only strings the widget resolves
+    // itself need the helpers, and only keyed ones read a stored blob.
     final localizationHelpers = <String>[
-      if (needsLocaleArg) kotlinLocalizeHelpers,
+      if (needsResolver) kotlinLocalizeHelpers,
       if (needsLocaleArg) kotlinLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
@@ -158,7 +156,7 @@ class AndroidGenerator {
       ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
-    if (needsLocaleArg) {
+    if (needsResolver) {
       bodyBuffer.writeln('    val hwLocales = hwCurrentLocales(context)');
     }
     if (hasDataFields) {
@@ -234,10 +232,9 @@ class AndroidGenerator {
       layoutImports.add('import java.io.File');
       layoutImports.add('import org.json.JSONObject');
     }
-    // `R` is generated under the Gradle namespace, which is not necessarily the
-    // package this file is written into: an annotation that overrides
-    // `packageName` puts it somewhere else. Unqualified `R` only resolves when
-    // the two coincide, so anywhere else the import has to be explicit.
+    // `R` lives in the Gradle namespace, not necessarily the package this file
+    // is written into (an annotation may override `packageName`). Unqualified
+    // `R` only resolves when the two coincide.
     if (spec.constantLocalizedStrings.isNotEmpty) {
       final rPackage =
           tryDetectAndroidNamespace(projectRoot) ?? detectedPackage;
@@ -271,7 +268,6 @@ class AndroidGenerator {
       androidGlanceReceiverTemplate(
         packageName: packageName,
         widgetClassName: widgetClassName,
-        handleLocaleChange: rendersLocalizedContent,
       ),
     );
     logger.detail('Generated: ${receiverFile.path}');
@@ -279,35 +275,34 @@ class AndroidGenerator {
     final android = spec.data.android;
     final localization = spec.data.localization;
 
-    // Everything under `home_widget_` is ours and is rewritten on every run.
     final labelResourceName = spec.labelResourceName;
     final descriptionResourceName = spec.descriptionResourceName;
 
-    await _writeLocalizedStringResource(
-      projectRoot,
+    final resources = <String, Map<String, String>>{};
+    _collectLocalizedString(
+      resources,
       name: labelResourceName,
-      baseValue: spec.data.name,
-      translations: localization?.name,
+      baseValue: spec.galleryName,
+      translations: spec.galleryTranslations(localization?.name),
     );
 
     String? descriptionResource;
-    if (spec.data.description != null && spec.data.description!.isNotEmpty) {
-      await _writeLocalizedStringResource(
-        projectRoot,
+    final galleryDescription = spec.galleryDescription;
+    if (galleryDescription != null) {
+      _collectLocalizedString(
+        resources,
         name: descriptionResourceName,
-        baseValue: spec.data.description!,
-        translations: localization?.description,
+        baseValue: galleryDescription,
+        translations: spec.galleryTranslations(localization?.description),
       );
       descriptionResource = '@string/$descriptionResourceName';
     }
 
     // Constant translations ship as resources so the platform resolves them
     // with the user's full language list and any per-app language override.
-    final constantResourceNames = <String>{};
     for (final constant in spec.constantLocalizedStrings) {
-      constantResourceNames.add(constant.resourceName);
-      await _writeLocalizedStringResource(
-        projectRoot,
+      _collectLocalizedString(
+        resources,
         name: constant.resourceName,
         baseValue: constant.baseValue,
         translations: {
@@ -317,16 +312,7 @@ class AndroidGenerator {
       );
     }
 
-    await _pruneStaleConstantResources(
-      projectRoot,
-      prefix: spec.resourcePrefix,
-      live: constantResourceNames,
-    );
-
-    await _removeLegacyStringResource(
-      projectRoot,
-      name: '${providerInfoName}_description',
-    );
+    await _writeOwnedStringResources(projectRoot, resources);
 
     final providerInfoFile = File(
       p.join(resXmlDir.path, '$providerInfoName.xml'),
@@ -361,81 +347,85 @@ class AndroidGenerator {
     );
   }
 
-  File _stringsFile(Directory projectRoot, String? locale) {
-    final qualifier = locale == null ? '' : androidLocaleQualifier(locale);
-    final dirName = qualifier.isEmpty ? 'values' : 'values-$qualifier';
-    return File(
-      p.join(
-        projectRoot.path,
-        'android',
-        'app',
-        'src',
-        'main',
-        'res',
-        dirName,
-        'strings.xml',
-      ),
-    );
-  }
-
-  XmlElement _stringElement(String name, String value) => XmlElement(
-        XmlName('string'),
-        [
-          XmlAttribute(XmlName('name'), name),
-          if (androidStringNeedsFormattedFalse(value))
-            XmlAttribute(XmlName('formatted'), 'false'),
-        ],
-        [XmlText(androidStringResourceText(value))],
+  Directory _resDir(Directory projectRoot) => Directory(
+        p.join(projectRoot.path, 'android', 'app', 'src', 'main', 'res'),
       );
 
-  /// Writes a `<string>` we own into `values[-<qualifier>]/strings.xml`.
+  /// The resource file every `<string>` this widget owns is written to.
   ///
-  /// Existing entries under the same name are **replaced**: everything under the
-  /// `home_widget_` prefix is generated output, so the annotation stays the
-  /// source of truth and edits to it always reach the app. Entries outside the
-  /// prefix are never touched.
-  Future<void> _writeStringResource(
-    Directory projectRoot, {
+  /// One file per widget per locale, owned outright by the generator: it is
+  /// rewritten whole on every run, so stale entries disappear on their own. The
+  /// app's own `strings.xml` is never read or written.
+  String get _stringsFileName => '${spec.resourcePrefix}.xml';
+
+  File _ownedStringsFile(Directory projectRoot, String qualifier) => File(
+        p.join(
+          _resDir(projectRoot).path,
+          qualifier.isEmpty ? 'values' : 'values-$qualifier',
+          _stringsFileName,
+        ),
+      );
+
+  /// Records [name] under the base locale plus one entry per translation.
+  ///
+  /// [resources] maps an Android locale qualifier (`''` for the base `values`
+  /// directory) to that locale's resource name/value pairs.
+  void _collectLocalizedString(
+    Map<String, Map<String, String>> resources, {
     required String name,
-    required String value,
-    String? locale,
-  }) async {
-    final stringsFile = _stringsFile(projectRoot, locale);
+    required String baseValue,
+    Map<String, String>? translations,
+  }) {
+    (resources[''] ??= {})[name] = baseValue;
 
-    if (!stringsFile.existsSync()) {
-      await stringsFile.create(recursive: true);
-      final doc = XmlDocument([
-        XmlProcessing('xml', 'version="1.0" encoding="utf-8"'),
-        XmlElement(XmlName('resources'), const [], [
-          _stringElement(name, value),
+    for (final entry
+        in translations?.entries ?? const <MapEntry<String, String>>[]) {
+      final qualifier = androidLocaleQualifier(entry.key);
+      if (qualifier.isEmpty) continue;
+      (resources[qualifier] ??= {})[name] = entry.value;
+    }
+  }
+
+  /// The document written to one locale's owned resource file.
+  XmlDocument _stringResourcesDocument(Map<String, String> resources) =>
+      XmlDocument([
+        XmlDeclaration([
+          XmlAttribute(XmlName('version'), '1.0'),
+          XmlAttribute(XmlName('encoding'), 'utf-8'),
         ]),
+        XmlElement(
+          XmlName('resources'),
+          const [],
+          [
+            for (final entry in resources.entries)
+              XmlElement(
+                XmlName('string'),
+                [
+                  XmlAttribute(XmlName('name'), entry.key),
+                  if (androidStringNeedsFormattedFalse(entry.value))
+                    XmlAttribute(XmlName('formatted'), 'false'),
+                ],
+                [XmlText(androidStringResourceText(entry.value))],
+              ),
+          ],
+        ),
       ]);
-      writeXmlFile(stringsFile, doc);
-      logger.detail('Generated: ${stringsFile.path}');
-      return;
+
+  /// Writes one owned file per locale in [resources], then drops the files this
+  /// widget left behind in locales it no longer ships.
+  Future<void> _writeOwnedStringResources(
+    Directory projectRoot,
+    Map<String, Map<String, String>> resources,
+  ) async {
+    for (final entry in resources.entries) {
+      final file = _ownedStringsFile(projectRoot, entry.key);
+      await ensureDir(file.parent);
+      if (writeXmlFile(file, _stringResourcesDocument(entry.value))) {
+        logger.detail('Generated: ${file.path}');
+      }
     }
 
-    final doc = tryParseXmlFile(stringsFile);
-    if (doc == null) {
-      // coverage:ignore-start
-      return;
-      // coverage:ignore-end
-    }
-
-    final resources = doc.rootElement;
-    final existing = resources.childElements
-        .where(
-          (e) => e.localName == 'string' && e.getAttribute('name') == name,
-        )
-        .toList();
-    for (final element in existing) {
-      element.remove();
-    }
-
-    resources.children.add(_stringElement(name, value));
-
-    writeXmlFile(stringsFile, doc);
-    logger.detail('Updated: ${stringsFile.path}');
+    await _pruneStaleLocaleFiles(projectRoot, live: resources.keys.toSet());
   }
 
   /// Matches the locale-qualified directories this generator creates, so
@@ -444,152 +434,31 @@ class AndroidGenerator {
     r'^values-(b\+[A-Za-z0-9+]+|[a-z]{2,3}(-r[A-Z]{2})?)$',
   );
 
-  /// Writes the base value plus one entry per translated locale, and drops the
-  /// entry from locales that are no longer translated.
+  /// Deletes this widget's owned file from every locale directory not in
+  /// [live], and the directory too once nothing is left in it.
   ///
-  /// Pruning is what makes "the annotation is the source of truth" true. Without
-  /// it, deleting a translation would leave the previously generated
-  /// `values-<locale>/strings.xml` entry in place, and the app would keep
-  /// shipping it with nothing in the generated output to reveal that.
-  Future<void> _writeLocalizedStringResource(
+  /// Only files named [_stringsFileName] are ever deleted; other widgets' files
+  /// and the app's own resources share these directories.
+  Future<void> _pruneStaleLocaleFiles(
     Directory projectRoot, {
-    required String name,
-    required String baseValue,
-    Map<String, String>? translations,
-  }) async {
-    await _writeStringResource(projectRoot, name: name, value: baseValue);
-
-    final live = <String>{
-      for (final locale in translations?.keys ?? const <String>[])
-        'values-${androidLocaleQualifier(locale)}',
-    };
-
-    for (final entry
-        in translations?.entries ?? const <MapEntry<String, String>>[]) {
-      await _writeStringResource(
-        projectRoot,
-        name: name,
-        value: entry.value,
-        locale: entry.key,
-      );
-    }
-
-    await _pruneStaleLocaleResources(projectRoot, name: name, live: live);
-  }
-
-  /// Removes [name] from every locale-qualified `strings.xml` not in [live].
-  Future<void> _pruneStaleLocaleResources(
-    Directory projectRoot, {
-    required String name,
     required Set<String> live,
   }) async {
-    final resDir = Directory(
-      p.join(projectRoot.path, 'android', 'app', 'src', 'main', 'res'),
-    );
+    final resDir = _resDir(projectRoot);
     if (!resDir.existsSync()) return;
 
     for (final entity in resDir.listSync().whereType<Directory>()) {
       final dirName = p.basename(entity.path);
       if (!_localeValuesDirPattern.hasMatch(dirName)) continue;
-      if (live.contains(dirName)) continue;
+      if (live.contains(dirName.substring('values-'.length))) continue;
 
-      final stringsFile = File(p.join(entity.path, 'strings.xml'));
-      if (!stringsFile.existsSync()) continue;
+      final file = File(p.join(entity.path, _stringsFileName));
+      if (!file.existsSync()) continue;
 
-      final doc = tryParseXmlFile(stringsFile);
-      if (doc == null) continue;
+      await file.delete();
+      logger.detail('Removed stale: ${file.path}');
 
-      final stale = doc.rootElement.childElements
-          .where(
-            (e) => e.localName == 'string' && e.getAttribute('name') == name,
-          )
-          .toList();
-      if (stale.isEmpty) continue;
-
-      for (final element in stale) {
-        element.remove();
-      }
-      writeXmlFile(stringsFile, doc);
-      logger.detail('Removed stale "$name" from ${stringsFile.path}');
+      if (entity.listSync().isEmpty) await entity.delete();
     }
-  }
-
-  /// Removes constant-translation entries this widget no longer generates.
-  ///
-  /// The resource name carries a hash of the translations, so editing one
-  /// produces a new name rather than overwriting the old entry. Without this
-  /// sweep every edit would leave its predecessor behind, and the app would go
-  /// on shipping strings that no longer appear anywhere in the annotation.
-  ///
-  /// Only `<prefix>_t_*` is considered: gallery entries, other widgets and
-  /// hand-written strings all fall outside it.
-  Future<void> _pruneStaleConstantResources(
-    Directory projectRoot, {
-    required String prefix,
-    required Set<String> live,
-  }) async {
-    final resDir = Directory(
-      p.join(projectRoot.path, 'android', 'app', 'src', 'main', 'res'),
-    );
-    if (!resDir.existsSync()) return;
-
-    final ownedPattern = RegExp('^${RegExp.escape(prefix)}_t_[0-9a-f]+\$');
-
-    for (final entity in resDir.listSync().whereType<Directory>()) {
-      final dirName = p.basename(entity.path);
-      if (dirName != 'values' && !_localeValuesDirPattern.hasMatch(dirName)) {
-        continue;
-      }
-
-      final stringsFile = File(p.join(entity.path, 'strings.xml'));
-      if (!stringsFile.existsSync()) continue;
-
-      final doc = tryParseXmlFile(stringsFile);
-      if (doc == null) continue;
-
-      final stale = doc.rootElement.childElements.where((e) {
-        if (e.localName != 'string') return false;
-        final name = e.getAttribute('name');
-        if (name == null || !ownedPattern.hasMatch(name)) return false;
-        return !live.contains(name);
-      }).toList();
-      if (stale.isEmpty) continue;
-
-      for (final element in stale) {
-        element.remove();
-      }
-      writeXmlFile(stringsFile, doc);
-      logger.detail('Removed stale translations from ${stringsFile.path}');
-    }
-  }
-
-  /// Removes the pre-`home_widget_` description entry this widget used to own.
-  ///
-  /// Narrowly matched by exact name: the provider XML now points at the
-  /// prefixed entry, so the old one is dead. Anything else in the file, and any
-  /// name that does not match exactly, is left alone.
-  Future<void> _removeLegacyStringResource(
-    Directory projectRoot, {
-    required String name,
-  }) async {
-    final stringsFile = _stringsFile(projectRoot, null);
-    if (!stringsFile.existsSync()) return;
-
-    final doc = tryParseXmlFile(stringsFile);
-    if (doc == null) return;
-
-    final stale = doc.rootElement.childElements
-        .where(
-          (e) => e.localName == 'string' && e.getAttribute('name') == name,
-        )
-        .toList();
-    if (stale.isEmpty) return;
-
-    for (final element in stale) {
-      element.remove();
-    }
-    writeXmlFile(stringsFile, doc);
-    logger.detail('Removed legacy string resource "$name"');
   }
 
   String _kotlinDefaultLiteral(HWDataType<dynamic> field) {

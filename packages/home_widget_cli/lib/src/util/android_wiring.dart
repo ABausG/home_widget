@@ -180,10 +180,8 @@ Future<void> ensureAndroidManifestReceiver(
   if (existing != null) {
     var changed = false;
 
-    // Never downgrade a label the caller did not ask about: without the
-    // fallback to the current attribute, a call that omits [label] would
-    // rewrite an existing `@string/…` resource reference to the bare class
-    // name.
+    // Falling back to the current attribute keeps a call that omits [label]
+    // from downgrading an existing `@string/…` reference to the class name.
     final desiredLabel =
         label ?? existing.getAttribute('android:label') ?? widgetClassName;
     final currentLabel = existing.getAttribute('android:label');
@@ -195,12 +193,10 @@ Future<void> ensureAndroidManifestReceiver(
     if (handleLocaleChange && _ensureLocaleChangedAction(existing)) {
       changed = true;
     }
-    // Deliberately add-only: a widget that stops being localized keeps the
-    // action, since removing it would mean deciding whether a hand-written
-    // entry was ours to delete.
+    // Add-only: the action is never removed again, since it may be
+    // hand-written.
 
-    if (changed) {
-      writeXmlFile(manifestFile, manifestXml);
+    if (changed && writeXmlFile(manifestFile, manifestXml)) {
       logger.detail('Updated: ${manifestFile.path}');
     }
     return;
@@ -216,8 +212,9 @@ Future<void> ensureAndroidManifestReceiver(
     ),
   );
 
-  writeXmlFile(manifestFile, manifestXml);
-  logger.detail('Updated: ${manifestFile.path}');
+  if (writeXmlFile(manifestFile, manifestXml)) {
+    logger.detail('Updated: ${manifestFile.path}');
+  }
 }
 
 /// Returns the matching widget `<receiver>`, or null when none is registered.
@@ -268,8 +265,7 @@ XmlElement _actionElement(String name) => XmlElement(
 
 /// Adds `LOCALE_CHANGED` to [receiver]'s intent-filter if it is not there yet.
 ///
-/// Returns whether the document was modified, so the caller only rewrites the
-/// manifest when something actually changed.
+/// Returns whether the document was modified.
 bool _ensureLocaleChangedAction(XmlElement receiver) {
   final alreadyPresent = receiver
       .findAllElements('action')
@@ -283,12 +279,9 @@ bool _ensureLocaleChangedAction(XmlElement receiver) {
 
   if (filter == null) {
     // Giving a component its first intent-filter makes `android:exported`
-    // mandatory on API 31+: a component with an intent-filter that does not
-    // declare it fails to build/install. A hand-written receiver adopted by
-    // name match may not declare it, so supply the same default as a
-    // generated receiver — but never overwrite an explicit author choice.
-    // (This is purely about the manifest merger's requirement; system
-    // broadcasts such as LOCALE_CHANGED are delivered either way.)
+    // mandatory on API 31+: without it the build/install fails. A hand-written
+    // receiver adopted by name match may not declare it, so supply the same
+    // default a generated receiver gets — never overwriting an explicit choice.
     if (receiver.getAttribute('android:exported') == null) {
       receiver.setAttribute('android:exported', 'true');
     }

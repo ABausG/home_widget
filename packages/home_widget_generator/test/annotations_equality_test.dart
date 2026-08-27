@@ -50,29 +50,37 @@ void main() {
     });
 
     test('HomeWidget equal and non-equal', () {
-      final a = HomeWidget(
-        name: 'n',
-        description: 'd',
-        widget: const HWText.fixed('a'),
-      );
-      final b = HomeWidget(
-        name: 'n',
-        description: 'd',
-        widget: const HWText.fixed('a'),
-      );
+      const widget = HWText.fixed('a');
+      final a = HomeWidget(name: 'n', description: 'd', widget: widget);
+      final b = HomeWidget(name: 'n', description: 'd', widget: widget);
       expect(identical(a, b), isFalse);
       expect(a, b);
+      // Scalar fields participate.
+      expect(
+        a,
+        isNot(equals(HomeWidget(name: 'm', description: 'd', widget: widget))),
+      );
+      expect(a, isNot(equals(HomeWidget(name: 'n', widget: widget))));
       expect(
         a,
         isNot(
           equals(
             HomeWidget(
-              name: 'm',
+              name: 'n',
               description: 'd',
-              widget: const HWText.fixed('a'),
+              widget: widget,
+              dartOutput: 'out.dart',
             ),
           ),
         ),
+      );
+      // The widget tree compares by identity -- HWWidget defines no `==`, so a
+      // separately built but structurally identical tree is not equal.
+      final other = HWText.fixed('a');
+      expect(identical(widget, other), isFalse);
+      expect(
+        a,
+        isNot(equals(HomeWidget(name: 'n', description: 'd', widget: other))),
       );
     });
 

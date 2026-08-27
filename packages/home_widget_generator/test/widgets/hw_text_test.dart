@@ -25,26 +25,21 @@ void main() {
         expect(text.localizedContent, {'en': 'Hello', 'de': 'Hallo'});
       });
 
-      test('effectiveDataType wraps a localized map in a constant string', () {
+      test('an unparsed localized map contributes no data dependency', () {
+        // The raw map is inert; the parser is what turns it into a bound
+        // HWLocalizedString, and only then does it become a dependency.
         const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
-        final effective = text.effectiveDataType;
-        expect(effective, isA<HWLocalizedString>());
-        final localized = effective! as HWLocalizedString;
-        expect(localized.isConstant, isTrue);
-        expect(localized.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
-        // The wrapper is what the generator collects as a dependency.
-        expect(text.dataDependencies, {localized});
+        expect(text.dataDependencies, isEmpty);
       });
 
-      test('effectiveDataType prefers an explicit data type', () {
+      test('the bound data type is the data dependency', () {
         const text = HWText(HWString('key'));
-        expect(text.effectiveDataType, const HWString('key'));
         expect(text.dataDependencies, {const HWString('key')});
       });
 
-      test('effectiveDataType is null for fixed text', () {
+      test('fixed text has no data dependency', () {
         const text = HWText.fixed('Hello');
-        expect(text.effectiveDataType, isNull);
+        expect(text.dataType, isNull);
         expect(text.dataDependencies, isEmpty);
       });
     });

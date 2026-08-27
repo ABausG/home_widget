@@ -1,10 +1,9 @@
 /// Stable content hashing for compile-time localized strings.
 ///
 /// Constant translations live in platform resource files, which key entries by
-/// name rather than by position. The name therefore has to be derived from the
-/// content itself so that two identical maps in one widget collapse onto one
-/// entry, and so that changing a translation produces a different entry the
-/// generator can recognize as new (and prune the old one).
+/// name. Deriving the name from the content collapses two identical maps onto
+/// one entry, and gives an edited translation a new name the generator can
+/// prune the old one against.
 library;
 
 /// 32-bit FNV-1a hash.

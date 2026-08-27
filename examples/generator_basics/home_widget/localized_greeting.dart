@@ -11,15 +11,15 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///     ),
 ///   );
 ///
-/// Values are pushed per locale, so the widget follows a language change on its
-/// own rather than waiting for the app to run again.
+/// Values are pushed per locale, so the widget picks the right text when it
+/// re-renders after a language change.
 @HomeWidget(
   name: 'Localized Greeting',
   description: 'Greets you in your language',
   localization: HomeWidgetLocalization(
     defaultLocale: 'en',
     supportedLocales: ['en', 'de', 'pt-BR'],
-    // No 'en' key here — the base text is the top-level name/description.
+    // 'en' omitted, so the base text stays the top-level name/description.
     name: {'de': 'Lokalisierte Begrüßung', 'pt-BR': 'Saudação Localizada'},
     description: {
       'de': 'Begrüßt dich in deiner Sprache',

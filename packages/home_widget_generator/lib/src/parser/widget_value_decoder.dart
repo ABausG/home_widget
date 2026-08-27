@@ -235,9 +235,7 @@ class WidgetValueDecoder {
     final key = getField(obj, 'key')?.toStringValue();
     if (key == null) return null;
 
-    // Checked before HWString: HWLocalizedString is a subtype, and a
-    // redirecting const factory may surface under either name depending on how
-    // the annotation was written.
+    // Checked before HWString, of which HWLocalizedString is a subtype.
     final localizedValues = decodeLocalizedValues(obj);
     if (localizedValues != null) {
       return HWLocalizedString.resolved(

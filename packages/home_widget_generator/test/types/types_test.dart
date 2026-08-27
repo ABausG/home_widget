@@ -349,6 +349,39 @@ void main() {
       );
     });
 
+    test('a localized leaf falls back through the locale resolver', () {
+      const localized = HWJson(
+        'profile',
+        HWLocalizedString.resolved(
+          'name',
+          defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+          isConstant: false,
+          defaultLocale: 'en',
+        ),
+      );
+
+      expect(
+        localized.kotlinReadExpr('widgetData'),
+        '(widgetData.profile?.name ?: hwResolveLocalized(hwLocales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "en") ?: "Hello")',
+      );
+      expect(
+        localized.swiftReadExpr('entry.data'),
+        '((entry.data.profile?.name) ?? hwResolveLocalized(hwCurrentLocales(), '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "en") ?? "Hello")',
+      );
+      // No empty-string fallback is stacked on top of the chain.
+      expect(
+        localized.kotlinGlanceJsonTextInterpolation('widgetData'),
+        localized.kotlinReadExpr('widgetData'),
+      );
+      expect(
+        localized.swiftGlanceJsonTextInterpolation('entry.data'),
+        localized.swiftReadExpr('entry.data'),
+      );
+      expect(localized.defaultValue, isNull);
+    });
+
     test('hashCode agrees with == for structurally equal instances', () {
       final a = HWJson('root', const HWString('a'));
       final b = HWJson('root', const HWString('a'));

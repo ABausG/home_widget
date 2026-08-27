@@ -152,12 +152,12 @@ $loadDataLogic
 ''';
     }
 
-    // Constants and gallery strings resolve through the string catalog, so only
-    // keyed strings — whose runtime overrides live in a UserDefaults blob —
-    // still need the resolver.
+    // Constants and gallery strings resolve through the string catalog; only
+    // strings the widget resolves itself need the helpers, and only keyed ones
+    // read a stored blob.
     final localizationHelpers = <String>[
       if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
-      if (spec.needsLocaleHelpers) swiftLocalizedReadHelper,
+      if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       extraContent = [
@@ -166,9 +166,9 @@ $loadDataLogic
       ].join('\n\n');
     }
 
-    // Keyed localized strings must be resolved at render time so a system
-    // language change is picked up without waiting for a new timeline. Timeline
-    // entries still carry a snapshot for WidgetKit, but the view re-reads.
+    // Localized strings must be resolved at render time so a system language
+    // change is picked up without waiting for a new timeline. Timeline entries
+    // still carry a snapshot for WidgetKit, but the view re-reads.
     final reResolveAtRender = spec.needsLocaleHelpers;
     final dataExpr = !hasDataFields
         ? 'null'
@@ -216,13 +216,13 @@ $loadDataLogic
         getSnapshotBody: getSnapshotBody,
         getTimelineBody: getTimelineBody,
         entryViewBody: entryViewBody,
-        displayName: spec.data.name,
-        description: spec.data.description,
+        displayName: spec.galleryName,
+        description: spec.galleryDescription,
         displayNameExpression: _galleryStringExpression(
           resourceName: spec.labelResourceName,
           translations: spec.data.localization?.name,
         ),
-        descriptionExpression: spec.data.description == null
+        descriptionExpression: spec.galleryDescription == null
             ? null
             : _galleryStringExpression(
                 resourceName: spec.descriptionResourceName,
@@ -299,10 +299,8 @@ $loadDataLogic
     }
   }
 
-  /// Swift expression for a gallery string, or null to keep the plain literal.
-  ///
-  /// Returns null when nothing was translated, so widgets that opt out — a
-  /// brand name, say — keep the `LocalizedStringKey` behavior they have today.
+  /// Swift expression for a gallery string, or null when nothing was
+  /// translated and the plain `LocalizedStringKey` literal should stay.
   String? _galleryStringExpression({
     required String resourceName,
     required Map<String, String>? translations,
@@ -331,19 +329,19 @@ $loadDataLogic
     final nameTranslations = localization?.name;
     if (nameTranslations != null && nameTranslations.isNotEmpty) {
       entries[spec.labelResourceName] = {
-        defaultLocale: spec.data.name,
         ...nameTranslations,
+        defaultLocale: spec.galleryName,
       };
     }
 
     final descriptionTranslations = localization?.description;
-    final description = spec.data.description;
+    final description = spec.galleryDescription;
     if (description != null &&
         descriptionTranslations != null &&
         descriptionTranslations.isNotEmpty) {
       entries[spec.descriptionResourceName] = {
-        defaultLocale: description,
         ...descriptionTranslations,
+        defaultLocale: description,
       };
     }
 

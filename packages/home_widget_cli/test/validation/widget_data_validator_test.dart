@@ -290,6 +290,98 @@ void main() {
       );
     });
 
+    test('throws when one key is declared with two different types', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'T',
+        dataFields: const [HWString('greeting'), localized],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"greeting"'),
+              contains('HWString'),
+              contains('HWString.localized'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when one key is declared as both primitive and JSON', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWString('profile'),
+          HWJson('profile', HWString('title')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"profile"'), contains('HWJson')),
+          ),
+        ),
+      );
+    });
+
+    test('throws when one key carries two different defaults', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWInt('count', defaultValue: 1),
+          HWInt('count', defaultValue: 2),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"count"'), contains('defaultValue')),
+          ),
+        ),
+      );
+    });
+
+    test('allows identical duplicates and JSON groups sharing a root key', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWString('title'),
+          HWString('title'),
+          HWJson('profile', HWString('first')),
+          HWJson('profile', HWString('last')),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
     test('allows HWDataExists over a plain HWString', () {
       const tree = HWDataExists(
         data: HWString('greeting'),

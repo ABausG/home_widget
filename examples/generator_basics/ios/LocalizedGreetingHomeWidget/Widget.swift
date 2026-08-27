@@ -107,21 +107,23 @@ func hwCurrentLocales() -> [String] {
   return preferred
 }
 
-// Returns nil when nothing in `values` matches, including under the base
-// locale, so callers can decide what an empty translation set means.
+// Returns nil when nothing matches, including under the base locale.
 func hwResolveLocalized(
   _ locales: [String],
   _ values: [String: String],
   baseLocale: String
 ) -> String? {
   for tag in locales {
-    if let exact = values[tag] { return exact }
-    guard let prefix = tag.split(separator: "-").first else { continue }
-    let language = String(prefix)
-    if let match = values[language] { return match }
-    // Same language, different region or script (pt-PT -> pt-BR). Keeps keyed
-    // strings on the translation the OS already picks for resources. Smallest
-    // key wins so the choice is stable across runs.
+    // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
+    var candidate = tag.replacingOccurrences(of: "_", with: "-")
+    while true {
+      if let match = values[candidate] { return match }
+      guard let cut = candidate.lastIndex(of: "-"), cut != candidate.startIndex
+      else { break }
+      candidate = String(candidate[candidate.startIndex..<cut])
+    }
+    let language = candidate
+    // Same language, different region or script (pt-PT -> pt-BR).
     let siblings = values.keys.filter {
       $0.split(separator: "-").first.map(String.init) == language
     }
@@ -130,10 +132,6 @@ func hwResolveLocalized(
     }
   }
   return values[baseLocale]
-}
-
-func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
-  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
 }
 
 func hwReadLocalized(
@@ -159,4 +157,8 @@ func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
     if let text = value as? String { values[name] = text }
   }
   return values
+}
+
+func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
+  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
 }

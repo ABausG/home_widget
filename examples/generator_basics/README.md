@@ -15,6 +15,8 @@ small and each one demonstrates a different feature of the generator:
   and a themed background.
 - `conditional_status.dart` – a widget that branches on whether data is present
   using `HWDataExists` and `HWBoolConditional`.
+- `localized_greeting.dart` – translated body text and gallery entry via
+  `HWText.localized` and `HWString.localized`.
 
 ## Generating the native code
 

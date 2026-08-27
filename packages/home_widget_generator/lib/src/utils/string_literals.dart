@@ -1,9 +1,8 @@
 /// Shared helpers for embedding arbitrary text in generated source literals.
 ///
-/// These exist because translated copy routinely contains characters that are
-/// syntactically meaningful in the target language — quotes, backslashes,
-/// Kotlin's `$` interpolation marker, and line breaks. Escaping must be done in
-/// one place so every generator stays consistent.
+/// Translated copy routinely contains characters that are syntactically
+/// meaningful in the target language — quotes, backslashes, Kotlin's `$`
+/// interpolation marker, line breaks.
 library;
 
 /// Escapes [s] for embedding in a Kotlin double-quoted string literal.

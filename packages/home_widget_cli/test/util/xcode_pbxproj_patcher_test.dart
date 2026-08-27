@@ -60,6 +60,77 @@ String _buildPbxprojWithExtension() {
 ''';
 }
 
+/// Project where the widget's extension folder is a synchronized root group,
+/// the shape `flutter create` produces under Xcode 16.
+///
+/// Every file in the folder is already a member of the target, so the catalog
+/// must not be added a second time — Xcode would copy it twice and fail.
+String _buildPbxprojWithSynchronizedGroup() {
+  final fsRootGroupId = xcodeObjectId('fsgroup:GreetingHomeWidget');
+  final fsExceptionId = xcodeObjectId('fsex:GreetingHomeWidget');
+  final targetId = xcodeObjectId('target:GreetingHomeWidget');
+  return '''
+// !\$*UTF8*\$!
+{
+	objects = {
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		$fsExceptionId /* Exceptions for "GreetingHomeWidget" folder in "GreetingHomeWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = $targetId /* GreetingHomeWidget */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		$fsRootGroupId /* GreetingHomeWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = GreetingHomeWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXProject section */
+		97C146E61CF9000F007C117D /* Project object */ = {
+			isa = PBXProject;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 97C146E51CF9000F007C117D;
+		};
+/* End PBXProject section */
+
+	};
+}
+''';
+}
+
+/// The mixed case: the project has a synchronized root group section (some
+/// *other* folder uses one), but this widget's extension was scaffolded as a
+/// classic `PBXGroup`.
+///
+/// Deciding from the project-global marker skips the wiring here, so the
+/// catalog ends up in no target at all.
+String _buildPbxprojWithForeignSynchronizedGroup() {
+  final base = _buildPbxprojWithExtension();
+  return base.replaceFirst(
+    '/* Begin PBXGroup section */',
+    '''
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CCCCCCCCCCCCCCCCCCCCCCCC /* SomeOtherFolder */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SomeOtherFolder;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXGroup section */''',
+  );
+}
+
 /// Minimal pbxproj snippet with Runner build configurations.
 ///
 /// Mirrors the structure produced by `flutter create`: each configuration
@@ -292,6 +363,46 @@ void main() {
       final second = await wire();
 
       expect(second, first);
+    });
+
+    test('only patches knownRegions for a synchronized group', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithSynchronizedGroup());
+
+      final result = await wire();
+
+      // The synced folder already builds the catalog; a second, explicit
+      // reference would make Xcode copy it twice and fail the build.
+      expect(result, isNot(contains('Localizable.xcstrings')));
+      final regions = RegExp(
+        r'knownRegions = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(regions, contains('de,'));
+      expect(regions, contains('"pt-BR",'));
+    });
+
+    test('wires the catalog when only another folder is synchronized',
+        () async {
+      pbxprojFile
+          .writeAsStringSync(_buildPbxprojWithForeignSynchronizedGroup());
+
+      final result = await wire();
+
+      // The widget itself has a classic PBXGroup, so it needs the explicit
+      // reference — deciding from the project-global marker would leave the
+      // catalog in no target and every constant rendering as its resource key.
+      expect(
+        result,
+        contains('lastKnownFileType = text.json.xcstrings; '
+            'path = Localizable.xcstrings;'),
+      );
+      final resourcesPhase = RegExp(
+        r'isa = PBXResourcesBuildPhase;[\s\S]*?files = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(resourcesPhase, contains('Localizable.xcstrings in Resources'));
+      final group = RegExp(
+        r'isa = PBXGroup;[\s\S]*?children = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(group, contains('/* Localizable.xcstrings */'));
     });
   });
 
