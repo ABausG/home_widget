@@ -1,3 +1,5 @@
+import 'utils/content_hash.dart';
+import 'utils/map_equals.dart';
 import 'widgets/hw_color.dart';
 import 'widgets/hw_widget.dart';
 
@@ -258,6 +260,69 @@ class HomeWidgetIOSConfiguration {
       applyContentPadding.hashCode;
 }
 
+/// Localization settings for a widget.
+///
+/// [supportedLocales] is the canonical locale set: it defines the generated Dart
+/// localizations constructor and lets the generator reject a locale tag that no
+/// string actually covers.
+///
+/// [name] and [description] hold translations for the widget's gallery entry.
+/// The **base-locale** text stays in [HomeWidget.name] / [HomeWidget.description],
+/// so these maps hold the *other* locales only — omit one entirely to leave that
+/// string untranslated (a brand name, say).
+class HomeWidgetLocalization {
+  /// The locale the top-level `name`, `description` and each localized string's
+  /// base value are written in. Must be one of [supportedLocales].
+  final String defaultLocale;
+
+  /// Every locale this widget ships text for, including [defaultLocale].
+  final List<String> supportedLocales;
+
+  /// Translations of [HomeWidget.name].
+  ///
+  /// May carry a [defaultLocale] entry, which then takes precedence over
+  /// [HomeWidget.name]. Every other supported locale must be present.
+  final Map<String, String>? name;
+
+  /// Translations of [HomeWidget.description].
+  ///
+  /// May carry a [defaultLocale] entry, which then takes precedence over
+  /// [HomeWidget.description]. Every other supported locale must be present.
+  final Map<String, String>? description;
+
+  const HomeWidgetLocalization({
+    required this.defaultLocale,
+    required this.supportedLocales,
+    this.name,
+    this.description,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidgetLocalization &&
+          defaultLocale == other.defaultLocale &&
+          _listEquals(supportedLocales, other.supportedLocales) &&
+          mapEquals(name, other.name) &&
+          mapEquals(description, other.description);
+
+  @override
+  int get hashCode => Object.hash(
+        defaultLocale,
+        Object.hashAll(supportedLocales),
+        name == null ? null : localizedContentHash(name!),
+        description == null ? null : localizedContentHash(description!),
+      );
+}
+
+bool _listEquals(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 /// Annotation for generating home_widget native code.
 class HomeWidget {
   /// The name of the widget.
@@ -285,6 +350,12 @@ class HomeWidget {
   /// Configuration for the iOS widget.
   final HomeWidgetIOSConfiguration? iOS;
 
+  /// Localization settings.
+  ///
+  /// Required as soon as any localized string is used, since it supplies the
+  /// default locale that anchors every fallback chain.
+  final HomeWidgetLocalization? localization;
+
   const HomeWidget({
     required this.name,
     this.description,
@@ -292,6 +363,7 @@ class HomeWidget {
     this.dartOutput,
     this.android,
     this.iOS,
+    this.localization,
   });
 
   @override
@@ -303,7 +375,8 @@ class HomeWidget {
           widget == other.widget &&
           dartOutput == other.dartOutput &&
           android == other.android &&
-          iOS == other.iOS;
+          iOS == other.iOS &&
+          localization == other.localization;
 
   @override
   int get hashCode =>
@@ -312,5 +385,6 @@ class HomeWidget {
       widget.hashCode ^
       dartOutput.hashCode ^
       android.hashCode ^
-      iOS.hashCode;
+      iOS.hashCode ^
+      localization.hashCode;
 }

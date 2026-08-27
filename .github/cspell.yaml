@@ -29,7 +29,8 @@ ignorePaths:
         "**/.gitignore",
         "**/*.intentdefinition",
         "**/ios/Flutter/**",
-        "**/*.iml"
+        "**/*.iml",
+        "**/test/**"
     ]
 dictionaries:
   - names
@@ -135,3 +136,27 @@ words:
     - vararg
     - widgetkit
     - writeln
+    - xcstrings
+    - uncompilable
+    - dedupe
+    - myapplication
+    - classpath
+    - subtag
+    - aapt
+ignoreWords:
+    # generator localization docs/examples (German + Portuguese sample text)
+    - Lokalisierte
+    - Begrüßung
+    - Begrüßt
+    - dich
+    - deiner
+    - deine
+    - Sprache
+    - letzten
+    - Aktivitäten
+    - Zeigt
+    - Saudação
+    - Localizada
+    - Cumprimenta
+    - você
+    - idioma

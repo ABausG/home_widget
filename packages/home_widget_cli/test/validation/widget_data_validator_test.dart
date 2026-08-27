@@ -205,5 +205,197 @@ void main() {
         throwsA(isA<GeneratorError>()),
       );
     });
+
+    test('rejects HWDataExists over a localized string', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      const tree = HWDataExists(
+        data: localized,
+        whenPresent: HWText.fixed('present'),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          widget: tree,
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'T',
+        dataFields: const [localized],
+        widgetTree: tree,
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('HWDataExists cannot test HWString.localized'),
+              contains('its compiled default'),
+              contains('plain HWString'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('finds a nested HWDataExists over a localized string', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      const tree = HWColumn(
+        children: [
+          HWText.fixed('header'),
+          HWPadding(
+            padding: HWEdgeInsets.all(4),
+            child: HWDataExists(
+              data: localized,
+              whenPresent: HWText.fixed('present'),
+              whenAbsent: HWText.fixed('absent'),
+            ),
+          ),
+        ],
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          widget: tree,
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'T',
+        dataFields: const [localized],
+        widgetTree: tree,
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('HWDataExists cannot test'),
+          ),
+        ),
+      );
+    });
+
+    test('throws when one key is declared with two different types', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'T',
+        dataFields: const [HWString('greeting'), localized],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"greeting"'),
+              contains('HWString'),
+              contains('HWString.localized'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when one key is declared as both primitive and JSON', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWString('profile'),
+          HWJson('profile', HWString('title')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"profile"'), contains('HWJson')),
+          ),
+        ),
+      );
+    });
+
+    test('throws when one key carries two different defaults', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWInt('count', defaultValue: 1),
+          HWInt('count', defaultValue: 2),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"count"'), contains('defaultValue')),
+          ),
+        ),
+      );
+    });
+
+    test('allows identical duplicates and JSON groups sharing a root key', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWString('title'),
+          HWString('title'),
+          HWJson('profile', HWString('first')),
+          HWJson('profile', HWString('last')),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('allows HWDataExists over a plain HWString', () {
+      const tree = HWDataExists(
+        data: HWString('greeting'),
+        whenPresent: HWText.fixed('present'),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T', widget: tree),
+        className: 'T',
+        dataFields: const [HWString('greeting')],
+        widgetTree: tree,
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
   });
 }

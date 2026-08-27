@@ -39,7 +39,9 @@ class BasicCreationHomeWidget : GlanceAppWidget() {
                   .fillMaxSize(),
           contentAlignment = Alignment.Center,
       ) {
-        Column { Text(text = "Basic Creation") }
+        Column {
+          Text(text = "Basic Creation")
+        }
       }
     }
   }

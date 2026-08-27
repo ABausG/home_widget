@@ -14,28 +14,35 @@ XmlDocument? tryParseXmlFile(File file) {
 
 /// Writes an [XmlDocument] to [file] with pretty-printed, Android-style
 /// formatting.
-void writeXmlFile(File file, XmlDocument document) {
+///
+/// Returns whether anything was written: serializing a document that renders
+/// byte-identical to what is already on disk is skipped, so a run that changes
+/// nothing does not reformat the user's file (or log that it updated it).
+bool writeXmlFile(File file, XmlDocument document) {
+  final existing = file.existsSync() ? file.readAsStringSync() : null;
+
   // "Nice default" formatting:
   // - pretty printed
   // - 4-space indentation (matches typical Android XML)
   // - preserve existing newline style if the file already exists
   // - space before self-close (`<tag />`) (common in Android XML)
-  final newLine = file.existsSync() && file.readAsStringSync().contains('\r\n')
-      ? '\r\n'
-      : '\n';
+  final newLine = existing != null && existing.contains('\r\n') ? '\r\n' : '\n';
 
-  file.writeAsStringSync(
-    document.toXmlString(
-      pretty: true,
-      indent: '    ',
-      newLine: newLine,
-      // Match Android-style formatting: keep single-attribute elements inline,
-      // but break onto multiple lines when there are multiple attributes.
-      indentAttribute: (attr) {
-        final parent = attr.parent;
-        return parent is XmlElement && parent.attributes.length > 1;
-      },
-      spaceBeforeSelfClose: (_) => true,
-    ),
+  final rendered = document.toXmlString(
+    pretty: true,
+    indent: '    ',
+    newLine: newLine,
+    // Match Android-style formatting: keep single-attribute elements inline,
+    // but break onto multiple lines when there are multiple attributes.
+    indentAttribute: (attr) {
+      final parent = attr.parent;
+      return parent is XmlElement && parent.attributes.length > 1;
+    },
+    spaceBeforeSelfClose: (_) => true,
   );
+
+  if (existing == rendered) return false;
+
+  file.writeAsStringSync(rendered);
+  return true;
 }

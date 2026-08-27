@@ -111,6 +111,109 @@ void main() {
     });
   });
 
+  group('WidgetSpec localized strings', () {
+    const leaf = HWLocalizedString(
+      'name',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const top = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hi', 'de': 'Hi'},
+    );
+
+    test('surfaces localized JSON leaves alongside top-level fields', () {
+      final spec = _spec(
+        dataFields: const [top, HWJson('profile', leaf)],
+      );
+
+      expect(spec.localizedStrings, const [top]);
+      expect(spec.jsonLocalizedStrings, const [leaf]);
+      expect(spec.allLocalizedStrings, const [top, leaf]);
+    });
+
+    test('a JSON leaf needs the resolver but not the blob reader', () {
+      final spec = _spec(dataFields: const [HWJson('profile', leaf)]);
+
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.rendersLocalizedContent, isTrue);
+      // A JSON leaf is never a data field of its own.
+      expect(spec.keyedLocalizedStrings, isEmpty);
+    });
+
+    test('a plain JSON leaf pulls in nothing', () {
+      final spec = _spec(dataFields: const [HWJson('profile', HWString('a'))]);
+
+      expect(spec.jsonLocalizedStrings, isEmpty);
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.rendersLocalizedContent, isFalse);
+    });
+  });
+
+  group('WidgetSpec gallery text', () {
+    WidgetSpec gallerySpec({
+      String name = 'Greeting',
+      String? description,
+      HomeWidgetLocalization? localization,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: name,
+            description: description,
+            localization: localization,
+          ),
+          className: 'Greeting',
+        );
+
+    test('the default-locale entry outranks the top-level text', () {
+      final spec = gallerySpec(
+        description: 'Base',
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          name: {'en': 'Daily greeting', 'de': 'Begruessung'},
+          description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+        ),
+      );
+
+      expect(spec.galleryName, 'Daily greeting');
+      expect(spec.galleryDescription, 'Shows a greeting');
+    });
+
+    test('falls back to the top-level text', () {
+      final spec = gallerySpec(
+        description: 'Base',
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          name: {'de': 'Begruessung'},
+        ),
+      );
+
+      expect(spec.galleryName, 'Greeting');
+      expect(spec.galleryDescription, 'Base');
+    });
+
+    test('reports no description when neither source has one', () {
+      expect(gallerySpec().galleryDescription, isNull);
+    });
+
+    test('galleryTranslations drops the default locale', () {
+      final spec = gallerySpec(
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      );
+
+      expect(
+        spec.galleryTranslations(const {'en': 'Greeting', 'de': 'Gruss'}),
+        const {'de': 'Gruss'},
+      );
+      expect(spec.galleryTranslations(null), isNull);
+    });
+  });
+
   group('WidgetSpec equality', () {
     test('equal specs are equal and share hashCode', () {
       final a = _spec();

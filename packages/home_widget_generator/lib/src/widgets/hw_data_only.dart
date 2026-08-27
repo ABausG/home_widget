@@ -7,10 +7,14 @@ class HWDataOnly extends HWWidget implements HWDataWidget {
 
   const HWDataOnly(this.data);
 
-  static HWDataOnly fromDartObject(DartObject obj) {
+  static HWDataOnly fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final dataField = obj.getField('data');
     final data = dataField?.toListValue()?.map<HWDataType<dynamic>>((d) {
-      final decoded = WidgetValueDecoder.decodeDataType(d);
+      final decoded = WidgetValueDecoder.decodeDataType(
+        d,
+        defaultLocale: decoder.defaultLocale,
+        resourcePrefix: decoder.resourcePrefix,
+      );
       // coverage:ignore-start
       if (decoded == null) {
         throw GeneratorError('Unknown data type in HWDataOnly: $d');

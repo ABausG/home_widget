@@ -15,6 +15,51 @@ void main() {
         expect(text, isA<HWText>());
         expect(text, isA<HWWidget>());
       });
+
+      test('localized constructor holds the raw locale map', () {
+        const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
+        expect(text, isA<HWWidget>());
+        expect(text.fixedContent, isNull);
+        // The map cannot be wrapped by a const constructor, so it stays raw.
+        expect(text.dataType, isNull);
+        expect(text.localizedContent, {'en': 'Hello', 'de': 'Hallo'});
+      });
+
+      test('an unparsed localized map contributes no data dependency', () {
+        // The raw map is inert; the parser is what turns it into a bound
+        // HWLocalizedString, and only then does it become a dependency.
+        const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
+        expect(text.dataDependencies, isEmpty);
+      });
+
+      test('the bound data type is the data dependency', () {
+        const text = HWText(HWString('key'));
+        expect(text.dataDependencies, {const HWString('key')});
+      });
+
+      test('fixed text has no data dependency', () {
+        const text = HWText.fixed('Hello');
+        expect(text.dataType, isNull);
+        expect(text.dataDependencies, isEmpty);
+      });
+    });
+
+    group('nested JSON data', () {
+      const text = HWText(HWJson('payload', HWInt('count', defaultValue: 3)));
+
+      test('Kotlin applies the leaf default before stringifying', () {
+        expect(
+          text.toKotlin(0, dataExpr: 'widgetData'),
+          'Text(text = ((widgetData.payload?.count ?: 3)?.toString() ?: "0"))',
+        );
+      });
+
+      test('Swift describes the resolved value', () {
+        final swift = text.toSwift(0, dataExpr: 'entry.data');
+        expect(swift, startsWith('Text(String(describing: '));
+        expect(swift, contains('entry.data.payload?.count'));
+        expect(swift, contains('?? (3)'));
+      });
     });
 
     group('iOS (SwiftUI)', () {
@@ -422,6 +467,24 @@ void main() {
         expect(result, contains('fontStyle = FontStyle.Italic'));
         expect(result, contains('0xFF00FF00'));
       });
+    });
+  });
+
+  group('HWText multi-line content', () {
+    // Regression: the escapers used to leave newlines raw, which produced an
+    // unterminated string literal in both languages.
+    const text = HWText.fixed('line1\nline2\ttabbed');
+
+    test('escapes newlines and tabs in Kotlin', () {
+      final kotlin = text.toKotlin(0, dataExpr: 'null');
+      expect(kotlin.split('\n'), hasLength(1));
+      expect(kotlin, contains(r'line1\nline2\ttabbed'));
+    });
+
+    test('escapes newlines and tabs in Swift', () {
+      final swift = text.toSwift(0, dataExpr: 'null');
+      expect(swift.split('\n'), hasLength(1));
+      expect(swift, contains(r'line1\nline2\ttabbed'));
     });
   });
 }

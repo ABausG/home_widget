@@ -38,7 +38,10 @@ melos:
         dart format . --set-exit-if-changed
     format:kotlin:
       description: Format Kotlin Files
-      run: ktfmt . --set-exit-if-changed
+      # ktfmt has no exclude option and `ktfmt .` follows the examples'
+      # ios/.symlinks plugin loops — reformatting files inside the Flutter SDK
+      # checkout. Prune the symlink trees explicitly.
+      run: find . -name .symlinks -prune -o \( -name '*.kt' -o -name '*.kts' \) -print0 | xargs -0 ktfmt --set-exit-if-changed
     format:swift:
       description: Format Swift Files
       run: |
@@ -77,7 +80,7 @@ melos:
       description: Run Dart-only unit tests with coverage (excludes integration)
       exec: |
         dart test --coverage=coverage -x integration
-        dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib --base-directory=$MELOS_ROOT_PATH --package=.
+        dart run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info --report-on=lib --base-directory=$MELOS_ROOT_PATH --package=. --check-ignore
       packageFilters:
         flutter: false
         dirExists: test

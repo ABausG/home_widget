@@ -100,6 +100,29 @@ void main() {
         expect(result, contains('Text(text = "Decorated")'));
       });
 
+      test('border without a fill emits a single Box', () {
+        const node = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            border: HWBoxBorder(
+              radius: 12,
+              thickness: 2,
+              color: HWFixedColor(0xFF000000),
+            ),
+          ),
+          child: HWText.fixed('Decorated'),
+        );
+
+        final result = node.toKotlin(0, dataExpr: 'data');
+        // With no fill there is nothing to nest, so the inset Box is skipped.
+        expect('Box('.allMatches(result), hasLength(1));
+        expect(result, startsWith('Box('));
+        expect(result, contains('GlanceModifier.background(ColorProvider'));
+        expect(result, contains('.cornerRadius(12.0.dp)'));
+        expect(result, contains('.padding(2.0.dp)'));
+        expect(result, isNot(contains('.cornerRadius(10.0.dp)')));
+        expect(result, contains('Text(text = "Decorated")'));
+      });
+
       test('kotlinImports include decoration dependencies', () {
         const node = HWDecoratedBox(
           decoration: HWBoxDecoration(

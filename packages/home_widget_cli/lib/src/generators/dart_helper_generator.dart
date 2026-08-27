@@ -1,5 +1,6 @@
 import 'package:dart_style/dart_style.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
 
@@ -24,8 +25,12 @@ class DartHelperGenerator {
     buffer.writeln('// GENERATED CODE - DO NOT MODIFY BY HAND');
     buffer.writeln('// ignore_for_file: type=lint');
     buffer.writeln();
-    if (jsonGroups.isNotEmpty) {
+    // Localized fields store their translations as a single JSON blob, so they
+    // need `dart:convert` too — but none of the file plumbing JSON groups use.
+    if (jsonGroups.isNotEmpty || _localizedFields.isNotEmpty) {
       buffer.writeln("import 'dart:convert';");
+    }
+    if (jsonGroups.isNotEmpty) {
       buffer.writeln("import 'dart:io';");
       buffer.writeln("import 'dart:typed_data';");
     }
@@ -47,9 +52,15 @@ class DartHelperGenerator {
         "  static const String _\$paramPrefix = 'home_widget.${spec.className}';",
       );
       buffer.writeln();
+      for (final field in _localizedFields) {
+        _writeDefaultsConstant(buffer, field);
+        buffer.writeln();
+      }
       buffer.writeln('  static Future<void> saveData({');
       for (final field in primitiveFields) {
-        final type = field.dartType;
+        final type = field is HWLocalizedString
+            ? _translationsClassName
+            : field.dartType;
         buffer.writeln('    $type? ${field.key},');
       }
       for (final group in jsonGroups) {
@@ -59,6 +70,15 @@ class DartHelperGenerator {
       buffer.writeln('  }) {');
       buffer.writeln('    return Future.wait([');
       for (final field in primitiveFields) {
+        if (field is HWLocalizedString) {
+          buffer.writeln(
+            "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
+            r"${_$paramPrefix}."
+            "${field.key}', jsonEncode(${field.key}.toMap())"
+            "${_appGroupIdArg(usesAppGroupId)}),",
+          );
+          continue;
+        }
         final type = field.dartType;
         buffer.writeln(
           "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
@@ -89,6 +109,8 @@ class DartHelperGenerator {
       buffer.writeln('  }) {');
       buffer.writeln('    return Future.wait([');
       for (final field in primitiveFields) {
+        // Localized fields need no special case: all their translations live in
+        // one entry, so clearing that key clears all of them.
         buffer.writeln(
           "      if (${field.key}) HomeWidget.saveWidgetData('"
           r"${_$paramPrefix}."
@@ -107,10 +129,34 @@ class DartHelperGenerator {
       buffer.writeln();
 
       final recordFieldParts = <String>[
-        ...primitiveFields.map((f) => '${f.dartType}? ${f.key}'),
+        ...primitiveFields.map(
+          (f) => f is HWLocalizedString
+              ? '$_translationsClassName ${f.key}'
+              : '${f.dartType}? ${f.key}',
+        ),
         ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
       ];
       final recordFields = recordFieldParts.join(', ');
+      if (_localizedFields.isNotEmpty) {
+        buffer.writeln('  /// Reads every stored value back.');
+        buffer.writeln('  ///');
+        buffer.writeln(
+          '  /// Localized fields come back fully populated: anything stored '
+          'by [saveData]',
+        );
+        buffer.writeln(
+          '  /// is merged over the compiled defaults, so every locale always '
+          'has text.',
+        );
+        buffer.writeln(
+          '  /// To read the raw stored blob instead — to tell an override '
+          'apart from a',
+        );
+        buffer.writeln(
+          '  /// shipped default — use `HomeWidget.getWidgetData` on the '
+          'preferences key.',
+        );
+      }
       buffer.writeln(
         '  static Future<({$recordFields})> getData() async {',
       );
@@ -140,12 +186,21 @@ class DartHelperGenerator {
       }
       buffer.writeln('    return (');
       for (final field in primitiveFields) {
+        if (field is HWLocalizedString) {
+          buffer.writeln(
+            "      ${field.key}: _\$mergeTranslations(${_defaultsFieldName(field)}, "
+            "await _\$readLocalized('"
+            r"${_$paramPrefix}."
+            "${field.key}')),",
+          );
+          continue;
+        }
         final type = field.dartType;
         final defaultValue = field.defaultValue;
         var defaultLiteral = '';
         if (defaultValue != null) {
           defaultLiteral = defaultValue is String
-              ? ", defaultValue: '$defaultValue'"
+              ? ", defaultValue: '${escapeDartStringLiteral(defaultValue)}'"
               : ', defaultValue: $defaultValue';
         }
         buffer.writeln(
@@ -184,7 +239,19 @@ class DartHelperGenerator {
     buffer.writeln('    );');
     buffer.writeln('  }');
 
+    if (_localizedFields.isNotEmpty) {
+      buffer.writeln();
+      _writeLocalizedReader(buffer, usesAppGroupId);
+      buffer.writeln();
+      _writeTranslationsMerger(buffer);
+    }
+
     buffer.writeln('}');
+
+    if (_localizedFields.isNotEmpty) {
+      buffer.writeln();
+      _writeTranslationsClass(buffer);
+    }
 
     for (final group in jsonGroups) {
       final jsonClass = _dartJsonClassName(group.key);
@@ -204,6 +271,218 @@ class DartHelperGenerator {
 
     return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
         .format(buffer.toString());
+  }
+
+  /// Keyed localized strings, stored as one JSON blob of locale tag to text.
+  ///
+  /// Shared with the native generators so the Dart API cannot drift from the
+  /// keys they read.
+  List<HWLocalizedString> get _localizedFields => spec.keyedLocalizedStrings;
+
+  List<String> get _supportedLocales =>
+      spec.data.localization?.supportedLocales ?? const <String>[];
+
+  String get _translationsClassName =>
+      '${spec.className}HomeWidgetTranslations';
+
+  /// The identifier of the field holding [field]'s compiled translations. One
+  /// per keyed string, since a widget may declare several.
+  String _defaultsFieldName(HWLocalizedString field) => '${field.key}Defaults';
+
+  /// The compiled translations for one keyed string, exposed on the helper
+  /// class so callers can read the shipped text without going through
+  /// `getData`.
+  void _writeDefaultsConstant(StringBuffer buffer, HWLocalizedString field) {
+    buffer.writeln(
+      '  /// The translations compiled into the widget for `${field.key}`.',
+    );
+    buffer.writeln('  ///');
+    buffer.writeln(
+      '  /// `getData` merges anything stored by `saveData` over these, so a',
+    );
+    buffer.writeln(
+      '  /// locale the app never pushed still resolves to shipped text.',
+    );
+    buffer.writeln(
+      '  static const $_translationsClassName ${_defaultsFieldName(field)} =',
+    );
+    buffer.writeln('      $_translationsClassName(');
+    for (final locale in _supportedLocales) {
+      final value = field.defaultTranslations[locale] ?? '';
+      buffer.writeln(
+        '        ${localeIdentifier(locale)}: '
+        "'${escapeDartStringLiteral(value)}',",
+      );
+    }
+    buffer.writeln('      );');
+  }
+
+  /// Merges a stored translation blob over the compiled defaults.
+  void _writeTranslationsMerger(StringBuffer buffer) {
+    buffer.writeln(
+      '  static $_translationsClassName _\$mergeTranslations(',
+    );
+    buffer.writeln('    $_translationsClassName defaults,');
+    buffer.writeln('    Map<String, String>? stored,');
+    buffer.writeln('  ) {');
+    buffer.writeln('    if (stored == null) return defaults;');
+    buffer.writeln('    return $_translationsClassName(');
+    for (final locale in _supportedLocales) {
+      final identifier = localeIdentifier(locale);
+      buffer.writeln(
+        "      $identifier: stored['${escapeDartStringLiteral(locale)}'] "
+        '?? defaults.$identifier,',
+      );
+    }
+    buffer.writeln('    );');
+    buffer.writeln('  }');
+  }
+
+  /// Reads the stored translation blob for [key] back into a raw map, which
+  /// `getData` then merges over the compiled defaults.
+  ///
+  /// Mirrors the leniency of the native readers — anything that is not a JSON
+  /// object of strings reads back as null instead of throwing.
+  void _writeLocalizedReader(StringBuffer buffer, bool usesAppGroupId) {
+    buffer.writeln(
+      '  static Future<Map<String, String>?> _\$readLocalized(String key) async {',
+    );
+    buffer.writeln(
+      "    final raw = await HomeWidget.getWidgetData<String>(key"
+      '${_appGroupIdArg(usesAppGroupId)});',
+    );
+    buffer.writeln('    if (raw == null) return null;');
+    buffer.writeln('    Object? decoded;');
+    buffer.writeln('    try {');
+    buffer.writeln('      decoded = jsonDecode(raw);');
+    buffer.writeln('    } on FormatException {');
+    buffer.writeln('      return null;');
+    buffer.writeln('    }');
+    buffer.writeln('    if (decoded is! Map) return null;');
+    buffer.writeln('    final values = <String, String>{};');
+    buffer.writeln('    decoded.forEach((locale, value) {');
+    buffer.writeln(
+      '      if (locale is String && value is String) values[locale] = value;',
+    );
+    buffer.writeln('    });');
+    buffer.writeln('    return values.isEmpty ? null : values;');
+    buffer.writeln('  }');
+  }
+
+  /// A translation set for one string, with every supported locale required so
+  /// that adding a locale becomes a compile error until it is translated.
+  void _writeTranslationsClass(StringBuffer buffer) {
+    final locales = _supportedLocales;
+    buffer.writeln('class $_translationsClassName {');
+    buffer.writeln('  const $_translationsClassName({');
+    for (final locale in locales) {
+      buffer.writeln('    required this.${localeIdentifier(locale)},');
+    }
+    buffer.writeln('  });');
+    buffer.writeln();
+    for (final locale in locales) {
+      buffer.writeln('  final String ${localeIdentifier(locale)};');
+    }
+    buffer.writeln();
+    buffer.writeln('  Map<String, String> toMap() => {');
+    for (final locale in locales) {
+      buffer.writeln("        '$locale': ${localeIdentifier(locale)},");
+    }
+    buffer.writeln('      };');
+    buffer.writeln();
+    _writeResolve(buffer);
+    buffer.writeln('}');
+  }
+
+  /// `resolve(tag)` — the widget's own matching chain, for one explicit tag.
+  ///
+  /// Must stay in step with `hwResolveLocalized` in the Kotlin and Swift
+  /// helpers, or a preview would disagree with what the widget renders.
+  void _writeResolve(StringBuffer buffer) {
+    final baseIdentifier = _baseLocaleIdentifier;
+    buffer.writeln(
+      '  /// The text this set resolves to for the BCP-47 locale [tag].',
+    );
+    buffer.writeln('  ///');
+    buffer.writeln(
+      '  /// Tries the exact tag (`pt-PT`), then the tag with its last subtag',
+    );
+    buffer.writeln(
+      '  /// dropped, and so on down to the bare language (`zh-Hant-TW` →',
+    );
+    buffer.writeln(
+      '  /// `zh-Hant` → `zh`), then any entry with the same language but a',
+    );
+    buffer.writeln(
+      '  /// different region or script (`pt-BR`; the lexicographically',
+    );
+    buffer.writeln(
+      "  /// smallest wins if several match), and finally the widget's default",
+    );
+    buffer.writeln(
+      '  /// locale. Matching is case-insensitive, and `_` is treated as `-`.',
+    );
+    buffer.writeln('  ///');
+    buffer.writeln(
+      '  /// The widget natively runs these same steps against *every* entry',
+    );
+    buffer.writeln(
+      "  /// of the OS preferred-language list in order; this answers for one",
+    );
+    buffer.writeln(
+      '  /// explicit tag, which is what previews and tests need.',
+    );
+    buffer.writeln('  String resolve(String tag) {');
+    // Tags are case-insensitive per BCP-47, so both sides fold to lower case.
+    // The native resolvers only ever see canonically cased tags, so folding
+    // here cannot conflate two genuinely different tags.
+    buffer.writeln('    final values = {');
+    buffer.writeln('      for (final entry in toMap().entries)');
+    buffer.writeln('        entry.key.toLowerCase(): entry.value,');
+    buffer.writeln('    };');
+    buffer.writeln(
+      "    final normalized = tag.replaceAll('_', '-').toLowerCase();",
+    );
+    if (baseIdentifier == null) {
+      buffer.writeln("    return values[normalized] ?? '';");
+      buffer.writeln('  }');
+      return;
+    }
+    // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
+    buffer.writeln('    var candidate = normalized;');
+    buffer.writeln('    while (true) {');
+    buffer.writeln('      final match = values[candidate];');
+    buffer.writeln('      if (match != null) return match;');
+    buffer.writeln("      final cut = candidate.lastIndexOf('-');");
+    buffer.writeln('      if (cut <= 0) break;');
+    buffer.writeln('      candidate = candidate.substring(0, cut);');
+    buffer.writeln('    }');
+    buffer.writeln('    final language = candidate;');
+    buffer.writeln('    String? sibling;');
+    buffer.writeln('    for (final key in values.keys) {');
+    buffer.writeln("      if (key.split('-').first != language) continue;");
+    buffer.writeln(
+      '      if (sibling == null || key.compareTo(sibling) < 0) sibling = key;',
+    );
+    buffer.writeln('    }');
+    buffer.writeln('    if (sibling != null) {');
+    buffer.writeln('      final match = values[sibling];');
+    buffer.writeln('      if (match != null) return match;');
+    buffer.writeln('    }');
+    buffer.writeln('    return $baseIdentifier;');
+    buffer.writeln('  }');
+  }
+
+  /// The field holding the widget's default-locale text, or null when there is
+  /// no usable default locale.
+  String? get _baseLocaleIdentifier {
+    final locales = _supportedLocales;
+    if (locales.isEmpty) return null;
+    final defaultLocale = spec.data.localization?.defaultLocale;
+    if (defaultLocale != null && locales.contains(defaultLocale)) {
+      return localeIdentifier(defaultLocale);
+    }
+    return localeIdentifier(locales.first);
   }
 
   String _appGroupIdArg(bool usesAppGroupId) =>
@@ -334,9 +613,7 @@ class DartHelperGenerator {
     final defaultValue = field.defaultValue;
     if (defaultValue == null) return '';
     if (defaultValue is String) {
-      final escaped =
-          defaultValue.replaceAll(r'\', r'\\').replaceAll("'", r"\'");
-      return " ?? '$escaped'";
+      return " ?? '${escapeDartStringLiteral(defaultValue)}'";
     }
     return ' ?? $defaultValue';
   }

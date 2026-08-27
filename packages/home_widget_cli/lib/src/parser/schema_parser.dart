@@ -8,6 +8,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
 import '../models/widget_spec.dart';
+import '../util/naming.dart';
 import '../validation/widget_data_validator.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s using Analyzer resolution.
@@ -72,11 +73,18 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       _extractAndroidConfig(constantValue.getField('android'));
   final iosConfig = _extractIosConfig(constantValue.getField('iOS'));
 
+  final localization =
+      _extractLocalization(constantValue.getField('localization'));
+
   // Widget Tree
   HWWidget? widgetTree;
   final widgetField = constantValue.getField('widget');
   if (widgetField != null && !widgetField.isNull) {
-    widgetTree = WidgetValueDecoder(widgetField).decode();
+    widgetTree = WidgetValueDecoder(
+      widgetField,
+      defaultLocale: localization?.defaultLocale,
+      resourcePrefix: widgetResourcePrefix(generatedClassName),
+    ).decode();
   }
 
   // Data fields
@@ -98,6 +106,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       dartOutput: dartOutput,
       android: androidConfig,
       iOS: iosConfig,
+      localization: localization,
     ),
     className: generatedClassName,
     dataFields: dataFields,
@@ -105,6 +114,29 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
   );
   validateWidgetData(spec);
   return spec;
+}
+
+HomeWidgetLocalization? _extractLocalization(DartObject? obj) {
+  if (obj == null || obj.isNull) return null;
+
+  final defaultLocale = obj.getField('defaultLocale')?.toStringValue();
+  if (defaultLocale == null) return null;
+
+  final supported = obj
+          .getField('supportedLocales')
+          ?.toListValue()
+          ?.map((e) => e.toStringValue())
+          .whereType<String>()
+          .toList() ??
+      const <String>[];
+
+  return HomeWidgetLocalization(
+    defaultLocale: defaultLocale,
+    supportedLocales: supported,
+    name: WidgetValueDecoder.decodeStringMap(obj.getField('name')),
+    description:
+        WidgetValueDecoder.decodeStringMap(obj.getField('description')),
+  );
 }
 
 HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {

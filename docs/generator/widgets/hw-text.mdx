@@ -29,6 +29,23 @@ Reads the value from widget storage at runtime. Add the matching field to the en
 HWText(HWString('greeting'))
 ```
 
+### HWText.localized
+
+`const HWText.localized(Map<String, String> content, {HWTextStyle? style, HWTextAlign? textAlign})`
+
+Text translated at build time. `content` maps locale tag to text and must cover
+every entry of `supportedLocales`, including the widget's `defaultLocale`. It
+creates no data field and cannot be overridden at runtime — it ships as a
+platform string resource and is resolved by the OS.
+
+```dart
+HWText.localized({'en': 'Greeting', 'de': 'Begrüßung', 'pt-BR': 'Saudação'})
+```
+
+Requires a `localization:` block on the annotation. For text your app can change
+per locale at runtime, bind `HWString.localized` instead — see
+[Localization](/generator/localization).
+
 ### Styled example
 
 ```dart
@@ -47,11 +64,12 @@ HWText.fixed(
 | Name           | Type            | Default      | Description                                                  |
 | -------------- | --------------- | ------------ | ------------------------------------------------------------ |
 | `content`      | `String`        | **required** _(`.fixed`)_ | Hardcoded text.                                |
+| `content`      | `Map<String, String>` | **required** _(`.localized`)_ | Locale tag → text, resolved by the OS. |
 | `data`         | `HWDataType`    | **required** _(default ctor)_ | Field whose value is rendered.             |
 | `style`        | `HWTextStyle?`  | `null`       | Font, weight, color — see [`HWTextStyle`](/generator/styling/hw-text-style). |
 | `textAlign`    | `HWTextAlign?`  | `null`       | Multi-line text alignment.                                   |
 
-Exactly one of `content` (via `.fixed`) or `data` (via the default constructor) is supplied — the constructor you call enforces this.
+Exactly one of `content` (via `.fixed` or `.localized`) or `data` (via the default constructor) is supplied — the constructor you call enforces this.
 
 ## Platform mapping
 

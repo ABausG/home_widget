@@ -16,7 +16,7 @@ coverage:
         flags:
           - home_widget_cli
       home_widget_generator:
-        target: 74%
+        target: 100%
         threshold: 1%
         flags:
           - home_widget_generator
@@ -77,7 +77,7 @@ flag_management:
         - packages/home_widget_generator/
       statuses:
         - type: project
-          target: 74%
+          target: 100%
           threshold: 1%
         - type: patch
           target: 90%

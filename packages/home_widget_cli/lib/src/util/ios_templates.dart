@@ -18,6 +18,8 @@ String iosWidgetSwiftTemplate({
   String? extraContent,
   String? displayName,
   String? description,
+  String? displayNameExpression,
+  String? descriptionExpression,
   String? supportedFamilies,
   Set<String>? swiftViewModifiers,
   bool hasCustomContainerBackground = false,
@@ -106,11 +108,20 @@ struct ${widgetClassName}Entry: TimelineEntry {
   );
   buffer.writeln('      ${widgetClassName}EntryView(entry: entry)');
   buffer.writeln('    }');
-  buffer.writeln(
-    '    .configurationDisplayName("${displayName ?? widgetClassName}")',
-  );
+  // A string literal keeps SwiftUI's LocalizedStringKey overload, which projects
+  // shipping their own Localizable.strings in the extension rely on. Only switch
+  // to a computed String when translations were actually configured.
+  if (displayNameExpression != null) {
+    buffer.writeln('    .configurationDisplayName($displayNameExpression)');
+  } else {
+    buffer.writeln(
+      '    .configurationDisplayName("${displayName ?? widgetClassName}")',
+    );
+  }
 
-  if (description != null) {
+  if (descriptionExpression != null) {
+    buffer.writeln('    .description($descriptionExpression)');
+  } else if (description != null) {
     buffer.writeln('    .description("$description")');
   }
 

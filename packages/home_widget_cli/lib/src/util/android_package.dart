@@ -53,13 +53,60 @@ String? _tryReadPackageFromManifest(File manifest) {
   return match?.group(1);
 }
 
+/// Attempts to detect the Android module namespace of `android/app`.
+///
+/// The namespace is what `R` is generated under, which is a different concept
+/// from the application id: build variants can carry a different
+/// `applicationId` while `R` stays in the one namespace the module declares.
+///
+/// Reads `namespace` from `android/app/build.gradle(.kts)` and falls back to
+/// the AndroidManifest `package` attribute, which is the pre-AGP-7 spelling of
+/// the same thing. Returns `null` if neither is present.
+String? tryDetectAndroidNamespace(Directory projectRoot) {
+  // 1) android/app/build.gradle(.kts) namespace "..."
+  final gradleGroovy = File(
+    p.join(projectRoot.path, 'android', 'app', 'build.gradle'),
+  );
+  final gradleKts = File(
+    p.join(projectRoot.path, 'android', 'app', 'build.gradle.kts'),
+  );
+  final namespace = _tryReadNamespaceFromGradle(gradleGroovy) ??
+      _tryReadNamespaceFromGradle(gradleKts);
+  if (namespace != null) return namespace;
+
+  // 2) (Fallback) AndroidManifest.xml package="..."
+  final manifest = File(
+    p.join(
+      projectRoot.path,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    ),
+  );
+  return _tryReadPackageFromManifest(manifest);
+}
+
+/// Matches both the Groovy (`x "y"`) and Kotlin DSL (`x = "y"`) spellings.
+///
+/// The leading guard keeps the match from starting mid-identifier, so a
+/// same-suffix property (`myapplicationId`) is not read as `applicationId`.
+RegExp _gradleAssignment(String property) => RegExp(
+      '''(?:^|[^A-Za-z0-9_.])$property(?:\\s*=\\s*|\\s+)['"]([^'"]+)['"]''',
+      multiLine: true,
+    );
+
+String? _tryReadNamespaceFromGradle(File gradleFile) {
+  if (!gradleFile.existsSync()) return null;
+  final text = gradleFile.readAsStringSync();
+  return _gradleAssignment('namespace').firstMatch(text)?.group(1);
+}
+
 String? _tryReadApplicationIdFromGradle(File gradleFile) {
   if (!gradleFile.existsSync()) return null;
   final text = gradleFile.readAsStringSync();
-  final match = RegExp(
-    r'''applicationId\s+['"]([^'"]+)['"]''',
-  ).firstMatch(text);
-  return match?.group(1);
+  return _gradleAssignment('applicationId').firstMatch(text)?.group(1);
 }
 
 String? _tryInferPackageFromKotlinDir(Directory kotlinMainDir) {

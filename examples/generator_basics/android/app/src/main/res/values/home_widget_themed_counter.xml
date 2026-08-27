@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_themed_counter_label">Themed Counter</string>
+    <string name="home_widget_themed_counter_description">A counter with a themed background and role-based colors.</string>
+</resources>

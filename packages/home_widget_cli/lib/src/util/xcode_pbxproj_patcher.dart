@@ -16,10 +16,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   final text = await pbxprojFile.readAsString();
 
   final hasFileSystemSynchronizedSections =
-      text.contains('/* Begin PBXFileSystemSynchronizedRootGroup section */') &&
-          text.contains(
-            '/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */',
-          );
+      _projectSupportsSynchronizedGroups(text);
 
   // Idempotency: if a target with this name already exists, do nothing.
   if (RegExp(
@@ -453,6 +450,140 @@ $developmentTeamLine\t\t\t\tCURRENT_PROJECT_VERSION = 1;
   await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
   await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
     pbxprojFile: pbxprojFile,
+  );
+}
+
+/// Wires `<widgetClassName>/Localizable.xcstrings` into the extension target.
+///
+/// The catalog only ships if it is a resource of the extension, and its
+/// translations only apply if the project lists their locales in
+/// `knownRegions`. Both are patched in place and both are idempotent: a second
+/// run over the same project changes nothing.
+///
+/// Projects using file-system-synchronized groups (Xcode 16 `flutter create`)
+/// already build every file in the extension folder, so only `knownRegions`
+/// needs patching there — adding an explicit reference on top of the synced
+/// folder would make Xcode copy the catalog twice and fail the build.
+Future<void> ensureLocalizableCatalogInXcodeProject({
+  required File pbxprojFile,
+  required String widgetClassName,
+  required List<String> locales,
+}) async {
+  final text = await pbxprojFile.readAsString();
+  var updated = text;
+
+  final ids = _WidgetExtensionIds(widgetClassName);
+  final usesSynchronizedGroups = _widgetUsesSynchronizedGroup(text, ids);
+
+  if (!usesSynchronizedGroups) {
+    final fileRefId = xcodeObjectId(
+      'fileref:Localizable.xcstrings:$widgetClassName',
+    );
+    final buildFileId = xcodeObjectId(
+      'buildfile:Localizable.xcstrings:$widgetClassName',
+    );
+
+    if (!updated.contains(fileRefId)) {
+      updated = _insertIntoSection(
+        updated,
+        section: 'PBXFileReference',
+        content:
+            '\t\t$fileRefId /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };',
+      );
+      updated = _insertIntoSection(
+        updated,
+        section: 'PBXBuildFile',
+        content:
+            '\t\t$buildFileId /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* Localizable.xcstrings */; };',
+      );
+    }
+
+    updated = _patchNativeTargetListAddId(
+      updated,
+      targetId: ids.resourcesPhaseId,
+      listKey: 'files',
+      idToAdd: '$buildFileId /* Localizable.xcstrings in Resources */',
+    );
+    updated = _patchGroupChildrenAddId(
+      updated,
+      groupId: ids.widgetGroupId,
+      idToAdd: '$fileRefId /* Localizable.xcstrings */',
+    );
+  }
+
+  updated = _patchKnownRegions(updated, locales: locales);
+
+  if (updated == text) return;
+
+  await pbxprojFile.writeAsString(updated);
+  logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+  logger.detail(
+    'Wired $widgetClassName/Localizable.xcstrings into the extension target.',
+  );
+}
+
+/// Whether the scaffolder would give a new extension a synchronized root group.
+///
+/// Both sections have to exist: `_insertIntoSection` silently does nothing for
+/// an absent section, which would leave the group referencing a membership
+/// exception set that was never written.
+bool _projectSupportsSynchronizedGroups(String pbxproj) =>
+    pbxproj
+        .contains('/* Begin PBXFileSystemSynchronizedRootGroup section */') &&
+    pbxproj.contains(
+      '/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */',
+    );
+
+/// Whether *this widget's* extension folder is a synchronized group.
+///
+/// Per-widget, not per-project: a project can hold both kinds at once, and a
+/// project-global guess that disagrees with the group the scaffolder actually
+/// created wires the catalog into nothing while still reporting success.
+bool _widgetUsesSynchronizedGroup(String pbxproj, _WidgetExtensionIds ids) {
+  if (pbxproj.contains(ids.fsRootGroupId)) return true;
+  if (pbxproj.contains(ids.widgetGroupId)) return false;
+  // Neither group exists yet, so nothing has been decided: answer the same way
+  // the scaffolder will when it creates one.
+  return _projectSupportsSynchronizedGroups(pbxproj);
+}
+
+/// Adds any missing [locales] to the project's `knownRegions`.
+///
+/// Xcode quotes anything that is not a bare identifier, so `pt-BR` has to be
+/// written `"pt-BR"` — and matched that way when checking for duplicates.
+String _patchKnownRegions(String pbxproj, {required List<String> locales}) {
+  final listRegex = RegExp(
+    r'(^\s*knownRegions\s*=\s*\(\s*$)([\s\S]*?)(^\s*\);\s*$)',
+    multiLine: true,
+  );
+  final match = listRegex.firstMatch(pbxproj);
+  if (match == null) return pbxproj;
+
+  final before = match.group(1)!;
+  var inner = match.group(2)!;
+  final after = match.group(3)!;
+
+  final existing = inner
+      .split('\n')
+      .map((line) => line.trim().replaceAll(',', '').replaceAll('"', ''))
+      .where((line) => line.isNotEmpty)
+      .toSet();
+
+  final missing =
+      locales.where((locale) => !existing.contains(locale)).toList();
+  if (missing.isEmpty) return pbxproj;
+
+  if (!inner.endsWith('\n')) inner = '$inner\n';
+  for (final locale in missing) {
+    final entry =
+        RegExp(r'^[A-Za-z0-9_]+$').hasMatch(locale) ? locale : '"$locale"';
+    inner = '$inner\t\t\t\t$entry,\n';
+  }
+
+  return pbxproj.replaceRange(
+    match.start,
+    match.end,
+    '$before$inner$after',
   );
 }
 
@@ -1060,8 +1191,12 @@ String _patchGroupChildrenAddId(
   required String groupId,
   required String idToAdd,
 }) {
+  // The comment is optional: the project's main group carries none, while named
+  // groups such as `/* Products */` or a widget's own folder do.
   final groupBlockRegex = RegExp(
-    r'^\s*' + RegExp.escape(groupId) + r'\s*=\s*\{[\s\S]*?\n\s*\};\s*$',
+    r'^\s*' +
+        RegExp.escape(groupId) +
+        r'(?: /\* .*? \*/)?\s*=\s*\{[\s\S]*?\n\s*\};\s*$',
     multiLine: true,
   );
   final block = groupBlockRegex.firstMatch(pbxproj)?.group(0);

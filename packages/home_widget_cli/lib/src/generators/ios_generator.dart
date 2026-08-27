@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
@@ -9,7 +10,9 @@ import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
+import '../util/localization_templates.dart';
 import '../util/naming.dart';
+import '../util/string_catalog.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 import 'swift_widget_emitter.dart';
 
@@ -149,20 +152,48 @@ $loadDataLogic
 ''';
     }
 
+    // Constants and gallery strings resolve through the string catalog; only
+    // strings the widget resolves itself need the helpers, and only keyed ones
+    // read a stored blob.
+    final localizationHelpers = <String>[
+      if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
+      if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
+    ];
+    if (localizationHelpers.isNotEmpty) {
+      extraContent = [
+        if (extraContent != null) extraContent,
+        ...localizationHelpers,
+      ].join('\n\n');
+    }
+
+    // Localized strings must be resolved at render time so a system language
+    // change is picked up without waiting for a new timeline. Timeline entries
+    // still carry a snapshot for WidgetKit, but the view re-reads.
+    final reResolveAtRender = spec.needsLocaleHelpers;
+    final dataExpr = !hasDataFields
+        ? 'null'
+        : reResolveAtRender
+            ? 'data'
+            : 'entry.data';
+
+    final viewPrefix = reResolveAtRender
+        ? '    let prefs = UserDefaults(suiteName: "$groupId")\n'
+            '    let data = ${spec.className}Data.fromUserDefaults(prefs)\n'
+        : '';
+
     final treeCode = emitSwiftWidgetBody(
       spec.effectiveWidgetTree,
-      dataExpr: 'entry.data',
+      dataExpr: dataExpr,
       indent: 2,
     );
 
     final customBgColor = spec.data.iOS?.backgroundColor;
     final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
-    final dataExpr = hasDataFields ? 'entry.data' : 'null';
     final hasCustomBg = customBgColor != null;
     final containerBackgroundModifier = hasCustomBg
         ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
         : '.applyContainerBackground()';
-    entryViewBody = '$treeCode\n    $containerBackgroundModifier';
+    entryViewBody = '$viewPrefix$treeCode\n    $containerBackgroundModifier';
 
     String? supportedFamilies;
     if (spec.data.iOS?.supportedFamilies != null &&
@@ -185,8 +216,18 @@ $loadDataLogic
         getSnapshotBody: getSnapshotBody,
         getTimelineBody: getTimelineBody,
         entryViewBody: entryViewBody,
-        displayName: spec.data.name,
-        description: spec.data.description,
+        displayName: spec.galleryName,
+        description: spec.galleryDescription,
+        displayNameExpression: _galleryStringExpression(
+          resourceName: spec.labelResourceName,
+          translations: spec.data.localization?.name,
+        ),
+        descriptionExpression: spec.galleryDescription == null
+            ? null
+            : _galleryStringExpression(
+                resourceName: spec.descriptionResourceName,
+                translations: spec.data.localization?.description,
+              ),
         supportedFamilies: supportedFamilies,
         swiftViewModifiers: {
           ...spec.effectiveWidgetTree.swiftViewModifiers,
@@ -205,6 +246,20 @@ $loadDataLogic
 
     await infoPlist.writeAsString(iosInfoPlistTemplate());
     logger.detail('Generated: ${infoPlist.path}');
+
+    final catalogEntries = _stringCatalogEntries();
+    final catalogFile = File(
+      p.join(extensionDir.path, 'Localizable.xcstrings'),
+    );
+    if (catalogEntries.isNotEmpty) {
+      await catalogFile.writeAsString(
+        stringCatalogJson(
+          sourceLanguage: spec.defaultLocale,
+          entries: catalogEntries,
+        ),
+      );
+      logger.detail('Generated: ${catalogFile.path}');
+    }
 
     await ensureAppGroupEntitlement(
       entitlementsFile: extensionEntitlements,
@@ -230,21 +285,74 @@ $loadDataLogic
 
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
       await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
+
+      // Never wire a catalog we did not write: a stale reference to a missing
+      // file fails the build.
+      if (catalogEntries.isNotEmpty) {
+        await ensureLocalizableCatalogInXcodeProject(
+          pbxprojFile: xcodeproj,
+          widgetClassName: widgetClassName,
+          locales: spec.supportedLocales,
+        );
+      }
       logger.detail('Updated: ${xcodeproj.path}');
     }
+  }
+
+  /// Swift expression for a gallery string, or null when nothing was
+  /// translated and the plain `LocalizedStringKey` literal should stay.
+  String? _galleryStringExpression({
+    required String resourceName,
+    required Map<String, String>? translations,
+  }) {
+    if (translations == null || translations.isEmpty) return null;
+    return 'NSLocalizedString("$resourceName", comment: "")';
+  }
+
+  /// The entries the extension's string catalog has to carry.
+  ///
+  /// Maps resource name to locale tag → text, always including the default
+  /// locale. Empty when the widget has nothing fixed to translate, in which
+  /// case no catalog is written and none is wired into the Xcode project.
+  Map<String, Map<String, String>> _stringCatalogEntries() {
+    final defaultLocale = spec.defaultLocale;
+    final entries = <String, Map<String, String>>{};
+
+    for (final constant in spec.constantLocalizedStrings) {
+      entries[constant.resourceName] = {
+        defaultLocale: constant.baseValue,
+        ...constant.defaultTranslations,
+      };
+    }
+
+    final localization = spec.data.localization;
+    final nameTranslations = localization?.name;
+    if (nameTranslations != null && nameTranslations.isNotEmpty) {
+      entries[spec.labelResourceName] = {
+        ...nameTranslations,
+        defaultLocale: spec.galleryName,
+      };
+    }
+
+    final descriptionTranslations = localization?.description;
+    final description = spec.galleryDescription;
+    if (description != null &&
+        descriptionTranslations != null &&
+        descriptionTranslations.isNotEmpty) {
+      entries[spec.descriptionResourceName] = {
+        ...descriptionTranslations,
+        defaultLocale: description,
+      };
+    }
+
+    return entries;
   }
 
   String _swiftDefaultLiteral(HWDataType<dynamic> field) {
     final defaultValue = field.defaultValue;
     if (defaultValue == null) return 'nil';
     if (defaultValue is String) {
-      final escaped = defaultValue
-          .replaceAll(r'\', r'\\')
-          .replaceAll('"', r'\"')
-          .replaceAll('\n', r'\n')
-          .replaceAll('\r', r'\r')
-          .replaceAll('\t', r'\t');
-      return '"$escaped"';
+      return '"${escapeSwiftStringLiteral(defaultValue)}"';
     }
     return '$defaultValue';
   }

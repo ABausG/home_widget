@@ -7,5 +7,5 @@
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:description="@string/themed_counter_home_widget_description"
+    android:description="@string/home_widget_themed_counter_description"
 />

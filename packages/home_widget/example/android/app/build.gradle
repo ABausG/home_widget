@@ -57,10 +57,6 @@ android {
         compose true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.4"
-    }
-
     buildTypes {
         debug {
             minifyEnabled true
@@ -80,7 +76,7 @@ flutter {
 }
 
 dependencies {
-    implementation 'androidx.glance:glance-appwidget:1.0.0'
-    implementation "androidx.work:work-runtime-ktx:2.8.1"
+    implementation 'androidx.glance:glance-appwidget:1.1.1'
+    implementation "androidx.work:work-runtime-ktx:2.11.2"
     implementation "androidx.multidex:multidex:2.0.1"
 }

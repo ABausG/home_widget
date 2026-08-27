@@ -109,7 +109,7 @@ class _MyAppState extends State<MyApp> {
 
   Future _sendData() async {
     try {
-      return Future.wait([
+      return await Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
         HomeWidget.renderFlutterWidget(
@@ -125,7 +125,7 @@ class _MyAppState extends State<MyApp> {
 
   Future _updateWidget() async {
     try {
-      return Future.wait([
+      return await Future.wait([
         HomeWidget.updateWidget(
           name: 'HomeWidgetExampleProvider',
           iOSName: 'HomeWidgetExample',
@@ -143,7 +143,7 @@ class _MyAppState extends State<MyApp> {
 
   Future _loadData() async {
     try {
-      return Future.wait([
+      return await Future.wait([
         HomeWidget.getWidgetData<String>(
           'title',
           defaultValue: 'Default Title',

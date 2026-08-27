@@ -44,7 +44,12 @@ class ConfigurationOptions {}
 | `dartOutput` | `String?` | `null` | Override the path of the generated Dart helper file. |
 | `android` | `HomeWidgetAndroidConfiguration?` | `null` | Android-specific configuration (see below). |
 | `iOS` | `HomeWidgetIOSConfiguration?` | `null` | iOS-specific configuration (see below). |
-| `interactivity` | `HomeWidgetInteractivityConfig?` | `null` | Configuration for tap and intent-driven interactivity. |
+| `localization` | `HomeWidgetLocalization?` | `null` | Default locale, supported locales, and translations of the gallery name and description. See [Localization](/generator/localization). |
+
+A `localization:` block is required as soon as the widget uses a localized string
+(`HWText.localized` or `HWString.localized`) — it supplies the default locale
+every fallback resolves to. See [Localization](/generator/localization) for the
+full workflow.
 
 ## `HomeWidgetAndroidConfiguration`
 

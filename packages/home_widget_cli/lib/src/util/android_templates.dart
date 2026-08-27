@@ -87,6 +87,12 @@ ${extraContent ?? ''}
 
 /// Generates the Kotlin code for the HomeWidgetGlanceWidgetReceiver.
 ///
+/// Do not add an `onReceive` override for `ACTION_LOCALE_CHANGED`: Glance's
+/// `GlanceAppWidgetReceiver` already handles it and consumes the receiver's
+/// single `goAsync()` result, so a second call returns null and crashes.
+/// `ensureAndroidManifestReceiver` declares the intent-filter that gets the
+/// broadcast here.
+///
 /// [packageName]: The Android package name.
 /// [widgetClassName]: The class name of the widget.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
@@ -96,6 +102,7 @@ String androidGlanceReceiverTemplate({
   String? header,
 }) {
   final head = header ?? _defaultHeader;
+
   return '''
 $head
 package $packageName

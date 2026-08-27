@@ -192,4 +192,203 @@ void main() {
       }
     });
   });
+
+  group('codegen default literals', () {
+    test('HWString emits a quoted literal only when a default is set', () {
+      expect(const HWString('k').codegenKotlinDefaultLiteral(), isNull);
+      expect(const HWString('k').codegenSwiftDefaultLiteral(), isNull);
+      expect(
+        const HWString('k', defaultValue: 'hi').codegenKotlinDefaultLiteral(),
+        '"hi"',
+      );
+      expect(
+        const HWString('k', defaultValue: 'hi').codegenSwiftDefaultLiteral(),
+        '"hi"',
+      );
+    });
+
+    test('HWString escapes the default per target language', () {
+      const tricky = HWString('k', defaultValue: r'a"b$c');
+      // Kotlin interpolates on `$`, Swift does not.
+      expect(tricky.codegenKotlinDefaultLiteral(), r'"a\"b\$c"');
+      expect(tricky.codegenSwiftDefaultLiteral(), r'"a\"b$c"');
+    });
+
+    test('HWInt emits a bare literal or null', () {
+      expect(const HWInt('k').codegenKotlinDefaultLiteral(), isNull);
+      expect(const HWInt('k').codegenSwiftDefaultLiteral(), isNull);
+      expect(
+        const HWInt('k', defaultValue: 42).codegenKotlinDefaultLiteral(),
+        '42',
+      );
+      expect(
+        const HWInt('k', defaultValue: 42).codegenSwiftDefaultLiteral(),
+        '42',
+      );
+      // Zero is a real default, not an absent one.
+      expect(
+        const HWInt('k', defaultValue: 0).codegenKotlinDefaultLiteral(),
+        '0',
+      );
+    });
+
+    test('HWDouble emits a bare literal or null', () {
+      expect(const HWDouble('k').codegenKotlinDefaultLiteral(), isNull);
+      expect(const HWDouble('k').codegenSwiftDefaultLiteral(), isNull);
+      expect(
+        const HWDouble('k', defaultValue: 1.5).codegenKotlinDefaultLiteral(),
+        '1.5',
+      );
+      expect(
+        const HWDouble('k', defaultValue: 1.5).codegenSwiftDefaultLiteral(),
+        '1.5',
+      );
+    });
+
+    test('HWBool emits a bare literal or null', () {
+      expect(const HWBool('k').codegenKotlinDefaultLiteral(), isNull);
+      expect(const HWBool('k').codegenSwiftDefaultLiteral(), isNull);
+      expect(
+        const HWBool('k', defaultValue: true).codegenKotlinDefaultLiteral(),
+        'true',
+      );
+      // False is a real default, not an absent one.
+      expect(
+        const HWBool('k', defaultValue: false).codegenSwiftDefaultLiteral(),
+        'false',
+      );
+    });
+
+    test('HWJson reports the literal of its leaf, however deeply nested', () {
+      expect(
+        const HWJson('root', HWInt('n', defaultValue: 7))
+            .codegenKotlinDefaultLiteral(),
+        '7',
+      );
+      expect(
+        const HWJson('root', HWJson('mid', HWString('s', defaultValue: 'x')))
+            .codegenSwiftDefaultLiteral(),
+        '"x"',
+      );
+      expect(
+        const HWJson('root', HWInt('n')).codegenKotlinDefaultLiteral(),
+        isNull,
+      );
+    });
+  });
+
+  group('HWJson native plumbing', () {
+    const json = HWJson('payload', HWInt('count', defaultValue: 3));
+
+    test('is stored as a JSON string on both platforms', () {
+      expect(json.kotlinType, 'String');
+      expect(json.swiftType, 'String');
+      expect(
+        json.androidReadValue(store: 'prefs', key: 'p.payload'),
+        'prefs.getString("p.payload", null)',
+      );
+      expect(
+        json.iosReadValue(store: 'defaults', key: 'p.payload'),
+        'defaults?.string(forKey: "p.payload")',
+      );
+    });
+
+    test('stringification delegates to the leaf type', () {
+      expect(
+        json.androidToString(outerValue: 'v', innerValue: 'v'),
+        r'(v?.toString() ?: "0")',
+      );
+      expect(
+        json.iosToString(outerValue: 'v', innerValue: 'v'),
+        r'v != nil ? "\(v)" : "0"',
+      );
+    });
+
+    test('leafType and pathSegments walk through nested wrappers', () {
+      const nested = HWJson('a', HWJson('b', HWString('c')));
+      expect(nested.leafType, const HWString('c'));
+      expect(nested.pathSegments, ['b', 'c']);
+      expect(json.leafType, const HWInt('count', defaultValue: 3));
+      expect(json.pathSegments, ['count']);
+    });
+
+    test('kotlin glance text applies the leaf default before stringifying', () {
+      expect(
+        json.kotlinGlanceJsonTextInterpolation('widgetData'),
+        '((widgetData.payload?.count ?: 3)?.toString() ?: "0")',
+      );
+    });
+
+    test('swift glance text describes non-string leaves', () {
+      final swift = json.swiftGlanceJsonTextInterpolation('entry.data');
+      expect(swift, startsWith('String(describing: '));
+      expect(swift, contains('entry.data.payload?.count'));
+      expect(swift, contains('?? (3)'));
+    });
+
+    test('swift glance text keeps string leaves quoted instead of described',
+        () {
+      const stringJson =
+          HWJson('payload', HWString('label', defaultValue: 'x'));
+      final swift = stringJson.swiftGlanceJsonTextInterpolation('entry.data');
+      expect(swift, isNot(contains('String(describing:')));
+      expect(swift, contains('entry.data.payload?.label'));
+      // Falls through iosToString, which supplies the empty-string fallback.
+      expect(swift, endsWith(' ?? ""'));
+    });
+
+    test('read expressions omit the elvis when the leaf has no default', () {
+      const noDefault = HWJson('payload', HWInt('count'));
+      expect(
+        noDefault.kotlinReadExpr('widgetData'),
+        'widgetData.payload?.count',
+      );
+      expect(
+        noDefault.swiftReadExpr('entry.data'),
+        'entry.data.payload?.count',
+      );
+    });
+
+    test('a localized leaf falls back through the locale resolver', () {
+      const localized = HWJson(
+        'profile',
+        HWLocalizedString.resolved(
+          'name',
+          defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+          isConstant: false,
+          defaultLocale: 'en',
+        ),
+      );
+
+      expect(
+        localized.kotlinReadExpr('widgetData'),
+        '(widgetData.profile?.name ?: hwResolveLocalized(hwLocales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "en") ?: "Hello")',
+      );
+      expect(
+        localized.swiftReadExpr('entry.data'),
+        '((entry.data.profile?.name) ?? hwResolveLocalized(hwCurrentLocales(), '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "en") ?? "Hello")',
+      );
+      // No empty-string fallback is stacked on top of the chain.
+      expect(
+        localized.kotlinGlanceJsonTextInterpolation('widgetData'),
+        localized.kotlinReadExpr('widgetData'),
+      );
+      expect(
+        localized.swiftGlanceJsonTextInterpolation('entry.data'),
+        localized.swiftReadExpr('entry.data'),
+      );
+      expect(localized.defaultValue, isNull);
+    });
+
+    test('hashCode agrees with == for structurally equal instances', () {
+      final a = HWJson('root', const HWString('a'));
+      final b = HWJson('root', const HWString('a'));
+      expect(identical(a, b), isFalse);
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(a.hashCode, isNot(HWJson('root', const HWString('b')).hashCode));
+    });
+  });
 }

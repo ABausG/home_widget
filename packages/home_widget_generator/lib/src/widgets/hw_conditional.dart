@@ -72,7 +72,11 @@ class HWDataExists extends HWConditional {
     WidgetValueDecoder decoder,
   ) {
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
-    final data = WidgetValueDecoder.decodeDataType(dataObj);
+    final data = WidgetValueDecoder.decodeDataType(
+      dataObj,
+      defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
+    );
     if (data == null) {
       // coverage:ignore-start
       throw GeneratorError('HWDataExists requires data');
@@ -129,7 +133,11 @@ class HWBoolConditional extends HWConditional {
     WidgetValueDecoder decoder,
   ) {
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
-    final data = WidgetValueDecoder.decodeDataType(dataObj);
+    final data = WidgetValueDecoder.decodeDataType(
+      dataObj,
+      defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
+    );
     if (data == null || !_isSupportedBoolData(data)) {
       // coverage:ignore-start
       throw GeneratorError('HWBoolConditional requires data');

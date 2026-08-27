@@ -115,11 +115,17 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 }
 
 /// Ensures the widget receiver is registered in `AndroidManifest.xml`.
+///
+/// [handleLocaleChange] adds `android.intent.action.LOCALE_CHANGED` to the
+/// receiver's intent-filter so a placed widget re-renders after a system
+/// language change. Set it for widgets that render localized content
+/// themselves.
 Future<void> ensureAndroidManifestReceiver(
   Directory projectRoot, {
   required String widgetClassName,
   required String appPackageName,
   required String providerInfoName,
+  bool handleLocaleChange = false,
   String? label,
 }) async {
   final manifestFile = File(
@@ -164,12 +170,35 @@ Future<void> ensureAndroidManifestReceiver(
     return;
   }
 
-  if (_androidApplicationHasWidgetReceiver(
+  final existing = _findAndroidWidgetReceiver(
     application,
     receiverFqcn: receiverFqcn,
     widgetClassName: widgetClassName,
     providerInfoName: providerInfoName,
-  )) {
+  );
+
+  if (existing != null) {
+    var changed = false;
+
+    // Falling back to the current attribute keeps a call that omits [label]
+    // from downgrading an existing `@string/…` reference to the class name.
+    final desiredLabel =
+        label ?? existing.getAttribute('android:label') ?? widgetClassName;
+    final currentLabel = existing.getAttribute('android:label');
+    if (currentLabel != desiredLabel) {
+      existing.setAttribute('android:label', desiredLabel);
+      changed = true;
+    }
+
+    if (handleLocaleChange && _ensureLocaleChangedAction(existing)) {
+      changed = true;
+    }
+    // Add-only: the action is never removed again, since it may be
+    // hand-written.
+
+    if (changed && writeXmlFile(manifestFile, manifestXml)) {
+      logger.detail('Updated: ${manifestFile.path}');
+    }
     return;
   }
 
@@ -178,40 +207,103 @@ Future<void> ensureAndroidManifestReceiver(
       receiverFqcn: receiverFqcn,
       widgetClassName: widgetClassName,
       providerInfoName: providerInfoName,
+      handleLocaleChange: handleLocaleChange,
       label: label,
     ),
   );
 
-  writeXmlFile(manifestFile, manifestXml);
-  logger.detail('Updated: ${manifestFile.path}');
+  if (writeXmlFile(manifestFile, manifestXml)) {
+    logger.detail('Updated: ${manifestFile.path}');
+  }
 }
 
-bool _androidApplicationHasWidgetReceiver(
+/// Returns the matching widget `<receiver>`, or null when none is registered.
+XmlElement? _findAndroidWidgetReceiver(
   XmlElement application, {
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
 }) {
-  final hasReceiverName = application.childElements
-      .where((e) => e.localName == 'receiver')
-      .any((receiver) {
-    final name = receiver.getAttribute('android:name');
-    if (name == null) return false;
-    if (name == receiverFqcn) return true;
-    return name.contains('${widgetClassName}Receiver');
-  });
-  if (hasReceiverName) return true;
+  // Match the class name as a whole trailing segment — fully qualified
+  // (`com.pkg.FooReceiver`), relative (`.FooReceiver`) or bare (`FooReceiver`).
+  // A substring check would be wrong: `GreetingHomeWidgetReceiver` is contained
+  // in `AdaptiveGreetingHomeWidgetReceiver`, so one widget would find and
+  // mutate another widget's receiver.
+  final receiverClassPattern = RegExp(
+    '(^|\\.)${RegExp.escape('${widgetClassName}Receiver')}\$',
+  );
 
-  final hasProviderMeta = application.findAllElements('meta-data').any(
-        (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName',
-      );
-  return hasProviderMeta;
+  for (final receiver
+      in application.childElements.where((e) => e.localName == 'receiver')) {
+    final name = receiver.getAttribute('android:name');
+    if (name == null) continue;
+    if (name == receiverFqcn || receiverClassPattern.hasMatch(name)) {
+      return receiver;
+    }
+  }
+
+  for (final receiver
+      in application.childElements.where((e) => e.localName == 'receiver')) {
+    final hasProviderMeta = receiver.findAllElements('meta-data').any(
+          (e) => e.getAttribute('android:resource') == '@xml/$providerInfoName',
+        );
+    if (hasProviderMeta) return receiver;
+  }
+
+  return null;
+}
+
+const String _appWidgetUpdateAction =
+    'android.appwidget.action.APPWIDGET_UPDATE';
+const String _localeChangedAction = 'android.intent.action.LOCALE_CHANGED';
+
+XmlElement _actionElement(String name) => XmlElement(
+      XmlName('action'),
+      [XmlAttribute(XmlName('android:name'), name)],
+      const [],
+    );
+
+/// Adds `LOCALE_CHANGED` to [receiver]'s intent-filter if it is not there yet.
+///
+/// Returns whether the document was modified.
+bool _ensureLocaleChangedAction(XmlElement receiver) {
+  final alreadyPresent = receiver
+      .findAllElements('action')
+      .any((e) => e.getAttribute('android:name') == _localeChangedAction);
+  if (alreadyPresent) return false;
+
+  final filter = receiver.childElements
+      .where((e) => e.localName == 'intent-filter')
+      .cast<XmlElement?>()
+      .firstWhere((e) => e != null, orElse: () => null);
+
+  if (filter == null) {
+    // Giving a component its first intent-filter makes `android:exported`
+    // mandatory on API 31+: without it the build/install fails. A hand-written
+    // receiver adopted by name match may not declare it, so supply the same
+    // default a generated receiver gets — never overwriting an explicit choice.
+    if (receiver.getAttribute('android:exported') == null) {
+      receiver.setAttribute('android:exported', 'true');
+    }
+    receiver.children.add(
+      XmlElement(
+        XmlName('intent-filter'),
+        const [],
+        [_actionElement(_localeChangedAction)],
+      ),
+    );
+    return true;
+  }
+
+  filter.children.add(_actionElement(_localeChangedAction));
+  return true;
 }
 
 XmlElement _buildAndroidAppWidgetReceiverElement({
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
+  bool handleLocaleChange = false,
   String? label,
 }) {
   return XmlElement(
@@ -226,16 +318,8 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
         XmlName('intent-filter'),
         const [],
         [
-          XmlElement(
-            XmlName('action'),
-            [
-              XmlAttribute(
-                XmlName('android:name'),
-                'android.appwidget.action.APPWIDGET_UPDATE',
-              ),
-            ],
-            const [],
-          ),
+          _actionElement(_appWidgetUpdateAction),
+          if (handleLocaleChange) _actionElement(_localeChangedAction),
         ],
       ),
       XmlElement(
