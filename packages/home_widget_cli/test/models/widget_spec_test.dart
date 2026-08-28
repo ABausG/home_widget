@@ -148,6 +148,58 @@ void main() {
       expect(spec.needsLocaleHelpers, isFalse);
       expect(spec.rendersLocalizedContent, isFalse);
     });
+
+    test('surfaces a timed localized field without keying it', () {
+      final spec = _spec(dataFields: const [HWTimedData(top)]);
+
+      expect(spec.timedLocalizedStrings, const [top]);
+      expect(spec.allLocalizedStrings, const [top]);
+      // Its value arrives inside the timed entry, so the per-key blob read
+      // must stay out of the generated code...
+      expect(spec.localizedStrings, isEmpty);
+      expect(spec.keyedLocalizedStrings, isEmpty);
+      expect(spec.needsLocalizedRead, isFalse);
+      // ...while the resolver, the locale argument and the re-render on a
+      // language change are all still needed.
+      expect(spec.needsTimedLocalizedRead, isTrue);
+      expect(spec.resolvesLocalizedOnRead, isTrue);
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.rendersLocalizedContent, isTrue);
+    });
+
+    test('surfaces a localized leaf of a timed JSON group', () {
+      final spec =
+          _spec(dataFields: const [HWTimedData(HWJson('profile', leaf))]);
+
+      expect(spec.timedJsonLocalizedStrings, const [leaf]);
+      expect(spec.allLocalizedStrings, const [leaf]);
+      // A leaf is never a data field of its own, timed or not, so nothing
+      // reads a stored translation map for it.
+      expect(spec.jsonLocalizedStrings, isEmpty);
+      expect(spec.timedLocalizedStrings, isEmpty);
+      expect(spec.needsTimedLocalizedRead, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isFalse);
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.rendersLocalizedContent, isTrue);
+    });
+
+    test('an untimed keyed string keeps driving the per-key read', () {
+      final spec = _spec(dataFields: const [top, HWTimedData(HWInt('count'))]);
+
+      expect(spec.keyedLocalizedStrings, const [top]);
+      expect(spec.needsLocalizedRead, isTrue);
+      expect(spec.needsTimedLocalizedRead, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isTrue);
+    });
+
+    test('a plain timed field pulls in nothing', () {
+      final spec = _spec(dataFields: const [HWTimedData(HWString('label'))]);
+
+      expect(spec.allLocalizedStrings, isEmpty);
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isFalse);
+      expect(spec.rendersLocalizedContent, isFalse);
+    });
   });
 
   group('WidgetSpec gallery text', () {
@@ -231,10 +283,11 @@ void main() {
       expect(spec.primitiveDataFields, equals(const [HWString('plain')]));
     });
 
+    // One HWTimedData declaration per JSON root: two of them sharing a root are
+    // rejected by validateWidgetData, so nested paths are the only way down.
     test('timedJsonDataGroups groups timed json fields by root key', () {
       final spec = _spec(
         dataFields: const [
-          HWTimedData(HWJson('weather', HWString('condition'))),
           HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
           HWTimedData(HWJson('other', HWString('x'))),
         ],
@@ -242,9 +295,8 @@ void main() {
 
       final groups = spec.timedJsonDataGroups;
       expect(groups.map((g) => g.key).toList(), ['weather', 'other']);
-      expect(groups.first.children.length, 2);
-      expect(groups.first.children[0].path, ['condition']);
-      expect(groups.first.children[1].path, ['wind', 'speed']);
+      expect(groups.first.children.single.path, ['wind', 'speed']);
+      expect(groups.last.children.single.path, ['x']);
     });
 
     test('timed json groups do not leak into jsonDataGroups', () {

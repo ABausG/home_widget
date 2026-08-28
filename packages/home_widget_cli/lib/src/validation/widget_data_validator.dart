@@ -73,6 +73,12 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
   }
   _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
   if (type is HWJson) {
+    if (type.child is HWTimedData) {
+      throw GeneratorError(
+        'HWTimedData must be a root-level data field and cannot be nested '
+        'inside HWJson.',
+      );
+    }
     _validateDataTypeKeys(type.child);
   }
 }
@@ -293,6 +299,21 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
     }
     if (existing == field) continue;
     if (existing is HWJson && field is HWJson) continue;
+
+    // Untimed HWJson declarations merge into one group per root key; timed ones
+    // must not, because a timed root maps onto a single entry in the timed
+    // JSON file.
+    if (existing is HWTimedData &&
+        field is HWTimedData &&
+        existing.unwrapped is HWJson &&
+        field.unwrapped is HWJson) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": the JSON root "${field.key}" is wrapped '
+        'in HWTimedData more than once. Declare one '
+        'HWTimedData(HWJson("${field.key}", ...)) per root key and reach the '
+        'values below it through nested HWJson paths.',
+      );
+    }
 
     if (existing is HWLocalizedString && field is HWLocalizedString) {
       throw GeneratorError(

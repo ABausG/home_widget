@@ -232,11 +232,16 @@ const String scheduledUpdateReceiverFqcn =
 ///
 /// - `android.permission.RECEIVE_BOOT_COMPLETED`
 /// - a non-exported receiver for [scheduledUpdateReceiverFqcn] handling
-///   `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`
+///   `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED` and
+///   `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`
 ///
-/// Idempotent: an existing permission or receiver declaration is left untouched
-/// and the file is not rewritten. Only called for specs that actually have
-/// time-based fields, so manifests of other projects stay byte-identical.
+/// Idempotent: an existing permission declaration is left untouched. An
+/// existing receiver declaration is left untouched except that a missing
+/// `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` action is added to it (the
+/// same add-only pattern [ensureAndroidManifestReceiver] uses for
+/// `LOCALE_CHANGED`), so apps generated before that action existed pick it up.
+/// Only called for specs that actually have time-based fields, so manifests of
+/// other projects stay byte-identical.
 Future<void> ensureAndroidManifestScheduledUpdates(
   Directory projectRoot,
 ) async {
@@ -300,12 +305,20 @@ Future<void> ensureAndroidManifestScheduledUpdates(
     changed = true;
   }
 
-  final hasReceiver = application.childElements
+  final existingReceiver = application.childElements
       .where((e) => e.localName == 'receiver')
-      .map((e) => e.getAttribute('android:name'))
-      .contains(scheduledUpdateReceiverFqcn);
-  if (!hasReceiver) {
+      .cast<XmlElement?>()
+      .firstWhere(
+        (e) => e!.getAttribute('android:name') == scheduledUpdateReceiverFqcn,
+        orElse: () => null,
+      );
+  if (existingReceiver == null) {
     application.children.add(_buildScheduledUpdateReceiverElement());
+    changed = true;
+  } else if (_ensureExactAlarmPermissionStateChangedAction(existingReceiver)) {
+    // Add-only: picks up apps generated before this action existed. The
+    // action is never removed again, since the intent-filter may be
+    // hand-edited.
     changed = true;
   }
 
@@ -314,6 +327,14 @@ Future<void> ensureAndroidManifestScheduledUpdates(
   writeXmlFile(manifestFile, manifestXml);
   logger.detail('Updated: ${manifestFile.path}');
 }
+
+/// Broadcast the system sends to manifest-declared receivers (API 31+) when
+/// `SCHEDULE_EXACT_ALARM` is granted, including re-granted after the user
+/// revoked it. Revoking the permission makes the system delete the app's
+/// exact alarms outright; re-arming them then relies on this broadcast (or
+/// the next reboot) since nothing else signals the app.
+const String _scheduleExactAlarmPermissionStateChangedAction =
+    'android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED';
 
 XmlElement _buildScheduledUpdateReceiverElement() {
   return XmlElement(
@@ -330,6 +351,7 @@ XmlElement _buildScheduledUpdateReceiverElement() {
           for (final action in const [
             'android.intent.action.BOOT_COMPLETED',
             'android.intent.action.MY_PACKAGE_REPLACED',
+            _scheduleExactAlarmPermissionStateChangedAction,
           ])
             XmlElement(
               XmlName('action'),
@@ -341,6 +363,47 @@ XmlElement _buildScheduledUpdateReceiverElement() {
     ],
     false,
   );
+}
+
+/// Adds `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` to [receiver]'s
+/// intent-filter if it is not there yet.
+///
+/// Returns whether the document was modified.
+bool _ensureExactAlarmPermissionStateChangedAction(XmlElement receiver) {
+  final alreadyPresent = receiver.findAllElements('action').any(
+        (e) =>
+            e.getAttribute('android:name') ==
+            _scheduleExactAlarmPermissionStateChangedAction,
+      );
+  if (alreadyPresent) return false;
+
+  final filter = receiver.childElements
+      .where((e) => e.localName == 'intent-filter')
+      .cast<XmlElement?>()
+      .firstWhere((e) => e != null, orElse: () => null);
+
+  if (filter == null) {
+    // Giving a component its first intent-filter makes `android:exported`
+    // mandatory on API 31+. A hand-written receiver adopted by name match may
+    // not declare it, so supply the same default a generated receiver gets —
+    // never overwriting an explicit choice.
+    if (receiver.getAttribute('android:exported') == null) {
+      receiver.setAttribute('android:exported', 'false');
+    }
+    receiver.children.add(
+      XmlElement(
+        XmlName('intent-filter'),
+        const [],
+        [_actionElement(_scheduleExactAlarmPermissionStateChangedAction)],
+      ),
+    );
+    return true;
+  }
+
+  filter.children.add(
+    _actionElement(_scheduleExactAlarmPermissionStateChangedAction),
+  );
+  return true;
 }
 
 /// Returns the matching widget `<receiver>`, or null when none is registered.

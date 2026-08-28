@@ -99,9 +99,21 @@ class WidgetSpec {
       .where((f) => !(f is HWLocalizedString && f.isConstant))
       .toList();
 
-  /// Every localized string declared as a top-level data field.
+  /// Every localized string declared as a top-level data field, excluding
+  /// time-based ones ([timedLocalizedStrings]).
   List<HWLocalizedString> get localizedStrings =>
       dataFields.whereType<HWLocalizedString>().toList();
+
+  /// Localized strings declared as a time-based top-level data field.
+  ///
+  /// Held apart from [localizedStrings] because the two differ in where the
+  /// stored translations come from, not in how they resolve: a time-based one
+  /// is read out of the timed data file, so it must stay clear of every getter
+  /// driving the read of its own preferences key.
+  List<HWLocalizedString> get timedLocalizedStrings => [
+        for (final field in timedDataFields)
+          if (field.unwrapped case final HWLocalizedString inner) inner,
+      ];
 
   /// Localized strings sitting at the leaf of a JSON path, which supply the
   /// fallback used when the path resolves to nothing.
@@ -110,13 +122,28 @@ class WidgetSpec {
           if (field.leafType case final HWLocalizedString leaf) leaf,
       ];
 
+  /// [jsonLocalizedStrings] for the time-based JSON groups, whose leaves are
+  /// stored and resolved exactly like the untimed ones.
+  List<HWLocalizedString> get timedJsonLocalizedStrings => [
+        for (final field in timedDataFields.map((f) => f.unwrapped))
+          if (field case final HWJson json)
+            if (json.leafType case final HWLocalizedString leaf) leaf,
+      ];
+
   /// Every localized string this widget carries, wherever it is declared.
   List<HWLocalizedString> get allLocalizedStrings => [
         ...localizedStrings,
+        ...timedLocalizedStrings,
         ...jsonLocalizedStrings,
+        ...timedJsonLocalizedStrings,
       ];
 
-  /// Localized strings backed by a data field, i.e. overridable at runtime.
+  /// Localized strings backed by a preferences key of their own, i.e.
+  /// overridable one key at a time through the generated `saveData`.
+  ///
+  /// Time-based strings are deliberately absent: their translations arrive
+  /// inside the timed data file, keyed by timestamp, so reading their own key
+  /// would only ever find nothing.
   List<HWLocalizedString> get keyedLocalizedStrings =>
       localizedStrings.where((f) => !f.isConstant).toList();
 
@@ -135,13 +162,26 @@ class WidgetSpec {
   /// Whether the generated native code needs the locale-resolution helpers.
   ///
   /// Constants and gallery strings do not: they are platform resources,
-  /// resolved by the OS.
-  bool get needsLocaleHelpers =>
-      keyedLocalizedStrings.isNotEmpty || jsonLocalizedStrings.isNotEmpty;
+  /// resolved by the OS. Everything else the widget matches itself, time-based
+  /// values included — being time-based changes where the translations come
+  /// from, not who resolves them.
+  bool get needsLocaleHelpers => allLocalizedStrings.any((f) => !f.isConstant);
 
   /// Whether the generated native code reads a translation blob back out of
-  /// preferences, which only keyed data fields do.
+  /// the preferences key of a data field, which only untimed keyed fields do.
   bool get needsLocalizedRead => keyedLocalizedStrings.isNotEmpty;
+
+  /// Whether the generated native code reads a translation map out of the
+  /// timed entry that is active at render time.
+  bool get needsTimedLocalizedRead => timedLocalizedStrings.isNotEmpty;
+
+  /// Whether reading the values of the generated data class resolves a
+  /// translation, and so has to be handed the OS locale list.
+  ///
+  /// Only Kotlin needs this: its `fromPreferences` takes the list as a
+  /// parameter, while the Swift resolver reaches `Locale` on its own.
+  bool get resolvesLocalizedOnRead =>
+      needsLocalizedRead || needsTimedLocalizedRead;
 
   /// Whether the widget resolves any text itself, and so goes stale on a system
   /// language change unless it re-renders.
@@ -203,20 +243,11 @@ class WidgetSpec {
   /// the fallback only applies to widgets that use none.
   String get defaultLocale => data.localization?.defaultLocale ?? 'en';
 
-  /// Time-based [dataFields], ordered and de-duplicated.
-  List<HWTimedData<dynamic>> get timedDataFields {
-    final result = <HWTimedData<dynamic>>[];
-    for (final field in dataFields.whereType<HWTimedData<dynamic>>()) {
-      if (!result.contains(field)) {
-        result.add(field);
-      }
-    }
-    return result;
-  }
+  /// Time-based [dataFields], in declaration order.
+  List<HWTimedData<dynamic>> get timedDataFields =>
+      dataFields.whereType<HWTimedData<dynamic>>().toList();
 
   /// Timed fields wrapping a non-[HWJson] type, unwrapped to the inner type.
-  ///
-  /// Ordered and de-duplicated, mirroring [timedDataFields].
   List<HWDataType<dynamic>> get timedPrimitiveDataFields => [
         for (final field in timedDataFields)
           if (field.data is! HWJson) field.data,
@@ -231,38 +262,8 @@ class WidgetSpec {
       );
 
   /// JSON fields grouped by root key for nested native struct generation.
-  List<JsonDataGroup> get jsonDataGroups {
-    final orderedKeys = <String>[];
-    final groupedChildren = <String, List<JsonDataField>>{};
-
-    for (final field in dataFields.whereType<HWJson>()) {
-      if (!orderedKeys.contains(field.key)) {
-        orderedKeys.add(field.key);
-        groupedChildren[field.key] = <JsonDataField>[];
-      }
-
-      final leafType = field.leafType;
-      final path = field.pathSegments;
-      final existing = groupedChildren[field.key]!;
-      if (existing.any((e) => _samePath(e.path, path) && e.type == leafType)) {
-        continue;
-      }
-      groupedChildren[field.key]!.add(
-        JsonDataField(
-          path: path,
-          type: leafType,
-        ),
-      );
-    }
-
-    return [
-      for (final key in orderedKeys)
-        JsonDataGroup(
-          key: key,
-          children: groupedChildren[key]!,
-        ),
-    ];
-  }
+  List<JsonDataGroup> get jsonDataGroups =>
+      _groupJsonFields(dataFields.whereType<HWJson>());
 
   List<JsonDataGroup> _groupJsonFields(Iterable<HWJson> fields) {
     final orderedKeys = <String>[];

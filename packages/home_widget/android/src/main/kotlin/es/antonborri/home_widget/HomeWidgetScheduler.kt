@@ -30,22 +30,9 @@ import org.json.JSONArray
  * ```
  *
  * Apps that use scheduling have to register [HomeWidgetScheduledUpdateReceiver] in their own
- * `AndroidManifest.xml`. The plugin does not declare it so that apps which never schedule an update
- * do not inherit the boot permission:
- * ```xml
- * <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
- *
- * <application>
- *     <receiver
- *         android:name="es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver"
- *         android:exported="false">
- *         <intent-filter>
- *             <action android:name="android.intent.action.BOOT_COMPLETED" />
- *             <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
- *         </intent-filter>
- *     </receiver>
- * </application>
- * ```
+ * `AndroidManifest.xml`; the plugin does not declare it so that apps which never schedule an update
+ * do not inherit the boot permission. See [HomeWidgetScheduledUpdateReceiver] for the required
+ * manifest entry.
  *
  * Note on exactness: on Android 12 (API 31) and above exact alarms require the app to hold the
  * `SCHEDULE_EXACT_ALARM` or `USE_EXACT_ALARM` permission. The plugin deliberately does not declare
@@ -110,11 +97,17 @@ object HomeWidgetScheduler {
    * Re-arms the alarms of every provider that has scheduled updates.
    *
    * Alarms do not survive a reboot or an app update, so this is called from
-   * [HomeWidgetScheduledUpdateReceiver] on `BOOT_COMPLETED` and `ACTION_MY_PACKAGE_REPLACED`.
+   * [HomeWidgetScheduledUpdateReceiver] on `BOOT_COMPLETED` and `ACTION_MY_PACKAGE_REPLACED`. It is
+   * also called when the user re-grants `SCHEDULE_EXACT_ALARM` after revoking it, since revocation
+   * makes the system delete all of the app's exact alarms and only re-granting the permission (or a
+   * reboot) triggers a broadcast that lets the app know to re-arm them.
    */
   fun rescheduleAll(context: Context) {
     val prefs =
-        context.getSharedPreferences(HomeWidgetPlugin.INTERNAL_PREFERENCES, Context.MODE_PRIVATE)
+        context.getSharedPreferences(
+            HomeWidgetPlugin.INTERNAL_PREFERENCES,
+            Context.MODE_PRIVATE,
+        )
     val providerClassNames =
         prefs.all.keys
             .filter { it.startsWith(SCHEDULE_PREFIX) }
@@ -147,6 +140,7 @@ object HomeWidgetScheduler {
               "  <intent-filter>\n" +
               "    <action android:name=\"android.intent.action.BOOT_COMPLETED\" />\n" +
               "    <action android:name=\"android.intent.action.MY_PACKAGE_REPLACED\" />\n" +
+              "    <action android:name=\"android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED\" />\n" +
               "  </intent-filter>\n" +
               "</receiver>",
       )
@@ -159,7 +153,8 @@ object HomeWidgetScheduler {
     val pendingIntent = createPendingIntent(context, providerClassName) ?: return
 
     when {
-      // Android 12+ only grants exact alarms to apps holding SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM.
+      // Android 12+ only grants exact alarms to apps holding
+      // SCHEDULE_EXACT_ALARM/USE_EXACT_ALARM.
       Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         if (alarmManager.canScheduleExactAlarms()) {
           alarmManager.setExactAndAllowWhileIdle(

@@ -546,11 +546,10 @@ void main() {
       ),
       className: 'TimedJsonWidget',
       dataFields: const [
-        HWTimedData(HWJson('weather', HWString('condition'))),
-        HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+        HWTimedData(HWJson('weather', HWJson('wind', HWString('direction')))),
       ],
       widgetTree: const HWText(
-        HWTimedData(HWJson('weather', HWString('condition'))),
+        HWTimedData(HWJson('weather', HWJson('wind', HWString('direction')))),
       ),
     );
 
@@ -583,11 +582,204 @@ void main() {
         'TimedJsonWidgetWeatherJsonDataWind.fromJson(json.optJSONObject("wind"))',
       ),
     );
-    expect(content, contains('import org.json.JSONObject'));
+    // Every timed emission is fully qualified, so a timed-only spec needs
+    // neither import.
+    expect(content, isNot(contains('import org.json.JSONObject')));
+    expect(content, isNot(contains('import java.io.File')));
     expect(
       content,
-      contains('Text(text = widgetData.weather?.condition ?: "")'),
+      contains('Text(text = widgetData.weather?.wind?.direction ?: "")'),
     );
+  });
+
+  test('resolves a timed localized field through the shared helpers', () async {
+    const greeting = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const tree = HWText(HWTimedData(greeting));
+    final spec = WidgetSpec(
+      data: const HomeWidget(
+        name: 'TimedLocalized',
+        widget: tree,
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.timedl10n'),
+        localization: HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      ),
+      className: 'TimedLocalized',
+      dataFields: const [HWTimedData(greeting)],
+      widgetTree: tree,
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/timedl10n/'
+        'TimedLocalizedHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    // The locale list and the resolution time compose into one signature...
+    expect(
+      content,
+      contains(
+        'fun fromPreferences(prefs: android.content.SharedPreferences, '
+        'locales: List<String>, now: Long = System.currentTimeMillis()): '
+        'TimedLocalizedData {',
+      ),
+    );
+    // ...which the Glance body has to call with the locales it collected.
+    expect(content, contains('val hwLocales = hwCurrentLocales(context)'));
+    expect(
+      content,
+      contains(
+        'val widgetData = TimedLocalizedData.fromPreferences(prefs, hwLocales)',
+      ),
+    );
+
+    // The compiled translations travel to the reader, which merges the stored
+    // map over them before resolving once.
+    expect(
+      content,
+      contains(
+        'greeting = hwReadTimedLocalized(timedValues, "greeting", locales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "en"),',
+      ),
+    );
+    expect(
+      content,
+      contains('val merged = values.toMutableMap()'),
+    );
+    expect(
+      content,
+      contains(
+        'timedValues.optJSONObject(key)?.let '
+        '{ merged.putAll(hwLocalizedEntries(it)) }',
+      ),
+    );
+    expect(content, contains('return hwLocalize(locales, merged, baseLocale)'));
+
+    // Resolution itself is the untimed one, not a second implementation.
+    expect(content, contains('private fun hwResolveLocalized('));
+    expect('private fun hwResolveLocalized('.allMatches(content).length, 1);
+    expect(
+      content,
+      contains('): String = hwResolveLocalized(locales, values, baseLocale) '
+          '?: ""'),
+    );
+    // Nothing reads the field's own preferences key.
+    expect(content, isNot(contains('private fun hwReadLocalized(')));
+    expect(content, isNot(contains(r'${PREFERENCES_PREFIX}.greeting')));
+  });
+
+  test('resolves a localized leaf of a timed JSON group', () async {
+    const summary = HWLocalizedString(
+      'summary',
+      defaultTranslations: {'en': 'Sunny', 'de': 'Sonnig'},
+    );
+    const tree = HWText(HWTimedData(HWJson('weather', summary)));
+    final spec = WidgetSpec(
+      data: const HomeWidget(
+        name: 'TimedLeaf',
+        widget: tree,
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.timedleaf'),
+        localization: HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      ),
+      className: 'TimedLeaf',
+      dataFields: const [HWTimedData(HWJson('weather', summary))],
+      widgetTree: tree,
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/timedleaf/TimedLeafHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    // Same shape as an untimed leaf: the stored JSON wins, and the compiled
+    // translations are the fallback when the path resolves to nothing.
+    expect(
+      content,
+      contains(
+        'text = (widgetData.weather?.summary ?: hwResolveLocalized(hwLocales, '
+        'mapOf("en" to "Sunny", "de" to "Sonnig"), "en") ?: "Sunny")',
+      ),
+    );
+    expect(content, contains('val hwLocales = hwCurrentLocales(context)'));
+    expect(content, contains('private fun hwResolveLocalized('));
+    // A leaf carries no stored translation map of its own, so no reader and no
+    // locale parameter.
+    expect(content, isNot(contains('hwReadTimedLocalized')));
+    expect(content, isNot(contains('private fun hwLocalize(')));
+    expect(
+      content,
+      contains(
+        'fun fromPreferences(prefs: android.content.SharedPreferences, '
+        'now: Long = System.currentTimeMillis()): TimedLeafData {',
+      ),
+    );
+  });
+
+  test('composes the locales and now parameters for a mixed spec', () async {
+    const greeting = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const tree = HWColumn(
+      children: [
+        HWText(greeting),
+        HWText(HWTimedData(HWInt('temperature'))),
+      ],
+    );
+    final spec = WidgetSpec(
+      data: const HomeWidget(
+        name: 'Mixed',
+        widget: tree,
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.mixed'),
+        localization: HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      ),
+      className: 'Mixed',
+      dataFields: const [greeting, HWTimedData(HWInt('temperature'))],
+      widgetTree: tree,
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/mixed/MixedHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    // Declaration and call site have to agree, or the Kotlin does not compile.
+    expect(
+      content,
+      contains(
+        'fun fromPreferences(prefs: android.content.SharedPreferences, '
+        'locales: List<String>, now: Long = System.currentTimeMillis()): '
+        'MixedData {',
+      ),
+    );
+    expect(
+      content,
+      contains('val widgetData = MixedData.fromPreferences(prefs, hwLocales)'),
+    );
+    expect(content, contains('private fun hwReadLocalized('));
+    expect(content, isNot(contains('hwReadTimedLocalized')));
   });
 
   test('keeps fromPreferences unchanged for specs without timed fields',

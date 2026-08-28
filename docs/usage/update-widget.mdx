@@ -64,7 +64,7 @@ The passed `DateTime`s are **absolute instants**, not wall-clock times: only the
 
 ### Exact vs. inexact updates
 
-On Android 12 (API 31) and above, exact alarms require the app to declare either `android.permission.SCHEDULE_EXACT_ALARM` (granted by default on Android 13+, revocable by the user) or `android.permission.USE_EXACT_ALARM` (always granted, but only allowed for apps whose core function needs exact alarms — Google Play reviews this). The plugin declares neither, so the choice is yours.
+On Android 12 (API 31) and above, exact alarms require the app to declare either `android.permission.SCHEDULE_EXACT_ALARM` (pre-granted on Android 12–13; on Android 14+ the user has to enable it in system settings, and can revoke it again) or `android.permission.USE_EXACT_ALARM` (always granted, but only allowed for apps whose core function needs exact alarms — Google Play reviews this). The plugin declares neither, so the choice is yours.
 
 `canScheduleExactWidgetUpdates` tells you which of the two applies:
 
@@ -73,6 +73,30 @@ final exact = await HomeWidget.canScheduleExactWidgetUpdates();
 ```
 
 It returns `true` on iOS (WidgetKit renders timeline entries at their exact date) and on Android below 12; from Android 12 on it reflects `AlarmManager.canScheduleExactAlarms()`. When it is `false`, `scheduleWidgetUpdates` does not throw — it silently falls back to inexact alarms, which the system may delay.
+
+#### If updates arrive too late
+
+Widget content trailing its schedule by a few minutes on Android — while iOS switches on the second — is the inexact fallback at work, not a scheduling bug. Without an exact-alarm permission, Android deliberately holds each alarm in a delivery window so it can batch your update with other wakeups and save battery. How late an update arrives grows with the gap between updates; expect delays of a few minutes at typical schedules, occasionally more. Interacting with the device does not reliably speed delivery up, and in rare cases a delivery can slip so far that the next scheduled update overtakes it, skipping an entry outright.
+
+If that is not precise enough for your content, opt in to exact updates:
+
+1. **Declare the permission** in your app's `AndroidManifest.xml` — without this line the permission cannot be granted at all, and the system settings toggle for it does not even appear:
+
+   ```xml
+   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+   ```
+
+2. **On Android 14 and above, have the user enable it.** The permission lives under *Settings → Apps → Special app access → Alarms & reminders*. Send them there from your app with [`permission_handler`](https://pub.dev/packages/permission_handler)'s `Permission.scheduleExactAlarm`, ideally at the moment they turn on the feature that needs it. On Android 12–13 declaring the permission is enough — it is granted automatically.
+
+3. **That's all.** The plugin notices the grant on its own and re-arms every pending schedule with exact alarms; the next `scheduleWidgetUpdates` call uses them too.
+
+Before opting in, weigh the downsides — they are the reason Android gates this behind a permission:
+
+- **Battery.** An exact alarm wakes the device on its own instead of piggybacking on another wakeup. A handful of updates per day is negligible; a widget updating every few minutes around the clock is not. Space updates as far apart as your content allows.
+- **A settings hurdle on Android 14+.** Users have to flip a system toggle, and can revoke it later — so treat exactness as an enhancement, not something your widget breaks without.
+- **`USE_EXACT_ALARM` is not a shortcut.** It skips the user-facing toggle, but Google Play restricts it to apps whose core purpose is alarms or calendars; using it for a widget risks rejection.
+
+If the user revokes `SCHEDULE_EXACT_ALARM` after having granted it, the system force-stops the app and deletes all of its exact alarms outright — there is no broadcast for a revocation to react to. Re-arming happens automatically: the system sends `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` to `HomeWidgetScheduledUpdateReceiver` when the permission is *granted* again, which re-arms every pending schedule (falling back to inexact if the permission ends up not held after all). A reboot re-arms them too, independently of permission state. Until one of those happens, scheduled updates are simply paused.
 
 ### Android setup for scheduled updates
 
@@ -88,6 +112,7 @@ Scheduled updates are delivered to `es.antonborri.home_widget.HomeWidgetSchedule
         <intent-filter>
             <action android:name="android.intent.action.BOOT_COMPLETED" />
             <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
         </intent-filter>
     </receiver>
 </application>
@@ -97,5 +122,5 @@ Scheduled updates are delivered to `es.antonborri.home_widget.HomeWidgetSchedule
 If you use [home_widget_cli](/generator) and your widget schema uses [`HWTimedData`](/generator/timed-data), this snippet is added to your app manifest automatically during generation — there is nothing to do by hand. Schemas without timed fields leave the manifest untouched.
 </Info>
 
-Without the manifest entry, the alarm is armed but never delivered, and the widget is silently never updated. To make that visible, `scheduleWidgetUpdates` logs a warning under the `HomeWidgetScheduler` tag whenever it schedules while the receiver is not registered. The receiver is not exported; `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED` are protected system broadcasts and are delivered regardless.
+Without the manifest entry, the alarm is armed but never delivered, and the widget is silently never updated. To make that visible, `scheduleWidgetUpdates` logs a warning under the `HomeWidgetScheduler` tag whenever it schedules while the receiver is not registered. The receiver is not exported; `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED` and `ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` are protected system broadcasts and are delivered regardless.
 

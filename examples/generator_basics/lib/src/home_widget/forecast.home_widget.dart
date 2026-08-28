@@ -62,11 +62,13 @@ class ForecastHomeWidget {
     ]);
   }
 
-  /// Reads the stored widget data.
+  /// Reads every stored value back.
   ///
   /// The keys of [timedData] are local-time [DateTime]s, so they compare equal to a
   /// local [DateTime] for the same instant. Timestamps are stored as epoch
   /// milliseconds: sub-millisecond precision of the saved keys is not preserved.
+  /// Keys are compared by instant, so a local [DateTime] and its `toUtc()` twin
+  /// denote the same entry and only one of them survives a save.
   static Future<({String? city, Map<DateTime, ForecastTimedData>? timedData})> getData() async {
     final _timedDataPath = await HomeWidget.getWidgetData<String>('${_$paramPrefix}.timedData', appGroupId: _$appGroupId);
     Map<DateTime, ForecastTimedData>? timedData;

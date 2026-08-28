@@ -82,8 +82,6 @@ void main() {
       );
       expect(type.swiftAccess('entry.data'), 'entry.data.label');
       expect(type.kotlinAccess('widgetData'), 'widgetData.label');
-      expect(type.codegenKotlinDefaultLiteral(), '"Sunny"');
-      expect(type.codegenSwiftDefaultLiteral(), '"Sunny"');
     });
 
     test('HWTimedData delegates JSON accessors and read expressions', () {

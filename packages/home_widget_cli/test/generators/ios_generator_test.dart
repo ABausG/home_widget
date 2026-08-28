@@ -622,6 +622,162 @@ void main() {
     expect(content, contains('Text(entry.data.weather?.condition ?? "")'));
   });
 
+  test('re-reads the entry view at the entry date once timed fields exist',
+      () async {
+    const greeting = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const tree = HWColumn(
+      children: [
+        HWText(greeting),
+        HWText(HWTimedData(HWInt('temperature'))),
+      ],
+    );
+    final spec = WidgetSpec(
+      data: const HomeWidget(
+        name: 'Mixed',
+        widget: tree,
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+        localization: HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      ),
+      className: 'Mixed',
+      dataFields: const [greeting, HWTimedData(HWInt('temperature'))],
+      widgetTree: tree,
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/MixedHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // Re-reading at `Date()` would pin every entry of the timeline to the
+    // values that were active when WidgetKit asked for it.
+    expect(
+      content,
+      contains('let data = MixedData.fromUserDefaults(prefs, at: entry.date)'),
+    );
+    // Argument labels agree with the emitted signature and with getTimeline.
+    expect(
+      content,
+      contains('  static func fromUserDefaults(\n'
+          '    _ defaults: UserDefaults?,\n'
+          '    at date: Date = Date(),\n'
+          '    timedEntries: [(date: Date, values: [String: Any])]? = nil\n'
+          '  ) -> MixedData {'),
+    );
+    expect(
+      content,
+      contains(
+        'data: MixedData.fromUserDefaults(prefs, at: timedEntry.date, '
+        'timedEntries: timedEntries)',
+      ),
+    );
+  });
+
+  test('re-reads at render time only for localized specs without timed fields',
+      () async {
+    const greeting = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const tree = HWText(greeting);
+    final spec = WidgetSpec(
+      data: const HomeWidget(
+        name: 'Localized',
+        widget: tree,
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+        localization: HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      ),
+      className: 'Localized',
+      dataFields: const [greeting],
+      widgetTree: tree,
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/LocalizedHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // No timeline to walk, so there is no entry date to pass.
+    expect(
+      content,
+      contains('let data = LocalizedData.fromUserDefaults(prefs)'),
+    );
+    expect(content, isNot(contains('at: entry.date')));
+  });
+
+  test('resolves a timed localized field through the shared helpers', () async {
+    const greeting = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const tree = HWText(HWTimedData(greeting));
+    final spec = WidgetSpec(
+      data: const HomeWidget(
+        name: 'TimedLocalized',
+        widget: tree,
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+        localization: HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      ),
+      className: 'TimedLocalized',
+      dataFields: const [HWTimedData(greeting)],
+      widgetTree: tree,
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/TimedLocalizedHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // The compiled translations travel to the reader, which merges the stored
+    // map over them before resolving once.
+    expect(
+      content,
+      contains(
+        'greeting: hwReadTimedLocalized(timedValues, "greeting", '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "en"),',
+      ),
+    );
+    expect(
+      content,
+      contains('merged.merge(hwLocalizedEntries(stored)) { _, new in new }'),
+    );
+    expect(
+      content,
+      contains('return hwLocalize(merged, baseLocale: baseLocale)'),
+    );
+
+    // Resolution itself is the untimed one, not a second implementation.
+    expect('func hwResolveLocalized('.allMatches(content).length, 1);
+    expect(
+      content,
+      contains('return hwResolveLocalized(hwCurrentLocales(), values, '
+          'baseLocale: baseLocale) ?? ""'),
+    );
+    // Nothing reads the field's own preferences key.
+    expect(content, isNot(contains('func hwReadLocalized(')));
+    expect(
+      content,
+      contains(
+        'let data = TimedLocalizedData.fromUserDefaults(prefs, at: entry.date)',
+      ),
+    );
+    expect(content, contains('Text(data.greeting ?? "")'));
+  });
+
   test('keeps single-entry timeline for specs without timed fields', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

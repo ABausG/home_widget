@@ -45,7 +45,7 @@ class AndroidGenerator {
     // The Kotlin `locales` parameter and every argument passed to it have to be
     // gated on this one flag; two separately-spelled "equivalent" conditions
     // emit Kotlin that does not compile.
-    final needsLocaleArg = spec.needsLocalizedRead;
+    final needsLocaleArg = spec.resolvesLocalizedOnRead;
     final needsResolver = spec.needsLocaleHelpers;
 
     // Gallery strings do not count — the launcher resolves those on its own.
@@ -146,11 +146,16 @@ class AndroidGenerator {
       }
 
       for (final field in timedPrimitiveFields) {
-        final valueExpr = _androidLeafReadExpression(
-          objExpr: 'timedValues',
-          key: field.key,
-          type: field,
-        );
+        // Checked before the plain leaf read, of which HWString — and so
+        // HWLocalizedString — is one: a timed translation is stored as a locale
+        // map, not as the text of a single locale.
+        final valueExpr = field is HWLocalizedString
+            ? field.androidTimedReadValue(valuesExpr: 'timedValues')
+            : _androidLeafReadExpression(
+                objExpr: 'timedValues',
+                key: field.key,
+                type: field,
+              );
         buffer.writeln('                ${field.key} = $valueExpr,');
       }
       for (final group in timedJsonGroups) {
@@ -168,10 +173,11 @@ class AndroidGenerator {
       }
       buffer.writeln('    }');
       buffer.writeln('}');
-      final emittedJsonClasses = <String>{};
+      // Keys are unique within each list, and the validator forbids sharing a
+      // root key between a timed and an untimed field, so class names never
+      // collide across the two.
       for (final group in [...jsonGroups, ...timedJsonGroups]) {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-        if (!emittedJsonClasses.add(jsonClass)) continue;
         buffer.writeln();
         final tree = _buildJsonTree(group.children);
         _writeAndroidJsonNodeClass(
@@ -185,10 +191,14 @@ class AndroidGenerator {
     }
 
     // Constants resolve through `R.string`; only strings the widget resolves
-    // itself need the helpers, and only keyed ones read a stored blob.
+    // itself need the helpers, and only fields carrying stored translations
+    // need a reader — from their own preferences key, from the timed entry, or
+    // both, which is also exactly when the shared merge helpers are used.
     final localizationHelpers = <String>[
       if (needsResolver) kotlinLocalizeHelpers,
-      if (needsLocaleArg) kotlinLocalizedReadHelper,
+      if (needsLocaleArg) kotlinLocalizedMergeHelpers,
+      if (spec.needsLocalizedRead) kotlinLocalizedReadHelper,
+      if (spec.needsTimedLocalizedRead) kotlinTimedLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       dataClassContent = [
@@ -269,7 +279,7 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.Alignment');
       layoutImports.add('import androidx.glance.layout.Box');
     }
-    if (jsonGroups.isNotEmpty || hasTimedFields) {
+    if (jsonGroups.isNotEmpty) {
       layoutImports.add('import java.io.File');
       layoutImports.add('import org.json.JSONObject');
     }
@@ -510,6 +520,13 @@ class AndroidGenerator {
 
   /// Emits the companion-object helper resolving the timed data entry that is
   /// active at `now` (greatest timestamp <= now), or an empty object.
+  ///
+  /// Reads the same timed-data file — decimal epoch-millis string keys, one
+  /// flat JSON object per timestamp — that `generate()` in
+  /// dart_helper_generator.dart writes and `loadTimedEntries` in
+  /// ios_generator.dart parses on iOS; the three must stay in step. A root
+  /// localized field's timed value comes back as a locale-tag-to-text
+  /// object rather than a plain value, matching how it was written.
   void _writeKotlinTimedDataResolver(StringBuffer buffer) {
     buffer.writeln(
       '        private fun resolveTimedValues(prefs: android.content.SharedPreferences, now: Long): org.json.JSONObject {',

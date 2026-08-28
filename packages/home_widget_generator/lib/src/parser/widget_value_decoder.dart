@@ -264,11 +264,21 @@ class WidgetValueDecoder {
       if (dataObj != null && dataObj.type?.element?.name == 'HWTimedData') {
         throw GeneratorError('HWTimedData cannot be nested inside HWTimedData');
       }
-      final inner = decodeDataType(dataObj);
+      final inner = decodeDataType(
+        dataObj,
+        defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
+      );
       if (inner == null) return null;
       return HWTimedData(inner);
     } else if (typeName == 'HWJson') {
       final childObj = getField(obj, 'child');
+      if (childObj != null && childObj.type?.element?.name == 'HWTimedData') {
+        throw GeneratorError(
+          'HWTimedData must be a root-level data field and cannot be nested '
+          'inside HWJson',
+        );
+      }
       final child = decodeDataType(
         childObj,
         defaultLocale: defaultLocale,

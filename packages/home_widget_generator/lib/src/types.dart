@@ -271,6 +271,30 @@ class HWLocalizedString extends HWString {
         'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
   }
 
+  /// Kotlin expression resolving this string out of the active timed entry,
+  /// where [valuesExpr] is the `JSONObject` holding that entry.
+  ///
+  /// A time-based field carries no preferences key of its own, so the stored
+  /// locale map comes from the timed data file instead. Everything after that
+  /// matches [androidReadValue]: the same merge over the compiled translations
+  /// and the same single resolution, so a value does not change meaning by
+  /// becoming time-based.
+  ///
+  /// Codegen-internal; see [resourceName].
+  String androidTimedReadValue({required String valuesExpr}) {
+    return 'hwReadTimedLocalized($valuesExpr, "$key", locales, '
+        '$kotlinMapLiteral, "${escapeKotlinStringLiteral(baseLocaleTag)}")';
+  }
+
+  /// Swift counterpart of [androidTimedReadValue], where [valuesExpr] is the
+  /// `[String: Any]` dictionary holding the active timed entry.
+  ///
+  /// Codegen-internal; see [resourceName].
+  String iosTimedReadValue({required String valuesExpr}) {
+    return 'hwReadTimedLocalized($valuesExpr, "$key", $swiftMapLiteral, '
+        'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
+  }
+
   /// Constants read from `res/values[-<locale>]/strings.xml`.
   @override
   String kotlinAccess(String dataExpr) {
@@ -621,7 +645,12 @@ class HWJson extends HWDataType<dynamic> {
 
 /// Marks a data field as time-based.
 ///
-/// Wraps any other [HWDataType]. Values for timed fields are not stored as
+/// Wraps an [HWString], [HWInt], [HWDouble], [HWBool] or [HWJson], and must be
+/// a root-level data field: nesting it inside another [HWTimedData] or inside
+/// an [HWJson] is rejected, and a JSON root key may carry only one
+/// [HWTimedData] declaration (use nested [HWJson] paths for deeper values).
+///
+/// Values for timed fields are not stored as
 /// individual entries; instead they are provided through the generated
 /// `saveData(timedData: ...)` parameter as a timeline of future values, stored
 /// as a single JSON object. Native code resolves the value whose timestamp is
@@ -684,12 +713,6 @@ class HWTimedData<T> extends HWDataType<T> {
   String swiftReadExpr(String dataExpr) => data.swiftReadExpr(dataExpr);
 
   @override
-  String? codegenKotlinDefaultLiteral() => data.codegenKotlinDefaultLiteral();
-
-  @override
-  String? codegenSwiftDefaultLiteral() => data.codegenSwiftDefaultLiteral();
-
-  @override
   HWDataType<dynamic> get unwrapped => data;
 
   /// Stable stand-in for the class identity in [hashCode].
@@ -706,9 +729,3 @@ class HWTimedData<T> extends HWDataType<T> {
   @override
   int get hashCode => Object.hash(_hashTag, data);
 }
-
-String _escapeKotlinStringLiteral(String s) =>
-    s.replaceAll(r'\', r'\\').replaceAll(r'$', r'\$').replaceAll('"', r'\"');
-
-String _escapeSwiftStringLiteral(String s) =>
-    s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');

@@ -375,6 +375,14 @@ void main() {
       expect(
         output,
         contains(
+          '  /// Keys are compared by instant, so a local [DateTime] and its '
+          '`toUtc()` twin\n'
+          '  /// denote the same entry and only one of them survives a save.',
+        ),
+      );
+      expect(
+        output,
+        contains(
           'static Future<({String? title, Map<DateTime, ExampleWidgetTimedData>? timedData})> getData()',
         ),
       );
@@ -395,6 +403,101 @@ void main() {
         ),
       );
       expect(output, contains('timedData: timedData,'));
+    });
+
+    test('types a timed localized member as the translations class', () {
+      const greeting = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'ExampleWidget',
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [HWTimedData(greeting)],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      // A locale map, not the text of one unnamed locale.
+      expect(
+        output,
+        contains(
+          'final ExampleWidgetHomeWidgetTranslations? greeting;',
+        ),
+      );
+      expect(
+        output,
+        contains("if (greeting != null) 'greeting': greeting!.toMap(),"),
+      );
+      // Reading an entry back merges it over the compiled defaults, exactly as
+      // an untimed field does.
+      expect(
+        output,
+        contains(
+          "greeting: ExampleWidgetHomeWidget._\$mergeTranslations("
+          'ExampleWidgetHomeWidget.greetingDefaults, '
+          "_readTranslations(json['greeting'])),",
+        ),
+      );
+      expect(output, contains('Map<String, String>? _readTranslations('));
+      expect(
+        output,
+        contains('if (locale is String && text is String) '
+            'values[locale] = text;'),
+      );
+
+      // The translations class and the compiled defaults ship for a timed-only
+      // spec too...
+      expect(output, contains('class ExampleWidgetHomeWidgetTranslations {'));
+      expect(
+        output,
+        contains('static const ExampleWidgetHomeWidgetTranslations '
+            'greetingDefaults ='),
+      );
+      // ...but nothing reads the field's own preferences key, so the blob
+      // reader would be dead code.
+      expect(output, isNot(contains(r'_$readLocalized')));
+      expect(output, isNot(contains(r"'${_$paramPrefix}.greeting'")));
+      // A timed member is never a `saveData` parameter of its own.
+      expect(
+        output,
+        contains('static Future<void> saveData({\n'
+            '    Map<DateTime, ExampleWidgetTimedData>? timedData,\n'
+            '  }) {'),
+      );
+    });
+
+    test('keeps a localized leaf of a timed JSON group a plain string', () {
+      const summary = HWLocalizedString(
+        'summary',
+        defaultTranslations: {'en': 'Sunny', 'de': 'Sonnig'},
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'ExampleWidget',
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [HWTimedData(HWJson('weather', summary))],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      // Same storage as an untimed leaf: the app pushes one string and the
+      // compiled translations are the native fallback.
+      expect(output, contains('final String? summary;'));
+      expect(output, contains("summary: _readString(json['summary']),"));
+      expect(output, isNot(contains('_readTranslations')));
+      expect(output, isNot(contains('Translations? summary')));
     });
 
     test('passes appGroupId on timed data calls', () {

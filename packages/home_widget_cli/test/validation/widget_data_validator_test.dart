@@ -292,6 +292,66 @@ void main() {
       );
     });
 
+    test('rejects two timed declarations of the same JSON root', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+          HWTimedData(HWJson('weather', HWInt('temperature'))),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('the JSON root "weather" is wrapped in HWTimedData '
+                  'more than once'),
+              contains('HWTimedData(HWJson("weather", ...)) per root key'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('allows one timed declaration with a nested JSON path', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('rejects HWTimedData nested inside HWJson', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWJson('weather', HWTimedData(HWString('condition'))),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            'HWTimedData must be a root-level data field and cannot be nested '
+                'inside HWJson.',
+          ),
+        ),
+      );
+    });
+
     test('allows timed and untimed fields with distinct keys', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),
@@ -322,6 +382,91 @@ void main() {
             (e) => e.message,
             'message',
             contains('letters and digits'),
+          ),
+        ),
+      );
+    });
+
+    // A time-based localized field is the only localized content in these
+    // specs, so the locale map is checked only if the timed wrapper is seen
+    // through.
+    test('validates the locale map of a timed localized field', () {
+      WidgetSpec specFor(HWDataType<dynamic> field) => WidgetSpec(
+            data: const HomeWidget(
+              name: 'T',
+              localization: HomeWidgetLocalization(
+                defaultLocale: 'en',
+                supportedLocales: ['en', 'de'],
+              ),
+            ),
+            className: 'T',
+            dataFields: [field],
+          );
+
+      const incomplete = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello'},
+      );
+      expect(
+        () => validateWidgetData(specFor(const HWTimedData(incomplete))),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('missing translations for de'),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          specFor(const HWTimedData(HWJson('weather', incomplete))),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('missing translations for de'),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          specFor(
+            const HWTimedData(
+              HWLocalizedString(
+                'greeting',
+                defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('requires a localization block for a timed localized field', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(
+            HWLocalizedString(
+              'greeting',
+              defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('has no localization'),
           ),
         ),
       );

@@ -133,6 +133,23 @@ private fun hwResolveLocalized(
   return values[baseLocale]
 }
 
+private fun hwLocalizedEntries(json: org.json.JSONObject): Map<String, String> {
+  val parsed = mutableMapOf<String, String>()
+  val keys = json.keys()
+  while (keys.hasNext()) {
+    val name = keys.next()
+    val value = json.opt(name)
+    if (value is String) parsed[name] = value
+  }
+  return parsed
+}
+
+private fun hwLocalize(
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String = hwResolveLocalized(locales, values, baseLocale) ?: ""
+
 private fun hwReadLocalized(
     prefs: android.content.SharedPreferences,
     key: String,
@@ -148,22 +165,8 @@ private fun hwReadLocalized(
 private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
   if (raw == null) return null
   return try {
-    val json = org.json.JSONObject(raw)
-    val parsed = mutableMapOf<String, String>()
-    val keys = json.keys()
-    while (keys.hasNext()) {
-      val name = keys.next()
-      val value = json.opt(name)
-      if (value is String) parsed[name] = value
-    }
-    parsed
+    hwLocalizedEntries(org.json.JSONObject(raw))
   } catch (_: Exception) {
     null
   }
 }
-
-private fun hwLocalize(
-    locales: List<String>,
-    values: Map<String, String>,
-    baseLocale: String,
-): String = hwResolveLocalized(locales, values, baseLocale) ?: ""

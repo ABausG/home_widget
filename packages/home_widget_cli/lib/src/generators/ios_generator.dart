@@ -140,6 +140,15 @@ class IosGenerator {
         );
       }
       for (final field in timedPrimitiveFields) {
+        // Checked before the plain cast, which would read a timed translation
+        // as the text of a single locale rather than as the locale map it is.
+        if (field is HWLocalizedString) {
+          buffer.writeln(
+            '      ${field.key}: '
+            '${field.iosTimedReadValue(valuesExpr: 'timedValues')},',
+          );
+          continue;
+        }
         final fallback = field.codegenSwiftDefaultLiteral();
         final read = 'timedValues["${field.key}"] as? ${field.swiftType}';
         buffer.writeln(
@@ -159,10 +168,11 @@ class IosGenerator {
         _writeSwiftTimedDataHelpers(buffer);
       }
       buffer.writeln('}');
-      final emittedJsonStructs = <String>{};
+      // Keys are unique within each list, and the validator forbids sharing a
+      // root key between a timed and an untimed field, so struct names never
+      // collide across the two.
       for (final group in [...jsonGroups, ...timedJsonGroups]) {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-        if (!emittedJsonStructs.add(jsonClass)) continue;
         buffer.writeln();
         final tree = _buildJsonTree(group.children);
         _writeSwiftJsonNodeStruct(
@@ -217,11 +227,15 @@ $loadDataLogic
     }
 
     // Constants and gallery strings resolve through the string catalog; only
-    // strings the widget resolves itself need the helpers, and only keyed ones
-    // read a stored blob.
+    // strings the widget resolves itself need the helpers, and only fields
+    // carrying stored translations need a reader — from their own preferences
+    // key, from the timed entry, or both, which is also exactly when the shared
+    // merge helpers are used.
     final localizationHelpers = <String>[
       if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
+      if (spec.resolvesLocalizedOnRead) swiftLocalizedMergeHelpers,
       if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
+      if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       extraContent = [
@@ -240,9 +254,14 @@ $loadDataLogic
             ? 'data'
             : 'entry.data';
 
+    // The re-read has to land on the same instant WidgetKit is rendering, or
+    // every entry of the timeline would show the values that were active when
+    // the timeline was built and no timed change would ever appear.
+    final atEntryDate = hasTimedFields ? ', at: entry.date' : '';
     final viewPrefix = reResolveAtRender
         ? '    let prefs = UserDefaults(suiteName: "$groupId")\n'
-            '    let data = ${spec.className}Data.fromUserDefaults(prefs)\n'
+            '    let data = ${spec.className}Data'
+            '.fromUserDefaults(prefs$atEntryDate)\n'
         : '';
 
     final treeCode = emitSwiftWidgetBody(
@@ -420,6 +439,14 @@ $loadDataLogic
   /// `private` is lexically scoped to the enclosing declaration, and
   /// `loadTimedEntries` is called from the provider's `getTimeline`, a
   /// different type in the same file.
+  ///
+  /// `loadTimedEntries` parses the same timed-data file — decimal epoch-millis
+  /// string keys, one flat JSON object per timestamp — that `generate()` in
+  /// dart_helper_generator.dart writes and `resolveTimedValues` in
+  /// android_generator.dart parses on Android; the three must stay in step. A
+  /// root localized field's timed value is stored as a locale-tag-to-text
+  /// object rather than a plain value, so callers read `values[key]` as a
+  /// `[String: Any]`, not the leaf type.
   void _writeSwiftTimedDataHelpers(StringBuffer buffer) {
     buffer.writeln(
       '  fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(date: Date, values: [String: Any])] {',

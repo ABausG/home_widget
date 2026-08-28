@@ -342,7 +342,7 @@ void main() {
   });
 
   group('scheduleWidgetUpdates', () {
-    test('passes sorted epoch milliseconds and names', () async {
+    test('passes epoch milliseconds in the given order and names', () async {
       final later = DateTime.utc(2024, 1, 2, 3, 4, 5);
       final earlier = DateTime.utc(2023, 12, 31, 23, 59, 59);
 
@@ -358,9 +358,10 @@ void main() {
 
       final arguments = await passedArguments.future;
 
+      // The platform side filters, de-duplicates and sorts authoritatively.
       expect(arguments['updateTimes'], [
-        earlier.millisecondsSinceEpoch,
         later.millisecondsSinceEpoch,
+        earlier.millisecondsSinceEpoch,
       ]);
       expect(arguments['name'], 'name');
       expect(arguments['android'], 'androidName');

@@ -1,8 +1,9 @@
 /// Locale-resolution helpers injected into generated widget sources.
 ///
-/// Only keyed strings and localized JSON leaves reach these: their translations
-/// are compiled into the widget rather than shipped as platform resources, so
-/// the widget has to match locales itself. Constant strings
+/// Only keyed strings and localized JSON leaves reach these, time-based or not:
+/// their translations are compiled into the widget rather than shipped as
+/// platform resources, so the widget has to match locales itself. Constant
+/// strings
 /// (`HWText.localized`) and the gallery name and description are resources,
 /// resolved by the OS.
 ///
@@ -73,6 +74,26 @@ private fun hwResolveLocalized(
     return values[baseLocale]
 }''';
 
+/// The Kotlin pieces both stored-translation readers share, emitted whenever
+/// either of them is.
+const String kotlinLocalizedMergeHelpers = '''
+private fun hwLocalizedEntries(json: org.json.JSONObject): Map<String, String> {
+    val parsed = mutableMapOf<String, String>()
+    val keys = json.keys()
+    while (keys.hasNext()) {
+        val name = keys.next()
+        val value = json.opt(name)
+        if (value is String) parsed[name] = value
+    }
+    return parsed
+}
+
+private fun hwLocalize(
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String = hwResolveLocalized(locales, values, baseLocale) ?: ""''';
+
 /// Kotlin reader for a keyed localized string.
 ///
 /// The stored value is a single JSON object of locale tag to text, written by
@@ -97,25 +118,31 @@ private fun hwReadLocalized(
 private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
     if (raw == null) return null
     return try {
-        val json = org.json.JSONObject(raw)
-        val parsed = mutableMapOf<String, String>()
-        val keys = json.keys()
-        while (keys.hasNext()) {
-            val name = keys.next()
-            val value = json.opt(name)
-            if (value is String) parsed[name] = value
-        }
-        parsed
+        hwLocalizedEntries(org.json.JSONObject(raw))
     } catch (_: Exception) {
         null
     }
-}
+}''';
 
-private fun hwLocalize(
+/// Kotlin reader for a time-based keyed localized string.
+///
+/// Same contract as [kotlinLocalizedReadHelper] — merge the stored locale map
+/// over the compiled translations, then resolve once — with the map taken from
+/// the timed entry active at render time instead of from a preferences key.
+/// The two must keep resolving alike: making a value time-based may change when
+/// it changes, never which translation a device sees.
+const String kotlinTimedLocalizedReadHelper = '''
+private fun hwReadTimedLocalized(
+    timedValues: org.json.JSONObject,
+    key: String,
     locales: List<String>,
     values: Map<String, String>,
     baseLocale: String,
-): String = hwResolveLocalized(locales, values, baseLocale) ?: ""''';
+): String {
+    val merged = values.toMutableMap()
+    timedValues.optJSONObject(key)?.let { merged.putAll(hwLocalizedEntries(it)) }
+    return hwLocalize(locales, merged, baseLocale)
+}''';
 
 /// Swift resolver for compiled translations. Mirrors [kotlinLocalizeHelpers],
 /// but needs no context threaded in — `Locale` is globally reachable.
@@ -157,6 +184,21 @@ func hwResolveLocalized(
   return values[baseLocale]
 }''';
 
+/// The Swift pieces both stored-translation readers share. Mirrors
+/// [kotlinLocalizedMergeHelpers].
+const String swiftLocalizedMergeHelpers = '''
+func hwLocalizedEntries(_ json: [String: Any]) -> [String: String] {
+  var values: [String: String] = [:]
+  for (name, value) in json {
+    if let text = value as? String { values[name] = text }
+  }
+  return values
+}
+
+func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
+  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
+}''';
+
 /// Swift reader for a keyed localized string. Mirrors
 /// [kotlinLocalizedReadHelper].
 const String swiftLocalizedReadHelper = '''
@@ -177,13 +219,21 @@ func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
   guard let raw, let data = raw.data(using: .utf8) else { return nil }
   guard let object = try? JSONSerialization.jsonObject(with: data),
         let json = object as? [String: Any] else { return nil }
-  var values: [String: String] = [:]
-  for (name, value) in json {
-    if let text = value as? String { values[name] = text }
-  }
-  return values
-}
+  return hwLocalizedEntries(json)
+}''';
 
-func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
-  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
+/// Swift reader for a time-based keyed localized string. Mirrors
+/// [kotlinTimedLocalizedReadHelper].
+const String swiftTimedLocalizedReadHelper = '''
+func hwReadTimedLocalized(
+  _ timedValues: [String: Any],
+  _ key: String,
+  _ values: [String: String],
+  baseLocale: String
+) -> String {
+  var merged = values
+  if let stored = timedValues[key] as? [String: Any] {
+    merged.merge(hwLocalizedEntries(stored)) { _, new in new }
+  }
+  return hwLocalize(merged, baseLocale: baseLocale)
 }''';

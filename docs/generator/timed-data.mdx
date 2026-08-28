@@ -15,6 +15,12 @@ HWText(HWTimedData(HWJson('weather', HWString('condition'))))
 
 Any `HWDataType` variant can be wrapped, including `HWJson` — the nested value is read from the entry active at the current time, exactly like reading from regular storage otherwise.
 
+<Warning>
+`HWTimedData` only belongs at the root of a data field. It cannot be nested inside another `HWTimedData`, and it cannot sit inside an `HWJson` — write `HWTimedData(HWJson('weather', ...))`, never `HWJson('weather', HWTimedData(...))`.
+
+A JSON root also takes a single `HWTimedData` declaration. To reach a deeper value, nest the paths inside that one declaration — `HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed'))))` — rather than wrapping the same root twice.
+</Warning>
+
 ## Example
 
 ```dart
@@ -81,6 +87,29 @@ The keys returned by `getData()` are **local-time** `DateTime`s, so they compare
 
 At any point in time, the **active entry** is the one with the greatest timestamp at or before "now". Its values fill the timed fields for that moment. If a field is missing from the active entry, it falls back to that field's own `defaultValue`, then `null` — the same rule as regular data fields. If there is no entry at or before now (empty map, every entry still in the future, or nothing has been saved yet), every timed field uses its default. Entries never merge with one another — each one stands entirely on its own.
 
+## Localized values
+
+Timed values can be localized. Both flavours from [Localization](/generator/localization) work inside `HWTimedData` — a root field and a leaf of a wrapped `HWJson`:
+
+```dart
+HWText(HWTimedData(HWString.localized('label', defaultTranslations: {'en': 'Sunny', 'de': 'Sonnig'})))
+HWText(HWTimedData(HWJson('weather', HWString.localized('condition', defaultTranslations: {'en': 'Sun', 'de': 'Sonne'}))))
+```
+
+A localized root field is stored **per locale inside each entry**, so its field on the generated timed data class is the widget's translations class rather than a `String`:
+
+```dart
+timedData: {
+  DateTime(2026, 8, 14, 6, 0): const WeatherTimedData(
+    label: WeatherHomeWidgetTranslations(en: 'Sunny', de: 'Sonnig'),
+  ),
+},
+```
+
+A localized JSON leaf behaves exactly like its untimed counterpart: the entry carries one plain string, and the leaf's `defaultTranslations` are what the widget falls back to when the path yields nothing.
+
+Either way the text is resolved **at render time**, with the widget's normal fallback chain over the device's preferred languages — so a language change is picked up without saving a new schedule, and the entry active at that moment decides which set of translations is resolved. Anything an entry does not carry falls back to the translations compiled into the widget, one locale at a time, the same merge `getData()` performs.
+
 ## Timezones and DST
 
 Entry keys are **absolute instants**, not wall-clock times. Only the epoch milliseconds of each key are persisted, so a local `DateTime` and its `toUtc()` equivalent describe the exact same entry.
@@ -118,6 +147,7 @@ Delivering those alarms requires `es.antonborri.home_widget.HomeWidgetScheduledU
         <intent-filter>
             <action android:name="android.intent.action.BOOT_COMPLETED" />
             <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
         </intent-filter>
     </receiver>
 </application>
@@ -125,6 +155,6 @@ Delivering those alarms requires `es.antonborri.home_widget.HomeWidgetScheduledU
 
 The boot actions are what makes a schedule survive a reboot or an app update — alarms are dropped by the system in both cases and this receiver re-arms them. Alarms are also cleaned up automatically: once the last instance of a widget is removed from the home screen, its remaining scheduled updates are dropped.
 
-On Android 12 and above the swaps only happen at the exact minute if the app holds an exact-alarm permission; otherwise they are scheduled inexactly and the system may delay them. Use [`HomeWidget.canScheduleExactWidgetUpdates()`](/usage/update-widget#scheduled-updates) to find out which applies. Scheduling is a side effect of `saveData`: if it fails for any reason the data is still persisted, and `saveData` does not throw because of it.
+On Android 12 and above the swaps only happen at the exact minute if the app holds an exact-alarm permission; otherwise they are scheduled inexactly and the system may delay them — if you notice entries switching minutes late on Android while iOS is on time, that is why, and [If updates arrive too late](/usage/update-widget#if-updates-arrive-too-late) walks through opting your app in to exact updates and the trade-offs of doing so. Use [`HomeWidget.canScheduleExactWidgetUpdates()`](/usage/update-widget#scheduled-updates) to find out which applies. If the user later revokes that permission, the system deletes the exact alarms outright and pauses the swaps; the same receiver re-arms them automatically once the permission is granted again (or on the next reboot) — see [Exact vs. inexact updates](/usage/update-widget#exact-vs-inexact-updates) for the platform details. Scheduling is a side effect of `saveData`: if it fails for any reason the data is still persisted, and `saveData` does not throw because of it.
 
 </Accordion>

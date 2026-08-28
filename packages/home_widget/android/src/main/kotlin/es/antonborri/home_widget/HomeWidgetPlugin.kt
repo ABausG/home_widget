@@ -309,7 +309,10 @@ class HomeWidgetPlugin :
   companion object {
     internal const val PREFERENCES = "HomeWidgetPreferences"
 
-    /** Name of the SharedPreferences the plugin uses for its own bookkeeping. */
+    /**
+     * [HomeWidgetScheduler] stores its `scheduledUpdates.<provider>` entries in this same file, so
+     * its keys share this namespace.
+     */
     internal const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
 
     private const val CALLBACK_DISPATCHER_HANDLE = "callbackDispatcherHandle"

@@ -96,6 +96,10 @@ class HomeWidget {
   /// `AndroidManifest.xml` (together with the `RECEIVE_BOOT_COMPLETED`
   /// permission) for the updates to be delivered and to survive a reboot.
   ///
+  /// On Android, throws a `PlatformException` (code `-6`) if no
+  /// `AppWidgetProvider` matching [qualifiedAndroidName]/[androidName]/[name]
+  /// can be resolved.
+  ///
   /// ## Timezones and DST
   ///
   /// [updateTimes] are absolute instants, not wall-clock times — only the
@@ -111,8 +115,9 @@ class HomeWidget {
     String? androidName,
     String? qualifiedAndroidName,
   }) {
-    final millis =
-        updateTimes.map((time) => time.millisecondsSinceEpoch).toList()..sort();
+    final millis = updateTimes
+        .map((time) => time.millisecondsSinceEpoch)
+        .toList();
     return _channel.invokeMethod('scheduleWidgetUpdates', {
       'updateTimes': millis,
       'name': name,
@@ -130,6 +135,10 @@ class HomeWidget {
   ///
   /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
   /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
+  ///
+  /// On Android, throws a `PlatformException` (code `-7`) if no
+  /// `AppWidgetProvider` matching [qualifiedAndroidName]/[androidName]/[name]
+  /// can be resolved.
   static Future<bool?> cancelScheduledWidgetUpdates({
     String? name,
     String? androidName,

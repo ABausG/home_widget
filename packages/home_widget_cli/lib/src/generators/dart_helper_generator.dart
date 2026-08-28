@@ -13,6 +13,14 @@ class DartHelperGenerator {
   DartHelperGenerator(this.spec);
 
   /// Generates the Dart helper source code.
+  ///
+  /// The timed-data file this writes — decimal epoch-millis string keys,
+  /// each mapping to a flat JSON object of that timestamp's values — must
+  /// stay in step with `resolveTimedValues` in android_generator.dart and
+  /// `loadTimedEntries` in ios_generator.dart. A root [HWLocalizedString]
+  /// field's timed values are written as locale-tag-to-text objects rather
+  /// than plain values; the Kotlin and Swift readers must decode them the
+  /// same way.
   String generate() {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
@@ -44,17 +52,19 @@ class DartHelperGenerator {
     buffer.writeln();
     // Localized fields store their translations as a single JSON blob, so they
     // need `dart:convert` too — but none of the file plumbing JSON groups use.
-    if (jsonGroups.isNotEmpty || _localizedFields.isNotEmpty || hasTimedData) {
+    if (jsonGroups.isNotEmpty ||
+        _translationFields.isNotEmpty ||
+        hasTimedData) {
       buffer.writeln("import 'dart:convert';");
     }
-    if (jsonGroups.isNotEmpty) {
+    if (jsonGroups.isNotEmpty || hasTimedData) {
       buffer.writeln("import 'dart:io';");
       buffer.writeln("import 'dart:typed_data';");
     }
     buffer.writeln("import 'package:home_widget/home_widget.dart';");
     buffer.writeln();
 
-    final className = '${spec.className}HomeWidget';
+    final className = _helperClassName;
 
     buffer.writeln('class $className {');
     buffer.writeln('  const $className._();');
@@ -69,7 +79,7 @@ class DartHelperGenerator {
         "  static const String _\$paramPrefix = 'home_widget.${spec.className}';",
       );
       buffer.writeln();
-      for (final field in _localizedFields) {
+      for (final field in _translationFields) {
         _writeDefaultsConstant(buffer, field);
         buffer.writeln();
       }
@@ -215,11 +225,11 @@ class DartHelperGenerator {
         if (hasTimedData) 'Map<DateTime, $timedClass>? timedData',
       ];
       final recordFields = recordFieldParts.join(', ');
-      if (_localizedFields.isNotEmpty || hasTimedData) {
+      if (_translationFields.isNotEmpty || hasTimedData) {
         buffer.writeln('  /// Reads every stored value back.');
         buffer.writeln('  ///');
       }
-      if (_localizedFields.isNotEmpty) {
+      if (_translationFields.isNotEmpty) {
         buffer.writeln(
           '  /// Localized fields come back fully populated: anything stored '
           'by [saveData]',
@@ -228,14 +238,16 @@ class DartHelperGenerator {
           '  /// is merged over the compiled defaults, so every locale always '
           'has text.',
         );
-        buffer.writeln(
-          '  /// To read the raw stored blob instead — to tell an override '
-          'apart from a',
-        );
-        buffer.writeln(
-          '  /// shipped default — use `HomeWidget.getWidgetData` on the '
-          'preferences key.',
-        );
+        if (_localizedFields.isNotEmpty) {
+          buffer.writeln(
+            '  /// To read the raw stored blob instead — to tell an override '
+            'apart from a',
+          );
+          buffer.writeln(
+            '  /// shipped default — use `HomeWidget.getWidgetData` on the '
+            'preferences key.',
+          );
+        }
         if (hasTimedData) {
           buffer.writeln('  ///');
         }
@@ -252,6 +264,13 @@ class DartHelperGenerator {
         buffer.writeln(
           '  /// milliseconds: sub-millisecond precision of the saved keys is '
           'not preserved.',
+        );
+        buffer.writeln(
+          '  /// Keys are compared by instant, so a local [DateTime] and its '
+          '`toUtc()` twin',
+        );
+        buffer.writeln(
+          '  /// denote the same entry and only one of them survives a save.',
         );
       }
       buffer.writeln(
@@ -367,13 +386,15 @@ class DartHelperGenerator {
     if (_localizedFields.isNotEmpty) {
       buffer.writeln();
       _writeLocalizedReader(buffer, usesAppGroupId);
+    }
+    if (_translationFields.isNotEmpty) {
       buffer.writeln();
       _writeTranslationsMerger(buffer);
     }
 
     buffer.writeln('}');
 
-    if (_localizedFields.isNotEmpty) {
+    if (_translationFields.isNotEmpty) {
       buffer.writeln();
       _writeTranslationsClass(buffer);
     }
@@ -402,7 +423,7 @@ class DartHelperGenerator {
       for (final group in [...jsonGroups, ...timedJsonGroups])
         for (final field in group.children) _dartReadFunction(field.type),
       for (final member in _timedMembers(timedFields))
-        if (!member.jsonRoot) _dartReadFunction(member.leafType!),
+        if (!member.jsonRoot) _dartTimedReadFunction(member.leafType!),
     };
     if (usedReaders.isNotEmpty) {
       buffer.writeln();
@@ -413,11 +434,22 @@ class DartHelperGenerator {
         .format(buffer.toString());
   }
 
-  /// Keyed localized strings, stored as one JSON blob of locale tag to text.
+  /// Keyed localized strings, stored as one JSON blob of locale tag to text
+  /// under a preferences key of their own.
   ///
   /// Shared with the native generators so the Dart API cannot drift from the
   /// keys they read.
   List<HWLocalizedString> get _localizedFields => spec.keyedLocalizedStrings;
+
+  /// Every localized string the generated Dart API hands out as a translations
+  /// object, whether it is stored under its own key or inside a timed entry.
+  ///
+  /// Both flavours need the compiled defaults and the merger: the difference is
+  /// only which reader supplies the stored map.
+  List<HWLocalizedString> get _translationFields =>
+      [..._localizedFields, ...spec.timedLocalizedStrings];
+
+  String get _helperClassName => '${spec.className}HomeWidget';
 
   List<String> get _supportedLocales =>
       spec.data.localization?.supportedLocales ?? const <String>[];
@@ -758,7 +790,12 @@ class DartHelperGenerator {
         members.add(
           _TimedMember(
             key: field.key,
-            type: field.dartType,
+            // A localized value is a locale map, not a string: the member has
+            // to be the translations class so `saveData` cannot be handed the
+            // text of a single unnamed locale.
+            type: field is HWLocalizedString
+                ? _translationsClassName
+                : field.dartType,
             jsonRoot: false,
             leafType: field,
           ),
@@ -792,13 +829,21 @@ class DartHelperGenerator {
     buffer.writeln('    return $className(');
     for (final member in members) {
       final key = member.key;
+      final leafType = member.leafType;
       if (member.jsonRoot) {
         buffer.writeln(
           "      $key: json['$key'] is Map<String, dynamic> ? ${member.type}.fromJson(json['$key'] as Map<String, dynamic>) : null,",
         );
+      } else if (leafType is HWLocalizedString) {
+        // Same merge as `getData` runs on an untimed field, so an entry that
+        // carries only some locales still reads back complete.
+        buffer.writeln(
+          "      $key: $_helperClassName._\$mergeTranslations("
+          '$_helperClassName.${_defaultsFieldName(leafType)}, '
+          "_readTranslations(json['$key'])),",
+        );
       } else {
-        final leafType = member.leafType!;
-        final fallback = _dartDefaultLiteral(leafType);
+        final fallback = _dartDefaultLiteral(leafType!);
         buffer.writeln(
           "      $key: ${_dartReadFunction(leafType)}(json['$key'])$fallback,",
         );
@@ -813,6 +858,10 @@ class DartHelperGenerator {
       final key = member.key;
       if (member.jsonRoot) {
         buffer.writeln("      if ($key != null) '$key': $key!.toJson(),");
+      } else if (member.leafType is HWLocalizedString) {
+        // Every locale travels in the entry; the native readers merge it over
+        // the compiled translations again on the other side.
+        buffer.writeln("      if ($key != null) '$key': $key!.toMap(),");
       } else {
         buffer.writeln("      if ($key != null) '$key': $key,");
       }
@@ -845,6 +894,21 @@ class DartHelperGenerator {
         'bool? _readBool(Object? value) => value is bool ? value : null;',
       );
     }
+    if (usedReaders.contains('_readTranslations')) {
+      // Lenient in the same way as the native decoders: anything that is not a
+      // JSON object of strings reads back as null and leaves the compiled
+      // translations in place.
+      buffer.writeln('Map<String, String>? _readTranslations(Object? value) {');
+      buffer.writeln('  if (value is! Map) return null;');
+      buffer.writeln('  final values = <String, String>{};');
+      buffer.writeln('  value.forEach((locale, text) {');
+      buffer.writeln(
+        '    if (locale is String && text is String) values[locale] = text;',
+      );
+      buffer.writeln('  });');
+      buffer.writeln('  return values.isEmpty ? null : values;');
+      buffer.writeln('}');
+    }
   }
 
   String _dartReadFunction(HWDataType<dynamic> field) {
@@ -854,6 +918,16 @@ class DartHelperGenerator {
     if (field is HWBool) return '_readBool';
     return '_readString';
   }
+
+  /// [_dartReadFunction] for a member of the timed data class.
+  ///
+  /// Only here does a localized value arrive as its own locale map; at a JSON
+  /// leaf it is a plain string, so [_dartReadFunction] must not branch on the
+  /// type itself.
+  String _dartTimedReadFunction(HWDataType<dynamic> field) =>
+      field is HWLocalizedString
+          ? '_readTranslations'
+          : _dartReadFunction(field);
 
   String _dartChildClassName(String parentClass, String key) {
     final base = parentClass.endsWith('JsonData')

@@ -604,6 +604,13 @@ dependencies {
           '<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />',
         ),
       );
+      expect(
+        content,
+        contains(
+          '<action android:name='
+          '"android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />',
+        ),
+      );
 
       // The receiver belongs inside <application>, the permission outside it.
       final document = XmlDocument.parse(content);
@@ -642,7 +649,38 @@ dependencies {
       ).called(1);
     });
 
-    test('leaves a manifest that already declares both untouched', () async {
+    test('leaves a manifest that already declares everything untouched',
+        () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:label="test">
+        <receiver
+            android:name="$scheduledUpdateReceiverFqcn"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+      final before = manifestFile.readAsStringSync();
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      expect(manifestFile.readAsStringSync(), before);
+      verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
+    });
+
+    test(
+        'adds the missing SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED '
+        'action to a previously generated receiver', () async {
       manifestFile.writeAsStringSync(
         '''<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -661,11 +699,84 @@ dependencies {
 </manifest>
 ''',
       );
-      final before = manifestFile.readAsStringSync();
 
       await ensureAndroidManifestScheduledUpdates(root);
 
-      expect(manifestFile.readAsStringSync(), before);
+      final content = manifestFile.readAsStringSync();
+      expect(
+        content,
+        contains(
+          '<action android:name='
+          '"android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '<action android:name="android.intent.action.BOOT_COMPLETED" />',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '<action android:name="android.intent.action.MY_PACKAGE_REPLACED" />',
+        ),
+      );
+      // The receiver is not duplicated.
+      expect(
+        'android:name="$scheduledUpdateReceiverFqcn"'
+            .allMatches(content)
+            .length,
+        1,
+      );
+      verify(
+        () => mockLogger.detail(any(that: contains('Updated:'))),
+      ).called(1);
+
+      // A second run must not append the action again.
+      final afterFirst = content;
+      await ensureAndroidManifestScheduledUpdates(root);
+      expect(manifestFile.readAsStringSync(), afterFirst);
+    });
+
+    test(
+        'does not duplicate a hand-written receiver that already has the '
+        'action', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:label="test">
+        <receiver
+            android:name="$scheduledUpdateReceiverFqcn"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      final content = manifestFile.readAsStringSync();
+      expect(
+        'SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED'
+            .allMatches(content)
+            .length,
+        1,
+      );
+      expect(
+        'android:name="$scheduledUpdateReceiverFqcn"'
+            .allMatches(content)
+            .length,
+        1,
+      );
       verifyNever(() => mockLogger.detail(any(that: contains('Updated:'))));
     });
 
