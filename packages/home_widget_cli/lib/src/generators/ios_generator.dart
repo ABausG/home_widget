@@ -40,6 +40,7 @@ class IosGenerator {
     final hasTimedFields = spec.timedDataFields.isNotEmpty;
     final hasDataFields =
         primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedFields;
+    final needsEntryTimedEntries = spec.needsLocaleHelpers && hasTimedFields;
 
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
@@ -184,7 +185,15 @@ class IosGenerator {
       }
       extraContent = buffer.toString();
 
-      entryDefinition = '''
+      entryDefinition = needsEntryTimedEntries
+          ? '''
+struct ${widgetClassName}Entry: TimelineEntry {
+  let date: Date
+  let data: $className
+  let timedEntries: [(date: Date, values: [String: Any])]
+}
+'''
+          : '''
 struct ${widgetClassName}Entry: TimelineEntry {
   let date: Date
   let data: $className
@@ -195,7 +204,15 @@ struct ${widgetClassName}Entry: TimelineEntry {
     let prefs = UserDefaults(suiteName: "$groupId")
     let data = $className.fromUserDefaults(prefs)
 ''';
-      getSnapshotBody = '''
+      getSnapshotBody = needsEntryTimedEntries
+          ? '''
+    let prefs = UserDefaults(suiteName: "$groupId")
+    let timedEntries = $className.loadTimedEntries(prefs)
+    let data = $className.fromUserDefaults(prefs, timedEntries: timedEntries)
+
+    completion(${widgetClassName}Entry(date: Date(), data: data, timedEntries: timedEntries))
+'''
+          : '''
 $loadDataLogic
     completion(${widgetClassName}Entry(date: Date(), data: data))
 ''';
@@ -207,14 +224,14 @@ $loadDataLogic
     var entries: [${widgetClassName}Entry] = [
       ${widgetClassName}Entry(
         date: now,
-        data: $className.fromUserDefaults(prefs, at: now, timedEntries: timedEntries)
+        data: $className.fromUserDefaults(prefs, at: now, timedEntries: timedEntries)${needsEntryTimedEntries ? ',\n        timedEntries: timedEntries' : ''}
       )
     ]
     for timedEntry in timedEntries where timedEntry.date > now {
       entries.append(
         ${widgetClassName}Entry(
           date: timedEntry.date,
-          data: $className.fromUserDefaults(prefs, at: timedEntry.date, timedEntries: timedEntries)
+          data: $className.fromUserDefaults(prefs, at: timedEntry.date, timedEntries: timedEntries)${needsEntryTimedEntries ? ',\n          timedEntries: timedEntries' : ''}
         )
       )
     }
@@ -258,10 +275,12 @@ $loadDataLogic
     // every entry of the timeline would show the values that were active when
     // the timeline was built and no timed change would ever appear.
     final atEntryDate = hasTimedFields ? ', at: entry.date' : '';
+    final entryTimedEntriesArg =
+        needsEntryTimedEntries ? ', timedEntries: entry.timedEntries' : '';
     final viewPrefix = reResolveAtRender
         ? '    let prefs = UserDefaults(suiteName: "$groupId")\n'
             '    let data = ${spec.className}Data'
-            '.fromUserDefaults(prefs$atEntryDate)\n'
+            '.fromUserDefaults(prefs$atEntryDate$entryTimedEntriesArg)\n'
         : '';
 
     final treeCode = emitSwiftWidgetBody(
@@ -292,7 +311,9 @@ $loadDataLogic
         widgetClassName: widgetClassName,
         appGroupId: groupId,
         placeholderBody: hasDataFields
-            ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data.fromUserDefaults(nil))'
+            ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data'
+                '.fromUserDefaults(nil)'
+                '${needsEntryTimedEntries ? ', timedEntries: []' : ''})'
             : null,
         extraContent: extraContent,
         entryDefinition: entryDefinition,

@@ -46,7 +46,9 @@ class HomeWidgetScheduledUpdateReceiver : BroadcastReceiver() {
         val providerClassName =
             intent.getStringExtra(HomeWidgetScheduler.EXTRA_PROVIDER_CLASS_NAME) ?: return
         if (updateWidget(context, providerClassName)) {
-          HomeWidgetScheduler.pruneAndArmNext(context, providerClassName)
+          HomeWidgetScheduler.pruneAndArmNext(context, providerClassName, catchUp = false)
+        } else {
+          HomeWidgetScheduler.cancel(context, providerClassName)
         }
       }
       Intent.ACTION_BOOT_COMPLETED,
@@ -57,35 +59,36 @@ class HomeWidgetScheduledUpdateReceiver : BroadcastReceiver() {
     }
   }
 
-  /**
-   * Mirrors the broadcast that `HomeWidgetPlugin`'s `updateWidget` sends.
-   *
-   * Returns `false` when the schedule was reaped because the Widget no longer exists, in which case
-   * the caller must not re-arm the alarm.
-   */
-  private fun updateWidget(context: Context, providerClassName: String): Boolean {
-    val javaClass =
-        try {
-          Class.forName(providerClassName)
-        } catch (classException: ClassNotFoundException) {
-          // The Widget was removed or renamed since the update was scheduled.
-          HomeWidgetScheduler.cancel(context, providerClassName)
-          return false
-        }
-    val ids: IntArray =
-        AppWidgetManager.getInstance(context.applicationContext)
-            .getAppWidgetIds(ComponentName(context.applicationContext, javaClass))
-    if (ids.isEmpty()) {
-      // The last instance of this Widget was removed from the HomeScreen, so the remaining
-      // updates would never be seen. Drop them instead of keeping an alarm alive forever.
-      HomeWidgetScheduler.cancel(context, providerClassName)
-      return false
+  companion object {
+    /**
+     * Mirrors the broadcast that `HomeWidgetPlugin`'s `updateWidget` sends.
+     *
+     * The broadcast is skipped while no instance of the Widget is on the HomeScreen; the stored
+     * times are kept so that a Widget added later resumes the schedule.
+     *
+     * Returns `false` when the Widget no longer exists, in which case the caller must drop the
+     * schedule instead of re-arming it.
+     */
+    internal fun updateWidget(context: Context, providerClassName: String): Boolean {
+      val javaClass =
+          try {
+            Class.forName(providerClassName)
+          } catch (classException: ClassNotFoundException) {
+            // The Widget was removed or renamed since the update was scheduled.
+            return false
+          }
+      val ids: IntArray =
+          AppWidgetManager.getInstance(context.applicationContext)
+              .getAppWidgetIds(ComponentName(context.applicationContext, javaClass))
+      if (ids.isEmpty()) {
+        return true
+      }
+      val updateIntent = Intent(context.applicationContext, javaClass)
+      updateIntent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+      updateIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+      updateIntent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
+      context.sendBroadcast(updateIntent)
+      return true
     }
-    val updateIntent = Intent(context.applicationContext, javaClass)
-    updateIntent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-    updateIntent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-    updateIntent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
-    context.sendBroadcast(updateIntent)
-    return true
   }
 }

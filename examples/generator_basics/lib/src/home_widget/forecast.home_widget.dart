@@ -4,7 +4,7 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 
 class ForecastHomeWidget {
@@ -26,8 +26,16 @@ class ForecastHomeWidget {
           await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
           try {
             await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ForecastHomeWidgetReceiver');
-          } catch (_) {
+          } catch (error, stackTrace) {
             // Scheduling is best effort; the data was saved.
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: error,
+                stack: stackTrace,
+                library: 'home_widget',
+                context: ErrorDescription('scheduling updates for the Forecast widget'),
+              ),
+            );
           }
           return;
         }
@@ -38,8 +46,16 @@ class ForecastHomeWidget {
         await HomeWidget.saveFile('${_$paramPrefix}.timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json', appGroupId: _$appGroupId);
         try {
           await HomeWidget.scheduleWidgetUpdates(_timedTimes, androidName: 'ForecastHomeWidgetReceiver');
-        } catch (_) {
+        } catch (error, stackTrace) {
           // Scheduling is best effort; the data was saved.
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'home_widget',
+              context: ErrorDescription('scheduling updates for the Forecast widget'),
+            ),
+          );
         }
       }(),
     ]);
@@ -55,8 +71,16 @@ class ForecastHomeWidget {
         await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
         try {
           await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ForecastHomeWidgetReceiver');
-        } catch (_) {
+        } catch (error, stackTrace) {
           // Scheduling is best effort; the data was saved.
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'home_widget',
+              context: ErrorDescription('scheduling updates for the Forecast widget'),
+            ),
+          );
         }
       }(),
     ]);

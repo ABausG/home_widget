@@ -659,7 +659,44 @@ void main() {
     // values that were active when WidgetKit asked for it.
     expect(
       content,
-      contains('let data = MixedData.fromUserDefaults(prefs, at: entry.date)'),
+      contains(
+        'let data = MixedData.fromUserDefaults(prefs, at: entry.date, '
+        'timedEntries: entry.timedEntries)',
+      ),
+    );
+    // The entry carries the already-parsed timed data so the view does not
+    // re-read and re-parse the file on every timeline entry.
+    expect(
+      content,
+      contains(
+        'struct MixedHomeWidgetEntry: TimelineEntry {\n'
+        '  let date: Date\n'
+        '  let data: MixedData\n'
+        '  let timedEntries: [(date: Date, values: [String: Any])]\n'
+        '}',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'MixedHomeWidgetEntry(date: Date(), data: MixedData.fromUserDefaults(nil), '
+        'timedEntries: [])',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'data: MixedData.fromUserDefaults(prefs, at: now, timedEntries: timedEntries),\n'
+        '        timedEntries: timedEntries',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'data: MixedData.fromUserDefaults(prefs, at: timedEntry.date, '
+        'timedEntries: timedEntries),\n'
+        '          timedEntries: timedEntries',
+      ),
     );
     // Argument labels agree with the emitted signature and with getTimeline.
     expect(
@@ -772,7 +809,8 @@ void main() {
     expect(
       content,
       contains(
-        'let data = TimedLocalizedData.fromUserDefaults(prefs, at: entry.date)',
+        'let data = TimedLocalizedData.fromUserDefaults(prefs, at: entry.date, '
+        'timedEntries: entry.timedEntries)',
       ),
     );
     expect(content, contains('Text(data.greeting ?? "")'));

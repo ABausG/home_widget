@@ -292,13 +292,34 @@ void main() {
       );
     });
 
-    test('rejects two timed declarations of the same JSON root', () {
+    test('merges two timed declarations of the same JSON root', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),
         className: 'T',
         dataFields: const [
           HWTimedData(HWJson('weather', HWString('condition'))),
           HWTimedData(HWJson('weather', HWInt('temperature'))),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect(spec.timedJsonDataGroups, hasLength(1));
+      expect(
+        spec.timedJsonDataGroups.single.children.map((c) => c.path),
+        [
+          ['condition'],
+          ['temperature'],
+        ],
+      );
+    });
+
+    test('rejects conflicting paths under a merged timed JSON root', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('wind'))),
+          HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
         ],
       );
 
@@ -309,9 +330,8 @@ void main() {
             (e) => e.message,
             'message',
             allOf(
-              contains('the JSON root "weather" is wrapped in HWTimedData '
-                  'more than once'),
-              contains('HWTimedData(HWJson("weather", ...)) per root key'),
+              contains('Conflicting JSON paths in JSON group "weather"'),
+              contains('already mapped to a primitive leaf'),
             ),
           ),
         ),
@@ -522,6 +542,47 @@ void main() {
               contains('HWDataExists cannot test HWString.localized'),
               contains('its compiled default'),
               contains('plain HWString'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('rejects HWDataExists over a timed localized string', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      const timed = HWTimedData(localized);
+      const tree = HWDataExists(
+        data: timed,
+        whenPresent: HWText.fixed('present'),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          widget: tree,
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'T',
+        dataFields: const [timed],
+        widgetTree: tree,
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('HWDataExists cannot test HWString.localized'),
+              contains('"greeting"'),
+              contains('its compiled default'),
             ),
           ),
         ),

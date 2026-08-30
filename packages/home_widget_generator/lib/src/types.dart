@@ -647,8 +647,9 @@ class HWJson extends HWDataType<dynamic> {
 ///
 /// Wraps an [HWString], [HWInt], [HWDouble], [HWBool] or [HWJson], and must be
 /// a root-level data field: nesting it inside another [HWTimedData] or inside
-/// an [HWJson] is rejected, and a JSON root key may carry only one
-/// [HWTimedData] declaration (use nested [HWJson] paths for deeper values).
+/// an [HWJson] is rejected. Several [HWTimedData] declarations may share a JSON
+/// root key; they merge into a single timed root, just like untimed [HWJson]
+/// declarations do.
 ///
 /// Values for timed fields are not stored as
 /// individual entries; instead they are provided through the generated

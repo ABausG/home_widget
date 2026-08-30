@@ -171,7 +171,7 @@ void main() {
       expect(
         output,
         contains(
-          "androidName: 'com.example.ExampleWidgetHomeWidgetReceiver',",
+          "qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver',",
         ),
       );
       expect(output, contains("iOSName: 'ExampleWidgetHomeWidget',"));
@@ -292,10 +292,14 @@ void main() {
       expect(output, contains('class WeatherJsonData {'));
       expect(output, contains('final String? condition;'));
 
-      // JSON helper imports/readers are required for timed data too
+      // JSON helper imports/readers are required for timed data too. Timed
+      // data also pulls in `flutter/foundation.dart` (for FlutterError
+      // reporting in the scheduling guard), which already re-exports
+      // `dart:typed_data`, so the plain import would be flagged as unused.
       expect(output, contains("import 'dart:convert';"));
       expect(output, contains("import 'dart:io';"));
-      expect(output, contains("import 'dart:typed_data';"));
+      expect(output, isNot(contains("import 'dart:typed_data';")));
+      expect(output, contains("import 'package:flutter/foundation.dart';"));
       expect(output, contains('String? _readString(Object? value)'));
       expect(output, contains('int? _readInt(Object? value)'));
 
@@ -326,13 +330,24 @@ void main() {
           '_time.toUtc().millisecondsSinceEpoch.toString(): timedData[_time]!.toJson(),',
         ),
       );
-      // Scheduling is a side effect and must never fail the data write.
+      // Scheduling is a side effect and must never fail the data write, but a
+      // genuine misconfiguration is still reported instead of swallowed.
       expect(
         output,
         contains(
           "        try {\n"
-          "          await HomeWidget.scheduleWidgetUpdates(_timedTimes, androidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
-          "        } catch (_) {\n",
+          "          await HomeWidget.scheduleWidgetUpdates(_timedTimes, qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
+          "        } catch (error, stackTrace) {\n"
+          "          // Scheduling is best effort; the data was saved.\n"
+          "          FlutterError.reportError(\n"
+          "            FlutterErrorDetails(\n"
+          "              exception: error,\n"
+          "              stack: stackTrace,\n"
+          "              library: 'home_widget',\n"
+          "              context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "            ),\n"
+          "          );\n"
+          "        }\n",
         ),
       );
       // empty map clears the file and cancels the schedule
@@ -347,8 +362,18 @@ void main() {
         output,
         contains(
           "          try {\n"
-          "            await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
-          "          } catch (_) {\n",
+          "            await HomeWidget.cancelScheduledWidgetUpdates(qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
+          "          } catch (error, stackTrace) {\n"
+          "            // Scheduling is best effort; the data was saved.\n"
+          "            FlutterError.reportError(\n"
+          "              FlutterErrorDetails(\n"
+          "                exception: error,\n"
+          "                stack: stackTrace,\n"
+          "                library: 'home_widget',\n"
+          "                context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "              ),\n"
+          "            );\n"
+          "          }\n",
         ),
       );
 
@@ -359,8 +384,18 @@ void main() {
         output,
         contains(
           "        try {\n"
-          "          await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
-          "        } catch (_) {\n",
+          "          await HomeWidget.cancelScheduledWidgetUpdates(qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
+          "        } catch (error, stackTrace) {\n"
+          "          // Scheduling is best effort; the data was saved.\n"
+          "          FlutterError.reportError(\n"
+          "            FlutterErrorDetails(\n"
+          "              exception: error,\n"
+          "              stack: stackTrace,\n"
+          "              library: 'home_widget',\n"
+          "              context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "            ),\n"
+          "          );\n"
+          "        }\n",
         ),
       );
 

@@ -39,11 +39,17 @@ class DartHelperGenerator {
 
     final receiverName = '${spec.className}HomeWidgetReceiver';
     final String androidName;
+    final bool androidNameIsQualified;
     if (spec.data.android != null && spec.data.android!.packageName != null) {
       androidName = '${spec.data.android!.packageName}.$receiverName';
+      androidNameIsQualified = true;
     } else {
       androidName = receiverName;
+      androidNameIsQualified = false;
     }
+    final String androidNameArg = androidNameIsQualified
+        ? "qualifiedAndroidName: '$androidName'"
+        : "androidName: '$androidName'";
 
     final buffer = StringBuffer();
     buffer.writeln('// dart format off');
@@ -59,7 +65,12 @@ class DartHelperGenerator {
     }
     if (jsonGroups.isNotEmpty || hasTimedData) {
       buffer.writeln("import 'dart:io';");
-      buffer.writeln("import 'dart:typed_data';");
+      if (!hasTimedData) {
+        buffer.writeln("import 'dart:typed_data';");
+      }
+    }
+    if (hasTimedData) {
+      buffer.writeln("import 'package:flutter/foundation.dart';");
     }
     buffer.writeln("import 'package:home_widget/home_widget.dart';");
     buffer.writeln();
@@ -139,8 +150,7 @@ class DartHelperGenerator {
         _writeGuardedScheduleCall(
           buffer,
           indent: '          ',
-          call: 'HomeWidget.cancelScheduledWidgetUpdates('
-              "androidName: '$androidName')",
+          call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
         );
         buffer.writeln('          return;');
         buffer.writeln('        }');
@@ -159,8 +169,8 @@ class DartHelperGenerator {
         _writeGuardedScheduleCall(
           buffer,
           indent: '        ',
-          call: 'HomeWidget.scheduleWidgetUpdates(_timedTimes, '
-              "androidName: '$androidName')",
+          call:
+              'HomeWidget.scheduleWidgetUpdates(_timedTimes, $androidNameArg)',
         );
         buffer.writeln('      }(),');
       }
@@ -206,8 +216,7 @@ class DartHelperGenerator {
         _writeGuardedScheduleCall(
           buffer,
           indent: '        ',
-          call: 'HomeWidget.cancelScheduledWidgetUpdates('
-              "androidName: '$androidName')",
+          call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
         );
         buffer.writeln('      }(),');
       }
@@ -376,7 +385,7 @@ class DartHelperGenerator {
         spec.data.iOS != null ? '${spec.className}HomeWidget' : null;
 
     buffer.writeln('    return HomeWidget.updateWidget(');
-    buffer.writeln("      androidName: '$androidName',");
+    buffer.writeln('      $androidNameArg,');
     if (iosName != null) {
       buffer.writeln("      iOSName: '$iosName',");
     }
@@ -670,9 +679,21 @@ class DartHelperGenerator {
   }) {
     buffer.writeln('${indent}try {');
     buffer.writeln('$indent  await $call;');
-    buffer.writeln('$indent} catch (_) {');
+    buffer.writeln('$indent} catch (error, stackTrace) {');
     buffer
         .writeln('$indent  // Scheduling is best effort; the data was saved.');
+    buffer.writeln('$indent  FlutterError.reportError(');
+    buffer.writeln('$indent    FlutterErrorDetails(');
+    buffer.writeln('$indent      exception: error,');
+    buffer.writeln('$indent      stack: stackTrace,');
+    buffer.writeln("$indent      library: 'home_widget',");
+    buffer.writeln(
+      '$indent      context: ErrorDescription('
+      "'scheduling updates for the ${spec.className} widget'"
+      '),',
+    );
+    buffer.writeln('$indent    ),');
+    buffer.writeln('$indent  );');
     buffer.writeln('$indent}');
   }
 

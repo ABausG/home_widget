@@ -103,58 +103,28 @@ class HomeWidgetPlugin :
         }
       }
       "updateWidget" -> {
-        val qualifiedName = call.argument<String>("qualifiedAndroidName")
-        val className = call.argument<String>("android") ?: call.argument<String>("name")
-        try {
-          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-          val intent = Intent(context, javaClass)
-          intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-          val ids: IntArray =
-              AppWidgetManager.getInstance(context.applicationContext)
-                  .getAppWidgetIds(ComponentName(context, javaClass))
-          intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-          intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
-          context.sendBroadcast(intent)
-          result.success(true)
-        } catch (classException: ClassNotFoundException) {
-          result.error(
-              "-3",
-              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-              classException,
-          )
-        }
+        val javaClass = resolveWidgetClass(call, result, "-3") ?: return
+        val intent = Intent(context, javaClass)
+        intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        val ids: IntArray =
+            AppWidgetManager.getInstance(context.applicationContext)
+                .getAppWidgetIds(ComponentName(context, javaClass))
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+        intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
+        context.sendBroadcast(intent)
+        result.success(true)
       }
       "scheduleWidgetUpdates" -> {
-        val qualifiedName = call.argument<String>("qualifiedAndroidName")
-        val className = call.argument<String>("android") ?: call.argument<String>("name")
+        val javaClass = resolveWidgetClass(call, result, "-6") ?: return
         val updateTimes =
             call.argument<List<Number>>("updateTimes")?.map { it.toLong() } ?: emptyList()
-        try {
-          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-          HomeWidgetScheduler.schedule(context, javaClass.name, updateTimes)
-          result.success(true)
-        } catch (classException: ClassNotFoundException) {
-          result.error(
-              "-6",
-              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-              classException,
-          )
-        }
+        HomeWidgetScheduler.schedule(context, javaClass.name, updateTimes)
+        result.success(true)
       }
       "cancelScheduledWidgetUpdates" -> {
-        val qualifiedName = call.argument<String>("qualifiedAndroidName")
-        val className = call.argument<String>("android") ?: call.argument<String>("name")
-        try {
-          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-          HomeWidgetScheduler.cancel(context, javaClass.name)
-          result.success(true)
-        } catch (classException: ClassNotFoundException) {
-          result.error(
-              "-7",
-              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-              classException,
-          )
-        }
+        val javaClass = resolveWidgetClass(call, result, "-7") ?: return
+        HomeWidgetScheduler.cancel(context, javaClass.name)
+        result.success(true)
       }
       "canScheduleExactWidgetUpdates" -> {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
@@ -230,27 +200,16 @@ class HomeWidgetPlugin :
           return result.success(null)
         }
 
-        val qualifiedName = call.argument<String>("qualifiedAndroidName")
-        val className = call.argument<String>("android") ?: call.argument<String>("name")
+        val javaClass = resolveWidgetClass(call, result, "-4") ?: return
+        val myProvider = ComponentName(context, javaClass)
 
-        try {
-          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-          val myProvider = ComponentName(context, javaClass)
+        val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
 
-          val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
-
-          if (appWidgetManager.isRequestPinAppWidgetSupported) {
-            appWidgetManager.requestPinAppWidget(myProvider, null, null)
-          }
-
-          return result.success(null)
-        } catch (classException: ClassNotFoundException) {
-          result.error(
-              "-4",
-              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-              classException,
-          )
+        if (appWidgetManager.isRequestPinAppWidgetSupported) {
+          appWidgetManager.requestPinAppWidget(myProvider, null, null)
         }
+
+        return result.success(null)
       }
       "getInstalledWidgets" -> {
         try {
@@ -263,6 +222,26 @@ class HomeWidgetPlugin :
       else -> {
         result.notImplemented()
       }
+    }
+  }
+
+  /**
+   * Resolves the AppWidgetProvider the call refers to.
+   *
+   * Returns `null` after completing [result] with [errorCode] when no such class exists.
+   */
+  private fun resolveWidgetClass(call: MethodCall, result: Result, errorCode: String): Class<*>? {
+    val qualifiedName = call.argument<String>("qualifiedAndroidName")
+    val className = call.argument<String>("android") ?: call.argument<String>("name")
+    return try {
+      Class.forName(qualifiedName ?: "${context.packageName}.${className}")
+    } catch (classException: ClassNotFoundException) {
+      result.error(
+          errorCode,
+          "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
+          classException,
+      )
+      null
     }
   }
 

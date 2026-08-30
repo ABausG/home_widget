@@ -81,10 +81,27 @@ object HomeWidgetScheduler {
   /**
    * Drops all times that have passed for [providerClassName] and arms the alarm for the next one.
    *
-   * Called after an alarm fired to advance to the following update time.
+   * Called after an alarm fired to advance to the following update time, and whenever alarms have
+   * to be re-armed.
+   *
+   * When [catchUp] is set and at least one of the stored times has already passed, the Widget is
+   * updated once before the times are dropped. Alarms do not survive a reboot or an app update and
+   * are deleted when `SCHEDULE_EXACT_ALARM` is revoked, so transitions can be missed while no alarm
+   * is armed; without the catch-up the Widget would keep showing outdated content. Callers that
+   * already updated the Widget pass `false`.
    */
-  fun pruneAndArmNext(context: Context, providerClassName: String) {
-    val upcoming = loadTimes(context, providerClassName).filter { it > System.currentTimeMillis() }
+  fun pruneAndArmNext(context: Context, providerClassName: String, catchUp: Boolean = true) {
+    val times = loadTimes(context, providerClassName)
+    val now = System.currentTimeMillis()
+    if (
+        catchUp &&
+            times.any { it <= now } &&
+            !HomeWidgetScheduledUpdateReceiver.updateWidget(context, providerClassName)
+    ) {
+      cancel(context, providerClassName)
+      return
+    }
+    val upcoming = times.filter { it > now }
     if (upcoming.isEmpty()) {
       cancel(context, providerClassName)
       return

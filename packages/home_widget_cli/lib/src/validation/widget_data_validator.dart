@@ -47,7 +47,7 @@ void validateWidgetData(WidgetSpec spec) {
   _validateConditionalData(spec);
   _validateTimedDataKeys(spec);
 
-  for (final group in spec.jsonDataGroups) {
+  for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
     final root = _TrieNode();
     for (final field in group.children) {
@@ -91,7 +91,7 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
 void _validateConditionalData(WidgetSpec spec) {
   for (final widget in _walkWidgets(spec.effectiveWidgetTree)) {
     if (widget is! HWDataExists) continue;
-    final data = widget.data;
+    final data = widget.data.unwrapped;
     if (data is! HWLocalizedString) continue;
 
     final descriptor = data.isConstant
@@ -300,19 +300,14 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
     if (existing == field) continue;
     if (existing is HWJson && field is HWJson) continue;
 
-    // Untimed HWJson declarations merge into one group per root key; timed ones
-    // must not, because a timed root maps onto a single entry in the timed
-    // JSON file.
+    // Timed HWJson declarations merge into one group per root key, exactly like
+    // untimed ones; the merged group maps onto a single entry in the timed JSON
+    // file.
     if (existing is HWTimedData &&
         field is HWTimedData &&
         existing.unwrapped is HWJson &&
         field.unwrapped is HWJson) {
-      throw GeneratorError(
-        'Widget "${spec.data.name}": the JSON root "${field.key}" is wrapped '
-        'in HWTimedData more than once. Declare one '
-        'HWTimedData(HWJson("${field.key}", ...)) per root key and reach the '
-        'values below it through nested HWJson paths.',
-      );
+      continue;
     }
 
     if (existing is HWLocalizedString && field is HWLocalizedString) {
