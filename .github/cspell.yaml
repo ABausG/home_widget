@@ -141,6 +141,7 @@ words:
     - untimed
     - vararg
     - WAKEUP
+    - wakeups
     - widgetkit
     - writeln
     - xcstrings
@@ -167,3 +168,5 @@ ignoreWords:
     - Cumprimenta
     - você
     - idioma
+    - Sonnig
+    - Sonne
