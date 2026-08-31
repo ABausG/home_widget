@@ -105,6 +105,7 @@ words:
     - fsgroup
     - generatable
     - Generatable
+    - homewidget
     - hwcolorrole
     - idempotently
     - INFOPLIST
@@ -115,15 +116,18 @@ words:
     - jsondbl
     - jsonint
     - keyguard
+    - KITKAT
     - LTRB
     - multiplatform
     - nofill
     - noinline
     - nopadding
     - notheme
+    - notimed
     - RUNPATH
     - scaffolder
     - SDKROOT
+    - somethingelse
     - sourcecode
     - strikethrough
     - struct
@@ -131,9 +135,13 @@ words:
     - sublist
     - sysexits
     - tailrec
+    - timedjson
     - tisa
     - unparseable
+    - untimed
     - vararg
+    - WAKEUP
+    - wakeups
     - widgetkit
     - writeln
     - xcstrings
@@ -160,3 +168,5 @@ ignoreWords:
     - Cumprimenta
     - você
     - idioma
+    - Sonnig
+    - Sonne

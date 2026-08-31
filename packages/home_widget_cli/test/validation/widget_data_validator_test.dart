@@ -190,6 +190,308 @@ void main() {
       );
     });
 
+    test('rejects the reserved "timedData" key when the spec has timed fields',
+        () {
+      void expectRejected(List<HWDataType<dynamic>> fields) {
+        final spec = WidgetSpec(
+          data: HomeWidget(name: 'T'),
+          className: 'T',
+          dataFields: fields,
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('"timedData"'),
+                contains('reserved'),
+              ),
+            ),
+          ),
+          reason: '$fields',
+        );
+      }
+
+      expectRejected(const [
+        HWTimedData(HWString('label')),
+        HWString('timedData'),
+      ]);
+      expectRejected(const [
+        HWTimedData(HWString('label')),
+        HWJson('timedData', HWString('title')),
+      ]);
+      expectRejected(const [HWTimedData(HWString('timedData'))]);
+    });
+
+    test('allows the "timedData" key when the spec has no timed fields', () {
+      void expectAccepted(List<HWDataType<dynamic>> fields) {
+        final spec = WidgetSpec(
+          data: HomeWidget(name: 'T'),
+          className: 'T',
+          dataFields: fields,
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          returnsNormally,
+          reason: '$fields',
+        );
+      }
+
+      expectAccepted(const [HWString('timedData')]);
+      expectAccepted(const [HWJson('timedData', HWString('title'))]);
+    });
+
+    test('rejects the same key used as timed and untimed data', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWString('label')),
+          HWString('label', defaultValue: 'x'),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"label"'),
+              contains('HWTimedData'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a JSON root key that is also used as timed data', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+          HWJson('weather', HWString('condition')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('"weather"'),
+          ),
+        ),
+      );
+    });
+
+    test('merges two timed declarations of the same JSON root', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+          HWTimedData(HWJson('weather', HWInt('temperature'))),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect(spec.timedJsonDataGroups, hasLength(1));
+      expect(
+        spec.timedJsonDataGroups.single.children.map((c) => c.path),
+        [
+          ['condition'],
+          ['temperature'],
+        ],
+      );
+    });
+
+    test('rejects conflicting paths under a merged timed JSON root', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('wind'))),
+          HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('Conflicting JSON paths in JSON group "weather"'),
+              contains('already mapped to a primitive leaf'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('allows one timed declaration with a nested JSON path', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('rejects HWTimedData nested inside HWJson', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWJson('weather', HWTimedData(HWString('condition'))),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            'HWTimedData must be a root-level data field and cannot be nested '
+                'inside HWJson.',
+          ),
+        ),
+      );
+    });
+
+    test('allows timed and untimed fields with distinct keys', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWString('title'),
+          HWTimedData(HWString('label')),
+          HWTimedData(HWJson('weather', HWString('condition'))),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('validates identifiers inside timed data fields', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('foo_bar'))),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('letters and digits'),
+          ),
+        ),
+      );
+    });
+
+    // A time-based localized field is the only localized content in these
+    // specs, so the locale map is checked only if the timed wrapper is seen
+    // through.
+    test('validates the locale map of a timed localized field', () {
+      WidgetSpec specFor(HWDataType<dynamic> field) => WidgetSpec(
+            data: const HomeWidget(
+              name: 'T',
+              localization: HomeWidgetLocalization(
+                defaultLocale: 'en',
+                supportedLocales: ['en', 'de'],
+              ),
+            ),
+            className: 'T',
+            dataFields: [field],
+          );
+
+      const incomplete = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello'},
+      );
+      expect(
+        () => validateWidgetData(specFor(const HWTimedData(incomplete))),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('missing translations for de'),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          specFor(const HWTimedData(HWJson('weather', incomplete))),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('missing translations for de'),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          specFor(
+            const HWTimedData(
+              HWLocalizedString(
+                'greeting',
+                defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('requires a localization block for a timed localized field', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(
+            HWLocalizedString(
+              'greeting',
+              defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('has no localization'),
+          ),
+        ),
+      );
+    });
+
     test('throws when duplicate JSON leaves differ only by default value', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),
@@ -240,6 +542,47 @@ void main() {
               contains('HWDataExists cannot test HWString.localized'),
               contains('its compiled default'),
               contains('plain HWString'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('rejects HWDataExists over a timed localized string', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      const timed = HWTimedData(localized);
+      const tree = HWDataExists(
+        data: timed,
+        whenPresent: HWText.fixed('present'),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          widget: tree,
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'T',
+        dataFields: const [timed],
+        widgetTree: tree,
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('HWDataExists cannot test HWString.localized'),
+              contains('"greeting"'),
+              contains('its compiled default'),
             ),
           ),
         ),

@@ -167,6 +167,91 @@ void main() {
       expect(spec.dataFields.first.key, 'label');
     });
 
+    test('collects timed data fields from widget tree', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Timed Data',
+          widget: HWColumn(
+            children: [
+              HWText(HWTimedData(HWString('label'))),
+              HWText(HWString('title')),
+            ],
+          ),
+        )
+        class TimedWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.timedDataFields,
+        const [HWTimedData(HWString('label'))],
+      );
+      expect(spec.timedDataFields.single.key, 'label');
+      expect(spec.primitiveDataFields, const [HWString('title')]);
+    });
+
+    test('keeps the locale context of a timed localized field', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Timed Localized',
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'de',
+            supportedLocales: ['en', 'de'],
+          ),
+          widget: HWColumn(
+            children: [
+              HWText(
+                HWTimedData(
+                  HWString.localized(
+                    'greeting',
+                    defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+                  ),
+                ),
+              ),
+              HWText(
+                HWTimedData(
+                  HWJson(
+                    'weather',
+                    HWString.localized(
+                      'summary',
+                      defaultTranslations: {'en': 'Sunny', 'de': 'Sonnig'},
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        )
+        class TimedLocalizedWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+
+      final root = spec!.timedLocalizedStrings.single;
+      expect(root.key, 'greeting');
+      expect(root.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
+      // The widget's default locale and resource namespace are stamped on by
+      // the parser; without them the fallback would land on whichever entry
+      // happens to come first.
+      expect(root.baseLocaleTag, 'de');
+      expect(root.baseValue, 'Hallo');
+      expect(
+        root.resourceName,
+        startsWith('home_widget_timed_localized_widget_t_'),
+      );
+
+      final leaf = spec.timedJsonLocalizedStrings.single;
+      expect(leaf.defaultTranslations, {'en': 'Sunny', 'de': 'Sonnig'});
+      expect(leaf.baseLocaleTag, 'de');
+      expect(leaf.baseValue, 'Sonnig');
+    });
+
     test('parses supportedFamilies on iOS configuration', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

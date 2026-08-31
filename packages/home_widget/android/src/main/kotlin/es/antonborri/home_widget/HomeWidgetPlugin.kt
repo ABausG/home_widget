@@ -1,6 +1,7 @@
 package es.antonborri.home_widget
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.BroadcastReceiver
@@ -102,26 +103,35 @@ class HomeWidgetPlugin :
         }
       }
       "updateWidget" -> {
-        val qualifiedName = call.argument<String>("qualifiedAndroidName")
-        val className = call.argument<String>("android") ?: call.argument<String>("name")
-        try {
-          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-          val intent = Intent(context, javaClass)
-          intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-          val ids: IntArray =
-              AppWidgetManager.getInstance(context.applicationContext)
-                  .getAppWidgetIds(ComponentName(context, javaClass))
-          intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-          intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
-          context.sendBroadcast(intent)
-          result.success(true)
-        } catch (classException: ClassNotFoundException) {
-          result.error(
-              "-3",
-              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-              classException,
-          )
+        val javaClass = resolveWidgetClass(call, result, "-3") ?: return
+        val intent = Intent(context, javaClass)
+        intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        val ids: IntArray =
+            AppWidgetManager.getInstance(context.applicationContext)
+                .getAppWidgetIds(ComponentName(context, javaClass))
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+        intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
+        context.sendBroadcast(intent)
+        result.success(true)
+      }
+      "scheduleWidgetUpdates" -> {
+        val javaClass = resolveWidgetClass(call, result, "-6") ?: return
+        val updateTimes =
+            call.argument<List<Number>>("updateTimes")?.map { it.toLong() } ?: emptyList()
+        HomeWidgetScheduler.schedule(context, javaClass.name, updateTimes)
+        result.success(true)
+      }
+      "cancelScheduledWidgetUpdates" -> {
+        val javaClass = resolveWidgetClass(call, result, "-7") ?: return
+        HomeWidgetScheduler.cancel(context, javaClass.name)
+        result.success(true)
+      }
+      "canScheduleExactWidgetUpdates" -> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+          return result.success(true)
         }
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        return result.success(alarmManager?.canScheduleExactAlarms() ?: false)
       }
       "setAppGroupId" -> {
         result.success(true)
@@ -190,27 +200,16 @@ class HomeWidgetPlugin :
           return result.success(null)
         }
 
-        val qualifiedName = call.argument<String>("qualifiedAndroidName")
-        val className = call.argument<String>("android") ?: call.argument<String>("name")
+        val javaClass = resolveWidgetClass(call, result, "-4") ?: return
+        val myProvider = ComponentName(context, javaClass)
 
-        try {
-          val javaClass = Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-          val myProvider = ComponentName(context, javaClass)
+        val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
 
-          val appWidgetManager = AppWidgetManager.getInstance(context.applicationContext)
-
-          if (appWidgetManager.isRequestPinAppWidgetSupported) {
-            appWidgetManager.requestPinAppWidget(myProvider, null, null)
-          }
-
-          return result.success(null)
-        } catch (classException: ClassNotFoundException) {
-          result.error(
-              "-4",
-              "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-              classException,
-          )
+        if (appWidgetManager.isRequestPinAppWidgetSupported) {
+          appWidgetManager.requestPinAppWidget(myProvider, null, null)
         }
+
+        return result.success(null)
       }
       "getInstalledWidgets" -> {
         try {
@@ -223,6 +222,38 @@ class HomeWidgetPlugin :
       else -> {
         result.notImplemented()
       }
+    }
+  }
+
+  /**
+   * Resolves the AppWidgetProvider the call refers to.
+   *
+   * Returns `null` after completing [result] with [errorCode] when no name was given or no such
+   * class exists.
+   */
+  private fun resolveWidgetClass(call: MethodCall, result: Result, errorCode: String): Class<*>? {
+    val qualifiedName = call.argument<String>("qualifiedAndroidName")
+    val className = call.argument<String>("android") ?: call.argument<String>("name")
+    if (qualifiedName == null && className == null) {
+      result.error(
+          errorCode,
+          "InvalidArguments ${call.method} must be called with one of the 'qualifiedAndroidName', 'androidName' or 'name' parameters",
+          IllegalArgumentException("Missing widget class name"),
+      )
+      return null
+    }
+    val resolvedName = qualifiedName ?: "${context.packageName}.${className}"
+    return try {
+      Class.forName(resolvedName)
+    } catch (classException: ClassNotFoundException) {
+      val hint =
+          if (qualifiedName != null) {
+            "Argument 'qualifiedAndroidName' must be the fully qualified class name of the AppWidgetProvider you wish to update"
+          } else {
+            "Argument 'name' must be the class name of the AppWidgetProvider you wish to update; it is resolved against the application id '${context.packageName}'. Pass 'qualifiedAndroidName' if the provider lives in a different package"
+          }
+      result.error(errorCode, "No Widget found with Name $resolvedName. $hint", classException)
+      null
     }
   }
 
@@ -269,7 +300,12 @@ class HomeWidgetPlugin :
   companion object {
     internal const val PREFERENCES = "HomeWidgetPreferences"
 
-    private const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
+    /**
+     * [HomeWidgetScheduler] stores its `scheduledUpdates.<provider>` entries in this same file, so
+     * its keys share this namespace.
+     */
+    internal const val INTERNAL_PREFERENCES = "InternalHomeWidgetPreferences"
+
     private const val CALLBACK_DISPATCHER_HANDLE = "callbackDispatcherHandle"
     private const val CALLBACK_HANDLE = "callbackHandle"
 

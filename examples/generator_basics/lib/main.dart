@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
+import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
@@ -114,6 +115,63 @@ class _HomePageState extends State<_HomePage> {
         const Divider(),
 
         // -------------------------------------------------------------------
+        // Forecast: HWTimedData, the widget swaps its content on its own.
+        // -------------------------------------------------------------------
+        const _SectionHeader(
+          title: 'Forecast',
+          subtitle:
+              'saveData(timedData: {...}) + updateWidget(). The widget switches '
+              'to the next entry on its own, one per quarter hour — no app '
+              'process involved.',
+        ),
+        ListTile(
+          title: const Text('Save a 2-hour forecast'),
+          subtitle: const Text(
+            'One entry per quarter hour. Each entry shows the time it was '
+            'scheduled for, so the widget states which entry is active.',
+          ),
+          trailing: const Icon(Icons.schedule_send),
+          onTap: () async {
+            final now = DateTime.now();
+            final firstSlot = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              now.hour,
+            ).add(Duration(minutes: (now.minute ~/ 15 + 1) * 15));
+            final slots = [
+              now,
+              for (var index = 0; index < 9; index++)
+                firstSlot.add(Duration(minutes: index * 15)),
+            ];
+            await ForecastHomeWidget.saveData(
+              city: 'Berlin',
+              timedData: {
+                for (final (index, slot) in slots.indexed)
+                  slot: ForecastTimedData(
+                    condition: _formatSlot(slot),
+                    temperature: 10 + index,
+                  ),
+              },
+            );
+            // saveData only writes the schedule — updateWidget() is what makes
+            // the Widget pick up the new timeline (reloadTimelines on iOS).
+            await ForecastHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Clear the forecast'),
+          subtitle: const Text('deleteData(timedData: true) + updateWidget()'),
+          trailing: const Icon(Icons.clear),
+          onTap: () async {
+            await ForecastHomeWidget.deleteData(timedData: true);
+            await ForecastHomeWidget.updateWidget();
+          },
+        ),
+
+        const Divider(),
+
+        // -------------------------------------------------------------------
         // Conditional Status: HWDataExists + HWBoolConditional.
         // -------------------------------------------------------------------
         const _SectionHeader(title: 'Conditional Status'),
@@ -178,6 +236,10 @@ class _HomePageState extends State<_HomePage> {
     'Ciao',
     'Olá',
   ];
+
+  static String _formatSlot(DateTime slot) =>
+      '${slot.hour.toString().padLeft(2, '0')}:'
+      '${slot.minute.toString().padLeft(2, '0')}';
 }
 
 class _SectionHeader extends StatelessWidget {

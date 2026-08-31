@@ -36,12 +36,16 @@ class AndroidGenerator {
   Future<void> generate() async {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final hasDataFields = primitiveFields.isNotEmpty || jsonGroups.isNotEmpty;
+    final timedPrimitiveFields = spec.timedPrimitiveDataFields;
+    final timedJsonGroups = spec.timedJsonDataGroups;
+    final hasTimedFields = spec.timedDataFields.isNotEmpty;
+    final hasDataFields =
+        primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedFields;
 
     // The Kotlin `locales` parameter and every argument passed to it have to be
     // gated on this one flag; two separately-spelled "equivalent" conditions
     // emit Kotlin that does not compile.
-    final needsLocaleArg = spec.needsLocalizedRead;
+    final needsLocaleArg = spec.resolvesLocalizedOnRead;
     final needsResolver = spec.needsLocaleHelpers;
 
     // Gallery strings do not count — the launcher resolves those on its own.
@@ -99,6 +103,13 @@ class AndroidGenerator {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln('    val ${group.key}: $jsonClass? = null,');
       }
+      for (final field in timedPrimitiveFields) {
+        buffer.writeln('    val ${field.key}: ${field.kotlinType}? = null,');
+      }
+      for (final group in timedJsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln('    val ${group.key}: $jsonClass? = null,');
+      }
       buffer.writeln(') {');
       buffer.writeln('    companion object {');
       buffer.writeln(
@@ -106,9 +117,18 @@ class AndroidGenerator {
       );
       buffer.writeln();
       final localeParam = needsLocaleArg ? ', locales: List<String>' : '';
-      buffer.writeln(
-        '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam): $className {',
-      );
+      if (hasTimedFields) {
+        buffer.writeln(
+          '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam, now: Long = System.currentTimeMillis()): $className {',
+        );
+        buffer.writeln(
+          '            val timedValues = resolveTimedValues(prefs, now)',
+        );
+      } else {
+        buffer.writeln(
+          '        fun fromPreferences(prefs: android.content.SharedPreferences$localeParam): $className {',
+        );
+      }
       buffer.writeln('            return $className(');
 
       for (final field in primitiveFields) {
@@ -125,11 +145,38 @@ class AndroidGenerator {
         );
       }
 
+      for (final field in timedPrimitiveFields) {
+        // Checked before the plain leaf read, of which HWString — and so
+        // HWLocalizedString — is one: a timed translation is stored as a locale
+        // map, not as the text of a single locale.
+        final valueExpr = field is HWLocalizedString
+            ? field.androidTimedReadValue(valuesExpr: 'timedValues')
+            : _androidLeafReadExpression(
+                objExpr: 'timedValues',
+                key: field.key,
+                type: field,
+              );
+        buffer.writeln('                ${field.key} = $valueExpr,');
+      }
+      for (final group in timedJsonGroups) {
+        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
+        buffer.writeln(
+          '                ${group.key} = $jsonClass.fromJson(timedValues.optJSONObject("${group.key}")),',
+        );
+      }
+
       buffer.writeln('            )');
       buffer.writeln('        }');
+      if (hasTimedFields) {
+        buffer.writeln();
+        _writeKotlinTimedDataResolver(buffer);
+      }
       buffer.writeln('    }');
       buffer.writeln('}');
-      for (final group in jsonGroups) {
+      // Keys are unique within each list, and the validator forbids sharing a
+      // root key between a timed and an untimed field, so class names never
+      // collide across the two.
+      for (final group in [...jsonGroups, ...timedJsonGroups]) {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln();
         final tree = _buildJsonTree(group.children);
@@ -144,10 +191,14 @@ class AndroidGenerator {
     }
 
     // Constants resolve through `R.string`; only strings the widget resolves
-    // itself need the helpers, and only keyed ones read a stored blob.
+    // itself need the helpers, and only fields carrying stored translations
+    // need a reader — from their own preferences key, from the timed entry, or
+    // both, which is also exactly when the shared merge helpers are used.
     final localizationHelpers = <String>[
       if (needsResolver) kotlinLocalizeHelpers,
-      if (needsLocaleArg) kotlinLocalizedReadHelper,
+      if (needsLocaleArg) kotlinLocalizedMergeHelpers,
+      if (spec.needsLocalizedRead) kotlinLocalizedReadHelper,
+      if (spec.needsTimedLocalizedRead) kotlinTimedLocalizedReadHelper,
     ];
     if (localizationHelpers.isNotEmpty) {
       dataClassContent = [
@@ -345,6 +396,12 @@ class AndroidGenerator {
       handleLocaleChange: rendersLocalizedContent,
       label: '@string/$labelResourceName',
     );
+    if (spec.timedDataFields.isNotEmpty) {
+      // Time-based content drives itself through HomeWidget.scheduleWidgetUpdates
+      // on Android, which needs the plugin's scheduling receiver declared by the
+      // consuming app. Specs without timed fields must not touch the manifest.
+      await ensureAndroidManifestScheduledUpdates(projectRoot);
+    }
   }
 
   Directory _resDir(Directory projectRoot) => Directory(
@@ -459,6 +516,57 @@ class AndroidGenerator {
 
       if (entity.listSync().isEmpty) await entity.delete();
     }
+  }
+
+  /// Emits the companion-object helper resolving the timed data entry that is
+  /// active at `now` (greatest timestamp <= now), or an empty object.
+  ///
+  /// Reads the same timed-data file — decimal epoch-millis string keys, one
+  /// flat JSON object per timestamp — that `generate()` in
+  /// dart_helper_generator.dart writes and `loadTimedEntries` in
+  /// ios_generator.dart parses on iOS; the three must stay in step. A root
+  /// localized field's timed value comes back as a locale-tag-to-text
+  /// object rather than a plain value, matching how it was written.
+  void _writeKotlinTimedDataResolver(StringBuffer buffer) {
+    buffer.writeln(
+      '        private fun resolveTimedValues(prefs: android.content.SharedPreferences, now: Long): org.json.JSONObject {',
+    );
+    buffer.writeln(
+      '            val path = prefs.getString("\${PREFERENCES_PREFIX}.timedData", null) ?: return org.json.JSONObject()',
+    );
+    buffer.writeln('            return try {');
+    buffer.writeln('                val file = java.io.File(path)');
+    buffer.writeln(
+      '                if (!file.exists()) return org.json.JSONObject()',
+    );
+    buffer.writeln(
+      '                val json = org.json.JSONObject(file.readText())',
+    );
+    buffer.writeln('                var activeKey: String? = null');
+    buffer.writeln('                var activeTimestamp = 0L');
+    buffer.writeln('                val keys = json.keys()');
+    buffer.writeln('                while (keys.hasNext()) {');
+    buffer.writeln('                    val key = keys.next()');
+    buffer.writeln(
+      '                    val timestamp = key.toLongOrNull() ?: continue',
+    );
+    buffer.writeln(
+      '                    if (timestamp <= now && (activeKey == null || timestamp > activeTimestamp)) {',
+    );
+    buffer.writeln('                        activeKey = key');
+    buffer.writeln('                        activeTimestamp = timestamp');
+    buffer.writeln('                    }');
+    buffer.writeln('                }');
+    buffer.writeln(
+      '                val resolvedKey = activeKey ?: return org.json.JSONObject()',
+    );
+    buffer.writeln(
+      '                json.optJSONObject(resolvedKey) ?: org.json.JSONObject()',
+    );
+    buffer.writeln('            } catch (_: Exception) {');
+    buffer.writeln('                org.json.JSONObject()');
+    buffer.writeln('            }');
+    buffer.writeln('        }');
   }
 
   String _kotlinDefaultLiteral(HWDataType<dynamic> field) {

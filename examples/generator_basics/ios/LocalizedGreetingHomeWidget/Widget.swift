@@ -134,6 +134,18 @@ func hwResolveLocalized(
   return values[baseLocale]
 }
 
+func hwLocalizedEntries(_ json: [String: Any]) -> [String: String] {
+  var values: [String: String] = [:]
+  for (name, value) in json {
+    if let text = value as? String { values[name] = text }
+  }
+  return values
+}
+
+func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
+  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
+}
+
 func hwReadLocalized(
   _ defaults: UserDefaults?,
   _ key: String,
@@ -152,13 +164,5 @@ func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
   guard let object = try? JSONSerialization.jsonObject(with: data),
     let json = object as? [String: Any]
   else { return nil }
-  var values: [String: String] = [:]
-  for (name, value) in json {
-    if let text = value as? String { values[name] = text }
-  }
-  return values
-}
-
-func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
-  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
+  return hwLocalizedEntries(json)
 }

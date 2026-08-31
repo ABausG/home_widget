@@ -55,6 +55,98 @@ void main() {
       expect(type.kotlinAccess('widgetData'), 'widgetData.fileKey?.flag');
     });
 
+    test('HWTimedData delegates to the wrapped data type', () {
+      const wrapped = HWString('label', defaultValue: 'Sunny');
+      const type = HWTimedData(wrapped);
+
+      expect(type.key, 'label');
+      expect(type.defaultValue, 'Sunny');
+      expect(type.dartType, 'String');
+      expect(type.kotlinType, 'String');
+      expect(type.swiftType, 'String');
+      expect(
+        type.androidReadValue(store: 'prefs', key: 'k'),
+        wrapped.androidReadValue(store: 'prefs', key: 'k'),
+      );
+      expect(
+        type.iosReadValue(store: 'defaults', key: 'k'),
+        wrapped.iosReadValue(store: 'defaults', key: 'k'),
+      );
+      expect(
+        type.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
+        wrapped.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
+      );
+      expect(
+        type.iosToString(outerValue: 'data.x', innerValue: 'data.x'),
+        wrapped.iosToString(outerValue: 'data.x', innerValue: 'data.x'),
+      );
+      expect(type.swiftAccess('entry.data'), 'entry.data.label');
+      expect(type.kotlinAccess('widgetData'), 'widgetData.label');
+    });
+
+    test('HWTimedData delegates JSON accessors and read expressions', () {
+      const wrapped =
+          HWJson('weather', HWString('condition', defaultValue: 'x'));
+      const type = HWTimedData(wrapped);
+
+      expect(type.key, 'weather');
+      expect(type.dartType, 'Map<String, dynamic>');
+      expect(type.swiftAccess('entry.data'), wrapped.swiftAccess('entry.data'));
+      expect(type.kotlinAccess('data'), wrapped.kotlinAccess('data'));
+      expect(
+        type.swiftReadExpr('entry.data'),
+        wrapped.swiftReadExpr('entry.data'),
+      );
+      expect(type.kotlinReadExpr('data'), wrapped.kotlinReadExpr('data'));
+    });
+
+    test('HWTimedData equality and hashCode are based on the wrapped type', () {
+      expect(
+        const HWTimedData(HWString('a')),
+        equals(const HWTimedData(HWString('a'))),
+      );
+      expect(
+        const HWTimedData(HWString('a')).hashCode,
+        const HWTimedData(HWString('a')).hashCode,
+      );
+      expect(
+        const HWTimedData(HWString('a')),
+        isNot(equals(const HWTimedData(HWString('b')))),
+      );
+      expect(
+        const HWTimedData(HWString('a')),
+        isNot(equals(const HWTimedData(HWString('a', defaultValue: 'v')))),
+      );
+      expect(
+        const HWTimedData(HWString('a')),
+        isNot(equals(const HWString('a'))),
+      );
+      expect(
+        const HWString('a'),
+        isNot(equals(const HWTimedData(HWString('a')))),
+      );
+    });
+
+    test('HWTimedData hashCode matches == across type arguments', () {
+      const HWDataType<dynamic> dynamicallyTyped =
+          HWTimedData<dynamic>(HWString('a'));
+      const HWDataType<dynamic> stringTyped =
+          HWTimedData<String>(HWString('a'));
+
+      expect(dynamicallyTyped, equals(stringTyped));
+      expect(dynamicallyTyped.hashCode, stringTyped.hashCode);
+    });
+
+    test('unwrapped returns the type itself except for HWTimedData', () {
+      const plain = HWString('a');
+      const json = HWJson('weather', HWString('condition'));
+
+      expect(plain.unwrapped, same(plain));
+      expect(json.unwrapped, same(json));
+      expect(const HWTimedData(plain).unwrapped, same(plain));
+      expect(const HWTimedData(json).unwrapped, same(json));
+    });
+
     test('Equality works', () {
       expect(const HWString('a'), equals(const HWString('a')));
       expect(const HWString('a'), isNot(equals(const HWString('b'))));
@@ -389,6 +481,61 @@ void main() {
       expect(a, b);
       expect(a.hashCode, b.hashCode);
       expect(a.hashCode, isNot(HWJson('root', const HWString('b')).hashCode));
+    });
+  });
+
+  group('HWLocalizedString timed read values', () {
+    const translations = {'en': 'Hello', 'de': 'Hallo'};
+
+    test('resolve out of the active timed entry', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: translations,
+      );
+      expect(
+        localized.androidTimedReadValue(valuesExpr: 'timedValues'),
+        'hwReadTimedLocalized(timedValues, "greeting", locales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "en")',
+      );
+      expect(
+        localized.iosTimedReadValue(valuesExpr: 'timedValues'),
+        'hwReadTimedLocalized(timedValues, "greeting", '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "en")',
+      );
+    });
+
+    test('fall back to the stamped default locale', () {
+      const localized = HWLocalizedString.resolved(
+        'greeting',
+        defaultTranslations: translations,
+        isConstant: false,
+        defaultLocale: 'de',
+      );
+      expect(
+        localized.androidTimedReadValue(valuesExpr: 'entry'),
+        'hwReadTimedLocalized(entry, "greeting", locales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "de")',
+      );
+      expect(
+        localized.iosTimedReadValue(valuesExpr: 'entry'),
+        'hwReadTimedLocalized(entry, "greeting", '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "de")',
+      );
+    });
+
+    test('escape special characters in the translation map', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': r'a"b\c$d'},
+      );
+      expect(
+        localized.androidTimedReadValue(valuesExpr: 'timedValues'),
+        contains(r'mapOf("en" to "a\"b\\c\$d")'),
+      );
+      expect(
+        localized.iosTimedReadValue(valuesExpr: 'timedValues'),
+        contains(r'["en": "a\"b\\c$d"]'),
+      );
     });
   });
 }

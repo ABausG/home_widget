@@ -132,7 +132,7 @@ class HWText extends HWWidget implements HWDataWidget {
     if (fixedContent != null) {
       viewCall = '${pad}Text("${escapeSwiftStringLiteral(fixedContent)}")';
     } else if (dataType != null) {
-      final bound = dataType!;
+      final bound = dataType!.unwrapped;
       if (bound is HWJson) {
         final expr = bound.swiftGlanceJsonTextInterpolation(dataExpr);
         viewCall = '${pad}Text($expr)';
@@ -172,7 +172,7 @@ class HWText extends HWWidget implements HWDataWidget {
     if (fixedContent != null) {
       textArgs = 'text = "${escapeKotlinStringLiteral(fixedContent)}"';
     } else if (dataType != null) {
-      final bound = dataType!;
+      final bound = dataType!.unwrapped;
       if (bound is HWJson) {
         textArgs =
             'text = ${bound.kotlinGlanceJsonTextInterpolation(dataExpr)}';

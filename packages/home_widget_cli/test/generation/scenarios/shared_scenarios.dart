@@ -33,4 +33,27 @@ const variableTestWidget = HWColoredBox(
 class ConstReuse {}
 ''',
   ),
+  BuildScenario(
+    description: 'builds time-based content with primitive and json values',
+    className: 'TimedContent',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Timed Content',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    children: [
+      HWText(HWString('headline')),
+      HWText(HWTimedData(HWString('label'))),
+      HWText(HWTimedData(HWInt('temperature'))),
+      HWText(HWTimedData(HWJson('weather', HWString('condition')))),
+    ],
+  ),
+)
+class TimedContent {}
+''',
+    expectsScheduledUpdateWiring: true,
+  ),
 ];

@@ -194,15 +194,17 @@ class HWBoolConditional extends HWConditional {
   }
 
   static bool _isSupportedBoolData(HWDataType<dynamic> data) {
-    if (data is HWBool) return true;
-    if (data is HWJson && data.leafType is HWBool) return true;
+    final inner = data.unwrapped;
+    if (inner is HWBool) return true;
+    if (inner is HWJson && inner.leafType is HWBool) return true;
     return false;
   }
 
   static bool? _boolDefaultValue(HWDataType<dynamic> data) {
-    if (data is HWBool) return data.defaultValue;
-    if (data is HWJson && data.leafType is HWBool) {
-      return (data.leafType as HWBool).defaultValue;
+    final inner = data.unwrapped;
+    if (inner is HWBool) return inner.defaultValue;
+    if (inner is HWJson && inner.leafType is HWBool) {
+      return (inner.leafType as HWBool).defaultValue;
     }
     return null;
   }

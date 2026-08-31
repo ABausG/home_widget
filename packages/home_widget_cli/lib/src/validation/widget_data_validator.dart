@@ -20,17 +20,34 @@ final RegExp asciiDataNamePattern = RegExp(r'^[A-Za-z][A-Za-z0-9]*$');
 /// have to be formatted app-side and pushed through a plain [HWString].
 final RegExp _placeholderPattern = RegExp(r'\{[A-Za-z0-9_]+\}|%[sdf@]|%\d+\$');
 
+/// Data name reserved for the generated timed data parameter / storage key.
+const String reservedTimedDataName = 'timedData';
+
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
+  // `timedData` only collides with generated API surface when the spec
+  // actually has time-based fields (the `saveData(timedData: ...)` parameter,
+  // the `deleteData(timedData: ...)` flag and the `.timedData` storage key are
+  // only emitted then). Specs without timed fields may use the name freely.
+  final reservesTimedDataName = spec.timedDataFields.isNotEmpty;
+
   for (final field in spec.dataFields) {
     _validateDataTypeKeys(field);
+    if (reservesTimedDataName && field.key == reservedTimedDataName) {
+      throw GeneratorError(
+        'Invalid data name "$reservedTimedDataName" '
+        '(${_describeLeafContext(field)}): '
+        'reserved for the generated timed data parameter.',
+      );
+    }
   }
 
   _validateNoConflictingKeys(spec);
   validateLocalization(spec);
   _validateConditionalData(spec);
+  _validateTimedDataKeys(spec);
 
-  for (final group in spec.jsonDataGroups) {
+  for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
     final root = _TrieNode();
     for (final field in group.children) {
@@ -50,8 +67,18 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
   // so they deliberately carry an empty key.
   if (type is HWLocalizedString && type.isConstant) return;
 
+  if (type is HWTimedData<dynamic>) {
+    _validateDataTypeKeys(type.data);
+    return;
+  }
   _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
   if (type is HWJson) {
+    if (type.child is HWTimedData) {
+      throw GeneratorError(
+        'HWTimedData must be a root-level data field and cannot be nested '
+        'inside HWJson.',
+      );
+    }
     _validateDataTypeKeys(type.child);
   }
 }
@@ -64,7 +91,7 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
 void _validateConditionalData(WidgetSpec spec) {
   for (final widget in _walkWidgets(spec.effectiveWidgetTree)) {
     if (widget is! HWDataExists) continue;
-    final data = widget.data;
+    final data = widget.data.unwrapped;
     if (data is! HWLocalizedString) continue;
 
     final descriptor = data.isConstant
@@ -273,6 +300,16 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
     if (existing == field) continue;
     if (existing is HWJson && field is HWJson) continue;
 
+    // Timed HWJson declarations merge into one group per root key, exactly like
+    // untimed ones; the merged group maps onto a single entry in the timed JSON
+    // file.
+    if (existing is HWTimedData &&
+        field is HWTimedData &&
+        existing.unwrapped is HWJson &&
+        field.unwrapped is HWJson) {
+      continue;
+    }
+
     if (existing is HWLocalizedString && field is HWLocalizedString) {
       throw GeneratorError(
         'Widget "${spec.data.name}": two HWString.localized("${field.key}") '
@@ -293,6 +330,26 @@ String _describeDataField(HWDataType<dynamic> field) {
   final defaultValue = field.defaultValue;
   if (defaultValue == null) return '${field.runtimeType}';
   return '${field.runtimeType}(defaultValue: $defaultValue)';
+}
+
+/// Rejects keys that are declared both time-based and regular, because both
+/// would map onto the same storage key and the same generated parameter name.
+void _validateTimedDataKeys(WidgetSpec spec) {
+  final timedKeys = <String>{
+    for (final field in spec.timedDataFields) field.key,
+  };
+  if (timedKeys.isEmpty) return;
+
+  for (final field in spec.dataFields) {
+    if (field is HWTimedData) continue;
+    if (timedKeys.contains(field.key)) {
+      throw GeneratorError(
+        'Conflicting data name "${field.key}": declared both as time-based '
+        '(HWTimedData) and as regular data. Use a different name for one '
+        'of them.',
+      );
+    }
+  }
 }
 
 String _describeLeafContext(HWDataType<dynamic> type) {

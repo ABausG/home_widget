@@ -57,6 +57,12 @@ void main() {
           return null;
         case 'isRequestPinWidgetSupported':
           return true;
+        case 'scheduleWidgetUpdates':
+          return true;
+        case 'cancelScheduledWidgetUpdates':
+          return true;
+        case 'canScheduleExactWidgetUpdates':
+          return true;
       }
       throw UnimplementedError(
         'Method ${methodCall.method} not implemented in mock',
@@ -333,6 +339,85 @@ void main() {
     expect(arguments['android'], 'androidName');
     expect(arguments['ios'], 'iOSName');
     expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
+  group('scheduleWidgetUpdates', () {
+    test('passes epoch milliseconds in the given order and names', () async {
+      final later = DateTime.utc(2024, 1, 2, 3, 4, 5);
+      final earlier = DateTime.utc(2023, 12, 31, 23, 59, 59);
+
+      expect(
+        await HomeWidget.scheduleWidgetUpdates(
+          [later, earlier],
+          name: 'name',
+          androidName: 'androidName',
+          qualifiedAndroidName: 'com.example.androidName',
+        ),
+        true,
+      );
+
+      final arguments = await passedArguments.future;
+
+      // The platform side filters, de-duplicates and sorts authoritatively.
+      expect(arguments['updateTimes'], [
+        later.millisecondsSinceEpoch,
+        earlier.millisecondsSinceEpoch,
+      ]);
+      expect(arguments['name'], 'name');
+      expect(arguments['android'], 'androidName');
+      expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+    });
+
+    test(
+      'local and UTC DateTimes of the same instant are equivalent',
+      () async {
+        final local = DateTime(2024, 6, 1, 12);
+        final utc = local.toUtc();
+        expect(local.isAtSameMomentAs(utc), isTrue);
+
+        await HomeWidget.scheduleWidgetUpdates([local], name: 'name');
+        final localArguments = await passedArguments.future;
+
+        passedArguments = Completer();
+        await HomeWidget.scheduleWidgetUpdates([utc], name: 'name');
+        final utcArguments = await passedArguments.future;
+
+        expect(localArguments['updateTimes'], utcArguments['updateTimes']);
+        expect(localArguments['updateTimes'], [local.millisecondsSinceEpoch]);
+      },
+    );
+
+    test('passes an empty list', () async {
+      await HomeWidget.scheduleWidgetUpdates([], name: 'name');
+
+      final arguments = await passedArguments.future;
+
+      expect(arguments['updateTimes'], isEmpty);
+      expect(arguments['name'], 'name');
+      expect(arguments['android'], isNull);
+      expect(arguments['qualifiedAndroidName'], isNull);
+    });
+  });
+
+  test('cancelScheduledWidgetUpdates', () async {
+    expect(
+      await HomeWidget.cancelScheduledWidgetUpdates(
+        name: 'name',
+        androidName: 'androidName',
+        qualifiedAndroidName: 'com.example.androidName',
+      ),
+      true,
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments['name'], 'name');
+    expect(arguments['android'], 'androidName');
+    expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
+  test('canScheduleExactWidgetUpdates', () async {
+    expect(await HomeWidget.canScheduleExactWidgetUpdates(), true);
   });
 
   test('isRequestPinWidgetSupported', () async {

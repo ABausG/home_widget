@@ -188,6 +188,16 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
             code: "-3", message: "InvalidArguments updateWidget must be called with name",
             details: nil))
       }
+    } else if call.method == "scheduleWidgetUpdates"
+      || call.method == "cancelScheduledWidgetUpdates"
+      || call.method == "canScheduleExactWidgetUpdates"
+    {
+      // Scheduling is Android only. On iOS a Widget decides for itself when its content changes
+      // by returning future TimelineEntries from its TimelineProvider, so the plugin neither
+      // schedules nor cancels anything here and cannot promise exact updates either: WidgetKit
+      // renders entries on a best effort basis. Returning false keeps that honest instead of
+      // reporting a schedule that does not exist.
+      result(false)
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
       if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)
