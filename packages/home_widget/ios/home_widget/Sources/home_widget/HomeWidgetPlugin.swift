@@ -190,14 +190,14 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
       }
     } else if call.method == "scheduleWidgetUpdates"
       || call.method == "cancelScheduledWidgetUpdates"
+      || call.method == "canScheduleExactWidgetUpdates"
     {
-      // No-op on iOS: WidgetKit handles time based content natively through the Widget's
-      // TimelineProvider, so there is nothing to schedule or cancel here.
-      result(true)
-    } else if call.method == "canScheduleExactWidgetUpdates" {
-      // WidgetKit timeline entries are always rendered at their exact date, there is no
-      // permission that could downgrade them.
-      result(true)
+      // Scheduling is Android only. On iOS a Widget decides for itself when its content changes
+      // by returning future TimelineEntries from its TimelineProvider, so the plugin neither
+      // schedules nor cancels anything here and cannot promise exact updates either: WidgetKit
+      // renders entries on a best effort basis. Returning false keeps that honest instead of
+      // reporting a schedule that does not exist.
+      result(false)
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
       if HomeWidgetPlugin.groupId == nil {
         result(notInitializedError)

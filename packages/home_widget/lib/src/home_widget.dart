@@ -73,9 +73,14 @@ class HomeWidget {
 
   /// Schedules updates of the HomeScreen Widget at the given [updateTimes]
   ///
-  /// This is only relevant on Android. There the plugin uses `AlarmManager` to
-  /// broadcast a Widget update at each of the given times.
-  /// On iOS this is a no-op because WidgetKit handles timelines natively.
+  /// This is Android only. There the plugin uses `AlarmManager` to broadcast a
+  /// Widget update at each of the given times, and returns `true`.
+  ///
+  /// On iOS this does nothing and returns `false`. A WidgetKit Widget decides
+  /// for itself when its content changes by returning future `TimelineEntry`s
+  /// from its `TimelineProvider`, so there is no schedule for the plugin to
+  /// keep. Write the times into the Widget's data with [saveWidgetData] (or
+  /// [saveFile]) instead and build the timeline from them.
   ///
   /// Any previously scheduled updates for the same Widget are replaced.
   /// Passing an empty list is equivalent to [cancelScheduledWidgetUpdates].
@@ -128,8 +133,8 @@ class HomeWidget {
 
   /// Cancels all updates scheduled with [scheduleWidgetUpdates]
   ///
-  /// This is only relevant on Android. On iOS this is a no-op because WidgetKit
-  /// handles timelines natively.
+  /// This is Android only and returns `true` there. On iOS nothing was ever
+  /// scheduled, so this does nothing and returns `false`.
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
   ///
@@ -153,8 +158,9 @@ class HomeWidget {
 
   /// Whether [scheduleWidgetUpdates] can schedule *exact* updates
   ///
-  /// On iOS this is always `true`: WidgetKit renders timeline entries at their
-  /// exact date and no permission can downgrade that.
+  /// On iOS this is always `false`: [scheduleWidgetUpdates] schedules nothing
+  /// there, and WidgetKit renders a Widget's own timeline entries on a best
+  /// effort basis, so it may show them later than their date.
   ///
   /// On Android this is `true` below Android 12 (API 31). From Android 12 on it
   /// reflects `AlarmManager.canScheduleExactAlarms()`, which requires the app to

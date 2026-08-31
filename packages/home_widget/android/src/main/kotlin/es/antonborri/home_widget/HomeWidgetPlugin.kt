@@ -228,19 +228,31 @@ class HomeWidgetPlugin :
   /**
    * Resolves the AppWidgetProvider the call refers to.
    *
-   * Returns `null` after completing [result] with [errorCode] when no such class exists.
+   * Returns `null` after completing [result] with [errorCode] when no name was given or no such
+   * class exists.
    */
   private fun resolveWidgetClass(call: MethodCall, result: Result, errorCode: String): Class<*>? {
     val qualifiedName = call.argument<String>("qualifiedAndroidName")
     val className = call.argument<String>("android") ?: call.argument<String>("name")
-    return try {
-      Class.forName(qualifiedName ?: "${context.packageName}.${className}")
-    } catch (classException: ClassNotFoundException) {
+    if (qualifiedName == null && className == null) {
       result.error(
           errorCode,
-          "No Widget found with Name $className. Argument 'name' must be the same as your AppWidgetProvider you wish to update",
-          classException,
+          "InvalidArguments ${call.method} must be called with 'qualifiedAndroidName', 'androidName' or 'name'",
+          IllegalArgumentException(),
       )
+      return null
+    }
+    val resolvedName = qualifiedName ?: "${context.packageName}.${className}"
+    return try {
+      Class.forName(resolvedName)
+    } catch (classException: ClassNotFoundException) {
+      val hint =
+          if (qualifiedName != null) {
+            "Argument 'qualifiedAndroidName' must be the fully qualified class name of the AppWidgetProvider you wish to update"
+          } else {
+            "Argument 'name' must be the class name of the AppWidgetProvider you wish to update; it is resolved against the application id '${context.packageName}'. Pass 'qualifiedAndroidName' if the provider lives in a different package"
+          }
+      result.error(errorCode, "No Widget found with Name $resolvedName. $hint", classException)
       null
     }
   }
