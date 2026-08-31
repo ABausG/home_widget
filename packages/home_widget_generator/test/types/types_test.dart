@@ -483,4 +483,59 @@ void main() {
       expect(a.hashCode, isNot(HWJson('root', const HWString('b')).hashCode));
     });
   });
+
+  group('HWLocalizedString timed read values', () {
+    const translations = {'en': 'Hello', 'de': 'Hallo'};
+
+    test('resolve out of the active timed entry', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: translations,
+      );
+      expect(
+        localized.androidTimedReadValue(valuesExpr: 'timedValues'),
+        'hwReadTimedLocalized(timedValues, "greeting", locales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "en")',
+      );
+      expect(
+        localized.iosTimedReadValue(valuesExpr: 'timedValues'),
+        'hwReadTimedLocalized(timedValues, "greeting", '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "en")',
+      );
+    });
+
+    test('fall back to the stamped default locale', () {
+      const localized = HWLocalizedString.resolved(
+        'greeting',
+        defaultTranslations: translations,
+        isConstant: false,
+        defaultLocale: 'de',
+      );
+      expect(
+        localized.androidTimedReadValue(valuesExpr: 'entry'),
+        'hwReadTimedLocalized(entry, "greeting", locales, '
+        'mapOf("en" to "Hello", "de" to "Hallo"), "de")',
+      );
+      expect(
+        localized.iosTimedReadValue(valuesExpr: 'entry'),
+        'hwReadTimedLocalized(entry, "greeting", '
+        '["en": "Hello", "de": "Hallo"], baseLocale: "de")',
+      );
+    });
+
+    test('escape special characters in the translation map', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': r'a"b\c$d'},
+      );
+      expect(
+        localized.androidTimedReadValue(valuesExpr: 'timedValues'),
+        contains(r'mapOf("en" to "a\"b\\c\$d")'),
+      );
+      expect(
+        localized.iosTimedReadValue(valuesExpr: 'timedValues'),
+        contains(r'["en": "a\"b\\c$d"]'),
+      );
+    });
+  });
 }
