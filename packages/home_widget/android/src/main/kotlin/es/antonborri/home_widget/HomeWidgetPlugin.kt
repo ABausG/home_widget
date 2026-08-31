@@ -237,8 +237,8 @@ class HomeWidgetPlugin :
     if (qualifiedName == null && className == null) {
       result.error(
           errorCode,
-          "InvalidArguments ${call.method} must be called with 'qualifiedAndroidName', 'androidName' or 'name'",
-          IllegalArgumentException(),
+          "InvalidArguments ${call.method} must be called with one of the 'qualifiedAndroidName', 'androidName' or 'name' parameters",
+          IllegalArgumentException("Missing widget class name"),
       )
       return null
     }
