@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -162,6 +163,8 @@ Future<void> _generate(
   TestFlutterProject project,
   BuildScenario scenario,
 ) async {
+  await _writeScenarioAssets(project, scenario);
+
   final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
   widgetDir.createSync(recursive: true);
   final widgetFile = File(p.join(widgetDir.path, 'widget.dart'));
@@ -177,3 +180,46 @@ Future<void> _generate(
     fail('CLI failed with exit code $cliResult');
   }
 }
+
+/// Materializes [BuildScenario.assetPaths] inside the temp project.
+///
+/// Each path gets a real (1x1) PNG on disk and an entry in the project's
+/// `flutter: assets:` list, which is exactly what the CLI's generate-time asset
+/// validation checks; without both, generation would fail before the platform
+/// build ever runs.
+Future<void> _writeScenarioAssets(
+  TestFlutterProject project,
+  BuildScenario scenario,
+) async {
+  if (scenario.assetPaths.isEmpty) return;
+
+  for (final assetPath in scenario.assetPaths) {
+    final file =
+        File(p.join(project.root.path, p.joinAll(p.posix.split(assetPath))));
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(_onePixelPng);
+  }
+
+  final pubspec = File(p.join(project.root.path, 'pubspec.yaml'));
+  final content = await pubspec.readAsString();
+  final flutterSection = RegExp(r'^flutter:[ \t]*$', multiLine: true);
+  final match = flutterSection.firstMatch(content);
+  if (match == null) {
+    fail('Could not find a top-level "flutter:" section in ${pubspec.path}');
+  }
+
+  final declarations = StringBuffer('\n  assets:');
+  for (final assetPath in scenario.assetPaths) {
+    declarations.write('\n    - $assetPath');
+  }
+
+  await pubspec.writeAsString(
+    content.replaceRange(match.end, match.end, declarations.toString()),
+  );
+}
+
+/// A 1x1 transparent PNG, small enough to inline and valid enough to bundle.
+final List<int> _onePixelPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
+  'YPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+);

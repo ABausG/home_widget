@@ -39,6 +39,8 @@ class WidgetValueDecoder {
       return HWRow.fromDartObject(object!, this);
     } else if (typeName == 'HWText') {
       return HWText.fromDartObject(object!, this);
+    } else if (typeName == 'HWImage') {
+      return HWImage.fromDartObject(object!);
     } else if (typeName == 'HWDataOnly') {
       return HWDataOnly.fromDartObject(object!, this);
     } else if (typeName == 'HWAdaptive') {
@@ -232,6 +234,20 @@ class WidgetValueDecoder {
     if (obj == null || obj.isNull) return null;
 
     final typeName = obj.type?.element?.name;
+
+    if (typeName == 'HWImageData') {
+      final assetPath = getField(obj, 'assetPath')?.toStringValue();
+      if (assetPath != null) {
+        return HWImageData.asset(
+          assetPath,
+          package: getField(obj, 'package')?.toStringValue(),
+        );
+      }
+      final imageKey = getField(obj, 'key')?.toStringValue();
+      if (imageKey == null) return null; // coverage:ignore-line
+      return HWImageData(imageKey);
+    }
+
     final key = getField(obj, 'key')?.toStringValue();
     if (key == null) return null;
 
@@ -289,7 +305,8 @@ class WidgetValueDecoder {
           child is! HWInt &&
           child is! HWDouble &&
           child is! HWBool &&
-          child is! HWJson) {
+          child is! HWJson &&
+          child is! HWImageData) {
         return null;
       }
       return HWJson(key, child);

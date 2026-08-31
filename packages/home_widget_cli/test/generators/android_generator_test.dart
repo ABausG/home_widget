@@ -275,6 +275,259 @@ void main() {
     expect(kt.readAsStringSync(), contains('optDouble'));
   });
 
+  test('generates Kotlin widget with image data fields', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'ImageWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'ImageWidget',
+      dataFields: const [
+        HWImageData('avatar'),
+        HWImageData.asset('assets/logo.png'),
+      ],
+      widgetTree: const HWColumn(
+        children: [
+          HWImage(HWImageData('avatar'), width: 100, height: 100),
+          HWImage.asset('assets/logo.png', fit: HWImageFit.cover),
+        ],
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/ImageWidgetHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    // Runtime image paths are plain nullable strings in the data class;
+    // asset images are never stored.
+    expect(content, contains('data class ImageWidgetData('));
+    expect(content, contains('val avatar: String? = null,'));
+    expect(content, isNot(contains('assetsLogoPng')));
+    expect(
+      content,
+      contains(
+        'avatar = prefs.getString("\${PREFERENCES_PREFIX}.avatar", null)',
+      ),
+    );
+
+    // Imports required by the emitted Glance image code.
+    expect(content, contains('import android.graphics.BitmapFactory'));
+    expect(content, contains('import androidx.glance.Image'));
+    expect(content, contains('import androidx.glance.ImageProvider'));
+    expect(content, contains('import androidx.glance.layout.ContentScale'));
+    expect(content, contains('import androidx.glance.layout.width'));
+    expect(content, contains('import androidx.glance.layout.height'));
+    // Imports already present in the template are not duplicated.
+    expect(
+      'import androidx.glance.GlanceModifier\n'.allMatches(content).length,
+      1,
+    );
+
+    // Body renders both images from their stored paths.
+    expect(
+      content,
+      contains(
+        'widgetData.avatar?.let { path -> '
+        'hwDecodeImageFile(context, path, 100.0, 100.0) }',
+      ),
+    );
+    expect(content, contains('provider = ImageProvider(bitmap),'));
+    expect(content, contains('contentScale = ContentScale.Fit,'));
+    expect(
+      content,
+      contains('modifier = GlanceModifier.width(100.0.dp).height(100.0.dp),'),
+    );
+    expect(
+      content,
+      contains(
+        'flutterAssetBitmap(context, "assets/logo.png", null, null)'
+        '?.let { bitmap ->',
+      ),
+    );
+    expect(content, contains('contentScale = ContentScale.Crop,'));
+
+    // Both decode paths subsample through one shared helper, emitted once for
+    // the whole file.
+    expect(content, contains('inJustDecodeBounds = true'));
+    expect(
+      content,
+      contains(
+        'inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)',
+      ),
+    );
+    expect('private fun hwImageSampleSize('.allMatches(content).length, 1);
+    expect('private fun hwDecodeImageFile('.allMatches(content).length, 1);
+    expect('private fun flutterAssetBitmap('.allMatches(content).length, 1);
+  });
+
+  test('emits the asset helper only when an asset image is present', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'RuntimeOnly',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'RuntimeOnly',
+      dataFields: const [HWImageData('avatar')],
+      widgetTree: const HWImage(HWImageData('avatar')),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/RuntimeOnlyHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(content, isNot(contains('flutterAssetBitmap')));
+    expect(content, contains('private fun hwDecodeImageFile('));
+    expect(content, contains('private fun hwImageSampleSize('));
+  });
+
+  test('emits no file decoder when every image is an asset', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'AssetOnly',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'AssetOnly',
+      dataFields: const [HWImageData.asset('assets/logo.png')],
+      widgetTree: const HWImage.asset('assets/logo.png'),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/AssetOnlyHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(content, contains('private fun flutterAssetBitmap('));
+    expect(content, contains('private fun hwImageSampleSize('));
+    expect(content, isNot(contains('hwDecodeImageFile')));
+  });
+
+  test('reads a timed image path out of the active entry', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TimedImage',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'TimedImage',
+      dataFields: const [HWTimedData(HWImageData('slide'))],
+      widgetTree: const HWImage(HWTimedData(HWImageData('slide'))),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/TimedImageHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    // The resolved value is a path string, read like any other timed value...
+    expect(content, contains('val slide: String? = null,'));
+    expect(
+      content,
+      contains(
+        'slide = if (timedValues.has("slide") && !timedValues.isNull("slide")) '
+        'timedValues.optString("slide") else null,',
+      ),
+    );
+    // ...and rendered exactly like an untimed runtime image.
+    expect(
+      content,
+      contains(
+        'widgetData.slide?.let { path -> '
+        'hwDecodeImageFile(context, path, null, null) }',
+      ),
+    );
+    expect(content, isNot(contains('flutterAssetBitmap')));
+
+    // A timed image makes the widget time-based, so the resolver ships and the
+    // scheduled updates it needs are wired the same as for any timed field.
+    expect(content, contains('private fun resolveTimedValues('));
+  });
+
+  test('reads an image leaf of a JSON group as a path', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'JsonImage',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'JsonImage',
+      dataFields: const [HWJson('contact', HWImageData('avatar'))],
+      widgetTree: const HWImage(HWJson('contact', HWImageData('avatar'))),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/JsonImageHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(content, contains('val avatar: String? = null,'));
+    expect(
+      content,
+      contains(
+        'avatar = if (json.has("avatar") && !json.isNull("avatar")) '
+        'json.optString("avatar") else null,',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        'widgetData.contact?.avatar?.let { path -> '
+        'hwDecodeImageFile(context, path, null, null) }',
+      ),
+    );
+    expect(content, isNot(contains('flutterAssetBitmap')));
+  });
+
+  test('prefixes a package asset with packages/<package>', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PackageAsset',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'PackageAsset',
+      dataFields: const [
+        HWImageData.asset('assets/logo.png', package: 'my_icons'),
+      ],
+      widgetTree: const HWImage.asset('assets/logo.png', package: 'my_icons'),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/PackageAssetHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        'flutterAssetBitmap(context, '
+        '"packages/my_icons/assets/logo.png", null, null)',
+      ),
+    );
+  });
+
   test('generates Kotlin widget with data class', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

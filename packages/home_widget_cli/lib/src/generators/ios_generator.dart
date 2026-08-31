@@ -248,16 +248,17 @@ $loadDataLogic
     // carrying stored translations need a reader — from their own preferences
     // key, from the timed entry, or both, which is also exactly when the shared
     // merge helpers are used.
-    final localizationHelpers = <String>[
+    final fileHelpers = <String>[
       if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
       if (spec.resolvesLocalizedOnRead) swiftLocalizedMergeHelpers,
       if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
       if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
+      if (spec.assetImageFields.isNotEmpty) swiftFlutterAssetHelper,
     ];
-    if (localizationHelpers.isNotEmpty) {
+    if (fileHelpers.isNotEmpty) {
       extraContent = [
         if (extraContent != null) extraContent,
-        ...localizationHelpers,
+        ...fileHelpers,
       ].join('\n\n');
     }
 
@@ -549,13 +550,12 @@ $loadDataLogic
       if (child.leafType != null && child.children.isEmpty) {
         final leaf = child.leafType!;
         final st = leaf.swiftType;
-        if (leaf.defaultValue == null) {
-          buffer.writeln('  let $key: $st?');
-        } else {
-          buffer.writeln(
-            '  let $key: $st = ${_swiftDefaultLiteral(leaf)}',
-          );
-        }
+        // A `let` with an initializer drops out of the memberwise init, which
+        // `fromJson` — the only place these structs are built — calls with
+        // every property. The default is applied there instead.
+        buffer.writeln(
+          leaf.defaultValue == null ? '  let $key: $st?' : '  let $key: $st',
+        );
       } else {
         final childStruct = '$structName${toPascalCase(key)}';
         buffer.writeln('  let $key: $childStruct?');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
 import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
+import 'package:generator_basics/src/home_widget/image_showcase.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
 
@@ -222,6 +223,117 @@ class _HomePageState extends State<_HomePage> {
                 ),
               ],
             );
+          },
+        ),
+
+        const Divider(),
+
+        // -------------------------------------------------------------------
+        // Image Showcase: HWImage.asset, a runtime HWImage inside
+        // HWDataExists, and a timed HWImage swapping pictures on a schedule.
+        // -------------------------------------------------------------------
+        const _SectionHeader(
+          title: 'Image Showcase',
+          subtitle:
+              'The bundled logo needs no saving at all. The second image comes '
+              'from saveData(picture), the third from '
+              'saveData(timedData: {...}).',
+        ),
+        ListTile(
+          title: const Text('Save bundled asset as picture'),
+          subtitle: const Text(
+            'saveData(picture: AssetImage) + updateWidget()',
+          ),
+          trailing: const Icon(Icons.image_outlined),
+          onTap: () async {
+            await ImageShowcaseHomeWidget.saveData(
+              picture: const AssetImage('assets/logo.png'),
+            );
+            await ImageShowcaseHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Clear picture'),
+          subtitle: const Text('deleteData(picture: true) + updateWidget()'),
+          trailing: const Icon(Icons.delete_outline),
+          onTap: () async {
+            await ImageShowcaseHomeWidget.deleteData(picture: true);
+            await ImageShowcaseHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Alternate two pictures every 15 minutes'),
+          subtitle: const Text(
+            'saveData(timedData: {...}) + updateWidget(). Each slot carries '
+            'its own ImageProvider; the widget swaps them without the app '
+            'running.',
+          ),
+          trailing: const Icon(Icons.burst_mode_outlined),
+          onTap: () async {
+            final now = DateTime.now();
+            final firstSlot = DateTime(
+              now.year,
+              now.month,
+              now.day,
+              now.hour,
+            ).add(Duration(minutes: (now.minute ~/ 15 + 1) * 15));
+            final slots = [
+              now,
+              for (var index = 0; index < 7; index++)
+                firstSlot.add(Duration(minutes: index * 15)),
+            ];
+            await ImageShowcaseHomeWidget.saveData(
+              timedData: {
+                for (final (index, slot) in slots.indexed)
+                  slot: ImageShowcaseTimedData(
+                    slide: index.isEven
+                        ? const AssetImage('assets/logo.png')
+                        : const AssetImage('assets/dash.png'),
+                  ),
+              },
+            );
+            await ImageShowcaseHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Clear the picture schedule'),
+          subtitle: const Text(
+            'deleteData(timedData: true) + updateWidget(). Every image saved '
+            'for a slot is deleted with it.',
+          ),
+          trailing: const Icon(Icons.delete_sweep_outlined),
+          onTap: () async {
+            await ImageShowcaseHomeWidget.deleteData(timedData: true);
+            await ImageShowcaseHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Save a contact (name + avatar in one group)'),
+          subtitle: const Text(
+            'saveData(contact: ContactJsonData(...)). The name and the avatar '
+            'travel together in one call.',
+          ),
+          trailing: const Icon(Icons.account_circle_outlined),
+          onTap: () async {
+            await ImageShowcaseHomeWidget.saveData(
+              contact: const ContactJsonData(
+                name: 'Dash',
+                avatar: AssetImage('assets/dash.png'),
+              ),
+            );
+            await ImageShowcaseHomeWidget.updateWidget();
+          },
+        ),
+        ListTile(
+          title: const Text('Clear the contact group'),
+          subtitle: const Text(
+            'deleteData(contact: true) + updateWidget(). The name and the '
+            'avatar go together.',
+          ),
+          trailing: const Icon(Icons.person_off_outlined),
+          onTap: () async {
+            await ImageShowcaseHomeWidget.deleteData(contact: true);
+            await ImageShowcaseHomeWidget.updateWidget();
           },
         ),
       ],

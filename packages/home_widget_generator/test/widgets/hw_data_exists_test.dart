@@ -74,6 +74,52 @@ void main() {
           contains('if (widgetData.profile?.name != null)'),
         );
       });
+
+      test('an image field is checked on disk, not just for a stored path', () {
+        const imageExists = HWDataExists(
+          data: HWImageData('avatar'),
+          whenPresent: HWText.fixed('Present'),
+          whenAbsent: HWText.fixed('Absent'),
+        );
+
+        expect(
+          imageExists.toSwift(0, dataExpr: 'entry.data'),
+          startsWith(
+            'if let hwImagePath = entry.data.avatar, '
+            'FileManager.default.fileExists(atPath: hwImagePath) {',
+          ),
+        );
+        expect(
+          imageExists.toKotlin(0, dataExpr: 'widgetData'),
+          startsWith(
+            'if (widgetData.avatar?.let { java.io.File(it).exists() } '
+            '== true) {',
+          ),
+        );
+      });
+
+      test('a wrapped image field is checked on disk too', () {
+        const timedJsonImage = HWDataExists(
+          data: HWTimedData(HWJson('slot', HWImageData('picture'))),
+          whenPresent: HWText.fixed('Present'),
+          whenAbsent: HWText.fixed('Absent'),
+        );
+
+        expect(
+          timedJsonImage.toSwift(0, dataExpr: 'entry.data'),
+          startsWith(
+            'if let hwImagePath = entry.data.slot?.picture, '
+            'FileManager.default.fileExists(atPath: hwImagePath) {',
+          ),
+        );
+        expect(
+          timedJsonImage.toKotlin(0, dataExpr: 'widgetData'),
+          startsWith(
+            'if (widgetData.slot?.picture?.let { java.io.File(it).exists() } '
+            '== true) {',
+          ),
+        );
+      });
     });
   });
 }

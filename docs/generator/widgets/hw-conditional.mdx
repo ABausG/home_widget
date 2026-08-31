@@ -11,7 +11,7 @@ description: Render one of two branches based on widget data.
 
 ### HWDataExists
 
-Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any [`HWDataType`](/generator/data).
+Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any [`HWDataType`](/generator/data). For an [`HWImageData`](/generator/widgets/hw-image) it also checks that the saved picture is still there, so the `whenAbsent` placeholder shows instead of an empty gap.
 
 `HWDataExists({required HWDataType data, required HWWidget whenPresent, required HWWidget whenAbsent})`
 

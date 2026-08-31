@@ -194,16 +194,19 @@ class AndroidGenerator {
     // itself need the helpers, and only fields carrying stored translations
     // need a reader — from their own preferences key, from the timed entry, or
     // both, which is also exactly when the shared merge helpers are used.
-    final localizationHelpers = <String>[
+    final fileHelpers = <String>[
       if (needsResolver) kotlinLocalizeHelpers,
       if (needsLocaleArg) kotlinLocalizedMergeHelpers,
       if (spec.needsLocalizedRead) kotlinLocalizedReadHelper,
       if (spec.needsTimedLocalizedRead) kotlinTimedLocalizedReadHelper,
+      if (spec.hasImages) kotlinImageSampleHelper,
+      if (spec.hasRuntimeImages) kotlinImageFileHelper,
+      if (spec.assetImageFields.isNotEmpty) kotlinFlutterAssetHelper,
     ];
-    if (localizationHelpers.isNotEmpty) {
+    if (fileHelpers.isNotEmpty) {
       dataClassContent = [
         if (dataClassContent != null) dataClassContent,
-        ...localizationHelpers,
+        ...fileHelpers,
       ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
@@ -686,7 +689,9 @@ class AndroidGenerator {
     required HWDataType<dynamic> type,
   }) {
     final fallback = _kotlinDefaultLiteral(type);
-    if (type is HWString) {
+    // An image's timed value is the absolute path of the PNG that was saved for
+    // that timestamp, so it reads exactly like a string.
+    if (type is HWString || type is HWImageData) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optString("$key") else $fallback';
     }
     if (type is HWInt) {

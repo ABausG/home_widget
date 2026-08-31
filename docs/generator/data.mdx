@@ -34,12 +34,32 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWDouble`  | `HWDouble(key, {defaultValue})`            | `double`              | Double / float value.                                                                        |
 | `HWBool`    | `HWBool(key, {defaultValue})`              | `bool`                | Boolean value.                                                                               |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
+| `HWImageData` | `HWImageData(key)` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
 ## Defaults
 
 When a `defaultValue` is provided it's used both in the generated Dart helper and on the native side when the key is missing from storage. Without a default, the read path returns `null` (or the language's optional equivalent).
+
+`HWImageData` is the exception: it never supports a `defaultValue`. A missing image simply renders nothing — see [`HWImage`](/generator/widgets/hw-image) for a placeholder pattern using `HWDataExists`.
+
+## Image data
+
+`HWImageData` describes an image slot rendered with [`HWImage`](/generator/widgets/hw-image). Supply runtime images through the generated `saveData(...)`, which takes an `ImageProvider` for each of them; `getData()` gives them back the same way.
+
+There are two constructors, matching the two `HWImage` constructors:
+
+- `HWImageData('key')` — a **runtime** image. Your app supplies it by passing an `ImageProvider` to the generated `saveData`.
+- `HWImageData.asset('assets/logo.png')` — a **bundled** image. The native widget reads the Flutter asset straight out of the installed app bundle when it renders, so there is nothing to call at runtime and the image is there before the app has ever been launched. Asset images get no `saveData`, `deleteData` or `getData` entry. Pass `package:` to use an asset from a dependency: `HWImageData.asset('assets/logo.png', package: 'my_icons')`, mirroring `Image.asset`.
+
+An asset image takes no key: two asset images in one widget that would be indistinguishable are reported as a generation error, and combining `package:` with a manual `packages/<package>/` path is one too.
+
+Asset paths are checked when you run `home_widget generate`: app assets must exist and be declared under `flutter.assets`, and package assets must exist inside the resolved dependency.
+
+Binding an `HWImageData` to a text-only widget (e.g. `HWText(HWImageData('avatar'))`) is a generation error — an image is not display text. Use `HWImage` to render it.
+
+A runtime image can also be wrapped in `HWTimedData` to swap pictures on a schedule — `HWImage(HWTimedData(HWImageData('slide')))`, see [Time-based images](/generator/timed-data#images) — or sit at the leaf of an `HWJson` group so a picture travels with the rest of a record: `HWImage(HWJson('contact', HWImageData('avatar')))`, see [Images at a JSON leaf](#images-at-a-json-leaf). Only `HWImageData.asset` is rejected inside either wrapper: an asset ships with the app, so there is nothing to store and nothing to vary.
 
 ## Nested JSON
 
@@ -52,3 +72,20 @@ HWText(HWJson('user', HWJson('profile', HWString('name'))))
 This reads `user.profile.name` from a JSON string stored under the `user` key.
 
 A leaf may also be an `HWString.localized`. The value found at the JSON path wins; when the path yields nothing, the leaf's `defaultTranslations` are resolved against the device locale instead — see [Localization](/generator/localization).
+
+### Images at a JSON leaf
+
+A leaf may be an `HWImageData`, so a picture travels with the rest of a record instead of needing a field of its own:
+
+```dart
+HWColumn(
+  children: [
+    HWText(HWJson('contact', HWString('name'))),
+    HWImage(HWJson('contact', HWImageData('avatar'))),
+  ],
+)
+```
+
+The generated `ContactJsonData` then carries `final String? name` next to `final ImageProvider? avatar`, and one `saveData(contact: ...)` call persists both. Saving the group with a null image clears that picture, and `deleteData(contact: true)` removes the group together with every image it owns. See [`HWImage`](/generator/widgets/hw-image#images-inside-a-json-group) for the full contract.
+
+`HWImageData.asset` is not allowed at a JSON leaf: an asset is read from the app bundle and never stored, so there is nothing for the blob to carry.

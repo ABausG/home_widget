@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 
+import 'generator_error.dart';
 import 'utils/content_hash.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
@@ -503,6 +504,175 @@ class HWBool extends HWDataType<bool> {
       defaultValue == null ? null : '${defaultValue!}';
 }
 
+/// An image rendered by [HWImage].
+///
+/// Two const constructors:
+/// - `HWImageData('avatar')` -- runtime image, the app passes an `ImageProvider`
+///   to the generated `saveData(...)` helper.
+/// - `HWImageData.asset('assets/logo.png')` -- bundled Flutter asset, read in
+///   place from the app bundle, with nothing to save.
+class HWImageData extends HWDataType<String> {
+  /// The Flutter asset path for asset images, or null for runtime images.
+  ///
+  /// This is the raw path as declared in the owning package's pubspec, without
+  /// any `packages/<package>/` prefix (see [package]).
+  final String? assetPath;
+
+  /// The package that owns [assetPath], or null for app assets and runtime
+  /// images.
+  ///
+  /// Mirrors the `package:` parameter of Flutter's `Image.asset` /
+  /// `AssetImage`.
+  final String? package;
+
+  /// An image whose bytes are supplied at runtime under [key].
+  const HWImageData(super.key)
+      : assetPath = null,
+        package = null;
+
+  /// An image bundled as a Flutter asset at [path].
+  ///
+  /// Set [package] to load the asset from a dependency instead of the app,
+  /// exactly like `Image.asset(path, package: ...)`.
+  ///
+  /// A [path] that already starts with `packages/` is the manual spelling of
+  /// the same thing and must not be combined with [package].
+  const HWImageData.asset(String path, {this.package})
+      : assetPath = path,
+        super('');
+
+  /// Whether this image is a Flutter asset read from the app bundle.
+  bool get isAsset => assetPath != null;
+
+  /// The full asset key Flutter resolves this image with, or null for runtime
+  /// images.
+  ///
+  /// Equal to [assetPath] for app assets, and `packages/<package>/<assetPath>`
+  /// when [package] is set.
+  ///
+  /// Throws a [GeneratorError] when [package] is set and [assetPath] already
+  /// carries a `packages/` prefix, which would resolve to a doubly prefixed
+  /// asset that does not exist.
+  String? get effectiveAssetKey {
+    final path = assetPath;
+    if (path == null) return null;
+    final package = this.package;
+    if (package == null) return path;
+    if (path.startsWith('packages/')) {
+      throw GeneratorError(
+        'Invalid asset "$path" with package: "$package". The path already '
+        'starts with "packages/", which would resolve to '
+        '"packages/$package/$path". Drop the package parameter or the '
+        '"packages/" prefix.',
+      );
+    }
+    return 'packages/$package/$path';
+  }
+
+  @override
+  String get key => assetPath == null
+      ? super.key
+      : deriveKeyFromAssetPath(effectiveAssetKey!);
+
+  /// Derives a deterministic, codegen-safe storage key from a Flutter
+  /// [assetPath].
+  ///
+  /// The path is split on every run of characters outside `[A-Za-z0-9]` and the
+  /// resulting segments are joined in lower camel case, e.g.
+  /// `assets/images/logo.png` becomes `assetsImagesLogoPng`. Keys that would
+  /// start with a digit are prefixed with `image` (`2x/logo.png` becomes
+  /// `image2xLogoPng`) so the result is a valid Dart/Kotlin/Swift identifier.
+  static String deriveKeyFromAssetPath(String assetPath) {
+    final segments = assetPath
+        .split(RegExp('[^A-Za-z0-9]+'))
+        .where((segment) => segment.isNotEmpty)
+        .toList();
+
+    if (segments.isEmpty) {
+      throw GeneratorError(
+        'Cannot derive a data key from asset path "$assetPath": '
+        'it contains no ASCII letters or digits.',
+      );
+    }
+
+    final buffer = StringBuffer();
+    for (var i = 0; i < segments.length; i++) {
+      final segment = segments[i];
+      buffer.write(
+        i == 0 ? segment[0].toLowerCase() : segment[0].toUpperCase(),
+      );
+      buffer.write(segment.substring(1));
+    }
+
+    final derived = buffer.toString();
+    if (RegExp('^[0-9]').hasMatch(derived)) {
+      return 'image${derived[0].toUpperCase()}${derived.substring(1)}';
+    }
+    return derived;
+  }
+
+  /// Images never have a default value; a missing image renders nothing.
+  @override
+  String? get defaultValue => null;
+
+  @override
+  String get dartType => 'String';
+
+  @override
+  String get kotlinType => 'String';
+
+  @override
+  String get swiftType => 'String';
+
+  @override
+  String androidReadValue({required String store, required String key}) {
+    return '$store.getString("$key", null)';
+  }
+
+  @override
+  String iosReadValue({required String store, required String key}) {
+    return '$store?.string(forKey: "$key")';
+  }
+
+  /// Always throws: an image path is not meaningful display text.
+  ///
+  /// Reachable when an image is bound to a text widget, e.g.
+  /// `HWText(HWImageData('avatar'))`.
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    throw GeneratorError(
+      'HWImageData cannot be rendered as text. Use HWImage to display the '
+      'image stored under "$key".',
+    );
+  }
+
+  /// Always throws: an image path is not meaningful display text.
+  ///
+  /// Reachable when an image is bound to a text widget, e.g.
+  /// `HWText(HWImageData('avatar'))`.
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    throw GeneratorError(
+      'HWImageData cannot be rendered as text. Use HWImage to display the '
+      'image stored under "$key".',
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWImageData &&
+          key == other.key &&
+          assetPath == other.assetPath &&
+          package == other.package;
+
+  @override
+  int get hashCode => Object.hash(key, assetPath, package);
+}
+
 class HWJson extends HWDataType<dynamic> {
   final HWDataType<dynamic> child;
 
@@ -641,6 +811,22 @@ class HWJson extends HWDataType<dynamic> {
 
   @override
   int get hashCode => Object.hash(key, child, defaultValue);
+}
+
+/// The [HWImageData] a data field ultimately describes, or null when the field
+/// is not an image.
+///
+/// Strips an [HWTimedData] wrapper and descends an [HWJson] to its leaf, so
+/// every spelling of an image — plain, time-based, inside a JSON group, or both
+/// — answers with the same [HWImageData].
+HWImageData? imageLeafOf(HWDataType<dynamic> type) {
+  final unwrapped = type.unwrapped;
+  if (unwrapped is HWImageData) return unwrapped;
+  if (unwrapped is HWJson) {
+    final leaf = unwrapped.leafType;
+    if (leaf is HWImageData) return leaf;
+  }
+  return null;
 }
 
 /// Marks a data field as time-based.

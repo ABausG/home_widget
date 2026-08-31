@@ -56,4 +56,43 @@ class TimedContent {}
 ''',
     expectsScheduledUpdateWiring: true,
   ),
+  BuildScenario(
+    description: 'renders runtime and asset images',
+    className: 'ImageTree',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Image Tree',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    children: [
+      HWImage(
+        HWImageData('avatar'),
+        width: 64,
+        height: 64,
+        semanticLabel: 'Avatar',
+      ),
+      HWImage.asset('assets/logo.png', fit: HWImageFit.cover),
+      HWImage(
+        HWTimedData(HWImageData('slide')),
+        width: 32,
+        height: 32,
+        fit: HWImageFit.cover,
+      ),
+      HWDataExists(
+        data: HWJson('contact', HWImageData('avatar')),
+        whenPresent: HWImage(HWJson('contact', HWImageData('avatar')), width: 24),
+        whenAbsent: HWText.fixed('no avatar'),
+      ),
+      HWImage(HWTimedData(HWJson('slot', HWImageData('picture'))), width: 24),
+    ],
+  ),
+)
+class ImageTree {}
+''',
+    expectsScheduledUpdateWiring: true,
+    assetPaths: ['assets/logo.png'],
+  ),
 ];

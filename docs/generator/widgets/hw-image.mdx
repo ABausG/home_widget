@@ -1,0 +1,166 @@
+---
+title: HWImage
+description: Display a PNG saved at runtime or a bundled Flutter asset.
+---
+
+# HWImage
+
+Renders an image — either one your app saves at runtime, or a Flutter asset the native widget reads straight out of the installed app bundle. A runtime image renders nothing until your app has saved one, so pair it with [`HWDataExists`](/generator/widgets/hw-conditional) if you want a placeholder; an asset image is there from the moment the app is installed.
+
+## Constructors
+
+### HWImage (runtime)
+
+`const HWImage(HWDataType<String> data, {double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
+
+Displays an image your app saves at runtime, e.g. a profile photo or a downloaded cover image. `data` is an `HWImageData`, or an `HWTimedData` wrapping one — see [Time-based images](#time-based-images).
+
+```dart
+HWImage(
+  HWImageData('avatar'),
+  width: 48,
+  height: 48,
+  fit: HWImageFit.cover,
+  semanticLabel: 'Profile photo',
+)
+```
+
+### HWImage.asset
+
+`const HWImage.asset(String path, {String? package, double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
+
+Displays a Flutter asset. The native widget reads it from the app bundle at render time, so there is nothing to save and nothing to call. Equivalent to `HWImage(HWImageData.asset(path, package: package))`.
+
+```dart
+HWImage.asset(
+  'assets/logo.png',
+  width: 32,
+  height: 32,
+)
+```
+
+The asset must be declared under `flutter.assets` in the app's `pubspec.yaml`.
+
+Set `package` to use an asset that ships with a dependency instead of your app, exactly like `Image.asset(path, package: ...)`:
+
+```dart
+HWImage.asset('assets/logo.png', package: 'my_icons')
+```
+
+A package asset can also be addressed with the manual `packages/<package>/<path>` convention — `HWImage.asset('packages/my_icons/assets/logo.png')` is the same image — but do not combine the two spellings, which would resolve to `packages/my_icons/packages/my_icons/...`.
+
+<Info>
+Asset paths are validated when you run `home_widget generate`: an app asset must exist on disk and be declared under `flutter.assets`, and a package asset must exist in the dependency (its declaration is that package's responsibility).
+</Info>
+
+## Parameters
+
+| Name            | Type          | Default              | Description                                                     |
+| --------------- | ------------- | --------------------- | ----------------------------------------------------------------|
+| `data`          | `HWDataType<String>` | **required** _(default ctor)_ | `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one, naming the runtime image to render. |
+| `path`          | `String`      | **required** _(`.asset`)_ | Flutter asset path, e.g. `assets/logo.png`.                  |
+| `package`       | `String?`     | `null` _(`.asset`)_   | Package that owns the asset; `null` means the app's own assets. |
+| `width`         | `double?`     | `null`                | Fixed width in logical pixels, or size from the layout.         |
+| `height`        | `double?`     | `null`                | Fixed height in logical pixels, or size from the layout.        |
+| `fit`           | `HWImageFit`  | `HWImageFit.contain`  | How the image is inscribed into its bounds.                     |
+| `semanticLabel` | `String?`     | `null`                | Accessibility description, or `null` for a decorative image.    |
+
+`HWImageFit` has three values: `contain` (scale down to fit, preserving aspect ratio), `cover` (fill the bounds, preserving aspect ratio and clipping the overflow), and `fill` (stretch to the bounds, ignoring aspect ratio).
+
+## Getting an image onto the widget
+
+The two constructors take completely different routes:
+
+- **Runtime image** (`HWImage(HWImageData('key'))`): the generated helper's `saveData(...)` method gains a nullable `ImageProvider? key` parameter. Hand it any `ImageProvider` — `NetworkImage`, `FileImage`, `MemoryImage`, `AssetImage`, … — and the widget shows that picture. `getData()` hands it back, and `deleteData(key: true)` removes it.
+
+  ```dart
+  await MyWidgetHomeWidget.saveData(
+    avatar: const NetworkImage('https://example.com/avatar.png'),
+  );
+  await MyWidgetHomeWidget.updateWidget();
+  ```
+
+- **Asset image** (`HWImage.asset('assets/logo.png')`): nothing to call, and nothing stored. The native widget reads the asset out of the installed app bundle every time it renders, so the image is on screen as soon as the widget is placed — the Flutter app never has to have been launched. Asset images do not appear in `saveData`, `deleteData` or `getData`.
+
+<Info>
+A runtime image renders nothing until it has been saved at least once, so wrap it in [`HWDataExists`](/generator/widgets/hw-conditional) to show a placeholder in the meantime. An asset image needs no such guard.
+</Info>
+
+## Time-based images
+
+A runtime image can be wrapped in [`HWTimedData`](/generator/timed-data) to change picture on a schedule, without the app running:
+
+```dart
+HWImage(
+  HWTimedData(HWImageData('slide')),
+  width: 96,
+  height: 96,
+  fit: HWImageFit.cover,
+)
+```
+
+The field becomes an `ImageProvider?` on the generated timed data class, so every entry carries its own picture:
+
+```dart
+await MyWidgetHomeWidget.saveData(
+  timedData: {
+    DateTime(2026, 8, 14, 6, 0): const MyWidgetTimedData(
+      slide: AssetImage('assets/morning.png'),
+    ),
+    DateTime(2026, 8, 14, 18, 0): const MyWidgetTimedData(
+      slide: NetworkImage('https://example.com/evening.png'),
+    ),
+  },
+);
+await MyWidgetHomeWidget.updateWidget();
+```
+
+Rendering is identical to an untimed runtime image: the entry active at render time supplies the picture, and an entry without one draws nothing.
+
+### Lifecycle and cleanup
+
+`saveData` manages the pictures for you. Replacing a schedule leaves exactly the images the new schedule needs: entries that are gone lose their picture, and entries still in the schedule keep theirs — including ones whose time has already passed, since the widget goes on rendering the active entry until a later one takes over. `deleteData(timedData: true)` and saving an empty map both drop the whole schedule together with every image saved for it. There are no files for you to manage yourself.
+
+<Warning>
+`HWTimedData(HWImageData.asset(...))` is a generation error. An asset ships with the app and cannot change over time; to pick between bundled images use a conditional instead.
+</Warning>
+
+## Images inside a JSON group
+
+An image can also sit at the leaf of an [`HWJson`](/generator/data#nested-json) group, so a picture travels together with the rest of a record in a single call:
+
+```dart
+HWColumn(
+  children: [
+    HWText(HWJson('contact', HWString('name'))),
+    HWImage(HWJson('contact', HWImageData('avatar')), width: 48, height: 48),
+  ],
+)
+```
+
+The generated `*JsonData` class carries the image as an `ImageProvider?`, alongside the group's other values, and nesting works to any depth (`HWJson('contact', HWJson('photos', HWImageData('main')))`):
+
+```dart
+await MyWidgetHomeWidget.saveData(
+  contact: const ContactJsonData(
+    name: 'Dash',
+    avatar: NetworkImage('https://example.com/dash.png'),
+  ),
+);
+await MyWidgetHomeWidget.updateWidget();
+```
+
+One `saveData` call persists the whole group, images included. Passing the group with a **null** image clears that picture, and `deleteData(contact: true)` removes the group together with every image it owns. `getData()` hands each image back as an `ImageProvider`.
+
+A group with a timed image (`HWTimedData(HWJson('slot', HWImageData('picture')))`) follows the timed rules instead — each entry carries its own picture, and the schedule's images are kept in step for you as described above.
+
+<Warning>
+`HWImageData.asset(...)` at a JSON leaf is a generation error: an asset is read straight out of the app bundle, so there is nothing for the group to carry. Use `HWImage.asset` directly.
+</Warning>
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`Image`](https://developer.apple.com/documentation/swiftui/image), with `.resizable()` and `.aspectRatio(contentMode:)` for `fit`.
+- **Android:** Glance [`Image`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#Image(androidx.glance.ImageProvider,kotlin.String,androidx.glance.GlanceModifier,androidx.glance.layout.ContentScale)) with a [`ContentScale`](https://developer.android.com/reference/kotlin/androidx/glance/layout/ContentScale) of `Fit`, `Crop`, or `FillBounds` for `fit`.
+
+An image that cannot be decoded — a missing or corrupt file — renders nothing rather than crashing the widget.

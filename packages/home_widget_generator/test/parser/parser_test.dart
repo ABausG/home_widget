@@ -665,6 +665,198 @@ class TestWidget {}
       expect(((widget as HWFill).child as HWText).fixedContent, 'fill');
     });
 
+    test('parses HWImage with runtime HWImageData', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(HWImageData('avatar')),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWImage>());
+      final image = widget as HWImage;
+      expect(image.dataType, const HWImageData('avatar'));
+      expect(image.imageData.key, 'avatar');
+      expect(image.imageData.isAsset, isFalse);
+      expect(image.fit, HWImageFit.contain);
+      expect(image.width, isNull);
+      expect(image.height, isNull);
+      expect(image.semanticLabel, isNull);
+      expect(image.dataDependencies, {const HWImageData('avatar')});
+      expect(image.toSwift(0, dataExpr: 'data'), contains('data.avatar'));
+      expect(image.toKotlin(0, dataExpr: 'data'), contains('data.avatar'));
+    });
+
+    test('parses HWImage with a timed HWImageData', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(HWTimedData(HWImageData('slide')), width: 32),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final image = widget as HWImage;
+      expect(image.dataType, const HWTimedData(HWImageData('slide')));
+      expect(image.imageData, const HWImageData('slide'));
+      expect(image.width, 32);
+      expect(image.dataDependencies, {
+        const HWTimedData(HWImageData('slide')),
+      });
+      expect(image.toSwift(0, dataExpr: 'data'), contains('data.slide'));
+      expect(image.toKotlin(0, dataExpr: 'data'), contains('data.slide'));
+    });
+
+    test('parses HWImage with an image at a JSON leaf', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(HWJson('contact', HWImageData('avatar'))),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final image = widget as HWImage;
+      expect(image.dataType, const HWJson('contact', HWImageData('avatar')));
+      expect(image.imageData, const HWImageData('avatar'));
+      expect(
+        image.toSwift(0, dataExpr: 'data'),
+        contains('data.contact?.avatar'),
+      );
+      expect(
+        image.toKotlin(0, dataExpr: 'data'),
+        contains('data.contact?.avatar'),
+      );
+    });
+
+    test('throws when HWImage is handed something other than an image',
+        () async {
+      final error = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(HWString('label')),
+)
+class TestWidget {}
+''');
+      expect(error.message, contains('HWImage requires an HWImageData'));
+    });
+
+    test('parses HWImage.asset and derives the key', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage.asset(
+    'assets/images/logo.png',
+    width: 100,
+    height: 50,
+    fit: HWImageFit.cover,
+    semanticLabel: 'Logo',
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWImage>());
+      final image = widget as HWImage;
+      expect(image.imageData.isAsset, isTrue);
+      expect(image.imageData.assetPath, 'assets/images/logo.png');
+      expect(image.imageData.key, 'assetsImagesLogoPng');
+      expect(image.width, 100.0);
+      expect(image.height, 50.0);
+      expect(image.fit, HWImageFit.cover);
+      expect(image.semanticLabel, 'Logo');
+      final swift = image.toSwift(0, dataExpr: 'data');
+      expect(swift, contains('flutterAssetPath("assets/images/logo.png")'));
+      expect(swift, contains('.frame(width: 100.0, height: 50.0)'));
+      expect(swift, contains('.accessibilityLabel("Logo")'));
+    });
+
+    test('parses HWImage.asset with a package', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage.asset('assets/logo.png', package: 'my_icons'),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final image = widget as HWImage;
+      expect(image.assetPackage, 'my_icons');
+      expect(image.imageData.assetPath, 'assets/logo.png');
+      expect(image.imageData.package, 'my_icons');
+      expect(
+        image.imageData.effectiveAssetKey,
+        'packages/my_icons/assets/logo.png',
+      );
+      expect(image.imageData.key, 'packagesMyIconsAssetsLogoPng');
+      expect(image.dataDependencies, {
+        const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+      });
+      expect(
+        image.toSwift(0, dataExpr: 'data'),
+        contains('flutterAssetPath("packages/my_icons/assets/logo.png")'),
+      );
+    });
+
+    test('parses an explicit HWImageData.asset with a package', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(HWImageData.asset('assets/logo.png', package: 'my_icons')),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final image = widget as HWImage;
+      expect(
+        image.dataType,
+        const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+      );
+      expect(image.imageData.key, 'packagesMyIconsAssetsLogoPng');
+    });
+
+    test('parses HWImage with an explicit HWImageData.asset', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(HWImageData.asset('assets/logo.png')),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final image = widget as HWImage;
+      expect(image.dataType, const HWImageData.asset('assets/logo.png'));
+      expect(image.imageData.key, 'assetsLogoPng');
+    });
+
+    test('parses HWImage nested in a column', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn(
+    children: [
+      HWText.fixed('Title'),
+      HWImage(HWImageData('avatar'), fit: HWImageFit.fill),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final column = widget as HWColumn;
+      expect(column.children[1], isA<HWImage>());
+      expect((column.children[1] as HWImage).fit, HWImageFit.fill);
+      expect(column.dataDependencies, {const HWImageData('avatar')});
+      expect(
+        column.kotlinImports,
+        containsAll(<String>[
+          'import android.graphics.BitmapFactory',
+          'import androidx.glance.Image',
+        ]),
+      );
+    });
+
     test('throws when annotation constant value cannot be computed', () async {
       final e = await expectParseError('''
 String n = "N";

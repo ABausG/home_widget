@@ -106,6 +106,7 @@
         { "title": "HWDataOnly", "href": "/generator/widgets/hw-data-only" },
         { "title": "HWDecoratedBox", "href": "/generator/widgets/hw-decorated-box" },
         { "title": "HWFill", "href": "/generator/widgets/hw-fill" },
+        { "title": "HWImage", "href": "/generator/widgets/hw-image" },
         { "title": "HWPadding", "href": "/generator/widgets/hw-padding" },
         { "title": "HWRow", "href": "/generator/widgets/hw-row" },
         { "title": "HWText", "href": "/generator/widgets/hw-text" }

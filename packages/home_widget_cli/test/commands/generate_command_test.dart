@@ -264,6 +264,42 @@ class SimpleData {}
     );
 
     test(
+      'returns software exit when an asset image file is missing',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'missing_asset.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Missing Asset',
+  widget: HWImage.asset('assets/does_not_exist.png'),
+)
+class MissingAsset {}
+''');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(
+              that: allOf(
+                contains('Missing asset'),
+                contains('MissingAsset'),
+                contains('assets/does_not_exist.png'),
+              ),
+            ),
+          ),
+        ).called(1);
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
       'returns software exit when schema validation fails',
       () async {
         final project = await TestFlutterProject.create();

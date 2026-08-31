@@ -42,6 +42,7 @@ void validateWidgetData(WidgetSpec spec) {
     }
   }
 
+  _validateImageKeys(spec);
   _validateNoConflictingKeys(spec);
   validateLocalization(spec);
   _validateConditionalData(spec);
@@ -62,13 +63,54 @@ void validateWidgetData(WidgetSpec spec) {
   }
 }
 
+/// Rejects distinct images that would share one storage key.
+///
+/// Identical asset paths collapse into a single field (value equality on
+/// [HWImageData]), but two different sources deriving the same key -- e.g.
+/// `assets/logo.png` and `assets-logo.png`, both `assetsLogoPng` -- would
+/// generate duplicate native fields and overwrite each other on disk.
+void _validateImageKeys(WidgetSpec spec) {
+  final seen = <String, HWImageData>{};
+  for (final image in spec.imageDataFields) {
+    final existing = seen[image.key];
+    // Compare effective asset keys so the two spellings of one package asset
+    // (`package:` vs a manual `packages/<pkg>/` path) are not a conflict.
+    if (existing != null &&
+        existing.effectiveAssetKey != image.effectiveAssetKey) {
+      throw GeneratorError(
+        'Conflicting image data key "${image.key}": '
+        '${_describeImage(existing)} and ${_describeImage(image)} '
+        'map to the same key. Rename one of them.',
+      );
+    }
+    seen[image.key] = image;
+  }
+}
+
+String _describeImage(HWImageData image) {
+  if (!image.isAsset) return 'runtime image "${image.key}"';
+  final package = image.package;
+  if (package == null) return 'asset "${image.assetPath}"';
+  return 'asset "${image.assetPath}" of package "$package"';
+}
+
 void _validateDataTypeKeys(HWDataType<dynamic> type) {
   // Constant localized strings are inlined and never named in generated APIs,
   // so they deliberately carry an empty key.
   if (type is HWLocalizedString && type.isConstant) return;
 
   if (type is HWTimedData<dynamic>) {
-    _validateDataTypeKeys(type.data);
+    final inner = type.data;
+    if (inner is HWImageData && inner.isAsset) {
+      throw GeneratorError(
+        'HWTimedData cannot wrap HWImageData.asset("${inner.assetPath}"): an '
+        'asset ships with the app and never changes, so there is nothing for a '
+        'timeline to switch between. Use HWTimedData(HWImageData("key")) and '
+        'save one image per timestamp, or pick between assets with a '
+        'conditional.',
+      );
+    }
+    _validateDataTypeKeys(inner);
     return;
   }
   _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
@@ -77,6 +119,15 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
       throw GeneratorError(
         'HWTimedData must be a root-level data field and cannot be nested '
         'inside HWJson.',
+      );
+    }
+    final leaf = type.leafType;
+    if (leaf is HWImageData && leaf.isAsset) {
+      throw GeneratorError(
+        'HWJson cannot carry HWImageData.asset("${leaf.assetPath}") (in '
+        '"${type.key}"): an asset is read straight out of the app bundle, so '
+        'there is nothing for the group\'s blob to carry. Use HWImage.asset '
+        'directly, or a runtime HWImageData("key") leaf.',
       );
     }
     _validateDataTypeKeys(type.child);
@@ -316,6 +367,17 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
         'entries declare different translations. Give them distinct keys.',
       );
     }
+
+    // Two spellings of the same package asset (`package:` vs a manual
+    // `packages/<pkg>/` path) derive the same key but are not real conflicts;
+    // [_validateImageKeys] gives the more specific diagnostic for genuine
+    // image key collisions.
+    if (existing is HWImageData &&
+        field is HWImageData &&
+        existing.effectiveAssetKey == field.effectiveAssetKey) {
+      continue;
+    }
+
     throw GeneratorError(
       'Widget "${spec.data.name}": the key "${field.key}" is declared as '
       '${_describeDataField(existing)} and ${_describeDataField(field)}. '
