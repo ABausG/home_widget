@@ -633,7 +633,10 @@ void main() {
     );
     expect(content, contains('data class JsonWidgetFileKeyJsonData('));
     expect(content, contains('val enabled: Boolean = false,'));
-    expect(content, contains('import org.json.JSONObject'));
+    // JSON plumbing names java.io/org.json fully qualified, so no import for
+    // either is emitted.
+    expect(content, isNot(contains('import org.json.JSONObject')));
+    expect(content, isNot(contains('import java.io.File')));
     expect(
       content,
       contains('if ((widgetData.fileKey?.enabled ?: false) == true) {'),

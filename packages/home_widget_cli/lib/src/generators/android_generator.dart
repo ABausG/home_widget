@@ -190,10 +190,17 @@ class AndroidGenerator {
       dataClassContent = buffer.toString();
     }
 
-    // Constants resolve through `R.string`; only strings the widget resolves
-    // itself need the helpers, and only fields carrying stored translations
-    // need a reader — from their own preferences key, from the timed entry, or
-    // both, which is also exactly when the shared merge helpers are used.
+    // File-scope helpers, each emitted only for the widgets that reach it.
+    //
+    // Localization: constants resolve through `R.string`; only strings the
+    // widget resolves itself need the helpers, and only fields carrying stored
+    // translations need a reader — from their own preferences key, from the
+    // timed entry, or both, which is also exactly when the shared merge helpers
+    // are used.
+    //
+    // Images: every image decode subsamples, so the sample-size helper comes
+    // along with either source; the file decoder is for runtime images and the
+    // asset decoder for bundled ones.
     final fileHelpers = <String>[
       if (needsResolver) kotlinLocalizeHelpers,
       if (needsLocaleArg) kotlinLocalizedMergeHelpers,
@@ -281,10 +288,6 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.fillMaxSize');
       layoutImports.add('import androidx.glance.layout.Alignment');
       layoutImports.add('import androidx.glance.layout.Box');
-    }
-    if (jsonGroups.isNotEmpty) {
-      layoutImports.add('import java.io.File');
-      layoutImports.add('import org.json.JSONObject');
     }
     // `R` lives in the Gradle namespace, not necessarily the package this file
     // is written into (an annotation may override `packageName`). Unqualified

@@ -146,7 +146,7 @@ void main() {
     expect(
       content,
       contains(
-        'if let path = entry.data.avatar, let uiImage = UIImage(contentsOfFile: path) {',
+        'if let path = entry.data.avatar, let uiImage = hwDecodeImage(path, 100.0, 100.0) {',
       ),
     );
     expect(content, contains('Image(uiImage: uiImage)'));
@@ -155,10 +155,19 @@ void main() {
       content,
       contains(
         'if let path = flutterAssetPath("assets/logo.png"), '
-        'let uiImage = UIImage(contentsOfFile: path) {',
+        'let uiImage = hwDecodeImage(path, nil, nil) {',
       ),
     );
     expect(content, contains('.aspectRatio(contentMode: .fill)'));
+
+    // Both sources decode through the downsampling helper, emitted once, and
+    // ImageIO comes along with it.
+    expect(content, contains('import ImageIO'));
+    expect('private func hwDecodeImage'.allMatches(content).length, 1);
+    expect(
+      content,
+      contains('kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,'),
+    );
 
     // The bundle-reading helper is emitted once for the whole file.
     expect(
@@ -222,7 +231,7 @@ void main() {
       content,
       contains(
         'if let path = entry.data.slide, '
-        'let uiImage = UIImage(contentsOfFile: path) {',
+        'let uiImage = hwDecodeImage(path, nil, nil) {',
       ),
     );
     // The image's timestamps drive the WidgetKit timeline like any timed field.
@@ -253,13 +262,13 @@ void main() {
     expect(content, contains('let avatar: String?'));
     expect(
       content,
-      contains('avatar: (values["avatar"] as? String) ?? nil,'),
+      contains('avatar: values["avatar"] as? String,'),
     );
     expect(
       content,
       contains(
         'if let path = entry.data.contact?.avatar, '
-        'let uiImage = UIImage(contentsOfFile: path) {',
+        'let uiImage = hwDecodeImage(path, nil, nil) {',
       ),
     );
     expect(content, isNot(contains('flutterAssetPath')));

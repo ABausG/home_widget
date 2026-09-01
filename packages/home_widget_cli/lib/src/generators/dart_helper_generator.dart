@@ -47,9 +47,6 @@ class DartHelperGenerator {
     final appGroupId = spec.data.iOS?.groupId;
     final usesAppGroupId = hasDataFields && appGroupId != null;
 
-    final hasSaveDataParams =
-        jsonGroups.isNotEmpty || hasTimedData || primitiveFields.isNotEmpty;
-
     final receiverName = '${spec.className}HomeWidgetReceiver';
     final String androidName;
     final bool androidNameIsQualified;
@@ -110,276 +107,272 @@ class DartHelperGenerator {
         _writeDefaultsConstant(buffer, field);
         buffer.writeln();
       }
-      if (hasSaveDataParams) {
-        buffer.writeln('  static Future<void> saveData({');
-        for (final field in primitiveFields) {
-          if (field is HWImageData) {
-            buffer.writeln('    ImageProvider? ${field.key},');
-            continue;
-          }
-          final type = field is HWLocalizedString
-              ? _translationsClassName
-              : field.dartType;
-          buffer.writeln('    $type? ${field.key},');
+      buffer.writeln('  static Future<void> saveData({');
+      for (final field in primitiveFields) {
+        if (field is HWImageData) {
+          buffer.writeln('    ImageProvider? ${field.key},');
+          continue;
         }
-        for (final group in jsonGroups) {
-          final jsonClass = _dartJsonClassName(group.key);
-          buffer.writeln('    $jsonClass? ${group.key},');
-        }
-        if (hasTimedData) {
-          buffer.writeln('    Map<DateTime, $timedClass>? timedData,');
-        }
-        buffer.writeln('  }) {');
-        buffer.writeln('    return Future.wait([');
-        for (final field in primitiveFields) {
-          if (field is HWImageData) {
-            buffer.writeln(
-              "      if (${field.key} != null) HomeWidget.saveImage('"
-              r"${_$paramPrefix}."
-              "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
-            );
-            continue;
-          }
-          if (field is HWLocalizedString) {
-            buffer.writeln(
-              "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
-              r"${_$paramPrefix}."
-              "${field.key}', jsonEncode(${field.key}.toMap())"
-              "${_appGroupIdArg(usesAppGroupId)}),",
-            );
-            continue;
-          }
-          final type = field.dartType;
+        final type = field is HWLocalizedString
+            ? _translationsClassName
+            : field.dartType;
+        buffer.writeln('    $type? ${field.key},');
+      }
+      for (final group in jsonGroups) {
+        final jsonClass = _dartJsonClassName(group.key);
+        buffer.writeln('    $jsonClass? ${group.key},');
+      }
+      if (hasTimedData) {
+        buffer.writeln('    Map<DateTime, $timedClass>? timedData,');
+      }
+      buffer.writeln('  }) {');
+      buffer.writeln('    return Future.wait([');
+      for (final field in primitiveFields) {
+        if (field is HWImageData) {
           buffer.writeln(
-            "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
+            "      if (${field.key} != null) HomeWidget.saveImage('"
             r"${_$paramPrefix}."
             "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
           );
+          continue;
         }
-        for (final group in jsonGroups) {
-          final images =
-              jsonImages.where((i) => i.rootKey == group.key).toList();
-          buffer.writeln('      if (${group.key} != null) () async {');
-          final valuesExpr =
-              images.isEmpty ? '${group.key}.toJson()' : '_${group.key}Json';
-          if (images.isNotEmpty) {
-            buffer.writeln(
-              '        final $valuesExpr = ${group.key}.toJson();',
-            );
-            for (final image in images) {
-              _writeJsonImageSave(
-                buffer,
-                indent: '        ',
-                image: image,
-                objectExpr: group.key,
-                ownerNullable: false,
-                mapExpr: valuesExpr,
-                keyLiteral: r'${_$paramPrefix}.' + image.storageKey,
-                usesAppGroupId: usesAppGroupId,
-              );
-            }
-          }
+        if (field is HWLocalizedString) {
           buffer.writeln(
-            "        await HomeWidget.saveFile('"
+            "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
             r"${_$paramPrefix}."
-            "${group.key}', Uint8List.fromList(utf8.encode(jsonEncode($valuesExpr))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
+            "${field.key}', jsonEncode(${field.key}.toMap())"
+            "${_appGroupIdArg(usesAppGroupId)}),",
           );
-          buffer.writeln('      }(),');
+          continue;
         }
-        if (hasTimedData) {
-          buffer.writeln('      if (timedData != null) () async {');
-          buffer.writeln(
-            '        final _timedTimes = timedData.keys.toList()..sort();',
-          );
-          if (allTimedImageKeys.isNotEmpty) {
-            // Read before anything is written: the file about to be overwritten
-            // is the only record of which per-timestamp images exist.
-            buffer.writeln(
-              '        final _storedTimes = await _\$storedTimedKeys();',
-            );
-          }
-          buffer.writeln('        if (_timedTimes.isEmpty) {');
-          buffer.writeln(
-            "          await HomeWidget.saveWidgetData('"
-            r"${_$paramPrefix}."
-            "timedData', null${_appGroupIdArg(usesAppGroupId)});",
-          );
-          if (allTimedImageKeys.isNotEmpty) {
-            buffer.writeln(
-              '          await _\$deleteTimedImages(_storedTimes);',
-            );
-          }
-          _writeGuardedScheduleCall(
-            buffer,
-            indent: '          ',
-            call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
-          );
-          buffer.writeln('          return;');
-          buffer.writeln('        }');
-          if (allTimedImageKeys.isEmpty) {
-            buffer.writeln('        final _timedJson = <String, dynamic>{');
-            buffer.writeln('          for (final _time in _timedTimes)');
-            buffer.writeln(
-              '            _time.toUtc().millisecondsSinceEpoch.toString(): '
-              'timedData[_time]!.toJson(),',
-            );
-            buffer.writeln('        };');
-          } else {
-            buffer.writeln('        final _timedJson = <String, dynamic>{};');
-            buffer.writeln('        for (final _time in _timedTimes) {');
-            buffer.writeln(
-              '          final _millis = _time.toUtc().millisecondsSinceEpoch;',
-            );
-            buffer.writeln('          final _entry = timedData[_time]!;');
-            buffer.writeln('          final _values = _entry.toJson();');
-            for (final image in timedImages) {
-              final local = '_image${toPascalCase(image.key)}';
-              buffer.writeln('          final $local = _entry.${image.key};');
-              buffer.writeln('          if ($local != null) {');
-              buffer.writeln(
-                "            _values['${image.key}'] = "
-                "await HomeWidget.saveImage('"
-                r"${_$paramPrefix}."
-                'timedData.${image.key}.'
-                r'$_millis'
-                "', $local${_appGroupIdArg(usesAppGroupId)});",
-              );
-              // A timestamp that keeps its slot but loses its image would
-              // otherwise leave the PNG of the previous schedule behind, with
-              // nothing left pointing at it.
-              buffer.writeln(
-                '          } else if (_storedTimes.contains(_millis)) {',
-              );
-              buffer.writeln(
-                "            await HomeWidget.saveWidgetData<String>('"
-                r"${_$paramPrefix}."
-                'timedData.${image.key}.'
-                r'$_millis'
-                "', null${_appGroupIdArg(usesAppGroupId)});",
-              );
-              buffer.writeln('          }');
-            }
-            for (final image in timedJsonImages) {
-              _writeJsonImageSave(
-                buffer,
-                indent: '          ',
-                image: image,
-                objectExpr: '_entry.${image.rootKey}',
-                ownerNullable: true,
-                mapExpr: "(_values['${image.rootKey}']! "
-                    'as Map<String, dynamic>)',
-                keyLiteral: r'${_$paramPrefix}.timedData.'
-                    '${image.storageKey}'
-                    r'.$_millis',
-                usesAppGroupId: usesAppGroupId,
-                deleteGuard: '_storedTimes.contains(_millis)',
-              );
-            }
-            buffer.writeln(
-              '          _timedJson[_millis.toString()] = _values;',
-            );
-            buffer.writeln('        }');
-          }
-          buffer.writeln(
-            "        await HomeWidget.saveFile('"
-            r"${_$paramPrefix}."
-            "timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
-          );
-          if (allTimedImageKeys.isNotEmpty) {
-            buffer.writeln(
-              '        await _\$deleteTimedImages(_storedTimes.where('
-              '(_millis) => !_timedJson.containsKey(_millis.toString())));',
-            );
-          }
-          _writeGuardedScheduleCall(
-            buffer,
-            indent: '        ',
-            call:
-                'HomeWidget.scheduleWidgetUpdates(_timedTimes, $androidNameArg)',
-          );
-          buffer.writeln('      }(),');
-        }
-        buffer.writeln('    ]);');
-        buffer.writeln('  }');
-        buffer.writeln();
+        final type = field.dartType;
+        buffer.writeln(
+          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
+          r"${_$paramPrefix}."
+          "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
+        );
       }
-
-      if (hasSaveDataParams) {
-        buffer.writeln('  static Future<void> deleteData({');
-        for (final field in primitiveFields) {
-          buffer.writeln('    bool ${field.key} = false,');
-        }
-        for (final group in jsonGroups) {
-          buffer.writeln('    bool ${group.key} = false,');
-        }
-        if (hasTimedData) {
-          buffer.writeln('    bool timedData = false,');
-        }
-        buffer.writeln('  }) {');
-        buffer.writeln('    return Future.wait([');
-        for (final field in primitiveFields) {
-          // Localized fields need no special case: all their translations
-          // live in one entry, so clearing that key clears all of them.
+      for (final group in jsonGroups) {
+        final images = jsonImages.where((i) => i.rootKey == group.key).toList();
+        buffer.writeln('      if (${group.key} != null) () async {');
+        final valuesExpr =
+            images.isEmpty ? '${group.key}.toJson()' : '_${group.key}Json';
+        if (images.isNotEmpty) {
           buffer.writeln(
-            "      if (${field.key}) HomeWidget.saveWidgetData('"
-            r"${_$paramPrefix}."
-            "${field.key}', null${_appGroupIdArg(usesAppGroupId)}),",
-          );
-        }
-        for (final group in jsonGroups) {
-          final images =
-              jsonImages.where((i) => i.rootKey == group.key).toList();
-          if (images.isEmpty) {
-            buffer.writeln(
-              "      if (${group.key}) HomeWidget.saveWidgetData('"
-              r"${_$paramPrefix}."
-              "${group.key}', null${_appGroupIdArg(usesAppGroupId)}),",
-            );
-            continue;
-          }
-          // The blob is only half the group: each image leaf owns a PNG of its
-          // own, which clearing the blob key does not reach.
-          buffer.writeln('      if (${group.key}) () async {');
-          buffer.writeln(
-            "        await HomeWidget.saveWidgetData('"
-            r"${_$paramPrefix}."
-            "${group.key}', null${_appGroupIdArg(usesAppGroupId)});",
+            '        final $valuesExpr = ${group.key}.toJson();',
           );
           for (final image in images) {
-            buffer.writeln(
-              "        await HomeWidget.saveWidgetData<String>('"
-              r"${_$paramPrefix}."
-              "${image.storageKey}', null${_appGroupIdArg(usesAppGroupId)});",
+            _writeJsonImageSave(
+              buffer,
+              indent: '        ',
+              image: image,
+              objectExpr: group.key,
+              ownerNullable: false,
+              mapExpr: valuesExpr,
+              keyLiteral: r'${_$paramPrefix}.' + image.storageKey,
+              usesAppGroupId: usesAppGroupId,
             );
           }
-          buffer.writeln('      }(),');
         }
-        if (hasTimedData) {
-          buffer.writeln('      if (timedData) () async {');
-          if (allTimedImageKeys.isNotEmpty) {
+        buffer.writeln(
+          "        await HomeWidget.saveFile('"
+          r"${_$paramPrefix}."
+          "${group.key}', Uint8List.fromList(utf8.encode(jsonEncode($valuesExpr))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
+        );
+        buffer.writeln('      }(),');
+      }
+      if (hasTimedData) {
+        buffer.writeln('      if (timedData != null) () async {');
+        buffer.writeln(
+          '        final _timedTimes = timedData.keys.toList()..sort();',
+        );
+        if (allTimedImageKeys.isNotEmpty) {
+          // Read before anything is written: the file about to be overwritten
+          // is the only record of which per-timestamp images exist.
+          buffer.writeln(
+            '        final _storedTimes = await _\$storedTimedKeys();',
+          );
+        }
+        buffer.writeln('        if (_timedTimes.isEmpty) {');
+        buffer.writeln(
+          "          await HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}."
+          "timedData', null${_appGroupIdArg(usesAppGroupId)});",
+        );
+        if (allTimedImageKeys.isNotEmpty) {
+          buffer.writeln(
+            '          await _\$deleteTimedImages(_storedTimes);',
+          );
+        }
+        _writeGuardedScheduleCall(
+          buffer,
+          indent: '          ',
+          call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
+          cancels: true,
+        );
+        buffer.writeln('          return;');
+        buffer.writeln('        }');
+        if (allTimedImageKeys.isEmpty) {
+          buffer.writeln('        final _timedJson = <String, dynamic>{');
+          buffer.writeln('          for (final _time in _timedTimes)');
+          buffer.writeln(
+            '            _time.toUtc().millisecondsSinceEpoch.toString(): '
+            'timedData[_time]!.toJson(),',
+          );
+          buffer.writeln('        };');
+        } else {
+          buffer.writeln('        final _timedJson = <String, dynamic>{};');
+          buffer.writeln('        for (final _time in _timedTimes) {');
+          buffer.writeln(
+            '          final _millis = _time.toUtc().millisecondsSinceEpoch;',
+          );
+          buffer.writeln('          final _entry = timedData[_time]!;');
+          buffer.writeln('          final _values = _entry.toJson();');
+          for (final image in timedImages) {
+            final local = _timedImageLocal(image.key);
+            buffer.writeln('          final $local = _entry.${image.key};');
+            buffer.writeln('          if ($local != null) {');
             buffer.writeln(
-              '        final _storedTimes = await _\$storedTimedKeys();',
+              "            _values['${image.key}'] = "
+              "await HomeWidget.saveImage('"
+              r"${_$paramPrefix}."
+              'timedData.${image.key}.'
+              r'$_millis'
+              "', $local${_appGroupIdArg(usesAppGroupId)});",
+            );
+            // A timestamp that keeps its slot but loses its image would
+            // otherwise leave the PNG of the previous schedule behind, with
+            // nothing left pointing at it.
+            buffer.writeln(
+              '          } else if (_storedTimes.contains(_millis)) {',
+            );
+            buffer.writeln(
+              "            await HomeWidget.saveWidgetData<String>('"
+              r"${_$paramPrefix}."
+              'timedData.${image.key}.'
+              r'$_millis'
+              "', null${_appGroupIdArg(usesAppGroupId)});",
+            );
+            buffer.writeln('          }');
+          }
+          for (final image in timedJsonImages) {
+            _writeJsonImageSave(
+              buffer,
+              indent: '          ',
+              image: image,
+              objectExpr: '_entry.${image.rootKey}',
+              ownerNullable: true,
+              mapExpr: "(_values['${image.rootKey}']! "
+                  'as Map<String, dynamic>)',
+              keyLiteral: r'${_$paramPrefix}.timedData.'
+                  '${image.storageKey}'
+                  r'.$_millis',
+              usesAppGroupId: usesAppGroupId,
+              deleteGuard: '_storedTimes.contains(_millis)',
             );
           }
           buffer.writeln(
-            "        await HomeWidget.saveWidgetData('"
-            r"${_$paramPrefix}."
-            "timedData', null${_appGroupIdArg(usesAppGroupId)});",
+            '          _timedJson[_millis.toString()] = _values;',
           );
-          if (allTimedImageKeys.isNotEmpty) {
-            buffer.writeln('        await _\$deleteTimedImages(_storedTimes);');
-          }
-          _writeGuardedScheduleCall(
-            buffer,
-            indent: '        ',
-            call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
-          );
-          buffer.writeln('      }(),');
+          buffer.writeln('        }');
         }
-        buffer.writeln('    ]);');
-        buffer.writeln('  }');
-        buffer.writeln();
+        buffer.writeln(
+          "        await HomeWidget.saveFile('"
+          r"${_$paramPrefix}."
+          "timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
+        );
+        if (allTimedImageKeys.isNotEmpty) {
+          buffer.writeln(
+            '        await _\$deleteTimedImages(_storedTimes.where('
+            '(_millis) => !_timedJson.containsKey(_millis.toString())));',
+          );
+        }
+        _writeGuardedScheduleCall(
+          buffer,
+          indent: '        ',
+          call:
+              'HomeWidget.scheduleWidgetUpdates(_timedTimes, $androidNameArg)',
+        );
+        buffer.writeln('      }(),');
       }
+      buffer.writeln('    ]);');
+      buffer.writeln('  }');
+      buffer.writeln();
+
+      buffer.writeln('  static Future<void> deleteData({');
+      for (final field in primitiveFields) {
+        buffer.writeln('    bool ${field.key} = false,');
+      }
+      for (final group in jsonGroups) {
+        buffer.writeln('    bool ${group.key} = false,');
+      }
+      if (hasTimedData) {
+        buffer.writeln('    bool timedData = false,');
+      }
+      buffer.writeln('  }) {');
+      buffer.writeln('    return Future.wait([');
+      for (final field in primitiveFields) {
+        // Localized fields need no special case: all their translations
+        // live in one entry, so clearing that key clears all of them.
+        buffer.writeln(
+          "      if (${field.key}) HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}."
+          "${field.key}', null${_appGroupIdArg(usesAppGroupId)}),",
+        );
+      }
+      for (final group in jsonGroups) {
+        final images = jsonImages.where((i) => i.rootKey == group.key).toList();
+        if (images.isEmpty) {
+          buffer.writeln(
+            "      if (${group.key}) HomeWidget.saveWidgetData('"
+            r"${_$paramPrefix}."
+            "${group.key}', null${_appGroupIdArg(usesAppGroupId)}),",
+          );
+          continue;
+        }
+        // The blob is only half the group: each image leaf owns a PNG of its
+        // own, which clearing the blob key does not reach.
+        buffer.writeln('      if (${group.key}) () async {');
+        buffer.writeln(
+          "        await HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}."
+          "${group.key}', null${_appGroupIdArg(usesAppGroupId)});",
+        );
+        for (final image in images) {
+          buffer.writeln(
+            "        await HomeWidget.saveWidgetData<String>('"
+            r"${_$paramPrefix}."
+            "${image.storageKey}', null${_appGroupIdArg(usesAppGroupId)});",
+          );
+        }
+        buffer.writeln('      }(),');
+      }
+      if (hasTimedData) {
+        buffer.writeln('      if (timedData) () async {');
+        if (allTimedImageKeys.isNotEmpty) {
+          buffer.writeln(
+            '        final _storedTimes = await _\$storedTimedKeys();',
+          );
+        }
+        buffer.writeln(
+          "        await HomeWidget.saveWidgetData('"
+          r"${_$paramPrefix}."
+          "timedData', null${_appGroupIdArg(usesAppGroupId)});",
+        );
+        if (allTimedImageKeys.isNotEmpty) {
+          buffer.writeln('        await _\$deleteTimedImages(_storedTimes);');
+        }
+        _writeGuardedScheduleCall(
+          buffer,
+          indent: '        ',
+          call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
+          cancels: true,
+        );
+        buffer.writeln('      }(),');
+      }
+      buffer.writeln('    ]);');
+      buffer.writeln('  }');
+      buffer.writeln();
 
       final recordFieldParts = <String>[
         ...primitiveFields.map(
@@ -391,7 +384,10 @@ class DartHelperGenerator {
         if (hasTimedData) 'Map<DateTime, $timedClass>? timedData',
       ];
       final recordFields = recordFieldParts.join(', ');
-      if (_translationFields.isNotEmpty || hasTimedData) {
+      final topLevelImages = primitiveFields.whereType<HWImageData>().toList();
+      if (_translationFields.isNotEmpty ||
+          hasTimedData ||
+          topLevelImages.isNotEmpty) {
         buffer.writeln('  /// Reads every stored value back.');
         buffer.writeln('  ///');
       }
@@ -414,7 +410,7 @@ class DartHelperGenerator {
             'preferences key.',
           );
         }
-        if (hasTimedData) {
+        if (hasTimedData || topLevelImages.isNotEmpty) {
           buffer.writeln('  ///');
         }
       }
@@ -438,6 +434,25 @@ class DartHelperGenerator {
         buffer.writeln(
           '  /// denote the same entry and only one of them survives a save.',
         );
+      }
+      if (topLevelImages.isNotEmpty) {
+        if (hasTimedData) {
+          buffer.writeln('  ///');
+        }
+        final names = topLevelImages.map((f) => '[${f.key}]').join(', ');
+        buffer.writeln(
+          '  /// $names ${topLevelImages.length == 1 ? 'comes' : 'come'} back '
+          'as the file path of the PNG',
+        );
+        buffer.writeln(
+          '  /// `saveData` wrote, not as an `ImageProvider`, and the file it '
+          'points at may',
+        );
+        buffer.writeln(
+          '  /// since have been removed. Nested and timed images are handed '
+          'back as an',
+        );
+        buffer.writeln('  /// `ImageProvider` instead.');
       }
       buffer.writeln(
         '  static Future<({$recordFields})> getData() async {',
@@ -705,8 +720,7 @@ class DartHelperGenerator {
     String? deleteGuard,
   }) {
     final path = image.path;
-    final local = '_image${toPascalCase(image.rootKey)}'
-        '${path.map(toPascalCase).join()}';
+    final local = _jsonImageLocal(image.storageKey);
 
     final access = StringBuffer(objectExpr);
     for (var i = 0; i < path.length; i++) {
@@ -944,30 +958,50 @@ class DartHelperGenerator {
   /// platform failure there (missing permission, unavailable alarm manager,
   /// no plugin implementation on the host platform) must never make the
   /// `saveData`/`deleteData` future report a failed write.
+  ///
+  /// Set [cancels] on the paths that take the timeline away again, so the
+  /// emitted comment and error context describe what actually happened.
   void _writeGuardedScheduleCall(
     StringBuffer buffer, {
     required String indent,
     required String call,
+    bool cancels = false,
   }) {
+    final comment = cancels
+        ? '// Cancelling is best effort; the data was deleted.'
+        : '// Scheduling is best effort; the data was saved.';
+    final description = cancels
+        ? 'cancelling scheduled updates for the ${spec.className} widget'
+        : 'scheduling updates for the ${spec.className} widget';
     buffer.writeln('${indent}try {');
     buffer.writeln('$indent  await $call;');
     buffer.writeln('$indent} catch (error, stackTrace) {');
-    buffer
-        .writeln('$indent  // Scheduling is best effort; the data was saved.');
+    buffer.writeln('$indent  $comment');
     buffer.writeln('$indent  FlutterError.reportError(');
     buffer.writeln('$indent    FlutterErrorDetails(');
     buffer.writeln('$indent      exception: error,');
     buffer.writeln('$indent      stack: stackTrace,');
     buffer.writeln("$indent      library: 'home_widget',");
     buffer.writeln(
-      '$indent      context: ErrorDescription('
-      "'scheduling updates for the ${spec.className} widget'"
-      '),',
+      "$indent      context: ErrorDescription('$description'),",
     );
     buffer.writeln('$indent    ),');
     buffer.writeln('$indent  );');
     buffer.writeln('$indent}');
   }
+
+  /// Local variable holding the `ImageProvider` of a plain timed image.
+  ///
+  /// Kept in a namespace of its own, and separate from [_jsonImageLocal], so no
+  /// pair of image fields in one save loop can derive the same name.
+  String _timedImageLocal(String key) => '_timedImage_$key';
+
+  /// Local variable holding the `ImageProvider` of an image at a JSON leaf.
+  ///
+  /// The dotted storage key is unambiguous by construction, so mapping its
+  /// separators to `_` keeps distinct leaves distinct.
+  String _jsonImageLocal(String storageKey) =>
+      '_jsonImage_${storageKey.replaceAll(RegExp('[^A-Za-z0-9]'), '_')}';
 
   String _appGroupIdArg(bool usesAppGroupId) =>
       usesAppGroupId ? r', appGroupId: _$appGroupId' : '';

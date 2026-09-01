@@ -24,9 +24,9 @@ class ImageShowcaseHomeWidget {
       if (picture != null) HomeWidget.saveImage('${_$paramPrefix}.picture', picture, appGroupId: _$appGroupId),
       if (contact != null) () async {
         final _contactJson = contact.toJson();
-        final _imageContactAvatar = contact.avatar;
-        if (_imageContactAvatar != null) {
-          _contactJson['avatar'] = await HomeWidget.saveImage('${_$paramPrefix}.contact.avatar', _imageContactAvatar, appGroupId: _$appGroupId);
+        final _jsonImage_contact_avatar = contact.avatar;
+        if (_jsonImage_contact_avatar != null) {
+          _contactJson['avatar'] = await HomeWidget.saveImage('${_$paramPrefix}.contact.avatar', _jsonImage_contact_avatar, appGroupId: _$appGroupId);
         } else {
           await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contact.avatar', null, appGroupId: _$appGroupId);
         }
@@ -41,13 +41,13 @@ class ImageShowcaseHomeWidget {
           try {
             await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ImageShowcaseHomeWidgetReceiver');
           } catch (error, stackTrace) {
-            // Scheduling is best effort; the data was saved.
+            // Cancelling is best effort; the data was deleted.
             FlutterError.reportError(
               FlutterErrorDetails(
                 exception: error,
                 stack: stackTrace,
                 library: 'home_widget',
-                context: ErrorDescription('scheduling updates for the ImageShowcase widget'),
+                context: ErrorDescription('cancelling scheduled updates for the ImageShowcase widget'),
               ),
             );
           }
@@ -58,9 +58,9 @@ class ImageShowcaseHomeWidget {
           final _millis = _time.toUtc().millisecondsSinceEpoch;
           final _entry = timedData[_time]!;
           final _values = _entry.toJson();
-          final _imageSlide = _entry.slide;
-          if (_imageSlide != null) {
-            _values['slide'] = await HomeWidget.saveImage('${_$paramPrefix}.timedData.slide.$_millis', _imageSlide, appGroupId: _$appGroupId);
+          final _timedImage_slide = _entry.slide;
+          if (_timedImage_slide != null) {
+            _values['slide'] = await HomeWidget.saveImage('${_$paramPrefix}.timedData.slide.$_millis', _timedImage_slide, appGroupId: _$appGroupId);
           } else if (_storedTimes.contains(_millis)) {
             await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.timedData.slide.$_millis', null, appGroupId: _$appGroupId);
           }
@@ -103,13 +103,13 @@ class ImageShowcaseHomeWidget {
         try {
           await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ImageShowcaseHomeWidgetReceiver');
         } catch (error, stackTrace) {
-          // Scheduling is best effort; the data was saved.
+          // Cancelling is best effort; the data was deleted.
           FlutterError.reportError(
             FlutterErrorDetails(
               exception: error,
               stack: stackTrace,
               library: 'home_widget',
-              context: ErrorDescription('scheduling updates for the ImageShowcase widget'),
+              context: ErrorDescription('cancelling scheduled updates for the ImageShowcase widget'),
             ),
           );
         }
@@ -124,6 +124,11 @@ class ImageShowcaseHomeWidget {
   /// milliseconds: sub-millisecond precision of the saved keys is not preserved.
   /// Keys are compared by instant, so a local [DateTime] and its `toUtc()` twin
   /// denote the same entry and only one of them survives a save.
+  ///
+  /// [picture] comes back as the file path of the PNG
+  /// `saveData` wrote, not as an `ImageProvider`, and the file it points at may
+  /// since have been removed. Nested and timed images are handed back as an
+  /// `ImageProvider` instead.
   static Future<({String? picture, ContactJsonData? contact, Map<DateTime, ImageShowcaseTimedData>? timedData})> getData() async {
     final _contactPath = await HomeWidget.getWidgetData<String>('${_$paramPrefix}.contact', appGroupId: _$appGroupId);
     ContactJsonData? contact;

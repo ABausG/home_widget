@@ -12,6 +12,51 @@ const String kotlinFlutterAssetFunction = 'flutterAssetBitmap';
 /// generated file by [kotlinImageFileHelper].
 const String kotlinImageFileFunction = 'hwDecodeImageFile';
 
+/// Name of the Swift helper decoding an image file at its display size,
+/// emitted once per generated file by [swiftImageDecodeHelper].
+const String swiftImageDecodeFunction = 'hwDecodeImage';
+
+/// Fallback edge length in pixels for an [HWImage] that declares no size.
+///
+/// The Android counterpart falls back to the screen's shorter side, which no
+/// widget exceeds. WidgetKit has no equivalent reading available inside an
+/// extension, so a flat cap of the same order stands in for it.
+const int swiftImageFallbackPixels = 1536;
+
+/// Top-level Swift helper backing every [HWImage] in a generated file.
+///
+/// WidgetKit caps how much memory an extension may use while rendering, so a
+/// full-resolution photo has to be downsampled rather than decoded whole. The
+/// target is the image's declared size in pixels; one that sizes itself from
+/// the layout falls back to [swiftImageFallbackPixels]. Mirrors
+/// [kotlinImageSampleHelper], except that ImageIO scales to the exact bound
+/// instead of a power-of-two step.
+const String swiftImageDecodeHelper = '''
+private func $swiftImageDecodeFunction(
+  _ path: String, _ widthPt: Double?, _ heightPt: Double?
+) -> UIImage? {
+  guard
+    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil)
+  else { return nil }
+  let displayScale = UITraitCollection.current.displayScale
+  let scale = displayScale > 0 ? displayScale : 3
+  let fallback = CGFloat($swiftImageFallbackPixels)
+  let targetWidth = widthPt.map { CGFloat(\$0) * scale } ?? fallback
+  let targetHeight = heightPt.map { CGFloat(\$0) * scale } ?? fallback
+  let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
+  guard maxPixelSize > 0 else { return nil }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true,
+    kCGImageSourceShouldCacheImmediately: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+  ]
+  guard
+    let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+  else { return nil }
+  return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
+}''';
+
 /// Name of the Kotlin helper computing a power-of-two `inSampleSize`, emitted
 /// once per generated file by [kotlinImageSampleHelper].
 const String kotlinImageSampleFunction = 'hwImageSampleSize';
@@ -144,8 +189,9 @@ enum HWImageFit {
 /// with the rest of a record, and the two combine as
 /// `HWTimedData(HWJson('contact', HWImageData('avatar')))`.
 ///
-/// `HWImageData.asset` is rejected inside both wrappers: an asset ships with
-/// the app, so there is nothing to store and nothing to vary.
+/// `HWImageData.asset` is rejected inside both wrappers by the home_widget_cli
+/// validator at generation time: an asset ships with the app, so there is
+/// nothing to store and nothing to vary.
 ///
 /// Two const constructors:
 /// - `HWImage(HWImageData('avatar'))` -- runtime image, saved by the app
@@ -307,11 +353,12 @@ class HWImage extends HWWidget implements HWDataWidget {
     final image = imageData;
     final pathExpr = image.isAsset
         ? '$swiftFlutterAssetFunction('
-            '"${_escapeSwiftString(image.effectiveAssetKey!)}")'
+            '"${escapeSwiftStringLiteral(image.effectiveAssetKey!)}")'
         : dataType.swiftAccess(dataExpr);
+    final sizeArgs = '${width ?? 'nil'}, ${height ?? 'nil'}';
     buffer.writeln(
       '${pad}if let path = $pathExpr, '
-      'let uiImage = UIImage(contentsOfFile: path) {',
+      'let uiImage = $swiftImageDecodeFunction(path, $sizeArgs) {',
     );
     buffer.writeln('$pad    Image(uiImage: uiImage)');
     buffer.writeln('$pad        .resizable()');
@@ -343,7 +390,7 @@ class HWImage extends HWWidget implements HWDataWidget {
     if (semanticLabel != null) {
       buffer.writeln(
         '$pad        .accessibilityLabel'
-        '("${_escapeSwiftString(semanticLabel)}")',
+        '("${escapeSwiftStringLiteral(semanticLabel)}")',
       );
     }
 
@@ -360,7 +407,7 @@ class HWImage extends HWWidget implements HWDataWidget {
     final sizeArgs = '${width ?? 'null'}, ${height ?? 'null'}';
     final String closePad;
     if (image.isAsset) {
-      final asset = _escapeKotlinString(image.effectiveAssetKey!);
+      final asset = escapeKotlinStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
         '$pad$kotlinFlutterAssetFunction(context, "$asset", $sizeArgs)'
         '?.let { bitmap ->',
@@ -382,7 +429,7 @@ class HWImage extends HWWidget implements HWDataWidget {
     final semanticLabel = this.semanticLabel;
     final description = semanticLabel == null
         ? 'null'
-        : '"${_escapeKotlinString(semanticLabel)}"';
+        : '"${escapeKotlinStringLiteral(semanticLabel)}"';
     buffer.writeln('$bodyPad    contentDescription = $description,');
     buffer.writeln('$bodyPad    contentScale = ${_kotlinContentScale()},');
 
@@ -411,12 +458,4 @@ class HWImage extends HWWidget implements HWDataWidget {
         return 'ContentScale.FillBounds';
     }
   }
-
-  String _escapeSwiftString(String s) =>
-      s.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
-
-  String _escapeKotlinString(String s) => s
-      .replaceAll('\\', '\\\\')
-      .replaceAll('"', '\\"')
-      .replaceAll('\$', '\\\$');
 }

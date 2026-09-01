@@ -11,9 +11,9 @@ Renders an image — either one your app saves at runtime, or a Flutter asset th
 
 ### HWImage (runtime)
 
-`const HWImage(HWDataType<String> data, {double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
+`const HWImage(HWDataType<dynamic> image, {double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
 
-Displays an image your app saves at runtime, e.g. a profile photo or a downloaded cover image. `data` is an `HWImageData`, or an `HWTimedData` wrapping one — see [Time-based images](#time-based-images).
+Displays an image your app saves at runtime, e.g. a profile photo or a downloaded cover image. `image` is an `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one — see [Images inside a JSON group](#images-inside-a-json-group) and [Time-based images](#time-based-images).
 
 ```dart
 HWImage(
@@ -57,7 +57,7 @@ Asset paths are validated when you run `home_widget generate`: an app asset must
 
 | Name            | Type          | Default              | Description                                                     |
 | --------------- | ------------- | --------------------- | ----------------------------------------------------------------|
-| `data`          | `HWDataType<String>` | **required** _(default ctor)_ | `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one, naming the runtime image to render. |
+| `image`         | `HWDataType<dynamic>` | **required** _(default ctor)_ | `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one, naming the runtime image to render. |
 | `path`          | `String`      | **required** _(`.asset`)_ | Flutter asset path, e.g. `assets/logo.png`.                  |
 | `package`       | `String?`     | `null` _(`.asset`)_   | Package that owns the asset; `null` means the app's own assets. |
 | `width`         | `double?`     | `null`                | Fixed width in logical pixels, or size from the layout.         |
@@ -71,7 +71,7 @@ Asset paths are validated when you run `home_widget generate`: an app asset must
 
 The two constructors take completely different routes:
 
-- **Runtime image** (`HWImage(HWImageData('key'))`): the generated helper's `saveData(...)` method gains a nullable `ImageProvider? key` parameter. Hand it any `ImageProvider` — `NetworkImage`, `FileImage`, `MemoryImage`, `AssetImage`, … — and the widget shows that picture. `getData()` hands it back, and `deleteData(key: true)` removes it.
+- **Runtime image** (`HWImage(HWImageData('key'))`): the generated helper's `saveData(...)` method gains a nullable `ImageProvider? key` parameter. Hand it any `ImageProvider` — `NetworkImage`, `FileImage`, `MemoryImage`, `AssetImage`, … — and the widget shows that picture. `deleteData(key: true)` removes it. A top-level image like this one is saved as a PNG your app writes to disk, so `getData()` hands back the `String?` file path rather than an `ImageProvider` — and that path may point to a file that no longer exists. An image nested in a JSON group or a timed entry comes back from `getData()` as an `ImageProvider?` instead — see below.
 
   ```dart
   await MyWidgetHomeWidget.saveData(

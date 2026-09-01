@@ -67,8 +67,9 @@ void validateWidgetData(WidgetSpec spec) {
 ///
 /// Identical asset paths collapse into a single field (value equality on
 /// [HWImageData]), but two different sources deriving the same key -- e.g.
-/// `assets/logo.png` and `assets-logo.png`, both `assetsLogoPng` -- would
-/// generate duplicate native fields and overwrite each other on disk.
+/// `assets/logo.png` and `assets-logo.png`, both `assetsLogoPng` -- give one
+/// key two conflicting meanings, so which image the key stands for is
+/// ambiguous wherever it is referenced.
 void _validateImageKeys(WidgetSpec spec) {
   final seen = <String, HWImageData>{};
   for (final image in spec.imageDataFields) {
@@ -143,6 +144,19 @@ void _validateConditionalData(WidgetSpec spec) {
   for (final widget in _walkWidgets(spec.effectiveWidgetTree)) {
     if (widget is! HWDataExists) continue;
     final data = widget.data.unwrapped;
+
+    if (data is HWImageData && data.isAsset) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWDataExists cannot test '
+        'HWImageData.asset("${data.assetPath}"). An asset ships with the app '
+        'and is read straight out of the bundle, so it stores no value to '
+        'check — the check is always true and the whenAbsent branch is never '
+        'rendered. Render HWImage.asset directly, or use a runtime '
+        'HWImageData("key") if you want to switch on whether an image was '
+        'saved.',
+      );
+    }
+
     if (data is! HWLocalizedString) continue;
 
     final descriptor = data.isConstant

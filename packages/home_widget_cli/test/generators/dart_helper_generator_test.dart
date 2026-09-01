@@ -460,13 +460,13 @@ void main() {
           "          try {\n"
           "            await HomeWidget.cancelScheduledWidgetUpdates(qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
           "          } catch (error, stackTrace) {\n"
-          "            // Scheduling is best effort; the data was saved.\n"
+          "            // Cancelling is best effort; the data was deleted.\n"
           "            FlutterError.reportError(\n"
           "              FlutterErrorDetails(\n"
           "                exception: error,\n"
           "                stack: stackTrace,\n"
           "                library: 'home_widget',\n"
-          "                context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "                context: ErrorDescription('cancelling scheduled updates for the ExampleWidget widget'),\n"
           "              ),\n"
           "            );\n"
           "          }\n",
@@ -482,13 +482,13 @@ void main() {
           "        try {\n"
           "          await HomeWidget.cancelScheduledWidgetUpdates(qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
           "        } catch (error, stackTrace) {\n"
-          "          // Scheduling is best effort; the data was saved.\n"
+          "          // Cancelling is best effort; the data was deleted.\n"
           "          FlutterError.reportError(\n"
           "            FlutterErrorDetails(\n"
           "              exception: error,\n"
           "              stack: stackTrace,\n"
           "              library: 'home_widget',\n"
-          "              context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "              context: ErrorDescription('cancelling scheduled updates for the ExampleWidget widget'),\n"
           "            ),\n"
           "          );\n"
           "        }\n",
@@ -564,7 +564,7 @@ void main() {
         output,
         contains(
           "_contactJson['avatar'] = await HomeWidget.saveImage("
-          "'\${_\$paramPrefix}.contact.avatar', _imageContactAvatar, "
+          "'\${_\$paramPrefix}.contact.avatar', _jsonImage_contact_avatar, "
           'appGroupId: _\$appGroupId);',
         ),
       );
@@ -581,14 +581,16 @@ void main() {
       // Nested leaf: the ancestor map is there because the object chain was.
       expect(
         output,
-        contains('final _imageContactPhotosMain = contact.photos?.main;'),
+        contains(
+          'final _jsonImage_contact_photos_main = contact.photos?.main;',
+        ),
       );
       expect(
         output,
         contains(
           "(_contactJson['photos']! as Map<String, dynamic>)['main'] = "
           "await HomeWidget.saveImage('"
-          "\${_\$paramPrefix}.contact.photos.main', _imageContactPhotosMain, "
+          "\${_\$paramPrefix}.contact.photos.main', _jsonImage_contact_photos_main, "
           'appGroupId: _\$appGroupId);',
         ),
       );
@@ -625,7 +627,7 @@ void main() {
 
       expect(
         output,
-        contains('final _imageSlotPicture = _entry.slot?.picture;'),
+        contains('final _jsonImage_slot_picture = _entry.slot?.picture;'),
       );
       expect(
         output,
@@ -633,7 +635,7 @@ void main() {
           "(_values['slot']! as Map<String, dynamic>)['picture'] = "
           "await HomeWidget.saveImage('"
           "\${_\$paramPrefix}.timedData.slot.picture.\$_millis', "
-          '_imageSlotPicture);',
+          '_jsonImage_slot_picture);',
         ),
       );
       // Pruning covers a JSON leaf exactly like a root timed image.
@@ -644,6 +646,52 @@ void main() {
           r'await _$deleteTimedImages(_storedTimes.where((_millis) => '
           '!_timedJson.containsKey(_millis.toString())));',
         ),
+      );
+    });
+
+    test('gives colliding timed and JSON leaf images distinct locals', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWTimedData(HWImageData('contactAvatar')),
+          HWTimedData(HWJson('contact', HWImageData('avatar'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('final _timedImage_contactAvatar = _entry.contactAvatar;'),
+      );
+      expect(
+        output,
+        contains(
+          'final _jsonImage_contact_avatar = _entry.contact?.avatar;',
+        ),
+      );
+    });
+
+    test('gives colliding JSON leaf paths distinct locals', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWJson('media', HWImageData('photoSet')),
+          HWJson('media', HWJson('photo', HWImageData('set'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('final _jsonImage_media_photoSet = media.photoSet;'),
+      );
+      expect(
+        output,
+        contains('final _jsonImage_media_photo_set = media.photo?.set;'),
       );
     });
 
@@ -694,7 +742,7 @@ void main() {
         output,
         contains(
           "_values['slide'] = await HomeWidget.saveImage("
-          "'\${_\$paramPrefix}.timedData.slide.\$_millis', _imageSlide, "
+          "'\${_\$paramPrefix}.timedData.slide.\$_millis', _timedImage_slide, "
           'appGroupId: _\$appGroupId);',
         ),
       );

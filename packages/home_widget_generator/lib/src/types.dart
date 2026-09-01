@@ -665,12 +665,18 @@ class HWImageData extends HWDataType<String> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HWImageData &&
-          key == other.key &&
+          rawKey == other.rawKey &&
           assetPath == other.assetPath &&
           package == other.package;
 
   @override
-  int get hashCode => Object.hash(key, assetPath, package);
+  int get hashCode => Object.hash(rawKey, assetPath, package);
+
+  /// The key exactly as declared, before any derivation from [assetPath].
+  ///
+  /// Unlike [key] this never throws, so it is safe to use from [==] and
+  /// [hashCode] on an instance whose asset spec is invalid.
+  String get rawKey => super.key;
 }
 
 class HWJson extends HWDataType<dynamic> {
@@ -778,9 +784,13 @@ class HWJson extends HWDataType<dynamic> {
   /// Kotlin `text = ...` argument for Glance Text when bound to nested JSON data.
   String kotlinGlanceJsonTextInterpolation(String dataExpr) {
     final read = kotlinReadExpr(dataExpr);
+    final leaf = leafType;
     // Already non-null: an elvis on top of it makes Kotlin warn.
-    if (leafType is HWLocalizedString) return read;
-    return leafType.androidToString(outerValue: read, innerValue: read);
+    if (leaf is HWLocalizedString) return read;
+    if (leaf.codegenKotlinDefaultLiteral() != null) {
+      return leaf is HWString ? read : '$read.toString()';
+    }
+    return leaf.androidToString(outerValue: read, innerValue: read);
   }
 
   /// Swift `Text(...)` argument when bound to nested JSON data.
@@ -792,6 +802,9 @@ class HWJson extends HWDataType<dynamic> {
 
     // Keep string handling compatible with iosToString quoting rules.
     if (leaf is HWString) {
+      // A leaf with a default already reads as non-optional, and Swift warns
+      // on a coalesce whose left side can never be nil.
+      if (leaf.codegenSwiftDefaultLiteral() != null) return read;
       return leaf.iosToString(
         outerValue: read,
         innerValue: read,
@@ -831,9 +844,11 @@ HWImageData? imageLeafOf(HWDataType<dynamic> type) {
 
 /// Marks a data field as time-based.
 ///
-/// Wraps an [HWString], [HWInt], [HWDouble], [HWBool] or [HWJson], and must be
-/// a root-level data field: nesting it inside another [HWTimedData] or inside
-/// an [HWJson] is rejected. Several [HWTimedData] declarations may share a JSON
+/// Wraps an [HWString], [HWInt], [HWDouble], [HWBool], [HWJson] or a runtime
+/// [HWImageData], and must be a root-level data field: nesting it inside
+/// another [HWTimedData] or inside an [HWJson] is rejected. The asset variant
+/// of [HWImageData] is rejected too — an asset ships with the app and has
+/// nothing to vary over time. Several [HWTimedData] declarations may share a JSON
 /// root key; they merge into a single timed root, just like untimed [HWJson]
 /// declarations do.
 ///

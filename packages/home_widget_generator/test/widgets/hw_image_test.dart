@@ -7,18 +7,14 @@ import 'package:test/test.dart';
 void main() {
   group('HWImage', () {
     group('model', () {
-      test('data constructor is const', () {
+      test('data constructor keeps the runtime image', () {
         const image = HWImage(HWImageData('avatar'));
-        expect(image, isA<HWImage>());
-        expect(image, isA<HWWidget>());
         expect(image.imageData.key, 'avatar');
         expect(image.imageData.isAsset, isFalse);
       });
 
-      test('asset constructor is const and derives the key', () {
+      test('asset constructor derives the key', () {
         const image = HWImage.asset('assets/images/logo.png');
-        expect(image, isA<HWImage>());
-        expect(image, isA<HWWidget>());
         expect(image.imageData.key, 'assetsImagesLogoPng');
         expect(image.imageData.isAsset, isTrue);
         expect(image.imageData.assetPath, 'assets/images/logo.png');
@@ -121,7 +117,7 @@ void main() {
         const node = HWImage(HWImageData('avatar'));
         expect(
           node.toSwift(0, dataExpr: 'data'),
-          'if let path = data.avatar, let uiImage = UIImage(contentsOfFile: path) {\n'
+          'if let path = data.avatar, let uiImage = hwDecodeImage(path, nil, nil) {\n'
           '    Image(uiImage: uiImage)\n'
           '        .resizable()\n'
           '        .aspectRatio(contentMode: .fit)\n'
@@ -195,6 +191,17 @@ void main() {
         );
       });
 
+      test('escapes control characters in the accessibility label', () {
+        const node = HWImage(
+          HWImageData('a'),
+          semanticLabel: 'Line one\nLine\ttwo',
+        );
+        expect(
+          node.toSwift(0, dataExpr: 'data'),
+          contains(r'.accessibilityLabel("Line one\nLine\ttwo")'),
+        );
+      });
+
       test('omits the accessibility label when null', () {
         const node = HWImage(HWImageData('a'));
         expect(
@@ -203,11 +210,19 @@ void main() {
         );
       });
 
+      test('passes the declared size to the decode helper', () {
+        const node = HWImage(HWImageData('a'), width: 64, height: 32);
+        expect(
+          node.toSwift(0, dataExpr: 'data'),
+          contains('hwDecodeImage(path, 64.0, 32.0)'),
+        );
+      });
+
       test('respects indent', () {
         const node = HWImage(HWImageData('avatar'));
         expect(
           node.toSwift(2, dataExpr: 'data'),
-          '        if let path = data.avatar, let uiImage = UIImage(contentsOfFile: path) {\n'
+          '        if let path = data.avatar, let uiImage = hwDecodeImage(path, nil, nil) {\n'
           '            Image(uiImage: uiImage)\n'
           '                .resizable()\n'
           '                .aspectRatio(contentMode: .fit)\n'
@@ -229,7 +244,7 @@ void main() {
           node.toSwift(0, dataExpr: 'data'),
           contains(
             'if let path = data.contact?.avatar, '
-            'let uiImage = UIImage(contentsOfFile: path) {',
+            'let uiImage = hwDecodeImage(path, nil, nil) {',
           ),
         );
       });
@@ -346,6 +361,17 @@ void main() {
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains(r'contentDescription = "Cost: \$5 \"each\"",'),
+        );
+      });
+
+      test('escapes control characters in the content description', () {
+        const node = HWImage(
+          HWImageData('a'),
+          semanticLabel: 'Line one\nLine\ttwo',
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          contains(r'contentDescription = "Line one\nLine\ttwo",'),
         );
       });
 

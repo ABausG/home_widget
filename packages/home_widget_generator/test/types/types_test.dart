@@ -408,7 +408,15 @@ void main() {
     test('kotlin glance text applies the leaf default before stringifying', () {
       expect(
         json.kotlinGlanceJsonTextInterpolation('widgetData'),
-        '((widgetData.payload?.count ?: 3)?.toString() ?: "0")',
+        '(widgetData.payload?.count ?: 3).toString()',
+      );
+    });
+
+    test('kotlin glance text falls back when the leaf has no default', () {
+      const noDefault = HWJson('payload', HWInt('count'));
+      expect(
+        noDefault.kotlinGlanceJsonTextInterpolation('widgetData'),
+        '(widgetData.payload?.count?.toString() ?: "0")',
       );
     });
 
@@ -426,8 +434,15 @@ void main() {
       final swift = stringJson.swiftGlanceJsonTextInterpolation('entry.data');
       expect(swift, isNot(contains('String(describing:')));
       expect(swift, contains('entry.data.payload?.label'));
-      // Falls through iosToString, which supplies the empty-string fallback.
-      expect(swift, endsWith(' ?? ""'));
+      // The default already makes the read non-optional, so no further
+      // coalesce is emitted on top of it.
+      expect(swift, endsWith('?? ("x")))'));
+    });
+
+    test('swift glance text falls back when a string leaf has no default', () {
+      const noDefault = HWJson('payload', HWString('label'));
+      final swift = noDefault.swiftGlanceJsonTextInterpolation('entry.data');
+      expect(swift, 'entry.data.payload?.label ?? ""');
     });
 
     test('read expressions omit the elvis when the leaf has no default', () {
@@ -655,13 +670,6 @@ void main() {
         expect(
           HWImageData.deriveKeyFromAssetPath('assets/images/dark/logo.png'),
           'assetsImagesDarkLogoPng',
-        );
-      });
-
-      test('is deterministic', () {
-        expect(
-          HWImageData.deriveKeyFromAssetPath('assets/logo.png'),
-          HWImageData.deriveKeyFromAssetPath('assets/logo.png'),
         );
       });
 

@@ -32,8 +32,6 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
-import java.io.File
-import org.json.JSONObject
 
 class ImageShowcaseHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -115,7 +113,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                   )
                 }
             Text(
-                text = (widgetData.contact?.name ?: "") ?: "",
+                text = (widgetData.contact?.name ?: ""),
                 style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
             )
             Spacer(modifier = GlanceModifier.defaultWeight())

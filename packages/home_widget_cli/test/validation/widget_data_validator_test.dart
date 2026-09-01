@@ -903,6 +903,52 @@ void main() {
       expect(() => validateWidgetData(spec), returnsNormally);
     });
 
+    test('rejects HWDataExists over an asset image', () {
+      const asset = HWImageData.asset('assets/logo.png');
+      const tree = HWDataExists(
+        data: asset,
+        whenPresent: HWImage.asset('assets/logo.png'),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T', widget: tree),
+        className: 'T',
+        dataFields: const [asset],
+        widgetTree: tree,
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('HWDataExists cannot test HWImageData.asset'),
+              contains('assets/logo.png'),
+              contains('HWImage.asset'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('allows HWDataExists over a runtime image', () {
+      const tree = HWDataExists(
+        data: HWImageData('avatar'),
+        whenPresent: HWImage(HWImageData('avatar')),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T', widget: tree),
+        className: 'T',
+        dataFields: const [HWImageData('avatar')],
+        widgetTree: tree,
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
     test('allows HWDataExists over a plain HWString', () {
       const tree = HWDataExists(
         data: HWString('greeting'),

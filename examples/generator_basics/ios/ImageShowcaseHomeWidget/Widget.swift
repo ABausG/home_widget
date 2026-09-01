@@ -4,6 +4,7 @@
 //
 // App Group ID used here: group.es.antonborri.generatorBasics
 
+import ImageIO
 import SwiftUI
 import WidgetKit
 
@@ -57,7 +58,8 @@ struct ImageShowcaseHomeWidgetEntryView: View {
   var body: some View {
     VStack(alignment: .center) {
       Spacer()
-      if let path = flutterAssetPath("assets/logo.png"), let uiImage = UIImage(contentsOfFile: path)
+      if let path = flutterAssetPath("assets/logo.png"),
+        let uiImage = hwDecodeImage(path, 24.0, 24.0)
       {
         Image(uiImage: uiImage)
           .resizable()
@@ -66,7 +68,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
           .accessibilityLabel("App logo")
       }
       if let hwImagePath = entry.data.picture, FileManager.default.fileExists(atPath: hwImagePath) {
-        if let path = entry.data.picture, let uiImage = UIImage(contentsOfFile: path) {
+        if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
           Image(uiImage: uiImage)
             .resizable()
             .aspectRatio(contentMode: .fill)
@@ -80,14 +82,14 @@ struct ImageShowcaseHomeWidgetEntryView: View {
       }
       HStack(alignment: .center) {
         Spacer()
-        if let path = entry.data.slide, let uiImage = UIImage(contentsOfFile: path) {
+        if let path = entry.data.slide, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
           Image(uiImage: uiImage)
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(width: 28.0, height: 28.0)
             .accessibilityLabel("Picture for the current time slot")
         }
-        if let path = entry.data.contact?.avatar, let uiImage = UIImage(contentsOfFile: path) {
+        if let path = entry.data.contact?.avatar, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
           Image(uiImage: uiImage)
             .resizable()
             .aspectRatio(contentMode: .fill)
@@ -95,7 +97,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
             .clipped()
             .accessibilityLabel("Contact avatar")
         }
-        Text((((entry.data.contact?.name) ?? (""))) ?? "")
+        Text((((entry.data.contact?.name) ?? (""))))
           .font(.caption)
         Spacer()
       }
@@ -209,10 +211,35 @@ struct ImageShowcaseContactJsonData {
   static func fromJson(_ json: [String: Any]?) -> ImageShowcaseContactJsonData? {
     guard let values = json else { return nil }
     return ImageShowcaseContactJsonData(
-      avatar: (values["avatar"] as? String) ?? nil,
+      avatar: values["avatar"] as? String,
       name: (values["name"] as? String) ?? "",
     )
   }
+}
+
+private func hwDecodeImage(
+  _ path: String, _ widthPt: Double?, _ heightPt: Double?
+) -> UIImage? {
+  guard
+    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil)
+  else { return nil }
+  let displayScale = UITraitCollection.current.displayScale
+  let scale = displayScale > 0 ? displayScale : 3
+  let fallback = CGFloat(1536)
+  let targetWidth = widthPt.map { CGFloat($0) * scale } ?? fallback
+  let targetHeight = heightPt.map { CGFloat($0) * scale } ?? fallback
+  let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
+  guard maxPixelSize > 0 else { return nil }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true,
+    kCGImageSourceShouldCacheImmediately: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+  ]
+  guard
+    let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+  else { return nil }
+  return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
 }
 
 private func flutterAssetPath(_ asset: String) -> String? {

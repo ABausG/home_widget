@@ -243,16 +243,23 @@ $loadDataLogic
 ''';
     }
 
-    // Constants and gallery strings resolve through the string catalog; only
-    // strings the widget resolves itself need the helpers, and only fields
-    // carrying stored translations need a reader — from their own preferences
-    // key, from the timed entry, or both, which is also exactly when the shared
-    // merge helpers are used.
+    // File-scope helpers, each emitted only for the widgets that reach it.
+    //
+    // Localization: constants and gallery strings resolve through the string
+    // catalog; only strings the widget resolves itself need the helpers, and
+    // only fields carrying stored translations need a reader — from their own
+    // preferences key, from the timed entry, or both, which is also exactly
+    // when the shared merge helpers are used.
+    //
+    // Images: every image is decoded through the downsampling helper, whatever
+    // its source; bundled ones additionally need their path resolved out of
+    // the containing app.
     final fileHelpers = <String>[
       if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
       if (spec.resolvesLocalizedOnRead) swiftLocalizedMergeHelpers,
       if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
       if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
+      if (spec.hasImages) swiftImageDecodeHelper,
       if (spec.assetImageFields.isNotEmpty) swiftFlutterAssetHelper,
     ];
     if (fileHelpers.isNotEmpty) {
@@ -317,6 +324,8 @@ $loadDataLogic
                 '${needsEntryTimedEntries ? ', timedEntries: []' : ''})'
             : null,
         extraContent: extraContent,
+        // CGImageSource lives in ImageIO, which SwiftUI does not re-export.
+        extraImports: [if (spec.hasImages) 'import ImageIO'],
         entryDefinition: entryDefinition,
         getSnapshotBody: getSnapshotBody,
         getTimelineBody: getTimelineBody,
@@ -596,9 +605,14 @@ $loadDataLogic
       final key = entry.key;
       final child = entry.value;
       if (child.leafType != null && child.children.isEmpty) {
-        final fallback = _swiftDefaultLiteral(child.leafType!);
+        final leaf = child.leafType!;
+        final read = 'values["$key"] as? ${leaf.swiftType}';
+        // The conditional cast already yields nil when the value is absent or
+        // of another type; coalescing that to nil again is a Swift warning.
+        final fallback =
+            leaf.defaultValue == null ? null : _swiftDefaultLiteral(leaf);
         buffer.writeln(
-          '      $key: (values["$key"] as? ${child.leafType!.swiftType}) ?? $fallback,',
+          '      $key: ${fallback == null ? read : '($read) ?? $fallback'},',
         );
       } else {
         final childStruct = '$structName${toPascalCase(key)}';
