@@ -30,6 +30,109 @@ void main() {
       );
     });
 
+    test('accepts image fields with distinct derived keys', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWImageData('avatar'),
+          HWImageData.asset('assets/logo.png'),
+          HWImageData.asset('assets/icons/logo.png'),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('throws when two asset paths derive the same image key', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWImageData.asset('assets/logo.png'),
+          HWImageData.asset('assets-logo.png'),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"assetsLogoPng"'),
+              contains('assets/logo.png'),
+              contains('assets-logo.png'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('names the package when a package asset collides', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWImageData.asset('assets/logo.png', package: 'my_icons'),
+          // Different package spelling, same derived key.
+          HWImageData.asset('packages/my-icons/assets/logo.png'),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"packagesMyIconsAssetsLogoPng"'),
+              contains('asset "assets/logo.png" of package "my_icons"'),
+              contains('asset "packages/my-icons/assets/logo.png"'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('accepts a package asset and its manual packages/ spelling', () {
+      // Both spell the same asset, so the shared key is not a conflict.
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWImageData.asset('assets/logo.png', package: 'my_icons'),
+          HWImageData.asset('packages/my_icons/assets/logo.png'),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('throws when a runtime image key collides with an asset key', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWImageData('assetsLogoPng'),
+          HWImageData.asset('assets/logo.png'),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('runtime image "assetsLogoPng"'),
+          ),
+        ),
+      );
+    });
+
     test('rejects identifiers with underscores', () {
       void expectRejected(String key) {
         final spec = WidgetSpec(
@@ -367,6 +470,81 @@ void main() {
             'message',
             'HWTimedData must be a root-level data field and cannot be nested '
                 'inside HWJson.',
+          ),
+        ),
+      );
+    });
+
+    test('rejects a timed asset image', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWTimedData(HWImageData.asset('assets/logo.png')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains(
+                'HWTimedData cannot wrap HWImageData.asset("assets/logo.png")',
+              ),
+              contains('an asset ships with the app and never changes'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('allows a timed runtime image', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [HWTimedData(HWImageData('slide'))],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('allows a runtime image at a JSON leaf, timed or not', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWJson('profile', HWJson('user', HWImageData('avatar'))),
+          HWTimedData(HWJson('slot', HWImageData('picture'))),
+        ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('rejects an asset image at a JSON leaf', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [
+          HWJson('profile', HWImageData.asset('assets/logo.png')),
+        ],
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains(
+                'HWJson cannot carry HWImageData.asset("assets/logo.png")',
+              ),
+              contains('"profile"'),
+            ),
           ),
         ),
       );
@@ -720,6 +898,52 @@ void main() {
           HWJson('profile', HWString('first')),
           HWJson('profile', HWString('last')),
         ],
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('rejects HWDataExists over an asset image', () {
+      const asset = HWImageData.asset('assets/logo.png');
+      const tree = HWDataExists(
+        data: asset,
+        whenPresent: HWImage.asset('assets/logo.png'),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T', widget: tree),
+        className: 'T',
+        dataFields: const [asset],
+        widgetTree: tree,
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('HWDataExists cannot test HWImageData.asset'),
+              contains('assets/logo.png'),
+              contains('HWImage.asset'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('allows HWDataExists over a runtime image', () {
+      const tree = HWDataExists(
+        data: HWImageData('avatar'),
+        whenPresent: HWImage(HWImageData('avatar')),
+        whenAbsent: HWText.fixed('absent'),
+      );
+      final spec = WidgetSpec(
+        data: const HomeWidget(name: 'T', widget: tree),
+        className: 'T',
+        dataFields: const [HWImageData('avatar')],
+        widgetTree: tree,
       );
 
       expect(() => validateWidgetData(spec), returnsNormally);

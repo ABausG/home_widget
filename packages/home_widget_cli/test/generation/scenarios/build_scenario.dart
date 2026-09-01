@@ -10,6 +10,7 @@ class BuildScenario {
     required this.className,
     required this.widgetSource,
     this.expectsScheduledUpdateWiring = false,
+    this.assetPaths = const [],
   });
 
   /// Human-readable description, used as the test name.
@@ -27,4 +28,12 @@ class BuildScenario {
   /// assert that the CLI registered the plugin's scheduled update receiver in
   /// the app's `AndroidManifest.xml`.
   final bool expectsScheduledUpdateWiring;
+
+  /// Project-relative asset paths (e.g. `assets/logo.png`) that
+  /// [widgetSource] references through `HWImage.asset`.
+  ///
+  /// The runner writes a placeholder PNG at each path and adds it to the
+  /// project's `flutter: assets:` section, which the CLI's generate-time asset
+  /// validation requires.
+  final List<String> assetPaths;
 }

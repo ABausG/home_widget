@@ -50,7 +50,7 @@ void main() {
       test('Kotlin applies the leaf default before stringifying', () {
         expect(
           text.toKotlin(0, dataExpr: 'widgetData'),
-          'Text(text = ((widgetData.payload?.count ?: 3)?.toString() ?: "0"))',
+          'Text(text = (widgetData.payload?.count ?: 3).toString())',
         );
       });
 

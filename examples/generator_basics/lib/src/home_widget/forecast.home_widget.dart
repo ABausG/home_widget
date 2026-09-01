@@ -27,13 +27,13 @@ class ForecastHomeWidget {
           try {
             await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ForecastHomeWidgetReceiver');
           } catch (error, stackTrace) {
-            // Scheduling is best effort; the data was saved.
+            // Cancelling is best effort; the data was deleted.
             FlutterError.reportError(
               FlutterErrorDetails(
                 exception: error,
                 stack: stackTrace,
                 library: 'home_widget',
-                context: ErrorDescription('scheduling updates for the Forecast widget'),
+                context: ErrorDescription('cancelling scheduled updates for the Forecast widget'),
               ),
             );
           }
@@ -72,13 +72,13 @@ class ForecastHomeWidget {
         try {
           await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ForecastHomeWidgetReceiver');
         } catch (error, stackTrace) {
-          // Scheduling is best effort; the data was saved.
+          // Cancelling is best effort; the data was deleted.
           FlutterError.reportError(
             FlutterErrorDetails(
               exception: error,
               stack: stackTrace,
               library: 'home_widget',
-              context: ErrorDescription('scheduling updates for the Forecast widget'),
+              context: ErrorDescription('cancelling scheduled updates for the Forecast widget'),
             ),
           );
         }

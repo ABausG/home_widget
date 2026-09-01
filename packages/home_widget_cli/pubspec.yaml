@@ -25,6 +25,7 @@ dependencies:
   home_widget_generator: ^0.0.1
   mason_logger: ^0.3.3
   dart_style: ^3.0.0
+  yaml: ^3.1.2
 
 dev_dependencies:
   coverage: ^1.15.0

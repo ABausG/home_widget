@@ -193,6 +193,84 @@ void main() {
       expect(spec.primitiveDataFields, const [HWString('title')]);
     });
 
+    test('collects image data fields from widget tree', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Image Data',
+          widget: HWColumn(
+            children: [
+              HWImage(HWImageData('img')),
+              HWImage.asset('assets/logo.png'),
+            ],
+          ),
+        )
+        class ImageDataWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.dataFields.length, 2);
+      expect(spec.dataFields.every((f) => f is HWImageData), isTrue);
+      expect(
+        spec.dataFields.map((f) => f.key).toSet(),
+        {'img', 'assetsLogoPng'},
+      );
+      expect(spec.runtimeImageFields.map((f) => f.key).toList(), ['img']);
+      expect(
+        spec.assetImageFields.map((f) => f.assetPath).toList(),
+        ['assets/logo.png'],
+      );
+      // Only the runtime image stays in the native read loop.
+      expect(spec.primitiveDataFields.length, 1);
+    });
+
+    test('collects a timed image as a time-based field', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Timed Image',
+          widget: HWImage(HWTimedData(HWImageData('slide'))),
+        )
+        class TimedImageWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.timedDataFields,
+        const [HWTimedData(HWImageData('slide'))],
+      );
+      expect(spec.timedImageFields, const [HWImageData('slide')]);
+      // A timed field never becomes a `saveData` parameter of its own.
+      expect(spec.primitiveDataFields, isEmpty);
+    });
+
+    test('collects an image leaf of a JSON group', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Json Image',
+          widget: HWImage(HWJson('contact', HWImageData('avatar'))),
+        )
+        class JsonImageWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.jsonDataGroups.single.children.single.type,
+        const HWImageData('avatar'),
+      );
+      expect(spec.jsonImageFields.single.storageKey, 'contact.avatar');
+      // The image is part of the group, not a data field of its own.
+      expect(spec.primitiveDataFields, isEmpty);
+      expect(spec.imageDataFields, isEmpty);
+    });
+
     test('keeps the locale context of a timed localized field', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

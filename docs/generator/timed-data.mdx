@@ -13,7 +13,7 @@ HWText(HWTimedData(HWInt('temperature')))
 HWText(HWTimedData(HWJson('weather', HWString('condition'))))
 ```
 
-Any `HWDataType` variant can be wrapped, including `HWJson` — the nested value is read from the entry active at the current time, exactly like reading from regular storage otherwise.
+Any `HWDataType` variant can be wrapped, including `HWJson` and a runtime `HWImageData` — the nested value is read from the entry active at the current time, exactly like reading from regular storage otherwise.
 
 <Warning>
 `HWTimedData` only belongs at the root of a data field. It cannot be nested inside another `HWTimedData`, and it cannot sit inside an `HWJson` — write `HWTimedData(HWJson('weather', ...))`, never `HWJson('weather', HWTimedData(...))`.
@@ -109,6 +109,37 @@ timedData: {
 A localized JSON leaf behaves exactly like its untimed counterpart: the entry carries one plain string, and the leaf's `defaultTranslations` are what the widget falls back to when the path yields nothing.
 
 Either way the text is resolved **at render time**, with the widget's normal fallback chain over the device's preferred languages — so a language change is picked up without saving a new schedule, and the entry active at that moment decides which set of translations is resolved. Anything an entry does not carry falls back to the translations compiled into the widget, one locale at a time, the same merge `getData()` performs.
+
+## Images
+
+A runtime [`HWImageData`](/generator/widgets/hw-image) can be timed too, so the widget swaps pictures on its own:
+
+```dart
+HWImage(HWTimedData(HWImageData('slide')))
+```
+
+The member on the generated timed data class is an `ImageProvider?`, not a `String?` — each entry carries the picture itself:
+
+```dart
+await WeatherHomeWidget.saveData(
+  timedData: {
+    DateTime(2026, 8, 14, 6, 0): const WeatherTimedData(
+      slide: AssetImage('assets/morning.png'),
+    ),
+    DateTime(2026, 8, 14, 18, 0): const WeatherTimedData(
+      slide: NetworkImage('https://example.com/evening.png'),
+    ),
+  },
+);
+```
+
+`saveData` manages the pictures for you: saving a schedule keeps the images it needs and drops the ones no longer part of it, including for entries whose time has already passed but that are still in the schedule — the widget renders the active entry until a later one takes over. `deleteData(timedData: true)` removes the whole schedule together with all of its images. `getData()` hands each entry's image back as an `ImageProvider`.
+
+<Warning>
+`HWTimedData(HWImageData.asset(...))` is rejected at generation time: an asset ships inside the app and cannot change over time. Use `HWTimedData(HWImageData('key'))` and save one image per slot, or pick between bundled assets with a conditional. The same applies to an asset at a JSON leaf.
+</Warning>
+
+An image may equally sit at the leaf of a timed JSON group — `HWImage(HWTimedData(HWJson('slot', HWImageData('picture'))))`. The member on the generated `SlotJsonData` class is an `ImageProvider?`, and it belongs to its entry's timestamp exactly like a root timed image.
 
 ## Timezones and DST
 

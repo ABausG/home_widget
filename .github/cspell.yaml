@@ -151,6 +151,12 @@ words:
     - classpath
     - subtag
     - aapt
+    - CFURL
+    - subsamples
+    - subsampled
+    - downsampling
+    - downsampled
+    - memberwise
 ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)
     - Lokalisierte

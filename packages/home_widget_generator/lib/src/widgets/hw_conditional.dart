@@ -105,14 +105,25 @@ class HWDataExists extends HWConditional {
         ...super.dataDependencies,
       };
 
+  /// An image's stored value is a file path, and the file it points at can be
+  /// gone while the path is still stored, so the check has to reach the disk.
   @override
   String conditionSwift({required String dataExpr}) {
-    return '${data.swiftAccess(dataExpr)} != nil';
+    final access = data.swiftAccess(dataExpr);
+    if (imageLeafOf(data) != null) {
+      return 'let hwImagePath = $access, '
+          'FileManager.default.fileExists(atPath: hwImagePath)';
+    }
+    return '$access != nil';
   }
 
   @override
   String conditionKotlin({required String dataExpr}) {
-    return '${data.kotlinAccess(dataExpr)} != null';
+    final access = data.kotlinAccess(dataExpr);
+    if (imageLeafOf(data) != null) {
+      return '$access?.let { java.io.File(it).exists() } == true';
+    }
+    return '$access != null';
   }
 }
 

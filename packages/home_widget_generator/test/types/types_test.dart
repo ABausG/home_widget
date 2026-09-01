@@ -1,4 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -407,7 +408,15 @@ void main() {
     test('kotlin glance text applies the leaf default before stringifying', () {
       expect(
         json.kotlinGlanceJsonTextInterpolation('widgetData'),
-        '((widgetData.payload?.count ?: 3)?.toString() ?: "0")',
+        '(widgetData.payload?.count ?: 3).toString()',
+      );
+    });
+
+    test('kotlin glance text falls back when the leaf has no default', () {
+      const noDefault = HWJson('payload', HWInt('count'));
+      expect(
+        noDefault.kotlinGlanceJsonTextInterpolation('widgetData'),
+        '(widgetData.payload?.count?.toString() ?: "0")',
       );
     });
 
@@ -425,8 +434,15 @@ void main() {
       final swift = stringJson.swiftGlanceJsonTextInterpolation('entry.data');
       expect(swift, isNot(contains('String(describing:')));
       expect(swift, contains('entry.data.payload?.label'));
-      // Falls through iosToString, which supplies the empty-string fallback.
-      expect(swift, endsWith(' ?? ""'));
+      // The default already makes the read non-optional, so no further
+      // coalesce is emitted on top of it.
+      expect(swift, endsWith('?? ("x")))'));
+    });
+
+    test('swift glance text falls back when a string leaf has no default', () {
+      const noDefault = HWJson('payload', HWString('label'));
+      final swift = noDefault.swiftGlanceJsonTextInterpolation('entry.data');
+      expect(swift, 'entry.data.payload?.label ?? ""');
     });
 
     test('read expressions omit the elvis when the leaf has no default', () {
@@ -536,6 +552,273 @@ void main() {
         localized.iosTimedReadValue(valuesExpr: 'timedValues'),
         contains(r'["en": "a\"b\\c$d"]'),
       );
+    });
+  });
+
+  group('HWImageData', () {
+    test('runtime image returns correct types and no default value', () {
+      const type = HWImageData('avatar');
+      expect(type.key, 'avatar');
+      expect(type.assetPath, isNull);
+      expect(type.isAsset, isFalse);
+      expect(type.dartType, 'String');
+      expect(type.kotlinType, 'String');
+      expect(type.swiftType, 'String');
+      expect(type.defaultValue, isNull);
+    });
+
+    test('asset image derives its key from the asset path', () {
+      const type = HWImageData.asset('assets/images/logo.png');
+      expect(type.key, 'assetsImagesLogoPng');
+      expect(type.assetPath, 'assets/images/logo.png');
+      expect(type.isAsset, isTrue);
+      expect(type.defaultValue, isNull);
+    });
+
+    group('package assets', () {
+      test('effectiveAssetKey is null for runtime images', () {
+        expect(const HWImageData('avatar').effectiveAssetKey, isNull);
+      });
+
+      test('effectiveAssetKey is the raw path without a package', () {
+        const type = HWImageData.asset('assets/logo.png');
+        expect(type.package, isNull);
+        expect(type.effectiveAssetKey, 'assets/logo.png');
+      });
+
+      test('effectiveAssetKey prefixes the package', () {
+        const type = HWImageData.asset('assets/logo.png', package: 'my_icons');
+        expect(type.package, 'my_icons');
+        expect(type.assetPath, 'assets/logo.png');
+        expect(type.effectiveAssetKey, 'packages/my_icons/assets/logo.png');
+      });
+
+      test('the derived key includes the package prefix', () {
+        expect(
+          const HWImageData.asset('assets/logo.png', package: 'my_icons').key,
+          'packagesMyIconsAssetsLogoPng',
+        );
+      });
+
+      test('a manual packages/ path derives the same key', () {
+        expect(
+          const HWImageData.asset('packages/my_icons/assets/logo.png').key,
+          const HWImageData.asset('assets/logo.png', package: 'my_icons').key,
+        );
+      });
+
+      test('a bare packages/ path without a package stays valid', () {
+        const type = HWImageData.asset('packages/my_icons/assets/logo.png');
+        expect(type.effectiveAssetKey, 'packages/my_icons/assets/logo.png');
+        expect(type.key, 'packagesMyIconsAssetsLogoPng');
+      });
+
+      test('throws when a packages/ path is combined with a package', () {
+        const type = HWImageData.asset(
+          'packages/my_icons/logo.png',
+          package: 'my_icons',
+        );
+        expect(
+          () => type.effectiveAssetKey,
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('packages/my_icons/packages/my_icons/logo.png'),
+                contains('Drop the package parameter'),
+              ),
+            ),
+          ),
+        );
+        expect(() => type.key, throwsA(isA<GeneratorError>()));
+      });
+
+      test('the package participates in equality', () {
+        expect(
+          const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+          const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+        );
+        expect(
+          const HWImageData.asset('assets/logo.png', package: 'my_icons')
+              .hashCode,
+          const HWImageData.asset('assets/logo.png', package: 'my_icons')
+              .hashCode,
+        );
+        expect(
+          const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+          isNot(const HWImageData.asset('assets/logo.png', package: 'other')),
+        );
+        expect(
+          const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+          isNot(const HWImageData.asset('assets/logo.png')),
+        );
+        // Same derived key, different spelling of the same asset.
+        expect(
+          const HWImageData.asset('assets/logo.png', package: 'my_icons'),
+          isNot(const HWImageData.asset('packages/my_icons/assets/logo.png')),
+        );
+      });
+    });
+
+    group('deriveKeyFromAssetPath', () {
+      test('joins path segments in lower camel case', () {
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/logo.png'),
+          'assetsLogoPng',
+        );
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/images/dark/logo.png'),
+          'assetsImagesDarkLogoPng',
+        );
+      });
+
+      test('collapses runs of disallowed characters', () {
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets//my-logo_v2.png'),
+          'assetsMyLogoV2Png',
+        );
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/my logo (final).png'),
+          'assetsMyLogoFinalPng',
+        );
+      });
+
+      test('drops non-ASCII characters', () {
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/logö.png'),
+          'assetsLogPng',
+        );
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/日本/logo.png'),
+          'assetsLogoPng',
+        );
+      });
+
+      test('prefixes keys that would start with a digit', () {
+        expect(
+          HWImageData.deriveKeyFromAssetPath('2x/logo.png'),
+          'image2xLogoPng',
+        );
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/logo.png'),
+          isNot(startsWith('image')),
+        );
+      });
+
+      test('preserves existing camel case in segments', () {
+        expect(
+          HWImageData.deriveKeyFromAssetPath('assets/myLogo.png'),
+          'assetsMyLogoPng',
+        );
+      });
+
+      test('keeps distinct paths distinct', () {
+        final keys = <String>{
+          HWImageData.deriveKeyFromAssetPath('assets/a/logo.png'),
+          HWImageData.deriveKeyFromAssetPath('assets/b/logo.png'),
+          HWImageData.deriveKeyFromAssetPath('assets/logo.png'),
+        };
+        expect(keys, hasLength(3));
+      });
+
+      test('throws when the path has no ASCII letters or digits', () {
+        expect(
+          () => HWImageData.deriveKeyFromAssetPath('///'),
+          throwsA(isA<GeneratorError>()),
+        );
+        expect(
+          () => const HWImageData.asset('').key,
+          throwsA(isA<GeneratorError>()),
+        );
+      });
+    });
+
+    test('read values are nullable with no default', () {
+      const type = HWImageData('avatar');
+      expect(
+        type.androidReadValue(store: 'prefs', key: 'full.avatar'),
+        'prefs.getString("full.avatar", null)',
+      );
+      expect(
+        type.iosReadValue(store: 'defaults', key: 'full.avatar'),
+        'defaults?.string(forKey: "full.avatar")',
+      );
+    });
+
+    test('access and read expressions use the key', () {
+      const type = HWImageData('avatar');
+      expect(type.swiftAccess('data'), 'data.avatar');
+      expect(type.kotlinAccess('data'), 'data.avatar');
+      expect(type.swiftReadExpr('data'), 'data.avatar');
+      expect(type.kotlinReadExpr('data'), 'data.avatar');
+      expect(
+        const HWImageData.asset('assets/logo.png').swiftAccess('data'),
+        'data.assetsLogoPng',
+      );
+    });
+
+    test('has no codegen default literal', () {
+      const type = HWImageData('avatar');
+      expect(type.codegenKotlinDefaultLiteral(), isNull);
+      expect(type.codegenSwiftDefaultLiteral(), isNull);
+    });
+
+    test('cannot be stringified for text widgets', () {
+      const type = HWImageData('avatar');
+      expect(
+        () => type.androidToString(outerValue: 'd.a', innerValue: 'd.a'),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('HWImageData cannot be rendered as text'),
+          ),
+        ),
+      );
+      expect(
+        () => type.iosToString(outerValue: 'd.a', innerValue: 'd.a'),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('HWImageData cannot be rendered as text'),
+          ),
+        ),
+      );
+    });
+
+    test('equality is by key and asset path', () {
+      expect(const HWImageData('a'), const HWImageData('a'));
+      expect(
+        const HWImageData('a').hashCode,
+        const HWImageData('a').hashCode,
+      );
+      expect(const HWImageData('a'), isNot(const HWImageData('b')));
+      expect(
+        const HWImageData.asset('assets/logo.png'),
+        const HWImageData.asset('assets/logo.png'),
+      );
+      expect(
+        const HWImageData.asset('assets/logo.png'),
+        isNot(const HWImageData.asset('assets/other.png')),
+      );
+      // Same derived key, different asset path.
+      expect(
+        const HWImageData.asset('assets/logo.png'),
+        isNot(const HWImageData('assetsLogoPng')),
+      );
+      expect(const HWImageData('a'), isNot(const HWString('a')));
+    });
+
+    test('deduplicates in a data dependency set', () {
+      const a = HWImage.asset('assets/logo.png');
+      const b = HWImage.asset('assets/logo.png');
+      final deps = <HWDataType<dynamic>>{
+        ...a.dataDependencies,
+        ...b.dataDependencies,
+      };
+      expect(deps, hasLength(1));
     });
   });
 }

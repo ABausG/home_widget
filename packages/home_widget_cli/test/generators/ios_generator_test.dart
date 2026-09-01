@@ -106,6 +106,199 @@ void main() {
     );
   });
 
+  test('generates Swift widget with image data fields', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'ImageWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.image'),
+      ),
+      className: 'ImageWidget',
+      dataFields: const [
+        HWImageData('avatar'),
+        HWImageData.asset('assets/logo.png'),
+      ],
+      widgetTree: const HWColumn(
+        children: [
+          HWImage(HWImageData('avatar'), width: 100, height: 100),
+          HWImage.asset('assets/logo.png', fit: HWImageFit.cover),
+        ],
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/ImageWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // Runtime image paths are plain nullable strings in the Data struct;
+    // asset images are never stored.
+    expect(content, contains('struct ImageWidgetData {'));
+    expect(content, contains('let avatar: String?'));
+    expect(content, isNot(contains('assetsLogoPng')));
+    expect(
+      content,
+      contains('avatar: defaults?.string(forKey: "\\(paramPrefix).avatar"),'),
+    );
+
+    // View body renders the runtime image from disk and the asset from the
+    // containing app bundle.
+    expect(
+      content,
+      contains(
+        'if let path = entry.data.avatar, let uiImage = hwDecodeImage(path, 100.0, 100.0) {',
+      ),
+    );
+    expect(content, contains('Image(uiImage: uiImage)'));
+    expect(content, contains('.frame(width: 100.0, height: 100.0)'));
+    expect(
+      content,
+      contains(
+        'if let path = flutterAssetPath("assets/logo.png"), '
+        'let uiImage = hwDecodeImage(path, nil, nil) {',
+      ),
+    );
+    expect(content, contains('.aspectRatio(contentMode: .fill)'));
+
+    // Both sources decode through the downsampling helper, emitted once, and
+    // ImageIO comes along with it.
+    expect(content, contains('import ImageIO'));
+    expect('private func hwDecodeImage'.allMatches(content).length, 1);
+    expect(
+      content,
+      contains('kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,'),
+    );
+
+    // The bundle-reading helper is emitted once for the whole file.
+    expect(
+      content,
+      contains('private func flutterAssetPath(_ asset: String) -> String? {'),
+    );
+    expect(
+      content,
+      contains(
+        '.appendingPathComponent("Frameworks/App.framework/flutter_assets")',
+      ),
+    );
+    expect(
+      'private func flutterAssetPath'.allMatches(content).length,
+      1,
+    );
+  });
+
+  test('emits the asset helper only when an asset image is present', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'RuntimeOnly',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.image'),
+      ),
+      className: 'RuntimeOnly',
+      dataFields: const [HWImageData('avatar')],
+      widgetTree: const HWImage(HWImageData('avatar')),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/RuntimeOnlyHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, isNot(contains('flutterAssetPath')));
+  });
+
+  test('reads a timed image path out of the active entry', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TimedImage',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.image'),
+      ),
+      className: 'TimedImage',
+      dataFields: const [HWTimedData(HWImageData('slide'))],
+      widgetTree: const HWImage(HWTimedData(HWImageData('slide'))),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/TimedImageHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // The resolved value is a path string, read like any other timed value...
+    expect(content, contains('let slide: String?'));
+    expect(content, contains('slide: timedValues["slide"] as? String,'));
+    // ...and rendered exactly like an untimed runtime image.
+    expect(
+      content,
+      contains(
+        'if let path = entry.data.slide, '
+        'let uiImage = hwDecodeImage(path, nil, nil) {',
+      ),
+    );
+    // The image's timestamps drive the WidgetKit timeline like any timed field.
+    expect(
+      content,
+      contains('for timedEntry in timedEntries where timedEntry.date > now {'),
+    );
+    expect(content, isNot(contains('flutterAssetPath')));
+  });
+
+  test('reads an image leaf of a JSON group as a path', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'JsonImage',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.image'),
+      ),
+      className: 'JsonImage',
+      dataFields: const [HWJson('contact', HWImageData('avatar'))],
+      widgetTree: const HWImage(HWJson('contact', HWImageData('avatar'))),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/JsonImageHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, contains('let avatar: String?'));
+    expect(
+      content,
+      contains('avatar: values["avatar"] as? String,'),
+    );
+    expect(
+      content,
+      contains(
+        'if let path = entry.data.contact?.avatar, '
+        'let uiImage = hwDecodeImage(path, nil, nil) {',
+      ),
+    );
+    expect(content, isNot(contains('flutterAssetPath')));
+  });
+
+  test('prefixes a package asset with packages/<package>', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PackageAsset',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.image'),
+      ),
+      className: 'PackageAsset',
+      dataFields: const [
+        HWImageData.asset('assets/logo.png', package: 'my_icons'),
+      ],
+      widgetTree: const HWImage.asset('assets/logo.png', package: 'my_icons'),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/PackageAssetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('flutterAssetPath("packages/my_icons/assets/logo.png")'),
+    );
+  });
+
   test('generates Swift widget with JSON data structs', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
@@ -147,7 +340,7 @@ void main() {
       ),
     );
     expect(content, contains('struct JsonWidgetFileKeyJsonData {'));
-    expect(content, contains('let enabled: Bool = false'));
+    expect(content, contains('let enabled: Bool\n'));
     expect(
       content,
       contains(
@@ -206,7 +399,11 @@ void main() {
     );
     expect(content, contains('let values = json ?? [:]'));
     expect(content, contains('enabled: (values["enabled"] as? Bool) ?? true,'));
-    expect(content, contains('let enabled: Bool = true'));
+    // Non-optional, but without an initializer: a `let` with one is left out
+    // of the memberwise init that `fromJson` calls, which is where the default
+    // is applied.
+    expect(content, contains('let enabled: Bool\n'));
+    expect(content, isNot(contains('let enabled: Bool = true')));
     expect(
       content,
       contains(
@@ -874,6 +1071,9 @@ void main() {
       p.join(tempDir.path, 'ios/QuoteJsonHomeWidget/Widget.swift'),
     ).readAsStringSync();
 
-    expect(content, contains(r'caption: String = "Say \"hello\""'));
+    expect(
+      content,
+      contains(r'caption: (values["caption"] as? String) ?? "Say \"hello\"",'),
+    );
   });
 }

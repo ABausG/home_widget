@@ -190,20 +190,33 @@ class AndroidGenerator {
       dataClassContent = buffer.toString();
     }
 
-    // Constants resolve through `R.string`; only strings the widget resolves
-    // itself need the helpers, and only fields carrying stored translations
-    // need a reader — from their own preferences key, from the timed entry, or
-    // both, which is also exactly when the shared merge helpers are used.
-    final localizationHelpers = <String>[
+    // File-scope helpers, each emitted only for the widgets that reach it.
+    //
+    // Localization: constants resolve through `R.string`; only strings the
+    // widget resolves itself need the helpers, and only fields carrying stored
+    // translations need a reader — from their own preferences key, from the
+    // timed entry, or both, which is also exactly when the shared merge helpers
+    // are used.
+    //
+    // Images: every image decode subsamples, so the sample-size helper comes
+    // along with either source; the file decoder is for runtime images and the
+    // asset decoder for bundled ones.
+    final needsImageHelpers = spec.hasImages ||
+        spec.hasRuntimeImages ||
+        spec.assetImageFields.isNotEmpty;
+    final fileHelpers = <String>[
       if (needsResolver) kotlinLocalizeHelpers,
       if (needsLocaleArg) kotlinLocalizedMergeHelpers,
       if (spec.needsLocalizedRead) kotlinLocalizedReadHelper,
       if (spec.needsTimedLocalizedRead) kotlinTimedLocalizedReadHelper,
+      if (spec.hasImages) kotlinImageSampleHelper,
+      if (spec.hasRuntimeImages) kotlinImageFileHelper,
+      if (spec.assetImageFields.isNotEmpty) kotlinFlutterAssetHelper,
     ];
-    if (localizationHelpers.isNotEmpty) {
+    if (fileHelpers.isNotEmpty) {
       dataClassContent = [
         if (dataClassContent != null) dataClassContent,
-        ...localizationHelpers,
+        ...fileHelpers,
       ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
@@ -261,6 +274,12 @@ class AndroidGenerator {
     contentBody = bodyBuffer.toString();
 
     final layoutImports = (spec.effectiveWidgetTree.kotlinImports).toSet();
+    // The image helpers reference BitmapFactory unqualified, and a tree that
+    // declares an image field without rendering an HWImage contributes no
+    // import of its own.
+    if (needsImageHelpers) {
+      layoutImports.add('import android.graphics.BitmapFactory');
+    }
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
     }
@@ -278,10 +297,6 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.fillMaxSize');
       layoutImports.add('import androidx.glance.layout.Alignment');
       layoutImports.add('import androidx.glance.layout.Box');
-    }
-    if (jsonGroups.isNotEmpty) {
-      layoutImports.add('import java.io.File');
-      layoutImports.add('import org.json.JSONObject');
     }
     // `R` lives in the Gradle namespace, not necessarily the package this file
     // is written into (an annotation may override `packageName`). Unqualified
@@ -686,7 +701,9 @@ class AndroidGenerator {
     required HWDataType<dynamic> type,
   }) {
     final fallback = _kotlinDefaultLiteral(type);
-    if (type is HWString) {
+    // An image's timed value is the absolute path of the PNG that was saved for
+    // that timestamp, so it reads exactly like a string.
+    if (type is HWString || type is HWImageData) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optString("$key") else $fallback';
     }
     if (type is HWInt) {

@@ -19,6 +19,12 @@ small and each one demonstrates a different feature of the generator:
   `HWText.localized` and `HWString.localized`.
 - `forecast.dart` – time-based content via `HWTimedData`: the widget swaps its
   own values at the times passed to `saveData(timedData: {...})`.
+- `image_showcase.dart` – a bundled asset image (`HWImage.asset`), a runtime
+  image (`HWImage`) wrapped in `HWDataExists` for a placeholder, a time-based
+  image (`HWImage(HWTimedData(HWImageData(...)))`) that alternates between two
+  pictures on a schedule, and an image read out of a JSON group
+  (`HWImage(HWJson('contact', HWImageData('avatar')))`) so a name and a picture
+  travel together.
 
 ## Generating the native code
 
@@ -32,7 +38,8 @@ This reads every `*.dart` file under `home_widget/`, writes the Dart helpers to
 `lib/src/home_widget/<name>.home_widget.dart`, and scaffolds the native widget
 targets for both Android and iOS.
 
-Because `forecast.dart` uses `HWTimedData`, the CLI also registers
+Because `forecast.dart` and `image_showcase.dart` use `HWTimedData`, the CLI
+also registers
 `HomeWidgetScheduledUpdateReceiver` and the `RECEIVE_BOOT_COMPLETED` permission
 in `android/app/src/main/AndroidManifest.xml` — that is what delivers the
 scheduled content swaps on Android.

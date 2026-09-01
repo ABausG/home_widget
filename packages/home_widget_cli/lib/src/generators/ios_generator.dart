@@ -243,21 +243,29 @@ $loadDataLogic
 ''';
     }
 
-    // Constants and gallery strings resolve through the string catalog; only
-    // strings the widget resolves itself need the helpers, and only fields
-    // carrying stored translations need a reader — from their own preferences
-    // key, from the timed entry, or both, which is also exactly when the shared
-    // merge helpers are used.
-    final localizationHelpers = <String>[
+    // File-scope helpers, each emitted only for the widgets that reach it.
+    //
+    // Localization: constants and gallery strings resolve through the string
+    // catalog; only strings the widget resolves itself need the helpers, and
+    // only fields carrying stored translations need a reader — from their own
+    // preferences key, from the timed entry, or both, which is also exactly
+    // when the shared merge helpers are used.
+    //
+    // Images: every image is decoded through the downsampling helper, whatever
+    // its source; bundled ones additionally need their path resolved out of
+    // the containing app.
+    final fileHelpers = <String>[
       if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
       if (spec.resolvesLocalizedOnRead) swiftLocalizedMergeHelpers,
       if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
       if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
+      if (spec.hasImages) swiftImageDecodeHelper,
+      if (spec.assetImageFields.isNotEmpty) swiftFlutterAssetHelper,
     ];
-    if (localizationHelpers.isNotEmpty) {
+    if (fileHelpers.isNotEmpty) {
       extraContent = [
         if (extraContent != null) extraContent,
-        ...localizationHelpers,
+        ...fileHelpers,
       ].join('\n\n');
     }
 
@@ -316,6 +324,8 @@ $loadDataLogic
                 '${needsEntryTimedEntries ? ', timedEntries: []' : ''})'
             : null,
         extraContent: extraContent,
+        // CGImageSource lives in ImageIO, which SwiftUI does not re-export.
+        extraImports: [if (spec.hasImages) 'import ImageIO'],
         entryDefinition: entryDefinition,
         getSnapshotBody: getSnapshotBody,
         getTimelineBody: getTimelineBody,
@@ -549,13 +559,12 @@ $loadDataLogic
       if (child.leafType != null && child.children.isEmpty) {
         final leaf = child.leafType!;
         final st = leaf.swiftType;
-        if (leaf.defaultValue == null) {
-          buffer.writeln('  let $key: $st?');
-        } else {
-          buffer.writeln(
-            '  let $key: $st = ${_swiftDefaultLiteral(leaf)}',
-          );
-        }
+        // A `let` with an initializer drops out of the memberwise init, which
+        // `fromJson` — the only place these structs are built — calls with
+        // every property. The default is applied there instead.
+        buffer.writeln(
+          leaf.defaultValue == null ? '  let $key: $st?' : '  let $key: $st',
+        );
       } else {
         final childStruct = '$structName${toPascalCase(key)}';
         buffer.writeln('  let $key: $childStruct?');
@@ -596,9 +605,14 @@ $loadDataLogic
       final key = entry.key;
       final child = entry.value;
       if (child.leafType != null && child.children.isEmpty) {
-        final fallback = _swiftDefaultLiteral(child.leafType!);
+        final leaf = child.leafType!;
+        final read = 'values["$key"] as? ${leaf.swiftType}';
+        // The conditional cast already yields nil when the value is absent or
+        // of another type; coalescing that to nil again is a Swift warning.
+        final fallback =
+            leaf.defaultValue == null ? null : _swiftDefaultLiteral(leaf);
         buffer.writeln(
-          '      $key: (values["$key"] as? ${child.leafType!.swiftType}) ?? $fallback,',
+          '      $key: ${fallback == null ? read : '($read) ?? $fallback'},',
         );
       } else {
         final childStruct = '$structName${toPascalCase(key)}';

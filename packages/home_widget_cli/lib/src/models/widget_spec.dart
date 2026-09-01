@@ -32,6 +32,43 @@ class JsonDataField {
   });
 }
 
+/// An image sitting at the leaf of a [JsonDataGroup].
+///
+/// Its PNG is saved under a key derived from the group and the path, so the
+/// same leaf always overwrites the same file.
+class JsonImageField {
+  /// Root key of the group this image belongs to.
+  final String rootKey;
+
+  /// Path segments from the root key down to the image.
+  final List<String> path;
+
+  /// The image declared at [path].
+  final HWImageData image;
+
+  /// Creates a [JsonImageField].
+  const JsonImageField({
+    required this.rootKey,
+    required this.path,
+    required this.image,
+  });
+
+  /// Storage key suffix for this image, relative to the widget's param prefix:
+  /// `<rootKey>.<dotted.path>`.
+  String get storageKey => '$rootKey.${path.join('.')}';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is JsonImageField &&
+          rootKey == other.rootKey &&
+          storageKey == other.storageKey &&
+          image == other.image;
+
+  @override
+  int get hashCode => Object.hash(rootKey, storageKey, image);
+}
+
 /// Specification for a home widget.
 class WidgetSpec {
   /// The annotated configuration data.
@@ -80,23 +117,32 @@ class WidgetSpec {
       children: [
         HWText.fixed(galleryName),
         for (final field in [...primitiveDataFields, ...timedDataFields])
-          HWRow(
-            children: [
-              HWText.fixed('${field.key}: '),
-              HWText(field),
-            ],
-          ),
+          if (imageLeafOf(field) != null)
+            HWImage(field)
+          else
+            HWRow(
+              children: [
+                HWText.fixed('${field.key}: '),
+                HWText(field),
+              ],
+            ),
       ],
     );
   }
 
   /// Non-JSON, non-timed [dataFields] (primitives and simple types).
   ///
+  /// Includes runtime [HWImageData], whose stored value is the nullable path
+  /// string that native code reads from UserDefaults / SharedPreferences.
+  ///
   /// Constant localized strings are excluded: they are inlined into the widget
   /// body and must never reach the data class, preferences or `saveData`.
+  /// Asset images are excluded too: native code reads them straight out of the
+  /// app bundle, so they are never stored.
   List<HWDataType<dynamic>> get primitiveDataFields => dataFields
       .where((f) => f is! HWJson && f is! HWTimedData)
       .where((f) => !(f is HWLocalizedString && f.isConstant))
+      .where((f) => !(f is HWImageData && f.isAsset))
       .toList();
 
   /// Every localized string declared as a top-level data field, excluding
@@ -260,6 +306,63 @@ class WidgetSpec {
   List<JsonDataGroup> get timedJsonDataGroups => _groupJsonFields(
         timedDataFields.map((f) => f.data).whereType<HWJson>(),
       );
+
+  /// Image [dataFields], runtime and asset alike, time-based ones unwrapped.
+  List<HWImageData> get imageDataFields => [
+        for (final field in dataFields)
+          if (field.unwrapped case final HWImageData image) image,
+      ];
+
+  /// Runtime images declared as a time-based top-level data field.
+  ///
+  /// Their `ImageProvider`s travel per timestamp inside the generated timed
+  /// data class, and each one is written to its own PNG keyed
+  /// `<prefix>.timedData.<key>.<epochMillis>`.
+  List<HWImageData> get timedImageFields => [
+        for (final field in timedDataFields)
+          if (field.unwrapped case final HWImageData image) image,
+      ];
+
+  /// Image fields supplied at runtime through the generated `saveData`.
+  List<HWImageData> get runtimeImageFields =>
+      imageDataFields.where((f) => !f.isAsset).toList();
+
+  /// Flutter asset images, read in place from the app bundle by native code.
+  List<HWImageData> get assetImageFields =>
+      imageDataFields.where((f) => f.isAsset).toList();
+
+  /// Image leaves of the untimed JSON groups.
+  List<JsonImageField> get jsonImageFields => _jsonImages(jsonDataGroups);
+
+  /// Image leaves of the timed JSON groups, whose PNGs are additionally keyed
+  /// by the timestamp of the entry they belong to.
+  List<JsonImageField> get timedJsonImageFields =>
+      _jsonImages(timedJsonDataGroups);
+
+  /// Whether any image reaches the widget through the generated `saveData`,
+  /// wherever it is declared.
+  ///
+  /// Drives the `ImageProvider` import of the generated Dart helper.
+  bool get hasRuntimeImages =>
+      runtimeImageFields.isNotEmpty ||
+      jsonImageFields.isNotEmpty ||
+      timedJsonImageFields.isNotEmpty;
+
+  /// Whether the widget renders any image at all, asset images included.
+  ///
+  /// Drives the shared native decode helpers, which both routes go through.
+  bool get hasImages => imageDataFields.isNotEmpty || hasRuntimeImages;
+
+  List<JsonImageField> _jsonImages(List<JsonDataGroup> groups) => [
+        for (final group in groups)
+          for (final child in group.children)
+            if (child.type case final HWImageData image)
+              JsonImageField(
+                rootKey: group.key,
+                path: child.path,
+                image: image,
+              ),
+      ];
 
   /// JSON fields grouped by root key for nested native struct generation.
   List<JsonDataGroup> get jsonDataGroups =>

@@ -1260,7 +1260,7 @@ android {
       );
       // The stored JSON stays the source of truth: no baked-in leaf default.
       expect(swift, contains('let name: String?'));
-      expect(swift, contains('name: (values["name"] as? String) ?? nil,'));
+      expect(swift, contains('name: values["name"] as? String,'));
     });
 
     test('emits the resolver but no blob reader for a JSON-only widget',

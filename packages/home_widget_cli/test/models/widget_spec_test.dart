@@ -47,6 +47,72 @@ void main() {
     });
   });
 
+  group('WidgetSpec image fields', () {
+    test('default tree renders image fields with HWImage', () {
+      final spec = _spec(
+        dataFields: const [HWString('label'), HWImageData('avatar')],
+      );
+
+      final children = (spec.effectiveWidgetTree as HWColumn).children;
+      expect(children.length, 3);
+      expect(children[1], isA<HWRow>());
+      expect(children[2], isA<HWImage>());
+      expect((children[2] as HWImage).dataType.key, 'avatar');
+    });
+
+    test('collects image leaves of JSON groups with their storage keys', () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('contact', HWString('name')),
+          HWJson('contact', HWJson('photos', HWImageData('main'))),
+          HWTimedData(HWJson('slot', HWImageData('picture'))),
+        ],
+      );
+
+      expect(
+        spec.jsonImageFields.map((f) => f.storageKey).toList(),
+        ['contact.photos.main'],
+      );
+      expect(
+        spec.timedJsonImageFields.map((f) => f.storageKey).toList(),
+        ['slot.picture'],
+      );
+      // A JSON leaf is not a root-level image, but it still needs the
+      // ImageProvider plumbing in the generated Dart helper.
+      expect(spec.imageDataFields, isEmpty);
+      expect(spec.hasRuntimeImages, isTrue);
+    });
+
+    test('default tree renders a timed image with HWImage', () {
+      final spec = _spec(
+        dataFields: const [HWTimedData(HWImageData('slide'))],
+      );
+
+      final children = (spec.effectiveWidgetTree as HWColumn).children;
+      final image = children[1] as HWImage;
+      expect(image.imageData, const HWImageData('slide'));
+      // The wrapper survives, so the field stays time-based.
+      expect(image.dataType, isA<HWTimedData<dynamic>>());
+    });
+
+    test('splits runtime and asset images, keeping assets out of storage', () {
+      const runtime = HWImageData('avatar');
+      const asset = HWImageData.asset('assets/logo.png');
+      final spec = _spec(
+        dataFields: const [HWString('label'), runtime, asset],
+      );
+
+      expect(spec.imageDataFields, equals([runtime, asset]));
+      expect(spec.runtimeImageFields, equals([runtime]));
+      expect(spec.assetImageFields, equals([asset]));
+      // Asset images are read from the app bundle, never stored.
+      expect(
+        spec.primitiveDataFields,
+        equals([const HWString('label'), runtime]),
+      );
+    });
+  });
+
   group('WidgetSpec.primitiveDataFields', () {
     test('filters out HWJson fields', () {
       const string = HWString('label');
@@ -281,6 +347,27 @@ void main() {
 
       expect(spec.timedPrimitiveDataFields, equals([label, count]));
       expect(spec.primitiveDataFields, equals(const [HWString('plain')]));
+    });
+
+    test('timedImageFields unwraps timed runtime images', () {
+      const untimed = HWImageData('avatar');
+      const slide = HWImageData('slide');
+      final spec = _spec(
+        dataFields: const [
+          untimed,
+          HWTimedData(slide),
+          HWTimedData(HWInt('n')),
+        ],
+      );
+
+      expect(spec.timedImageFields, equals([slide]));
+      // A timed image is still an image field, so the Dart helper knows to
+      // import ImageProvider for it.
+      expect(spec.imageDataFields, equals([untimed, slide]));
+      expect(spec.runtimeImageFields, equals([untimed, slide]));
+      // ...but never a `saveData` parameter of its own.
+      expect(spec.primitiveDataFields, equals(const [untimed]));
+      expect(spec.timedPrimitiveDataFields, equals(const [slide, HWInt('n')]));
     });
 
     // One HWTimedData declaration per JSON root: two of them sharing a root are

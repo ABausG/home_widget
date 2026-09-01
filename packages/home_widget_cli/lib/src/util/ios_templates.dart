@@ -16,6 +16,7 @@ String iosWidgetSwiftTemplate({
   String? getTimelineBody,
   String? entryViewBody,
   String? extraContent,
+  List<String>? extraImports,
   String? displayName,
   String? description,
   String? displayNameExpression,
@@ -56,8 +57,14 @@ struct ${widgetClassName}Entry: TimelineEntry {
   buffer.writeln('//');
   buffer.writeln('// App Group ID used here: $appGroupId');
   buffer.writeln();
-  buffer.writeln('import SwiftUI');
-  buffer.writeln('import WidgetKit');
+  for (final import in {
+    'import SwiftUI',
+    'import WidgetKit',
+    ...?extraImports,
+  }.toList()
+    ..sort()) {
+    buffer.writeln(import);
+  }
   buffer.writeln();
   buffer.writeln('struct Provider: TimelineProvider {');
   buffer.writeln(

@@ -15,6 +15,7 @@ import '../util/cli_thanks.dart';
 import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 import '../util/logger.dart';
+import '../validation/asset_validator.dart';
 
 /// Command that generates native widget code from annotated Dart schemas.
 class GenerateCommand extends Command<int> {
@@ -112,6 +113,18 @@ class GenerateCommand extends Command<int> {
     if (specs.isEmpty) {
       logger.info('No @HomeWidget annotated classes found.');
       return ExitCodes.success;
+    }
+
+    // Asset images are resolved against the project on disk, so this can only
+    // run once the whole project root is known (unlike validateWidgetData,
+    // which runs inside the parser).
+    try {
+      for (final item in specs) {
+        validateAssets(item.spec, Directory.current);
+      }
+    } on GeneratorError catch (e) {
+      logger.err(e.message);
+      return ExitCodes.software;
     }
 
     for (final item in specs) {

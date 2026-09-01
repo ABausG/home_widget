@@ -154,6 +154,102 @@ void main() {
       );
     });
 
+    test('generates image helpers for runtime images only', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Profile'),
+        className: 'Profile',
+        dataFields: const [
+          HWString('title'),
+          HWImageData('avatar'),
+          HWImageData.asset('assets/logo.png'),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+
+      // saveData takes an ImageProvider for runtime images only.
+      expect(output, contains('ImageProvider? avatar,'));
+      expect(output, isNot(contains('ImageProvider? assetsLogoPng,')));
+      expect(
+        output,
+        contains(
+          "if (avatar != null) HomeWidget.saveImage('\${_\$paramPrefix}.avatar', avatar),",
+        ),
+      );
+
+      // No renderFlutterWidget convenience is generated; images are supplied
+      // as ImageProviders through saveData.
+      expect(output, isNot(contains('renderFlutterWidget')));
+
+      // Asset images are read from the app bundle by native code, so they
+      // never reach the Dart helper.
+      expect(output, isNot(contains('AssetImage')));
+      expect(output, isNot(contains('assetsLogoPng')));
+      expect(output, contains('static Future<bool?> updateWidget() {'));
+
+      // Runtime image paths still participate in getData as strings.
+      expect(
+        output,
+        contains(
+          'static Future<({String? title, String? avatar})> getData()',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "avatar: await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.avatar'),",
+        ),
+      );
+      expect(output, contains('bool avatar = false,'));
+      expect(
+        output,
+        contains(
+          "if (avatar) HomeWidget.saveWidgetData('\${_\$paramPrefix}.avatar', null),",
+        ),
+      );
+    });
+
+    test('forwards appGroupId on image calls', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Profile',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'Profile',
+        dataFields: const [
+          HWImageData('avatar'),
+          HWImageData.asset('assets/logo.png'),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          "HomeWidget.saveImage('\${_\$paramPrefix}.avatar', avatar, appGroupId: _\$appGroupId)",
+        ),
+      );
+    });
+
+    test('emits no data plumbing when only asset images are declared', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'AssetOnly'),
+        className: 'AssetOnly',
+        dataFields: const [HWImageData.asset('assets/logo.png')],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains('saveData(')));
+      expect(output, isNot(contains('deleteData')));
+      expect(output, isNot(contains('getData')));
+      expect(output, isNot(contains("import 'package:flutter/widgets.dart';")));
+      expect(output, contains('static Future<bool?> updateWidget() {'));
+    });
+
     test('generates updateWidget method', () {
       final spec = WidgetSpec(
         data: HomeWidget(
@@ -364,13 +460,13 @@ void main() {
           "          try {\n"
           "            await HomeWidget.cancelScheduledWidgetUpdates(qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
           "          } catch (error, stackTrace) {\n"
-          "            // Scheduling is best effort; the data was saved.\n"
+          "            // Cancelling is best effort; the data was deleted.\n"
           "            FlutterError.reportError(\n"
           "              FlutterErrorDetails(\n"
           "                exception: error,\n"
           "                stack: stackTrace,\n"
           "                library: 'home_widget',\n"
-          "                context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "                context: ErrorDescription('cancelling scheduled updates for the ExampleWidget widget'),\n"
           "              ),\n"
           "            );\n"
           "          }\n",
@@ -386,13 +482,13 @@ void main() {
           "        try {\n"
           "          await HomeWidget.cancelScheduledWidgetUpdates(qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver');\n"
           "        } catch (error, stackTrace) {\n"
-          "          // Scheduling is best effort; the data was saved.\n"
+          "          // Cancelling is best effort; the data was deleted.\n"
           "          FlutterError.reportError(\n"
           "            FlutterErrorDetails(\n"
           "              exception: error,\n"
           "              stack: stackTrace,\n"
           "              library: 'home_widget',\n"
-          "              context: ErrorDescription('scheduling updates for the ExampleWidget widget'),\n"
+          "              context: ErrorDescription('cancelling scheduled updates for the ExampleWidget widget'),\n"
           "            ),\n"
           "          );\n"
           "        }\n",
@@ -438,6 +534,280 @@ void main() {
         ),
       );
       expect(output, contains('timedData: timedData,'));
+    });
+
+    test('saves and clears images at JSON leaves', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWJson('contact', HWString('name')),
+          HWJson('contact', HWImageData('avatar')),
+          HWJson('contact', HWJson('photos', HWImageData('main'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      // The leaf carries the provider itself and never serializes it.
+      expect(output, contains('final ImageProvider? avatar;'));
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+      expect(output, contains("avatar: _readFileImage(json['avatar']),"));
+      expect(output, isNot(contains("if (avatar != null) 'avatar': avatar,")));
+      expect(output, contains("if (name != null) 'name': name,"));
+
+      // Root leaf: saved into the blob under a key derived from the path.
+      expect(
+        output,
+        contains(
+          "_contactJson['avatar'] = await HomeWidget.saveImage("
+          "'\${_\$paramPrefix}.contact.avatar', _jsonImage_contact_avatar, "
+          'appGroupId: _\$appGroupId);',
+        ),
+      );
+      // A missing image writes nothing into the blob and drops the PNG.
+      expect(
+        output,
+        contains(
+          '} else {\n'
+          "          await HomeWidget.saveWidgetData<String>('"
+          "\${_\$paramPrefix}.contact.avatar', null, "
+          'appGroupId: _\$appGroupId);',
+        ),
+      );
+      // Nested leaf: the ancestor map is there because the object chain was.
+      expect(
+        output,
+        contains(
+          'final _jsonImage_contact_photos_main = contact.photos?.main;',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "(_contactJson['photos']! as Map<String, dynamic>)['main'] = "
+          "await HomeWidget.saveImage('"
+          "\${_\$paramPrefix}.contact.photos.main', _jsonImage_contact_photos_main, "
+          'appGroupId: _\$appGroupId);',
+        ),
+      );
+      // Images are written before the blob that has to carry their paths.
+      expect(
+        output.indexOf('HomeWidget.saveImage('),
+        lessThan(output.indexOf('HomeWidget.saveFile(')),
+      );
+
+      // deleteData drops the blob and every PNG the group owns.
+      expect(
+        output,
+        contains(
+          '      if (contact) () async {\n'
+          "        await HomeWidget.saveWidgetData('\${_\$paramPrefix}.contact', null, appGroupId: _\$appGroupId);\n"
+          "        await HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.contact.avatar', null, appGroupId: _\$appGroupId);\n"
+          "        await HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.contact.photos.main', null, appGroupId: _\$appGroupId);",
+        ),
+      );
+      // Untimed leaves have stable keys, so there is nothing to prune.
+      expect(output, isNot(contains(r'_$deleteTimedImages')));
+    });
+
+    test('keys a JSON leaf image of a timed group by timestamp', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWTimedData(HWJson('slot', HWImageData('picture'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('final _jsonImage_slot_picture = _entry.slot?.picture;'),
+      );
+      expect(
+        output,
+        contains(
+          "(_values['slot']! as Map<String, dynamic>)['picture'] = "
+          "await HomeWidget.saveImage('"
+          "\${_\$paramPrefix}.timedData.slot.picture.\$_millis', "
+          '_jsonImage_slot_picture);',
+        ),
+      );
+      // Pruning covers a JSON leaf exactly like a root timed image.
+      expect(output, contains("for (final _key in const ['slot.picture'])"));
+      expect(
+        output,
+        contains(
+          r'await _$deleteTimedImages(_storedTimes.where((_millis) => '
+          '!_timedJson.containsKey(_millis.toString())));',
+        ),
+      );
+    });
+
+    test('gives colliding timed and JSON leaf images distinct locals', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWTimedData(HWImageData('contactAvatar')),
+          HWTimedData(HWJson('contact', HWImageData('avatar'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('final _timedImage_contactAvatar = _entry.contactAvatar;'),
+      );
+      expect(
+        output,
+        contains(
+          'final _jsonImage_contact_avatar = _entry.contact?.avatar;',
+        ),
+      );
+    });
+
+    test('gives colliding JSON leaf paths distinct locals', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWJson('media', HWImageData('photoSet')),
+          HWJson('media', HWJson('photo', HWImageData('set'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('final _jsonImage_media_photoSet = media.photoSet;'),
+      );
+      expect(
+        output,
+        contains('final _jsonImage_media_photo_set = media.photo?.set;'),
+      );
+    });
+
+    test('saves, records and prunes per-timestamp images', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWTimedData(HWImageData('slide')),
+          HWTimedData(HWString('caption')),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      // The entry carries the provider itself, not a path.
+      expect(output, contains('final ImageProvider? slide;'));
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+      // ...and never serializes it: only saveData knows where the PNG went.
+      expect(output, isNot(contains("'slide': slide,")));
+      expect(output, contains("if (caption != null) 'caption': caption,"));
+      expect(output, contains("slide: _readFileImage(json['slide']),"));
+      expect(output, contains('ImageProvider? _readFileImage(Object? value)'));
+      expect(
+        output,
+        contains('return file.existsSync() ? FileImage(file) : null;'),
+      );
+
+      // The stale keys are read before anything is written, every image is
+      // saved into the entry, and only then is the timeline written and the
+      // images of dropped timestamps deleted.
+      final storedAt =
+          output.indexOf(r'final _storedTimes = await _$storedTimedKeys();');
+      final saveImageAt = output.indexOf('HomeWidget.saveImage(');
+      final saveFileAt = output.indexOf('HomeWidget.saveFile(');
+      final deleteAt =
+          output.indexOf(r'await _$deleteTimedImages(_storedTimes.where(');
+      expect(storedAt, greaterThan(-1));
+      expect(saveImageAt, greaterThan(storedAt));
+      expect(saveFileAt, greaterThan(saveImageAt));
+      expect(deleteAt, greaterThan(saveFileAt));
+
+      expect(
+        output,
+        contains(
+          "_values['slide'] = await HomeWidget.saveImage("
+          "'\${_\$paramPrefix}.timedData.slide.\$_millis', _timedImage_slide, "
+          'appGroupId: _\$appGroupId);',
+        ),
+      );
+      // A slot that survives but loses its image drops the old PNG too.
+      expect(
+        output,
+        contains(
+          '} else if (_storedTimes.contains(_millis)) {\n'
+          "            await HomeWidget.saveWidgetData<String>('"
+          "\${_\$paramPrefix}.timedData.slide.\$_millis', null, "
+          'appGroupId: _\$appGroupId);',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          r'await _$deleteTimedImages(_storedTimes.where((_millis) => '
+          '!_timedJson.containsKey(_millis.toString())));',
+        ),
+      );
+
+      // Cleanup helpers: the stored timeline is the only record of which
+      // images exist, and clearing a key deletes its PNG with it.
+      expect(
+        output,
+        contains(r'static Future<List<int>> _$storedTimedKeys() async {'),
+      );
+      expect(
+        output,
+        contains("for (final _key in const ['slide'])"),
+      );
+      expect(
+        output,
+        contains(
+          "HomeWidget.saveWidgetData<String>("
+          "'\${_\$paramPrefix}.timedData.\$_key.\$_millis', null, "
+          'appGroupId: _\$appGroupId),',
+        ),
+      );
+
+      // deleteData drops the schedule together with all of its images.
+      expect(
+        output,
+        contains(
+          '      if (timedData) () async {\n'
+          '        final _storedTimes = await _\$storedTimedKeys();\n'
+          "        await HomeWidget.saveWidgetData('\${_\$paramPrefix}.timedData', null, appGroupId: _\$appGroupId);\n"
+          '        await _\$deleteTimedImages(_storedTimes);',
+        ),
+      );
+    });
+
+    test('leaves the timed save path untouched without timed images', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [HWTimedData(HWString('label'))],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains(r'_$storedTimedKeys')));
+      expect(output, isNot(contains(r'_$deleteTimedImages')));
+      expect(output, isNot(contains('_readFileImage')));
+      expect(output, contains('final _timedJson = <String, dynamic>{\n'));
     });
 
     test('types a timed localized member as the translations class', () {

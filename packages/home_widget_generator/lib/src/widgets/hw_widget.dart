@@ -14,6 +14,7 @@ import 'hw_edge_insets.dart';
 part 'hw_column.dart';
 part 'hw_row.dart';
 part 'hw_text.dart';
+part 'hw_image.dart';
 part 'hw_data_only.dart';
 part 'hw_adaptive.dart';
 part 'hw_fill.dart';

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_image_showcase_label">Image Showcase</string>
+    <string name="home_widget_image_showcase_description">A bundled asset logo plus images saved by the app.</string>
+</resources>
