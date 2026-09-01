@@ -50,7 +50,7 @@ HWImage.asset('assets/logo.png', package: 'my_icons')
 A package asset can also be addressed with the manual `packages/<package>/<path>` convention — `HWImage.asset('packages/my_icons/assets/logo.png')` is the same image — but do not combine the two spellings, which would resolve to `packages/my_icons/packages/my_icons/...`.
 
 <Info>
-Asset paths are validated when you run `home_widget generate`: an app asset must exist on disk and be declared under `flutter.assets`, and a package asset must exist in the dependency (its declaration is that package's responsibility).
+Asset paths are validated when you run `home_widget generate`: an app asset must exist on disk and be declared under `flutter.assets`, and a package asset must exist in the dependency (its declaration is that package's responsibility) — the package-asset check only runs once the dependency is resolved in `.dart_tool/package_config.json` (i.e. after `pub get`), and is skipped otherwise.
 </Info>
 
 ## Parameters

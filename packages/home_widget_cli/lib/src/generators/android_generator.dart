@@ -201,6 +201,9 @@ class AndroidGenerator {
     // Images: every image decode subsamples, so the sample-size helper comes
     // along with either source; the file decoder is for runtime images and the
     // asset decoder for bundled ones.
+    final needsImageHelpers = spec.hasImages ||
+        spec.hasRuntimeImages ||
+        spec.assetImageFields.isNotEmpty;
     final fileHelpers = <String>[
       if (needsResolver) kotlinLocalizeHelpers,
       if (needsLocaleArg) kotlinLocalizedMergeHelpers,
@@ -271,6 +274,12 @@ class AndroidGenerator {
     contentBody = bodyBuffer.toString();
 
     final layoutImports = (spec.effectiveWidgetTree.kotlinImports).toSet();
+    // The image helpers reference BitmapFactory unqualified, and a tree that
+    // declares an image field without rendering an HWImage contributes no
+    // import of its own.
+    if (needsImageHelpers) {
+      layoutImports.add('import android.graphics.BitmapFactory');
+    }
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
     }

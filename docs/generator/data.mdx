@@ -46,7 +46,7 @@ When a `defaultValue` is provided it's used both in the generated Dart helper an
 
 ## Image data
 
-`HWImageData` describes an image slot rendered with [`HWImage`](/generator/widgets/hw-image). Supply runtime images through the generated `saveData(...)`, which takes an `ImageProvider` for each of them; `getData()` gives them back the same way.
+`HWImageData` describes an image slot rendered with [`HWImage`](/generator/widgets/hw-image). Supply runtime images through the generated `saveData(...)`, which takes an `ImageProvider` for each of them. `getData()` hands a top-level image back as the `String?` file path `saveData` wrote it to; only images nested in an `HWJson` group or in a timed entry come back from `getData()` as an `ImageProvider?`.
 
 There are two constructors, matching the two `HWImage` constructors:
 
@@ -55,7 +55,7 @@ There are two constructors, matching the two `HWImage` constructors:
 
 An asset image takes no key: two asset images in one widget that would be indistinguishable are reported as a generation error, and combining `package:` with a manual `packages/<package>/` path is one too.
 
-Asset paths are checked when you run `home_widget generate`: app assets must exist and be declared under `flutter.assets`, and package assets must exist inside the resolved dependency.
+Asset paths are checked when you run `home_widget generate`: app assets must exist and be declared under `flutter.assets`, and package assets must exist inside the resolved dependency — package assets are only checked once the dependency is resolved in `.dart_tool/package_config.json` (i.e. after `pub get`); if it isn't resolved yet, the check is skipped.
 
 Binding an `HWImageData` to a text-only widget (e.g. `HWText(HWImageData('avatar'))`) is a generation error — an image is not display text. Use `HWImage` to render it.
 

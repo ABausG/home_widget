@@ -65,7 +65,8 @@ const String kotlinImageSampleFunction = 'hwImageSampleSize';
 ///
 /// RemoteViews cap how much bitmap memory a widget may hand to the launcher, so
 /// a full-resolution photo has to be subsampled before it is decoded. The target
-/// is the image's declared size in pixels; one that sizes itself from the layout
+/// is the image's declared size in pixels; an axis the widget declares no size
+/// for follows the source's aspect ratio, or — with neither axis declared —
 /// falls back to the screen's shorter side, which no widget exceeds.
 const String kotlinImageSampleHelper = '''
 private fun $kotlinImageSampleFunction(
@@ -74,10 +75,21 @@ private fun $kotlinImageSampleFunction(
     widthDp: Double?,
     heightDp: Double?,
 ): Int {
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
     val metrics = context.resources.displayMetrics
     val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
-    val targetWidth = widthDp?.let { (it * metrics.density).toInt() } ?: fallback
-    val targetHeight = heightDp?.let { (it * metrics.density).toInt() } ?: fallback
+    val widthPx = widthDp?.let { (it * metrics.density).toInt() }
+    val heightPx = heightDp?.let { (it * metrics.density).toInt() }
+    val targetWidth = widthPx
+        ?: heightPx?.let {
+            (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
+        }
+        ?: fallback
+    val targetHeight = heightPx
+        ?: widthPx?.let {
+            (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
+        }
+        ?: fallback
     if (targetWidth <= 0 || targetHeight <= 0) return 1
     var sampleSize = 1
     while (bounds.outWidth / (sampleSize * 2) >= targetWidth &&

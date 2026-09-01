@@ -415,6 +415,30 @@ void main() {
     expect(content, isNot(contains('hwDecodeImageFile')));
   });
 
+  test('imports BitmapFactory when no HWImage is rendered', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'UnrenderedImage',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.image'),
+      ),
+      className: 'UnrenderedImage',
+      dataFields: const [HWImageData('avatar')],
+      widgetTree: const HWText.fixed('no image here'),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/image/UnrenderedImageHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(content, contains('private fun hwImageSampleSize('));
+    expect(content, contains('import android.graphics.BitmapFactory'));
+  });
+
   test('reads a timed image path out of the active entry', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
