@@ -470,7 +470,8 @@ void main() {
 
     test('the top-level URL stays off Android without an Android configuration',
         () {
-      final spec = urlSpec(widgetUrl: 'myapp://widget', configureAndroid: false);
+      final spec =
+          urlSpec(widgetUrl: 'myapp://widget', configureAndroid: false);
       expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
       expect(spec.effectiveAndroidWidgetUrl, isNull);
       expect(spec.androidWidgetUrl, isNull);

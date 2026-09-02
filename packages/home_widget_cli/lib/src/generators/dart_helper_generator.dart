@@ -795,7 +795,8 @@ class DartHelperGenerator {
     buffer.writeln('  /// when it was started any other way.');
     buffer.writeln('  ///');
     _writeFilterDoc(buffer);
-    buffer.writeln('  static Future<Uri?> initiallyLaunchedFromWidget() async {');
+    buffer
+        .writeln('  static Future<Uri?> initiallyLaunchedFromWidget() async {');
     buffer.writeln(
       '    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();',
     );
