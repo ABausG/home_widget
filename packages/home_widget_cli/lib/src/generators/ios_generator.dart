@@ -318,6 +318,9 @@ $loadDataLogic
       iosWidgetSwiftTemplate(
         widgetClassName: widgetClassName,
         appGroupId: groupId,
+        widgetUrl: spec.iosWidgetUrl == null
+            ? null
+            : escapeSwiftStringLiteral(spec.iosWidgetUrl!),
         placeholderBody: hasDataFields
             ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data'
                 '.fromUserDefaults(nil)'

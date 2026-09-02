@@ -1200,7 +1200,7 @@ void main() {
     expect(
       content,
       contains(
-        'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {',
+        'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize().clickable(onClick = actionStartActivity<MainActivity>()), contentAlignment = Alignment.Center) {',
       ),
     );
     // Should NOT contain placeholder
@@ -1256,7 +1256,7 @@ void main() {
     expect(
       content,
       contains(
-        'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {',
+        'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground).padding(16.dp).fillMaxSize().clickable(onClick = actionStartActivity<MainActivity>()), contentAlignment = Alignment.Center) {',
       ),
     );
     expect(content, contains('GlanceTheme {'));
@@ -1399,9 +1399,197 @@ void main() {
     expect(
       content,
       contains(
-        'Box(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize(), contentAlignment = Alignment.Center) {',
+        'Box(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))).padding(16.dp).fillMaxSize().clickable(onClick = actionStartActivity<MainActivity>()), contentAlignment = Alignment.Center) {',
       ),
     );
     expect(content, contains('if (widgetData.flag != null) {'));
+  });
+
+  group('widget URL', () {
+    Future<String> generateFor(WidgetSpec spec, String packagePath) async {
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+      final widgetFile = File(
+        p.join(
+          tempDir.path,
+          'android/app/src/main/kotlin/$packagePath/'
+          '${spec.className}HomeWidget.kt',
+        ),
+      );
+      expect(widgetFile.existsSync(), isTrue);
+      return widgetFile.readAsStringSync();
+    }
+
+    void writeManifest({String activityName = '.MainActivity'}) {
+      final dir = Directory(
+        p.join(tempDir.path, 'android', 'app', 'src', 'main'),
+      )..createSync(recursive: true);
+      File(p.join(dir.path, 'AndroidManifest.xml')).writeAsStringSync('''
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.urls">
+    <application android:label="test">
+        <activity android:name="$activityName" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+''');
+    }
+
+    test('opens the app without a launch intent when no URL is configured',
+        () async {
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Plain',
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+          ),
+          className: 'Plain',
+        ),
+        'com/urls',
+      );
+
+      expect(
+        content,
+        contains('clickable(onClick = actionStartActivity<MainActivity>())'),
+      );
+      expect(
+        content,
+        contains('import androidx.glance.action.actionStartActivity'),
+      );
+      expect(content, contains('import androidx.glance.action.clickable'));
+      expect(
+        content,
+        isNot(contains('import es.antonborri.home_widget.actionStartActivity')),
+      );
+      expect(content, isNot(contains('Uri.parse')));
+    });
+
+    test('opens the app with the configured URL', () async {
+      writeManifest();
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Linked',
+            widgetUrl: 'myapp://linked',
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+          ),
+          className: 'Linked',
+        ),
+        'com/urls',
+      );
+
+      expect(
+        content,
+        contains(
+          'clickable(onClick = actionStartActivity<MainActivity>(context, '
+          'Uri.parse("myapp://linked?homeWidget")))',
+        ),
+      );
+      expect(
+        content,
+        contains('import es.antonborri.home_widget.actionStartActivity'),
+      );
+      expect(content, contains('import android.net.Uri'));
+      expect(
+        content,
+        isNot(
+          contains(
+            'import androidx.glance.action.actionStartActivity',
+          ),
+        ),
+      );
+    });
+
+    test('prefers the Android URL over the top-level one', () async {
+      writeManifest();
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Override',
+            widgetUrl: 'myapp://shared',
+            android: HomeWidgetAndroidConfiguration(
+              packageName: 'com.urls',
+              widgetUrl: 'myapp://android',
+            ),
+          ),
+          className: 'Override',
+        ),
+        'com/urls',
+      );
+
+      expect(content, contains('Uri.parse("myapp://android?homeWidget")'));
+      expect(content, isNot(contains('myapp://shared')));
+    });
+
+    test('imports the launcher activity when it lives in another package',
+        () async {
+      writeManifest(activityName: 'com.other.HostActivity');
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Foreign',
+            widgetUrl: 'myapp://foreign',
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+          ),
+          className: 'Foreign',
+        ),
+        'com/urls',
+      );
+
+      expect(content, contains('import com.other.HostActivity'));
+      expect(content, contains('actionStartActivity<HostActivity>(context'));
+    });
+
+    test('wires the launch intent-filter only when a URL is configured',
+        () async {
+      writeManifest();
+      final manifest = File(
+        p.join(
+          tempDir.path,
+          'android',
+          'app',
+          'src',
+          'main',
+          'AndroidManifest.xml',
+        ),
+      );
+
+      await AndroidGenerator(
+        spec: WidgetSpec(
+          data: HomeWidget(
+            name: 'Plain',
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+          ),
+          className: 'Plain',
+        ),
+        projectRoot: tempDir,
+      ).generate();
+      expect(
+        manifest.readAsStringSync(),
+        isNot(contains('es.antonborri.home_widget.action.LAUNCH')),
+      );
+
+      await AndroidGenerator(
+        spec: WidgetSpec(
+          data: HomeWidget(
+            name: 'Linked',
+            widgetUrl: 'myapp://linked',
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+          ),
+          className: 'Linked',
+        ),
+        projectRoot: tempDir,
+      ).generate();
+      expect(
+        manifest.readAsStringSync(),
+        contains(
+          '<action android:name="es.antonborri.home_widget.action.LAUNCH" />',
+        ),
+      );
+    });
   });
 }

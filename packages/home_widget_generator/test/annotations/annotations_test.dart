@@ -51,6 +51,17 @@ void main() {
       expect(a, equals(b));
       expect(a, isNot(equals(c)));
     });
+
+    test('widgetUrl participates in equality', () {
+      const a = HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://android');
+      const b = HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://android');
+      const c = HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://other');
+      expect(a.widgetUrl, 'myapp://android');
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+      expect(a, isNot(equals(c)));
+      expect(a, isNot(equals(const HomeWidgetAndroidConfiguration())));
+    });
   });
 
   group('HomeWidgetIOSConfiguration', () {
@@ -67,6 +78,31 @@ void main() {
       expect(config1, equals(config2));
       expect(config1.hashCode, equals(config2.hashCode));
       expect(config1, isNot(equals(config3)));
+    });
+
+    test('widgetUrl participates in equality', () {
+      const a = HomeWidgetIOSConfiguration(
+        groupId: 'group.example',
+        widgetUrl: 'myapp://ios',
+      );
+      const b = HomeWidgetIOSConfiguration(
+        groupId: 'group.example',
+        widgetUrl: 'myapp://ios',
+      );
+      const c = HomeWidgetIOSConfiguration(
+        groupId: 'group.example',
+        widgetUrl: 'myapp://other',
+      );
+      expect(a.widgetUrl, 'myapp://ios');
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+      expect(a, isNot(equals(c)));
+      expect(
+        a,
+        isNot(
+          equals(const HomeWidgetIOSConfiguration(groupId: 'group.example')),
+        ),
+      );
     });
   });
 

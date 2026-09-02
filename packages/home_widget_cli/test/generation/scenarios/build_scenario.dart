@@ -10,6 +10,8 @@ class BuildScenario {
     required this.className,
     required this.widgetSource,
     this.expectsScheduledUpdateWiring = false,
+    this.expectedAndroidWidgetUrl,
+    this.expectedIosWidgetUrl,
     this.assetPaths = const [],
   });
 
@@ -28,6 +30,18 @@ class BuildScenario {
   /// assert that the CLI registered the plugin's scheduled update receiver in
   /// the app's `AndroidManifest.xml`.
   final bool expectsScheduledUpdateWiring;
+
+  /// The URL, `homeWidget` parameter included, the generated Android widget is
+  /// expected to open on tap, or null when the scenario configures none.
+  ///
+  /// A scenario setting this also expects the CLI to have declared the
+  /// plugin's launch intent-filter on the app's launcher activity; one leaving
+  /// it null expects the plain open-app click and no manifest change.
+  final String? expectedAndroidWidgetUrl;
+
+  /// The URL, `homeWidget` parameter included, the generated iOS widget is
+  /// expected to carry as its `widgetURL`, or null when it should carry none.
+  final String? expectedIosWidgetUrl;
 
   /// Project-relative asset paths (e.g. `assets/logo.png`) that
   /// [widgetSource] references through `HWImage.asset`.

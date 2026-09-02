@@ -150,6 +150,51 @@ void main() {
       expect(spec!.data.android?.fillWidgetContent, false);
     });
 
+    test('parses the top-level widgetUrl', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Url Test',
+          widgetUrl: 'myapp://widget',
+        )
+        class UrlWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.widgetUrl, 'myapp://widget');
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+    });
+
+    test('parses the per-platform widgetUrl overrides', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Url Override Test',
+          widgetUrl: 'myapp://shared',
+          android: const HomeWidgetAndroidConfiguration(
+            widgetUrl: 'myapp://android',
+          ),
+          iOS: const HomeWidgetIOSConfiguration(
+            groupId: 'group.url',
+            widgetUrl: 'myapp://ios',
+          ),
+        )
+        class UrlOverrideWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.widgetUrl, 'myapp://shared');
+      expect(spec.data.android?.widgetUrl, 'myapp://android');
+      expect(spec.data.iOS?.widgetUrl, 'myapp://ios');
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://ios');
+    });
+
     test('collects data fields from widget tree (HWText HWString)', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

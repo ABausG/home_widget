@@ -564,6 +564,10 @@ class DartHelperGenerator {
     buffer.writeln('    );');
     buffer.writeln('  }');
 
+    if (spec.hasWidgetUrl) {
+      buffer.writeln();
+      _writeLaunchHelpers(buffer);
+    }
     if (allTimedImageKeys.isNotEmpty) {
       buffer.writeln();
       _writeTimedImageHelpers(buffer, allTimedImageKeys, usesAppGroupId);
@@ -750,6 +754,54 @@ class DartHelperGenerator {
       'null$appGroupArg);',
     );
     buffer.writeln('$indent}');
+  }
+
+  /// Emits the helpers telling the app that the widget was tapped.
+  ///
+  /// Emitted only for specs configuring a widget URL, which is what makes the
+  /// platforms report a click at all.
+  void _writeLaunchHelpers(StringBuffer buffer) {
+    buffer.writeln(
+      '  /// The URL the app was launched with by a tap on the widget, or null',
+    );
+    buffer.writeln('  /// when it was started any other way.');
+    buffer.writeln(
+      '  static Future<Uri?> initiallyLaunchedFromWidget() =>',
+    );
+    buffer.writeln('      HomeWidget.initiallyLaunchedFromHomeWidget();');
+    buffer.writeln();
+    buffer.writeln(
+      '  /// The URL of every tap on the widget while the app is running.',
+    );
+    buffer.writeln(
+      '  ///',
+    );
+    buffer.writeln(
+      '  /// A tap that started the app in the first place is not replayed here',
+    );
+    buffer.writeln(
+      '  /// — read [initiallyLaunchedFromWidget] for that one, or listen to',
+    );
+    buffer.writeln('  /// [launchedFromWidget] for both.');
+    buffer.writeln(
+      '  static Stream<Uri?> get widgetClicked => HomeWidget.widgetClicked;',
+    );
+    buffer.writeln();
+    buffer.writeln('  /// Every tap on the widget, launch included.');
+    buffer.writeln('  ///');
+    buffer.writeln(
+      '  /// Yields the launch URL first when the app was started by a tap on',
+    );
+    buffer.writeln(
+      '  /// the widget, then every tap that follows while it runs.',
+    );
+    buffer.writeln('  static Stream<Uri?> launchedFromWidget() async* {');
+    buffer.writeln(
+      '    final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
+    );
+    buffer.writeln('    if (initial != null) yield initial;');
+    buffer.writeln('    yield* HomeWidget.widgetClicked;');
+    buffer.writeln('  }');
   }
 
   /// Emits the two helpers that keep per-timestamp image files in step with the

@@ -6,10 +6,13 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 /// [appGroupId]: The App Group ID for data sharing.
 /// [widgetBody]: Optional body content for the `Widget` configuration.
 ///               If null, a placeholder configuration is generated.
+/// [widgetUrl]: Optional URL opened when the widget is tapped, emitted as a
+///              `.widgetURL(...)` modifier on the entry view's body.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String iosWidgetSwiftTemplate({
   required String widgetClassName,
   required String appGroupId,
+  String? widgetUrl,
   String? placeholderBody,
   String? entryDefinition,
   String? getSnapshotBody,
@@ -103,6 +106,9 @@ struct ${widgetClassName}Entry: TimelineEntry {
   buffer.writeln();
   buffer.writeln('  var body: some View {');
   buffer.writeln(viewBody);
+  if (widgetUrl != null) {
+    buffer.writeln('    .widgetURL(URL(string: "$widgetUrl"))');
+  }
   buffer.writeln('  }');
   buffer.writeln('}');
   buffer.writeln();

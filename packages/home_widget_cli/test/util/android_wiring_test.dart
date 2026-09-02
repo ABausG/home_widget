@@ -808,4 +808,153 @@ dependencies {
       );
     });
   });
+
+  group('ensureAndroidManifestLaunchIntent', () {
+    late File manifestFile;
+
+    setUp(() {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'main'),
+      )..createSync(recursive: true);
+      manifestFile = File(p.join(dir.path, 'AndroidManifest.xml'));
+    });
+
+    void writeManifest({String extraActivityChildren = ''}) {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application android:label="test">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>$extraActivityChildren
+        </activity>
+    </application>
+</manifest>
+''',
+      );
+    }
+
+    test('warns when the manifest is missing', () async {
+      await ensureAndroidManifestLaunchIntent(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('AndroidManifest.xml not found')),
+        ),
+      ).called(1);
+    });
+
+    test('warns when the manifest is not parsable XML', () async {
+      manifestFile.writeAsStringSync('not xml <<<');
+
+      await ensureAndroidManifestLaunchIntent(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not parse AndroidManifest.xml')),
+        ),
+      ).called(1);
+    });
+
+    test('warns when manifest has no application element', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestLaunchIntent(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not find <application>')),
+        ),
+      ).called(1);
+    });
+
+    test('warns when no launcher activity is declared', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application android:label="test">
+        <activity android:name=".OtherActivity" />
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestLaunchIntent(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not find the launcher activity')),
+        ),
+      ).called(1);
+      expect(
+        manifestFile.readAsStringSync(),
+        isNot(contains(homeWidgetLaunchAction)),
+      );
+    });
+
+    test('adds the launch intent-filter to the launcher activity', () async {
+      writeManifest();
+
+      await ensureAndroidManifestLaunchIntent(root);
+
+      final content = manifestFile.readAsStringSync();
+      expect(
+        content,
+        contains('<action android:name="$homeWidgetLaunchAction"'),
+      );
+
+      final document = XmlDocument.parse(content);
+      final activity = document.rootElement.findAllElements('activity').single;
+      expect(
+        activity.childElements
+            .where((e) => e.localName == 'intent-filter')
+            .length,
+        2,
+      );
+      // The launcher filter keeps its own actions.
+      expect(
+        content,
+        contains('<action android:name="android.intent.action.MAIN" />'),
+      );
+    });
+
+    test('is idempotent across repeated runs', () async {
+      writeManifest();
+
+      await ensureAndroidManifestLaunchIntent(root);
+      final afterFirst = manifestFile.readAsStringSync();
+      await ensureAndroidManifestLaunchIntent(root);
+
+      expect(manifestFile.readAsStringSync(), afterFirst);
+      expect(
+        homeWidgetLaunchAction.allMatches(afterFirst).length,
+        1,
+      );
+    });
+
+    test('leaves a hand-written launch intent-filter untouched', () async {
+      writeManifest(
+        extraActivityChildren: '''
+            <intent-filter>
+                <action android:name="$homeWidgetLaunchAction" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>''',
+      );
+      final before = manifestFile.readAsStringSync();
+
+      await ensureAndroidManifestLaunchIntent(root);
+
+      expect(manifestFile.readAsStringSync(), before);
+    });
+  });
 }

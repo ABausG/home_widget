@@ -243,6 +243,21 @@ class AndroidGenerator {
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
     );
 
+    final widgetUrl = spec.androidWidgetUrl;
+    final launcherActivity = tryDetectAndroidLauncherActivity(
+          projectRoot,
+          packageName: packageName,
+        ) ??
+        '$packageName.MainActivity';
+    final activityClassName = launcherActivity.split('.').last;
+    // A widget without a URL still opens the app, matching what iOS does for a
+    // widget that declares no `widgetURL`. The plain Glance action carries no
+    // home_widget launch intent, so no widget click is reported.
+    final clickAction = widgetUrl == null
+        ? 'actionStartActivity<$activityClassName>()'
+        : 'actionStartActivity<$activityClassName>(context, '
+            'Uri.parse("${escapeKotlinStringLiteral(widgetUrl)}"))';
+
     final rootModifiers = <String>[];
     if (bgColor != null) {
       rootModifiers.add(
@@ -254,6 +269,9 @@ class AndroidGenerator {
     }
     if (fillContent) {
       rootModifiers.add('fillMaxSize()');
+    }
+    rootModifiers.add('clickable(onClick = $clickAction)');
+    if (fillContent) {
       widgetTreeBody = wrapGlanceRootContent(
         widgetTreeBody,
         modifier: rootModifiers.join('.'),
@@ -297,6 +315,21 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.fillMaxSize');
       layoutImports.add('import androidx.glance.layout.Alignment');
       layoutImports.add('import androidx.glance.layout.Box');
+    }
+
+    layoutImports.add('import androidx.glance.action.clickable');
+    if (widgetUrl == null) {
+      // The reified Activity overload lives in glance core; the appwidget
+      // package only carries the Intent-based ones.
+      layoutImports.add('import androidx.glance.action.actionStartActivity');
+    } else {
+      layoutImports.add('import android.net.Uri');
+      layoutImports.add('import es.antonborri.home_widget.actionStartActivity');
+    }
+    // Only a launcher activity living in another package needs naming; the
+    // generated file may sit in a package the annotation overrode.
+    if (launcherActivity != '$packageName.$activityClassName') {
+      layoutImports.add('import $launcherActivity');
     }
     // `R` lives in the Gradle namespace, not necessarily the package this file
     // is written into (an annotation may override `packageName`). Unqualified
@@ -411,6 +444,9 @@ class AndroidGenerator {
       handleLocaleChange: rendersLocalizedContent,
       label: '@string/$labelResourceName',
     );
+    if (widgetUrl != null) {
+      await ensureAndroidManifestLaunchIntent(projectRoot);
+    }
     if (spec.timedDataFields.isNotEmpty) {
       // Time-based content drives itself through HomeWidget.scheduleWidgetUpdates
       // on Android, which needs the plugin's scheduling receiver declared by the

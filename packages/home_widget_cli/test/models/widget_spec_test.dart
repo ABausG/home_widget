@@ -411,6 +411,100 @@ void main() {
     });
   });
 
+  group('WidgetSpec widget URLs', () {
+    WidgetSpec urlSpec({
+      String? widgetUrl,
+      String? androidWidgetUrl,
+      String? iosWidgetUrl,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'UrlWidget',
+            widgetUrl: widgetUrl,
+            android: HomeWidgetAndroidConfiguration(
+              widgetUrl: androidWidgetUrl,
+            ),
+            iOS: HomeWidgetIOSConfiguration(
+              groupId: 'group.url',
+              widgetUrl: iosWidgetUrl,
+            ),
+          ),
+          className: 'UrlWidget',
+        );
+
+    test('no URL configured', () {
+      final spec = urlSpec();
+      expect(spec.effectiveAndroidWidgetUrl, isNull);
+      expect(spec.effectiveIosWidgetUrl, isNull);
+      expect(spec.androidWidgetUrl, isNull);
+      expect(spec.iosWidgetUrl, isNull);
+      expect(spec.hasAndroidWidgetUrl, isFalse);
+      expect(spec.hasIosWidgetUrl, isFalse);
+      expect(spec.hasWidgetUrl, isFalse);
+    });
+
+    test('the top-level URL reaches both platforms', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget');
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('a platform URL wins over the top-level one', () {
+      final spec = urlSpec(
+        widgetUrl: 'myapp://shared',
+        androidWidgetUrl: 'myapp://android',
+        iosWidgetUrl: 'myapp://ios',
+      );
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://ios');
+    });
+
+    test('one platform may override while the other keeps the top-level URL',
+        () {
+      final spec = urlSpec(
+        widgetUrl: 'myapp://shared',
+        androidWidgetUrl: 'myapp://android',
+      );
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://shared');
+      expect(spec.hasAndroidWidgetUrl, isTrue);
+      expect(spec.hasIosWidgetUrl, isTrue);
+    });
+
+    test('the homeWidget parameter is appended to a URL without a query', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget');
+      expect(spec.androidWidgetUrl, 'myapp://widget?homeWidget');
+      expect(spec.iosWidgetUrl, 'myapp://widget?homeWidget');
+    });
+
+    test('an existing query is preserved', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget?message=hi%20there');
+      expect(
+        spec.androidWidgetUrl,
+        'myapp://widget?message=hi%20there&homeWidget',
+      );
+    });
+
+    test('the URL is spliced, not normalized', () {
+      final spec = urlSpec(widgetUrl: 'myApp://Widget/Path');
+      expect(spec.androidWidgetUrl, 'myApp://Widget/Path?homeWidget');
+    });
+
+    test('a fragment stays behind the query', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget?a=b#part');
+      expect(spec.iosWidgetUrl, 'myapp://widget?a=b&homeWidget#part');
+    });
+
+    test('a URL that already carries the parameter is left untouched', () {
+      final flag = urlSpec(widgetUrl: 'myapp://widget?message=hi&homeWidget');
+      expect(flag.androidWidgetUrl, 'myapp://widget?message=hi&homeWidget');
+
+      final valued = urlSpec(widgetUrl: 'myapp://widget?homeWidget=1');
+      expect(valued.iosWidgetUrl, 'myapp://widget?homeWidget=1');
+    });
+  });
+
   group('WidgetSpec equality', () {
     test('equal specs are equal and share hashCode', () {
       final a = _spec();

@@ -11,6 +11,8 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.action.actionStartActivity
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -44,7 +46,8 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
           modifier =
               GlanceModifier.background(GlanceTheme.colors.widgetBackground)
                   .padding(16.dp)
-                  .fillMaxSize(),
+                  .fillMaxSize()
+                  .clickable(onClick = actionStartActivity<MainActivity>()),
           contentAlignment = Alignment.Center,
       ) {
         if (widgetData.hasData != null) {

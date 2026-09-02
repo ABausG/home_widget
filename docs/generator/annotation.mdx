@@ -45,6 +45,7 @@ class ConfigurationOptions {}
 | `android` | `HomeWidgetAndroidConfiguration?` | `null` | Android-specific configuration (see below). |
 | `iOS` | `HomeWidgetIOSConfiguration?` | `null` | iOS-specific configuration (see below). |
 | `localization` | `HomeWidgetLocalization?` | `null` | Default locale, supported locales, and translations of the gallery name and description. See [Localization](/generator/localization). |
+| `widgetUrl` | `String?` | `null` | URL the app is opened with when the widget is tapped. See [Widget Clicks](/generator/widget-url). |
 
 A `localization:` block is required as soon as the widget uses a localized string
 (`HWText.localized` or `HWString.localized`) — it supplies the default locale
@@ -73,6 +74,7 @@ Maps to [`AppWidgetProviderInfo`](https://developer.android.com/reference/androi
 | `backgroundColor` | `HWColor?` | `HWDefaultColor(HWColorRole.defaultBackground)` | Background color applied via `GlanceModifier.background(...)`. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | Applies a default 16.dp root padding. |
 | `fillWidgetContent` | `bool` | `true` | Applies `GlanceModifier.fillMaxSize()` to the root. |
+| `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on Android. See [Widget Clicks](/generator/widget-url). |
 
 ## `HomeWidgetIOSConfiguration`
 
@@ -84,3 +86,4 @@ Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widget
 | `supportedFamilies` | `List<HWWidgetFamily>?` | all families | Restricts which [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) values are supported. Maps to [`StaticConfiguration.supportedFamilies`](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:)). |
 | `backgroundColor` | `HWColor?` | `null` | Background color for the widget container. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |
+| `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on iOS. See [Widget Clicks](/generator/widget-url). |

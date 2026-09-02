@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:xml/xml.dart';
 
 import 'xml_utils.dart';
 
@@ -51,6 +52,70 @@ String? _tryReadPackageFromManifest(File manifest) {
   final text = manifest.readAsStringSync();
   final match = RegExp(r'package\s*=\s*"([^"]+)"').firstMatch(text);
   return match?.group(1);
+}
+
+/// Attempts to detect the fully qualified name of the activity the launcher
+/// starts, which is the activity a widget click has to open.
+///
+/// Reads the `AndroidManifest.xml` activity whose intent-filter carries
+/// `android.intent.action.MAIN` and `android.intent.category.LAUNCHER`. A
+/// relative `android:name` (`.MainActivity`, `MainActivity`) is resolved
+/// against [packageName], falling back to the detected application id.
+/// Returns `null` when no launcher activity is declared, or when a relative
+/// name cannot be resolved.
+String? tryDetectAndroidLauncherActivity(
+  Directory projectRoot, {
+  String? packageName,
+}) {
+  final manifest = File(
+    p.join(
+      projectRoot.path,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    ),
+  );
+  if (!manifest.existsSync()) return null;
+
+  final xml = tryParseXmlFile(manifest);
+  if (xml == null) return null;
+
+  for (final application in xml.rootElement.childElements
+      .where((e) => e.localName == 'application')) {
+    for (final activity
+        in application.childElements.where((e) => e.localName == 'activity')) {
+      final name = activity.getAttribute('android:name');
+      if (name == null || name.trim().isEmpty) continue;
+
+      final isLauncher = activity.childElements
+          .where((e) => e.localName == 'intent-filter')
+          .any(
+            (filter) =>
+                filter.findElements('action').any(
+                      (e) =>
+                          e.getAttribute('android:name') ==
+                          'android.intent.action.MAIN',
+                    ) &&
+                filter.findElements('category').any(
+                      (e) =>
+                          e.getAttribute('android:name') ==
+                          'android.intent.category.LAUNCHER',
+                    ),
+          );
+      if (!isLauncher) continue;
+
+      final trimmed = name.trim();
+      if (!trimmed.startsWith('.') && trimmed.contains('.')) return trimmed;
+
+      final base = packageName ?? tryDetectAndroidPackage(projectRoot);
+      if (base == null) return null;
+      return trimmed.startsWith('.') ? '$base$trimmed' : '$base.$trimmed';
+    }
+  }
+
+  return null;
 }
 
 /// Attempts to detect the Android module namespace of `android/app`.

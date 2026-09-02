@@ -25,6 +25,8 @@ small and each one demonstrates a different feature of the generator:
   pictures on a schedule, and an image read out of a JSON group
   (`HWImage(HWJson('contact', HWImageData('avatar')))`) so a name and a picture
   travel together.
+- `widget_link.dart` – a `widgetUrl`, so tapping the widget opens the app with
+  that URL and the generated `launchedFromWidget()` helper reports it back.
 
 ## Generating the native code
 
@@ -43,3 +45,8 @@ also registers
 `HomeWidgetScheduledUpdateReceiver` and the `RECEIVE_BOOT_COMPLETED` permission
 in `android/app/src/main/AndroidManifest.xml` — that is what delivers the
 scheduled content swaps on Android.
+
+Because `widget_link.dart` sets `widgetUrl`, the CLI also adds the
+`es.antonborri.home_widget.action.LAUNCH` intent-filter to the launcher activity
+in that same manifest — that is what hands the URL to the app when the widget is
+tapped.

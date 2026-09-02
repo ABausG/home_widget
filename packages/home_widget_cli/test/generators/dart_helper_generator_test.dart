@@ -974,5 +974,70 @@ void main() {
       expect(output, isNot(contains('_\$appGroupId')));
       expect(output, isNot(contains('appGroupId:')));
     });
+
+    test('emits the launch helpers when a widget URL is configured', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'LinkedWidget', widgetUrl: 'myapp://linked'),
+        className: 'LinkedWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static Future<Uri?> initiallyLaunchedFromWidget() =>\n'
+          '      HomeWidget.initiallyLaunchedFromHomeWidget();',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Stream<Uri?> get widgetClicked => HomeWidget.widgetClicked;',
+        ),
+      );
+      expect(
+        output,
+        contains('static Stream<Uri?> launchedFromWidget() async* {'),
+      );
+      expect(
+        output,
+        contains(
+          'final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
+        ),
+      );
+      expect(output, contains('if (initial != null) yield initial;'));
+      expect(output, contains('yield* HomeWidget.widgetClicked;'));
+    });
+
+    test('emits the launch helpers for a platform-only widget URL', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'AndroidOnly',
+          android: HomeWidgetAndroidConfiguration(
+            widgetUrl: 'myapp://android',
+          ),
+        ),
+        className: 'AndroidOnly',
+      );
+
+      expect(
+        DartHelperGenerator(spec).generate(),
+        contains('static Future<Uri?> initiallyLaunchedFromWidget()'),
+      );
+    });
+
+    test('omits the launch helpers without a widget URL', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'PlainWidget'),
+        className: 'PlainWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains('initiallyLaunchedFromWidget')));
+      expect(output, isNot(contains('widgetClicked')));
+      expect(output, isNot(contains('launchedFromWidget')));
+    });
   });
 }

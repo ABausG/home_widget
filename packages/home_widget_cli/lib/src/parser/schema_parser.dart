@@ -107,6 +107,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       android: androidConfig,
       iOS: iosConfig,
       localization: localization,
+      widgetUrl: constantValue.getField('widgetUrl')?.toStringValue(),
     ),
     className: generatedClassName,
     dataFields: dataFields,
@@ -166,6 +167,7 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
+    widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
   );
 }
 
@@ -189,6 +191,7 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     ),
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
+    widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
   );
 }
 

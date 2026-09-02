@@ -69,6 +69,44 @@ Future<void> runAndroidBuildScenario(BuildScenario scenario) async {
     );
   }
 
+  const launchAction = 'es.antonborri.home_widget.action.LAUNCH';
+  final kotlinSource = File(kotlinFilePath).readAsStringSync();
+  final expectedUrl = scenario.expectedAndroidWidgetUrl;
+  if (expectedUrl != null) {
+    expect(
+      kotlinSource,
+      contains('Uri.parse("$expectedUrl")'),
+      reason: 'CLI should open the configured URL on tap',
+    );
+    expect(
+      kotlinSource,
+      contains('import es.antonborri.home_widget.actionStartActivity'),
+    );
+    expect(
+      appManifestSource,
+      contains('<action android:name="$launchAction" />'),
+      reason: 'CLI should declare the launch intent-filter for specs with a '
+          'widget URL',
+    );
+  } else {
+    // A widget without a URL still opens the app, but through the plain Glance
+    // action, so no widget click is reported and no manifest entry is needed.
+    expect(
+      kotlinSource,
+      contains('clickable(onClick = actionStartActivity<MainActivity>())'),
+    );
+    expect(
+      kotlinSource,
+      contains('import androidx.glance.action.actionStartActivity'),
+    );
+    expect(
+      appManifestSource,
+      isNot(contains(launchAction)),
+      reason: 'Specs without a widget URL must not gain launch manifest '
+          'entries',
+    );
+  }
+
   final buildResult = await Process.run(
     'flutter',
     ['build', 'apk'],
@@ -143,6 +181,15 @@ Future<void> runIosBuildScenario(BuildScenario scenario) async {
     File(swiftFilePath).existsSync(),
     isTrue,
     reason: 'CLI should have generated the HomeWidget Swift sources',
+  );
+
+  final swiftSource = File(swiftFilePath).readAsStringSync();
+  final expectedUrl = scenario.expectedIosWidgetUrl;
+  expect(
+    swiftSource,
+    expectedUrl == null
+        ? isNot(contains('.widgetURL('))
+        : contains('.widgetURL(URL(string: "$expectedUrl"))'),
   );
 
   final buildResult = await Process.run(

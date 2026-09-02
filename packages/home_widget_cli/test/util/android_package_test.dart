@@ -160,4 +160,121 @@ android {
   test('returns null when neither namespace nor manifest package exists', () {
     expect(tryDetectAndroidNamespace(root), isNull);
   });
+
+  group('tryDetectAndroidLauncherActivity', () {
+    void writeManifest(String body) {
+      File(
+        p.join(
+          root.path,
+          'android',
+          'app',
+          'src',
+          'main',
+          'AndroidManifest.xml',
+        ),
+      ).writeAsStringSync('''
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+$body
+</manifest>
+''');
+    }
+
+    const launcherFilter = '''
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>''';
+
+    test('resolves a relative name against the given package', () {
+      writeManifest('''
+    <application>
+        <activity android:name=".MainActivity">$launcherFilter
+        </activity>
+    </application>''');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
+        'com.example.app.MainActivity',
+      );
+    });
+
+    test('resolves a bare name against the detected package', () {
+      writeManifest('''
+    <application>
+        <activity android:name="HostActivity">$launcherFilter
+        </activity>
+    </application>''');
+      File(p.join(root.path, 'android', 'app', 'build.gradle'))
+          .writeAsStringSync('''
+android {
+    defaultConfig {
+        applicationId "com.detected.app"
+    }
+}
+''');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root),
+        'com.detected.app.HostActivity',
+      );
+    });
+
+    test('keeps a fully qualified name', () {
+      writeManifest('''
+    <application>
+        <activity android:name="com.other.pkg.Launcher">$launcherFilter
+        </activity>
+    </application>''');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
+        'com.other.pkg.Launcher',
+      );
+    });
+
+    test('skips activities that are not the launcher', () {
+      writeManifest('''
+    <application>
+        <activity android:name=".ShareActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".MainActivity">$launcherFilter
+        </activity>
+    </application>''');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
+        'com.example.app.MainActivity',
+      );
+    });
+
+    test('returns null when no launcher activity is declared', () {
+      writeManifest('''
+    <application>
+        <activity android:name=".ShareActivity" />
+    </application>''');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
+        isNull,
+      );
+    });
+
+    test('returns null when the manifest is missing', () {
+      expect(tryDetectAndroidLauncherActivity(root), isNull);
+    });
+
+    test('returns null when a relative name cannot be resolved', () {
+      writeManifest('''
+    <application>
+        <activity android:name=".MainActivity">$launcherFilter
+        </activity>
+    </application>''');
+
+      expect(tryDetectAndroidLauncherActivity(root), isNull);
+    });
+  });
 }

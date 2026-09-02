@@ -30,6 +30,99 @@ void main() {
       );
     });
 
+    test('accepts a widget URL on every level', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          widgetUrl: 'myapp://widget',
+          android: HomeWidgetAndroidConfiguration(
+            widgetUrl: 'myapp://widget/android?a=b',
+          ),
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.t',
+            widgetUrl: 'myapp://widget/ios#part',
+          ),
+        ),
+        className: 'T',
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('rejects an empty widget URL', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T', widgetUrl: '   '),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"T"'), contains('widgetUrl'), contains('empty')),
+          ),
+        ),
+      );
+    });
+
+    test('names the platform of an empty widget URL', () {
+      final android = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          android: HomeWidgetAndroidConfiguration(widgetUrl: ''),
+        ),
+        className: 'T',
+      );
+      expect(
+        () => validateWidgetData(android),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('Android widgetUrl'),
+          ),
+        ),
+      );
+
+      final ios = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.t', widgetUrl: ''),
+        ),
+        className: 'T',
+      );
+      expect(
+        () => validateWidgetData(ios),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('iOS widgetUrl'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a widget URL that cannot be parsed', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T', widgetUrl: 'my app://:://not a url'),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('is not a valid URL'),
+          ),
+        ),
+      );
+    });
+
     test('accepts image fields with distinct derived keys', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),
