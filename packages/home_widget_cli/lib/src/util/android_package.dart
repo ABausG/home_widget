@@ -59,9 +59,10 @@ String? _tryReadPackageFromManifest(File manifest) {
 /// Reads the `AndroidManifest.xml` activity whose intent-filter carries
 /// `android.intent.action.MAIN` and `android.intent.category.LAUNCHER`. A
 /// relative `android:name` (`.MainActivity`, `MainActivity`) is resolved the
-/// way Android resolves it: against the manifest `package`, falling back to the
-/// detected application id — never against a codegen package override, which
-/// names where generated files are written, not where the app's classes live.
+/// way AGP resolves it: against the module namespace, falling back to the
+/// detected application id when no namespace is declared — never against a
+/// codegen package override, which names where generated files are written, not
+/// where the app's classes live.
 /// Returns `null` when no launcher activity is declared, or when a relative
 /// name cannot be resolved.
 String? tryDetectAndroidLauncherActivity(Directory projectRoot) {
@@ -92,7 +93,8 @@ String? tryDetectAndroidLauncherActivity(Directory projectRoot) {
       final trimmed = name.trim();
       if (!trimmed.startsWith('.') && trimmed.contains('.')) return trimmed;
 
-      final base = tryDetectAndroidPackage(projectRoot);
+      final base = tryDetectAndroidNamespace(projectRoot) ??
+          tryDetectAndroidPackage(projectRoot);
       if (base == null) return null;
       return trimmed.startsWith('.') ? '$base$trimmed' : '$base.$trimmed';
     }

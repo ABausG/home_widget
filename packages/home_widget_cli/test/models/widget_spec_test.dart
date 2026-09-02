@@ -417,19 +417,25 @@ void main() {
       String? androidWidgetUrl,
       String? iosWidgetUrl,
       bool openAppOnTap = true,
+      bool configureAndroid = true,
+      bool configureIos = true,
     }) =>
         WidgetSpec(
           data: HomeWidget(
             name: 'UrlWidget',
             widgetUrl: widgetUrl,
-            android: HomeWidgetAndroidConfiguration(
-              widgetUrl: androidWidgetUrl,
-              openAppOnTap: openAppOnTap,
-            ),
-            iOS: HomeWidgetIOSConfiguration(
-              groupId: 'group.url',
-              widgetUrl: iosWidgetUrl,
-            ),
+            android: configureAndroid
+                ? HomeWidgetAndroidConfiguration(
+                    widgetUrl: androidWidgetUrl,
+                    openAppOnTap: openAppOnTap,
+                  )
+                : null,
+            iOS: configureIos
+                ? HomeWidgetIOSConfiguration(
+                    groupId: 'group.url',
+                    widgetUrl: iosWidgetUrl,
+                  )
+                : null,
           ),
           className: 'UrlWidget',
         );
@@ -449,6 +455,27 @@ void main() {
       final spec = urlSpec(widgetUrl: 'myapp://widget');
       expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
       expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('the top-level URL stays off iOS without an iOS configuration', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget', configureIos: false);
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveIosWidgetUrl, isNull);
+      expect(spec.iosWidgetUrl, isNull);
+      expect(spec.hasIosWidgetUrl, isFalse);
+      expect(spec.hasAndroidWidgetUrl, isTrue);
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('the top-level URL stays off Android without an Android configuration',
+        () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget', configureAndroid: false);
+      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveAndroidWidgetUrl, isNull);
+      expect(spec.androidWidgetUrl, isNull);
+      expect(spec.hasAndroidWidgetUrl, isFalse);
+      expect(spec.hasIosWidgetUrl, isTrue);
       expect(spec.hasWidgetUrl, isTrue);
     });
 

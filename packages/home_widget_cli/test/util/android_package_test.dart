@@ -216,6 +216,43 @@ android {
       );
     });
 
+    test('resolves a relative name against the namespace, not the app id', () {
+      writeManifest('''
+    <application>
+        <activity android:name=".MainActivity">$launcherFilter
+        </activity>
+    </application>''');
+      File(p.join(root.path, 'android', 'app', 'build.gradle'))
+          .writeAsStringSync('''
+android {
+    namespace "com.the.namespace"
+
+    defaultConfig {
+        applicationId "com.detected.app"
+    }
+}
+''');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root),
+        'com.the.namespace.MainActivity',
+      );
+    });
+
+    test('resolves a relative name against the app id without a namespace', () {
+      writeManifest('''
+    <application>
+        <activity android:name=".MainActivity">$launcherFilter
+        </activity>
+    </application>''');
+      writeApplicationId('com.detected.app');
+
+      expect(
+        tryDetectAndroidLauncherActivity(root),
+        'com.detected.app.MainActivity',
+      );
+    });
+
     test('resolves a bare name against the detected application id', () {
       writeManifest('''
     <application>

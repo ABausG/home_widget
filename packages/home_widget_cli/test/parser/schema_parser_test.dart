@@ -189,6 +189,8 @@ void main() {
         @HomeWidget(
           name: 'Url Test',
           widgetUrl: 'myapp://widget',
+          android: const HomeWidgetAndroidConfiguration(),
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.url'),
         )
         class UrlWidget {}
       ''';

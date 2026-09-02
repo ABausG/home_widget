@@ -236,12 +236,19 @@ class WidgetSpec {
 
   /// The URL configured for Android, where the platform value wins over the
   /// top-level [HomeWidget.widgetUrl].
+  ///
+  /// A widget without an Android configuration has no Android widget generated
+  /// for it, and so opens no URL there.
   String? get effectiveAndroidWidgetUrl =>
-      data.android?.widgetUrl ?? data.widgetUrl;
+      data.android == null ? null : data.android!.widgetUrl ?? data.widgetUrl;
 
   /// The URL configured for iOS, where the platform value wins over the
   /// top-level [HomeWidget.widgetUrl].
-  String? get effectiveIosWidgetUrl => data.iOS?.widgetUrl ?? data.widgetUrl;
+  ///
+  /// A widget without an iOS configuration has no iOS widget generated for it,
+  /// and so opens no URL there.
+  String? get effectiveIosWidgetUrl =>
+      data.iOS == null ? null : data.iOS!.widgetUrl ?? data.widgetUrl;
 
   /// Whether a tap on the widget opens the app on Android at all.
   ///
