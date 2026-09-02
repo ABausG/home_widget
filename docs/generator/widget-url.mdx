@@ -65,7 +65,11 @@ myapp://weather?city=1 →  myapp://weather?city=1&homeWidget
 myapp://weather#today  →  myapp://weather?homeWidget#today
 ```
 
-A URL that already carries the parameter is passed through untouched, and the rest of the URL is left exactly as written — a `myApp://` scheme keeps its casing.
+A URL that already carries the parameter is passed through untouched, and the rest of the URL is left exactly as written.
+
+<Info>
+The generator emits the URL string verbatim into the native code, but what the app receives is a parsed `Uri`, and `Uri.parse` lower-cases the scheme. A `widgetUrl` of `myApp://weather` therefore arrives as `myapp://weather?homeWidget` — expect the lower-cased scheme when you log or compare the `Uri`. Everything after the scheme keeps its casing.
+</Info>
 
 ## Platform overrides
 
