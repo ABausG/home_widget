@@ -95,4 +95,61 @@ class ImageTree {}
     expectsScheduledUpdateWiring: true,
     assetPaths: ['assets/logo.png'],
   ),
+  BuildScenario(
+    description: 'opens a top-level widget URL on tap',
+    className: 'SharedUrl',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Shared Url',
+  widgetUrl: 'cliTest://widget',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWText.fixed('Tap me'),
+)
+class SharedUrl {}
+''',
+    expectedAndroidWidgetUrl: 'cliTest://widget?homeWidget',
+    expectedIosWidgetUrl: 'cliTest://widget?homeWidget',
+  ),
+  BuildScenario(
+    description: 'lets each platform override the widget URL',
+    className: 'PlatformUrl',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Platform Url',
+  widgetUrl: 'cliTest://shared',
+  android: HomeWidgetAndroidConfiguration(widgetUrl: 'cliTest://android'),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.cliTest',
+    widgetUrl: 'cliTest://ios',
+  ),
+  widget: HWText.fixed('Tap me'),
+)
+class PlatformUrl {}
+''',
+    expectedAndroidWidgetUrl: 'cliTest://android?homeWidget',
+    expectedIosWidgetUrl: 'cliTest://ios?homeWidget',
+  ),
+  BuildScenario(
+    description: 'keeps a widget URL that already carries homeWidget',
+    className: 'ExplicitUrl',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Explicit Url',
+  widgetUrl: 'cliTest://widget?section=main&homeWidget',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWText.fixed('Tap me'),
+)
+class ExplicitUrl {}
+''',
+    expectedAndroidWidgetUrl: 'cliTest://widget?section=main&homeWidget',
+    expectedIosWidgetUrl: 'cliTest://widget?section=main&homeWidget',
+  ),
 ];

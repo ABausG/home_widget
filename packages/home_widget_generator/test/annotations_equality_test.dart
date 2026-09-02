@@ -84,6 +84,64 @@ void main() {
       );
     });
 
+    test('HomeWidget equality includes widgetUrl', () {
+      final a = HomeWidget(name: 'n', widgetUrl: 'myapp://widget');
+      expect(a.widgetUrl, 'myapp://widget');
+      expect(a, HomeWidget(name: 'n', widgetUrl: 'myapp://widget'));
+      expect(
+        a.hashCode,
+        HomeWidget(name: 'n', widgetUrl: 'myapp://widget').hashCode,
+      );
+      expect(a, isNot(equals(HomeWidget(name: 'n', widgetUrl: 'myapp://x'))));
+      expect(a, isNot(equals(HomeWidget(name: 'n'))));
+    });
+
+    test('platform configuration equality includes widgetUrl', () {
+      const android = HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://a');
+      expect(
+        android,
+        const HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://a'),
+      );
+      expect(
+        android,
+        isNot(
+          equals(
+            const HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://b'),
+          ),
+        ),
+      );
+
+      const ios =
+          HomeWidgetIOSConfiguration(groupId: 'g', widgetUrl: 'myapp://a');
+      expect(
+        ios,
+        const HomeWidgetIOSConfiguration(groupId: 'g', widgetUrl: 'myapp://a'),
+      );
+      expect(
+        ios,
+        isNot(
+          equals(
+            const HomeWidgetIOSConfiguration(
+              groupId: 'g',
+              widgetUrl: 'myapp://b',
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('Android configuration equality includes openAppOnTap', () {
+      const on = HomeWidgetAndroidConfiguration();
+      const off = HomeWidgetAndroidConfiguration(openAppOnTap: false);
+
+      expect(on, const HomeWidgetAndroidConfiguration(openAppOnTap: true));
+      expect(
+        on.hashCode,
+        const HomeWidgetAndroidConfiguration(openAppOnTap: true).hashCode,
+      );
+      expect(on, isNot(equals(off)));
+    });
+
     test('HomeWidget equality includes localization', () {
       final a = HomeWidget(
         name: 'n',

@@ -130,6 +130,17 @@ class HomeWidgetAndroidConfiguration {
   /// Defaults to `true`. If true, applies `GlanceModifier.fillMaxSize()`.
   final bool fillWidgetContent;
 
+  /// The URL passed to the app when the widget is tapped.
+  ///
+  /// Overrides [HomeWidget.widgetUrl] on Android.
+  final String? widgetUrl;
+
+  /// Whether tapping the widget opens the app.
+  ///
+  /// Defaults to `true`. When false, the widget is not made clickable at all,
+  /// even if a [widgetUrl] is configured.
+  final bool openAppOnTap;
+
   const HomeWidgetAndroidConfiguration({
     this.packageName,
     this.minWidth,
@@ -147,6 +158,8 @@ class HomeWidgetAndroidConfiguration {
     this.backgroundColor = const HWDefaultColor(HWColorRole.defaultBackground),
     this.applyContentPadding = true,
     this.fillWidgetContent = true,
+    this.widgetUrl,
+    this.openAppOnTap = true,
   });
 
   @override
@@ -168,7 +181,9 @@ class HomeWidgetAndroidConfiguration {
           useGlanceTheme == other.useGlanceTheme &&
           backgroundColor == other.backgroundColor &&
           applyContentPadding == other.applyContentPadding &&
-          fillWidgetContent == other.fillWidgetContent;
+          fillWidgetContent == other.fillWidgetContent &&
+          widgetUrl == other.widgetUrl &&
+          openAppOnTap == other.openAppOnTap;
 
   @override
   int get hashCode =>
@@ -187,7 +202,9 @@ class HomeWidgetAndroidConfiguration {
       useGlanceTheme.hashCode ^
       backgroundColor.hashCode ^
       applyContentPadding.hashCode ^
-      fillWidgetContent.hashCode;
+      fillWidgetContent.hashCode ^
+      widgetUrl.hashCode ^
+      openAppOnTap.hashCode;
 }
 
 /// The size and shape of a widget.
@@ -236,11 +253,17 @@ class HomeWidgetIOSConfiguration {
   /// Defaults to `true`. If false, disables the default system padding using contentMarginsDisabled().
   final bool applyContentPadding;
 
+  /// The URL passed to the app when the widget is tapped.
+  ///
+  /// Overrides [HomeWidget.widgetUrl] on iOS.
+  final String? widgetUrl;
+
   const HomeWidgetIOSConfiguration({
     required this.groupId,
     this.supportedFamilies,
     this.backgroundColor,
     this.applyContentPadding = true,
+    this.widgetUrl,
   });
 
   @override
@@ -250,14 +273,16 @@ class HomeWidgetIOSConfiguration {
           groupId == other.groupId &&
           supportedFamilies == other.supportedFamilies &&
           backgroundColor == other.backgroundColor &&
-          applyContentPadding == other.applyContentPadding;
+          applyContentPadding == other.applyContentPadding &&
+          widgetUrl == other.widgetUrl;
 
   @override
   int get hashCode =>
       groupId.hashCode ^
       supportedFamilies.hashCode ^
       backgroundColor.hashCode ^
-      applyContentPadding.hashCode;
+      applyContentPadding.hashCode ^
+      widgetUrl.hashCode;
 }
 
 /// Localization settings for a widget.
@@ -356,6 +381,14 @@ class HomeWidget {
   /// default locale that anchors every fallback chain.
   final HomeWidgetLocalization? localization;
 
+  /// The URL passed to the app when the widget is tapped.
+  ///
+  /// Tapping the widget launches the app with this URL, which the app reads
+  /// through the generated launch helpers. Set
+  /// [HomeWidgetAndroidConfiguration.widgetUrl] or
+  /// [HomeWidgetIOSConfiguration.widgetUrl] to override it for that platform.
+  final String? widgetUrl;
+
   const HomeWidget({
     required this.name,
     this.description,
@@ -364,6 +397,7 @@ class HomeWidget {
     this.android,
     this.iOS,
     this.localization,
+    this.widgetUrl,
   });
 
   @override
@@ -376,7 +410,8 @@ class HomeWidget {
           dartOutput == other.dartOutput &&
           android == other.android &&
           iOS == other.iOS &&
-          localization == other.localization;
+          localization == other.localization &&
+          widgetUrl == other.widgetUrl;
 
   @override
   int get hashCode =>
@@ -386,5 +421,6 @@ class HomeWidget {
       dartOutput.hashCode ^
       android.hashCode ^
       iOS.hashCode ^
-      localization.hashCode;
+      localization.hashCode ^
+      widgetUrl.hashCode;
 }

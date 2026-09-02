@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
 import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
@@ -5,6 +7,7 @@ import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/image_showcase.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
+import 'package:generator_basics/src/home_widget/widget_link.home_widget.dart';
 
 void main() {
   runApp(const MainApp());
@@ -34,6 +37,25 @@ class _HomePage extends StatefulWidget {
 
 class _HomePageState extends State<_HomePage> {
   int _counter = 0;
+  Uri? _widgetLinkUri;
+  StreamSubscription<Uri>? _widgetLinkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // launchedFromWidget() yields the launch Uri first when a tap on the
+    // widget started the app, then every tap while it keeps running. Only
+    // this widget's own URL is reported — WidgetLinkHomeWidget.widgetUrl.
+    _widgetLinkSubscription = WidgetLinkHomeWidget.launchedFromWidget().listen(
+      (uri) => setState(() => _widgetLinkUri = uri),
+    );
+  }
+
+  @override
+  void dispose() {
+    _widgetLinkSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -335,6 +357,29 @@ class _HomePageState extends State<_HomePage> {
             await ImageShowcaseHomeWidget.deleteData(contact: true);
             await ImageShowcaseHomeWidget.updateWidget();
           },
+        ),
+
+        const Divider(),
+
+        // -------------------------------------------------------------------
+        // Widget Link: widgetUrl, so a tap on the widget opens the app with a
+        // Uri the generated launch helpers report back.
+        // -------------------------------------------------------------------
+        const _SectionHeader(
+          title: 'Widget Link',
+          subtitle:
+              'The schema sets widgetUrl, so tapping the widget opens the app '
+              'with generatorBasics://link?homeWidget — the generator appends '
+              'the homeWidget parameter and wires the Android intent-filter.',
+        ),
+        ListTile(
+          title: Text(
+            _widgetLinkUri?.toString() ?? 'Not launched from the widget yet',
+          ),
+          subtitle: const Text(
+            'launchedFromWidget() — launch Uri plus every later tap',
+          ),
+          leading: const Icon(Icons.link),
         ),
       ],
     );

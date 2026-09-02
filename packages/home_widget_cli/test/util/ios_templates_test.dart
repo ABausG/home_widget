@@ -49,4 +49,32 @@ void main() {
       isNot(contains('containerBackground(.fill.tertiary, for: .widget)')),
     );
   });
+
+  test('iosWidgetSwiftTemplate puts widgetURL on the entry view body', () {
+    final out = iosWidgetSwiftTemplate(
+      widgetClassName: 'LinkedHomeWidget',
+      appGroupId: 'group.linked',
+      widgetUrl: 'myapp://linked?homeWidget',
+      entryViewBody: '    Text("placeholder")',
+    );
+
+    expect(
+      out,
+      contains(
+        '  var body: some View {\n'
+        '    Text("placeholder")\n'
+        '    .widgetURL(URL(string: "myapp://linked?homeWidget"))\n'
+        '  }',
+      ),
+    );
+  });
+
+  test('iosWidgetSwiftTemplate omits widgetURL when none is given', () {
+    final out = iosWidgetSwiftTemplate(
+      widgetClassName: 'BareHomeWidget',
+      appGroupId: 'group.bare',
+    );
+
+    expect(out, isNot(contains('.widgetURL(')));
+  });
 }

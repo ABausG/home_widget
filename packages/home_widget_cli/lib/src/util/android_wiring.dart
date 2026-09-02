@@ -328,6 +328,96 @@ Future<void> ensureAndroidManifestScheduledUpdates(
   logger.detail('Updated: ${manifestFile.path}');
 }
 
+/// Action the plugin puts on the intent a widget click starts the app with.
+///
+/// The activity has to declare it, or Android delivers the click as a plain
+/// launch and the URL never reaches the app.
+const String homeWidgetLaunchAction = 'es.antonborri.home_widget.action.LAUNCH';
+
+/// Ensures the app's launcher activity accepts the intent a widget click
+/// sends, which is what makes the widget URL reach the app.
+///
+/// Idempotent: an activity already declaring [homeWidgetLaunchAction] is left
+/// untouched. Only called for specs that configure a widget URL, so manifests
+/// of other projects stay byte-identical.
+Future<void> ensureAndroidManifestLaunchIntent(Directory projectRoot) async {
+  final manifestFile = File(
+    p.join(
+      projectRoot.path,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    ),
+  );
+  if (!manifestFile.existsSync()) {
+    logger.warn(
+      'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
+      'widget launch wiring. Tapping the widget will not hand the widget URL '
+      'to the app.',
+    );
+    return;
+  }
+
+  final manifestXml = tryParseXmlFile(manifestFile);
+  if (manifestXml == null) {
+    logger.warn(
+      'Warning: Could not parse AndroidManifest.xml as XML; skipping widget '
+      'launch wiring.',
+    );
+    return;
+  }
+
+  final application = manifestXml.rootElement.childElements
+      .where((e) => e.localName == 'application')
+      .cast<XmlElement?>()
+      .firstWhere((e) => e != null, orElse: () => null);
+
+  if (application == null) {
+    logger.warn(
+      'Warning: Could not find <application> in AndroidManifest.xml; skipping '
+      'widget launch wiring.',
+    );
+    return;
+  }
+
+  final activities =
+      application.childElements.where((e) => e.localName == 'activity');
+
+  final alreadyDeclared = activities.any(
+    (activity) => activity
+        .findAllElements('action')
+        .any((e) => e.getAttribute('android:name') == homeWidgetLaunchAction),
+  );
+  if (alreadyDeclared) return;
+
+  final launcher = activities.cast<XmlElement?>().firstWhere(
+        (activity) => isAndroidLauncherActivity(activity!),
+        orElse: () => null,
+      );
+  if (launcher == null) {
+    logger.warn(
+      'Warning: Could not find the launcher activity in AndroidManifest.xml; '
+      'skipping widget launch wiring. Tapping the widget will not hand the '
+      'widget URL to the app.',
+    );
+    return;
+  }
+
+  launcher.children.add(
+    XmlElement(
+      XmlName('intent-filter'),
+      const [],
+      [_actionElement(homeWidgetLaunchAction)],
+    ),
+  );
+
+  if (writeXmlFile(manifestFile, manifestXml)) {
+    logger.detail('Updated: ${manifestFile.path}');
+  }
+}
+
 /// Broadcast the system sends to manifest-declared receivers (API 31+) when
 /// `SCHEDULE_EXACT_ALARM` is granted, including re-granted after the user
 /// revoked it. Revoking the permission makes the system delete the app's

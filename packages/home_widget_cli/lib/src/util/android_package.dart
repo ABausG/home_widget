@@ -53,6 +53,56 @@ String? _tryReadPackageFromManifest(File manifest) {
   return match?.group(1);
 }
 
+/// Attempts to detect the fully qualified name of the activity the launcher
+/// starts, which is the activity a widget click has to open.
+///
+/// Reads the `AndroidManifest.xml` activity whose intent-filter carries
+/// `android.intent.action.MAIN` and `android.intent.category.LAUNCHER`. A
+/// relative `android:name` (`.MainActivity`, `MainActivity`) is resolved the
+/// way AGP resolves it: against the module namespace, falling back to the
+/// detected application id when no namespace is declared — never against a
+/// codegen package override, which names where generated files are written, not
+/// where the app's classes live.
+/// Returns `null` when no launcher activity is declared, or when a relative
+/// name cannot be resolved.
+String? tryDetectAndroidLauncherActivity(Directory projectRoot) {
+  final manifest = File(
+    p.join(
+      projectRoot.path,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    ),
+  );
+  if (!manifest.existsSync()) return null;
+
+  final xml = tryParseXmlFile(manifest);
+  if (xml == null) return null;
+
+  for (final application in xml.rootElement.childElements
+      .where((e) => e.localName == 'application')) {
+    for (final activity
+        in application.childElements.where((e) => e.localName == 'activity')) {
+      final name = activity.getAttribute('android:name');
+      if (name == null || name.trim().isEmpty) continue;
+
+      if (!isAndroidLauncherActivity(activity)) continue;
+
+      final trimmed = name.trim();
+      if (!trimmed.startsWith('.') && trimmed.contains('.')) return trimmed;
+
+      final base = tryDetectAndroidNamespace(projectRoot) ??
+          tryDetectAndroidPackage(projectRoot);
+      if (base == null) return null;
+      return trimmed.startsWith('.') ? '$base$trimmed' : '$base.$trimmed';
+    }
+  }
+
+  return null;
+}
+
 /// Attempts to detect the Android module namespace of `android/app`.
 ///
 /// The namespace is what `R` is generated under, which is a different concept

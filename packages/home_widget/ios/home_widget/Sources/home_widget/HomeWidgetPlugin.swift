@@ -199,10 +199,6 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
       // reporting a schedule that does not exist.
       result(false)
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
-      if HomeWidgetPlugin.groupId == nil {
-        result(notInitializedError)
-        return
-      }
       result(initialUrl?.absoluteString)
     } else if call.method == "registerBackgroundCallback" {
       if HomeWidgetPlugin.groupId == nil {

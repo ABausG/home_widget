@@ -573,6 +573,83 @@ void main() {
     expect(content, contains('self.contentMarginsDisabled()'));
   });
 
+  test('generates a widgetURL with the homeWidget parameter appended',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'LinkedWidget',
+        widgetUrl: 'myapp://linked?section=main',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.linked'),
+      ),
+      className: 'LinkedWidget',
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/LinkedWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        '.widgetURL(URL(string: "myapp://linked?section=main&homeWidget"))',
+      ),
+    );
+    // The modifier belongs to the view, not the widget configuration.
+    expect(
+      content,
+      contains(
+        '    .applyContainerBackground()\n'
+        '    .widgetURL(URL(string: "myapp://linked?section=main&homeWidget"))',
+      ),
+    );
+  });
+
+  test('prefers the iOS widgetUrl over the top-level one', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'OverrideWidget',
+        widgetUrl: 'myapp://shared',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.override',
+          widgetUrl: 'myapp://ios',
+        ),
+      ),
+      className: 'OverrideWidget',
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/OverrideWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "myapp://ios?homeWidget"))'),
+    );
+    expect(content, isNot(contains('myapp://shared')));
+  });
+
+  test('emits no widgetURL when none is configured', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PlainWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.plain'),
+      ),
+      className: 'PlainWidget',
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/PlainWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, isNot(contains('.widgetURL(')));
+  });
+
   test('generates Swift widget with HWPadding', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

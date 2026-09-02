@@ -147,6 +147,7 @@ words:
     - xcstrings
     - uncompilable
     - dedupe
+    - myapp
     - myapplication
     - classpath
     - subtag

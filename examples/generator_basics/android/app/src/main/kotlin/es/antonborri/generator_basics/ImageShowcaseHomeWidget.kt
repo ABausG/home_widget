@@ -13,6 +13,8 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.action.actionStartActivity
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -49,7 +51,8 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
           modifier =
               GlanceModifier.background(GlanceTheme.colors.widgetBackground)
                   .padding(16.dp)
-                  .fillMaxSize(),
+                  .fillMaxSize()
+                  .clickable(onClick = actionStartActivity<MainActivity>()),
           contentAlignment = Alignment.Center,
       ) {
         Column(

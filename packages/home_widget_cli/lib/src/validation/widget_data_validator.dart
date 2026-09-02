@@ -42,6 +42,7 @@ void validateWidgetData(WidgetSpec spec) {
     }
   }
 
+  _validateWidgetUrls(spec);
   _validateImageKeys(spec);
   _validateNoConflictingKeys(spec);
   validateLocalization(spec);
@@ -60,6 +61,38 @@ void validateWidgetData(WidgetSpec spec) {
       }
       root.insertField(group.key, path: field.path, field: field);
     }
+  }
+}
+
+/// Rejects a widget URL that is not an absolute [Uri] with a scheme.
+void _validateWidgetUrls(WidgetSpec spec) {
+  _validateWidgetUrl(spec, spec.data.widgetUrl, platform: null);
+  _validateWidgetUrl(spec, spec.data.android?.widgetUrl, platform: 'Android');
+  _validateWidgetUrl(spec, spec.data.iOS?.widgetUrl, platform: 'iOS');
+}
+
+void _validateWidgetUrl(
+  WidgetSpec spec,
+  String? url, {
+  required String? platform,
+}) {
+  if (url == null) return;
+
+  final where = platform == null ? 'widgetUrl' : '$platform widgetUrl';
+
+  if (url.trim().isEmpty) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": $where is empty. Omit it to keep the widget '
+      'from opening the app when tapped.',
+    );
+  }
+  final uri = Uri.tryParse(url);
+  if (uri == null || !uri.hasScheme) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": $where "$url" is not a valid URL. A '
+      'widgetUrl must be an absolute URI including a scheme, e.g. '
+      'myapp://details.',
+    );
   }
 }
 

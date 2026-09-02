@@ -974,5 +974,303 @@ void main() {
       expect(output, isNot(contains('_\$appGroupId')));
       expect(output, isNot(contains('appGroupId:')));
     });
+
+    test('emits the launch helpers when a widget URL is configured', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'LinkedWidget',
+          widgetUrl: 'myapp://linked',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'LinkedWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('static Future<Uri?> initiallyLaunchedFromWidget() async {'),
+      );
+      expect(
+        output,
+        contains(
+          'static Stream<Uri> get widgetClicked =>\n'
+          '      HomeWidget.widgetClicked\n'
+          '          .where((uri) => uri != null && _\$matchesWidgetUrl(uri))\n'
+          '          .cast<Uri>();',
+        ),
+      );
+      expect(
+        output,
+        contains('static Stream<Uri> launchedFromWidget() async* {'),
+      );
+      expect(
+        output,
+        contains(
+          'final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'if (initial != null && _\$matchesWidgetUrl(initial)) yield initial;',
+        ),
+      );
+      expect(output, contains('yield* clicks.stream;'));
+      expect(output, isNot(contains('where:')));
+      expect(output, isNot(contains('widgetClickedWhere')));
+    });
+
+    test('exposes the runtime widget URL and filters the streams by it', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'LinkedWidget',
+          widgetUrl: 'myApp://linked',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'LinkedWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          "static final Uri widgetUrl = Uri.parse('myApp://linked?homeWidget');",
+        ),
+      );
+      expect(output, contains('as the app'));
+      expect(output, contains('/// will receive it.'));
+      expect(output, isNot(contains('androidWidgetUrl')));
+      expect(output, isNot(contains('iosWidgetUrl')));
+      expect(
+        output,
+        contains(
+          'static bool _\$matchesWidgetUrl(Uri uri) {\n'
+          '    final url = _\$platformWidgetUrl;\n'
+          '    if (url == null) return false;\n'
+          '    return _\$lowerCaseScheme(uri) == _\$lowerCaseScheme(url);\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Uri? get _\$platformWidgetUrl {\n'
+          '    if (Platform.isAndroid) return widgetUrl;\n'
+          '    if (Platform.isIOS) return widgetUrl;\n'
+          '    return null;\n'
+          '  }',
+        ),
+      );
+      expect(output, contains("import 'dart:io';"));
+      expect(
+        output,
+        contains(
+          'static String _\$lowerCaseScheme(Uri uri) {\n'
+          '    final text = uri.toString();\n'
+          '    return uri.scheme.toLowerCase() + text.substring(uri.scheme.length);\n'
+          '  }',
+        ),
+      );
+    });
+
+    test('exposes one runtime URL per platform when they differ', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Split',
+          widgetUrl: 'myapp://shared',
+          android: HomeWidgetAndroidConfiguration(
+            widgetUrl: 'myapp://android',
+          ),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'Split',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static final Uri androidWidgetUrl = '
+          "Uri.parse('myapp://android?homeWidget');",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static final Uri iosWidgetUrl = '
+          "Uri.parse('myapp://shared?homeWidget');",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Uri? get _\$platformWidgetUrl {\n'
+          '    if (Platform.isAndroid) return androidWidgetUrl;\n'
+          '    if (Platform.isIOS) return iosWidgetUrl;\n'
+          '    return null;\n'
+          '  }',
+        ),
+      );
+      expect(output, contains('opens the app with on Android'));
+      expect(output, contains('opens the app with on iOS'));
+    });
+
+    test('subscribes to the click stream before awaiting the launch URL', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'LinkedWidget',
+          widgetUrl: 'myapp://linked',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'LinkedWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      final subscribeAt = output.indexOf(
+        'final subscription = HomeWidget.widgetClicked.listen(',
+      );
+      final awaitAt = output.indexOf(
+        'final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
+      );
+
+      expect(subscribeAt, greaterThan(-1));
+      expect(awaitAt, greaterThan(subscribeAt));
+      expect(output, contains('final clicks = StreamController<Uri>();'));
+      expect(output, contains("import 'dart:async';"));
+      expect(output, contains('await subscription.cancel();'));
+    });
+
+    test('emits the launch helpers for a platform-only widget URL', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'AndroidOnly',
+          android: HomeWidgetAndroidConfiguration(
+            widgetUrl: 'myapp://android',
+          ),
+        ),
+        className: 'AndroidOnly',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains('static Future<Uri?> initiallyLaunchedFromWidget() async {'),
+      );
+      expect(
+        output,
+        contains(
+          'static final Uri androidWidgetUrl = '
+          "Uri.parse('myapp://android?homeWidget');",
+        ),
+      );
+      expect(output, isNot(contains('iosWidgetUrl')));
+      expect(
+        output,
+        contains(
+          'static Uri? get _\$platformWidgetUrl {\n'
+          '    if (Platform.isAndroid) return androidWidgetUrl;\n'
+          '    return null;\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains('/// Nothing is ever reported on iOS, where the widget opens'),
+      );
+    });
+
+    test('keeps a top-level widget URL off iOS without an iOS configuration',
+        () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'NoIos',
+          widgetUrl: 'myapp://shared',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'NoIos',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static final Uri androidWidgetUrl = '
+          "Uri.parse('myapp://shared?homeWidget');",
+        ),
+      );
+      expect(output, isNot(contains('iosWidgetUrl')));
+      expect(
+        output,
+        contains(
+          'static Uri? get _\$platformWidgetUrl {\n'
+          '    if (Platform.isAndroid) return androidWidgetUrl;\n'
+          '    return null;\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains('/// Nothing is ever reported on iOS, where the widget opens'),
+      );
+    });
+
+    test(
+        'keeps a top-level widget URL off Android without an Android '
+        'configuration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'NoAndroid',
+          widgetUrl: 'myapp://shared',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'NoAndroid',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static final Uri iosWidgetUrl = '
+          "Uri.parse('myapp://shared?homeWidget');",
+        ),
+      );
+      expect(output, isNot(contains('androidWidgetUrl')));
+      expect(
+        output,
+        contains(
+          'static Uri? get _\$platformWidgetUrl {\n'
+          '    if (Platform.isIOS) return iosWidgetUrl;\n'
+          '    return null;\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '/// Nothing is ever reported on Android, where the widget opens',
+        ),
+      );
+    });
+
+    test('omits the launch helpers without a widget URL', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'PlainWidget'),
+        className: 'PlainWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains('initiallyLaunchedFromWidget')));
+      expect(output, isNot(contains('widgetClicked')));
+      expect(output, isNot(contains('launchedFromWidget')));
+    });
   });
 }

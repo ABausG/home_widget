@@ -234,6 +234,72 @@ class WidgetSpec {
   bool get rendersLocalizedContent =>
       constantLocalizedStrings.isNotEmpty || needsLocaleHelpers;
 
+  /// The URL configured for Android, where the platform value wins over the
+  /// top-level [HomeWidget.widgetUrl].
+  ///
+  /// A widget without an Android configuration has no Android widget generated
+  /// for it, and so opens no URL there.
+  String? get effectiveAndroidWidgetUrl =>
+      data.android == null ? null : data.android!.widgetUrl ?? data.widgetUrl;
+
+  /// The URL configured for iOS, where the platform value wins over the
+  /// top-level [HomeWidget.widgetUrl].
+  ///
+  /// A widget without an iOS configuration has no iOS widget generated for it,
+  /// and so opens no URL there.
+  String? get effectiveIosWidgetUrl =>
+      data.iOS == null ? null : data.iOS!.widgetUrl ?? data.widgetUrl;
+
+  /// Whether a tap on the widget opens the app on Android at all.
+  ///
+  /// A widget that opts out is not made clickable, so a configured URL never
+  /// reaches the app.
+  bool get androidOpensAppOnTap => data.android?.openAppOnTap ?? true;
+
+  /// [effectiveAndroidWidgetUrl] as the native code opens it.
+  String? get androidWidgetUrl => androidOpensAppOnTap
+      ? _withHomeWidgetParam(effectiveAndroidWidgetUrl)
+      : null;
+
+  /// [effectiveIosWidgetUrl] as the native code opens it.
+  String? get iosWidgetUrl => _withHomeWidgetParam(effectiveIosWidgetUrl);
+
+  /// Whether tapping the widget opens the app on Android.
+  bool get hasAndroidWidgetUrl => androidWidgetUrl != null;
+
+  /// Whether tapping the widget opens the app on iOS.
+  bool get hasIosWidgetUrl => effectiveIosWidgetUrl != null;
+
+  /// Whether tapping the widget opens the app on either platform.
+  bool get hasWidgetUrl => hasAndroidWidgetUrl || hasIosWidgetUrl;
+
+  /// [value] carrying the `homeWidget` query parameter.
+  ///
+  /// The plugin's iOS side only reports a click whose URL has that parameter,
+  /// so it is appended on both platforms to keep the [Uri] the app sees
+  /// identical. A value that already carries the parameter is left as it is.
+  ///
+  /// The parameter is spliced into the text rather than through
+  /// [Uri.replace], which normalizes what it re-serializes — a `myApp://`
+  /// scheme would come back lowercased, no longer matching what the author
+  /// wrote and matches against.
+  static String? _withHomeWidgetParam(String? value) {
+    if (value == null) return null;
+    final uri = Uri.tryParse(value);
+    if (uri == null) return value;
+    if (uri.queryParametersAll.containsKey(_homeWidgetQueryParam)) return value;
+
+    final fragmentStart = value.indexOf('#');
+    final base =
+        fragmentStart == -1 ? value : value.substring(0, fragmentStart);
+    final fragment = fragmentStart == -1 ? '' : value.substring(fragmentStart);
+    final separator = base.contains('?') ? '&' : '?';
+    return '$base$separator$_homeWidgetQueryParam$fragment';
+  }
+
+  /// Query parameter marking a URL as coming from a widget click.
+  static const String _homeWidgetQueryParam = 'homeWidget';
+
   /// Namespace for every platform resource this widget owns.
   String get resourcePrefix => widgetResourcePrefix(className);
 
