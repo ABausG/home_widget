@@ -46,3 +46,21 @@ bool writeXmlFile(File file, XmlDocument document) {
   file.writeAsStringSync(rendered);
   return true;
 }
+
+/// Whether [activity] is the activity the launcher starts, that is whether it
+/// declares an `intent-filter` carrying both `android.intent.action.MAIN` and
+/// `android.intent.category.LAUNCHER`.
+bool isAndroidLauncherActivity(XmlElement activity) =>
+    activity.childElements.where((e) => e.localName == 'intent-filter').any(
+          (filter) =>
+              filter.findElements('action').any(
+                    (e) =>
+                        e.getAttribute('android:name') ==
+                        'android.intent.action.MAIN',
+                  ) &&
+              filter.findElements('category').any(
+                    (e) =>
+                        e.getAttribute('android:name') ==
+                        'android.intent.category.LAUNCHER',
+                  ),
+        );

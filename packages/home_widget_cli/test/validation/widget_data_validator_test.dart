@@ -123,6 +123,81 @@ void main() {
       );
     });
 
+    test('rejects a widget URL without a scheme', () {
+      for (final url in ['details', '/details', '//host/details']) {
+        final spec = WidgetSpec(
+          data: HomeWidget(name: 'T', widgetUrl: url),
+          className: 'T',
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('is not a valid URL'),
+                contains('absolute URI'),
+                contains('myapp://details'),
+              ),
+            ),
+          ),
+          reason: url,
+        );
+      }
+    });
+
+    test('rejects a scheme-less widget URL on every platform', () {
+      final android = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          android: HomeWidgetAndroidConfiguration(widgetUrl: 'details'),
+        ),
+        className: 'T',
+      );
+      expect(
+        () => validateWidgetData(android),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('Android widgetUrl'),
+          ),
+        ),
+      );
+
+      final ios = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.t',
+            widgetUrl: 'details',
+          ),
+        ),
+        className: 'T',
+      );
+      expect(
+        () => validateWidgetData(ios),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('iOS widgetUrl'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts an absolute widget URL with a scheme', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T', widgetUrl: 'myapp://details'),
+        className: 'T',
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
     test('accepts image fields with distinct derived keys', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),

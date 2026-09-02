@@ -130,6 +130,18 @@ void main() {
       );
     });
 
+    test('Android configuration equality includes openAppOnTap', () {
+      const on = HomeWidgetAndroidConfiguration();
+      const off = HomeWidgetAndroidConfiguration(openAppOnTap: false);
+
+      expect(on, const HomeWidgetAndroidConfiguration(openAppOnTap: true));
+      expect(
+        on.hashCode,
+        const HomeWidgetAndroidConfiguration(openAppOnTap: true).hashCode,
+      );
+      expect(on, isNot(equals(off)));
+    });
+
     test('HomeWidget equality includes localization', () {
       final a = HomeWidget(
         name: 'n',

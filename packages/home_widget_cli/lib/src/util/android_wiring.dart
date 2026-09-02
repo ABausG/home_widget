@@ -393,7 +393,7 @@ Future<void> ensureAndroidManifestLaunchIntent(Directory projectRoot) async {
   if (alreadyDeclared) return;
 
   final launcher = activities.cast<XmlElement?>().firstWhere(
-        (activity) => _isLauncherActivity(activity!),
+        (activity) => isAndroidLauncherActivity(activity!),
         orElse: () => null,
       );
   if (launcher == null) {
@@ -417,21 +417,6 @@ Future<void> ensureAndroidManifestLaunchIntent(Directory projectRoot) async {
     logger.detail('Updated: ${manifestFile.path}');
   }
 }
-
-bool _isLauncherActivity(XmlElement activity) =>
-    activity.childElements.where((e) => e.localName == 'intent-filter').any(
-          (filter) =>
-              filter.findElements('action').any(
-                    (e) =>
-                        e.getAttribute('android:name') ==
-                        'android.intent.action.MAIN',
-                  ) &&
-              filter.findElements('category').any(
-                    (e) =>
-                        e.getAttribute('android:name') ==
-                        'android.intent.category.LAUNCHER',
-                  ),
-        );
 
 /// Broadcast the system sends to manifest-declared receivers (API 31+) when
 /// `SCHEDULE_EXACT_ALARM` is granted, including re-granted after the user

@@ -162,7 +162,9 @@ android {
   });
 
   group('tryDetectAndroidLauncherActivity', () {
-    void writeManifest(String body) {
+    void writeManifest(String body, {String? package}) {
+      final packageAttribute =
+          package == null ? '' : '\n    package="$package"';
       File(
         p.join(
           root.path,
@@ -174,9 +176,20 @@ android {
         ),
       ).writeAsStringSync('''
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"$packageAttribute>
 $body
 </manifest>
+''');
+    }
+
+    void writeApplicationId(String applicationId) {
+      File(p.join(root.path, 'android', 'app', 'build.gradle'))
+          .writeAsStringSync('''
+android {
+    defaultConfig {
+        applicationId "$applicationId"
+    }
+}
 ''');
     }
 
@@ -186,33 +199,30 @@ $body
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>''';
 
-    test('resolves a relative name against the given package', () {
-      writeManifest('''
+    test('resolves a relative name against the manifest package', () {
+      writeManifest(
+        '''
     <application>
         <activity android:name=".MainActivity">$launcherFilter
         </activity>
-    </application>''');
+    </application>''',
+        package: 'com.manifest.pkg',
+      );
+      writeApplicationId('com.detected.app');
 
       expect(
-        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
-        'com.example.app.MainActivity',
+        tryDetectAndroidLauncherActivity(root),
+        'com.manifest.pkg.MainActivity',
       );
     });
 
-    test('resolves a bare name against the detected package', () {
+    test('resolves a bare name against the detected application id', () {
       writeManifest('''
     <application>
         <activity android:name="HostActivity">$launcherFilter
         </activity>
     </application>''');
-      File(p.join(root.path, 'android', 'app', 'build.gradle'))
-          .writeAsStringSync('''
-android {
-    defaultConfig {
-        applicationId "com.detected.app"
-    }
-}
-''');
+      writeApplicationId('com.detected.app');
 
       expect(
         tryDetectAndroidLauncherActivity(root),
@@ -228,13 +238,14 @@ android {
     </application>''');
 
       expect(
-        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
+        tryDetectAndroidLauncherActivity(root),
         'com.other.pkg.Launcher',
       );
     });
 
     test('skips activities that are not the launcher', () {
-      writeManifest('''
+      writeManifest(
+        '''
     <application>
         <activity android:name=".ShareActivity">
             <intent-filter>
@@ -243,10 +254,12 @@ android {
         </activity>
         <activity android:name=".MainActivity">$launcherFilter
         </activity>
-    </application>''');
+    </application>''',
+        package: 'com.example.app',
+      );
 
       expect(
-        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
+        tryDetectAndroidLauncherActivity(root),
         'com.example.app.MainActivity',
       );
     });
@@ -257,10 +270,7 @@ android {
         <activity android:name=".ShareActivity" />
     </application>''');
 
-      expect(
-        tryDetectAndroidLauncherActivity(root, packageName: 'com.example.app'),
-        isNull,
-      );
+      expect(tryDetectAndroidLauncherActivity(root), isNull);
     });
 
     test('returns null when the manifest is missing', () {

@@ -66,6 +66,9 @@ class DartHelperGenerator {
     buffer.writeln('// GENERATED CODE - DO NOT MODIFY BY HAND');
     buffer.writeln('// ignore_for_file: type=lint');
     buffer.writeln();
+    if (spec.hasWidgetUrl) {
+      buffer.writeln("import 'dart:async';");
+    }
     // Localized fields store their translations as a single JSON blob, so they
     // need `dart:convert` too — but none of the file plumbing JSON groups use.
     if (jsonGroups.isNotEmpty ||
@@ -73,11 +76,13 @@ class DartHelperGenerator {
         hasTimedData) {
       buffer.writeln("import 'dart:convert';");
     }
-    if (jsonGroups.isNotEmpty || hasTimedData) {
+    // `dart:io` carries both the JSON/timed file plumbing and the `Platform`
+    // check deciding which platform's widget URL a click has to match.
+    if (jsonGroups.isNotEmpty || hasTimedData || spec.hasWidgetUrl) {
       buffer.writeln("import 'dart:io';");
-      if (!hasTimedData) {
-        buffer.writeln("import 'dart:typed_data';");
-      }
+    }
+    if (jsonGroups.isNotEmpty && !hasTimedData) {
+      buffer.writeln("import 'dart:typed_data';");
     }
     if (hasTimedData) {
       buffer.writeln("import 'package:flutter/foundation.dart';");
@@ -761,14 +766,44 @@ class DartHelperGenerator {
   /// Emitted only for specs configuring a widget URL, which is what makes the
   /// platforms report a click at all.
   void _writeLaunchHelpers(StringBuffer buffer) {
+    final urlFields = _widgetUrlFields;
+
+    for (final entry in urlFields.entries) {
+      final platform = _widgetUrlPlatform(entry.key);
+      buffer.writeln(
+        '  /// The URL a tap on the widget opens the app with$platform, as the '
+        'app',
+      );
+      buffer.writeln('  /// will receive it.');
+      buffer.writeln('  ///');
+      buffer.writeln(
+        '  /// The configured `widgetUrl` carrying the `homeWidget` query',
+      );
+      buffer.writeln(
+        '  /// parameter, parsed — so its scheme is lower-cased, exactly like',
+      );
+      buffer.writeln('  /// the URL handed to the app.');
+      buffer.writeln(
+        "  static final Uri ${entry.key} = "
+        "Uri.parse('${escapeDartStringLiteral(entry.value)}');",
+      );
+      buffer.writeln();
+    }
     buffer.writeln(
       '  /// The URL the app was launched with by a tap on the widget, or null',
     );
     buffer.writeln('  /// when it was started any other way.');
+    buffer.writeln('  ///');
+    _writeFilterDoc(buffer);
+    buffer.writeln('  static Future<Uri?> initiallyLaunchedFromWidget() async {');
     buffer.writeln(
-      '  static Future<Uri?> initiallyLaunchedFromWidget() =>',
+      '    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();',
     );
-    buffer.writeln('      HomeWidget.initiallyLaunchedFromHomeWidget();');
+    buffer.writeln('    if (uri == null || !_\$matchesWidgetUrl(uri)) {');
+    buffer.writeln('      return null;');
+    buffer.writeln('    }');
+    buffer.writeln('    return uri;');
+    buffer.writeln('  }');
     buffer.writeln();
     buffer.writeln(
       '  /// The URL of every tap on the widget while the app is running.',
@@ -783,9 +818,14 @@ class DartHelperGenerator {
       '  /// — read [initiallyLaunchedFromWidget] for that one, or listen to',
     );
     buffer.writeln('  /// [launchedFromWidget] for both.');
+    buffer.writeln('  ///');
+    _writeFilterDoc(buffer);
+    buffer.writeln('  static Stream<Uri> get widgetClicked =>');
+    buffer.writeln('      HomeWidget.widgetClicked');
     buffer.writeln(
-      '  static Stream<Uri?> get widgetClicked => HomeWidget.widgetClicked;',
+      '          .where((uri) => uri != null && _\$matchesWidgetUrl(uri))',
     );
+    buffer.writeln('          .cast<Uri>();');
     buffer.writeln();
     buffer.writeln('  /// Every tap on the widget, launch included.');
     buffer.writeln('  ///');
@@ -793,16 +833,134 @@ class DartHelperGenerator {
       '  /// Yields the launch URL first when the app was started by a tap on',
     );
     buffer.writeln(
-      '  /// the widget, then every tap that follows while it runs.',
+      '  /// the widget, then every tap that follows while it runs. Taps landing',
     );
-    buffer.writeln('  static Stream<Uri?> launchedFromWidget() async* {');
     buffer.writeln(
-      '    final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
+      '  /// while the launch URL is still being read are kept, not dropped.',
     );
-    buffer.writeln('    if (initial != null) yield initial;');
-    buffer.writeln('    yield* HomeWidget.widgetClicked;');
+    buffer.writeln('  ///');
+    _writeFilterDoc(buffer);
+    buffer.writeln('  static Stream<Uri> launchedFromWidget() async* {');
+    buffer.writeln('    final clicks = StreamController<Uri>();');
+    buffer.writeln('    final subscription = HomeWidget.widgetClicked.listen(');
+    buffer.writeln('      (uri) {');
+    buffer.writeln(
+      '        if (uri != null && _\$matchesWidgetUrl(uri)) clicks.add(uri);',
+    );
+    buffer.writeln('      },');
+    buffer.writeln('      onDone: clicks.close,');
+    buffer.writeln('    );');
+    buffer.writeln('    try {');
+    buffer.writeln(
+      '      final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
+    );
+    buffer.writeln(
+      '      if (initial != null && _\$matchesWidgetUrl(initial)) yield initial;',
+    );
+    buffer.writeln('      yield* clicks.stream;');
+    buffer.writeln('    } finally {');
+    buffer.writeln('      await subscription.cancel();');
+    buffer.writeln('      await clicks.close();');
+    buffer.writeln('    }');
+    buffer.writeln('  }');
+    buffer.writeln();
+    buffer.writeln(
+      "  /// Whether [uri] is the URL this platform's widget opens.",
+    );
+    buffer.writeln('  ///');
+    buffer.writeln(
+      '  /// Schemes are compared case-insensitively: the URL reaches the app '
+      'parsed,',
+    );
+    buffer.writeln(
+      '  /// which lower-cases the scheme it was written with.',
+    );
+    buffer.writeln('  static bool _\$matchesWidgetUrl(Uri uri) {');
+    buffer.writeln('    final url = _\$platformWidgetUrl;');
+    buffer.writeln('    if (url == null) return false;');
+    buffer.writeln(
+      '    return _\$lowerCaseScheme(uri) == _\$lowerCaseScheme(url);',
+    );
+    buffer.writeln('  }');
+    buffer.writeln();
+    buffer.writeln(
+      '  /// The URL the widget opens on the platform the app is running on, or',
+    );
+    buffer.writeln('  /// null where it opens none.');
+    buffer.writeln('  static Uri? get _\$platformWidgetUrl {');
+    final androidField = urlFields.containsKey('widgetUrl')
+        ? 'widgetUrl'
+        : urlFields.containsKey('androidWidgetUrl')
+            ? 'androidWidgetUrl'
+            : null;
+    final iosField = urlFields.containsKey('widgetUrl')
+        ? 'widgetUrl'
+        : urlFields.containsKey('iosWidgetUrl')
+            ? 'iosWidgetUrl'
+            : null;
+    if (androidField != null) {
+      buffer.writeln('    if (Platform.isAndroid) return $androidField;');
+    }
+    if (iosField != null) {
+      buffer.writeln('    if (Platform.isIOS) return $iosField;');
+    }
+    buffer.writeln('    return null;');
+    buffer.writeln('  }');
+    buffer.writeln();
+    buffer.writeln('  static String _\$lowerCaseScheme(Uri uri) {');
+    buffer.writeln('    final text = uri.toString();');
+    buffer.writeln(
+      '    return uri.scheme.toLowerCase() + text.substring(uri.scheme.length);',
+    );
     buffer.writeln('  }');
   }
+
+  /// The doc-comment paragraph every launch helper carries, naming what the
+  /// emitted filter lets through.
+  void _writeFilterDoc(StringBuffer buffer) {
+    buffer.writeln(
+      '  /// Only the URL this widget opens on the platform the app is running',
+    );
+    buffer.writeln(
+      '  /// on is reported; a tap on any other widget is not.',
+    );
+    final androidUrl = spec.androidWidgetUrl;
+    final iosUrl = spec.iosWidgetUrl;
+    final without = androidUrl == null
+        ? 'Android'
+        : iosUrl == null
+            ? 'iOS'
+            : null;
+    if (without != null) {
+      buffer.writeln(
+        '  /// Nothing is ever reported on $without, where the widget opens no '
+        'URL',
+      );
+      buffer.writeln('  /// of its own.');
+    }
+  }
+
+  /// The runtime URLs exposed on the generated class, by field name.
+  ///
+  /// Both platforms share one field when they open the same URL, which is the
+  /// common case; a platform override splits them apart.
+  Map<String, String> get _widgetUrlFields {
+    final androidUrl = spec.androidWidgetUrl;
+    final iosUrl = spec.iosWidgetUrl;
+    if (androidUrl != null && androidUrl == iosUrl) {
+      return {'widgetUrl': androidUrl};
+    }
+    return {
+      if (androidUrl != null) 'androidWidgetUrl': androidUrl,
+      if (iosUrl != null) 'iosWidgetUrl': iosUrl,
+    };
+  }
+
+  String _widgetUrlPlatform(String fieldName) => switch (fieldName) {
+        'androidWidgetUrl' => ' on Android',
+        'iosWidgetUrl' => ' on iOS',
+        _ => '',
+      };
 
   /// Emits the two helpers that keep per-timestamp image files in step with the
   /// timeline.

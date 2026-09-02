@@ -64,7 +64,7 @@ void validateWidgetData(WidgetSpec spec) {
   }
 }
 
-/// Rejects a widget URL that cannot be turned into a [Uri].
+/// Rejects a widget URL that is not an absolute [Uri] with a scheme.
 void _validateWidgetUrls(WidgetSpec spec) {
   _validateWidgetUrl(spec, spec.data.widgetUrl, platform: null);
   _validateWidgetUrl(spec, spec.data.android?.widgetUrl, platform: 'Android');
@@ -86,9 +86,12 @@ void _validateWidgetUrl(
       'from opening the app when tapped.',
     );
   }
-  if (Uri.tryParse(url) == null) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || !uri.hasScheme) {
     throw GeneratorError(
-      'Widget "${spec.data.name}": $where "$url" is not a valid URL.',
+      'Widget "${spec.data.name}": $where "$url" is not a valid URL. A '
+      'widgetUrl must be an absolute URI including a scheme, e.g. '
+      'myapp://details.',
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import 'package:xml/xml.dart';
 
 import 'xml_utils.dart';
 
@@ -59,14 +58,13 @@ String? _tryReadPackageFromManifest(File manifest) {
 ///
 /// Reads the `AndroidManifest.xml` activity whose intent-filter carries
 /// `android.intent.action.MAIN` and `android.intent.category.LAUNCHER`. A
-/// relative `android:name` (`.MainActivity`, `MainActivity`) is resolved
-/// against [packageName], falling back to the detected application id.
+/// relative `android:name` (`.MainActivity`, `MainActivity`) is resolved the
+/// way Android resolves it: against the manifest `package`, falling back to the
+/// detected application id — never against a codegen package override, which
+/// names where generated files are written, not where the app's classes live.
 /// Returns `null` when no launcher activity is declared, or when a relative
 /// name cannot be resolved.
-String? tryDetectAndroidLauncherActivity(
-  Directory projectRoot, {
-  String? packageName,
-}) {
+String? tryDetectAndroidLauncherActivity(Directory projectRoot) {
   final manifest = File(
     p.join(
       projectRoot.path,
@@ -89,27 +87,12 @@ String? tryDetectAndroidLauncherActivity(
       final name = activity.getAttribute('android:name');
       if (name == null || name.trim().isEmpty) continue;
 
-      final isLauncher = activity.childElements
-          .where((e) => e.localName == 'intent-filter')
-          .any(
-            (filter) =>
-                filter.findElements('action').any(
-                      (e) =>
-                          e.getAttribute('android:name') ==
-                          'android.intent.action.MAIN',
-                    ) &&
-                filter.findElements('category').any(
-                      (e) =>
-                          e.getAttribute('android:name') ==
-                          'android.intent.category.LAUNCHER',
-                    ),
-          );
-      if (!isLauncher) continue;
+      if (!isAndroidLauncherActivity(activity)) continue;
 
       final trimmed = name.trim();
       if (!trimmed.startsWith('.') && trimmed.contains('.')) return trimmed;
 
-      final base = packageName ?? tryDetectAndroidPackage(projectRoot);
+      final base = tryDetectAndroidPackage(projectRoot);
       if (base == null) return null;
       return trimmed.startsWith('.') ? '$base$trimmed' : '$base.$trimmed';
     }

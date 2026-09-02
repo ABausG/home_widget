@@ -243,15 +243,22 @@ class WidgetSpec {
   /// top-level [HomeWidget.widgetUrl].
   String? get effectiveIosWidgetUrl => data.iOS?.widgetUrl ?? data.widgetUrl;
 
+  /// Whether a tap on the widget opens the app on Android at all.
+  ///
+  /// A widget that opts out is not made clickable, so a configured URL never
+  /// reaches the app.
+  bool get androidOpensAppOnTap => data.android?.openAppOnTap ?? true;
+
   /// [effectiveAndroidWidgetUrl] as the native code opens it.
-  String? get androidWidgetUrl =>
-      _withHomeWidgetParam(effectiveAndroidWidgetUrl);
+  String? get androidWidgetUrl => androidOpensAppOnTap
+      ? _withHomeWidgetParam(effectiveAndroidWidgetUrl)
+      : null;
 
   /// [effectiveIosWidgetUrl] as the native code opens it.
   String? get iosWidgetUrl => _withHomeWidgetParam(effectiveIosWidgetUrl);
 
   /// Whether tapping the widget opens the app on Android.
-  bool get hasAndroidWidgetUrl => effectiveAndroidWidgetUrl != null;
+  bool get hasAndroidWidgetUrl => androidWidgetUrl != null;
 
   /// Whether tapping the widget opens the app on iOS.
   bool get hasIosWidgetUrl => effectiveIosWidgetUrl != null;

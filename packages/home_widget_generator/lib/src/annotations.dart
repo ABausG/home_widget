@@ -135,6 +135,12 @@ class HomeWidgetAndroidConfiguration {
   /// Overrides [HomeWidget.widgetUrl] on Android.
   final String? widgetUrl;
 
+  /// Whether tapping the widget opens the app.
+  ///
+  /// Defaults to `true`. When false, the widget is not made clickable at all,
+  /// even if a [widgetUrl] is configured.
+  final bool openAppOnTap;
+
   const HomeWidgetAndroidConfiguration({
     this.packageName,
     this.minWidth,
@@ -153,6 +159,7 @@ class HomeWidgetAndroidConfiguration {
     this.applyContentPadding = true,
     this.fillWidgetContent = true,
     this.widgetUrl,
+    this.openAppOnTap = true,
   });
 
   @override
@@ -175,7 +182,8 @@ class HomeWidgetAndroidConfiguration {
           backgroundColor == other.backgroundColor &&
           applyContentPadding == other.applyContentPadding &&
           fillWidgetContent == other.fillWidgetContent &&
-          widgetUrl == other.widgetUrl;
+          widgetUrl == other.widgetUrl &&
+          openAppOnTap == other.openAppOnTap;
 
   @override
   int get hashCode =>
@@ -195,7 +203,8 @@ class HomeWidgetAndroidConfiguration {
       backgroundColor.hashCode ^
       applyContentPadding.hashCode ^
       fillWidgetContent.hashCode ^
-      widgetUrl.hashCode;
+      widgetUrl.hashCode ^
+      openAppOnTap.hashCode;
 }
 
 /// The size and shape of a widget.

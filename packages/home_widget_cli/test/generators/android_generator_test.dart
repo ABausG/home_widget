@@ -11,6 +11,32 @@ import 'package:test/test.dart';
 
 class MockLogger extends Mock implements Logger {}
 
+/// Writes a manifest declaring a launcher activity, which is what makes the
+/// generator emit a clickable widget root.
+void writeLauncherManifest(
+  Directory projectRoot, {
+  String package = 'com.example',
+  String activityName = '.MainActivity',
+}) {
+  final dir = Directory(
+    p.join(projectRoot.path, 'android', 'app', 'src', 'main'),
+  )..createSync(recursive: true);
+  File(p.join(dir.path, 'AndroidManifest.xml')).writeAsStringSync('''
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="$package">
+    <application android:label="test">
+        <activity android:name="$activityName" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+''');
+}
+
 void main() {
   late Directory tempDir;
   late MockLogger mockLogger;
@@ -1169,6 +1195,7 @@ void main() {
   });
 
   test('generates Kotlin widget with widget tree', () async {
+    writeLauncherManifest(tempDir, package: 'com.tree');
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'TreeWidget',
@@ -1219,6 +1246,7 @@ void main() {
   });
 
   test('generates Kotlin widget with HWDataOnly as root widget', () async {
+    writeLauncherManifest(tempDir);
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'Simple Data',
@@ -1360,6 +1388,7 @@ void main() {
 
   test('generates Kotlin widget with Conditional Root (Box fallback)',
       () async {
+    writeLauncherManifest(tempDir, package: 'com.conditional');
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'ConditionalRootWidget',
@@ -1419,28 +1448,16 @@ void main() {
       return widgetFile.readAsStringSync();
     }
 
-    void writeManifest({String activityName = '.MainActivity'}) {
-      final dir = Directory(
-        p.join(tempDir.path, 'android', 'app', 'src', 'main'),
-      )..createSync(recursive: true);
-      File(p.join(dir.path, 'AndroidManifest.xml')).writeAsStringSync('''
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.urls">
-    <application android:label="test">
-        <activity android:name="$activityName" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-''');
-    }
+    void writeManifest({String activityName = '.MainActivity'}) =>
+        writeLauncherManifest(
+          tempDir,
+          package: 'com.urls',
+          activityName: activityName,
+        );
 
     test('opens the app without a launch intent when no URL is configured',
         () async {
+      writeManifest();
       final content = await generateFor(
         WidgetSpec(
           data: HomeWidget(
@@ -1542,6 +1559,85 @@ void main() {
 
       expect(content, contains('import com.other.HostActivity'));
       expect(content, contains('actionStartActivity<HostActivity>(context'));
+    });
+
+    test('resolves a relative launcher against the manifest, not the override',
+        () async {
+      writeManifest();
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Overridden',
+            widgetUrl: 'myapp://overridden',
+            android: HomeWidgetAndroidConfiguration(
+              packageName: 'com.codegen',
+            ),
+          ),
+          className: 'Overridden',
+        ),
+        'com/codegen',
+      );
+
+      expect(content, contains('import com.urls.MainActivity'));
+      expect(content, isNot(contains('import com.codegen.MainActivity')));
+    });
+
+    test('omits the click entirely when openAppOnTap is false', () async {
+      writeManifest();
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Inert',
+            widgetUrl: 'myapp://inert',
+            android: HomeWidgetAndroidConfiguration(
+              packageName: 'com.urls',
+              openAppOnTap: false,
+            ),
+          ),
+          className: 'Inert',
+        ),
+        'com/urls',
+      );
+
+      expect(content, isNot(contains('clickable')));
+      expect(content, isNot(contains('actionStartActivity')));
+      expect(content, isNot(contains('myapp://inert')));
+      expect(
+        File(
+          p.join(
+            tempDir.path,
+            'android',
+            'app',
+            'src',
+            'main',
+            'AndroidManifest.xml',
+          ),
+        ).readAsStringSync(),
+        isNot(contains('es.antonborri.home_widget.action.LAUNCH')),
+      );
+      verifyNever(() => mockLogger.warn(any(that: contains('launcher'))));
+    });
+
+    test('skips the click and warns when no launcher activity is found',
+        () async {
+      final content = await generateFor(
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'NoLauncher',
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+          ),
+          className: 'NoLauncher',
+        ),
+        'com/urls',
+      );
+
+      expect(content, isNot(contains('clickable')));
+      expect(content, isNot(contains('MainActivity')));
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not detect the launcher activity')),
+        ),
+      ).called(1);
     });
 
     test('wires the launch intent-filter only when a URL is configured',

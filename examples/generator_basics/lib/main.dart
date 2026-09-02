@@ -38,13 +38,14 @@ class _HomePage extends StatefulWidget {
 class _HomePageState extends State<_HomePage> {
   int _counter = 0;
   Uri? _widgetLinkUri;
-  StreamSubscription<Uri?>? _widgetLinkSubscription;
+  StreamSubscription<Uri>? _widgetLinkSubscription;
 
   @override
   void initState() {
     super.initState();
     // launchedFromWidget() yields the launch Uri first when a tap on the
-    // widget started the app, then every tap while it keeps running.
+    // widget started the app, then every tap while it keeps running. Only
+    // this widget's own URL is reported — WidgetLinkHomeWidget.widgetUrl.
     _widgetLinkSubscription = WidgetLinkHomeWidget.launchedFromWidget().listen(
       (uri) => setState(() => _widgetLinkUri = uri),
     );

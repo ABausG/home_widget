@@ -168,6 +168,7 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
     widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
+    openAppOnTap: obj.getField('openAppOnTap')?.toBoolValue() ?? true,
   );
 }
 

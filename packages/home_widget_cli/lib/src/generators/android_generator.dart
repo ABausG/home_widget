@@ -244,19 +244,27 @@ class AndroidGenerator {
     );
 
     final widgetUrl = spec.androidWidgetUrl;
-    final launcherActivity = tryDetectAndroidLauncherActivity(
-          projectRoot,
-          packageName: packageName,
-        ) ??
-        '$packageName.MainActivity';
-    final activityClassName = launcherActivity.split('.').last;
+    final launcherActivity = spec.androidOpensAppOnTap
+        ? tryDetectAndroidLauncherActivity(projectRoot)
+        : null;
+    if (spec.androidOpensAppOnTap && launcherActivity == null) {
+      logger.warn(
+        'Warning: Could not detect the launcher activity in '
+        'AndroidManifest.xml; ${spec.data.name} will not open the app when '
+        'tapped. Declare an activity with the MAIN/LAUNCHER intent-filter, or '
+        'set android.openAppOnTap to false to silence this warning.',
+      );
+    }
+    final activityClassName = launcherActivity?.split('.').last;
     // A widget without a URL still opens the app, matching what iOS does for a
     // widget that declares no `widgetURL`. The plain Glance action carries no
     // home_widget launch intent, so no widget click is reported.
-    final clickAction = widgetUrl == null
-        ? 'actionStartActivity<$activityClassName>()'
-        : 'actionStartActivity<$activityClassName>(context, '
-            'Uri.parse("${escapeKotlinStringLiteral(widgetUrl)}"))';
+    final clickAction = activityClassName == null
+        ? null
+        : widgetUrl == null
+            ? 'actionStartActivity<$activityClassName>()'
+            : 'actionStartActivity<$activityClassName>(context, '
+                'Uri.parse("${escapeKotlinStringLiteral(widgetUrl)}"))';
 
     final rootModifiers = <String>[];
     if (bgColor != null) {
@@ -270,7 +278,9 @@ class AndroidGenerator {
     if (fillContent) {
       rootModifiers.add('fillMaxSize()');
     }
-    rootModifiers.add('clickable(onClick = $clickAction)');
+    if (clickAction != null) {
+      rootModifiers.add('clickable(onClick = $clickAction)');
+    }
     if (fillContent) {
       widgetTreeBody = wrapGlanceRootContent(
         widgetTreeBody,
@@ -317,19 +327,22 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.Box');
     }
 
-    layoutImports.add('import androidx.glance.action.clickable');
-    if (widgetUrl == null) {
-      // The reified Activity overload lives in glance core; the appwidget
-      // package only carries the Intent-based ones.
-      layoutImports.add('import androidx.glance.action.actionStartActivity');
-    } else {
-      layoutImports.add('import android.net.Uri');
-      layoutImports.add('import es.antonborri.home_widget.actionStartActivity');
-    }
-    // Only a launcher activity living in another package needs naming; the
-    // generated file may sit in a package the annotation overrode.
-    if (launcherActivity != '$packageName.$activityClassName') {
-      layoutImports.add('import $launcherActivity');
+    if (clickAction != null) {
+      layoutImports.add('import androidx.glance.action.clickable');
+      if (widgetUrl == null) {
+        // The reified Activity overload lives in glance core; the appwidget
+        // package only carries the Intent-based ones.
+        layoutImports.add('import androidx.glance.action.actionStartActivity');
+      } else {
+        layoutImports.add('import android.net.Uri');
+        layoutImports
+            .add('import es.antonborri.home_widget.actionStartActivity');
+      }
+      // Only a launcher activity outside the generated file's own package needs
+      // naming; that package may be one the annotation overrode.
+      if (launcherActivity != '$packageName.$activityClassName') {
+        layoutImports.add('import $launcherActivity');
+      }
     }
     // `R` lives in the Gradle namespace, not necessarily the package this file
     // is written into (an annotation may override `packageName`). Unqualified

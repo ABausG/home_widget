@@ -62,6 +62,20 @@ void main() {
       expect(a, isNot(equals(c)));
       expect(a, isNot(equals(const HomeWidgetAndroidConfiguration())));
     });
+
+    test('openAppOnTap defaults to true and participates in equality', () {
+      const defaulted = HomeWidgetAndroidConfiguration();
+      expect(defaulted.openAppOnTap, isTrue);
+
+      const off = HomeWidgetAndroidConfiguration(openAppOnTap: false);
+      expect(off.openAppOnTap, isFalse);
+      expect(
+        off,
+        equals(const HomeWidgetAndroidConfiguration(openAppOnTap: false)),
+      );
+      expect(off, isNot(equals(defaulted)));
+      expect(off.hashCode, isNot(equals(defaulted.hashCode)));
+    });
   });
 
   group('HomeWidgetIOSConfiguration', () {

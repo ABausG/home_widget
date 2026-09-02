@@ -150,6 +150,38 @@ void main() {
       expect(spec!.data.android?.fillWidgetContent, false);
     });
 
+    test('parses openAppOnTap flag correctly', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Open App Test',
+          android: const HomeWidgetAndroidConfiguration(openAppOnTap: false),
+        )
+        class OpenAppWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.android?.openAppOnTap, false);
+    });
+
+    test('defaults openAppOnTap to true', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Open App Default',
+          android: const HomeWidgetAndroidConfiguration(),
+        )
+        class OpenAppDefaultWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.android?.openAppOnTap, true);
+    });
+
     test('parses the top-level widgetUrl', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

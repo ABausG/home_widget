@@ -416,6 +416,7 @@ void main() {
       String? widgetUrl,
       String? androidWidgetUrl,
       String? iosWidgetUrl,
+      bool openAppOnTap = true,
     }) =>
         WidgetSpec(
           data: HomeWidget(
@@ -423,6 +424,7 @@ void main() {
             widgetUrl: widgetUrl,
             android: HomeWidgetAndroidConfiguration(
               widgetUrl: androidWidgetUrl,
+              openAppOnTap: openAppOnTap,
             ),
             iOS: HomeWidgetIOSConfiguration(
               groupId: 'group.url',
@@ -470,6 +472,15 @@ void main() {
       expect(spec.effectiveIosWidgetUrl, 'myapp://shared');
       expect(spec.hasAndroidWidgetUrl, isTrue);
       expect(spec.hasIosWidgetUrl, isTrue);
+    });
+
+    test('openAppOnTap false drops the Android URL, keeping the iOS one', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget', openAppOnTap: false);
+      expect(spec.androidOpensAppOnTap, isFalse);
+      expect(spec.androidWidgetUrl, isNull);
+      expect(spec.hasAndroidWidgetUrl, isFalse);
+      expect(spec.iosWidgetUrl, 'myapp://widget?homeWidget');
+      expect(spec.hasWidgetUrl, isTrue);
     });
 
     test('the homeWidget parameter is appended to a URL without a query', () {
