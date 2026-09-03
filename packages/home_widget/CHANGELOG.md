@@ -1,3 +1,10 @@
+## Unreleased
+
+ - **BREAKING** **FEAT**: Migrate example integrations to Swift Package Manager on iOS and built-in Kotlin on Android.
+ - **BREAKING** **FEAT**: `home_widget` is now built-in-Kotlin-only on Android. The legacy `android.builtInKotlin=false` / `android.newDsl=false` compatibility path was removed.
+ - **BREAKING** **FEAT**: Consumers now need Flutter 3.44+ and the matching built-in Kotlin Android toolchain.
+ - **DOCS**: Add migration documentation for built-in Kotlin and clarify the Swift Package Manager integration path.
+
 ## 0.9.3
 
  - **FEAT**: Support UIScene Lifecycle ([#423](https://github.com/abausg/home_widget/issues/423)). ([bd899596](https://github.com/abausg/home_widget/commit/bd8995964680fb5507414f54beea4f2e6514b456))

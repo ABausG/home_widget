@@ -10,6 +10,10 @@ next: /setup/android
 On iOS Widgets are an App Extension.
 The following steps explain how to add the correct App Extension, how to do the basic configuration to read/display data you send from your App in the Widget and how to setup GroupIds to ensure the correct communication between your App and the Widget.
 
+<Info>
+If your Flutter app uses Swift Package Manager, keep that integration enabled for `home_widget` as well. For interactive widgets, follow the [Swift Package Manager migration guide](/migrations/swift-package-manager) instead of adding a direct `pod 'home_widget'` dependency to the widget extension.
+</Info>
+
 
 ## Add a Widget to your App in Xcode
 Add a widget extension by going <kbd>File</kbd> > <kbd>New</kbd> > <kbd>Target</kbd> > <kbd>Widget Extension</kbd>

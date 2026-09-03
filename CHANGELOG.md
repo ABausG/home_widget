@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## Unreleased
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`home_widget` - `vNEXT`](#home_widget---vnext)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `home_widget` - `vNEXT`
+
+ - **BREAKING** **FEAT**: Migrate example integrations to Swift Package Manager on iOS and built-in Kotlin on Android.
+ - **BREAKING** **FEAT**: `home_widget` is now built-in-Kotlin-only on Android. The legacy `android.builtInKotlin=false` / `android.newDsl=false` compatibility path was removed.
+ - **BREAKING** **FEAT**: Consumers now need Flutter 3.44+ and the matching built-in Kotlin Android toolchain.
+ - **DOCS**: Add migration documentation for built-in Kotlin and clarify the Swift Package Manager integration path.
+
 ## 2026-06-07
 
 ### Changes
