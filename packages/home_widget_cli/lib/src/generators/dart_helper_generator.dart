@@ -150,6 +150,17 @@ class DartHelperGenerator {
           );
           continue;
         }
+        if (field is HWDateTime) {
+          // The wire format is the UTC ISO string the native `hwParseIsoDate`
+          // helper reads back.
+          buffer.writeln(
+            "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
+            r"${_$paramPrefix}."
+            "${field.key}', ${_dartIsoExpr(field.key)}"
+            "${_appGroupIdArg(usesAppGroupId)}),",
+          );
+          continue;
+        }
         final type = field.dartType;
         buffer.writeln(
           "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
@@ -530,6 +541,14 @@ class DartHelperGenerator {
           );
           continue;
         }
+        if (field is HWDateTime) {
+          buffer.writeln(
+            "      ${field.key}: _readDateTime(await HomeWidget.getWidgetData<String>('"
+            r"${_$paramPrefix}."
+            "${field.key}'${_appGroupIdArg(usesAppGroupId)})),",
+          );
+          continue;
+        }
         final type = field.dartType;
         final defaultValue = field.defaultValue;
         var defaultLiteral = '';
@@ -618,6 +637,10 @@ class DartHelperGenerator {
         for (final field in group.children) _dartReadFunction(field.type),
       for (final member in _timedMembers(timedFields))
         if (!member.jsonRoot) _dartTimedReadFunction(member.leafType!),
+      // A top-level date is stored as a string and parsed back by `getData`
+      // through the same reader its JSON and timed spellings use.
+      for (final field in primitiveFields)
+        if (field is HWDateTime) _dartReadFunction(field),
     };
     if (usedReaders.isNotEmpty) {
       buffer.writeln();
@@ -1214,6 +1237,11 @@ class DartHelperGenerator {
   String _jsonImageLocal(String storageKey) =>
       '_jsonImage_${storageKey.replaceAll(RegExp('[^A-Za-z0-9]'), '_')}';
 
+  /// The wire form of a date: the UTC ISO 8601 string every storage path
+  /// writes and the native `hwParseIsoDate` helper reads back.
+  String _dartIsoExpr(String valueExpr) =>
+      '$valueExpr.toUtc().toIso8601String()';
+
   String _appGroupIdArg(bool usesAppGroupId) =>
       usesAppGroupId ? r', appGroupId: _$appGroupId' : '';
 
@@ -1302,7 +1330,9 @@ class DartHelperGenerator {
         continue;
       }
       if (child.leafType != null && child.children.isEmpty) {
-        buffer.writeln("      if ($key != null) '$key': $key,");
+        final value =
+            child.leafType is HWDateTime ? _dartIsoExpr('$key!') : key;
+        buffer.writeln("      if ($key != null) '$key': $value,");
       } else {
         buffer.writeln("      if ($key != null) '$key': $key!.toJson(),");
       }
@@ -1440,6 +1470,10 @@ class DartHelperGenerator {
         // Every locale travels in the entry; the native readers merge it over
         // the compiled translations again on the other side.
         buffer.writeln("      if ($key != null) '$key': $key!.toMap(),");
+      } else if (member.leafType is HWDateTime) {
+        buffer.writeln(
+          "      if ($key != null) '$key': ${_dartIsoExpr('$key!')},",
+        );
       } else {
         buffer.writeln("      if ($key != null) '$key': $key,");
       }
@@ -1472,6 +1506,14 @@ class DartHelperGenerator {
         'bool? _readBool(Object? value) => value is bool ? value : null;',
       );
     }
+    if (usedReaders.contains('_readDateTime')) {
+      // Anything that is not a readable ISO 8601 string comes back as null, the
+      // same way the native `hwParseIsoDate` helper answers.
+      buffer.writeln('DateTime? _readDateTime(Object? value) {');
+      buffer.writeln('  if (value is! String || value.isEmpty) return null;');
+      buffer.writeln('  return DateTime.tryParse(value)?.toUtc();');
+      buffer.writeln('}');
+    }
     if (usedReaders.contains('_readFileImage')) {
       // The stored value is the absolute path of the PNG `saveData` wrote; a
       // path whose file is gone reads back as null, like a missing image.
@@ -1503,6 +1545,8 @@ class DartHelperGenerator {
     if (field is HWInt) return '_readInt';
     if (field is HWDouble) return '_readDouble';
     if (field is HWBool) return '_readBool';
+    // The stored value is an ISO 8601 string; the Dart API hands back a date.
+    if (field is HWDateTime) return '_readDateTime';
     // The stored value is a path; the Dart API hands back the image itself.
     if (field is HWImageData) return '_readFileImage';
     return '_readString';

@@ -18,7 +18,7 @@ void main() {
     test('HWInt returns correct types and default value', () {
       const type = HWInt('test');
       expect(type.dartType, 'int');
-      expect(type.kotlinType, 'Int');
+      expect(type.kotlinType, 'Long');
       expect(type.swiftType, 'Int');
       expect(type.defaultValue, null);
 
@@ -46,6 +46,94 @@ void main() {
 
       const typeWithDefault = HWBool('test', defaultValue: true);
       expect(typeWithDefault.defaultValue, true);
+    });
+
+    test('HWDateTime returns correct types and has no default value', () {
+      const type = HWDateTime('when');
+      expect(type.dartType, 'DateTime');
+      expect(type.kotlinType, 'java.util.Date');
+      expect(type.swiftType, 'Date');
+      expect(type.defaultValue, isNull);
+      expect(type.codegenKotlinDefaultLiteral(), isNull);
+      expect(type.codegenSwiftDefaultLiteral(), isNull);
+    });
+
+    test('HWDateTime parses the stored ISO string on read', () {
+      const type = HWDateTime('when');
+      expect(
+        type.iosReadValue(store: 'defaults', key: 'p.when'),
+        'hwParseIsoDate(defaults?.string(forKey: "p.when") ?? "")',
+      );
+      expect(
+        type.androidReadValue(store: 'prefs', key: 'p.when'),
+        'hwParseIsoDate(prefs.getString("p.when", null) ?: "")',
+      );
+    });
+
+    test('HWDateTime parses out of a timed entry and a JSON object', () {
+      const type = HWDateTime('when');
+      expect(
+        type.iosTimedReadValue(valuesExpr: 'timedValues'),
+        'hwParseIsoDate((timedValues["when"] as? String) ?? "")',
+      );
+      expect(
+        type.androidTimedReadValue(valuesExpr: 'timedValues'),
+        'hwParseIsoDate(if (timedValues.has("when") && '
+        '!timedValues.isNull("when")) timedValues.optString("when") else "")',
+      );
+      expect(
+        type.iosJsonReadValue(objExpr: 'values', key: 'start'),
+        'hwParseIsoDate((values["start"] as? String) ?? "")',
+      );
+      expect(
+        type.androidJsonReadValue(objExpr: 'values', key: 'start'),
+        'hwParseIsoDate(if (values.has("start") && !values.isNull("start")) '
+        'values.optString("start") else "")',
+      );
+    });
+
+    test('HWDateTime stringifies with the default format, empty when absent',
+        () {
+      const type = HWDateTime('when');
+      expect(
+        type.iosToString(outerValue: 'd.when', innerValue: 'd.when!'),
+        'd.when.map { hwFormatDateStyled(\$0, dateStyle: .medium, '
+        'timeStyle: .short) } ?? ""',
+      );
+      expect(
+        type.androidToString(outerValue: 'd.when', innerValue: 'd.when'),
+        'd.when?.let { hwFormatDateStyled(it, java.text.DateFormat.MEDIUM, '
+        'java.text.DateFormat.SHORT, hwFormatLocale(context)) } ?: ""',
+      );
+    });
+
+    test('HWTimedData wrapping an HWDateTime keeps the date contract', () {
+      const type = HWTimedData(HWDateTime('when'));
+      expect(type.swiftType, 'Date');
+      expect(type.kotlinType, 'java.util.Date');
+      expect(type.unwrapped, const HWDateTime('when'));
+      expect(dateTimeLeafOf(type), const HWDateTime('when'));
+    });
+
+    test('leaf lookups find numbers and dates through every wrapper', () {
+      expect(numberLeafOf(const HWInt('a')), const HWInt('a'));
+      expect(
+        numberLeafOf(const HWTimedData(HWDouble('a'))),
+        const HWDouble('a'),
+      );
+      expect(
+        numberLeafOf(const HWJson('p', HWJson('q', HWInt('a')))),
+        const HWInt('a'),
+      );
+      expect(numberLeafOf(const HWString('a')), isNull);
+      expect(numberLeafOf(const HWDateTime('a')), isNull);
+
+      expect(dateTimeLeafOf(const HWDateTime('a')), const HWDateTime('a'));
+      expect(
+        dateTimeLeafOf(const HWJson('p', HWDateTime('a'))),
+        const HWDateTime('a'),
+      );
+      expect(dateTimeLeafOf(const HWInt('a')), isNull);
     });
 
     test('HWJson wraps child field metadata and accessors', () {
@@ -253,6 +341,35 @@ void main() {
       }
     });
 
+    test('doubles read Android preferences via raw bit decoding', () {
+      expect(
+        const HWDouble('d').androidReadValue(store: 'prefs', key: 'p.total'),
+        'if (prefs.contains("p.total")) '
+        'java.lang.Double.longBitsToDouble(prefs.getLong("p.total", 0L)) '
+        'else null',
+      );
+      expect(
+        const HWDouble('d', defaultValue: 1.5)
+            .androidReadValue(store: 'prefs', key: 'p.total'),
+        contains('else 1.5'),
+      );
+    });
+
+    test('ints read Android preferences through the untyped map', () {
+      expect(
+        const HWInt('i').androidReadValue(store: 'prefs', key: 'p.count'),
+        'when (val raw = prefs.all["p.count"]) { '
+        'is Int -> raw.toLong(); '
+        'is Long -> raw; '
+        'else -> null }',
+      );
+      expect(
+        const HWInt('i', defaultValue: 7)
+            .androidReadValue(store: 'prefs', key: 'p.count'),
+        contains('else -> 7L }'),
+      );
+    });
+
     test('androidToString and iosToString', () {
       const o = 'data.x';
       const i = 'data.x';
@@ -260,13 +377,17 @@ void main() {
         (const HWString('k'), r'data.x ?: ""', r'data.x ?? ""'),
         (
           const HWInt('k'),
-          r'(data.x?.toString() ?: "0")',
-          r'data.x != nil ? "\(data.x)" : "0"'
+          'hwFormatDecimal((data.x ?: 0L).toDouble(), null, null, true, '
+              'hwFormatLocale(context))',
+          'hwFormatDecimal(Double(data.x ?? 0), minFraction: nil, '
+              'maxFraction: nil, grouping: true)'
         ),
         (
           const HWDouble('k'),
-          r'(data.x?.toString() ?: "0.0")',
-          r'data.x != nil ? "\(data.x)" : "0.0"'
+          'hwFormatDecimal((data.x ?: 0.0), null, null, true, '
+              'hwFormatLocale(context))',
+          'hwFormatDecimal(data.x ?? 0.0, minFraction: nil, maxFraction: nil, '
+              'grouping: true)'
         ),
         (
           const HWBool('k'),
@@ -307,12 +428,12 @@ void main() {
       expect(tricky.codegenSwiftDefaultLiteral(), r'"a\"b$c"');
     });
 
-    test('HWInt emits a bare literal or null', () {
+    test('HWInt emits a Long literal or null', () {
       expect(const HWInt('k').codegenKotlinDefaultLiteral(), isNull);
       expect(const HWInt('k').codegenSwiftDefaultLiteral(), isNull);
       expect(
         const HWInt('k', defaultValue: 42).codegenKotlinDefaultLiteral(),
-        '42',
+        '42L',
       );
       expect(
         const HWInt('k', defaultValue: 42).codegenSwiftDefaultLiteral(),
@@ -321,7 +442,7 @@ void main() {
       // Zero is a real default, not an absent one.
       expect(
         const HWInt('k', defaultValue: 0).codegenKotlinDefaultLiteral(),
-        '0',
+        '0L',
       );
     });
 
@@ -356,7 +477,7 @@ void main() {
       expect(
         const HWJson('root', HWInt('n', defaultValue: 7))
             .codegenKotlinDefaultLiteral(),
-        '7',
+        '7L',
       );
       expect(
         const HWJson('root', HWJson('mid', HWString('s', defaultValue: 'x')))
@@ -389,11 +510,13 @@ void main() {
     test('stringification delegates to the leaf type', () {
       expect(
         json.androidToString(outerValue: 'v', innerValue: 'v'),
-        r'(v?.toString() ?: "0")',
+        'hwFormatDecimal((v ?: 3L).toDouble(), null, null, true, '
+        'hwFormatLocale(context))',
       );
       expect(
         json.iosToString(outerValue: 'v', innerValue: 'v'),
-        r'v != nil ? "\(v)" : "0"',
+        'hwFormatDecimal(Double(v ?? 3), minFraction: nil, maxFraction: nil, '
+        'grouping: true)',
       );
     });
 
@@ -405,10 +528,11 @@ void main() {
       expect(json.pathSegments, ['count']);
     });
 
-    test('kotlin glance text applies the leaf default before stringifying', () {
+    test('kotlin glance text applies the leaf default before formatting', () {
       expect(
         json.kotlinGlanceJsonTextInterpolation('widgetData'),
-        '(widgetData.payload?.count ?: 3).toString()',
+        'hwFormatDecimal((widgetData.payload?.count ?: 3L).toDouble(), '
+        'null, null, true, hwFormatLocale(context))',
       );
     });
 
@@ -416,15 +540,32 @@ void main() {
       const noDefault = HWJson('payload', HWInt('count'));
       expect(
         noDefault.kotlinGlanceJsonTextInterpolation('widgetData'),
-        '(widgetData.payload?.count?.toString() ?: "0")',
+        'hwFormatDecimal((widgetData.payload?.count ?: 0L).toDouble(), '
+        'null, null, true, hwFormatLocale(context))',
       );
     });
 
-    test('swift glance text describes non-string leaves', () {
-      final swift = json.swiftGlanceJsonTextInterpolation('entry.data');
-      expect(swift, startsWith('String(describing: '));
-      expect(swift, contains('entry.data.payload?.count'));
-      expect(swift, contains('?? (3)'));
+    test('swift glance text formats number leaves', () {
+      expect(
+        json.swiftGlanceJsonTextInterpolation('entry.data'),
+        'hwFormatDecimal(Double(entry.data.payload?.count ?? 3), '
+        'minFraction: nil, maxFraction: nil, grouping: true)',
+      );
+    });
+
+    test('glance text formats a date leaf with the default format', () {
+      const dateJson = HWJson('payload', HWDateTime('when'));
+      expect(
+        dateJson.swiftGlanceJsonTextInterpolation('entry.data'),
+        'entry.data.payload?.when.map { hwFormatDateStyled(\$0, '
+        'dateStyle: .medium, timeStyle: .short) } ?? ""',
+      );
+      expect(
+        dateJson.kotlinGlanceJsonTextInterpolation('widgetData'),
+        'widgetData.payload?.when?.let { hwFormatDateStyled(it, '
+        'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
+        'hwFormatLocale(context)) } ?: ""',
+      );
     });
 
     test('swift glance text keeps string leaves quoted instead of described',

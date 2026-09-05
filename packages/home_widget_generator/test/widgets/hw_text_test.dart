@@ -47,18 +47,21 @@ void main() {
     group('nested JSON data', () {
       const text = HWText(HWJson('payload', HWInt('count', defaultValue: 3)));
 
-      test('Kotlin applies the leaf default before stringifying', () {
+      test('Kotlin applies the leaf default before formatting', () {
         expect(
           text.toKotlin(0, dataExpr: 'widgetData'),
-          'Text(text = (widgetData.payload?.count ?: 3).toString())',
+          'Text(text = hwFormatDecimal('
+          '(widgetData.payload?.count ?: 3L).toDouble(), null, null, true, '
+          'hwFormatLocale(context)))',
         );
       });
 
-      test('Swift describes the resolved value', () {
-        final swift = text.toSwift(0, dataExpr: 'entry.data');
-        expect(swift, startsWith('Text(String(describing: '));
-        expect(swift, contains('entry.data.payload?.count'));
-        expect(swift, contains('?? (3)'));
+      test('Swift formats the resolved value', () {
+        expect(
+          text.toSwift(0, dataExpr: 'entry.data'),
+          'Text(hwFormatDecimal(Double(entry.data.payload?.count ?? 3), '
+          'minFraction: nil, maxFraction: nil, grouping: true))',
+        );
       });
     });
 
@@ -78,13 +81,17 @@ void main() {
         expect(result, 'Text(data.label ?? "")');
       });
 
-      test('emits int data ref', () {
+      test('emits int data ref in the default decimal format', () {
         final node = HWText(HWInt('count'));
         final result = node.toSwift(
           0,
           dataExpr: 'data',
         );
-        expect(result, 'Text(data.count != nil ? "\\(data.count!)" : "0")');
+        expect(
+          result,
+          'Text(hwFormatDecimal(Double(data.count ?? 0), minFraction: nil, '
+          'maxFraction: nil, grouping: true))',
+        );
       });
 
       test('emits bool data ref', () {
@@ -96,13 +103,17 @@ void main() {
         expect(result, 'Text(data.flag != nil ? "\\(data.flag!)" : "false")');
       });
 
-      test('emits double data ref', () {
+      test('emits double data ref in the default decimal format', () {
         final node = HWText(HWDouble('ratio'));
         final result = node.toSwift(
           0,
           dataExpr: 'data',
         );
-        expect(result, 'Text(data.ratio != nil ? "\\(data.ratio!)" : "0.0")');
+        expect(
+          result,
+          'Text(hwFormatDecimal(data.ratio ?? 0.0, minFraction: nil, '
+          'maxFraction: nil, grouping: true))',
+        );
       });
 
       test('escapes strings', () {
@@ -336,13 +347,17 @@ void main() {
         expect(result, 'Text(text = data.label ?: "")');
       });
 
-      test('emits int data ref', () {
+      test('emits int data ref in the default decimal format', () {
         final node = HWText(HWInt('count'));
         final result = node.toKotlin(
           0,
           dataExpr: 'data',
         );
-        expect(result, 'Text(text = (data.count?.toString() ?: "0"))');
+        expect(
+          result,
+          'Text(text = hwFormatDecimal((data.count ?: 0L).toDouble(), '
+          'null, null, true, hwFormatLocale(context)))',
+        );
       });
 
       test('emits bool data ref', () {
@@ -354,13 +369,17 @@ void main() {
         expect(result, 'Text(text = (data.flag?.toString() ?: "false"))');
       });
 
-      test('emits double data ref', () {
+      test('emits double data ref in the default decimal format', () {
         final node = HWText(HWDouble('ratio'));
         final result = node.toKotlin(
           0,
           dataExpr: 'data',
         );
-        expect(result, 'Text(text = (data.ratio?.toString() ?: "0.0"))');
+        expect(
+          result,
+          'Text(text = hwFormatDecimal((data.ratio ?: 0.0), '
+          'null, null, true, hwFormatLocale(context)))',
+        );
       });
 
       test('escapes strings', () {
@@ -470,6 +489,414 @@ void main() {
     });
   });
 
+  group('HWText.number', () {
+    test('model: carries the format and the bound data', () {
+      const text = HWText.number(
+        HWInt('steps'),
+        format: HWNumberFormat.compact(),
+      );
+      expect(text.dataType, const HWInt('steps'));
+      expect(text.numberFormat, const HWNumberFormat.compact());
+      expect(text.dateFormat, isNull);
+      expect(text.fixedNumber, isNull);
+      expect(text.formatsNumber, isTrue);
+      expect(text.formatsDate, isFalse);
+      expect(text.dataDependencies, {const HWInt('steps')});
+    });
+
+    test('a plain number text also formats', () {
+      expect(const HWText(HWInt('c')).formatsNumber, isTrue);
+      expect(const HWText(HWDouble('c')).formatsNumber, isTrue);
+      expect(const HWText(HWTimedData(HWInt('c'))).formatsNumber, isTrue);
+      expect(const HWText(HWJson('p', HWDouble('c'))).formatsNumber, isTrue);
+      expect(const HWText(HWString('c')).formatsNumber, isFalse);
+      expect(const HWText.fixed('c').formatsNumber, isFalse);
+    });
+
+    test('decimal with explicit digits and grouping off', () {
+      const text = HWText.number(
+        HWDouble('v'),
+        format: HWNumberFormat.decimal(
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 2,
+          useGrouping: false,
+        ),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatDecimal(entry.data.v ?? 0.0, minFraction: 1, '
+        'maxFraction: 2, grouping: false))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatDecimal((widgetData.v ?: 0.0), 1, 2, false, '
+        'hwFormatLocale(context)))',
+      );
+    });
+
+    test('percent', () {
+      const text = HWText.number(
+        HWDouble('progress'),
+        format: HWNumberFormat.percent(maximumFractionDigits: 0),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatPercent(entry.data.progress ?? 0.0, minFraction: nil, '
+        'maxFraction: 0))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatPercent((widgetData.progress ?: 0.0), null, 0, '
+        'hwFormatLocale(context)))',
+      );
+    });
+
+    test('compact converts an int to a double first', () {
+      const text = HWText.number(
+        HWInt('steps'),
+        format: HWNumberFormat.compact(),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatCompact(Double(entry.data.steps ?? 0)))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatCompact((widgetData.steps ?: 0L).toDouble(), '
+        'hwFormatLocale(context)))',
+      );
+    });
+
+    test('pattern', () {
+      const text = HWText.number(
+        HWDouble('v'),
+        format: HWNumberFormat.pattern('#,##0.00'),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatNumberPattern(entry.data.v ?? 0.0, "#,##0.00"))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatNumberPattern((widgetData.v ?: 0.0), '
+        '"#,##0.00", hwFormatLocale(context)))',
+      );
+    });
+
+    test('currency with a fixed code', () {
+      const text = HWText.number(
+        HWDouble('price'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.code('EUR'),
+          decimalDigits: 2,
+        ),
+      );
+      expect(text.dataDependencies, {const HWDouble('price')});
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatCurrency(entry.data.price ?? 0.0, code: "EUR", '
+        'decimals: 2))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatCurrency((widgetData.price ?: 0.0), "EUR", 2, '
+        'hwFormatLocale(context)))',
+      );
+    });
+
+    test('currency read from a data field, which becomes a dependency', () {
+      const text = HWText.number(
+        HWDouble('price'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWString('cur')),
+        ),
+      );
+      expect(
+        text.dataDependencies,
+        {const HWDouble('price'), const HWString('cur')},
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatCurrency(entry.data.price ?? 0.0, '
+        'code: entry.data.cur ?? "", decimals: nil))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatCurrency((widgetData.price ?: 0.0), '
+        'widgetData.cur ?: "", null, hwFormatLocale(context)))',
+      );
+    });
+
+    test('a JSON-nested currency field reads through its path', () {
+      const text = HWText.number(
+        HWDouble('price'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWJson('cfg', HWString('cur'))),
+        ),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        contains('code: entry.data.cfg?.cur ?? ""'),
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        contains('hwFormatCurrency((widgetData.price ?: 0.0), '
+            'widgetData.cfg?.cur ?: "", null, '),
+      );
+    });
+
+    test('a timed or JSON-wrapped number formats through its own path', () {
+      expect(
+        const HWText.number(
+          HWTimedData(HWInt('steps')),
+          format: HWNumberFormat.compact(),
+        ).toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatCompact(Double(entry.data.steps ?? 0)))',
+      );
+      expect(
+        const HWText.number(
+          HWJson('payload', HWDouble('v')),
+          format: HWNumberFormat.compact(),
+        ).toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatCompact((widgetData.payload?.v ?: 0.0), '
+        'hwFormatLocale(context)))',
+      );
+    });
+
+    test('style and alignment still apply', () {
+      const text = HWText.number(
+        HWInt('c'),
+        style: HWTextStyle(fontSize: 12),
+        textAlign: HWTextAlign.center,
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'd'),
+        contains('.multilineTextAlignment(.center)'),
+      );
+      expect(text.toKotlin(0, dataExpr: 'd'), contains('fontSize = 12.sp'));
+    });
+  });
+
+  group('HWText.fixedNumber', () {
+    test('model: carries the value and no data dependency', () {
+      const text = HWText.fixedNumber(1234);
+      expect(text.fixedNumber, 1234);
+      expect(text.dataType, isNull);
+      expect(text.dataDependencies, isEmpty);
+      expect(text.formatsNumber, isTrue);
+    });
+
+    test('an int is emitted as a floating point literal on both platforms', () {
+      const text = HWText.fixedNumber(1234);
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatDecimal(1234.0, minFraction: nil, maxFraction: nil, '
+        'grouping: true))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatDecimal(1234.0, null, null, true, '
+        'hwFormatLocale(context)))',
+      );
+    });
+
+    test('a double keeps its own literal', () {
+      const text = HWText.fixedNumber(12.5, format: HWNumberFormat.compact());
+      expect(
+        text.toSwift(0, dataExpr: 'd'),
+        'Text(hwFormatCompact(12.5))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'd'),
+        'Text(text = hwFormatCompact(12.5, hwFormatLocale(context)))',
+      );
+    });
+
+    test('a data-bound currency is still a dependency', () {
+      const text = HWText.fixedNumber(
+        9.99,
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWString('cur')),
+        ),
+      );
+      expect(text.dataDependencies, {const HWString('cur')});
+    });
+  });
+
+  group('HWText.dateTime', () {
+    test('model: carries the format and defaults to the device zone', () {
+      const text = HWText.dateTime(HWDateTime('when'));
+      expect(text.dataType, const HWDateTime('when'));
+      expect(text.dateFormat, HWDateFormat.defaultFormat);
+      expect(text.timeZone, HWTimeZone.local);
+      expect(text.formatsDate, isTrue);
+      expect(text.formatsNumber, isFalse);
+      expect(text.dataDependencies, {const HWDateTime('when')});
+    });
+
+    test('a plain HWText on a date equals the default format', () {
+      const plain = HWText(HWDateTime('when'));
+      const explicit = HWText.dateTime(HWDateTime('when'));
+      expect(
+        plain.toSwift(0, dataExpr: 'entry.data'),
+        explicit.toSwift(0, dataExpr: 'entry.data'),
+      );
+      expect(
+        plain.toKotlin(0, dataExpr: 'widgetData'),
+        explicit.toKotlin(0, dataExpr: 'widgetData'),
+      );
+      expect(plain.formatsDate, isTrue);
+    });
+
+    test('styled default format, empty when there is no date', () {
+      const text = HWText.dateTime(HWDateTime('when'));
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(entry.data.when.map { hwFormatDateStyled(\$0, '
+        'dateStyle: .medium, timeStyle: .short) } ?? "")',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = widgetData.when?.let { hwFormatDateStyled(it, '
+        'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
+        'hwFormatLocale(context)) } ?: "")',
+      );
+    });
+
+    test('a skeleton constant', () {
+      const text = HWText.dateTime(
+        HWDateTime('when'),
+        format: HWDateFormat.yMMMd,
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(entry.data.when.map { hwFormatDateSkeleton(\$0, "yMMMd") } '
+        '?? "")',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = widgetData.when?.let { hwFormatDateSkeleton(it, '
+        '"yMMMd", hwFormatLocale(context)) } ?: "")',
+      );
+    });
+
+    test('an explicit pattern', () {
+      const text = HWText.dateTime(
+        HWDateTime('when'),
+        format: HWDateFormat.pattern('dd.MM.yyyy HH:mm'),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'd'),
+        contains('hwFormatDatePattern(\$0, "dd.MM.yyyy HH:mm")'),
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'd'),
+        contains('hwFormatDatePattern(it, "dd.MM.yyyy HH:mm", '),
+      );
+    });
+
+    test('a styled format may leave one half out', () {
+      const text = HWText.dateTime(
+        HWDateTime('when'),
+        format: HWDateFormat.styled(date: HWFormatStyle.full),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'd'),
+        contains('dateStyle: .full, timeStyle: .none'),
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'd'),
+        contains('hwFormatDateStyled(it, java.text.DateFormat.FULL, null, '),
+      );
+    });
+
+    test('a date inside JSON formats through its path', () {
+      const text = HWText.dateTime(HWJson('payload', HWDateTime('when')));
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(entry.data.payload?.when.map { hwFormatDateStyled(\$0, '
+        'dateStyle: .medium, timeStyle: .short) } ?? "")',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = widgetData.payload?.when?.let { hwFormatDateStyled(it, '
+        'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
+        'hwFormatLocale(context)) } ?: "")',
+      );
+    });
+  });
+
+  group('HWText.dateTime time zones', () {
+    test('local omits the argument', () {
+      const text = HWText.dateTime(HWDateTime('when'));
+      expect(text.toSwift(0, dataExpr: 'd'), isNot(contains('timeZone')));
+      expect(
+        text.toKotlin(0, dataExpr: 'd'),
+        contains('hwFormatLocale(context)) } ?: ""'),
+      );
+    });
+
+    test('utc passes the UTC id', () {
+      const text =
+          HWText.dateTime(HWDateTime('when'), timeZone: HWTimeZone.utc);
+      expect(text.toSwift(0, dataExpr: 'd'), contains('timeZone: "UTC"'));
+      expect(
+        text.toKotlin(0, dataExpr: 'd'),
+        contains('hwFormatLocale(context), "UTC")'),
+      );
+    });
+
+    test('a named zone passes its IANA id', () {
+      const text = HWText.dateTime(
+        HWDateTime('when'),
+        timeZone: HWTimeZone.named('Europe/Berlin'),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(entry.data.when.map { hwFormatDateStyled(\$0, '
+        'dateStyle: .medium, timeStyle: .short, timeZone: "Europe/Berlin") } '
+        '?? "")',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = widgetData.when?.let { hwFormatDateStyled(it, '
+        'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
+        'hwFormatLocale(context), "Europe/Berlin") } ?: "")',
+      );
+    });
+
+    test('a data zone passes the nullable field and becomes a dependency', () {
+      const text = HWText.dateTime(
+        HWDateTime('when'),
+        timeZone: HWTimeZone.data(HWString('tz')),
+      );
+      expect(
+        text.dataDependencies,
+        {const HWDateTime('when'), const HWString('tz')},
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        contains('timeZone: entry.data.tz)'),
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        contains('hwFormatLocale(context), widgetData.tz)'),
+      );
+    });
+
+    test('a timed zone field reads through the unwrapped access', () {
+      const text = HWText.dateTime(
+        HWDateTime('when'),
+        timeZone: HWTimeZone.data(HWTimedData(HWString('tz'))),
+      );
+      expect(text.toSwift(0, dataExpr: 'd'), contains('timeZone: d.tz)'));
+      expect(
+        text.toKotlin(0, dataExpr: 'd'),
+        contains('hwFormatLocale(context), d.tz)'),
+      );
+    });
+  });
+
   group('HWText multi-line content', () {
     // Regression: the escapers used to leave newlines raw, which produced an
     // unterminated string literal in both languages.
@@ -485,6 +912,200 @@ void main() {
       final swift = text.toSwift(0, dataExpr: 'null');
       expect(swift.split('\n'), hasLength(1));
       expect(swift, contains(r'line1\nline2\ttabbed'));
+    });
+  });
+
+  group('typed data parameters', () {
+    test('HWText.number takes a number however it is wrapped', () {
+      const plain = HWText.number(HWInt('steps'));
+      const timed = HWText.number(HWTimedData(HWDouble('steps')));
+      const nested = HWText.number(HWJson('stats', HWInt('steps')));
+      const both = HWText.number(HWTimedData(HWJson('stats', HWInt('steps'))));
+
+      for (final text in [plain, timed, nested, both]) {
+        expect(text.formatsNumber, isTrue);
+        expect(text.toSwift(0, dataExpr: 'entry.data'), startsWith('Text('));
+        expect(text.toKotlin(0, dataExpr: 'widgetData'), startsWith('Text('));
+      }
+      expect(
+        plain.toSwift(0, dataExpr: 'entry.data'),
+        contains('Double(entry.data.steps ?? 0)'),
+      );
+      expect(
+        nested.toKotlin(0, dataExpr: 'widgetData'),
+        contains('(widgetData.stats?.steps ?: 0L).toDouble()'),
+      );
+    });
+
+    test('HWText.dateTime takes a date however it is wrapped', () {
+      const plain = HWText.dateTime(HWDateTime('when'));
+      const timed = HWText.dateTime(HWTimedData(HWDateTime('when')));
+      const nested = HWText.dateTime(HWJson('event', HWDateTime('when')));
+      const both =
+          HWText.dateTime(HWTimedData(HWJson('event', HWDateTime('when'))));
+
+      for (final text in [plain, timed, nested, both]) {
+        expect(text.formatsDate, isTrue);
+        expect(text.toSwift(0, dataExpr: 'entry.data'), startsWith('Text('));
+        expect(text.toKotlin(0, dataExpr: 'widgetData'), startsWith('Text('));
+      }
+      expect(
+        plain.toSwift(0, dataExpr: 'entry.data'),
+        contains('entry.data.when.map {'),
+      );
+      expect(
+        nested.toKotlin(0, dataExpr: 'widgetData'),
+        contains('widgetData.event?.when?.let {'),
+      );
+    });
+
+    test('a currency code field is a dependency however it is wrapped', () {
+      const plain = HWText.number(
+        HWDouble('total'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWString('cur')),
+        ),
+      );
+      const timed = HWText.number(
+        HWDouble('total'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWTimedData(HWString('cur'))),
+        ),
+      );
+      const nested = HWText.number(
+        HWDouble('total'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWJson('cfg', HWString('cur'))),
+        ),
+      );
+
+      expect(plain.dataDependencies, {
+        const HWDouble('total'),
+        const HWString('cur'),
+      });
+      expect(timed.dataDependencies, {
+        const HWDouble('total'),
+        const HWTimedData(HWString('cur')),
+      });
+      expect(
+        nested.toSwift(0, dataExpr: 'entry.data'),
+        contains('code: entry.data.cfg?.cur ?? ""'),
+      );
+    });
+
+    test('a time zone field is a dependency however it is wrapped', () {
+      const plain = HWText.dateTime(
+        HWDateTime('when'),
+        timeZone: HWTimeZone.data(HWString('tz')),
+      );
+      const timed = HWText.dateTime(
+        HWDateTime('when'),
+        timeZone: HWTimeZone.data(HWTimedData(HWString('tz'))),
+      );
+      const nested = HWText.dateTime(
+        HWDateTime('when'),
+        timeZone: HWTimeZone.data(HWJson('cfg', HWString('tz'))),
+      );
+
+      expect(plain.dataDependencies, {
+        const HWDateTime('when'),
+        const HWString('tz'),
+      });
+      expect(timed.dataDependencies, {
+        const HWDateTime('when'),
+        const HWTimedData(HWString('tz')),
+      });
+      expect(
+        nested.toKotlin(0, dataExpr: 'widgetData'),
+        contains('hwFormatLocale(context), widgetData.cfg?.tz)'),
+      );
+    });
+  });
+
+  group('nativeHelpers', () {
+    Set<String> namesOf(HWWidget widget) =>
+        widget.nativeHelpers.map((h) => h.name).toSet();
+
+    test('a text with no formatting needs none', () {
+      expect(namesOf(const HWText.fixed('hi')), isEmpty);
+      expect(namesOf(const HWText(HWString('label'))), isEmpty);
+    });
+
+    test('a plain number renders in the default decimal format', () {
+      const text = HWText(HWInt('steps'));
+      expect(text.effectiveNumberFormat, HWNumberFormat.defaultFormat);
+      expect(namesOf(text), {'hwFormatDecimal'});
+      expect(namesOf(const HWText(HWDouble('ratio'))), {'hwFormatDecimal'});
+      expect(
+        namesOf(const HWText(HWJson('payload', HWInt('count')))),
+        {'hwFormatDecimal'},
+      );
+    });
+
+    test('an explicit format names its own helper', () {
+      expect(
+        namesOf(
+          const HWText.number(
+            HWInt('steps'),
+            format: HWNumberFormat.compact(),
+          ),
+        ),
+        {'hwFormatCompact'},
+      );
+      expect(
+        namesOf(const HWText.fixedNumber(1, format: HWNumberFormat.percent())),
+        {'hwFormatPercent'},
+      );
+    });
+
+    test('a date names the parser and the format helper', () {
+      const text = HWText(HWDateTime('when'));
+      expect(text.effectiveDateFormat, HWDateFormat.defaultFormat);
+      expect(namesOf(text), {'hwParseIsoDate', 'hwFormatDateStyled'});
+      expect(
+        namesOf(
+          const HWText.dateTime(HWDateTime('when'), format: HWDateFormat.yMMMd),
+        ),
+        {'hwParseIsoDate', 'hwFormatDateSkeleton'},
+      );
+    });
+
+    test('a display zone adds the zone resolver', () {
+      expect(
+        namesOf(
+          const HWText.dateTime(
+            HWDateTime('when'),
+            timeZone: HWTimeZone.named('Europe/Berlin'),
+          ),
+        ),
+        {'hwParseIsoDate', 'hwFormatDateStyled', 'hwResolveTimeZone'},
+      );
+    });
+
+    test('a date nobody displays still needs the parser', () {
+      const tree = HWDataExists(
+        data: HWDateTime('when'),
+        whenPresent: HWText.fixed('yes'),
+        whenAbsent: HWText.fixed('no'),
+      );
+      expect(namesOf(tree), {'hwParseIsoDate'});
+    });
+
+    test('a container collects from its whole subtree', () {
+      const tree = HWColumn(
+        children: [
+          HWText(HWInt('steps')),
+          HWText.dateTime(
+            HWDateTime('when'),
+            format: HWDateFormat.pattern('dd.MM.yyyy'),
+          ),
+        ],
+      );
+      expect(namesOf(tree), {
+        'hwFormatDecimal',
+        'hwParseIsoDate',
+        'hwFormatDatePattern',
+      });
     });
   });
 }

@@ -199,6 +199,119 @@ class WidgetValueDecoder {
     return decodeEnum(obj, HWTextAlign.values);
   }
 
+  /// Decodes an [HWNumberFormat], or null when [obj] is absent.
+  ///
+  /// Dispatch is on which fields the constant carries rather than on the type
+  /// name: every variant is reached through a redirecting const factory, which
+  /// is not guaranteed to report the target class. The field sets are disjoint,
+  /// so the first match is the only one.
+  static HWNumberFormat? decodeNumberFormat(
+    DartObject? obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    if (obj == null || obj.isNull) return null;
+
+    final currency = decodeCurrency(
+      getField(obj, 'currency'),
+      defaultLocale: defaultLocale,
+      resourcePrefix: resourcePrefix,
+    );
+    if (currency != null) {
+      return HWNumberFormat.currency(
+        currency: currency,
+        decimalDigits: getField(obj, 'decimalDigits')?.toIntValue(),
+      );
+    }
+
+    final pattern = getField(obj, 'pattern')?.toStringValue();
+    if (pattern != null) return HWNumberFormat.pattern(pattern);
+
+    final minimum = getField(obj, 'minimumFractionDigits');
+    final maximum = getField(obj, 'maximumFractionDigits');
+    final useGrouping = getField(obj, 'useGrouping')?.toBoolValue();
+    if (useGrouping != null) {
+      return HWNumberFormat.decimal(
+        minimumFractionDigits: minimum?.toIntValue(),
+        maximumFractionDigits: maximum?.toIntValue(),
+        useGrouping: useGrouping,
+      );
+    }
+    if (minimum != null || maximum != null) {
+      return HWNumberFormat.percent(
+        minimumFractionDigits: minimum?.toIntValue(),
+        maximumFractionDigits: maximum?.toIntValue(),
+      );
+    }
+
+    return const HWNumberFormat.compact();
+  }
+
+  /// Decodes an [HWDateFormat], or null when [obj] is absent.
+  ///
+  /// Dispatches the same way [decodeNumberFormat] does.
+  static HWDateFormat? decodeDateFormat(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final skeleton = getField(obj, 'skeleton')?.toStringValue();
+    if (skeleton != null) return HWDateFormat.skeleton(skeleton);
+
+    final pattern = getField(obj, 'pattern')?.toStringValue();
+    if (pattern != null) return HWDateFormat.pattern(pattern);
+
+    return HWDateFormat.styled(
+      date: decodeEnum(getField(obj, 'date'), HWFormatStyle.values),
+      time: decodeEnum(getField(obj, 'time'), HWFormatStyle.values),
+    );
+  }
+
+  /// Decodes an [HWCurrency], or null when [obj] is absent.
+  ///
+  /// Dispatches the same way [decodeNumberFormat] does.
+  static HWCurrency? decodeCurrency(
+    DartObject? obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    if (obj == null || obj.isNull) return null;
+
+    final code = getField(obj, 'code')?.toStringValue();
+    if (code != null) return HWCurrency.code(code);
+
+    final data = decodeDataType(
+      getField(obj, 'data'),
+      defaultLocale: defaultLocale,
+      resourcePrefix: resourcePrefix,
+    );
+    if (data != null) return HWDataCurrency(data);
+
+    return null;
+  }
+
+  /// Decodes an [HWTimeZone], or null when [obj] is absent.
+  ///
+  /// Dispatches the same way [decodeNumberFormat] does; a constant carrying
+  /// neither an id nor a data field is [HWTimeZone.local].
+  static HWTimeZone? decodeTimeZone(
+    DartObject? obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    if (obj == null || obj.isNull) return null;
+
+    final id = getField(obj, 'id')?.toStringValue();
+    if (id != null) return HWTimeZone.named(id);
+
+    final data = decodeDataType(
+      getField(obj, 'data'),
+      defaultLocale: defaultLocale,
+      resourcePrefix: resourcePrefix,
+    );
+    if (data != null) return HWDataTimeZone(data);
+
+    return HWTimeZone.local;
+  }
+
   /// Reads a `defaultTranslations` locale map, or null when [obj] is not a
   /// localized string.
   ///
@@ -275,6 +388,8 @@ class WidgetValueDecoder {
     } else if (typeName == 'HWBool') {
       final defaultValue = getField(obj, 'defaultValue')?.toBoolValue();
       return HWBool(key, defaultValue: defaultValue);
+    } else if (typeName == 'HWDateTime') {
+      return HWDateTime(key);
     } else if (typeName == 'HWTimedData') {
       final dataObj = getField(obj, 'data');
       if (dataObj != null && dataObj.type?.element?.name == 'HWTimedData') {
@@ -305,6 +420,7 @@ class WidgetValueDecoder {
           child is! HWInt &&
           child is! HWDouble &&
           child is! HWBool &&
+          child is! HWDateTime &&
           child is! HWJson &&
           child is! HWImageData) {
         return null;

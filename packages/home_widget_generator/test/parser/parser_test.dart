@@ -556,6 +556,210 @@ class TestWidget {}
       expect(leaf.isConstant, isFalse);
     });
 
+    test('parses HWDateTime, plain, timed and inside HWJson', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataOnly([
+    HWDateTime('when'),
+    HWTimedData(HWDateTime('next')),
+    HWJson('event', HWDateTime('start')),
+  ]),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(
+        (widget as HWDataOnly).data,
+        const [
+          HWDateTime('when'),
+          HWTimedData(HWDateTime('next')),
+          HWJson('event', HWDateTime('start')),
+        ],
+      );
+    });
+
+    test('parses HWText.number with every number format', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn(
+    children: [
+      HWText.number(HWInt('a')),
+      HWText.number(
+        HWDouble('b'),
+        format: HWNumberFormat.decimal(
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 3,
+          useGrouping: false,
+        ),
+      ),
+      HWText.number(
+        HWDouble('c'),
+        format: HWNumberFormat.percent(maximumFractionDigits: 0),
+      ),
+      HWText.number(
+        HWDouble('d'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.code('EUR'),
+          decimalDigits: 2,
+        ),
+      ),
+      HWText.number(
+        HWDouble('e'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWString('cur')),
+        ),
+      ),
+      HWText.number(HWInt('f'), format: HWNumberFormat.compact()),
+      HWText.number(HWDouble('g'), format: HWNumberFormat.pattern('#,##0.00')),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final texts = (widget as HWColumn).children.cast<HWText>();
+      expect(
+        texts.map((t) => t.numberFormat),
+        const [
+          HWNumberFormat.decimal(),
+          HWNumberFormat.decimal(
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 3,
+            useGrouping: false,
+          ),
+          HWNumberFormat.percent(maximumFractionDigits: 0),
+          HWNumberFormat.currency(
+            currency: HWCurrency.code('EUR'),
+            decimalDigits: 2,
+          ),
+          HWNumberFormat.currency(currency: HWCurrency.data(HWString('cur'))),
+          HWNumberFormat.compact(),
+          HWNumberFormat.pattern('#,##0.00'),
+        ],
+      );
+      expect(texts.first.dataType, const HWInt('a'));
+      expect(
+        texts[4].dataDependencies,
+        {const HWDouble('e'), const HWString('cur')},
+      );
+    });
+
+    test('parses HWText.fixedNumber, int and double', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn(
+    children: [
+      HWText.fixedNumber(1234),
+      HWText.fixedNumber(12.5, format: HWNumberFormat.compact()),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final texts = (widget as HWColumn).children.cast<HWText>();
+      expect(texts[0].fixedNumber, 1234);
+      expect(texts[0].numberFormat, const HWNumberFormat.decimal());
+      expect(texts[1].fixedNumber, 12.5);
+      expect(texts[1].numberFormat, const HWNumberFormat.compact());
+      expect(
+        texts[0].toKotlin(0, dataExpr: 'd'),
+        contains('hwFormatDecimal(1234.0'),
+      );
+    });
+
+    test('parses HWText.dateTime with every date format and time zone',
+        () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn(
+    children: [
+      HWText.dateTime(HWDateTime('a')),
+      HWText.dateTime(HWDateTime('b'), format: HWDateFormat.yMMMd),
+      HWText.dateTime(
+        HWDateTime('c'),
+        format: HWDateFormat.pattern('dd.MM.yyyy'),
+      ),
+      HWText.dateTime(
+        HWDateTime('d'),
+        format: HWDateFormat.styled(date: HWFormatStyle.full),
+      ),
+      HWText.dateTime(HWDateTime('e'), timeZone: HWTimeZone.utc),
+      HWText.dateTime(
+        HWDateTime('f'),
+        timeZone: HWTimeZone.named('Europe/Berlin'),
+      ),
+      HWText.dateTime(
+        HWDateTime('g'),
+        timeZone: HWTimeZone.data(HWString('tz')),
+      ),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final texts = (widget as HWColumn).children.cast<HWText>();
+      expect(
+        texts.map((t) => t.dateFormat),
+        [
+          HWDateFormat.defaultFormat,
+          HWDateFormat.yMMMd,
+          const HWDateFormat.pattern('dd.MM.yyyy'),
+          const HWDateFormat.styled(date: HWFormatStyle.full),
+          HWDateFormat.defaultFormat,
+          HWDateFormat.defaultFormat,
+          HWDateFormat.defaultFormat,
+        ],
+      );
+      expect(
+        texts.map((t) => t.timeZone),
+        [
+          HWTimeZone.local,
+          HWTimeZone.local,
+          HWTimeZone.local,
+          HWTimeZone.local,
+          HWTimeZone.utc,
+          const HWTimeZone.named('Europe/Berlin'),
+          const HWTimeZone.data(HWString('tz')),
+        ],
+      );
+      expect(
+        texts.last.dataDependencies,
+        {const HWDateTime('g'), const HWString('tz')},
+      );
+    });
+
+    test('a plain HWText on a number or a date keeps no format', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn(
+    children: [
+      HWText(HWInt('a')),
+      HWText(HWDateTime('b')),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final texts = (widget as HWColumn).children.cast<HWText>();
+      expect(texts[0].numberFormat, isNull);
+      expect(texts[0].formatsNumber, isTrue);
+      expect(texts[1].dateFormat, isNull);
+      expect(texts[1].formatsDate, isTrue);
+      expect(
+        texts[1].toSwift(0, dataExpr: 'd'),
+        contains('hwFormatDateStyled(\$0, dateStyle: .medium, '
+            'timeStyle: .short)'),
+      );
+    });
+
     test('parses HWTimedData wrapping primitives', () async {
       final code = '''
 @HomeWidget(

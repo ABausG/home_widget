@@ -544,6 +544,220 @@ void main() {
     });
   });
 
+  group('WidgetSpec.nativeHelpers', () {
+    List<String> namesOf(WidgetSpec spec) =>
+        spec.nativeHelpers.map((h) => h.name).toList();
+
+    test('a widget with no numbers and no dates needs none', () {
+      final spec = _spec(
+        dataFields: const [HWString('label')],
+        widgetTree: const HWText(HWString('label')),
+      );
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('a decimal number pulls in the locale helper it calls', () {
+      expect(
+        namesOf(_spec(widgetTree: const HWText(HWInt('count')))),
+        ['hwFormatLocale', 'hwFormatDecimal'],
+      );
+      expect(
+        namesOf(_spec(widgetTree: const HWText(HWDouble('ratio')))),
+        ['hwFormatLocale', 'hwFormatDecimal'],
+      );
+      expect(
+        namesOf(_spec(widgetTree: const HWText.fixedNumber(1))),
+        ['hwFormatLocale', 'hwFormatDecimal'],
+      );
+      expect(
+        namesOf(
+          _spec(
+            widgetTree: const HWText.number(
+              HWInt('c'),
+              format: HWNumberFormat.compact(),
+            ),
+          ),
+        ),
+        ['hwFormatLocale', 'hwFormatCompact'],
+      );
+    });
+
+    test('a date pulls in the parser, the zone resolver and the format', () {
+      expect(
+        namesOf(
+          _spec(
+            dataFields: const [HWDateTime('when')],
+            widgetTree: const HWText(HWDateTime('when')),
+          ),
+        ),
+        [
+          'hwFormatLocale',
+          'hwParseIsoDate',
+          'hwResolveTimeZone',
+          'hwFormatDateStyled',
+        ],
+      );
+    });
+
+    test('a date nobody renders still needs the parser', () {
+      final spec = _spec(
+        dataFields: const [HWDateTime('when')],
+        widgetTree: const HWDataExists(
+          data: HWDateTime('when'),
+          whenPresent: HWText.fixed('soon'),
+          whenAbsent: HWText.fixed('never'),
+        ),
+      );
+      expect(namesOf(spec), ['hwParseIsoDate']);
+    });
+
+    test('a number reached only through a container or a branch counts', () {
+      final nested = _spec(
+        widgetTree: const HWColumn(
+          children: [
+            HWPadding(
+              padding: HWEdgeInsets.all(4),
+              child: HWDataExists(
+                data: HWString('label'),
+                whenPresent: HWText.fixed('none'),
+                whenAbsent: HWText(HWInt('count')),
+              ),
+            ),
+          ],
+        ),
+      );
+      expect(namesOf(nested), ['hwFormatLocale', 'hwFormatDecimal']);
+
+      final adaptive = _spec(
+        widgetTree: const HWAdaptive(
+          ios: HWText.fixed('x'),
+          android: HWText(HWDateTime('when')),
+        ),
+      );
+      expect(
+        namesOf(adaptive),
+        [
+          'hwFormatLocale',
+          'hwParseIsoDate',
+          'hwResolveTimeZone',
+          'hwFormatDateStyled',
+        ],
+      );
+    });
+
+    test('a number that never reaches a text needs no helpers', () {
+      final spec = _spec(
+        dataFields: const [HWInt('count')],
+        widgetTree: const HWText.fixed('static'),
+      );
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('every helper comes after the ones it calls', () {
+      final spec = _spec(
+        dataFields: const [HWInt('count'), HWDateTime('when')],
+      );
+      final ordered = spec.nativeHelpers;
+      for (var i = 0; i < ordered.length; i++) {
+        for (final dependency in ordered[i].dependencies) {
+          expect(
+            ordered.sublist(0, i),
+            contains(dependency),
+            reason: '${ordered[i].name} before ${dependency.name}',
+          );
+        }
+      }
+      expect(ordered.map((h) => h.name).toSet(), hasLength(ordered.length));
+    });
+
+    test('a tree using every helper resolves all of them, deps first', () {
+      final spec = _spec(
+        dataFields: const [HWDateTime('when'), HWString('zone')],
+        widgetTree: const HWColumn(
+          children: [
+            HWText.number(HWInt('count')),
+            HWText.number(
+              HWDouble('share'),
+              format: HWNumberFormat.percent(),
+            ),
+            HWText.number(
+              HWDouble('total'),
+              format: HWNumberFormat.currency(
+                currency: HWCurrency.code('EUR'),
+              ),
+            ),
+            HWText.number(HWInt('views'), format: HWNumberFormat.compact()),
+            HWText.number(
+              HWInt('id'),
+              format: HWNumberFormat.pattern('0'),
+            ),
+            HWText.dateTime(HWDateTime('when'), format: HWDateFormat.yMMMd),
+            HWText.dateTime(
+              HWDateTime('when'),
+              format: HWDateFormat.pattern('dd.MM.yyyy'),
+              timeZone: HWTimeZone.data(HWString('zone')),
+            ),
+            HWText.dateTime(
+              HWDateTime('when'),
+              format: HWDateFormat.styled(date: HWFormatStyle.long),
+            ),
+          ],
+        ),
+      );
+
+      final ordered = spec.nativeHelpers;
+      expect(ordered.toSet(), HWNativeHelper.values.toSet());
+      expect(ordered, hasLength(HWNativeHelper.values.length));
+      for (var i = 0; i < ordered.length; i++) {
+        for (final dependency in ordered[i].dependencies) {
+          expect(
+            ordered.sublist(0, i),
+            contains(dependency),
+            reason: '${ordered[i].name} before ${dependency.name}',
+          );
+        }
+      }
+    });
+
+    test('the default tree surfaces the declared number and date fields', () {
+      final spec =
+          _spec(dataFields: const [HWInt('count'), HWDateTime('when')]);
+      expect(
+        namesOf(spec),
+        [
+          'hwFormatLocale',
+          'hwFormatDecimal',
+          'hwParseIsoDate',
+          'hwResolveTimeZone',
+          'hwFormatDateStyled',
+        ],
+      );
+    });
+
+    test('every spelling of a date field asks for the parser', () {
+      for (final field in const <HWDataType<dynamic>>[
+        HWDateTime('when'),
+        HWTimedData(HWDateTime('next')),
+        HWJson('event', HWDateTime('start')),
+        HWTimedData(HWJson('slot', HWDateTime('at'))),
+      ]) {
+        final spec = _spec(
+          dataFields: [const HWString('label'), field],
+          widgetTree: const HWText.fixed('static'),
+        );
+        expect(namesOf(spec), ['hwParseIsoDate'], reason: '$field');
+      }
+    });
+
+    test('a date field the widget never renders still has to be parsed', () {
+      final spec = _spec(
+        dataFields: const [HWDateTime('when')],
+        widgetTree: const HWText.fixed('static'),
+      );
+      expect(namesOf(spec), ['hwParseIsoDate']);
+    });
+  });
+
   group('WidgetSpec equality', () {
     test('equal specs are equal and share hashCode', () {
       final a = _spec();

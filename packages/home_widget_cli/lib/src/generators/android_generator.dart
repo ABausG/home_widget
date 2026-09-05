@@ -48,8 +48,14 @@ class AndroidGenerator {
     final needsLocaleArg = spec.resolvesLocalizedOnRead;
     final needsResolver = spec.needsLocaleHelpers;
 
+    final nativeHelpers = spec.nativeHelpers;
+
     // Gallery strings do not count — the launcher resolves those on its own.
-    final rendersLocalizedContent = spec.rendersLocalizedContent;
+    // A formatted number or date is locale-dependent too, so a widget that only
+    // formats still goes stale on a language change; parsing a date it never
+    // shows does not.
+    final handlesLocaleChange = spec.rendersLocalizedContent ||
+        nativeHelpers.any((helper) => helper.localeDependent);
 
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
@@ -149,13 +155,19 @@ class AndroidGenerator {
         // Checked before the plain leaf read, of which HWString — and so
         // HWLocalizedString — is one: a timed translation is stored as a locale
         // map, not as the text of a single locale.
-        final valueExpr = field is HWLocalizedString
-            ? field.androidTimedReadValue(valuesExpr: 'timedValues')
-            : _androidLeafReadExpression(
-                objExpr: 'timedValues',
-                key: field.key,
-                type: field,
-              );
+        // A date is stored as an ISO string too, so it is parsed rather than
+        // read as the typed leaf it ends up as.
+        final valueExpr = switch (field) {
+          final HWLocalizedString string =>
+            string.androidTimedReadValue(valuesExpr: 'timedValues'),
+          final HWDateTime date =>
+            date.androidTimedReadValue(valuesExpr: 'timedValues'),
+          _ => _androidLeafReadExpression(
+              objExpr: 'timedValues',
+              key: field.key,
+              type: field,
+            ),
+        };
         buffer.writeln('                ${field.key} = $valueExpr,');
       }
       for (final group in timedJsonGroups) {
@@ -201,6 +213,10 @@ class AndroidGenerator {
     // Images: every image decode subsamples, so the sample-size helper comes
     // along with either source; the file decoder is for runtime images and the
     // asset decoder for bundled ones.
+    //
+    // Formatting: the spec resolves the number, date and time-zone helpers the
+    // tree and the declared fields reach to their transitive closure, already
+    // ordered so each one is declared after what it calls.
     final needsImageHelpers = spec.hasImages ||
         spec.hasRuntimeImages ||
         spec.assetImageFields.isNotEmpty;
@@ -212,6 +228,8 @@ class AndroidGenerator {
       if (spec.hasImages) kotlinImageSampleHelper,
       if (spec.hasRuntimeImages) kotlinImageFileHelper,
       if (spec.assetImageFields.isNotEmpty) kotlinFlutterAssetHelper,
+      for (final helper in nativeHelpers)
+        helper.toKotlin(0, dataExpr: '').trim(),
     ];
     if (fileHelpers.isNotEmpty) {
       dataClassContent = [
@@ -307,6 +325,12 @@ class AndroidGenerator {
     // import of its own.
     if (needsImageHelpers) {
       layoutImports.add('import android.graphics.BitmapFactory');
+    }
+    // The format helpers spell their types short; the aliased
+    // `android.text.format.DateFormat` keeps the skeleton resolver apart from
+    // the `java.text.DateFormat` the styled one uses.
+    for (final helper in nativeHelpers) {
+      layoutImports.addAll(helper.kotlinImports);
     }
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
@@ -454,7 +478,7 @@ class AndroidGenerator {
       widgetClassName: widgetClassName,
       appPackageName: packageName,
       providerInfoName: providerInfoName,
-      handleLocaleChange: rendersLocalizedContent,
+      handleLocaleChange: handlesLocaleChange,
       label: '@string/$labelResourceName',
     );
     if (widgetUrl != null) {
@@ -639,6 +663,7 @@ class AndroidGenerator {
     if (defaultValue is String) {
       return '"${escapeKotlinStringLiteral(defaultValue)}"';
     }
+    if (defaultValue is int) return '${defaultValue}L';
     return '$defaultValue';
   }
 
@@ -749,6 +774,11 @@ class AndroidGenerator {
     required String key,
     required HWDataType<dynamic> type,
   }) {
+    // A date travels as an ISO string with no default behind it, so it is
+    // parsed rather than read as the typed leaf it becomes.
+    if (type is HWDateTime) {
+      return type.androidJsonReadValue(objExpr: objExpr, key: key);
+    }
     final fallback = _kotlinDefaultLiteral(type);
     // An image's timed value is the absolute path of the PNG that was saved for
     // that timestamp, so it reads exactly like a string.
@@ -756,7 +786,7 @@ class AndroidGenerator {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optString("$key") else $fallback';
     }
     if (type is HWInt) {
-      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optInt("$key") else $fallback';
+      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optLong("$key") else $fallback';
     }
     if (type is HWDouble) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optDouble("$key") else $fallback';

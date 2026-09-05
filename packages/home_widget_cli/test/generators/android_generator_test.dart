@@ -246,7 +246,7 @@ void main() {
     );
   });
 
-  test('generates JSONObject optInt for HWInt JSON leaves', () async {
+  test('generates JSONObject optLong for HWInt JSON leaves', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'JsonIntLeaf',
@@ -271,7 +271,7 @@ void main() {
     );
     expect(
       kt.readAsStringSync(),
-      contains('optInt'),
+      contains('optLong'),
     );
   });
 
@@ -605,7 +605,7 @@ void main() {
     final content = widgetFile.readAsStringSync();
 
     expect(content, contains('data class ExampleWidgetData('));
-    expect(content, contains('val count: Int? = null,'));
+    expect(content, contains('val count: Long? = null,'));
     expect(content, contains('val label: String? = null,'));
     expect(
       content,
@@ -616,7 +616,10 @@ void main() {
     expect(
       content,
       contains(
-        'if (prefs.contains("\${PREFERENCES_PREFIX}.count")) prefs.getInt("\${PREFERENCES_PREFIX}.count", 0) else null',
+        'when (val raw = prefs.all["\${PREFERENCES_PREFIX}.count"]) { '
+        'is Int -> raw.toLong(); '
+        'is Long -> raw; '
+        'else -> null }',
       ),
     );
     expect(
@@ -635,7 +638,10 @@ void main() {
     );
     expect(
       content,
-      contains('Text(text = (widgetData.count?.toString() ?: "0"))'),
+      contains(
+        'Text(text = hwFormatDecimal((widgetData.count ?: 0L).toDouble(), '
+        'null, null, true, hwFormatLocale(context)))',
+      ),
     );
   });
 
@@ -781,7 +787,7 @@ void main() {
 
     // Timed fields are regular data class properties.
     expect(content, contains('val label: String? = null,'));
-    expect(content, contains('val temperature: Int? = null,'));
+    expect(content, contains('val temperature: Long? = null,'));
 
     // fromPreferences gains the resolution time only when timed fields exist.
     expect(
@@ -806,7 +812,7 @@ void main() {
       contains(
         'temperature = if (timedValues.has("temperature") && '
         '!timedValues.isNull("temperature")) '
-        'timedValues.optInt("temperature") else 7,',
+        'timedValues.optLong("temperature") else 7L,',
       ),
     );
 
@@ -1279,7 +1285,7 @@ void main() {
     // Should contain data class
     expect(content, contains('data class SimpleDataData('));
     expect(content, contains('val label: String? = null,'));
-    expect(content, contains('val value: Int? = null,'));
+    expect(content, contains('val value: Long? = null,'));
 
     expect(
       content,
@@ -1685,6 +1691,285 @@ void main() {
         contains(
           '<action android:name="es.antonborri.home_widget.action.LAUNCH" />',
         ),
+      );
+    });
+  });
+
+  group('native format helpers', () {
+    late File manifest;
+
+    setUp(() {
+      writeLauncherManifest(tempDir);
+      manifest = File(
+        p.join(
+          tempDir.path,
+          'android',
+          'app',
+          'src',
+          'main',
+          'AndroidManifest.xml',
+        ),
+      );
+    });
+
+    Future<String> generateFor(WidgetSpec spec) async {
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(
+          tempDir.path,
+          'android/app/src/main/kotlin/com/example/'
+          '${spec.className}HomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    WidgetSpec specOf(
+      String className, {
+      List<HWDataType<dynamic>> dataFields = const [],
+      HWWidget? widgetTree,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: className,
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          ),
+          className: className,
+          dataFields: dataFields,
+          widgetTree: widgetTree,
+        );
+
+    test('emits the decimal helper and its locale dependency once', () async {
+      final content = await generateFor(
+        specOf(
+          'Steps',
+          dataFields: const [HWInt('steps')],
+          widgetTree: const HWText(HWInt('steps')),
+        ),
+      );
+
+      expect('private fun hwFormatDecimal('.allMatches(content).length, 1);
+      expect('private fun hwFormatLocale('.allMatches(content).length, 1);
+      expect(
+        content.indexOf('private fun hwFormatLocale('),
+        lessThan(content.indexOf('private fun hwFormatDecimal(')),
+      );
+      expect(content, isNot(contains('hwParseIsoDate')));
+      expect(content, isNot(contains('hwResolveTimeZone')));
+
+      expect(content, contains('import java.text.NumberFormat'));
+      expect(content, contains('import java.util.Locale'));
+      expect(content, contains('import androidx.core.os.ConfigurationCompat'));
+      // The template already imports Context, so the helper's own declaration
+      // of it must not come out a second time.
+      expect('import android.content.Context'.allMatches(content).length, 1);
+    });
+
+    test('emits currency and skeleton helpers after what they call', () async {
+      final content = await generateFor(
+        specOf(
+          'Order',
+          dataFields: const [
+            HWDouble('total'),
+            HWString('currency'),
+            HWDateTime('placedAt'),
+            HWString('zone'),
+          ],
+          widgetTree: const HWColumn(
+            children: [
+              HWText.number(
+                HWDouble('total'),
+                format: HWNumberFormat.currency(
+                  currency: HWCurrency.data(HWString('currency')),
+                ),
+              ),
+              HWText.dateTime(
+                HWDateTime('placedAt'),
+                format: HWDateFormat.yMMMd,
+                timeZone: HWTimeZone.data(HWString('zone')),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      for (final helper in [
+        'hwFormatLocale',
+        'hwResolveTimeZone',
+        'hwParseIsoDate',
+        'hwFormatCurrency',
+        'hwFormatDateSkeleton',
+      ]) {
+        expect(
+          'private fun $helper('.allMatches(content).length,
+          1,
+          reason: '$helper should be declared exactly once',
+        );
+      }
+      expect(content, isNot(contains('private fun hwFormatDecimal(')));
+
+      final locale = content.indexOf('private fun hwFormatLocale(');
+      final resolveZone = content.indexOf('private fun hwResolveTimeZone(');
+      final currency = content.indexOf('private fun hwFormatCurrency(');
+      final skeleton = content.indexOf('private fun hwFormatDateSkeleton(');
+      expect(locale, lessThan(currency));
+      expect(locale, lessThan(skeleton));
+      expect(resolveZone, lessThan(skeleton));
+
+      expect(
+        content,
+        contains(
+          'Text(text = hwFormatCurrency((widgetData.total ?: 0.0), '
+          'widgetData.currency ?: "", null, hwFormatLocale(context)))',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'Text(text = widgetData.placedAt?.let { hwFormatDateSkeleton(it, '
+          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "")',
+        ),
+      );
+
+      // The skeleton resolver is Android's DateFormat, aliased so it can live
+      // beside the java.text one the styled helper uses.
+      expect(
+        content,
+        contains('import android.text.format.DateFormat as AndroidDateFormat'),
+      );
+      expect(content, contains('import java.util.Currency'));
+      expect(content, contains('import java.util.TimeZone'));
+      expect(content, contains('import java.util.Date'));
+      expect(content, contains('import java.text.SimpleDateFormat'));
+    });
+
+    test('emits only the parser for a date that is never rendered', () async {
+      final content = await generateFor(
+        specOf(
+          'Presence',
+          dataFields: const [HWDateTime('syncedAt')],
+          widgetTree: const HWDataExists(
+            data: HWDateTime('syncedAt'),
+            whenPresent: HWText.fixed('synced'),
+            whenAbsent: HWText.fixed('never'),
+          ),
+        ),
+      );
+
+      expect('private fun hwParseIsoDate('.allMatches(content).length, 1);
+      expect(content, isNot(contains('private fun hwFormat')));
+      expect(content, isNot(contains('private fun hwResolveTimeZone(')));
+      expect(
+        manifest.readAsStringSync(),
+        isNot(contains('android.intent.action.LOCALE_CHANGED')),
+      );
+    });
+
+    test('parses dates at every placement they can be declared in', () async {
+      final content = await generateFor(
+        specOf(
+          'Dates',
+          dataFields: const [
+            HWDateTime('placedAt'),
+            HWTimedData(HWDateTime('deliveryAt')),
+            HWJson('meta', HWDateTime('createdAt')),
+            HWTimedData(HWJson('slot', HWDateTime('startsAt'))),
+          ],
+          widgetTree: const HWText.dateTime(HWDateTime('placedAt')),
+        ),
+      );
+
+      expect(content, contains('val placedAt: java.util.Date? = null,'));
+      expect(content, contains('val createdAt: java.util.Date? = null,'));
+      expect(
+        content,
+        contains(
+          'placedAt = hwParseIsoDate(prefs.getString('
+          '"\${PREFERENCES_PREFIX}.placedAt", null) ?: ""),',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'deliveryAt = hwParseIsoDate(if (timedValues.has("deliveryAt") && '
+          '!timedValues.isNull("deliveryAt")) '
+          'timedValues.optString("deliveryAt") else ""),',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'createdAt = hwParseIsoDate(if (json.has("createdAt") && '
+          '!json.isNull("createdAt")) json.optString("createdAt") else ""),',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'startsAt = hwParseIsoDate(if (json.has("startsAt") && '
+          '!json.isNull("startsAt")) json.optString("startsAt") else ""),',
+        ),
+      );
+    });
+
+    test('emits no helpers for a widget with neither numbers nor dates',
+        () async {
+      final content = await generateFor(
+        specOf(
+          'Plain',
+          dataFields: const [HWString('label')],
+          widgetTree: const HWText(HWString('label')),
+        ),
+      );
+
+      expect(content, isNot(contains('hwFormat')));
+      expect(content, isNot(contains('hwParseIsoDate')));
+      expect(content, isNot(contains('import java.text.NumberFormat')));
+      expect(content, isNot(contains('import java.util.Locale')));
+      expect(content, isNot(contains('import java.util.Date')));
+      expect(
+        manifest.readAsStringSync(),
+        isNot(contains('android.intent.action.LOCALE_CHANGED')),
+      );
+    });
+
+    test('handles LOCALE_CHANGED for a formatting-only widget', () async {
+      await generateFor(
+        specOf(
+          'Prices',
+          dataFields: const [HWDouble('total')],
+          widgetTree: const HWText.number(HWDouble('total')),
+        ),
+      );
+
+      expect(
+        manifest.readAsStringSync(),
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+    });
+
+    test('keys LOCALE_CHANGED on the helpers that read the locale', () async {
+      final spec = specOf(
+        'Zoned',
+        dataFields: const [HWDateTime('startsAt')],
+        widgetTree: const HWText.dateTime(
+          HWDateTime('startsAt'),
+          format: HWDateFormat.pattern('dd.MM.yyyy'),
+          timeZone: HWTimeZone.named('Europe/Berlin'),
+        ),
+      );
+
+      // The parser and the zone resolver come along without reading the
+      // locale; the pattern formatter still translates month and weekday names.
+      expect(
+        spec.nativeHelpers.where((h) => !h.localeDependent).map((h) => h.name),
+        unorderedEquals(['hwParseIsoDate', 'hwResolveTimeZone']),
+      );
+
+      await generateFor(spec);
+
+      expect(
+        manifest.readAsStringSync(),
+        contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
     });
   });

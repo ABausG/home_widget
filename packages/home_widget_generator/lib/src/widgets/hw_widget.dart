@@ -1,5 +1,7 @@
 import 'package:analyzer/dart/constant/value.dart';
+import '../formats.dart';
 import '../generator_error.dart';
+import '../native_helpers.dart';
 import '../parser/widget_value_decoder.dart';
 import '../types.dart';
 import '../utils/apply_swift_modifier.dart';
@@ -37,6 +39,9 @@ sealed class HWSingleChildWidget extends HWWidget {
 
   @override
   Set<HWDataType<dynamic>> get dataDependencies => child.dataDependencies;
+
+  @override
+  List<HWWidget> get childWidgets => [child];
 }
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
@@ -59,6 +64,9 @@ sealed class HWMultiChildWidget extends HWWidget {
   Set<HWDataType<dynamic>> get dataDependencies {
     return children.expand((child) => child.dataDependencies).toSet();
   }
+
+  @override
+  List<HWWidget> get childWidgets => children;
 }
 
 /// Interface for widgets that hold data dependencies.
@@ -81,6 +89,41 @@ sealed class HWWidget implements HWGeneratable {
   /// The set of data dependencies required by this widget.
   Set<HWDataType<dynamic>> get dataDependencies => {};
   // coverage:ignore-end
+
+  /// The widgets this one renders, if any.
+  ///
+  /// Recurses the same way [dataDependencies] does, branches of a conditional
+  /// and both sides of an [HWAdaptive] included, and is what [descendants]
+  /// walks.
+  List<HWWidget> get childWidgets => const [];
+
+  /// Every widget in this subtree, [this] first, in render order.
+  ///
+  /// Lets callers ask a question of a whole tree — which texts format a number,
+  /// say — without pattern-matching every container along the way.
+  Iterable<HWWidget> get descendants sync* {
+    yield this;
+    for (final child in childWidgets) {
+      yield* child.descendants;
+    }
+  }
+
+  /// The native functions this subtree calls, before their own dependencies
+  /// are resolved.
+  ///
+  /// Two things ask for one: reading a value back — every data dependency in
+  /// the subtree, whether or not anything displays it — and rendering one,
+  /// which only an [HWText] does.
+  Set<HWNativeHelper> get nativeHelpers {
+    final helpers = <HWNativeHelper>{};
+    for (final widget in descendants) {
+      for (final dependency in widget.dataDependencies) {
+        helpers.addAll(dependency.nativeHelpers);
+      }
+      if (widget is HWText) helpers.addAll(widget.formatHelpers);
+    }
+    return helpers;
+  }
 
   /// Generates the SwiftUI code for this widget.
   /// [indent] is the number of indentation levels (4 spaces each).

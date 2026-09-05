@@ -289,6 +289,11 @@ await GreetingHomeWidget.saveData(
 The trade-off is that a plain `HWString` holds one already-translated string, so
 it stays stale after a language change until your app next runs.
 
+Numbers and dates are the exception, and should *not* be pre-formatted into a
+string for that very reason: push the raw value through an `HWInt`, `HWDouble`
+or `HWDateTime` and let the widget format it in the device's locale at render
+time — see [Formatting](/generator/formatting).
+
 **Translated text is longer.** German typically runs 30–40% longer than English,
 and widgets are small. Check your layouts in the longest locale you ship.
 

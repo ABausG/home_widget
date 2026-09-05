@@ -33,16 +33,23 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWInt`     | `HWInt(key, {defaultValue})`               | `int`                 | Integer value.                                                                               |
 | `HWDouble`  | `HWDouble(key, {defaultValue})`            | `double`              | Double / float value.                                                                        |
 | `HWBool`    | `HWBool(key, {defaultValue})`              | `bool`                | Boolean value.                                                                               |
+| `HWDateTime`| `HWDateTime(key)`                          | `DateTime`            | A point in time, stored as an ISO-8601 UTC string. Rendered in the device's locale and time zone — see [Formatting](/generator/formatting). |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
 | `HWImageData` | `HWImageData(key)` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
+`HWInt` is typed `int` in Dart, `Int` in the generated Swift and `Long` in the generated Kotlin — a Dart `int` is 64-bit, so the Android side reads it as a `Long` rather than truncating it to an `Int`.
+
+`HWDateTime` is typed `DateTime` in Dart, `Date` in the generated Swift and `java.util.Date` in the generated Kotlin. Storage is a plain string: `saveData` writes `value.toUtc().toIso8601String()`, and `getData()` parses it back into a **UTC** `DateTime` — call `.toLocal()` if you want the local one. The widget always displays it in the device's current time zone. See [Dates](/generator/formatting#dates).
+
 ## Defaults
 
 When a `defaultValue` is provided it's used both in the generated Dart helper and on the native side when the key is missing from storage. Without a default, the read path returns `null` (or the language's optional equivalent).
 
-`HWImageData` is the exception: it never supports a `defaultValue`. A missing image simply renders nothing — see [`HWImage`](/generator/widgets/hw-image) for a placeholder pattern using `HWDataExists`.
+`HWImageData` and `HWDateTime` are the exceptions: neither supports a `defaultValue`. A missing image simply renders nothing — see [`HWImage`](/generator/widgets/hw-image) for a placeholder pattern using `HWDataExists`. A missing date renders as empty text, and the same `HWDataExists` pattern gives it a placeholder.
+
+A missing **number** is the other special case: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as a formatted `0` rather than as nothing — see [Missing values](/generator/formatting#missing-values).
 
 ## Image data
 
@@ -72,6 +79,8 @@ HWText(HWJson('user', HWJson('profile', HWString('name'))))
 This reads `user.profile.name` from a JSON string stored under the `user` key.
 
 A leaf may also be an `HWString.localized`. The value found at the JSON path wins; when the path yields nothing, the leaf's `defaultTranslations` are resolved against the device locale instead — see [Localization](/generator/localization).
+
+An `HWDateTime` leaf becomes a `DateTime` field on the generated `*JsonData` class and is stored as the same ISO-8601 UTC string as a top-level date field — see [Timed and JSON values](/generator/formatting#timed-and-json-values).
 
 ### Images at a JSON leaf
 

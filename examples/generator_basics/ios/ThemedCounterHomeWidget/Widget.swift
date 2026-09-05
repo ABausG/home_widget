@@ -47,8 +47,11 @@ struct ThemedCounterHomeWidgetEntryView: View {
       Spacer()
       Text("Counter")
         .font(.caption).foregroundColor(Color.secondary)
-      Text(entry.data.count != nil ? "\(entry.data.count!)" : "0")
-        .font(.title).fontWeight(.bold).foregroundColor(Color.primary)
+      Text(
+        hwFormatDecimal(
+          Double(entry.data.count ?? 0), minFraction: nil, maxFraction: nil, grouping: true)
+      )
+      .font(.title).fontWeight(.bold).foregroundColor(Color.primary)
       Spacer()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -95,4 +98,20 @@ struct ThemedCounterData {
       count: (defaults?.object(forKey: "\(paramPrefix).count") as? Int ?? 0),
     )
   }
+}
+
+func hwFormatLocale() -> Locale {
+  return Locale.current
+}
+
+func hwFormatDecimal(
+  _ value: Double, minFraction: Int?, maxFraction: Int?, grouping: Bool
+) -> String {
+  let formatter = NumberFormatter()
+  formatter.locale = hwFormatLocale()
+  formatter.numberStyle = .decimal
+  formatter.usesGroupingSeparator = grouping
+  if let minFraction { formatter.minimumFractionDigits = minFraction }
+  if let maxFraction { formatter.maximumFractionDigits = maxFraction }
+  return formatter.string(from: NSNumber(value: value)) ?? String(value)
 }

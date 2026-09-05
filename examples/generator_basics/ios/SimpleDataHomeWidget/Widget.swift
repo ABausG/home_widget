@@ -47,7 +47,9 @@ struct SimpleDataHomeWidgetEntryView: View {
       }
       HStack {
         Text("value: ")
-        Text(entry.data.value != nil ? "\(entry.data.value!)" : "0")
+        Text(
+          hwFormatDecimal(
+            Double(entry.data.value ?? 0), minFraction: nil, maxFraction: nil, grouping: true))
       }
     }
     .applyContainerBackground()
@@ -91,4 +93,20 @@ struct SimpleDataData {
       value: defaults?.object(forKey: "\(paramPrefix).value") as? Int,
     )
   }
+}
+
+func hwFormatLocale() -> Locale {
+  return Locale.current
+}
+
+func hwFormatDecimal(
+  _ value: Double, minFraction: Int?, maxFraction: Int?, grouping: Bool
+) -> String {
+  let formatter = NumberFormatter()
+  formatter.locale = hwFormatLocale()
+  formatter.numberStyle = .decimal
+  formatter.usesGroupingSeparator = grouping
+  if let minFraction { formatter.minimumFractionDigits = minFraction }
+  if let maxFraction { formatter.maximumFractionDigits = maxFraction }
+  return formatter.string(from: NSNumber(value: value)) ?? String(value)
 }

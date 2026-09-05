@@ -5,7 +5,7 @@ description: Render fixed or data-bound text.
 
 # HWText
 
-Renders a string, either hardcoded or bound to a widget data field. Both constructors accept an optional [`HWTextStyle`](/generator/styling/hw-text-style) and `HWTextAlign`.
+Renders a string, either hardcoded or bound to a widget data field. Every constructor accepts an optional [`HWTextStyle`](/generator/styling/hw-text-style) and `HWTextAlign`.
 
 ## Constructors
 
@@ -29,6 +29,8 @@ Reads the value from widget storage at runtime. Add the matching field to the en
 HWText(HWString('greeting'))
 ```
 
+A number or a date bound this way is formatted for the device locale: `HWText(HWInt('count'))` is the same as `HWText.number(HWInt('count'))`, and `HWText(HWDateTime('lastSync'))` the same as `HWText.dateTime(HWDateTime('lastSync'))`. See [Formatting](/generator/formatting).
+
 ### HWText.localized
 
 `const HWText.localized(Map<String, String> content, {HWTextStyle? style, HWTextAlign? textAlign})`
@@ -45,6 +47,44 @@ HWText.localized({'en': 'Greeting', 'de': 'Begrüßung', 'pt-BR': 'Saudação'})
 Requires a `localization:` block on the annotation. For text your app can change
 per locale at runtime, bind `HWString.localized` instead — see
 [Localization](/generator/localization).
+
+### HWText.number
+
+`const HWText.number(HWDataType<num> data, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
+
+Renders a data-bound number formatted for the device locale — grouping and
+decimal separators, percentages, currencies, compact forms. `data` must be an
+`HWInt` or `HWDouble`, optionally wrapped in `HWTimedData` or `HWJson`.
+
+```dart
+HWText.number(HWDouble('total'), format: HWNumberFormat.currency(currency: HWCurrency.code('EUR')))
+```
+
+### HWText.fixedNumber
+
+`const HWText.fixedNumber(num value, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
+
+The same for a hardcoded number. The value is baked into the generated code, the
+formatting still happens on the device.
+
+```dart
+HWText.fixedNumber(10000)
+```
+
+### HWText.dateTime
+
+`const HWText.dateTime(HWDataType<DateTime> data, {HWDateFormat format = HWDateFormat.defaultFormat, HWTimeZone timeZone = HWTimeZone.local, HWTextStyle? style, HWTextAlign? textAlign})`
+
+Renders an [`HWDateTime`](/generator/data) field in the device's locale and,
+by default, the device's time zone. `data` must be an `HWDateTime`, optionally
+wrapped in `HWTimedData` or `HWJson`. Pass `timeZone` to show a fixed or
+per-record zone instead — see [Time zones](/generator/formatting#time-zones).
+
+```dart
+HWText.dateTime(HWDateTime('lastSync'), format: HWDateFormat.yMMMd)
+```
+
+All three are covered in detail on [Formatting](/generator/formatting).
 
 ### Styled example
 
@@ -66,10 +106,16 @@ HWText.fixed(
 | `content`      | `String`        | **required** _(`.fixed`)_ | Hardcoded text.                                |
 | `content`      | `Map<String, String>` | **required** _(`.localized`)_ | Locale tag → text, resolved by the OS. |
 | `data`         | `HWDataType`    | **required** _(default ctor)_ | Field whose value is rendered.             |
+| `data`         | `HWDataType<num>` | **required** _(`.number`)_ | Number field to format — `HWInt` / `HWDouble`, optionally wrapped. |
+| `value`        | `num`           | **required** _(`.fixedNumber`)_ | Hardcoded number to format.                |
+| `data`         | `HWDataType<DateTime>` | **required** _(`.dateTime`)_ | `HWDateTime` field to format, optionally wrapped. |
+| `format`       | `HWNumberFormat` | `HWNumberFormat.decimal()` _(`.number`, `.fixedNumber`)_ | How the number is rendered — see [Formatting](/generator/formatting). |
+| `format`       | `HWDateFormat`  | `HWDateFormat.defaultFormat` _(`.dateTime`)_ | How the date is rendered — see [Formatting](/generator/formatting). |
+| `timeZone`     | `HWTimeZone`    | `HWTimeZone.local` _(`.dateTime`)_ | Zone the date is displayed in — see [Time zones](/generator/formatting#time-zones). |
 | `style`        | `HWTextStyle?`  | `null`       | Font, weight, color — see [`HWTextStyle`](/generator/styling/hw-text-style). |
 | `textAlign`    | `HWTextAlign?`  | `null`       | Multi-line text alignment.                                   |
 
-Exactly one of `content` (via `.fixed` or `.localized`) or `data` (via the default constructor) is supplied — the constructor you call enforces this.
+Exactly one of `content` (via `.fixed` or `.localized`), `value` (via `.fixedNumber`) or `data` (via the default, `.number` or `.dateTime` constructor) is supplied — the constructor you call enforces this.
 
 ## Platform mapping
 

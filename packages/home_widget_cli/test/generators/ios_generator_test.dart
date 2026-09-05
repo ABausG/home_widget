@@ -95,7 +95,10 @@ void main() {
     expect(content, contains('Text("count: ")'));
     expect(
       content,
-      contains('Text(entry.data.count != nil ? "\\(entry.data.count!)" : "0")'),
+      contains(
+        'Text(hwFormatDecimal(Double(entry.data.count ?? 0), '
+        'minFraction: nil, maxFraction: nil, grouping: true))',
+      ),
     );
     expect(content, contains('.applyContainerBackground()'));
     expect(content, contains('func applyContainerBackground() -> some View'));
@@ -532,7 +535,10 @@ void main() {
     expect(content, contains('Text("value: ")'));
     expect(
       content,
-      contains('Text(entry.data.value != nil ? "\\(entry.data.value!)" : "0")'),
+      contains(
+        'Text(hwFormatDecimal(Double(entry.data.value ?? 0), '
+        'minFraction: nil, maxFraction: nil, grouping: true))',
+      ),
     );
   });
 
@@ -1151,6 +1157,222 @@ void main() {
     expect(
       content,
       contains(r'caption: (values["caption"] as? String) ?? "Say \"hello\"",'),
+    );
+  });
+
+  test('emits the decimal helper once for a plain number text', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PlainNumber',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.fmt'),
+      ),
+      className: 'PlainNumber',
+      dataFields: const [HWInt('steps')],
+      widgetTree: const HWText(HWInt('steps')),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/PlainNumberHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect('func hwFormatDecimal('.allMatches(content).length, 1);
+    expect('func hwFormatLocale('.allMatches(content).length, 1);
+    // The helper is declared after the one it calls.
+    expect(
+      content.indexOf('func hwFormatLocale('),
+      lessThan(content.indexOf('func hwFormatDecimal(')),
+    );
+    // Nothing else is dragged in.
+    expect(content, isNot(contains('func hwParseIsoDate(')));
+    expect(content, isNot(contains('func hwResolveTimeZone(')));
+    expect(content, isNot(contains('func hwFormatCurrency(')));
+  });
+
+  test('emits every helper a currency and zoned date reach, deps first',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'RichFormat',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.fmt'),
+      ),
+      className: 'RichFormat',
+      dataFields: const [
+        HWDouble('total'),
+        HWString('currency'),
+        HWDateTime('when'),
+        HWString('tz'),
+      ],
+      widgetTree: const HWColumn(
+        children: [
+          HWText.number(
+            HWDouble('total'),
+            format: HWNumberFormat.currency(
+              currency: HWCurrency.data(HWString('currency')),
+            ),
+          ),
+          HWText.dateTime(
+            HWDateTime('when'),
+            format: HWDateFormat.yMMMd,
+            timeZone: HWTimeZone.data(HWString('tz')),
+          ),
+        ],
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/RichFormatHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    for (final helper in [
+      'hwFormatLocale',
+      'hwResolveTimeZone',
+      'hwParseIsoDate',
+      'hwFormatCurrency',
+      'hwFormatDateSkeleton',
+    ]) {
+      expect(
+        'func $helper('.allMatches(content).length,
+        1,
+        reason: '$helper should be emitted exactly once',
+      );
+    }
+    expect(content, isNot(contains('func hwFormatDecimal(')));
+
+    expect(
+      content.indexOf('func hwFormatLocale('),
+      lessThan(content.indexOf('func hwFormatCurrency(')),
+    );
+    expect(
+      content.indexOf('func hwResolveTimeZone('),
+      lessThan(content.indexOf('func hwFormatDateSkeleton(')),
+    );
+
+    expect(
+      content,
+      contains(
+        'Text(hwFormatCurrency(entry.data.total ?? 0.0, '
+        'code: entry.data.currency ?? "", decimals: nil))',
+      ),
+    );
+    expect(
+      content,
+      contains(
+        r'Text(entry.data.when.map { hwFormatDateSkeleton($0, "yMMMd", '
+        'timeZone: entry.data.tz) } ?? "")',
+      ),
+    );
+  });
+
+  test('emits only the date parser for a date that is never rendered',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'DateGate',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.fmt'),
+      ),
+      className: 'DateGate',
+      dataFields: const [HWDateTime('when')],
+      widgetTree: const HWDataExists(
+        data: HWDateTime('when'),
+        whenPresent: HWText.fixed('yes'),
+        whenAbsent: HWText.fixed('no'),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/DateGateHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect('func hwParseIsoDate('.allMatches(content).length, 1);
+    expect(content, isNot(contains('func hwFormatLocale(')));
+    expect(content, isNot(contains('func hwResolveTimeZone(')));
+    expect(content, isNot(contains('func hwFormatDate')));
+  });
+
+  test('emits no formatting helper for a widget without numbers or dates',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'TextOnly',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.fmt'),
+      ),
+      className: 'TextOnly',
+      dataFields: const [HWString('title'), HWBool('done')],
+      widgetTree: const HWText(HWString('title')),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/TextOnlyHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, isNot(contains('hwFormat')));
+    expect(content, isNot(contains('hwParseIsoDate')));
+    expect(content, isNot(contains('hwResolveTimeZone')));
+  });
+
+  test('parses dates out of every place they are stored', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'DatePlaces',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.fmt'),
+      ),
+      className: 'DatePlaces',
+      dataFields: const [
+        HWDateTime('when'),
+        HWTimedData(HWDateTime('shiftStart')),
+        HWJson('order', HWDateTime('placedAt')),
+        HWTimedData(HWJson('slot', HWDateTime('at'))),
+      ],
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/DatePlacesHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    // Every date is a nullable Date on the struct it belongs to.
+    expect(content, contains('  let when: Date?'));
+    expect(content, contains('  let shiftStart: Date?'));
+    expect(content, contains('  let placedAt: Date?'));
+    expect(content, contains('  let at: Date?'));
+
+    // Top level: read as a string from the preferences key.
+    expect(
+      content,
+      contains(
+        'when: hwParseIsoDate(defaults?.string('
+        'forKey: "\\(paramPrefix).when") ?? ""),',
+      ),
+    );
+    // Time-based: read from the entry active at the render instant, before the
+    // generic cast that would look for a `Date`.
+    expect(
+      content,
+      contains(
+        'shiftStart: hwParseIsoDate((timedValues["shiftStart"] as? String) '
+        '?? ""),',
+      ),
+    );
+    expect(content, isNot(contains('as? Date')));
+    // JSON leaves, timed and untimed, go through the same decoder.
+    expect(
+      content,
+      contains(
+        'placedAt: hwParseIsoDate((values["placedAt"] as? String) ?? ""),',
+      ),
+    );
+    expect(
+      content,
+      contains('at: hwParseIsoDate((values["at"] as? String) ?? ""),'),
     );
   });
 }

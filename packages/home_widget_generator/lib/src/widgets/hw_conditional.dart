@@ -23,6 +23,9 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
       };
 
   @override
+  List<HWWidget> get childWidgets => [firstBranch, secondBranch];
+
+  @override
   Set<String> get kotlinImports => {
         ...firstBranch.kotlinImports,
         ...secondBranch.kotlinImports,

@@ -177,6 +177,175 @@ void main() {
     });
   });
 
+  group('format ==/hashCode (non-identical instances, full field path)', () {
+    test('HWNumberFormat variants compare by every field', () {
+      expect(
+        const HWNumberFormat.decimal(minimumFractionDigits: 1),
+        const HWNumberFormat.decimal(minimumFractionDigits: 1),
+      );
+      expect(
+        const HWNumberFormat.decimal(minimumFractionDigits: 1).hashCode,
+        const HWNumberFormat.decimal(minimumFractionDigits: 1).hashCode,
+      );
+      expect(
+        const HWNumberFormat.decimal(),
+        isNot(equals(const HWNumberFormat.decimal(useGrouping: false))),
+      );
+      expect(
+        const HWNumberFormat.decimal(),
+        isNot(equals(const HWNumberFormat.decimal(maximumFractionDigits: 2))),
+      );
+
+      expect(
+        const HWNumberFormat.percent(maximumFractionDigits: 0),
+        const HWNumberFormat.percent(maximumFractionDigits: 0),
+      );
+      expect(
+        const HWNumberFormat.percent(),
+        isNot(equals(const HWNumberFormat.percent(minimumFractionDigits: 1))),
+      );
+
+      expect(
+        const HWNumberFormat.compact(),
+        const HWNumberFormat.compact(),
+      );
+      expect(
+        const HWNumberFormat.pattern('#0'),
+        const HWNumberFormat.pattern('#0'),
+      );
+      expect(
+        const HWNumberFormat.pattern('#0'),
+        isNot(equals(const HWNumberFormat.pattern('#0.0'))),
+      );
+    });
+
+    test('the number format variants never equal one another', () {
+      const variants = <HWNumberFormat>[
+        HWNumberFormat.decimal(),
+        HWNumberFormat.percent(),
+        HWNumberFormat.currency(currency: HWCurrency.code('EUR')),
+        HWNumberFormat.compact(),
+        HWNumberFormat.pattern('#0'),
+      ];
+      for (var i = 0; i < variants.length; i++) {
+        for (var j = 0; j < variants.length; j++) {
+          if (i == j) continue;
+          expect(variants[i], isNot(equals(variants[j])));
+        }
+      }
+    });
+
+    test('HWCurrency compares by code or by field', () {
+      expect(const HWCurrency.code('EUR'), const HWCurrency.code('EUR'));
+      expect(
+        const HWCurrency.code('EUR').hashCode,
+        const HWCurrency.code('EUR').hashCode,
+      );
+      expect(
+        const HWCurrency.code('EUR'),
+        isNot(equals(const HWCurrency.code('USD'))),
+      );
+      expect(
+        const HWCurrency.data(HWString('cur')),
+        const HWCurrency.data(HWString('cur')),
+      );
+      expect(
+        const HWCurrency.data(HWString('cur')),
+        isNot(equals(const HWCurrency.data(HWString('other')))),
+      );
+      expect(
+        const HWCurrency.code('EUR'),
+        isNot(equals(const HWCurrency.data(HWString('cur')))),
+      );
+    });
+
+    test('the currency takes part in the format equality', () {
+      expect(
+        const HWNumberFormat.currency(
+          currency: HWCurrency.code('EUR'),
+          decimalDigits: 2,
+        ),
+        const HWNumberFormat.currency(
+          currency: HWCurrency.code('EUR'),
+          decimalDigits: 2,
+        ),
+      );
+      expect(
+        const HWNumberFormat.currency(currency: HWCurrency.code('EUR')),
+        isNot(
+          equals(
+            const HWNumberFormat.currency(currency: HWCurrency.code('USD')),
+          ),
+        ),
+      );
+      expect(
+        const HWNumberFormat.currency(currency: HWCurrency.code('EUR')),
+        isNot(
+          equals(
+            const HWNumberFormat.currency(
+              currency: HWCurrency.code('EUR'),
+              decimalDigits: 2,
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('HWDateFormat variants compare by every field', () {
+      expect(HWDateFormat.yMMMd, const HWDateFormat.skeleton('yMMMd'));
+      expect(
+        HWDateFormat.yMMMd.hashCode,
+        const HWDateFormat.skeleton('yMMMd').hashCode,
+      );
+      expect(HWDateFormat.yMMMd, isNot(equals(HWDateFormat.yMd)));
+      expect(
+        const HWDateFormat.pattern('dd'),
+        const HWDateFormat.pattern('dd'),
+      );
+      expect(
+        const HWDateFormat.skeleton('dd'),
+        isNot(equals(const HWDateFormat.pattern('dd'))),
+      );
+      expect(
+        HWDateFormat.defaultFormat,
+        const HWDateFormat.styled(
+          date: HWFormatStyle.medium,
+          time: HWFormatStyle.short,
+        ),
+      );
+      expect(
+        HWDateFormat.defaultFormat,
+        isNot(equals(const HWDateFormat.styled(date: HWFormatStyle.medium))),
+      );
+    });
+
+    test('HWTimeZone compares by variant and by id or field', () {
+      expect(HWTimeZone.local, const HWLocalTimeZone());
+      expect(HWTimeZone.local.hashCode, const HWLocalTimeZone().hashCode);
+      expect(HWTimeZone.utc, const HWTimeZone.named('UTC'));
+      expect(
+        const HWTimeZone.named('UTC'),
+        isNot(equals(const HWTimeZone.named('Europe/Berlin'))),
+      );
+      expect(
+        const HWTimeZone.data(HWString('tz')),
+        const HWTimeZone.data(HWString('tz')),
+      );
+      expect(
+        HWTimeZone.local,
+        isNot(equals(const HWTimeZone.data(HWString('tz')))),
+      );
+      expect(HWTimeZone.local, isNot(equals(HWTimeZone.utc)));
+    });
+
+    test('none of the format types equal a value of another type', () {
+      expect(const HWNumberFormat.compact() == Object(), isFalse);
+      expect(HWDateFormat.yMd == Object(), isFalse);
+      expect(HWTimeZone.local == Object(), isFalse);
+      expect(const HWCurrency.code('EUR') == Object(), isFalse);
+    });
+  });
+
   group('HomeWidgetLocalization ==/hashCode', () {
     HomeWidgetLocalization make({
       String defaultLocale = 'en',

@@ -1,9 +1,13 @@
 import 'package:meta/meta.dart';
 
+import 'formats.dart';
 import 'generator_error.dart';
+import 'native_helpers.dart';
 import 'utils/content_hash.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
+
+const HWNumberFormat _defaultNumberFormat = HWNumberFormat.defaultFormat;
 
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
 sealed class HWDataType<T> {
@@ -72,6 +76,14 @@ sealed class HWDataType<T> {
   /// data variant (for example `is HWJson`) regardless of whether the field is
   /// time-based.
   HWDataType<dynamic> get unwrapped => this;
+
+  /// The native functions reading a stored value of this type back.
+  ///
+  /// Empty for the types native code reads straight out of the store; a field
+  /// traveling as an encoded string names the helper decoding it, so it
+  /// reaches the generated file even when nothing displays the value.
+  /// Rendering helpers are named by the widget that renders, not here.
+  List<HWNativeHelper> get nativeHelpers => const [];
 
   @override
   bool operator ==(Object other) =>
@@ -356,7 +368,35 @@ class HWLocalizedString extends HWString {
       );
 }
 
-class HWInt extends HWDataType<int> {
+/// A data type rendered through the native number-formatting helper.
+///
+/// [HWInt] and [HWDouble]. Use [numberLeafOf] to find the one a data field
+/// ultimately describes, whatever it is wrapped in.
+sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
+  const HWNumericDataType(super.key);
+
+  /// Swift expression rendering [outerValue] — the nullable access expression
+  /// for this value — with [format].
+  ///
+  /// A missing value formats this type's own default, so the text never goes
+  /// blank on a widget that has not been given data yet. [dataExpr] is the
+  /// expression the data class is reached through, which a data-bound currency
+  /// reads its code from.
+  String iosFormattedValue(
+    String outerValue,
+    HWNumberFormat format, {
+    required String dataExpr,
+  });
+
+  /// Kotlin counterpart of [iosFormattedValue].
+  String androidFormattedValue(
+    String outerValue,
+    HWNumberFormat format, {
+    required String dataExpr,
+  });
+}
+
+class HWInt extends HWNumericDataType<int> {
   @override
   final int? defaultValue;
 
@@ -366,15 +406,20 @@ class HWInt extends HWDataType<int> {
   String get dartType => 'int';
 
   @override
-  String get kotlinType => 'Int';
+  String get kotlinType => 'Long';
 
   @override
   String get swiftType => 'Int';
 
   @override
   String androidReadValue({required String store, required String key}) {
-    final fallback = defaultValue?.toString() ?? 'null';
-    return 'if ($store.contains("$key")) $store.getInt("$key", 0) else $fallback';
+    final fallback = codegenKotlinDefaultLiteral() ?? 'null';
+    // A Dart int is stored as an Int only while it fits 32 bits and as a Long
+    // beyond that, so getInt would throw on large values.
+    return 'when (val raw = $store.all["$key"]) { '
+        'is Int -> raw.toLong(); '
+        'is Long -> raw; '
+        'else -> $fallback }';
   }
 
   @override
@@ -389,24 +434,50 @@ class HWInt extends HWDataType<int> {
     required String outerValue,
     required String innerValue,
   }) {
-    return '($outerValue?.toString() ?: "0")';
+    return androidFormattedValue(
+      outerValue,
+      _defaultNumberFormat,
+      dataExpr: '',
+    );
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
-    return '$outerValue != nil ? "\\($innerValue)" : "0"';
+    return iosFormattedValue(outerValue, _defaultNumberFormat, dataExpr: '');
   }
 
   @override
+  String iosFormattedValue(
+    String outerValue,
+    HWNumberFormat format, {
+    required String dataExpr,
+  }) =>
+      format.swiftCall(
+        'Double($outerValue ?? ${defaultValue ?? 0})',
+        dataExpr: dataExpr,
+      );
+
+  @override
+  String androidFormattedValue(
+    String outerValue,
+    HWNumberFormat format, {
+    required String dataExpr,
+  }) =>
+      format.kotlinCall(
+        '($outerValue ?: ${defaultValue ?? 0}L).toDouble()',
+        dataExpr: dataExpr,
+      );
+
+  @override
   String? codegenKotlinDefaultLiteral() =>
-      defaultValue == null ? null : '${defaultValue!}';
+      defaultValue == null ? null : '${defaultValue!}L';
 
   @override
   String? codegenSwiftDefaultLiteral() =>
       defaultValue == null ? null : '${defaultValue!}';
 }
 
-class HWDouble extends HWDataType<double> {
+class HWDouble extends HWNumericDataType<double> {
   @override
   final double? defaultValue;
 
@@ -423,8 +494,10 @@ class HWDouble extends HWDataType<double> {
 
   @override
   String androidReadValue({required String store, required String key}) {
-    final fallback = defaultValue?.toString() ?? 'null';
-    return 'if ($store.contains("$key")) $store.getFloat("$key", 0f).toDouble() else $fallback';
+    final fallback = codegenKotlinDefaultLiteral() ?? 'null';
+    return 'if ($store.contains("$key")) '
+        'java.lang.Double.longBitsToDouble($store.getLong("$key", 0L)) '
+        'else $fallback';
   }
 
   @override
@@ -439,13 +512,39 @@ class HWDouble extends HWDataType<double> {
     required String outerValue,
     required String innerValue,
   }) {
-    return '($outerValue?.toString() ?: "0.0")';
+    return androidFormattedValue(
+      outerValue,
+      _defaultNumberFormat,
+      dataExpr: '',
+    );
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
-    return '$outerValue != nil ? "\\($innerValue)" : "0.0"';
+    return iosFormattedValue(outerValue, _defaultNumberFormat, dataExpr: '');
   }
+
+  @override
+  String iosFormattedValue(
+    String outerValue,
+    HWNumberFormat format, {
+    required String dataExpr,
+  }) =>
+      format.swiftCall(
+        '$outerValue ?? ${defaultValue ?? 0.0}',
+        dataExpr: dataExpr,
+      );
+
+  @override
+  String androidFormattedValue(
+    String outerValue,
+    HWNumberFormat format, {
+    required String dataExpr,
+  }) =>
+      format.kotlinCall(
+        '($outerValue ?: ${defaultValue ?? 0.0})',
+        dataExpr: dataExpr,
+      );
 
   @override
   String? codegenKotlinDefaultLiteral() => defaultValue?.toString();
@@ -502,6 +601,138 @@ class HWBool extends HWDataType<bool> {
   @override
   String? codegenSwiftDefaultLiteral() =>
       defaultValue == null ? null : '${defaultValue!}';
+}
+
+/// A point in time, rendered by `HWText.dateTime`.
+///
+/// The app hands the generated `saveData` a Dart [DateTime]; the value travels
+/// as an ISO 8601 string in UTC, and native code parses it back with the
+/// generated `hwParseIsoDate` helper. Rendering always happens in the device's
+/// own time zone and locale, so the same stored value follows a traveling
+/// device without the app writing anything new.
+///
+/// There is no fixed variant and no default value: a widget with no date yet
+/// renders empty text rather than a stand-in moment.
+class HWDateTime extends HWDataType<DateTime> {
+  const HWDateTime(super.key);
+
+  @override
+  DateTime? get defaultValue => null;
+
+  @override
+  String get dartType => 'DateTime';
+
+  @override
+  String get kotlinType => 'java.util.Date';
+
+  @override
+  String get swiftType => 'Date';
+
+  @override
+  List<HWNativeHelper> get nativeHelpers =>
+      const [HWNativeHelper.hwParseIsoDate];
+
+  @override
+  String androidReadValue({required String store, required String key}) {
+    return 'hwParseIsoDate($store.getString("$key", null) ?: "")';
+  }
+
+  @override
+  String iosReadValue({required String store, required String key}) {
+    return 'hwParseIsoDate($store?.string(forKey: "$key") ?? "")';
+  }
+
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    return androidFormattedValue(
+      outerValue,
+      HWDateFormat.defaultFormat,
+      dataExpr: '',
+    );
+  }
+
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    return iosFormattedValue(
+      outerValue,
+      HWDateFormat.defaultFormat,
+      dataExpr: '',
+    );
+  }
+
+  /// Swift expression rendering [outerValue] — the nullable `Date` access
+  /// expression for this value — with [format], and as empty text when there
+  /// is no date.
+  ///
+  /// [timeZone] decides which wall clock the instant is shown on; [dataExpr]
+  /// is the expression the data class is reached through, which a data-bound
+  /// zone reads its id from.
+  String iosFormattedValue(
+    String outerValue,
+    HWDateFormat format, {
+    HWTimeZone timeZone = HWTimeZone.local,
+    required String dataExpr,
+  }) {
+    final call = format.swiftCall(
+      r'$0',
+      timeZone: timeZone,
+      dataExpr: dataExpr,
+    );
+    return '$outerValue.map { $call } ?? ""';
+  }
+
+  /// Kotlin counterpart of [iosFormattedValue].
+  String androidFormattedValue(
+    String outerValue,
+    HWDateFormat format, {
+    HWTimeZone timeZone = HWTimeZone.local,
+    required String dataExpr,
+  }) {
+    final call = format.kotlinCall(
+      'it',
+      timeZone: timeZone,
+      dataExpr: dataExpr,
+    );
+    return '$outerValue?.let { $call } ?: ""';
+  }
+
+  /// Swift expression parsing this date out of [objExpr], a `[String: Any]`
+  /// dictionary holding the ISO string under [key].
+  ///
+  /// The stored representation is a string, so the plain
+  /// `values["k"] as? Date` cast the other leaf types use would always miss.
+  ///
+  /// Codegen-internal: consumed by `home_widget_cli`, not by app code.
+  String iosJsonReadValue({required String objExpr, required String key}) =>
+      'hwParseIsoDate(($objExpr["$key"] as? String) ?? "")';
+
+  /// Kotlin counterpart of [iosJsonReadValue], where [objExpr] is a
+  /// `JSONObject`.
+  ///
+  /// Codegen-internal; see [iosJsonReadValue].
+  String androidJsonReadValue({
+    required String objExpr,
+    required String key,
+  }) =>
+      'hwParseIsoDate(if ($objExpr.has("$key") && !$objExpr.isNull("$key")) '
+      '$objExpr.optString("$key") else "")';
+
+  /// Swift expression resolving this date out of the active timed entry, where
+  /// [valuesExpr] is the `[String: Any]` dictionary holding that entry.
+  ///
+  /// Codegen-internal; see [iosJsonReadValue].
+  String iosTimedReadValue({required String valuesExpr}) =>
+      iosJsonReadValue(objExpr: valuesExpr, key: key);
+
+  /// Kotlin counterpart of [iosTimedReadValue], where [valuesExpr] is a
+  /// `JSONObject`.
+  ///
+  /// Codegen-internal; see [iosJsonReadValue].
+  String androidTimedReadValue({required String valuesExpr}) =>
+      androidJsonReadValue(objExpr: valuesExpr, key: key);
 }
 
 /// An image rendered by [HWImage].
@@ -679,26 +910,33 @@ class HWImageData extends HWDataType<String> {
   String get rawKey => super.key;
 }
 
-class HWJson extends HWDataType<dynamic> {
-  final HWDataType<dynamic> child;
+/// A value nested in a JSON group, typed by the leaf it ends at.
+///
+/// `HWJson('order', HWInt('total'))` is an `HWJson<int>`, and a nested group
+/// infers through to the same leaf type, so a JSON path is accepted wherever
+/// the leaf's own type is — `HWText.number` takes an `HWDataType<num>` and a
+/// JSON-wrapped [HWInt] satisfies it.
+class HWJson<T> extends HWDataType<T> {
+  /// The group member this path descends into: another [HWJson] for a nested
+  /// group, otherwise the leaf itself.
+  final HWDataType<T> child;
 
   const HWJson(super.key, this.child);
 
   List<String> get pathSegments {
-    if (child is HWJson) {
-      final nested = child as HWJson;
+    if (child case final HWJson<dynamic> nested) {
       return [nested.key, ...nested.pathSegments];
     }
     return [child.key];
   }
 
   HWDataType<dynamic> get leafType {
-    if (child is HWJson) return (child as HWJson).leafType;
+    if (child case final HWJson<dynamic> nested) return nested.leafType;
     return child;
   }
 
   @override
-  dynamic get defaultValue => leafType.defaultValue;
+  T? get defaultValue => leafType.defaultValue as T?;
 
   @override
   String get dartType => 'Map<String, dynamic>';
@@ -708,6 +946,9 @@ class HWJson extends HWDataType<dynamic> {
 
   @override
   String get swiftType => 'String';
+
+  @override
+  List<HWNativeHelper> get nativeHelpers => child.nativeHelpers;
 
   @override
   String androidReadValue({required String store, required String key}) {
@@ -787,6 +1028,21 @@ class HWJson extends HWDataType<dynamic> {
     final leaf = leafType;
     // Already non-null: an elvis on top of it makes Kotlin warn.
     if (leaf is HWLocalizedString) return read;
+    // Formatted leaves apply the leaf default themselves, on the raw path.
+    if (leaf is HWNumericDataType<num>) {
+      return leaf.androidFormattedValue(
+        kotlinAccess(dataExpr),
+        _defaultNumberFormat,
+        dataExpr: dataExpr,
+      );
+    }
+    if (leaf is HWDateTime) {
+      return leaf.androidFormattedValue(
+        kotlinAccess(dataExpr),
+        HWDateFormat.defaultFormat,
+        dataExpr: dataExpr,
+      );
+    }
     if (leaf.codegenKotlinDefaultLiteral() != null) {
       return leaf is HWString ? read : '$read.toString()';
     }
@@ -799,6 +1055,22 @@ class HWJson extends HWDataType<dynamic> {
     final leaf = leafType;
 
     if (leaf is HWLocalizedString) return read;
+
+    // Formatted leaves apply the leaf default themselves, on the raw path.
+    if (leaf is HWNumericDataType<num>) {
+      return leaf.iosFormattedValue(
+        swiftAccess(dataExpr),
+        _defaultNumberFormat,
+        dataExpr: dataExpr,
+      );
+    }
+    if (leaf is HWDateTime) {
+      return leaf.iosFormattedValue(
+        swiftAccess(dataExpr),
+        HWDateFormat.defaultFormat,
+        dataExpr: dataExpr,
+      );
+    }
 
     // Keep string handling compatible with iosToString quoting rules.
     if (leaf is HWString) {
@@ -842,10 +1114,40 @@ HWImageData? imageLeafOf(HWDataType<dynamic> type) {
   return null;
 }
 
+/// The [HWNumericDataType] a data field ultimately describes, or null when the
+/// field is not a number.
+///
+/// Strips an [HWTimedData] wrapper and descends an [HWJson] to its leaf, the
+/// same way [imageLeafOf] does, so every spelling of a number answers with the
+/// same [HWInt] or [HWDouble].
+HWNumericDataType<num>? numberLeafOf(HWDataType<dynamic> type) {
+  final unwrapped = type.unwrapped;
+  if (unwrapped is HWNumericDataType<num>) return unwrapped;
+  if (unwrapped is HWJson) {
+    final leaf = unwrapped.leafType;
+    if (leaf is HWNumericDataType<num>) return leaf;
+  }
+  return null;
+}
+
+/// The [HWDateTime] a data field ultimately describes, or null when the field
+/// is not a date.
+///
+/// Descends the same wrappers as [imageLeafOf].
+HWDateTime? dateTimeLeafOf(HWDataType<dynamic> type) {
+  final unwrapped = type.unwrapped;
+  if (unwrapped is HWDateTime) return unwrapped;
+  if (unwrapped is HWJson) {
+    final leaf = unwrapped.leafType;
+    if (leaf is HWDateTime) return leaf;
+  }
+  return null;
+}
+
 /// Marks a data field as time-based.
 ///
-/// Wraps an [HWString], [HWInt], [HWDouble], [HWBool], [HWJson] or a runtime
-/// [HWImageData], and must be a root-level data field: nesting it inside
+/// Wraps an [HWString], [HWInt], [HWDouble], [HWBool], [HWDateTime], [HWJson]
+/// or a runtime [HWImageData], and must be a root-level data field: nesting it inside
 /// another [HWTimedData] or inside an [HWJson] is rejected. The asset variant
 /// of [HWImageData] is rejected too — an asset ships with the app and has
 /// nothing to vary over time. Several [HWTimedData] declarations may share a JSON
@@ -913,6 +1215,9 @@ class HWTimedData<T> extends HWDataType<T> {
 
   @override
   String swiftReadExpr(String dataExpr) => data.swiftReadExpr(dataExpr);
+
+  @override
+  List<HWNativeHelper> get nativeHelpers => data.nativeHelpers;
 
   @override
   HWDataType<dynamic> get unwrapped => data;

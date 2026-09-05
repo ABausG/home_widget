@@ -25,6 +25,13 @@ small and each one demonstrates a different feature of the generator:
   pictures on a schedule, and an image read out of a JSON group
   (`HWImage(HWJson('contact', HWImageData('avatar')))`) so a name and a picture
   travel together.
+- `number_date_formatting.dart` – locale-aware formatting: `HWText.number` with
+  `HWNumberFormat.decimal` / `.percent` / `.compact`, a currency whose ISO code
+  comes from data (`HWCurrency.data(HWString('currency'))`), a hardcoded but
+  still localized `HWText.fixedNumber`, a plain `HWText(HWInt(...))` on the
+  default decimal format, and `HWText.dateTime` with a named skeleton
+  (`HWDateFormat.yMMMd`) plus a data-bound display zone
+  (`HWTimeZone.data(HWString('deliveryZone'))`).
 - `widget_link.dart` – a `widgetUrl`, so tapping the widget opens the app with
   that URL and the generated `launchedFromWidget()` helper reports it back.
 

@@ -158,6 +158,17 @@ words:
     - downsampling
     - downsampled
     - memberwise
+    # number & date formatting (ICU skeleton names, mirroring package:intl)
+    - CLDR
+    - MMMEd
+    - MMMMEEEEd
+    - Mdjm
+    - yMdjm
+    - yMMMdjm
+    - yMMMMdjm
+    # native format helpers (Swift API / SimpleDateFormat pattern)
+    - uppercased
+    - SSSZ
 ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)
     - Lokalisierte
@@ -177,3 +188,6 @@ ignoreWords:
     - idioma
     - Sonnig
     - Sonne
+    # generator formatting docs (German sample output)
+    - Montag
+    - März

@@ -1132,5 +1132,461 @@ void main() {
 
       expect(() => validateWidgetData(spec), returnsNormally);
     });
+
+    test('allows a number bound to HWText.number, however it is wrapped', () {
+      expect(
+        () => validateWidgetData(_spec(const HWText.number(HWInt('steps')))),
+        returnsNormally,
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.number(HWTimedData(HWDouble('progress')))),
+        ),
+        returnsNormally,
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.number(HWJson('stats', HWInt('steps')))),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('allows a date bound to HWText.dateTime, however it is wrapped', () {
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.dateTime(HWDateTime('lastSync'))),
+        ),
+        returnsNormally,
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.dateTime(HWTimedData(HWDateTime('slot')))),
+        ),
+        returnsNormally,
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.dateTime(HWJson('event', HWDateTime('startsAt')))),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('allows a date bound to a plain HWText', () {
+      expect(
+        () => validateWidgetData(_spec(const HWText(HWDateTime('lastSync')))),
+        returnsNormally,
+      );
+    });
+
+    test('validates the key of an HWDateTime like any other field', () {
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.dateTime(HWDateTime('class'))),
+        ),
+        _throwsMessage(
+          allOf(contains('Invalid data name "class"'), contains('Dart')),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText.dateTime(HWJson('event', HWDateTime('1st')))),
+        ),
+        _throwsMessage(contains('Invalid data name "1st"')),
+      );
+    });
+
+    test('rejects negative fraction digits', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('steps'),
+              format: HWNumberFormat.decimal(minimumFractionDigits: -1),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWNumberFormat.decimal'),
+            contains('minimumFractionDigits -1'),
+            contains('cannot be negative'),
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('steps'),
+              format: HWNumberFormat.percent(maximumFractionDigits: -2),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWNumberFormat.percent'),
+            contains('maximumFractionDigits -2'),
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('steps'),
+              format: HWNumberFormat.currency(
+                currency: HWCurrency.code('EUR'),
+                decimalDigits: -1,
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWNumberFormat.currency'),
+            contains('decimalDigits -1'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a minimum fraction digit count above the maximum', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.fixedNumber(
+              1,
+              format: HWNumberFormat.decimal(
+                minimumFractionDigits: 3,
+                maximumFractionDigits: 2,
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('minimumFractionDigits 3'),
+            contains('maximumFractionDigits 2'),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.fixedNumber(
+              1,
+              format: HWNumberFormat.decimal(
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an empty number pattern', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('steps'),
+              format: HWNumberFormat.pattern('  '),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(contains('HWNumberFormat.pattern is empty'), contains('#,##0')),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('steps'),
+              format: HWNumberFormat.pattern('#,##0.00'),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a currency code that is not three upper-case ASCII letters',
+        () {
+      for (final code in ['', 'EU', 'EURO', 'EU1', '€€€', 'eur', 'Eur']) {
+        expect(
+          () => validateWidgetData(
+            _spec(
+              HWText.number(
+                const HWInt('total'),
+                format: HWNumberFormat.currency(
+                  currency: HWCurrency.code(code),
+                ),
+              ),
+            ),
+          ),
+          _throwsMessage(
+            allOf(
+              contains('HWCurrency.code("$code")'),
+              contains('ISO 4217'),
+              contains('upper-case'),
+            ),
+          ),
+          reason: 'accepted "$code"',
+        );
+      }
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('total'),
+              format: HWNumberFormat.currency(
+                currency: HWCurrency.code('EUR'),
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('allows a currency code read from a plain string field', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWDouble('total'),
+              format: HWNumberFormat.currency(
+                currency: HWCurrency.data(HWJson('cart', HWString('currency'))),
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a localized currency code', () {
+      final tree = HWText.number(
+        const HWDouble('total'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(
+            HWString.localized(
+              'currency',
+              defaultTranslations: const {'en': 'EUR'},
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            tree,
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en'],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWCurrency.data("currency") reads a localized string'),
+            contains('plain HWString'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects an empty date skeleton or pattern', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              format: HWDateFormat.skeleton(''),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWDateFormat.skeleton is empty'),
+            contains('yMMMd'),
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              format: HWDateFormat.pattern('   '),
+            ),
+          ),
+        ),
+        _throwsMessage(contains('HWDateFormat.pattern is empty')),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              format: HWDateFormat.pattern('dd.MM.yyyy'),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a styled date format with neither a date nor a time', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              format: HWDateFormat.styled(),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWDateFormat.styled'),
+            contains('neither a date nor a time style'),
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              format: HWDateFormat.styled(time: HWFormatStyle.short),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an empty time zone id', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              timeZone: HWTimeZone.named(' '),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWTimeZone.named is empty'),
+            contains('Europe/Berlin'),
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              timeZone: HWTimeZone.utc,
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('allows a time zone read from a plain string field', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              timeZone: HWTimeZone.data(HWTimedData(HWString('zone'))),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a time zone read from a localized field', () {
+      final localized = HWText.dateTime(
+        const HWDateTime('startsAt'),
+        timeZone: HWTimeZone.data(
+          HWString.localized(
+            'zone',
+            defaultTranslations: const {'en': 'Europe/Berlin'},
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            localized,
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en'],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          contains('HWTimeZone.data("zone") reads a localized string'),
+        ),
+      );
+    });
+
+    test('points a rejected placeholder at the formatting texts', () {
+      final tree = HWText(
+        HWString.localized(
+          'summary',
+          defaultTranslations: const {'en': 'Steps: {count}'},
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            tree,
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en'],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('contains a placeholder'),
+            contains('HWText.number'),
+            contains('HWText.dateTime'),
+            isNot(contains('format the string in your app')),
+          ),
+        ),
+      );
+    });
   });
 }
+
+/// A spec whose data fields are exactly what [tree] binds, the way the parser
+/// builds one.
+WidgetSpec _spec(HWWidget tree, {HomeWidgetLocalization? localization}) =>
+    WidgetSpec(
+      data: HomeWidget(name: 'T', widget: tree, localization: localization),
+      className: 'T',
+      dataFields: tree.dataDependencies.toList(),
+      widgetTree: tree,
+    );
+
+Matcher _throwsMessage(Matcher message) => throwsA(
+      isA<GeneratorError>().having((e) => e.message, 'message', message),
+    );

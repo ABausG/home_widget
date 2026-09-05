@@ -7,6 +7,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -26,6 +27,8 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import java.text.NumberFormat
+import java.util.Locale
 
 class ForecastHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -56,7 +59,16 @@ class ForecastHomeWidget : GlanceAppWidget() {
               text = widgetData.condition ?: "",
               style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
           )
-          Text(text = (widgetData.temperature?.toString() ?: "0"))
+          Text(
+              text =
+                  hwFormatDecimal(
+                      (widgetData.temperature ?: 0L).toDouble(),
+                      null,
+                      null,
+                      true,
+                      hwFormatLocale(context),
+                  )
+          )
         }
       }
     }
@@ -66,7 +78,7 @@ class ForecastHomeWidget : GlanceAppWidget() {
 data class ForecastData(
     val city: String? = null,
     val condition: String? = null,
-    val temperature: Int? = null,
+    val temperature: Long? = null,
 ) {
   companion object {
     private const val PREFERENCES_PREFIX = "home_widget.Forecast"
@@ -84,8 +96,8 @@ data class ForecastData(
               else "No forecast",
           temperature =
               if (timedValues.has("temperature") && !timedValues.isNull("temperature"))
-                  timedValues.optInt("temperature")
-              else 0,
+                  timedValues.optLong("temperature")
+              else 0L,
       )
     }
 
@@ -117,4 +129,21 @@ data class ForecastData(
       }
     }
   }
+}
+
+private fun hwFormatLocale(context: Context): Locale =
+    ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
+
+private fun hwFormatDecimal(
+    value: Double,
+    minFraction: Int?,
+    maxFraction: Int?,
+    grouping: Boolean,
+    locale: Locale,
+): String {
+  val formatter = NumberFormat.getNumberInstance(locale)
+  formatter.isGroupingUsed = grouping
+  minFraction?.let { formatter.minimumFractionDigits = it }
+  maxFraction?.let { formatter.maximumFractionDigits = it }
+  return formatter.format(value)
 }

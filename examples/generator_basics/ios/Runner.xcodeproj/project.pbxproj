@@ -68,6 +68,11 @@
 		285B1A98AA7D765362567C56 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EFA639B7CD54B070E37D9AE9 /* SwiftUI.framework */; };
 		5C24DFA0DB5119B1DDA7088E /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8569EDF5B56B9F58F310580F /* Widget.swift */; };
 		B5805FA09F8B9CF16B8C28D6 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8023471D5BFAEAF8466916A7 /* WidgetBundle.swift */; };
+		C90D6BBE92A2D3754902E4BC /* NumberDateFormattingHomeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 64BA7B9B3F5E4874294F88DD /* NumberDateFormattingHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		36AE7649A9B7B0EE439E2BDF /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 176108CA466079E11D39D194 /* WidgetKit.framework */; };
+		39357EAAFF7B4059814D5BA0 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A02ADD58B53E6B2EC110FFF /* SwiftUI.framework */; };
+		8814BEE289D53A174D2B9908 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 144A2FF3FC7C306A01E9C33D /* Widget.swift */; };
+		C30C3EE2CF04E1573C8DAC20 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55DD380B73D9074A95DAB2C5 /* WidgetBundle.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -147,6 +152,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = C19DC938F888A605B2C4382A;
 			remoteInfo = WidgetLinkHomeWidget;
+		};
+		18BA0D2DA32BCE8AE6BDF73B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D75B9C8AABF19C83AA46FF4C;
+			remoteInfo = NumberDateFormattingHomeWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -271,6 +283,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		06CD63636844342AEA44F54D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C90D6BBE92A2D3754902E4BC /* NumberDateFormattingHomeWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -369,6 +392,13 @@
 		8569EDF5B56B9F58F310580F /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
 		8023471D5BFAEAF8466916A7 /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
 		B3EB32449210A1D9C9F0DFD2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		64BA7B9B3F5E4874294F88DD /* NumberDateFormattingHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NumberDateFormattingHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		176108CA466079E11D39D194 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		7A02ADD58B53E6B2EC110FFF /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		9F2F49C08EF42B51086EC77E /* NumberDateFormattingHomeWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NumberDateFormattingHomeWidget.entitlements; sourceTree = "<group>"; };
+		144A2FF3FC7C306A01E9C33D /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		55DD380B73D9074A95DAB2C5 /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
+		A93C9AFE6D8E8D2F06C45064 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -479,6 +509,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		00DBC2DF018967C215705FC5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				39357EAAFF7B4059814D5BA0 /* SwiftUI.framework in Frameworks */,
+				36AE7649A9B7B0EE439E2BDF /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -564,6 +603,8 @@
 				F76BBAB4CE18A699EE849052 /* ImageShowcaseHomeWidget */,
 				CC912BB6ACF9B83BCDACDAC4 /* WidgetLinkHomeWidget.entitlements */,
 				A542AABEE58D77F97C1ECF00 /* WidgetLinkHomeWidget */,
+				9F2F49C08EF42B51086EC77E /* NumberDateFormattingHomeWidget.entitlements */,
+				11FE1C38BC08338F03B2DE02 /* NumberDateFormattingHomeWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -574,6 +615,7 @@
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 				3F16F8B00D575243FF120A9E /* ForecastHomeWidget.appex */,
 				3D54132DAC0B93E2C7D3D3EF /* WidgetLinkHomeWidget.appex */,
+				64BA7B9B3F5E4874294F88DD /* NumberDateFormattingHomeWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -684,6 +726,16 @@
 			path = WidgetLinkHomeWidget;
 			sourceTree = "<group>";
 		};
+		11FE1C38BC08338F03B2DE02 /* NumberDateFormattingHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				144A2FF3FC7C306A01E9C33D /* Widget.swift */,
+				55DD380B73D9074A95DAB2C5 /* WidgetBundle.swift */,
+				A93C9AFE6D8E8D2F06C45064 /* Info.plist */,
+			);
+			path = NumberDateFormattingHomeWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -743,6 +795,7 @@
 				10D3FB48B3869CEDB8D891AE /* Embed Foundation Extensions */,
 				DEAE9E154DA745EAA945065B /* Embed Foundation Extensions */,
 				8B3AAD2511CAC418E8FC0B5F /* Embed Foundation Extensions */,
+				06CD63636844342AEA44F54D /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
@@ -758,6 +811,7 @@
 				79D313A17729163E15528DC3 /* PBXTargetDependency */,
 				5AD51D16A99B548B38FA0358 /* PBXTargetDependency */,
 				2EAA2884E0FD9DCF2371FB62 /* PBXTargetDependency */,
+				1049273EF7BA03FDBA7CABF4 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -923,6 +977,24 @@
 			productReference = 3D54132DAC0B93E2C7D3D3EF /* WidgetLinkHomeWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		D75B9C8AABF19C83AA46FF4C /* NumberDateFormattingHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F4CC75323BB7C88B07DE169 /* Build configuration list for PBXNativeTarget "NumberDateFormattingHomeWidget" */;
+			buildPhases = (
+				BB5050085FCD48C359D1ADC2 /* Sources */,
+				00DBC2DF018967C215705FC5 /* Frameworks */,
+				486053AD9D76B13ED817BFDB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			
+			name = NumberDateFormattingHomeWidget;
+			productName = NumberDateFormattingHomeWidget;
+			productReference = 64BA7B9B3F5E4874294F88DD /* NumberDateFormattingHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -973,6 +1045,7 @@
 				C127564DAC87D668BCD3096B /* ForecastHomeWidget */,
 				8084110A4391FE7511B8EF80 /* ImageShowcaseHomeWidget */,
 				C19DC938F888A605B2C4382A /* WidgetLinkHomeWidget */,
+				D75B9C8AABF19C83AA46FF4C /* NumberDateFormattingHomeWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -1061,6 +1134,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A844D07F55F8E28410D3D76D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		486053AD9D76B13ED817BFDB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -1255,6 +1335,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BB5050085FCD48C359D1ADC2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8814BEE289D53A174D2B9908 /* Widget.swift in Sources */,
+				C30C3EE2CF04E1573C8DAC20 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1312,6 +1401,11 @@
 			isa = PBXTargetDependency;
 			target = C19DC938F888A605B2C4382A /* WidgetLinkHomeWidget */;
 			targetProxy = E2465DFF718FEB385A966F0D /* PBXContainerItemProxy */;
+		};
+		1049273EF7BA03FDBA7CABF4 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D75B9C8AABF19C83AA46FF4C /* NumberDateFormattingHomeWidget */;
+			targetProxy = 18BA0D2DA32BCE8AE6BDF73B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2407,6 +2501,84 @@
 			};
 			name = Profile;
 		};
+		06BB332C1CA1C5CF5A4441FA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = NumberDateFormattingHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = NumberDateFormattingHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NumberDateFormattingHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.NumberDateFormattingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		00E973EE5F5FE6B1E7CA6F54 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = NumberDateFormattingHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = NumberDateFormattingHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NumberDateFormattingHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.NumberDateFormattingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		10E931129EEBF28154EFD34C /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = NumberDateFormattingHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = NumberDateFormattingHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NumberDateFormattingHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.NumberDateFormattingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2536,6 +2708,16 @@
 				20367F4A80BFCB39CE4450A8 /* Debug */,
 				839068F440894EDB8552FE82 /* Release */,
 				0DB02C104F43406B05D16C2A /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4F4CC75323BB7C88B07DE169 /* Build configuration list for PBXNativeTarget "NumberDateFormattingHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06BB332C1CA1C5CF5A4441FA /* Debug */,
+				00E973EE5F5FE6B1E7CA6F54 /* Release */,
+				10E931129EEBF28154EFD34C /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
