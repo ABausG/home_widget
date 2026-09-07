@@ -1154,5 +1154,89 @@ class C {}
         if (await file.exists()) await file.delete();
       }
     });
+
+    group('format decoders reject objects of another format type', () {
+      late DartObject numberFormat;
+      late DartObject dateFormat;
+      late DartObject currency;
+      late DartObject timeZone;
+
+      setUpAll(() async {
+        final file = File(
+          p.join(
+            Directory.current.path,
+            'test',
+            'temp_wvd_formats_${DateTime.now().millisecondsSinceEpoch}.dart',
+          ),
+        );
+        await file.writeAsString('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+const numberFormat = HWNumberFormat.decimal();
+const dateFormat = HWDateFormat.yMd;
+const currency = HWCurrency.code('EUR');
+const timeZone = HWTimeZone.local;
+''');
+        try {
+          final collection = AnalysisContextCollection(
+            includedPaths: [file.path],
+            resourceProvider: PhysicalResourceProvider.INSTANCE,
+          );
+          final context = collection.contextFor(file.path);
+          final result =
+              await context.currentSession.getResolvedUnit(file.path);
+          if (result is! ResolvedUnitResult) {
+            throw StateError('Failed to resolve');
+          }
+          final constants = {
+            for (final v
+                in result.unit.declaredFragment!.element.topLevelVariables)
+              v.name: v.computeConstantValue()!,
+          };
+          numberFormat = constants['numberFormat']!;
+          dateFormat = constants['dateFormat']!;
+          currency = constants['currency']!;
+          timeZone = constants['timeZone']!;
+        } finally {
+          if (await file.exists()) await file.delete();
+        }
+      });
+
+      Matcher throwsGeneratorError(String message) => throwsA(
+            isA<GeneratorError>().having((e) => e.message, 'message', message),
+          );
+
+      test('decodeNumberFormat', () {
+        expect(
+          () => WidgetValueDecoder.decodeNumberFormat(dateFormat),
+          throwsGeneratorError(
+            'Unknown number format type: HWSkeletonDateFormat',
+          ),
+        );
+      });
+
+      test('decodeDateFormat', () {
+        expect(
+          () => WidgetValueDecoder.decodeDateFormat(numberFormat),
+          throwsGeneratorError(
+            'Unknown date format type: HWDecimalNumberFormat',
+          ),
+        );
+      });
+
+      test('decodeCurrency', () {
+        expect(
+          () => WidgetValueDecoder.decodeCurrency(timeZone),
+          throwsGeneratorError('Unknown currency type: HWLocalTimeZone'),
+        );
+      });
+
+      test('decodeTimeZone', () {
+        expect(
+          () => WidgetValueDecoder.decodeTimeZone(currency),
+          throwsGeneratorError('Unknown time zone type: HWFixedCurrency'),
+        );
+      });
+    });
   });
 }

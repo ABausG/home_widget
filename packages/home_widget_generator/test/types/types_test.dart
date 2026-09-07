@@ -186,6 +186,18 @@ void main() {
       expect(type.kotlinReadExpr('data'), wrapped.kotlinReadExpr('data'));
     });
 
+    test('HWTimedData exposes the native helpers of the wrapped type', () {
+      const wrapped = HWJson('weather', HWString('condition'));
+      expect(
+        const HWTimedData(wrapped).nativeHelpers,
+        wrapped.nativeHelpers,
+      );
+      expect(
+        const HWTimedData(HWDateTime('when')).nativeHelpers,
+        const HWDateTime('when').nativeHelpers,
+      );
+    });
+
     test('HWTimedData equality and hashCode are based on the wrapped type', () {
       expect(
         const HWTimedData(HWString('a')),

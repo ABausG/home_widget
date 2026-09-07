@@ -429,10 +429,12 @@ class HWText extends HWWidget implements HWDataWidget {
   static HWNumericDataType<num> _numberLeaf(HWDataType<dynamic> data) {
     final leaf = numberLeafOf(data);
     if (leaf == null) {
+      // coverage:ignore-start
       throw GeneratorError(
         'HWText.number needs an HWInt or HWDouble, but "${data.key}" is '
         '${data.unwrapped.runtimeType}.',
       );
+      // coverage:ignore-end
     }
     return leaf;
   }
@@ -440,10 +442,12 @@ class HWText extends HWWidget implements HWDataWidget {
   static HWDateTime _dateLeaf(HWDataType<dynamic> data) {
     final leaf = dateTimeLeafOf(data);
     if (leaf == null) {
+      // coverage:ignore-start
       throw GeneratorError(
         'HWText.dateTime needs an HWDateTime, but "${data.key}" is '
         '${data.unwrapped.runtimeType}.',
       );
+      // coverage:ignore-end
     }
     return leaf;
   }

@@ -344,6 +344,54 @@ void main() {
       expect(HWTimeZone.local == Object(), isFalse);
       expect(const HWCurrency.code('EUR') == Object(), isFalse);
     });
+
+    test('hashCode agrees with == for every format variant', () {
+      void expectSameHash(Object a, Object b) {
+        expect(a, b);
+        expect(a.hashCode, b.hashCode);
+      }
+
+      expectSameHash(
+        HWNumberFormat.percent(maximumFractionDigits: 0),
+        HWNumberFormat.percent(maximumFractionDigits: 0),
+      );
+      expectSameHash(
+        HWNumberFormat.currency(
+          currency: HWCurrency.code('EUR'),
+          decimalDigits: 2,
+        ),
+        HWNumberFormat.currency(
+          currency: HWCurrency.code('EUR'),
+          decimalDigits: 2,
+        ),
+      );
+      expectSameHash(HWNumberFormat.compact(), HWNumberFormat.compact());
+      expectSameHash(
+          HWNumberFormat.pattern('#0'), HWNumberFormat.pattern('#0'));
+      expectSameHash(HWDateFormat.pattern('dd'), HWDateFormat.pattern('dd'));
+      expectSameHash(
+        HWDateFormat.styled(date: HWFormatStyle.full),
+        HWDateFormat.styled(date: HWFormatStyle.full),
+      );
+      expectSameHash(HWTimeZone.named('UTC'), HWTimeZone.named('UTC'));
+      expectSameHash(
+        HWTimeZone.data(HWString('tz')),
+        HWTimeZone.data(HWString('tz')),
+      );
+      expectSameHash(
+        HWCurrency.data(HWString('cur')),
+        HWCurrency.data(HWString('cur')),
+      );
+
+      expect(
+        HWNumberFormat.pattern('#0').hashCode,
+        isNot(HWNumberFormat.pattern('#0.0').hashCode),
+      );
+      expect(
+        HWTimeZone.named('UTC').hashCode,
+        isNot(HWTimeZone.named('Europe/Berlin').hashCode),
+      );
+    });
   });
 
   group('HomeWidgetLocalization ==/hashCode', () {

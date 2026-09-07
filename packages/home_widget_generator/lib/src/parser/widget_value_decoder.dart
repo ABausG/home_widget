@@ -234,7 +234,9 @@ class WidgetValueDecoder {
           resourcePrefix: resourcePrefix,
         );
         if (currency == null) {
+          // coverage:ignore-start
           throw GeneratorError('HWNumberFormat.currency has no currency');
+          // coverage:ignore-end
         }
         return HWNumberFormat.currency(
           currency: currency,
@@ -291,7 +293,11 @@ class WidgetValueDecoder {
           defaultLocale: defaultLocale,
           resourcePrefix: resourcePrefix,
         );
-        if (data == null) throw GeneratorError('HWCurrency.data has no data');
+        if (data == null) {
+          // coverage:ignore-start
+          throw GeneratorError('HWCurrency.data has no data');
+          // coverage:ignore-end
+        }
         return HWDataCurrency(data);
     }
     throw GeneratorError('Unknown currency type: $typeName');
@@ -317,7 +323,11 @@ class WidgetValueDecoder {
           defaultLocale: defaultLocale,
           resourcePrefix: resourcePrefix,
         );
-        if (data == null) throw GeneratorError('HWTimeZone.data has no data');
+        if (data == null) {
+          // coverage:ignore-start
+          throw GeneratorError('HWTimeZone.data has no data');
+          // coverage:ignore-end
+        }
         return HWDataTimeZone(data);
     }
     throw GeneratorError('Unknown time zone type: $typeName');

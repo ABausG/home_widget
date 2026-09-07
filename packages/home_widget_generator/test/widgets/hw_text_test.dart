@@ -63,6 +63,25 @@ void main() {
           'minFraction: nil, maxFraction: nil, grouping: true))',
         );
       });
+
+      group('with a string leaf', () {
+        const label =
+            HWText(HWJson('payload', HWString('label', defaultValue: 'x')));
+
+        test('Kotlin reads the leaf with its default', () {
+          expect(
+            label.toKotlin(0, dataExpr: 'widgetData'),
+            'Text(text = (widgetData.payload?.label ?: "x"))',
+          );
+        });
+
+        test('Swift reads the leaf with its default', () {
+          expect(
+            label.toSwift(0, dataExpr: 'entry.data'),
+            'Text((((entry.data.payload?.label) ?? ("x"))))',
+          );
+        });
+      });
     });
 
     group('iOS (SwiftUI)', () {
