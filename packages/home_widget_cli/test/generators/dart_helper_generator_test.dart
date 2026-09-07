@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
@@ -1407,7 +1408,7 @@ void main() {
       );
 
       expect(
-        output.split('\n'),
+        const LineSplitter().convert(output),
         [
           // A local time is stored as the instant it denotes, in UTC.
           endsWith('Z'),
