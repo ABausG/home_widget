@@ -223,7 +223,7 @@ data.lastSync?.toLocal();   // ... converted back to local time
 #### How a date is stored
 
 `saveData` writes `value.toUtc().toIso8601String()` — an ISO-8601 string in
-UTC, e.g. `2026-03-02T13:05:09.000000Z`. That is what lands in
+UTC, e.g. `2026-03-02T13:05:09.000Z`. That is what lands in
 `SharedPreferences` / `UserDefaults`, and what native code reading the key
 directly will find. The generated getter parses it back and returns a **UTC**
 `DateTime`; call `.toLocal()` if you want the local one. Both platforms' parsers
