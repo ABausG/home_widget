@@ -223,11 +223,13 @@ void _validateTextFormats(WidgetSpec spec) {
     final dateFormat = widget.dateFormat;
     if (dateFormat != null) {
       if (data != null && dateTimeLeafOf(data) == null) {
+        // coverage:ignore-start
         throw GeneratorError(
           'Widget "${spec.data.name}": HWText.dateTime needs an HWDateTime, '
           'but "${data.key}" is ${_describeBoundLeaf(data)}. Bind an '
           'HWDateTime, or render the value with a plain HWText.',
         );
+        // coverage:ignore-end
       }
       _validateDateFormat(spec, dateFormat);
       _validateTimeZone(spec, widget.timeZone);
@@ -236,11 +238,13 @@ void _validateTextFormats(WidgetSpec spec) {
     final numberFormat = widget.numberFormat;
     if (numberFormat != null) {
       if (data != null && numberLeafOf(data) == null) {
+        // coverage:ignore-start
         throw GeneratorError(
           'Widget "${spec.data.name}": HWText.number needs an HWInt or '
           'HWDouble, but "${data.key}" is ${_describeBoundLeaf(data)}. Bind a '
           'number, or render the value with a plain HWText.',
         );
+        // coverage:ignore-end
       }
       _validateNumberFormat(spec, numberFormat);
     }
