@@ -51,7 +51,7 @@ void main() {
         expect(
           text.toKotlin(0, dataExpr: 'widgetData'),
           'Text(text = hwFormatDecimal('
-          '(widgetData.payload?.count ?: 3L).toDouble(), null, null, true, '
+          '(widgetData.payload?.count ?: 3L), null, null, true, '
           'hwFormatLocale(context)))',
         );
       });
@@ -59,7 +59,7 @@ void main() {
       test('Swift formats the resolved value', () {
         expect(
           text.toSwift(0, dataExpr: 'entry.data'),
-          'Text(hwFormatDecimal(Double(entry.data.payload?.count ?? 3), '
+          'Text(hwFormatDecimal(NSNumber(value: entry.data.payload?.count ?? 3), '
           'minFraction: nil, maxFraction: nil, grouping: true))',
         );
       });
@@ -89,7 +89,7 @@ void main() {
         );
         expect(
           result,
-          'Text(hwFormatDecimal(Double(data.count ?? 0), minFraction: nil, '
+          'Text(hwFormatDecimal(NSNumber(value: data.count ?? 0), minFraction: nil, '
           'maxFraction: nil, grouping: true))',
         );
       });
@@ -111,7 +111,7 @@ void main() {
         );
         expect(
           result,
-          'Text(hwFormatDecimal(data.ratio ?? 0.0, minFraction: nil, '
+          'Text(hwFormatDecimal(NSNumber(value: data.ratio ?? 0.0), minFraction: nil, '
           'maxFraction: nil, grouping: true))',
         );
       });
@@ -355,7 +355,7 @@ void main() {
         );
         expect(
           result,
-          'Text(text = hwFormatDecimal((data.count ?: 0L).toDouble(), '
+          'Text(text = hwFormatDecimal((data.count ?: 0L), '
           'null, null, true, hwFormatLocale(context)))',
         );
       });
@@ -524,7 +524,7 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatDecimal(entry.data.v ?? 0.0, minFraction: 1, '
+        'Text(hwFormatDecimal(NSNumber(value: entry.data.v ?? 0.0), minFraction: 1, '
         'maxFraction: 2, grouping: false))',
       );
       expect(
@@ -541,7 +541,7 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatPercent(entry.data.progress ?? 0.0, minFraction: nil, '
+        'Text(hwFormatPercent(NSNumber(value: entry.data.progress ?? 0.0), minFraction: nil, '
         'maxFraction: 0))',
       );
       expect(
@@ -558,11 +558,11 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCompact(Double(entry.data.steps ?? 0)))',
+        'Text(hwFormatCompact(NSNumber(value: entry.data.steps ?? 0)))',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatCompact((widgetData.steps ?: 0L).toDouble(), '
+        'Text(text = hwFormatCompact((widgetData.steps ?: 0L), '
         'hwFormatLocale(context)))',
       );
     });
@@ -574,7 +574,7 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatNumberPattern(entry.data.v ?? 0.0, "#,##0.00"))',
+        'Text(hwFormatNumberPattern(NSNumber(value: entry.data.v ?? 0.0), "#,##0.00"))',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
@@ -594,7 +594,7 @@ void main() {
       expect(text.dataDependencies, {const HWDouble('price')});
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCurrency(entry.data.price ?? 0.0, code: "EUR", '
+        'Text(hwFormatCurrency(NSNumber(value: entry.data.price ?? 0.0), code: "EUR", '
         'decimals: 2))',
       );
       expect(
@@ -617,7 +617,7 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCurrency(entry.data.price ?? 0.0, '
+        'Text(hwFormatCurrency(NSNumber(value: entry.data.price ?? 0.0), '
         'code: entry.data.cur ?? "", decimals: nil))',
       );
       expect(
@@ -651,7 +651,7 @@ void main() {
           HWTimedData(HWInt('steps')),
           format: HWNumberFormat.compact(),
         ).toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCompact(Double(entry.data.steps ?? 0)))',
+        'Text(hwFormatCompact(NSNumber(value: entry.data.steps ?? 0)))',
       );
       expect(
         const HWText.number(
@@ -690,8 +690,8 @@ void main() {
       const text = HWText.fixedNumber(1234);
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatDecimal(1234.0, minFraction: nil, maxFraction: nil, '
-        'grouping: true))',
+        'Text(hwFormatDecimal(NSNumber(value: 1234.0), minFraction: nil, '
+        'maxFraction: nil, grouping: true))',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
@@ -704,7 +704,7 @@ void main() {
       const text = HWText.fixedNumber(12.5, format: HWNumberFormat.compact());
       expect(
         text.toSwift(0, dataExpr: 'd'),
-        'Text(hwFormatCompact(12.5))',
+        'Text(hwFormatCompact(NSNumber(value: 12.5)))',
       );
       expect(
         text.toKotlin(0, dataExpr: 'd'),
@@ -929,11 +929,11 @@ void main() {
       }
       expect(
         plain.toSwift(0, dataExpr: 'entry.data'),
-        contains('Double(entry.data.steps ?? 0)'),
+        contains('NSNumber(value: entry.data.steps ?? 0)'),
       );
       expect(
         nested.toKotlin(0, dataExpr: 'widgetData'),
-        contains('(widgetData.stats?.steps ?: 0L).toDouble()'),
+        contains('(widgetData.stats?.steps ?: 0L)'),
       );
     });
 

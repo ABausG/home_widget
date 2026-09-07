@@ -49,8 +49,8 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
           .font(.caption)
         Text(
           hwFormatDecimal(
-            Double(entry.data.orderNumber ?? 0), minFraction: nil, maxFraction: nil, grouping: false
-          )
+            NSNumber(value: entry.data.orderNumber ?? 0), minFraction: nil, maxFraction: nil,
+            grouping: false)
         )
         .font(.caption)
         Text(" · ")
@@ -59,15 +59,19 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
           .font(.caption)
       }
       Text(
-        hwFormatCurrency(entry.data.total ?? 0.0, code: entry.data.currency ?? "", decimals: nil)
+        hwFormatCurrency(
+          NSNumber(value: entry.data.total ?? 0.0), code: entry.data.currency ?? "", decimals: nil)
       )
       .font(.title).fontWeight(.bold)
       HStack {
-        Text(hwFormatPercent(entry.data.discount ?? 0.0, minFraction: nil, maxFraction: nil))
+        Text(
+          hwFormatPercent(
+            NSNumber(value: entry.data.discount ?? 0.0), minFraction: nil, maxFraction: nil))
         Text(" off · ")
         Text(
           hwFormatDecimal(
-            Double(entry.data.items ?? 0), minFraction: nil, maxFraction: nil, grouping: true))
+            NSNumber(value: entry.data.items ?? 0), minFraction: nil, maxFraction: nil,
+            grouping: true))
         Text(" items")
       }
       HStack {
@@ -81,12 +85,15 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
         .font(.caption)
       }
       HStack {
-        Text(hwFormatCompact(Double(entry.data.points ?? 0)))
+        Text(hwFormatCompact(NSNumber(value: entry.data.points ?? 0)))
           .font(.caption)
         Text(" of ")
           .font(.caption)
-        Text(hwFormatDecimal(25000.0, minFraction: nil, maxFraction: nil, grouping: true))
-          .font(.caption)
+        Text(
+          hwFormatDecimal(
+            NSNumber(value: 25000.0), minFraction: nil, maxFraction: nil, grouping: true)
+        )
+        .font(.caption)
         Text(" points")
           .font(.caption)
       }
@@ -153,17 +160,17 @@ func hwFormatLocale() -> Locale {
   return Locale.current
 }
 
-func hwFormatCompact(_ value: Double) -> String {
+func hwFormatCompact(_ value: NSNumber) -> String {
   if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-    return value.formatted(.number.notation(.compactName).locale(hwFormatLocale()))
+    return value.doubleValue.formatted(.number.notation(.compactName).locale(hwFormatLocale()))
   }
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   formatter.numberStyle = .decimal
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }
 
-func hwFormatCurrency(_ value: Double, code: String, decimals: Int?) -> String {
+func hwFormatCurrency(_ value: NSNumber, code: String, decimals: Int?) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   let isoCode = code.uppercased()
@@ -179,11 +186,11 @@ func hwFormatCurrency(_ value: Double, code: String, decimals: Int?) -> String {
     formatter.minimumFractionDigits = decimals
     formatter.maximumFractionDigits = decimals
   }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }
 
 func hwFormatDecimal(
-  _ value: Double, minFraction: Int?, maxFraction: Int?, grouping: Bool
+  _ value: NSNumber, minFraction: Int?, maxFraction: Int?, grouping: Bool
 ) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
@@ -191,16 +198,16 @@ func hwFormatDecimal(
   formatter.usesGroupingSeparator = grouping
   if let minFraction { formatter.minimumFractionDigits = minFraction }
   if let maxFraction { formatter.maximumFractionDigits = maxFraction }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }
 
-func hwFormatPercent(_ value: Double, minFraction: Int?, maxFraction: Int?) -> String {
+func hwFormatPercent(_ value: NSNumber, minFraction: Int?, maxFraction: Int?) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   formatter.numberStyle = .percent
   if let minFraction { formatter.minimumFractionDigits = minFraction }
   if let maxFraction { formatter.maximumFractionDigits = maxFraction }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }
 
 func hwParseIsoDate(_ value: String) -> Date? {

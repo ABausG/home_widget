@@ -67,7 +67,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
             Text(
                 text =
                     hwFormatDecimal(
-                        (widgetData.orderNumber ?: 0L).toDouble(),
+                        (widgetData.orderNumber ?: 0L),
                         null,
                         null,
                         false,
@@ -108,7 +108,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
             Text(
                 text =
                     hwFormatDecimal(
-                        (widgetData.items ?: 0L).toDouble(),
+                        (widgetData.items ?: 0L),
                         null,
                         null,
                         true,
@@ -137,8 +137,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
           }
           Row {
             Text(
-                text =
-                    hwFormatCompact((widgetData.points ?: 0L).toDouble(), hwFormatLocale(context)),
+                text = hwFormatCompact((widgetData.points ?: 0L), hwFormatLocale(context)),
                 style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
             )
             Text(text = " of ", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal))
@@ -174,11 +173,13 @@ data class NumberDateFormattingData(
     fun fromPreferences(prefs: android.content.SharedPreferences): NumberDateFormattingData {
       return NumberDateFormattingData(
           orderNumber =
-              when (val raw = prefs.all["${PREFERENCES_PREFIX}.orderNumber"]) {
-                is Int -> raw.toLong()
-                is Long -> raw
-                else -> 0L
-              },
+              if (prefs.contains("${PREFERENCES_PREFIX}.orderNumber"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.orderNumber", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.orderNumber", 0L)
+                  })
+              else 0L,
           placedAt = hwParseIsoDate(prefs.getString("${PREFERENCES_PREFIX}.placedAt", null) ?: ""),
           total =
               if (prefs.contains("${PREFERENCES_PREFIX}.total"))
@@ -194,20 +195,24 @@ data class NumberDateFormattingData(
                   )
               else 0.0,
           items =
-              when (val raw = prefs.all["${PREFERENCES_PREFIX}.items"]) {
-                is Int -> raw.toLong()
-                is Long -> raw
-                else -> 0L
-              },
+              if (prefs.contains("${PREFERENCES_PREFIX}.items"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.items", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.items", 0L)
+                  })
+              else 0L,
           deliveryAt =
               hwParseIsoDate(prefs.getString("${PREFERENCES_PREFIX}.deliveryAt", null) ?: ""),
           deliveryZone = prefs.getString("${PREFERENCES_PREFIX}.deliveryZone", ""),
           points =
-              when (val raw = prefs.all["${PREFERENCES_PREFIX}.points"]) {
-                is Int -> raw.toLong()
-                is Long -> raw
-                else -> 0L
-              },
+              if (prefs.contains("${PREFERENCES_PREFIX}.points"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.points", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.points", 0L)
+                  })
+              else 0L,
       )
     }
   }
@@ -216,7 +221,7 @@ data class NumberDateFormattingData(
 private fun hwFormatLocale(context: Context): Locale =
     ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
 
-private fun hwFormatCompact(value: Double, locale: Locale): String {
+private fun hwFormatCompact(value: Number, locale: Locale): String {
   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
     val compact =
         CompactDecimalFormat.getInstance(
@@ -229,7 +234,7 @@ private fun hwFormatCompact(value: Double, locale: Locale): String {
 }
 
 private fun hwFormatCurrency(
-    value: Double,
+    value: Number,
     code: String,
     decimals: Int?,
     locale: Locale,
@@ -247,7 +252,7 @@ private fun hwFormatCurrency(
         NumberFormat.getCurrencyInstance(locale).apply {
           currency = resolved
           val defaults = resolved.defaultFractionDigits
-          if (decimals == null && defaults >= 0) {
+          if (defaults >= 0) {
             minimumFractionDigits = defaults
             maximumFractionDigits = defaults
           }
@@ -261,7 +266,7 @@ private fun hwFormatCurrency(
 }
 
 private fun hwFormatDecimal(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     grouping: Boolean,
@@ -275,7 +280,7 @@ private fun hwFormatDecimal(
 }
 
 private fun hwFormatPercent(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     locale: Locale,
@@ -319,12 +324,13 @@ private fun hwParseIsoDate(value: String): Date? {
   }
 }
 
-private fun hwResolveTimeZone(id: String?): TimeZone =
-    if (!id.isNullOrEmpty() && TimeZone.getAvailableIDs().contains(id)) {
-      TimeZone.getTimeZone(id)
-    } else {
-      TimeZone.getDefault()
-    }
+private fun hwResolveTimeZone(id: String?): TimeZone {
+  if (id.isNullOrEmpty()) return TimeZone.getDefault()
+  val normalized = id.replace(Regex("^(UTC|UT)(?=[+-])"), "GMT")
+  val zone = TimeZone.getTimeZone(normalized)
+  val unknown = zone.id == "GMT" && !normalized.equals("GMT", ignoreCase = true)
+  return if (unknown) TimeZone.getDefault() else zone
+}
 
 private fun hwFormatDateSkeleton(
     date: Date,

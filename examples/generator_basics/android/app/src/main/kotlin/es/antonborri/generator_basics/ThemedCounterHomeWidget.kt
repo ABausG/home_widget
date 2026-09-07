@@ -72,7 +72,7 @@ class ThemedCounterHomeWidget : GlanceAppWidget() {
           Text(
               text =
                   hwFormatDecimal(
-                      (widgetData.count ?: 0L).toDouble(),
+                      (widgetData.count ?: 0L),
                       null,
                       null,
                       true,
@@ -101,11 +101,13 @@ data class ThemedCounterData(
     fun fromPreferences(prefs: android.content.SharedPreferences): ThemedCounterData {
       return ThemedCounterData(
           count =
-              when (val raw = prefs.all["${PREFERENCES_PREFIX}.count"]) {
-                is Int -> raw.toLong()
-                is Long -> raw
-                else -> 0L
-              },
+              if (prefs.contains("${PREFERENCES_PREFIX}.count"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.count", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.count", 0L)
+                  })
+              else 0L,
       )
     }
   }
@@ -115,7 +117,7 @@ private fun hwFormatLocale(context: Context): Locale =
     ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
 
 private fun hwFormatDecimal(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     grouping: Boolean,

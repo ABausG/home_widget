@@ -201,10 +201,8 @@ class WidgetValueDecoder {
 
   /// Decodes an [HWNumberFormat], or null when [obj] is absent.
   ///
-  /// Dispatch is on which fields the constant carries rather than on the type
-  /// name: every variant is reached through a redirecting const factory, which
-  /// is not guaranteed to report the target class. The field sets are disjoint,
-  /// so the first match is the only one.
+  /// A string field the analyzer cannot evaluate decodes as empty so the
+  /// validator reports it rather than the format silently changing.
   static HWNumberFormat? decodeNumberFormat(
     DartObject? obj, {
     String? defaultLocale,
@@ -212,62 +210,70 @@ class WidgetValueDecoder {
   }) {
     if (obj == null || obj.isNull) return null;
 
-    final currency = decodeCurrency(
-      getField(obj, 'currency'),
-      defaultLocale: defaultLocale,
-      resourcePrefix: resourcePrefix,
-    );
-    if (currency != null) {
-      return HWNumberFormat.currency(
-        currency: currency,
-        decimalDigits: getField(obj, 'decimalDigits')?.toIntValue(),
-      );
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWDecimalNumberFormat':
+        return HWNumberFormat.decimal(
+          minimumFractionDigits:
+              getField(obj, 'minimumFractionDigits')?.toIntValue(),
+          maximumFractionDigits:
+              getField(obj, 'maximumFractionDigits')?.toIntValue(),
+          useGrouping: getField(obj, 'useGrouping')?.toBoolValue() ?? true,
+        );
+      case 'HWPercentNumberFormat':
+        return HWNumberFormat.percent(
+          minimumFractionDigits:
+              getField(obj, 'minimumFractionDigits')?.toIntValue(),
+          maximumFractionDigits:
+              getField(obj, 'maximumFractionDigits')?.toIntValue(),
+        );
+      case 'HWCurrencyNumberFormat':
+        final currency = decodeCurrency(
+          getField(obj, 'currency'),
+          defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
+        );
+        if (currency == null) {
+          throw GeneratorError('HWNumberFormat.currency has no currency');
+        }
+        return HWNumberFormat.currency(
+          currency: currency,
+          decimalDigits: getField(obj, 'decimalDigits')?.toIntValue(),
+        );
+      case 'HWCompactNumberFormat':
+        return const HWNumberFormat.compact();
+      case 'HWPatternNumberFormat':
+        return HWNumberFormat.pattern(
+          getField(obj, 'pattern')?.toStringValue() ?? '',
+        );
     }
-
-    final pattern = getField(obj, 'pattern')?.toStringValue();
-    if (pattern != null) return HWNumberFormat.pattern(pattern);
-
-    final minimum = getField(obj, 'minimumFractionDigits');
-    final maximum = getField(obj, 'maximumFractionDigits');
-    final useGrouping = getField(obj, 'useGrouping')?.toBoolValue();
-    if (useGrouping != null) {
-      return HWNumberFormat.decimal(
-        minimumFractionDigits: minimum?.toIntValue(),
-        maximumFractionDigits: maximum?.toIntValue(),
-        useGrouping: useGrouping,
-      );
-    }
-    if (minimum != null || maximum != null) {
-      return HWNumberFormat.percent(
-        minimumFractionDigits: minimum?.toIntValue(),
-        maximumFractionDigits: maximum?.toIntValue(),
-      );
-    }
-
-    return const HWNumberFormat.compact();
+    throw GeneratorError('Unknown number format type: $typeName');
   }
 
   /// Decodes an [HWDateFormat], or null when [obj] is absent.
-  ///
-  /// Dispatches the same way [decodeNumberFormat] does.
   static HWDateFormat? decodeDateFormat(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final skeleton = getField(obj, 'skeleton')?.toStringValue();
-    if (skeleton != null) return HWDateFormat.skeleton(skeleton);
-
-    final pattern = getField(obj, 'pattern')?.toStringValue();
-    if (pattern != null) return HWDateFormat.pattern(pattern);
-
-    return HWDateFormat.styled(
-      date: decodeEnum(getField(obj, 'date'), HWFormatStyle.values),
-      time: decodeEnum(getField(obj, 'time'), HWFormatStyle.values),
-    );
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWSkeletonDateFormat':
+        return HWDateFormat.skeleton(
+          getField(obj, 'skeleton')?.toStringValue() ?? '',
+        );
+      case 'HWPatternDateFormat':
+        return HWDateFormat.pattern(
+          getField(obj, 'pattern')?.toStringValue() ?? '',
+        );
+      case 'HWStyledDateFormat':
+        return HWDateFormat.styled(
+          date: decodeEnum(getField(obj, 'date'), HWFormatStyle.values),
+          time: decodeEnum(getField(obj, 'time'), HWFormatStyle.values),
+        );
+    }
+    throw GeneratorError('Unknown date format type: $typeName');
   }
 
   /// Decodes an [HWCurrency], or null when [obj] is absent.
-  ///
-  /// Dispatches the same way [decodeNumberFormat] does.
   static HWCurrency? decodeCurrency(
     DartObject? obj, {
     String? defaultLocale,
@@ -275,23 +281,23 @@ class WidgetValueDecoder {
   }) {
     if (obj == null || obj.isNull) return null;
 
-    final code = getField(obj, 'code')?.toStringValue();
-    if (code != null) return HWCurrency.code(code);
-
-    final data = decodeDataType(
-      getField(obj, 'data'),
-      defaultLocale: defaultLocale,
-      resourcePrefix: resourcePrefix,
-    );
-    if (data != null) return HWDataCurrency(data);
-
-    return null;
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWFixedCurrency':
+        return HWCurrency.code(getField(obj, 'code')?.toStringValue() ?? '');
+      case 'HWDataCurrency':
+        final data = decodeDataType(
+          getField(obj, 'data'),
+          defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
+        );
+        if (data == null) throw GeneratorError('HWCurrency.data has no data');
+        return HWDataCurrency(data);
+    }
+    throw GeneratorError('Unknown currency type: $typeName');
   }
 
   /// Decodes an [HWTimeZone], or null when [obj] is absent.
-  ///
-  /// Dispatches the same way [decodeNumberFormat] does; a constant carrying
-  /// neither an id nor a data field is [HWTimeZone.local].
   static HWTimeZone? decodeTimeZone(
     DartObject? obj, {
     String? defaultLocale,
@@ -299,17 +305,22 @@ class WidgetValueDecoder {
   }) {
     if (obj == null || obj.isNull) return null;
 
-    final id = getField(obj, 'id')?.toStringValue();
-    if (id != null) return HWTimeZone.named(id);
-
-    final data = decodeDataType(
-      getField(obj, 'data'),
-      defaultLocale: defaultLocale,
-      resourcePrefix: resourcePrefix,
-    );
-    if (data != null) return HWDataTimeZone(data);
-
-    return HWTimeZone.local;
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWLocalTimeZone':
+        return HWTimeZone.local;
+      case 'HWNamedTimeZone':
+        return HWTimeZone.named(getField(obj, 'id')?.toStringValue() ?? '');
+      case 'HWDataTimeZone':
+        final data = decodeDataType(
+          getField(obj, 'data'),
+          defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
+        );
+        if (data == null) throw GeneratorError('HWTimeZone.data has no data');
+        return HWDataTimeZone(data);
+    }
+    throw GeneratorError('Unknown time zone type: $typeName');
   }
 
   /// Reads a `defaultTranslations` locale map, or null when [obj] is not a

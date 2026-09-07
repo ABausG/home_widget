@@ -217,7 +217,9 @@ void main() {
     test('falls back to the device zone on an unusable id', () {
       expect(swiftOf(helper), contains('TimeZone(identifier:'));
       expect(swiftOf(helper), contains('TimeZone.current'));
-      expect(kotlinOf(helper), contains('TimeZone.getAvailableIDs()'));
+      expect(kotlinOf(helper), contains('TimeZone.getTimeZone(normalized)'));
+      expect(kotlinOf(helper), contains('Regex("^(UTC|UT)(?=[+-])")'));
+      expect(kotlinOf(helper), contains('zone.id == "GMT"'));
       expect(kotlinOf(helper), contains('TimeZone.getDefault()'));
       expect(helper.kotlinImports, ['import java.util.TimeZone']);
     });
@@ -303,7 +305,7 @@ void main() {
     test('takes the fraction digits from the currency, not the locale', () {
       final kotlin = kotlinOf(helper);
       expect(kotlin, contains('resolved.defaultFractionDigits'));
-      expect(kotlin, contains('if (decimals == null && defaults >= 0)'));
+      expect(kotlin, contains('if (defaults >= 0)'));
       expect(kotlin, contains('minimumFractionDigits = defaults'));
       expect(kotlin, contains('maximumFractionDigits = defaults'));
       expect(swiftOf(helper), contains('formatter.currencyCode = isoCode'));

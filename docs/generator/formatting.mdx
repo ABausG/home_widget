@@ -520,9 +520,10 @@ first entry of `context.resources.configuration.locales`, falling back to
 `Locale.getDefault()`.
 
 The display zone defaults to `TimeZone.getDefault()`. `HWTimeZone.named` and
-`HWTimeZone.data` resolve through `TimeZone.getTimeZone(id)`, but only when
-`id` is one of `TimeZone.getAvailableIDs()` — otherwise the widget falls back
-to `TimeZone.getDefault()`, the same as an empty id.
+`HWTimeZone.data` resolve through `TimeZone.getTimeZone(id)`, which also
+accepts custom offsets such as `GMT+02:00`; a `UTC+2` spelling is rewritten to
+the `GMT` form first, matching what iOS accepts. An id it does not know falls
+back to `TimeZone.getDefault()`, the same as an empty id.
 
 `HWNumberFormat.compact()` needs `android.icu.text.CompactDecimalFormat`, which
 is **API 24+**. On API 23 the widget falls back to a plain decimal format, so

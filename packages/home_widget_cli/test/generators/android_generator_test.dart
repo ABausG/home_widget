@@ -616,10 +616,11 @@ void main() {
     expect(
       content,
       contains(
-        'when (val raw = prefs.all["\${PREFERENCES_PREFIX}.count"]) { '
-        'is Int -> raw.toLong(); '
-        'is Long -> raw; '
-        'else -> null }',
+        'if (prefs.contains("\${PREFERENCES_PREFIX}.count")) '
+        '(try { prefs.getInt("\${PREFERENCES_PREFIX}.count", 0).toLong() } '
+        'catch (_: ClassCastException) { '
+        'prefs.getLong("\${PREFERENCES_PREFIX}.count", 0L) }) '
+        'else null',
       ),
     );
     expect(
@@ -639,7 +640,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(text = hwFormatDecimal((widgetData.count ?: 0L).toDouble(), '
+        'Text(text = hwFormatDecimal((widgetData.count ?: 0L), '
         'null, null, true, hwFormatLocale(context)))',
       ),
     );

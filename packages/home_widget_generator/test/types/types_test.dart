@@ -92,18 +92,15 @@ void main() {
       );
     });
 
-    test('HWDateTime stringifies with the default format, empty when absent',
-        () {
+    test('HWDateTime stringifies raw, empty when absent', () {
       const type = HWDateTime('when');
       expect(
         type.iosToString(outerValue: 'd.when', innerValue: 'd.when!'),
-        'd.when.map { hwFormatDateStyled(\$0, dateStyle: .medium, '
-        'timeStyle: .short) } ?? ""',
+        r'd.when != nil ? "\(d.when!)" : ""',
       );
       expect(
         type.androidToString(outerValue: 'd.when', innerValue: 'd.when'),
-        'd.when?.let { hwFormatDateStyled(it, java.text.DateFormat.MEDIUM, '
-        'java.text.DateFormat.SHORT, hwFormatLocale(context)) } ?: ""',
+        '(d.when?.toString() ?: "")',
       );
     });
 
@@ -355,18 +352,18 @@ void main() {
       );
     });
 
-    test('ints read Android preferences through the untyped map', () {
+    test('ints read Android preferences as Int, then as Long', () {
       expect(
         const HWInt('i').androidReadValue(store: 'prefs', key: 'p.count'),
-        'when (val raw = prefs.all["p.count"]) { '
-        'is Int -> raw.toLong(); '
-        'is Long -> raw; '
-        'else -> null }',
+        'if (prefs.contains("p.count")) '
+        '(try { prefs.getInt("p.count", 0).toLong() } '
+        'catch (_: ClassCastException) { prefs.getLong("p.count", 0L) }) '
+        'else null',
       );
       expect(
         const HWInt('i', defaultValue: 7)
             .androidReadValue(store: 'prefs', key: 'p.count'),
-        contains('else -> 7L }'),
+        contains('else 7L'),
       );
     });
 
@@ -377,17 +374,13 @@ void main() {
         (const HWString('k'), r'data.x ?: ""', r'data.x ?? ""'),
         (
           const HWInt('k'),
-          'hwFormatDecimal((data.x ?: 0L).toDouble(), null, null, true, '
-              'hwFormatLocale(context))',
-          'hwFormatDecimal(Double(data.x ?? 0), minFraction: nil, '
-              'maxFraction: nil, grouping: true)'
+          r'(data.x?.toString() ?: "0")',
+          r'data.x != nil ? "\(data.x)" : "0"'
         ),
         (
           const HWDouble('k'),
-          'hwFormatDecimal((data.x ?: 0.0), null, null, true, '
-              'hwFormatLocale(context))',
-          'hwFormatDecimal(data.x ?? 0.0, minFraction: nil, maxFraction: nil, '
-              'grouping: true)'
+          r'(data.x?.toString() ?: "0.0")',
+          r'data.x != nil ? "\(data.x)" : "0.0"'
         ),
         (
           const HWBool('k'),
@@ -510,13 +503,11 @@ void main() {
     test('stringification delegates to the leaf type', () {
       expect(
         json.androidToString(outerValue: 'v', innerValue: 'v'),
-        'hwFormatDecimal((v ?: 3L).toDouble(), null, null, true, '
-        'hwFormatLocale(context))',
+        '(v?.toString() ?: "0")',
       );
       expect(
         json.iosToString(outerValue: 'v', innerValue: 'v'),
-        'hwFormatDecimal(Double(v ?? 3), minFraction: nil, maxFraction: nil, '
-        'grouping: true)',
+        r'v != nil ? "\(v)" : "0"',
       );
     });
 
@@ -528,11 +519,10 @@ void main() {
       expect(json.pathSegments, ['count']);
     });
 
-    test('kotlin glance text applies the leaf default before formatting', () {
+    test('kotlin glance text applies the leaf default', () {
       expect(
         json.kotlinGlanceJsonTextInterpolation('widgetData'),
-        'hwFormatDecimal((widgetData.payload?.count ?: 3L).toDouble(), '
-        'null, null, true, hwFormatLocale(context))',
+        '(widgetData.payload?.count ?: 3L).toString()',
       );
     });
 
@@ -540,31 +530,26 @@ void main() {
       const noDefault = HWJson('payload', HWInt('count'));
       expect(
         noDefault.kotlinGlanceJsonTextInterpolation('widgetData'),
-        'hwFormatDecimal((widgetData.payload?.count ?: 0L).toDouble(), '
-        'null, null, true, hwFormatLocale(context))',
+        '(widgetData.payload?.count?.toString() ?: "0")',
       );
     });
 
-    test('swift glance text formats number leaves', () {
+    test('swift glance text describes number leaves', () {
       expect(
         json.swiftGlanceJsonTextInterpolation('entry.data'),
-        'hwFormatDecimal(Double(entry.data.payload?.count ?? 3), '
-        'minFraction: nil, maxFraction: nil, grouping: true)',
+        'String(describing: ((((entry.data.payload?.count) ?? (3)))))',
       );
     });
 
-    test('glance text formats a date leaf with the default format', () {
+    test('glance text stringifies a date leaf raw', () {
       const dateJson = HWJson('payload', HWDateTime('when'));
       expect(
         dateJson.swiftGlanceJsonTextInterpolation('entry.data'),
-        'entry.data.payload?.when.map { hwFormatDateStyled(\$0, '
-        'dateStyle: .medium, timeStyle: .short) } ?? ""',
+        'String(describing: (entry.data.payload?.when))',
       );
       expect(
         dateJson.kotlinGlanceJsonTextInterpolation('widgetData'),
-        'widgetData.payload?.when?.let { hwFormatDateStyled(it, '
-        'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
-        'hwFormatLocale(context)) } ?: ""',
+        '(widgetData.payload?.when?.toString() ?: "")',
       );
     });
 

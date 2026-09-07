@@ -59,7 +59,7 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
             Text(
                 text =
                     hwFormatDecimal(
-                        (widgetData.value ?: 0L).toDouble(),
+                        (widgetData.value ?: 0L),
                         null,
                         null,
                         true,
@@ -84,11 +84,13 @@ data class SimpleDataData(
       return SimpleDataData(
           label = prefs.getString("${PREFERENCES_PREFIX}.label", null),
           value =
-              when (val raw = prefs.all["${PREFERENCES_PREFIX}.value"]) {
-                is Int -> raw.toLong()
-                is Long -> raw
-                else -> null
-              },
+              if (prefs.contains("${PREFERENCES_PREFIX}.value"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.value", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.value", 0L)
+                  })
+              else null,
       )
     }
   }
@@ -98,7 +100,7 @@ private fun hwFormatLocale(context: Context): Locale =
     ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
 
 private fun hwFormatDecimal(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     grouping: Boolean,

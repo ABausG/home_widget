@@ -80,8 +80,8 @@ class HWText extends HWWidget implements HWDataWidget {
   /// renders through the default decimal format, so this is what the emitted
   /// call and [formatHelpers] both follow.
   HWNumberFormat? get effectiveNumberFormat {
-    if (!formatsNumber) return null;
-    return numberFormat ?? HWNumberFormat.defaultFormat;
+    if (numberFormat != null) return numberFormat;
+    return formatsNumber ? HWNumberFormat.defaultFormat : null;
   }
 
   /// The date format this text actually renders with, or null when it renders
@@ -89,8 +89,8 @@ class HWText extends HWWidget implements HWDataWidget {
   ///
   /// Defaults the same way [effectiveNumberFormat] does.
   HWDateFormat? get effectiveDateFormat {
-    if (!formatsDate) return null;
-    return dateFormat ?? HWDateFormat.defaultFormat;
+    if (dateFormat != null) return dateFormat;
+    return formatsDate ? HWDateFormat.defaultFormat : null;
   }
 
   /// The native functions rendering this text, the time zone's included.
@@ -341,7 +341,7 @@ class HWText extends HWWidget implements HWDataWidget {
     final fixedNumber = this.fixedNumber;
     if (fixedNumber != null) {
       return numberFormat!.swiftCall(
-        _nativeDoubleLiteral(fixedNumber),
+        'NSNumber(value: ${_nativeDoubleLiteral(fixedNumber)})',
         dataExpr: dataExpr,
       );
     }
@@ -350,15 +350,16 @@ class HWText extends HWWidget implements HWDataWidget {
     if (dataType == null) return null;
     final bound = dataType.unwrapped;
 
-    if (numberFormat != null) {
+    final effectiveNumberFormat = this.effectiveNumberFormat;
+    if (effectiveNumberFormat != null) {
       return _numberLeaf(dataType).iosFormattedValue(
         bound.swiftAccess(dataExpr),
-        numberFormat,
+        effectiveNumberFormat,
         dataExpr: dataExpr,
       );
     }
 
-    final dateFormat = this.dateFormat;
+    final dateFormat = effectiveDateFormat;
     if (dateFormat != null) {
       return _dateLeaf(dataType).iosFormattedValue(
         bound.swiftAccess(dataExpr),
@@ -398,15 +399,16 @@ class HWText extends HWWidget implements HWDataWidget {
     if (dataType == null) return null;
     final bound = dataType.unwrapped;
 
-    if (numberFormat != null) {
+    final effectiveNumberFormat = this.effectiveNumberFormat;
+    if (effectiveNumberFormat != null) {
       return _numberLeaf(dataType).androidFormattedValue(
         bound.kotlinAccess(dataExpr),
-        numberFormat,
+        effectiveNumberFormat,
         dataExpr: dataExpr,
       );
     }
 
-    final dateFormat = this.dateFormat;
+    final dateFormat = effectiveDateFormat;
     if (dateFormat != null) {
       return _dateLeaf(dataType).androidFormattedValue(
         bound.kotlinAccess(dataExpr),

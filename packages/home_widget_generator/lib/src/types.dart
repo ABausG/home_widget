@@ -7,8 +7,6 @@ import 'utils/content_hash.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
 
-const HWNumberFormat _defaultNumberFormat = HWNumberFormat.defaultFormat;
-
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
 sealed class HWDataType<T> {
   final String key;
@@ -416,10 +414,10 @@ class HWInt extends HWNumericDataType<int> {
     final fallback = codegenKotlinDefaultLiteral() ?? 'null';
     // A Dart int is stored as an Int only while it fits 32 bits and as a Long
     // beyond that, so getInt would throw on large values.
-    return 'when (val raw = $store.all["$key"]) { '
-        'is Int -> raw.toLong(); '
-        'is Long -> raw; '
-        'else -> $fallback }';
+    return 'if ($store.contains("$key")) '
+        '(try { $store.getInt("$key", 0).toLong() } '
+        'catch (_: ClassCastException) { $store.getLong("$key", 0L) }) '
+        'else $fallback';
   }
 
   @override
@@ -434,16 +432,12 @@ class HWInt extends HWNumericDataType<int> {
     required String outerValue,
     required String innerValue,
   }) {
-    return androidFormattedValue(
-      outerValue,
-      _defaultNumberFormat,
-      dataExpr: '',
-    );
+    return '($outerValue?.toString() ?: "0")';
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
-    return iosFormattedValue(outerValue, _defaultNumberFormat, dataExpr: '');
+    return '$outerValue != nil ? "\\($innerValue)" : "0"';
   }
 
   @override
@@ -453,7 +447,7 @@ class HWInt extends HWNumericDataType<int> {
     required String dataExpr,
   }) =>
       format.swiftCall(
-        'Double($outerValue ?? ${defaultValue ?? 0})',
+        'NSNumber(value: $outerValue ?? ${defaultValue ?? 0})',
         dataExpr: dataExpr,
       );
 
@@ -464,7 +458,7 @@ class HWInt extends HWNumericDataType<int> {
     required String dataExpr,
   }) =>
       format.kotlinCall(
-        '($outerValue ?: ${defaultValue ?? 0}L).toDouble()',
+        '($outerValue ?: ${defaultValue ?? 0}L)',
         dataExpr: dataExpr,
       );
 
@@ -512,16 +506,12 @@ class HWDouble extends HWNumericDataType<double> {
     required String outerValue,
     required String innerValue,
   }) {
-    return androidFormattedValue(
-      outerValue,
-      _defaultNumberFormat,
-      dataExpr: '',
-    );
+    return '($outerValue?.toString() ?: "0.0")';
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
-    return iosFormattedValue(outerValue, _defaultNumberFormat, dataExpr: '');
+    return '$outerValue != nil ? "\\($innerValue)" : "0.0"';
   }
 
   @override
@@ -531,7 +521,7 @@ class HWDouble extends HWNumericDataType<double> {
     required String dataExpr,
   }) =>
       format.swiftCall(
-        '$outerValue ?? ${defaultValue ?? 0.0}',
+        'NSNumber(value: $outerValue ?? ${defaultValue ?? 0.0})',
         dataExpr: dataExpr,
       );
 
@@ -647,20 +637,12 @@ class HWDateTime extends HWDataType<DateTime> {
     required String outerValue,
     required String innerValue,
   }) {
-    return androidFormattedValue(
-      outerValue,
-      HWDateFormat.defaultFormat,
-      dataExpr: '',
-    );
+    return '($outerValue?.toString() ?: "")';
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
-    return iosFormattedValue(
-      outerValue,
-      HWDateFormat.defaultFormat,
-      dataExpr: '',
-    );
+    return '$outerValue != nil ? "\\($innerValue)" : ""';
   }
 
   /// Swift expression rendering [outerValue] — the nullable `Date` access
@@ -1028,21 +1010,6 @@ class HWJson<T> extends HWDataType<T> {
     final leaf = leafType;
     // Already non-null: an elvis on top of it makes Kotlin warn.
     if (leaf is HWLocalizedString) return read;
-    // Formatted leaves apply the leaf default themselves, on the raw path.
-    if (leaf is HWNumericDataType<num>) {
-      return leaf.androidFormattedValue(
-        kotlinAccess(dataExpr),
-        _defaultNumberFormat,
-        dataExpr: dataExpr,
-      );
-    }
-    if (leaf is HWDateTime) {
-      return leaf.androidFormattedValue(
-        kotlinAccess(dataExpr),
-        HWDateFormat.defaultFormat,
-        dataExpr: dataExpr,
-      );
-    }
     if (leaf.codegenKotlinDefaultLiteral() != null) {
       return leaf is HWString ? read : '$read.toString()';
     }
@@ -1055,22 +1022,6 @@ class HWJson<T> extends HWDataType<T> {
     final leaf = leafType;
 
     if (leaf is HWLocalizedString) return read;
-
-    // Formatted leaves apply the leaf default themselves, on the raw path.
-    if (leaf is HWNumericDataType<num>) {
-      return leaf.iosFormattedValue(
-        swiftAccess(dataExpr),
-        _defaultNumberFormat,
-        dataExpr: dataExpr,
-      );
-    }
-    if (leaf is HWDateTime) {
-      return leaf.iosFormattedValue(
-        swiftAccess(dataExpr),
-        HWDateFormat.defaultFormat,
-        dataExpr: dataExpr,
-      );
-    }
 
     // Keep string handling compatible with iosToString quoting rules.
     if (leaf is HWString) {

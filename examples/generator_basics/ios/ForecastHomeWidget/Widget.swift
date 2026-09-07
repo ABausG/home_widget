@@ -60,7 +60,8 @@ struct ForecastHomeWidgetEntryView: View {
         .font(.title).fontWeight(.bold)
       Text(
         hwFormatDecimal(
-          Double(entry.data.temperature ?? 0), minFraction: nil, maxFraction: nil, grouping: true))
+          NSNumber(value: entry.data.temperature ?? 0), minFraction: nil, maxFraction: nil,
+          grouping: true))
     }
     .applyContainerBackground()
   }
@@ -150,7 +151,7 @@ func hwFormatLocale() -> Locale {
 }
 
 func hwFormatDecimal(
-  _ value: Double, minFraction: Int?, maxFraction: Int?, grouping: Bool
+  _ value: NSNumber, minFraction: Int?, maxFraction: Int?, grouping: Bool
 ) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
@@ -158,5 +159,5 @@ func hwFormatDecimal(
   formatter.usesGroupingSeparator = grouping
   if let minFraction { formatter.minimumFractionDigits = minFraction }
   if let maxFraction { formatter.maximumFractionDigits = maxFraction }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }

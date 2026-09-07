@@ -96,7 +96,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(hwFormatDecimal(Double(entry.data.count ?? 0), '
+        'Text(hwFormatDecimal(NSNumber(value: entry.data.count ?? 0), '
         'minFraction: nil, maxFraction: nil, grouping: true))',
       ),
     );
@@ -536,7 +536,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(hwFormatDecimal(Double(entry.data.value ?? 0), '
+        'Text(hwFormatDecimal(NSNumber(value: entry.data.value ?? 0), '
         'minFraction: nil, maxFraction: nil, grouping: true))',
       ),
     );
@@ -1254,7 +1254,7 @@ void main() {
     expect(
       content,
       contains(
-        'Text(hwFormatCurrency(entry.data.total ?? 0.0, '
+        'Text(hwFormatCurrency(NSNumber(value: entry.data.total ?? 0.0), '
         'code: entry.data.currency ?? "", decimals: nil))',
       ),
     );

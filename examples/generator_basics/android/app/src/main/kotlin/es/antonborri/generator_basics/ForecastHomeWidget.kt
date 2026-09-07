@@ -62,7 +62,7 @@ class ForecastHomeWidget : GlanceAppWidget() {
           Text(
               text =
                   hwFormatDecimal(
-                      (widgetData.temperature ?: 0L).toDouble(),
+                      (widgetData.temperature ?: 0L),
                       null,
                       null,
                       true,
@@ -135,7 +135,7 @@ private fun hwFormatLocale(context: Context): Locale =
     ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
 
 private fun hwFormatDecimal(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     grouping: Boolean,

@@ -56,12 +56,13 @@ func hwResolveTimeZone(_ id: String?) -> TimeZone {
   return id.flatMap { $0.isEmpty ? nil : TimeZone(identifier: $0) } ?? TimeZone.current
 }''',
     kotlin: '''
-private fun hwResolveTimeZone(id: String?): TimeZone =
-    if (!id.isNullOrEmpty() && TimeZone.getAvailableIDs().contains(id)) {
-        TimeZone.getTimeZone(id)
-    } else {
-        TimeZone.getDefault()
-    }''',
+private fun hwResolveTimeZone(id: String?): TimeZone {
+    if (id.isNullOrEmpty()) return TimeZone.getDefault()
+    val normalized = id.replace(Regex("^(UTC|UT)(?=[+-])"), "GMT")
+    val zone = TimeZone.getTimeZone(normalized)
+    val unknown = zone.id == "GMT" && !normalized.equals("GMT", ignoreCase = true)
+    return if (unknown) TimeZone.getDefault() else zone
+}''',
     kotlinImports: {'import java.util.TimeZone'},
     localeDependent: false,
   ),
@@ -148,7 +149,7 @@ private fun hwParseIsoDate(value: String): Date? {
   hwFormatDecimal(
     swift: '''
 func hwFormatDecimal(
-  _ value: Double, minFraction: Int?, maxFraction: Int?, grouping: Bool
+  _ value: NSNumber, minFraction: Int?, maxFraction: Int?, grouping: Bool
 ) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
@@ -156,11 +157,11 @@ func hwFormatDecimal(
   formatter.usesGroupingSeparator = grouping
   if let minFraction { formatter.minimumFractionDigits = minFraction }
   if let maxFraction { formatter.maximumFractionDigits = maxFraction }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }''',
     kotlin: '''
 private fun hwFormatDecimal(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     grouping: Boolean,
@@ -182,17 +183,17 @@ private fun hwFormatDecimal(
   /// Renders a fraction as a percentage: `0.5` becomes `50%`.
   hwFormatPercent(
     swift: '''
-func hwFormatPercent(_ value: Double, minFraction: Int?, maxFraction: Int?) -> String {
+func hwFormatPercent(_ value: NSNumber, minFraction: Int?, maxFraction: Int?) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   formatter.numberStyle = .percent
   if let minFraction { formatter.minimumFractionDigits = minFraction }
   if let maxFraction { formatter.maximumFractionDigits = maxFraction }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }''',
     kotlin: '''
 private fun hwFormatPercent(
-    value: Double,
+    value: Number,
     minFraction: Int?,
     maxFraction: Int?,
     locale: Locale,
@@ -225,7 +226,7 @@ private fun hwFormatPercent(
   /// the formatter's own digits.
   hwFormatCurrency(
     swift: r'''
-func hwFormatCurrency(_ value: Double, code: String, decimals: Int?) -> String {
+func hwFormatCurrency(_ value: NSNumber, code: String, decimals: Int?) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   let isoCode = code.uppercased()
@@ -241,11 +242,11 @@ func hwFormatCurrency(_ value: Double, code: String, decimals: Int?) -> String {
     formatter.minimumFractionDigits = decimals
     formatter.maximumFractionDigits = decimals
   }
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }''',
     kotlin: '''
 private fun hwFormatCurrency(
-    value: Double,
+    value: Number,
     code: String,
     decimals: Int?,
     locale: Locale,
@@ -263,7 +264,7 @@ private fun hwFormatCurrency(
             NumberFormat.getCurrencyInstance(locale).apply {
                 currency = resolved
                 val defaults = resolved.defaultFractionDigits
-                if (decimals == null && defaults >= 0) {
+                if (defaults >= 0) {
                     minimumFractionDigits = defaults
                     maximumFractionDigits = defaults
                 }
@@ -290,17 +291,17 @@ private fun hwFormatCurrency(
   /// renders as a plain decimal rather than not at all.
   hwFormatCompact(
     swift: '''
-func hwFormatCompact(_ value: Double) -> String {
+func hwFormatCompact(_ value: NSNumber) -> String {
   if #available(iOS 15.0, macOS 12.0, tvOS 15.0, watchOS 8.0, *) {
-    return value.formatted(.number.notation(.compactName).locale(hwFormatLocale()))
+    return value.doubleValue.formatted(.number.notation(.compactName).locale(hwFormatLocale()))
   }
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   formatter.numberStyle = .decimal
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }''',
     kotlin: '''
-private fun hwFormatCompact(value: Double, locale: Locale): String {
+private fun hwFormatCompact(value: Number, locale: Locale): String {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         val compact =
             CompactDecimalFormat.getInstance(
@@ -329,18 +330,18 @@ private fun hwFormatCompact(value: Double, locale: Locale): String {
   /// own decimal format rather than letting the whole widget fail to load.
   hwFormatNumberPattern(
     swift: '''
-func hwFormatNumberPattern(_ value: Double, _ pattern: String) -> String {
+func hwFormatNumberPattern(_ value: NSNumber, _ pattern: String) -> String {
   let formatter = NumberFormatter()
   formatter.locale = hwFormatLocale()
   let parts = pattern.components(separatedBy: ";")
   let positive = parts.first ?? pattern
   formatter.positiveFormat = positive
   formatter.negativeFormat = parts.count > 1 ? parts[1] : "-" + positive
-  return formatter.string(from: NSNumber(value: value)) ?? String(value)
+  return formatter.string(from: value) ?? value.stringValue
 }''',
     kotlin: '''
 private fun hwFormatNumberPattern(
-    value: Double,
+    value: Number,
     pattern: String,
     locale: Locale,
 ): String {
