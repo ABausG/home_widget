@@ -490,4 +490,96 @@ void main() {
       );
     });
   });
+
+  group('flavor annotation ==', () {
+    test('HomeWidgetIOSFlavor compares its override', () {
+      const a = HomeWidgetIOSFlavor(groupId: 'g');
+      expect(a, const HomeWidgetIOSFlavor(groupId: 'g'));
+      expect(a.hashCode, const HomeWidgetIOSFlavor(groupId: 'g').hashCode);
+      expect(a, isNot(equals(const HomeWidgetIOSFlavor(groupId: 'h'))));
+      expect(a, isNot(equals(const HomeWidgetIOSFlavor())));
+      expect(const HomeWidgetIOSFlavor(), const HomeWidgetIOSFlavor());
+    });
+
+    test('HomeWidgetFlavor compares the nested iOS overrides', () {
+      const a =
+          HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'group.dev'));
+      const b =
+          HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'group.dev'));
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
+      expect(
+        a,
+        isNot(
+          equals(
+            const HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(groupId: 'group.stg'),
+            ),
+          ),
+        ),
+      );
+      expect(const HomeWidgetFlavor(), isNot(equals(a)));
+      expect(const HomeWidgetFlavor(), const HomeWidgetFlavor());
+    });
+
+    test('HomeWidget equality includes the flavor map', () {
+      const dev = HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev'));
+      HomeWidget make(Map<String, HomeWidgetFlavor>? flavors) =>
+          HomeWidget(name: 'n', flavors: flavors);
+
+      final a = make(const {'dev': dev, 'stg': HomeWidgetFlavor()});
+      expect(a, make(const {'dev': dev, 'stg': HomeWidgetFlavor()}));
+      // A dropped flavor, a renamed one and a changed override all differ.
+      expect(a, isNot(equals(make(const {'dev': dev}))));
+      expect(
+        a,
+        isNot(equals(make(const {'dev': dev, 'prod': HomeWidgetFlavor()}))),
+      );
+      expect(
+        a,
+        isNot(
+          equals(
+            make(const {
+              'dev': HomeWidgetFlavor(
+                iOS: HomeWidgetIOSFlavor(groupId: 'g.stg'),
+              ),
+              'stg': HomeWidgetFlavor(),
+            }),
+          ),
+        ),
+      );
+      expect(a, isNot(equals(make(null))));
+      expect(make(null), isNot(equals(a)));
+      // Literal ordering is not part of the map's identity.
+      expect(a, make(const {'stg': HomeWidgetFlavor(), 'dev': dev}));
+    });
+
+    test('HomeWidget hashCode ignores flavor ordering', () {
+      expect(
+        HomeWidget(
+          name: 'n',
+          flavors: const {
+            'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev')),
+            'stg': HomeWidgetFlavor(),
+          },
+        ).hashCode,
+        HomeWidget(
+          name: 'n',
+          flavors: const {
+            'stg': HomeWidgetFlavor(),
+            'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev')),
+          },
+        ).hashCode,
+      );
+      expect(
+        HomeWidget(name: 'n').hashCode,
+        isNot(
+          HomeWidget(
+            name: 'n',
+            flavors: const {'dev': HomeWidgetFlavor()},
+          ).hashCode,
+        ),
+      );
+    });
+  });
 }

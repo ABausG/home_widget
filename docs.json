@@ -93,7 +93,8 @@
         { "title": "Localization", "href": "/generator/localization" },
         { "title": "Formatting", "href": "/generator/formatting" },
         { "title": "Time-based Content", "href": "/generator/timed-data" },
-        { "title": "Widget Clicks", "href": "/generator/widget-url" }
+        { "title": "Widget Clicks", "href": "/generator/widget-url" },
+        { "title": "Flavors", "href": "/generator/flavors" }
       ]
     },
     {

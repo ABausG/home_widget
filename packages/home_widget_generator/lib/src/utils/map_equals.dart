@@ -8,7 +8,7 @@ library;
 /// Dart maps compare by identity, so without this two annotations spelling the
 /// same translations would never be equal, and localized strings would never
 /// dedupe in the `Set<HWDataType>` returned by `dataDependencies`.
-bool mapEquals(Map<String, String>? a, Map<String, String>? b) {
+bool mapEquals<T>(Map<String, T>? a, Map<String, T>? b) {
   if (a == null || b == null) return a == b;
   if (a.length != b.length) return false;
   for (final entry in a.entries) {

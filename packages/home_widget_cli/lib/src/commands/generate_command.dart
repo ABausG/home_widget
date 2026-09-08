@@ -174,9 +174,15 @@ class GenerateCommand extends Command<int> {
       final total = steps.length;
       final base = 'Generating ${spec.data.name} home_widget';
       final progress = logger.progress(base);
-      for (var i = 0; i < steps.length; i++) {
-        progress.update('$base · ${i + 1}/$total ${steps[i].label}');
-        await steps[i].run();
+      try {
+        for (var i = 0; i < steps.length; i++) {
+          progress.update('$base · ${i + 1}/$total ${steps[i].label}');
+          await steps[i].run();
+        }
+      } on GeneratorError catch (e) {
+        progress.fail('Failed to generate ${spec.data.name} home_widget');
+        logger.err(e.message);
+        return ExitCodes.software;
       }
       progress.complete('Generated ${spec.data.name} home_widget');
     }

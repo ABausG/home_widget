@@ -1234,7 +1234,10 @@ android {
 
       expect(
         swift,
-        contains('let prefs = UserDefaults(suiteName: "group.example")'),
+        contains(
+          'let prefs = UserDefaults(suiteName: '
+          'GreetingHomeWidgetFlavor.appGroupId)',
+        ),
       );
       expect(
         swift,

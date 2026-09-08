@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dart_style/dart_style.dart';
 import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
@@ -977,6 +978,77 @@ void main() {
 
       expect(output, isNot(contains('_\$appGroupId')));
       expect(output, isNot(contains('appGroupId:')));
+    });
+
+    test('resolves the appGroupId per flavor when flavors are declared', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+          flavors: const {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(groupId: 'group.example.dev'),
+            ),
+            'prod': HomeWidgetFlavor(),
+          },
+        ),
+        className: 'ExampleWidget',
+        dataFields: [HWString('title')],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains("import 'package:flutter/services.dart';"));
+      expect(
+        output,
+        contains(
+          'static String get _\$appGroupId => switch (appFlavor) {\n'
+          "    'dev' => 'group.example.dev',\n"
+          "    'prod' => 'group.example',\n"
+          "    _ => 'group.example',\n"
+          '  };',
+        ),
+      );
+      expect(
+        output,
+        isNot(contains("static const String _\$appGroupId = 'group.example';")),
+      );
+      expect(
+        output,
+        contains(
+          "HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.title', title, appGroupId: _\$appGroupId)",
+        ),
+      );
+
+      // `// dart format off` keeps the emitted switch exactly as written, so
+      // format it again without the marker to prove it is valid Dart.
+      final formatted = DartFormatter(
+        languageVersion: DartFormatter.latestLanguageVersion,
+      ).format(output.replaceFirst('// dart format off\n', ''));
+      expect(formatted, contains('switch (appFlavor)'));
+    });
+
+    test('keeps the appGroupId constant when no flavors are declared', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+        dataFields: [HWString('title')],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains("static const String _\$appGroupId = 'group.example';"),
+      );
+      expect(output, isNot(contains('appFlavor')));
+      expect(
+        output,
+        isNot(contains("import 'package:flutter/services.dart';")),
+      );
     });
 
     test('emits the launch helpers when a widget URL is configured', () {

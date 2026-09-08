@@ -544,6 +544,69 @@ void main() {
     });
   });
 
+  group('WidgetSpec flavors', () {
+    WidgetSpec flavorSpec({
+      String iosGroupId = 'group.base',
+      Map<String, HomeWidgetFlavor>? flavors,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'FlavorWidget',
+            android: const HomeWidgetAndroidConfiguration(),
+            iOS: HomeWidgetIOSConfiguration(groupId: iosGroupId),
+            flavors: flavors,
+          ),
+          className: 'FlavorWidget',
+        );
+
+    test('a widget without flavors declares none', () {
+      final spec = flavorSpec();
+      expect(spec.declaredFlavors, isEmpty);
+      expect(spec.hasFlavors, isFalse);
+      expect(spec.flavor('dev'), isNull);
+    });
+
+    test('declaredFlavors keeps the declaration order', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(),
+          'stg': HomeWidgetFlavor(),
+          'prod': HomeWidgetFlavor(),
+        },
+      );
+      expect(spec.declaredFlavors, ['dev', 'stg', 'prod']);
+      expect(spec.hasFlavors, isTrue);
+      expect(spec.flavor('stg'), const HomeWidgetFlavor());
+      expect(spec.flavor('Dev'), isNull);
+    });
+
+    test('an empty flavor entry resolves to the base values', () {
+      final spec = flavorSpec(flavors: const {'stg': HomeWidgetFlavor()});
+      expect(spec.iosGroupIdFor('stg'), 'group.base');
+    });
+
+    test('an unknown flavor name falls back to the base values', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev')),
+        },
+      );
+      expect(spec.iosGroupIdFor('nope'), 'group.base');
+    });
+
+    test('a flavor groupId overrides the base App Group', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev')),
+          'stg': HomeWidgetFlavor(),
+        },
+      );
+      expect(spec.iosGroupIdFor(null), 'group.base');
+      expect(spec.iosGroupIdFor('dev'), 'g.dev');
+      expect(spec.iosGroupIdFor('stg'), 'group.base');
+    });
+  });
+
   group('WidgetSpec.nativeHelpers', () {
     List<String> namesOf(WidgetSpec spec) =>
         spec.nativeHelpers.map((h) => h.name).toList();

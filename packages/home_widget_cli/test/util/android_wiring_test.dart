@@ -514,6 +514,294 @@ dependencies {
     });
   });
 
+  group('ensureAndroidManifestReceiver with flavors', () {
+    late File mainManifest;
+
+    File flavorManifest(String flavor) => File(
+          p.join(
+            root.path,
+            'android',
+            'app',
+            'src',
+            flavor,
+            'AndroidManifest.xml',
+          ),
+        );
+
+    void writeMainManifest({String extraApplicationChildren = ''}) {
+      mainManifest.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application android:label="test">
+        <activity android:name=".MainActivity" />$extraApplicationChildren
+    </application>
+</manifest>
+''',
+      );
+    }
+
+    Future<void> ensure({List<String> flavors = const []}) =>
+        ensureAndroidManifestReceiver(
+          root,
+          widgetClassName: 'FooHomeWidget',
+          appPackageName: 'com.test',
+          providerInfoName: 'foo_home_widget',
+          handleLocaleChange: true,
+          label: '@string/home_widget_foo_label',
+          flavors: flavors,
+        );
+
+    setUp(() {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'main'),
+      )..createSync(recursive: true);
+      mainManifest = File(p.join(dir.path, 'AndroidManifest.xml'));
+      writeMainManifest();
+    });
+
+    test('creates a flavor manifest carrying the receiver', () async {
+      await ensure(flavors: ['dev', 'prod']);
+
+      for (final flavor in ['dev', 'prod']) {
+        final content = flavorManifest(flavor).readAsStringSync();
+        expect(
+          content,
+          contains(
+            'xmlns:android="http://schemas.android.com/apk/res/android"',
+          ),
+        );
+        expect(
+          content,
+          contains('android:name="com.test.FooHomeWidgetReceiver"'),
+        );
+        expect(
+          content,
+          contains('android:label="@string/home_widget_foo_label"'),
+        );
+        expect(content, contains('@xml/foo_home_widget'));
+        expect(
+          content,
+          contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+        );
+
+        final receivers =
+            XmlDocument.parse(content).rootElement.findAllElements('receiver');
+        expect(receivers.length, 1);
+      }
+
+      expect(
+        mainManifest.readAsStringSync(),
+        isNot(contains('FooHomeWidgetReceiver')),
+      );
+    });
+
+    test('marks a manifest it created and keeps the marker across runs',
+        () async {
+      const marker = '<!-- CREATED AND MANAGED BY THE home_widget CLI - IT '
+          'ADDS AND REMOVES ITS OWN WIDGET RECEIVERS HERE -->';
+
+      await ensure(flavors: ['dev']);
+
+      expect(
+        flavorManifest('dev').readAsStringSync(),
+        startsWith('<?xml version="1.0" encoding="utf-8"?>\n$marker\n'),
+      );
+
+      // A second widget rewrites the file through the parse -> write round
+      // trip, which has to leave the comment where it is.
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'BarHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'bar_home_widget',
+        flavors: const ['dev'],
+      );
+
+      final content = flavorManifest('dev').readAsStringSync();
+      expect(
+        content,
+        startsWith('<?xml version="1.0" encoding="utf-8"?>\n$marker\n'),
+      );
+      expect(content, contains('FooHomeWidgetReceiver'));
+      expect(content, contains('BarHomeWidgetReceiver'));
+    });
+
+    test('never marks a manifest it did not create', () async {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'dev'),
+      )..createSync(recursive: true);
+      File(p.join(dir.path, 'AndroidManifest.xml')).writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Dev" />
+</manifest>
+''',
+      );
+
+      await ensure(flavors: ['dev']);
+      await ensure();
+
+      expect(
+        flavorManifest('dev').readAsStringSync(),
+        isNot(contains('CREATED AND MANAGED')),
+      );
+      expect(
+        mainManifest.readAsStringSync(),
+        isNot(contains('CREATED AND MANAGED')),
+      );
+    });
+
+    test('moves the receiver out of main and back again', () async {
+      await ensure();
+      expect(
+        mainManifest.readAsStringSync(),
+        contains('FooHomeWidgetReceiver'),
+      );
+
+      await ensure(flavors: ['dev']);
+      expect(
+        mainManifest.readAsStringSync(),
+        isNot(contains('FooHomeWidgetReceiver')),
+      );
+      expect(
+        flavorManifest('dev').readAsStringSync(),
+        contains('FooHomeWidgetReceiver'),
+      );
+      // The app's own declarations survive the removal.
+      expect(
+        mainManifest.readAsStringSync(),
+        contains('android:name=".MainActivity"'),
+      );
+
+      await ensure();
+      expect(
+        mainManifest.readAsStringSync(),
+        contains('FooHomeWidgetReceiver'),
+      );
+      expect(
+        flavorManifest('dev').readAsStringSync(),
+        isNot(contains('FooHomeWidgetReceiver')),
+      );
+    });
+
+    test('is idempotent across repeated runs', () async {
+      await ensure(flavors: ['dev']);
+      final mainAfterFirst = mainManifest.readAsStringSync();
+      final flavorAfterFirst = flavorManifest('dev').readAsStringSync();
+
+      await ensure(flavors: ['dev']);
+
+      expect(mainManifest.readAsStringSync(), mainAfterFirst);
+      expect(flavorManifest('dev').readAsStringSync(), flavorAfterFirst);
+    });
+
+    test('drops the receiver from a flavor that is no longer declared',
+        () async {
+      await ensure(flavors: ['dev', 'prod']);
+
+      await ensure(flavors: ['dev']);
+
+      expect(
+        flavorManifest('dev').readAsStringSync(),
+        contains('FooHomeWidgetReceiver'),
+      );
+      expect(
+        flavorManifest('prod').readAsStringSync(),
+        isNot(contains('FooHomeWidgetReceiver')),
+      );
+    });
+
+    test('keeps the rest of an existing flavor manifest', () async {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'dev'),
+      )..createSync(recursive: true);
+      File(p.join(dir.path, 'AndroidManifest.xml')).writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:label="Dev">
+        <activity android:name=".DevOnlyActivity" />
+    </application>
+</manifest>
+''',
+      );
+
+      await ensure(flavors: ['dev']);
+
+      final content = flavorManifest('dev').readAsStringSync();
+      expect(content, contains('android.permission.INTERNET'));
+      expect(content, contains('android:name=".DevOnlyActivity"'));
+      expect(content, contains('android:label="Dev"'));
+      expect(content, contains('FooHomeWidgetReceiver'));
+    });
+
+    test('adds an application element to a flavor manifest without one',
+        () async {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'dev'),
+      )..createSync(recursive: true);
+      File(p.join(dir.path, 'AndroidManifest.xml')).writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
+''',
+      );
+
+      await ensure(flavors: ['dev']);
+
+      final document = XmlDocument.parse(
+        flavorManifest('dev').readAsStringSync(),
+      );
+      final application =
+          document.rootElement.findElements('application').single;
+      expect(
+        application
+            .findElements('receiver')
+            .single
+            .getAttribute('android:name'),
+        'com.test.FooHomeWidgetReceiver',
+      );
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('only removes the receiver it owns', () async {
+      writeMainManifest(
+        extraApplicationChildren: '''
+        <receiver
+            android:name="com.test.AdaptiveFooHomeWidgetReceiver"
+            android:label="@string/home_widget_adaptive_foo_label"
+            android:exported="true">
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/adaptive_foo_home_widget" />
+        </receiver>''',
+      );
+
+      await ensure(flavors: ['dev']);
+
+      final content = mainManifest.readAsStringSync();
+      expect(content, contains('AdaptiveFooHomeWidgetReceiver'));
+      expect(content, contains('@xml/adaptive_foo_home_widget'));
+      expect(content, isNot(contains('"com.test.FooHomeWidgetReceiver"')));
+    });
+
+    test('warns and writes nothing when the main manifest is missing',
+        () async {
+      mainManifest.deleteSync();
+
+      await ensure();
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('AndroidManifest.xml not found')),
+        ),
+      ).called(1);
+      expect(mainManifest.existsSync(), isFalse);
+    });
+  });
+
   group('ensureAndroidManifestScheduledUpdates', () {
     late File manifestFile;
 

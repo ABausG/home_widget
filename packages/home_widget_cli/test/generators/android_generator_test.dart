@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
@@ -1971,6 +1972,269 @@ void main() {
       expect(
         manifest.readAsStringSync(),
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
+      );
+    });
+  });
+
+  group('flavors', () {
+    File manifestOf(String sourceSet) => File(
+          p.join(
+            tempDir.path,
+            'android',
+            'app',
+            'src',
+            sourceSet,
+            'AndroidManifest.xml',
+          ),
+        );
+
+    void writeGradle(String productFlavors) {
+      File(p.join(tempDir.path, 'android', 'app', 'build.gradle'))
+          .writeAsStringSync('''
+android {
+    namespace "com.example"
+$productFlavors
+}
+
+dependencies {
+}
+''');
+    }
+
+    /// A path-to-content map of everything under `android/`, to assert a failed
+    /// run left the project alone.
+    Map<String, String> androidTree() {
+      final dir = Directory(p.join(tempDir.path, 'android'));
+      return {
+        for (final file in dir.listSync(recursive: true).whereType<File>())
+          p.relative(file.path, from: tempDir.path): file.readAsStringSync(),
+      };
+    }
+
+    Future<void> generateFor(
+      Map<String, HomeWidgetFlavor>? flavors, {
+      bool resetManifest = true,
+    }) async {
+      if (resetManifest) writeLauncherManifest(tempDir);
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Flavored',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          flavors: flavors,
+        ),
+        className: 'Flavored',
+      );
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+    }
+
+    test('registers the receiver per flavor instead of in main', () async {
+      writeGradle('''
+    productFlavors {
+        dev { dimension "default" }
+        prod { dimension "default" }
+    }''');
+
+      await generateFor(const {
+        'dev': HomeWidgetFlavor(),
+        'prod': HomeWidgetFlavor(),
+      });
+
+      for (final flavor in ['dev', 'prod']) {
+        expect(
+          manifestOf(flavor).readAsStringSync(),
+          contains('android:name="com.example.FlavoredHomeWidgetReceiver"'),
+        );
+      }
+      expect(
+        manifestOf('main').readAsStringSync(),
+        isNot(contains('FlavoredHomeWidgetReceiver')),
+      );
+      // The Kotlin and the resources stay shared.
+      expect(
+        File(
+          p.join(
+            tempDir.path,
+            'android/app/src/main/kotlin/com/example/FlavoredHomeWidget.kt',
+          ),
+        ).existsSync(),
+        isTrue,
+      );
+      expect(
+        File(
+          p.join(
+            tempDir.path,
+            'android/app/src/main/res/xml/flavored_home_widget.xml',
+          ),
+        ).existsSync(),
+        isTrue,
+      );
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('keeps the receiver in main when no flavors are declared', () async {
+      writeGradle('''
+    productFlavors {
+        dev { dimension "default" }
+    }''');
+
+      await generateFor(null);
+
+      expect(
+        manifestOf('main').readAsStringSync(),
+        contains('android:name="com.example.FlavoredHomeWidgetReceiver"'),
+      );
+      expect(manifestOf('dev').existsSync(), isFalse);
+      verifyNever(
+        () => mockLogger.detail(any(that: contains('not generated'))),
+      );
+    });
+
+    test('moves the receiver into a flavor the Gradle files declare', () async {
+      writeGradle('''
+    productFlavors {
+        dev { dimension "default" }
+    }''');
+
+      await generateFor(null);
+      expect(
+        manifestOf('main').readAsStringSync(),
+        contains('FlavoredHomeWidgetReceiver'),
+      );
+
+      await generateFor(
+        const {'dev': HomeWidgetFlavor()},
+        resetManifest: false,
+      );
+
+      expect(
+        manifestOf('dev').readAsStringSync(),
+        contains('android:name="com.example.FlavoredHomeWidgetReceiver"'),
+      );
+      expect(
+        manifestOf('main').readAsStringSync(),
+        isNot(contains('FlavoredHomeWidgetReceiver')),
+      );
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('fails on a declared flavor the Gradle files do not have', () async {
+      writeGradle('''
+    productFlavors {
+        prod { dimension "default" }
+    }''');
+
+      // An earlier run without flavors put the receiver into src/main.
+      await generateFor(null);
+      final before = androidTree();
+
+      await expectLater(
+        generateFor(
+          const {'dev': HomeWidgetFlavor()},
+          resetManifest: false,
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf([
+              contains('Flavored'),
+              contains('the flavor "dev"'),
+              contains('Product flavors found under android/app/: "prod"'),
+              contains('android/app/src/dev/'),
+            ]),
+          ),
+        ),
+      );
+
+      expect(androidTree(), before);
+      expect(manifestOf('dev').existsSync(), isFalse);
+      expect(
+        manifestOf('main').readAsStringSync(),
+        contains('FlavoredHomeWidgetReceiver'),
+      );
+    });
+
+    test('accepts a flavor whose source set directory already exists',
+        () async {
+      writeGradle('');
+      Directory(p.join(tempDir.path, 'android', 'app', 'src', 'dev'))
+          .createSync(recursive: true);
+
+      await generateFor(const {'dev': HomeWidgetFlavor()});
+
+      expect(
+        manifestOf('dev').readAsStringSync(),
+        contains('android:name="com.example.FlavoredHomeWidgetReceiver"'),
+      );
+      expect(
+        manifestOf('main').readAsStringSync(),
+        isNot(contains('FlavoredHomeWidgetReceiver')),
+      );
+      verify(
+        () => mockLogger.detail(
+          any(that: contains('Could not detect Android product flavors')),
+        ),
+      ).called(1);
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('reports a detected flavor the widget does not declare', () async {
+      writeGradle('''
+    productFlavors {
+        dev { dimension "default" }
+        prod { dimension "default" }
+    }''');
+
+      await generateFor(const {'dev': HomeWidgetFlavor()});
+
+      verify(
+        () => mockLogger.detail(
+          any(
+            that: allOf([
+              contains('Flavored'),
+              contains('not generated'),
+              contains('"prod"'),
+            ]),
+          ),
+        ),
+      ).called(1);
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('fails when no product flavors could be detected at all', () async {
+      writeGradle('');
+      writeLauncherManifest(tempDir);
+      final before = androidTree();
+
+      await expectLater(
+        generateFor(
+          const {'dev': HomeWidgetFlavor()},
+          resetManifest: false,
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf([
+              contains('Flavored'),
+              contains('the flavor "dev"'),
+              contains('No productFlavors block was found under android/app/'),
+              contains('android/app/src/dev/'),
+            ]),
+          ),
+        ),
+      );
+
+      expect(androidTree(), before);
+      expect(manifestOf('dev').existsSync(), isFalse);
+      expect(
+        File(
+          p.join(
+            tempDir.path,
+            'android/app/src/main/kotlin/com/example/FlavoredHomeWidget.kt',
+          ),
+        ).existsSync(),
+        isFalse,
       );
     });
   });
