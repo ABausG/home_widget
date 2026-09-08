@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 void main() {
@@ -1272,5 +1276,178 @@ void main() {
       expect(output, isNot(contains('widgetClicked')));
       expect(output, isNot(contains('launchedFromWidget')));
     });
+
+    test('stores a top-level date as a UTC ISO string', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Agenda',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.agenda'),
+        ),
+        className: 'Agenda',
+        dataFields: const [HWDateTime('lastSync')],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('DateTime? lastSync,'));
+      expect(
+        output,
+        contains(
+          "if (lastSync != null) HomeWidget.saveWidgetData<String>('\${_\$paramPrefix}.lastSync', lastSync.toUtc().toIso8601String(), appGroupId: _\$appGroupId),",
+        ),
+      );
+      // The delete path is untyped and clears the key like any other field.
+      expect(
+        output,
+        contains(
+          "if (lastSync) HomeWidget.saveWidgetData('\${_\$paramPrefix}.lastSync', null, appGroupId: _\$appGroupId),",
+        ),
+      );
+      expect(
+        output,
+        contains('static Future<({DateTime? lastSync})> getData()'),
+      );
+      expect(
+        output,
+        contains(
+          "lastSync: _readDateTime(await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.lastSync', appGroupId: _\$appGroupId)),",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'DateTime? _readDateTime(Object? value) {\n'
+          '  if (value is! String || value.isEmpty) return null;\n'
+          '  return DateTime.tryParse(value)?.toUtc();\n'
+          '}',
+        ),
+      );
+      // A date needs no JSON plumbing of its own.
+      expect(output, isNot(contains("import 'dart:convert';")));
+      expect(output, isNot(contains('_readString')));
+    });
+
+    test('encodes a date at a JSON leaf as a UTC ISO string', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Agenda'),
+        className: 'Agenda',
+        dataFields: const [
+          HWJson('event', HWString('title')),
+          HWJson('event', HWJson('slot', HWDateTime('startsAt'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('class EventSlotJsonData {'));
+      expect(output, contains('final DateTime? startsAt;'));
+      expect(output, contains("startsAt: _readDateTime(json['startsAt']),"));
+      expect(
+        output,
+        contains(
+          "if (startsAt != null) 'startsAt': startsAt!.toUtc().toIso8601String(),",
+        ),
+      );
+      expect(output, contains('DateTime? _readDateTime(Object? value) {'));
+    });
+
+    test('encodes a timed date as a UTC ISO string', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Agenda'),
+        className: 'Agenda',
+        dataFields: const [
+          HWTimedData(HWDateTime('slot')),
+          HWTimedData(HWJson('shift', HWDateTime('endsAt'))),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      // Timed primitive
+      expect(output, contains('class AgendaTimedData {'));
+      expect(output, contains('final DateTime? slot;'));
+      expect(output, contains("slot: _readDateTime(json['slot']),"));
+      expect(
+        output,
+        contains("if (slot != null) 'slot': slot!.toUtc().toIso8601String(),"),
+      );
+
+      // Timed JSON leaf, which reuses the plain JSON data class
+      expect(output, contains('class ShiftJsonData {'));
+      expect(output, contains('final DateTime? endsAt;'));
+      expect(output, contains("endsAt: _readDateTime(json['endsAt']),"));
+      expect(
+        output,
+        contains(
+          "if (endsAt != null) 'endsAt': endsAt!.toUtc().toIso8601String(),",
+        ),
+      );
+    });
+
+    test('round-trips a date through the generated JSON class', () async {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Agenda'),
+        className: 'Agenda',
+        dataFields: const [HWJson('event', HWDateTime('startsAt'))],
+      );
+
+      final output = await _runGenerated(
+        DartHelperGenerator(spec).generate(),
+        'class EventJsonData',
+        '''
+  final local = DateTime(2026, 1, 2, 3, 4, 5, 6);
+  final encoded = EventJsonData(startsAt: local).toJson();
+  print(encoded['startsAt']);
+  print(encoded['startsAt'] == local.toUtc().toIso8601String());
+  final decoded = EventJsonData.fromJson(encoded);
+  print(decoded.startsAt!.isAtSameMomentAs(local));
+  print(decoded.startsAt!.isUtc);
+  print(EventJsonData.fromJson({'startsAt': 'not a date'}).startsAt);
+  print(EventJsonData.fromJson(const {}).toJson());
+''',
+      );
+
+      expect(
+        const LineSplitter().convert(output),
+        [
+          // A local time is stored as the instant it denotes, in UTC.
+          endsWith('Z'),
+          'true',
+          'true',
+          'true',
+          // Anything unreadable comes back absent rather than throwing.
+          'null',
+          '{}',
+        ],
+      );
+    });
   });
+}
+
+/// Runs part of a generated helper in a subprocess, so an encode/decode test
+/// asserts behavior rather than source text.
+///
+/// The extract starts at [firstClass] and runs to the end of the file, which is
+/// where the generated data classes and their readers live — none of them
+/// touches `package:home_widget`, so it runs with no package config.
+Future<String> _runGenerated(
+  String dart,
+  String firstClass,
+  String body,
+) async {
+  final start = dart.indexOf(firstClass);
+  expect(start, isNonNegative, reason: '$firstClass was not emitted');
+
+  final dir = await Directory.systemTemp.createTemp('hw_datetime_run_');
+  addTearDown(() {
+    if (dir.existsSync()) dir.deleteSync(recursive: true);
+  });
+  final file = File(p.join(dir.path, 'main.dart'));
+  await file.writeAsString('${dart.substring(start)}\nvoid main() {\n$body}\n');
+
+  final result = await Process.run(Platform.resolvedExecutable, [file.path]);
+  if (result.exitCode != 0) {
+    fail('generated code did not run:\n${result.stdout}\n${result.stderr}');
+  }
+  return (result.stdout as String).trim();
 }

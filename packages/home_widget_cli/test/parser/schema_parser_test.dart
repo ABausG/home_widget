@@ -409,6 +409,103 @@ void main() {
       expect(leaf.baseValue, 'Sonnig');
     });
 
+    test('parses the format of an HWText.number', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Steps',
+          widget: HWText.number(
+            HWInt('steps'),
+            format: HWNumberFormat.decimal(
+              maximumFractionDigits: 0,
+              useGrouping: false,
+            ),
+          ),
+        )
+        class StepsWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.dataFields, const [HWInt('steps')]);
+
+      final text = spec.widgetTree! as HWText;
+      expect(
+        text.numberFormat,
+        const HWNumberFormat.decimal(
+          maximumFractionDigits: 0,
+          useGrouping: false,
+        ),
+      );
+      expect(text.dateFormat, isNull);
+    });
+
+    test('collects the field a data-bound currency reads', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Cart',
+          widget: HWText.number(
+            HWDouble('total'),
+            format: HWNumberFormat.currency(
+              currency: HWCurrency.data(HWJson('cart', HWString('currency'))),
+              decimalDigits: 2,
+            ),
+          ),
+        )
+        class CartWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+
+      // The code is only ever named inside the format, so the parser has to
+      // pick it up from there or the data class would never carry it.
+      expect(spec!.primitiveDataFields, const [HWDouble('total')]);
+      expect(
+        spec.jsonDataGroups.single.children.single.type,
+        const HWString('currency'),
+      );
+
+      final text = spec.widgetTree! as HWText;
+      expect(
+        text.numberFormat,
+        const HWNumberFormat.currency(
+          currency: HWCurrency.data(HWJson('cart', HWString('currency'))),
+          decimalDigits: 2,
+        ),
+      );
+    });
+
+    test('collects a date and the field its time zone reads', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Agenda',
+          widget: HWText.dateTime(
+            HWDateTime('startsAt'),
+            format: HWDateFormat.yMMMd,
+            timeZone: HWTimeZone.data(HWString('zone')),
+          ),
+        )
+        class AgendaWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(
+        spec!.primitiveDataFields,
+        unorderedEquals(const [HWDateTime('startsAt'), HWString('zone')]),
+      );
+
+      final text = spec.widgetTree! as HWText;
+      expect(text.dateFormat, HWDateFormat.yMMMd);
+      expect(text.timeZone, const HWTimeZone.data(HWString('zone')));
+    });
+
     test('parses supportedFamilies on iOS configuration', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

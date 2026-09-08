@@ -72,7 +72,7 @@ This page walks through setting up `home_widget_generator`, writing your first w
     class Greeting {}
     ```
 
-    Every `HWString` / `HWInt` / `HWBool` / `HWDouble` you reference inside `widget:` becomes a typed field on the generated helper, so you can update it without juggling string keys.
+    Every `HWString` / `HWInt` / `HWBool` / `HWDouble` / `HWDateTime` you reference inside `widget:` becomes a typed field on the generated helper, so you can update it without juggling string keys. Numbers and dates are rendered in the device's own locale — see [Formatting](/generator/formatting).
   </Step>
 
   <Step title="Generate the code">

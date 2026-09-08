@@ -199,6 +199,140 @@ class WidgetValueDecoder {
     return decodeEnum(obj, HWTextAlign.values);
   }
 
+  /// Decodes an [HWNumberFormat], or null when [obj] is absent.
+  ///
+  /// A string field the analyzer cannot evaluate decodes as empty so the
+  /// validator reports it rather than the format silently changing.
+  static HWNumberFormat? decodeNumberFormat(
+    DartObject? obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWDecimalNumberFormat':
+        return HWNumberFormat.decimal(
+          minimumFractionDigits:
+              getField(obj, 'minimumFractionDigits')?.toIntValue(),
+          maximumFractionDigits:
+              getField(obj, 'maximumFractionDigits')?.toIntValue(),
+          useGrouping: getField(obj, 'useGrouping')?.toBoolValue() ?? true,
+        );
+      case 'HWPercentNumberFormat':
+        return HWNumberFormat.percent(
+          minimumFractionDigits:
+              getField(obj, 'minimumFractionDigits')?.toIntValue(),
+          maximumFractionDigits:
+              getField(obj, 'maximumFractionDigits')?.toIntValue(),
+        );
+      case 'HWCurrencyNumberFormat':
+        final currency = decodeCurrency(
+          getField(obj, 'currency'),
+          defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
+        );
+        if (currency == null) {
+          // coverage:ignore-start
+          throw GeneratorError('HWNumberFormat.currency has no currency');
+          // coverage:ignore-end
+        }
+        return HWNumberFormat.currency(
+          currency: currency,
+          decimalDigits: getField(obj, 'decimalDigits')?.toIntValue(),
+        );
+      case 'HWCompactNumberFormat':
+        return const HWNumberFormat.compact();
+      case 'HWPatternNumberFormat':
+        return HWNumberFormat.pattern(
+          getField(obj, 'pattern')?.toStringValue() ?? '',
+        );
+    }
+    throw GeneratorError('Unknown number format type: $typeName');
+  }
+
+  /// Decodes an [HWDateFormat], or null when [obj] is absent.
+  static HWDateFormat? decodeDateFormat(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWSkeletonDateFormat':
+        return HWDateFormat.skeleton(
+          getField(obj, 'skeleton')?.toStringValue() ?? '',
+        );
+      case 'HWPatternDateFormat':
+        return HWDateFormat.pattern(
+          getField(obj, 'pattern')?.toStringValue() ?? '',
+        );
+      case 'HWStyledDateFormat':
+        return HWDateFormat.styled(
+          date: decodeEnum(getField(obj, 'date'), HWFormatStyle.values),
+          time: decodeEnum(getField(obj, 'time'), HWFormatStyle.values),
+        );
+    }
+    throw GeneratorError('Unknown date format type: $typeName');
+  }
+
+  /// Decodes an [HWCurrency], or null when [obj] is absent.
+  static HWCurrency? decodeCurrency(
+    DartObject? obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWFixedCurrency':
+        return HWCurrency.code(getField(obj, 'code')?.toStringValue() ?? '');
+      case 'HWDataCurrency':
+        final data = decodeDataType(
+          getField(obj, 'data'),
+          defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
+        );
+        if (data == null) {
+          // coverage:ignore-start
+          throw GeneratorError('HWCurrency.data has no data');
+          // coverage:ignore-end
+        }
+        return HWDataCurrency(data);
+    }
+    throw GeneratorError('Unknown currency type: $typeName');
+  }
+
+  /// Decodes an [HWTimeZone], or null when [obj] is absent.
+  static HWTimeZone? decodeTimeZone(
+    DartObject? obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    if (obj == null || obj.isNull) return null;
+
+    final typeName = obj.type?.element?.name;
+    switch (typeName) {
+      case 'HWLocalTimeZone':
+        return HWTimeZone.local;
+      case 'HWNamedTimeZone':
+        return HWTimeZone.named(getField(obj, 'id')?.toStringValue() ?? '');
+      case 'HWDataTimeZone':
+        final data = decodeDataType(
+          getField(obj, 'data'),
+          defaultLocale: defaultLocale,
+          resourcePrefix: resourcePrefix,
+        );
+        if (data == null) {
+          // coverage:ignore-start
+          throw GeneratorError('HWTimeZone.data has no data');
+          // coverage:ignore-end
+        }
+        return HWDataTimeZone(data);
+    }
+    throw GeneratorError('Unknown time zone type: $typeName');
+  }
+
   /// Reads a `defaultTranslations` locale map, or null when [obj] is not a
   /// localized string.
   ///
@@ -275,6 +409,8 @@ class WidgetValueDecoder {
     } else if (typeName == 'HWBool') {
       final defaultValue = getField(obj, 'defaultValue')?.toBoolValue();
       return HWBool(key, defaultValue: defaultValue);
+    } else if (typeName == 'HWDateTime') {
+      return HWDateTime(key);
     } else if (typeName == 'HWTimedData') {
       final dataObj = getField(obj, 'data');
       if (dataObj != null && dataObj.type?.element?.name == 'HWTimedData') {
@@ -305,6 +441,7 @@ class WidgetValueDecoder {
           child is! HWInt &&
           child is! HWDouble &&
           child is! HWBool &&
+          child is! HWDateTime &&
           child is! HWJson &&
           child is! HWImageData) {
         return null;

@@ -96,6 +96,113 @@ class ImageTree {}
     assetPaths: ['assets/logo.png'],
   ),
   BuildScenario(
+    description: 'formats numbers in every supported format',
+    className: 'NumberFormats',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Number Formats',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    children: [
+      HWText(HWInt('items')),
+      HWText.number(
+        HWInt('orderNumber', defaultValue: 0),
+        format: HWNumberFormat.decimal(useGrouping: false),
+      ),
+      HWText.number(
+        HWDouble('total', defaultValue: 0),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWString('currency', defaultValue: 'EUR')),
+        ),
+      ),
+      HWText.number(
+        HWDouble('fee'),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.code('USD'),
+          decimalDigits: 0,
+        ),
+      ),
+      HWText.number(
+        HWDouble('discount'),
+        format: HWNumberFormat.percent(maximumFractionDigits: 1),
+      ),
+      HWText.number(HWInt('points'), format: HWNumberFormat.compact()),
+      HWText.number(
+        HWJson('stats', HWInt('visits')),
+        format: HWNumberFormat.pattern('#,##0.00'),
+      ),
+      HWText.number(
+        HWTimedData(HWDouble('load')),
+        format: HWNumberFormat.decimal(
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 3,
+        ),
+      ),
+      HWText.fixedNumber(25000),
+      HWText.fixedNumber(0.42, format: HWNumberFormat.percent()),
+    ],
+  ),
+)
+class NumberFormats {}
+''',
+    expectsScheduledUpdateWiring: true,
+  ),
+  BuildScenario(
+    description: 'formats dates in every supported format and time zone',
+    className: 'DateFormats',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Date Formats',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    children: [
+      HWText(HWDateTime('createdAt')),
+      HWText.dateTime(
+        HWDateTime('deliveryAt'),
+        format: HWDateFormat.yMMMd,
+        timeZone: HWTimeZone.data(HWString('deliveryZone', defaultValue: '')),
+      ),
+      HWText.dateTime(
+        HWDateTime('boardingAt'),
+        format: HWDateFormat.pattern('dd.MM.yyyy HH:mm'),
+        timeZone: HWTimeZone.named('Europe/Berlin'),
+      ),
+      HWText.dateTime(
+        HWDateTime('closesAt'),
+        format: HWDateFormat.styled(
+          date: HWFormatStyle.full,
+          time: HWFormatStyle.short,
+        ),
+        timeZone: HWTimeZone.utc,
+      ),
+      HWText.dateTime(HWDateTime('opensAt'), format: HWDateFormat.jm),
+      HWText.dateTime(HWTimedData(HWDateTime('slotAt'))),
+      HWText.dateTime(
+        HWJson('trip', HWDateTime('departsAt')),
+        format: HWDateFormat.yMdjm,
+      ),
+      HWDataExists(
+        data: HWDateTime('cancelledAt'),
+        whenPresent: HWText.dateTime(
+          HWDateTime('cancelledAt'),
+          format: HWDateFormat.Hm,
+        ),
+        whenAbsent: HWText.fixed('active'),
+      ),
+    ],
+  ),
+)
+class DateFormats {}
+''',
+    expectsScheduledUpdateWiring: true,
+  ),
+  BuildScenario(
     description: 'opens a top-level widget URL on tap',
     className: 'SharedUrl',
     widgetSource: '''

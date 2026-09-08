@@ -5,6 +5,7 @@ import 'package:generator_basics/src/home_widget/conditional_status.home_widget.
 import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/image_showcase.home_widget.dart';
+import 'package:generator_basics/src/home_widget/number_date_formatting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
 import 'package:generator_basics/src/home_widget/widget_link.home_widget.dart';
@@ -37,6 +38,8 @@ class _HomePage extends StatefulWidget {
 
 class _HomePageState extends State<_HomePage> {
   int _counter = 0;
+  String _currency = 'EUR';
+  String _deliveryZone = '';
   Uri? _widgetLinkUri;
   StreamSubscription<Uri>? _widgetLinkSubscription;
 
@@ -362,6 +365,100 @@ class _HomePageState extends State<_HomePage> {
         const Divider(),
 
         // -------------------------------------------------------------------
+        // Number & Date Formatting: locale-aware number and date formatting,
+        // including a data-bound currency code and a data-bound display time
+        // zone.
+        // -------------------------------------------------------------------
+        const _SectionHeader(
+          title: 'Number & Date Formatting',
+          subtitle:
+              'The app pushes raw numbers and DateTimes; the widget formats '
+              'them at render time in the device locale. Switch the phone to '
+              'another language or region and the same data re-renders — no '
+              'app run needed.',
+        ),
+        ListTile(
+          title: const Text('Save a sample order'),
+          subtitle: const Text(
+            'saveData(orderNumber, placedAt, total, currency, discount, '
+            'items, deliveryAt, deliveryZone, points) + updateWidget(). '
+            'placedAt is DateTime.now(), delivery three hours later.',
+          ),
+          trailing: const Icon(Icons.receipt_long),
+          onTap: _saveOrder,
+        ),
+        ListTile(
+          title: const Text('Currency'),
+          subtitle: const Text(
+            "HWCurrency.data(HWString('currency')) — the total is formatted in "
+            'whichever ISO 4217 code was saved last, symbol and decimals '
+            'included.',
+          ),
+          trailing: DropdownButton<String>(
+            value: _currency,
+            items: const [
+              DropdownMenuItem(value: 'EUR', child: Text('EUR')),
+              DropdownMenuItem(value: 'USD', child: Text('USD')),
+              DropdownMenuItem(value: 'JPY', child: Text('JPY')),
+            ],
+            onChanged: (value) async {
+              if (value == null) return;
+              setState(() => _currency = value);
+              await _saveOrder();
+            },
+          ),
+        ),
+        ListTile(
+          title: const Text('Delivery time zone'),
+          subtitle: const Text(
+            "HWTimeZone.data(HWString('deliveryZone')) — the stored instant "
+            'never changes, only the wall clock it is shown on. An empty id '
+            "falls back to the device's own zone.",
+          ),
+          trailing: DropdownButton<String>(
+            value: _deliveryZone,
+            items: const [
+              DropdownMenuItem(value: '', child: Text('Device')),
+              DropdownMenuItem(value: 'UTC', child: Text('UTC')),
+              DropdownMenuItem(value: 'Asia/Tokyo', child: Text('Tokyo')),
+              DropdownMenuItem(
+                value: 'America/New_York',
+                child: Text('New York'),
+              ),
+            ],
+            onChanged: (value) async {
+              if (value == null) return;
+              setState(() => _deliveryZone = value);
+              await _saveOrder();
+            },
+          ),
+        ),
+        ListTile(
+          title: const Text('Clear the order'),
+          subtitle: const Text(
+            'deleteData(...) + updateWidget(). The numbers fall back to their '
+            'defaultValue, the dates render as empty text.',
+          ),
+          trailing: const Icon(Icons.remove_shopping_cart_outlined),
+          onTap: () async {
+            await NumberDateFormattingHomeWidget.deleteData(
+              orderNumber: true,
+              placedAt: true,
+              total: true,
+              currency: true,
+              discount: true,
+              items: true,
+              deliveryAt: true,
+              deliveryZone: true,
+              points: true,
+            );
+            await NumberDateFormattingHomeWidget.updateWidget();
+          },
+        ),
+
+        const Divider(),
+
+        // -------------------------------------------------------------------
         // Widget Link: widgetUrl, so a tap on the widget opens the app with a
         // Uri the generated launch helpers report back.
         // -------------------------------------------------------------------
@@ -383,6 +480,22 @@ class _HomePageState extends State<_HomePage> {
         ),
       ],
     );
+  }
+
+  Future<void> _saveOrder() async {
+    final now = DateTime.now();
+    await NumberDateFormattingHomeWidget.saveData(
+      orderNumber: 10248,
+      placedAt: now,
+      total: 1234.5,
+      currency: _currency,
+      discount: 0.15,
+      items: 1204,
+      deliveryAt: now.add(const Duration(hours: 3)),
+      deliveryZone: _deliveryZone,
+      points: 12400,
+    );
+    await NumberDateFormattingHomeWidget.updateWidget();
   }
 
   static const _greetings = [

@@ -164,7 +164,7 @@ class WidgetSpec {
   /// Localized strings sitting at the leaf of a JSON path, which supply the
   /// fallback used when the path resolves to nothing.
   List<HWLocalizedString> get jsonLocalizedStrings => [
-        for (final field in dataFields.whereType<HWJson>())
+        for (final field in dataFields.whereType<HWJson<dynamic>>())
           if (field.leafType case final HWLocalizedString leaf) leaf,
       ];
 
@@ -172,7 +172,7 @@ class WidgetSpec {
   /// stored and resolved exactly like the untimed ones.
   List<HWLocalizedString> get timedJsonLocalizedStrings => [
         for (final field in timedDataFields.map((f) => f.unwrapped))
-          if (field case final HWJson json)
+          if (field case final HWJson<dynamic> json)
             if (json.leafType case final HWLocalizedString leaf) leaf,
       ];
 
@@ -370,7 +370,7 @@ class WidgetSpec {
   /// These groups are intentionally absent from [jsonDataGroups]; native
   /// generators must emit their nested structs/classes from here.
   List<JsonDataGroup> get timedJsonDataGroups => _groupJsonFields(
-        timedDataFields.map((f) => f.data).whereType<HWJson>(),
+        timedDataFields.map((f) => f.data).whereType<HWJson<dynamic>>(),
       );
 
   /// Image [dataFields], runtime and asset alike, time-based ones unwrapped.
@@ -396,6 +396,43 @@ class WidgetSpec {
   /// Flutter asset images, read in place from the app bundle by native code.
   List<HWImageData> get assetImageFields =>
       imageDataFields.where((f) => f.isAsset).toList();
+
+  /// Every native helper the generated widget sources have to declare, each
+  /// one after the helpers it calls.
+  ///
+  /// The widget tree names the helpers it renders through, and every declared
+  /// field the helpers reading it back -- a date the widget never shows is
+  /// still parsed into the data class. This resolves both to their transitive
+  /// closure, so a generator can emit `helper.swift` / `helper.kotlin` down
+  /// the list and every call is already in scope. Ordering breaks ties by
+  /// name, so the same widget always generates the same file.
+  List<HWNativeHelper> get nativeHelpers {
+    final closure = <String, HWNativeHelper>{};
+    void collect(HWNativeHelper helper) {
+      if (closure.containsKey(helper.name)) return;
+      closure[helper.name] = helper;
+      helper.dependencies.forEach(collect);
+    }
+
+    effectiveWidgetTree.nativeHelpers.forEach(collect);
+    for (final field in dataFields) {
+      field.nativeHelpers.forEach(collect);
+    }
+
+    final names = closure.keys.toList()..sort();
+    final emitted = <String>{};
+    final ordered = <HWNativeHelper>[];
+    while (ordered.length < names.length) {
+      final next = names.firstWhere(
+        (name) =>
+            !emitted.contains(name) &&
+            closure[name]!.dependencies.every((d) => emitted.contains(d.name)),
+      );
+      emitted.add(next);
+      ordered.add(closure[next]!);
+    }
+    return ordered;
+  }
 
   /// Image leaves of the untimed JSON groups.
   List<JsonImageField> get jsonImageFields => _jsonImages(jsonDataGroups);
@@ -432,9 +469,9 @@ class WidgetSpec {
 
   /// JSON fields grouped by root key for nested native struct generation.
   List<JsonDataGroup> get jsonDataGroups =>
-      _groupJsonFields(dataFields.whereType<HWJson>());
+      _groupJsonFields(dataFields.whereType<HWJson<dynamic>>());
 
-  List<JsonDataGroup> _groupJsonFields(Iterable<HWJson> fields) {
+  List<JsonDataGroup> _groupJsonFields(Iterable<HWJson<dynamic>> fields) {
     final orderedKeys = <String>[];
     final groupedChildren = <String, List<JsonDataField>>{};
 

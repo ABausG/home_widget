@@ -6,6 +6,7 @@ package es.antonborri.generator_basics
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -24,6 +25,8 @@ import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import java.text.NumberFormat
+import java.util.Locale
 
 class SimpleDataHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -53,7 +56,16 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
           }
           Row {
             Text(text = "value: ")
-            Text(text = (widgetData.value?.toString() ?: "0"))
+            Text(
+                text =
+                    hwFormatDecimal(
+                        (widgetData.value ?: 0L),
+                        null,
+                        null,
+                        true,
+                        hwFormatLocale(context),
+                    )
+            )
           }
         }
       }
@@ -63,7 +75,7 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
 
 data class SimpleDataData(
     val label: String? = null,
-    val value: Int? = null,
+    val value: Long? = null,
 ) {
   companion object {
     private const val PREFERENCES_PREFIX = "home_widget.SimpleData"
@@ -73,9 +85,30 @@ data class SimpleDataData(
           label = prefs.getString("${PREFERENCES_PREFIX}.label", null),
           value =
               if (prefs.contains("${PREFERENCES_PREFIX}.value"))
-                  prefs.getInt("${PREFERENCES_PREFIX}.value", 0)
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.value", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.value", 0L)
+                  })
               else null,
       )
     }
   }
+}
+
+private fun hwFormatLocale(context: Context): Locale =
+    ConfigurationCompat.getLocales(context.resources.configuration)[0] ?: Locale.getDefault()
+
+private fun hwFormatDecimal(
+    value: Number,
+    minFraction: Int?,
+    maxFraction: Int?,
+    grouping: Boolean,
+    locale: Locale,
+): String {
+  val formatter = NumberFormat.getNumberInstance(locale)
+  formatter.isGroupingUsed = grouping
+  minFraction?.let { formatter.minimumFractionDigits = it }
+  maxFraction?.let { formatter.maximumFractionDigits = it }
+  return formatter.format(value)
 }

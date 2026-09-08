@@ -16,9 +16,13 @@ final RegExp asciiDataNamePattern = RegExp(r'^[A-Za-z][A-Za-z0-9]*$');
 
 /// Placeholder syntaxes that a per-locale map cannot express.
 ///
-/// Which plural form or substitution applies depends on runtime data, so these
-/// have to be formatted app-side and pushed through a plain [HWString].
+/// Which plural form or substitution applies depends on runtime data, so a
+/// number or a date belongs in an [HWText.number] / [HWText.dateTime] of its
+/// own, and anything else has to be pushed through a plain [HWString].
 final RegExp _placeholderPattern = RegExp(r'\{[A-Za-z0-9_]+\}|%[sdf@]|%\d+\$');
+
+/// The shape of an ISO 4217 currency code, which is upper-case by definition.
+final RegExp _currencyCodePattern = RegExp(r'^[A-Z]{3}$');
 
 /// Data name reserved for the generated timed data parameter / storage key.
 const String reservedTimedDataName = 'timedData';
@@ -48,6 +52,7 @@ void validateWidgetData(WidgetSpec spec) {
   validateLocalization(spec);
   _validateConditionalData(spec);
   _validateTimedDataKeys(spec);
+  _validateTextFormats(spec);
 
   for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
@@ -174,7 +179,7 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
 /// anything that is not an `HWBool` (or an `HWJson` wrapping one) while
 /// decoding, so a localized string can never reach it.
 void _validateConditionalData(WidgetSpec spec) {
-  for (final widget in _walkWidgets(spec.effectiveWidgetTree)) {
+  for (final widget in spec.effectiveWidgetTree.descendants) {
     if (widget is! HWDataExists) continue;
     final data = widget.data.unwrapped;
 
@@ -204,22 +209,239 @@ void _validateConditionalData(WidgetSpec spec) {
   }
 }
 
-/// Depth-first walk over a widget tree, including the root.
-Iterable<HWWidget> _walkWidgets(HWWidget widget) sync* {
-  yield widget;
-  if (widget is HWSingleChildWidget) {
-    yield* _walkWidgets(widget.child);
-  } else if (widget is HWMultiChildWidget) {
-    for (final child in widget.children) {
-      yield* _walkWidgets(child);
+/// Rejects a formatted text whose data or format could not render.
+///
+/// Formats are const values written in the annotation, so every mistake here is
+/// knowable at build time; without these checks a currency code that is not a
+/// code, or a styled date asking for neither a date nor a time, would only show
+/// up as wrong text on a device.
+void _validateTextFormats(WidgetSpec spec) {
+  for (final widget in spec.effectiveWidgetTree.descendants) {
+    if (widget is! HWText) continue;
+    final data = widget.dataType;
+
+    final dateFormat = widget.dateFormat;
+    if (dateFormat != null) {
+      if (data != null && dateTimeLeafOf(data) == null) {
+        // coverage:ignore-start
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWText.dateTime needs an HWDateTime, '
+          'but "${data.key}" is ${_describeBoundLeaf(data)}. Bind an '
+          'HWDateTime, or render the value with a plain HWText.',
+        );
+        // coverage:ignore-end
+      }
+      _validateDateFormat(spec, dateFormat);
+      _validateTimeZone(spec, widget.timeZone);
     }
-  } else if (widget is HWConditional) {
-    yield* _walkWidgets(widget.firstBranch);
-    yield* _walkWidgets(widget.secondBranch);
-  } else if (widget is HWAdaptive) {
-    yield* _walkWidgets(widget.ios);
-    yield* _walkWidgets(widget.android);
+
+    final numberFormat = widget.numberFormat;
+    if (numberFormat != null) {
+      if (data != null && numberLeafOf(data) == null) {
+        // coverage:ignore-start
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWText.number needs an HWInt or '
+          'HWDouble, but "${data.key}" is ${_describeBoundLeaf(data)}. Bind a '
+          'number, or render the value with a plain HWText.',
+        );
+        // coverage:ignore-end
+      }
+      _validateNumberFormat(spec, numberFormat);
+    }
   }
+}
+
+void _validateNumberFormat(WidgetSpec spec, HWNumberFormat format) {
+  switch (format) {
+    case HWDecimalNumberFormat(
+        :final minimumFractionDigits,
+        :final maximumFractionDigits,
+      ):
+      _validateFractionDigits(
+        spec,
+        descriptor: 'HWNumberFormat.decimal',
+        minimum: minimumFractionDigits,
+        maximum: maximumFractionDigits,
+      );
+    case HWPercentNumberFormat(
+        :final minimumFractionDigits,
+        :final maximumFractionDigits,
+      ):
+      _validateFractionDigits(
+        spec,
+        descriptor: 'HWNumberFormat.percent',
+        minimum: minimumFractionDigits,
+        maximum: maximumFractionDigits,
+      );
+    case HWCurrencyNumberFormat(:final currency, :final decimalDigits):
+      _validateDigitCount(
+        spec,
+        descriptor: 'HWNumberFormat.currency',
+        parameter: 'decimalDigits',
+        value: decimalDigits,
+      );
+      _validateCurrency(spec, currency);
+    case HWPatternNumberFormat(:final pattern):
+      if (pattern.trim().isEmpty) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWNumberFormat.pattern is empty. Give '
+          'it an ICU decimal pattern, e.g. "#,##0.00".',
+        );
+      }
+    case HWCompactNumberFormat():
+      break;
+  }
+}
+
+void _validateCurrency(WidgetSpec spec, HWCurrency currency) {
+  switch (currency) {
+    case HWFixedCurrency(:final code):
+      if (!_currencyCodePattern.hasMatch(code)) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWCurrency.code("$code") is not an ISO '
+          '4217 code. Use exactly three upper-case ASCII letters, e.g. "EUR".',
+        );
+      }
+    case HWDataCurrency(:final data):
+      _validatePlainStringData(
+        spec,
+        data,
+        descriptor: 'HWCurrency.data',
+        subject: 'An ISO 4217 code',
+      );
+  }
+}
+
+void _validateDateFormat(WidgetSpec spec, HWDateFormat format) {
+  switch (format) {
+    case HWSkeletonDateFormat(:final skeleton):
+      if (skeleton.trim().isEmpty) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWDateFormat.skeleton is empty. Give it '
+          'ICU field letters, e.g. "yMMMd", or use one of the named constants '
+          'such as HWDateFormat.yMMMd.',
+        );
+      }
+    case HWPatternDateFormat(:final pattern):
+      if (pattern.trim().isEmpty) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWDateFormat.pattern is empty. Give it '
+          'an ICU pattern, e.g. "dd.MM.yyyy HH:mm".',
+        );
+      }
+    case HWStyledDateFormat(:final date, :final time):
+      if (date == null && time == null) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWDateFormat.styled has neither a date '
+          'nor a time style, so it would render nothing. Set at least one of '
+          'them.',
+        );
+      }
+  }
+}
+
+void _validateTimeZone(WidgetSpec spec, HWTimeZone timeZone) {
+  switch (timeZone) {
+    case HWNamedTimeZone(:final id):
+      if (id.trim().isEmpty) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWTimeZone.named is empty. Use an IANA '
+          'zone id, e.g. "Europe/Berlin", or HWTimeZone.local for the '
+          "device's own zone.",
+        );
+      }
+    case HWDataTimeZone(:final data):
+      _validatePlainStringData(
+        spec,
+        data,
+        descriptor: 'HWTimeZone.data',
+        subject: 'An IANA zone id',
+      );
+    case HWLocalTimeZone():
+      break;
+  }
+}
+
+/// Rejects a format-level data field that is not a plain string.
+///
+/// [descriptor] names the construct reading it and [subject] what it holds, so
+/// the message says why the value cannot be translated or numeric.
+void _validatePlainStringData(
+  WidgetSpec spec,
+  HWDataType<dynamic> data, {
+  required String descriptor,
+  required String subject,
+}) {
+  final leaf = _leafOf(data);
+  if (leaf is HWLocalizedString) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": $descriptor("${data.key}") reads a '
+      'localized string. $subject is the same in every language, so store it '
+      'in a plain HWString.',
+    );
+  }
+  if (leaf is! HWString) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": $descriptor needs an HWString, but '
+      '"${data.key}" is ${_describeBoundLeaf(data)}. $subject is stored as '
+      'text.',
+    );
+  }
+}
+
+void _validateFractionDigits(
+  WidgetSpec spec, {
+  required String descriptor,
+  int? minimum,
+  int? maximum,
+}) {
+  _validateDigitCount(
+    spec,
+    descriptor: descriptor,
+    parameter: 'minimumFractionDigits',
+    value: minimum,
+  );
+  _validateDigitCount(
+    spec,
+    descriptor: descriptor,
+    parameter: 'maximumFractionDigits',
+    value: maximum,
+  );
+  if (minimum != null && maximum != null && minimum > maximum) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": $descriptor has minimumFractionDigits '
+      '$minimum above maximumFractionDigits $maximum, which no number can '
+      'satisfy. Swap them, or drop one and let the locale decide.',
+    );
+  }
+}
+
+void _validateDigitCount(
+  WidgetSpec spec, {
+  required String descriptor,
+  required String parameter,
+  required int? value,
+}) {
+  if (value == null || value >= 0) return;
+  throw GeneratorError(
+    'Widget "${spec.data.name}": $descriptor has $parameter $value. A digit '
+    'count cannot be negative.',
+  );
+}
+
+/// The type a data field ultimately describes: a time-based wrapper stripped
+/// and a JSON path descended, the way `numberLeafOf` and friends do it.
+HWDataType<dynamic> _leafOf(HWDataType<dynamic> type) {
+  final unwrapped = type.unwrapped;
+  return unwrapped is HWJson ? unwrapped.leafType : unwrapped;
+}
+
+String _describeBoundLeaf(HWDataType<dynamic> data) {
+  final unwrapped = data.unwrapped;
+  if (unwrapped is HWJson) {
+    return '${unwrapped.leafType.runtimeType} at its JSON leaf';
+  }
+  return '${unwrapped.runtimeType}';
 }
 
 /// Validates locale maps, the localization block, and their interaction.
@@ -374,8 +596,10 @@ void _validateLocaleMap(
     if (_placeholderPattern.hasMatch(entry.value)) {
       throw GeneratorError(
         '$descriptor: "${entry.value}" contains a placeholder. Which plural '
-        'form or substitution applies depends on runtime data, so format the '
-        'string in your app and push it through a plain HWString instead.',
+        'form or substitution applies depends on runtime data, so a locale map '
+        'cannot hold it. Render a number with HWText.number and a date with '
+        'HWText.dateTime — both format themselves in the device locale — or '
+        'build the string in your app and push it through a plain HWString.',
       );
     }
   }

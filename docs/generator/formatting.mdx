@@ -1,0 +1,533 @@
+---
+title: Formatting
+description: Render numbers, currencies, percentages and dates in the device's own locale.
+---
+
+# Formatting
+
+Numbers and dates look different in every locale. `1234.5` is `1,234.5` in the
+US and `1.234,5` in Germany; the same instant is `3/2/2026, 2:05 PM` in en-US
+and `02.03.2026, 14:05` in de-DE. `HWText` can format both for you, so you push
+a raw `int`, `double` or `DateTime` to the widget and the widget renders it the
+way the device expects.
+
+```dart
+HWText.number(HWInt('steps'))
+HWText.number(HWDouble('progress'), format: HWNumberFormat.percent())
+HWText.dateTime(HWDateTime('lastSync'), format: HWDateFormat.yMMMd)
+```
+
+## Why formatting happens on the device
+
+The widget formats at **render time**, using the device locale *including its
+region* — `Locale.current` on iOS, the first entry of
+`context.resources.configuration.locales` on Android. That is what decides:
+
+- the decimal separator and the grouping separator (`,` vs `.`),
+- where a currency symbol sits and which one it is,
+- 12-hour vs 24-hour time,
+- day/month order and how month and weekday names are spelled.
+
+Formatting in your app instead would freeze all of that into a string at save
+time: the widget would keep showing `1,234.5` after the user switches the phone
+to German, until your app happens to run again. Because the widget formats
+itself, a locale change is picked up by the next render.
+
+<Info>
+The device locale used for formatting is **not** the same lookup as the one
+[Localization](/generator/localization) performs. Localized text walks the
+user's whole preferred-language list to find a translation you shipped;
+formatting asks the platform for the single current locale and lets it decide
+separators, symbols and orderings. A device set to English with region Germany
+therefore reads English text and German number formats.
+</Info>
+
+<Warning>
+The example outputs on this page are illustrative. The actual glyphs come from
+the platform's own locale data (CLDR), so small differences between iOS and
+Android, and between OS versions, are normal — a separator may be a
+non-breaking space, and the word joining a date to a time may be `at` or a
+comma. Never assert on the exact string in a test; assert that a number was
+formatted at all.
+</Warning>
+
+## Numbers
+
+### HWText.number
+
+`const HWText.number(HWDataType<num> data, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
+
+Formats a data-bound number. `data` is an [`HWInt`](/generator/data) or
+`HWDouble`, optionally wrapped in an
+[`HWTimedData`](/generator/timed-data) or [`HWJson`](/generator/data#nested-json);
+anything else is a generation error.
+
+```dart
+HWText.number(
+  HWInt('steps'),
+  format: HWNumberFormat.decimal(),
+)
+```
+
+### HWText.fixedNumber
+
+`const HWText.fixedNumber(num value, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
+
+The same thing for a hardcoded number. The value is baked into the generated
+native code, but the *formatting* still happens on the device, so a fixed
+`10000` renders as `10,000` or `10.000` depending on where the phone is.
+
+```dart
+HWText.fixedNumber(10000)
+```
+
+### HWNumberFormat
+
+All variants are `const`.
+
+| Constructor | Parameters | Purpose |
+| --- | --- | --- |
+| `HWNumberFormat.decimal()` | `minimumFractionDigits`, `maximumFractionDigits`, `useGrouping` (default `true`) | Plain number with locale separators. The default format. |
+| `HWNumberFormat.percent()` | `minimumFractionDigits`, `maximumFractionDigits` | Multiplies by 100 and appends the locale's percent sign — `0.5` becomes `50%`. |
+| `HWNumberFormat.currency()` | `currency` (**required**, `HWCurrency`), `decimalDigits` | Formats as money in the given ISO 4217 currency. |
+| `HWNumberFormat.compact()` | — | Short magnitude form, e.g. `1.2K`. |
+| `HWNumberFormat.pattern()` | `pattern` (**required**) | An explicit ICU `DecimalFormat` pattern such as `#,##0.00`. |
+
+Taking `1234.5` (and `0.5` for percent, `1200000` for compact):
+
+| Format | en-US | de-DE |
+| --- | --- | --- |
+| `HWNumberFormat.decimal()` | `1,234.5` | `1.234,5` |
+| `HWNumberFormat.decimal(minimumFractionDigits: 2, maximumFractionDigits: 2)` | `1,234.50` | `1.234,50` |
+| `HWNumberFormat.decimal(useGrouping: false)` | `1234.5` | `1234,5` |
+| `HWNumberFormat.percent()` | `50%` | `50 %` |
+| `HWNumberFormat.percent(maximumFractionDigits: 1)` on `0.523` | `52.3%` | `52,3 %` |
+| `HWNumberFormat.currency(currency: HWCurrency.code('EUR'))` | `€1,234.50` | `1.234,50 €` |
+| `HWNumberFormat.currency(currency: HWCurrency.code('USD'), decimalDigits: 0)` | `$1,235` | `1.235 $` |
+| `HWNumberFormat.compact()` on `1200000` | `1.2M` | `1,2 Mio.` |
+| `HWNumberFormat.pattern('#,##0.00')` | `1,234.50` | `1.234,50` |
+| `HWNumberFormat.pattern('0.###')` | `1234.5` | `1234,5` |
+
+Notes on the individual variants:
+
+- **decimal** — omitting the fraction-digit parameters leaves the platform's own
+  decimal defaults in place: at most three fraction digits, trailing zeros
+  dropped, grouping on — the same as
+  [`package:intl`](https://pub.dev/packages/intl)'s
+  `NumberFormat.decimalPattern`. So an `HWDouble` holding `1.0` renders as `1`,
+  and `1.25` as `1.25`.
+- **percent** — the value is a *fraction*: pass `0.5`, not `50`. With no
+  fraction-digit parameters it rounds to whole percent, matching `intl`'s
+  `NumberFormat.percentPattern`. Whether a space appears before the sign is the
+  locale's decision.
+- **currency** — `currency` is an `HWCurrency`, either a code fixed at
+  generation time (`HWCurrency.code('EUR')`, three upper-case ASCII letters as
+  ISO 4217 spells them — anything else is a generation error) or one your app
+  pushes per record (`HWCurrency.data(HWString('currency'))`, optionally wrapped
+  in `HWTimedData` or `HWJson`, the same as any other data type on this page).
+  Case does not matter at render time: a runtime `eur` is upper-cased before it
+  is looked up. A code that is empty or malformed falls back to plain decimal
+  formatting rather than failing; a well-formed code no currency actually uses,
+  like `ABC`, falls back to plain decimals on Android and on iOS 16+, while iOS
+  15 prints the code itself where the symbol would go. The symbol, its position
+  and the default number of decimals come from the locale and the currency (`2`
+  for `EUR`, `0` for `JPY`). Nothing is converted: this formats the number you
+  supply as that currency, it does not do exchange rates.
+- **compact** — the locale's own CLDR data decides which magnitudes get
+  abbreviated at all, so `1200` is `1.2K` in en-US while German leaves
+  thousands unabbreviated and only starts at `1,2 Mio.`.
+- **pattern** — an ICU `DecimalFormat` pattern, like passing a pattern to
+  `NumberFormat(pattern)` in `package:intl`. The pattern fixes the *shape*
+  (digits, grouping, fraction digits); the *symbols* stay locale-aware, which is
+  why `#,##0.00` still yields `1.234,50` in German.
+
+Fraction digits must be `>= 0` and `minimumFractionDigits <= maximumFractionDigits`;
+a pattern must be non-empty. All of this is checked when you run
+`home_widget generate`.
+
+The *contents* of a pattern are not — here or in `HWDateFormat.pattern` — because
+only the platform can parse one. A malformed pattern is not an error at render
+time either: Android falls back to the locale's default number or date format,
+and iOS renders whatever the pattern literally asks for. Check a hand-written
+pattern on both platforms before you ship it.
+
+### Plain HWText on a number
+
+Binding a number straight to `HWText` formats it too:
+
+```dart
+HWText(HWInt('count'))          // identical to HWText.number(HWInt('count'))
+```
+
+`HWText(HWInt(...))` and `HWText(HWDouble(...))` — including through
+`HWTimedData` and at an `HWJson` leaf — render with the default
+`HWNumberFormat.decimal()`: grouping on, up to three fraction digits.
+
+<Warning>
+This is a **behavior change** for widgets generated before formatting existed,
+which rendered the platform's raw `toString`. `1234` now renders as `1,234`
+(en-US) or `1.234` (de-DE) instead of `1234`, and a `double` holding `1.0`
+renders as `1` instead of `1.0`. Regenerate and check any widget that shows a
+number.
+</Warning>
+
+To get the unformatted, separator-free digits back — an ID, a version number, a
+year, anything that is not really a quantity — ask for a pattern that has no
+grouping:
+
+```dart
+HWText.number(HWInt('year'), format: HWNumberFormat.pattern('0'))
+HWText.number(HWDouble('ratio'), format: HWNumberFormat.pattern('0.###'))
+HWText.number(HWInt('id'), format: HWNumberFormat.decimal(useGrouping: false))
+```
+
+The decimal separator is still the locale's, so a value that must be
+byte-identical everywhere (a URL fragment, a machine-readable code) belongs in an
+`HWString` your app fills in, not in a formatted number.
+
+## Dates
+
+### HWDateTime
+
+`const HWDateTime(String key)`
+
+A new [data type](/generator/data) holding a point in time. It has no
+`defaultValue` — a date that was never saved renders as empty text.
+
+```dart
+@HomeWidget(
+  name: 'Sync Status',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example.app'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWColumn(
+    children: [
+      HWText.fixed('Last sync'),
+      HWText.dateTime(HWDateTime('lastSync'), format: HWDateFormat.yMMMdjm),
+    ],
+  ),
+)
+class SyncStatus {}
+```
+
+The generated helper types the field as a Dart `DateTime`:
+
+```dart
+await SyncStatusHomeWidget.saveData(lastSync: DateTime.now());
+await SyncStatusHomeWidget.updateWidget();
+
+final data = await SyncStatusHomeWidget.getData();
+data.lastSync;              // a UTC DateTime
+data.lastSync?.toLocal();   // ... converted back to local time
+```
+
+#### How a date is stored
+
+`saveData` writes `value.toUtc().toIso8601String()` — an ISO-8601 string in
+UTC, e.g. `2026-03-02T13:05:09.000Z`. That is what lands in
+`SharedPreferences` / `UserDefaults`, and what native code reading the key
+directly will find. The generated getter parses it back and returns a **UTC**
+`DateTime`; call `.toLocal()` if you want the local one. Both platforms' parsers
+also accept an ISO string with no fractional seconds, with one to three
+fractional digits, and with a `±hh:mm` offset instead of `Z`, so a value written
+by native code or a backend still reads correctly.
+
+The **display** defaults to the device's current time zone: an instant saved
+at `13:05` UTC shows as `14:05` on a phone in Berlin, and follows the phone if
+the user travels. `HWText.dateTime` can render a different zone instead — see
+[Time zones](#time-zones) below.
+
+<Info>
+There is no `HWDateTime.fixed` and no relative ("3 minutes ago") or self-ticking
+date. A date is always a data field, and the text only changes when the widget
+re-renders.
+</Info>
+
+### HWText.dateTime
+
+`const HWText.dateTime(HWDataType<DateTime> data, {HWDateFormat format = HWDateFormat.defaultFormat, HWTimeZone timeZone = HWTimeZone.local, HWTextStyle? style, HWTextAlign? textAlign})`
+
+`data` must be an `HWDateTime`, optionally wrapped in an `HWTimedData` or
+`HWJson`; anything else is a generation error. `HWText(HWDateTime('x'))` is
+allowed too and is exactly `HWText.dateTime(HWDateTime('x'))` with the default
+format and time zone.
+
+`HWDateFormat.defaultFormat` is
+`HWDateFormat.styled(date: HWFormatStyle.medium, time: HWFormatStyle.short)` —
+`Mar 2, 2026 at 2:05 PM` in en-US, `02.03.2026, 14:05` in de-DE.
+
+### Named skeletons
+
+The named constants mirror the ones `package:intl` exposes on `DateFormat`, so
+`HWDateFormat.yMMMd` is the widget-side counterpart of `DateFormat.yMMMd()`.
+Each is a skeleton: it says *which fields* to show, and the locale decides their
+order, separators and spelling.
+
+Examples are the instant Monday, 2 March 2026, 14:05:09 local time, in en-US:
+
+| Constant | Skeleton | Shows | en-US |
+| --- | --- | --- | --- |
+| `HWDateFormat.d` | `d` | day | `2` |
+| `HWDateFormat.y` | `y` | year | `2026` |
+| `HWDateFormat.Ed` | `Ed` | weekday, day | `2 Mon` |
+| `HWDateFormat.Md` | `Md` | month, day | `3/2` |
+| `HWDateFormat.MMMd` | `MMMd` | abbreviated month, day | `Mar 2` |
+| `HWDateFormat.MMMMd` | `MMMMd` | full month, day | `March 2` |
+| `HWDateFormat.MMMEd` | `MMMEd` | weekday, abbreviated month, day | `Mon, Mar 2` |
+| `HWDateFormat.yM` | `yM` | year, month | `3/2026` |
+| `HWDateFormat.yMMM` | `yMMM` | year, abbreviated month | `Mar 2026` |
+| `HWDateFormat.yMMMM` | `yMMMM` | year, full month | `March 2026` |
+| `HWDateFormat.yMd` | `yMd` | numeric date | `3/2/2026` |
+| `HWDateFormat.yMMMd` | `yMMMd` | year, abbreviated month, day | `Mar 2, 2026` |
+| `HWDateFormat.yMMMMd` | `yMMMMd` | year, full month, day | `March 2, 2026` |
+| `HWDateFormat.yMMMEd` | `yMMMEd` | weekday and abbreviated date | `Mon, Mar 2, 2026` |
+| `HWDateFormat.yMMMMEEEEd` | `yMMMMEEEEd` | full weekday and date | `Monday, March 2, 2026` |
+| `HWDateFormat.j` | `j` | hour, locale's clock | `2 PM` |
+| `HWDateFormat.jm` | `jm` | hour and minute, locale's clock | `2:05 PM` |
+| `HWDateFormat.jms` | `jms` | hour, minute, second, locale's clock | `2:05:09 PM` |
+| `HWDateFormat.H` | `H` | hour, forced 24-hour | `14` |
+| `HWDateFormat.Hm` | `Hm` | hour and minute, forced 24-hour | `14:05` |
+| `HWDateFormat.Hms` | `Hms` | hour, minute, second, forced 24-hour | `14:05:09` |
+| `HWDateFormat.yMdjm` | `yMdjm` | numeric date and time | `3/2/2026 2:05 PM` |
+| `HWDateFormat.yMMMdjm` | `yMMMdjm` | abbreviated date and time | `Mar 2, 2026 2:05 PM` |
+| `HWDateFormat.yMMMMdjm` | `yMMMMdjm` | full date and time | `March 2, 2026 2:05 PM` |
+
+The `j` in a skeleton means "the hour field this locale prefers", so `jm` is
+`2:05 PM` in en-US and `14:05` in de-DE. `H` forces 24-hour and `h` forces
+12-hour regardless of locale — reach for them only when the design genuinely
+requires one clock.
+
+The same instant in de-DE:
+
+| Constant | de-DE |
+| --- | --- |
+| `HWDateFormat.yMd` | `02.03.2026` |
+| `HWDateFormat.yMMMd` | `2. März 2026` |
+| `HWDateFormat.yMMMMEEEEd` | `Montag, 2. März 2026` |
+| `HWDateFormat.jm` | `14:05` |
+
+Note that the *order* of the fields changed with the locale, not just the
+separators — that is the whole point of a skeleton.
+
+### Free-form skeletons
+
+`const HWDateFormat.skeleton(String skeleton)`
+
+Any ICU skeleton the named constants do not cover:
+
+```dart
+HWText.dateTime(HWDateTime('start'), format: HWDateFormat.skeleton('MMMMEEEEd'))
+```
+
+Skeleton letters are the usual ICU ones — `y` year, `M` month, `d` day, `E`
+weekday, `j`/`H`/`h` hour, `m` minute, `s` second — and repeating a letter asks
+for a longer form (`M` → `3`, `MMM` → `Mar`, `MMMM` → `March`). The platform
+resolves the skeleton to the best matching pattern for the current locale
+(`DateFormatter.dateFormat(fromTemplate:)` on iOS,
+`DateFormat.getBestDateTimePattern` on Android), which is why field order stays
+locale-correct.
+
+### Explicit patterns
+
+`const HWDateFormat.pattern(String pattern)`
+
+When the layout must be identical everywhere — a compact `dd.MM.` label, a
+log-style timestamp — give the exact ICU pattern:
+
+```dart
+HWText.dateTime(HWDateTime('lastSync'), format: HWDateFormat.pattern('dd.MM.yyyy HH:mm'))
+```
+
+This renders `02.03.2026 14:05` in every locale. Month and weekday *names* are
+still translated (`MMMM` gives `March` / `März`), but the ordering and separators
+are yours, so a pattern that reads naturally in one region can read wrongly in
+another. Prefer a skeleton unless you specifically want the fixed layout, and
+note that a malformed pattern is not caught at generate time — Android falls
+back to the locale's default date and time, iOS renders the pattern as written.
+
+### Style presets
+
+`const HWDateFormat.styled({HWFormatStyle? date, HWFormatStyle? time})`
+
+The platform's four canonical lengths, from `HWFormatStyle`: `short`, `medium`,
+`long`, `full`. At least one of `date` and `time` must be given — supplying
+neither is a generation error.
+
+```dart
+HWDateFormat.styled(date: HWFormatStyle.long)                        // date only
+HWDateFormat.styled(time: HWFormatStyle.short)                       // time only
+HWDateFormat.styled(date: HWFormatStyle.full, time: HWFormatStyle.medium)
+```
+
+For the same instant in en-US:
+
+| Style | `date:` only | `time:` only |
+| --- | --- | --- |
+| `short` | `3/2/26` | `2:05 PM` |
+| `medium` | `Mar 2, 2026` | `2:05:09 PM` |
+| `long` | `March 2, 2026` | `2:05:09 PM GMT+1` |
+| `full` | `Monday, March 2, 2026` | `2:05:09 PM Central European Standard Time` |
+
+`long` and `full` times include the time zone, which is wide — on a small widget
+prefer `short` or `medium`, or a skeleton.
+
+## Time zones
+
+`HWDateTime` always [stores a UTC instant](#how-a-date-is-stored). Nothing about
+that changes with a time zone — only the **display** does: which wall-clock
+time that instant is rendered as. By default `HWText.dateTime` shows the
+device's own zone, exactly as described above. Pass a `timeZone` to show a
+different one instead:
+
+```dart
+const HWText.dateTime(HWDataType<DateTime> data, {
+  HWDateFormat format = HWDateFormat.defaultFormat,
+  HWTimeZone timeZone = HWTimeZone.local,
+  HWTextStyle? style,
+  HWTextAlign? textAlign,
+})
+```
+
+### HWTimeZone
+
+All variants are `const`. There are four ways to pick the display zone:
+
+**`HWTimeZone.local`** — the default. Renders in whatever zone the device is
+currently set to, and follows it if the user travels or changes it.
+
+```dart
+HWText.dateTime(HWDateTime('lastSync'))                          // device zone, implicitly
+HWText.dateTime(HWDateTime('lastSync'), timeZone: HWTimeZone.local) // ... same thing, explicit
+```
+
+**`HWTimeZone.utc`** — always UTC, regardless of the device's own zone. Useful
+for a "server time" style label.
+
+```dart
+HWText.dateTime(HWDateTime('lastSync'), timeZone: HWTimeZone.utc)
+```
+
+**`HWTimeZone.named(String id)`** — a fixed IANA time zone id, no matter which
+zone the device is in.
+
+```dart
+HWText.dateTime(HWDateTime('kickoff'), timeZone: HWTimeZone.named('Europe/Berlin'))
+```
+
+Handy for something tied to a place rather than to whoever's looking at the
+widget — a stadium's kickoff time, a store's opening hours.
+
+**`HWTimeZone.data(HWDataType<String> data)`** — the id comes from widget
+storage, so your app can push a different zone per record.
+
+```dart
+HWText.dateTime(HWDateTime('startsAt'), timeZone: HWTimeZone.data(HWString('eventTimeZone')))
+```
+
+Here each event carries its own `eventTimeZone` field alongside `startsAt`, so
+a calendar widget can show every entry in the zone it actually happens in.
+`data` must be an `HWString`, optionally wrapped in `HWTimedData` or
+`HWJson` — the same wrapping rules as every other data type on this page.
+
+On both platforms, an empty string or an id the platform doesn't recognize
+falls back to the device's own zone — the same result as `HWTimeZone.local`.
+
+<Info>
+There is no `HWTimeZone` for a fixed UTC offset like `+02:00`. Dart's own
+`toLocal()` / local `toIso8601String()` doesn't carry an offset either, and a
+fixed offset would silently go wrong twice a year wherever daylight saving
+applies — `Europe/Berlin` is `+01:00` in January and `+02:00` in July. An IANA
+id carries the daylight-saving rules with it; an offset does not.
+</Info>
+
+<Warning>
+`HWDateTime` and `HWTimeZone` only affect an instant in time — a moment that
+happened at a specific second everywhere on Earth. A calendar date with no
+time component, like a birthday or an anniversary, is not covered: shifting
+the display zone can move it to the previous or next day depending on what
+time of day it was saved. There is no calendar-date type yet; if you need one,
+store and display it in the same zone consistently, or keep it as plain text.
+</Warning>
+
+## Missing values
+
+Formatting never blanks out a layout unexpectedly, but numbers and dates differ:
+
+- A **number** with no stored value and no `defaultValue` is formatted as `0`,
+  so an `HWInt` that was never saved shows `0` rather than nothing. This matches
+  what generated widgets did before formatting existed. Give the field a
+  `defaultValue` to show something else.
+- A **date** with no stored value renders as an **empty string**. There is no
+  `defaultValue` for `HWDateTime`, and an unparseable stored value is treated
+  the same way as a missing one.
+
+To show a placeholder instead of an empty date, guard it with
+[`HWDataExists`](/generator/widgets/hw-conditional):
+
+```dart
+HWDataExists(
+  data: HWDateTime('lastSync'),
+  whenPresent: HWText.dateTime(HWDateTime('lastSync')),
+  whenAbsent: HWText.fixed('Never synced'),
+)
+```
+
+## Timed and JSON values
+
+Formatted numbers and dates work anywhere a data type does — including inside
+[`HWTimedData`](/generator/timed-data) and at an
+[`HWJson`](/generator/data#nested-json) leaf, and through both at once:
+
+```dart
+HWText.number(HWTimedData(HWInt('temperature')), format: HWNumberFormat.decimal(maximumFractionDigits: 0))
+HWText.number(HWJson('order', HWDouble('total')), format: HWNumberFormat.currency(currency: HWCurrency.code('EUR')))
+HWText.dateTime(HWTimedData(HWDateTime('slotStart')), format: HWDateFormat.jm)
+HWText.dateTime(HWTimedData(HWJson('event', HWDateTime('startsAt'))), format: HWDateFormat.MMMEd)
+```
+
+The wrapper only decides *where the value comes from*; the formatting is applied
+to whatever value is active at render time. The generated `*JsonData` classes
+and timed entries expose these leaves as plain `DateTime` fields, and
+`saveData(...)` stores them as the same ISO-8601 UTC string described above.
+
+Entry keys of an `HWTimedData` schedule are unrelated to this — they stay epoch
+milliseconds, see [Time-based Content](/generator/timed-data).
+
+## Platform notes
+
+<Accordion title="iOS">
+Formatting uses Foundation's `NumberFormatter` and `DateFormatter` with
+`Locale.current`, resolved on every render. Skeletons go through
+`DateFormatter.dateFormat(fromTemplate:options:locale:)`, style presets
+through `dateStyle` / `timeStyle`. The helpers are emitted into the generated
+`Widget.swift` only when the widget actually needs them.
+
+The display zone defaults to `TimeZone.current`. `HWTimeZone.named` and
+`HWTimeZone.data` resolve through `TimeZone(identifier:)`, falling back to
+`.current` when the id is empty or not a `TimeZone` identifier iOS recognizes.
+
+`HWNumberFormat.compact()` uses `.formatted(.number.notation(.compactName))`,
+which is **iOS 15+**. A generated extension target starts at a deployment target
+of 14.0, so on iOS 14 the widget falls back to a plain decimal format and
+`1200000` renders as `1,200,000` rather than `1.2M`. Every other format works on
+all supported versions.
+</Accordion>
+
+<Accordion title="Android">
+Formatting uses `java.text.NumberFormat` / `DecimalFormat` and
+`java.text.DateFormat` / `SimpleDateFormat`, with skeletons resolved by
+`android.text.format.DateFormat.getBestDateTimePattern`. The locale is the
+first entry of `context.resources.configuration.locales`, falling back to
+`Locale.getDefault()`.
+
+The display zone defaults to `TimeZone.getDefault()`. `HWTimeZone.named` and
+`HWTimeZone.data` resolve through `TimeZone.getTimeZone(id)`, which also
+accepts custom offsets such as `GMT+02:00`; a `UTC+2` spelling is rewritten to
+the `GMT` form first, matching what iOS accepts. An id it does not know falls
+back to `TimeZone.getDefault()`, the same as an empty id.
+
+`HWNumberFormat.compact()` needs `android.icu.text.CompactDecimalFormat`, which
+is **API 24+**. On API 23 the widget falls back to a plain decimal format, so
+`1200000` renders as `1,200,000` rather than `1.2M`. Every other format works on
+all supported API levels. Widgets re-render on `LOCALE_CHANGED`, so a language
+or region switch is reflected without your app running.
+</Accordion>

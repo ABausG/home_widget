@@ -43,7 +43,7 @@ HWLocalizedString _localized({
     );
 
 /// A localized string sitting at `profile.name` of a JSON group.
-HWJson _localizedLeaf({
+HWJson<String> _localizedLeaf({
   String key = 'name',
   Map<String, String> values = const {
     'en': 'Hello',

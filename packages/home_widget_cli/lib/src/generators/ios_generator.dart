@@ -150,6 +150,15 @@ class IosGenerator {
           );
           continue;
         }
+        // Also checked before the plain cast: a date travels as an ISO string,
+        // so casting the entry value to `Date` would always miss.
+        if (field is HWDateTime) {
+          buffer.writeln(
+            '      ${field.key}: '
+            '${field.iosTimedReadValue(valuesExpr: 'timedValues')},',
+          );
+          continue;
+        }
         final fallback = field.codegenSwiftDefaultLiteral();
         final read = 'timedValues["${field.key}"] as? ${field.swiftType}';
         buffer.writeln(
@@ -254,6 +263,10 @@ $loadDataLogic
     // Images: every image is decoded through the downsampling helper, whatever
     // its source; bundled ones additionally need their path resolved out of
     // the containing app.
+    //
+    // Formatting: the spec resolves the number, date and time-zone helpers the
+    // tree and the declared fields reach to their transitive closure, already
+    // ordered so each one is declared after what it calls.
     final fileHelpers = <String>[
       if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
       if (spec.resolvesLocalizedOnRead) swiftLocalizedMergeHelpers,
@@ -261,6 +274,8 @@ $loadDataLogic
       if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
       if (spec.hasImages) swiftImageDecodeHelper,
       if (spec.assetImageFields.isNotEmpty) swiftFlutterAssetHelper,
+      for (final helper in spec.nativeHelpers)
+        helper.toSwift(0, dataExpr: '').trim(),
     ];
     if (fileHelpers.isNotEmpty) {
       extraContent = [
@@ -609,6 +624,15 @@ $loadDataLogic
       final child = entry.value;
       if (child.leafType != null && child.children.isEmpty) {
         final leaf = child.leafType!;
+        // A date leaf is stored as an ISO string, so it is parsed rather than
+        // cast, and has no default to fall back on.
+        if (leaf is HWDateTime) {
+          buffer.writeln(
+            '      $key: '
+            '${leaf.iosJsonReadValue(objExpr: 'values', key: key)},',
+          );
+          continue;
+        }
         final read = 'values["$key"] as? ${leaf.swiftType}';
         // The conditional cast already yields nil when the value is absent or
         // of another type; coalescing that to nil again is a Swift warning.
