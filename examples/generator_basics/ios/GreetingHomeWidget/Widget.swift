@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: GreetingHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum GreetingHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> GreetingHomeWidgetEntry {
@@ -13,7 +17,7 @@ struct Provider: TimelineProvider {
   }
 
   func getSnapshot(in context: Context, completion: @escaping (GreetingHomeWidgetEntry) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: GreetingHomeWidgetFlavor.appGroupId)
     let data = GreetingData.fromUserDefaults(prefs)
 
     completion(GreetingHomeWidgetEntry(date: Date(), data: data))
@@ -21,7 +25,7 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: GreetingHomeWidgetFlavor.appGroupId)
     let data = GreetingData.fromUserDefaults(prefs)
 
     completion(

@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: ForecastHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum ForecastHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ForecastHomeWidgetEntry {
@@ -13,7 +17,7 @@ struct Provider: TimelineProvider {
   }
 
   func getSnapshot(in context: Context, completion: @escaping (ForecastHomeWidgetEntry) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: ForecastHomeWidgetFlavor.appGroupId)
     let data = ForecastData.fromUserDefaults(prefs)
 
     completion(ForecastHomeWidgetEntry(date: Date(), data: data))
@@ -21,7 +25,7 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: ForecastHomeWidgetFlavor.appGroupId)
     let timedEntries = ForecastData.loadTimedEntries(prefs)
     let now = Date()
     var entries: [ForecastHomeWidgetEntry] = [

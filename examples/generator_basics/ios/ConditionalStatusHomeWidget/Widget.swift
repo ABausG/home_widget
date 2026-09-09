@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: ConditionalStatusHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum ConditionalStatusHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ConditionalStatusHomeWidgetEntry {
@@ -16,7 +20,7 @@ struct Provider: TimelineProvider {
   func getSnapshot(
     in context: Context, completion: @escaping (ConditionalStatusHomeWidgetEntry) -> Void
   ) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: ConditionalStatusHomeWidgetFlavor.appGroupId)
     let data = ConditionalStatusData.fromUserDefaults(prefs)
 
     completion(ConditionalStatusHomeWidgetEntry(date: Date(), data: data))
@@ -24,7 +28,7 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: ConditionalStatusHomeWidgetFlavor.appGroupId)
     let data = ConditionalStatusData.fromUserDefaults(prefs)
 
     completion(

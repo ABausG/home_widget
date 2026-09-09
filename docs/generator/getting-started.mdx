@@ -105,8 +105,10 @@ This page walks through setting up `home_widget_generator`, writing your first w
     - `getData()` reads the current values back as a typed record.
     - `deleteData(...)` clears the given fields.
     - `updateWidget()` triggers a refresh of the native widget on both platforms, using the correct `androidName` / `iOSName` automatically.
+    - `requestPinWidget()` / `isRequestPinWidgetSupported()` ask the launcher to place this widget on the home screen (Android only).
+    - `getInstalledWidgets()` / `isInstalled()` report where this widget is currently placed.
 
-    See [Sync data](/usage/sync-data) for the underlying `home_widget` behavior.
+    See [Sync data](/usage/sync-data) for the underlying `home_widget` behavior, and [Pinning & Install Status](/generator/install-status) for the last two groups.
   </Step>
 
   <Step title="Native setup">

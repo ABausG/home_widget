@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: SimpleDataHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum SimpleDataHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> SimpleDataHomeWidgetEntry {
@@ -13,7 +17,7 @@ struct Provider: TimelineProvider {
   }
 
   func getSnapshot(in context: Context, completion: @escaping (SimpleDataHomeWidgetEntry) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
     let data = SimpleDataData.fromUserDefaults(prefs)
 
     completion(SimpleDataHomeWidgetEntry(date: Date(), data: data))
@@ -21,7 +25,7 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
     let data = SimpleDataData.fromUserDefaults(prefs)
 
     completion(

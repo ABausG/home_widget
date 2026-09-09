@@ -94,6 +94,7 @@
         { "title": "Formatting", "href": "/generator/formatting" },
         { "title": "Time-based Content", "href": "/generator/timed-data" },
         { "title": "Widget Clicks", "href": "/generator/widget-url" },
+        { "title": "Pinning & Install Status", "href": "/generator/install-status" },
         { "title": "Flavors", "href": "/generator/flavors" }
       ]
     },
