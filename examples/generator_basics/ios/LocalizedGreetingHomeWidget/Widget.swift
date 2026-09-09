@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: LocalizedGreetingHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum LocalizedGreetingHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> LocalizedGreetingHomeWidgetEntry {
@@ -16,7 +20,7 @@ struct Provider: TimelineProvider {
   func getSnapshot(
     in context: Context, completion: @escaping (LocalizedGreetingHomeWidgetEntry) -> Void
   ) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: LocalizedGreetingHomeWidgetFlavor.appGroupId)
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
 
     completion(LocalizedGreetingHomeWidgetEntry(date: Date(), data: data))
@@ -24,7 +28,7 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: LocalizedGreetingHomeWidgetFlavor.appGroupId)
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
 
     completion(
@@ -43,7 +47,7 @@ struct LocalizedGreetingHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: LocalizedGreetingHomeWidgetFlavor.appGroupId)
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
     VStack(alignment: .leading) {
       Text(NSLocalizedString("home_widget_localized_greeting_t_1e28f816", comment: ""))

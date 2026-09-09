@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: ThemedCounterHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum ThemedCounterHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ThemedCounterHomeWidgetEntry {
@@ -15,7 +19,7 @@ struct Provider: TimelineProvider {
   func getSnapshot(
     in context: Context, completion: @escaping (ThemedCounterHomeWidgetEntry) -> Void
   ) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: ThemedCounterHomeWidgetFlavor.appGroupId)
     let data = ThemedCounterData.fromUserDefaults(prefs)
 
     completion(ThemedCounterHomeWidgetEntry(date: Date(), data: data))
@@ -23,7 +27,7 @@ struct Provider: TimelineProvider {
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-    let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    let prefs = UserDefaults(suiteName: ThemedCounterHomeWidgetFlavor.appGroupId)
     let data = ThemedCounterData.fromUserDefaults(prefs)
 
     completion(

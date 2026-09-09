@@ -2,10 +2,14 @@
 //
 // Placeholder SwiftUI widget.
 //
-// App Group ID used here: group.es.antonborri.generatorBasics
+// App Group ID used here: AdaptiveGreetingHomeWidgetFlavor.appGroupId
 
 import SwiftUI
 import WidgetKit
+
+enum AdaptiveGreetingHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> AdaptiveGreetingHomeWidgetEntry {
@@ -16,7 +20,7 @@ struct Provider: TimelineProvider {
     in context: Context, completion: @escaping (AdaptiveGreetingHomeWidgetEntry) -> Void
   ) {
     // Example of accessing data written by home_widget in Flutter:
-    // let prefs = UserDefaults(suiteName: "group.es.antonborri.generatorBasics")
+    // let prefs = UserDefaults(suiteName: AdaptiveGreetingHomeWidgetFlavor.appGroupId)
     // let counter = prefs?.integer(forKey: "counter") ?? 0
     completion(AdaptiveGreetingHomeWidgetEntry(date: Date()))
 

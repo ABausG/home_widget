@@ -299,6 +299,181 @@ void main() {
       expect(output, contains("iOSName: 'ExampleWidgetHomeWidget',"));
     });
 
+    test('generates pin helpers with a qualified android name', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static Future<bool> isRequestPinWidgetSupported() async {\n'
+          '    return await HomeWidget.isRequestPinWidgetSupported() ?? false;\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<void> requestPinWidget() {\n'
+          '    return HomeWidget.requestPinWidget(\n'
+          "      qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver',\n"
+          '    );\n'
+          '  }',
+        ),
+      );
+    });
+
+    test('generates pin helpers with the default android name', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static Future<void> requestPinWidget() {\n'
+          '    return HomeWidget.requestPinWidget(\n'
+          "      androidName: 'ExampleWidgetHomeWidgetReceiver',\n"
+          '    );\n'
+          '  }',
+        ),
+      );
+    });
+
+    test('omits the pin helpers without an android configuration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, isNot(contains('requestPinWidget')));
+      expect(output, isNot(contains('isRequestPinWidgetSupported')));
+    });
+
+    test('generates install helpers matching both platforms', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {\n'
+          '    final widgets = await HomeWidget.getInstalledWidgets();\n'
+          '    return widgets.where(_\$isThisWidget).toList();\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<bool> isInstalled() async {\n'
+          '    return (await getInstalledWidgets()).isNotEmpty;\n'
+          '  }',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static bool _\$isThisWidget(HomeWidgetInfo info) {\n'
+          '    final androidClassName = info.androidClassName;\n'
+          '    if (androidClassName != null) {\n'
+          "      return androidClassName.endsWith('.ExampleWidgetHomeWidgetReceiver');\n"
+          '    }\n'
+          "    return info.iOSKind == 'ExampleWidgetHomeWidget';\n"
+          '  }',
+        ),
+      );
+    });
+
+    test('matches nothing on iOS without an iOS configuration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static bool _\$isThisWidget(HomeWidgetInfo info) {\n'
+          '    final androidClassName = info.androidClassName;\n'
+          '    if (androidClassName != null) {\n'
+          "      return androidClassName.endsWith('.ExampleWidgetHomeWidgetReceiver');\n"
+          '    }\n'
+          '    return false;\n'
+          '  }',
+        ),
+      );
+    });
+
+    test('matches nothing on Android without an android configuration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static bool _\$isThisWidget(HomeWidgetInfo info) {\n'
+          '    final androidClassName = info.androidClassName;\n'
+          '    if (androidClassName != null) {\n'
+          '      return false;\n'
+          '    }\n'
+          "    return info.iOSKind == 'ExampleWidgetHomeWidget';\n"
+          '  }',
+        ),
+      );
+    });
+
+    test('generates the install helpers for a bare widget', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'PlainWidget'),
+        className: 'PlainWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('getInstalledWidgets()'));
+      expect(output, contains('static Future<bool> isInstalled() async {'));
+    });
+
     test('generates helper without data fields', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'NoDataWidget'),
