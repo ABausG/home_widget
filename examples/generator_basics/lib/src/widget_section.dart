@@ -71,12 +71,11 @@ class _WidgetSectionState extends State<WidgetSection>
     });
   }
 
-  Future<void> _pin() async {
-    await _guard(() async {
+  Future<void> _pin() {
+    return _guard(() async {
       await widget.requestPinWidget();
       return true;
     });
-    await _refresh();
   }
 
   static Future<bool> _guard(Future<bool> Function() call) async {
