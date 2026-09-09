@@ -161,6 +161,13 @@ const Set<String> _reservedDartWords = {
 String widgetResourcePrefix(String className) =>
     'home_widget_${toSnakeCase(className)}';
 
+/// The Swift compilation condition that marks a build as belonging to [flavor].
+///
+/// Conditions are bare identifiers to the Swift compiler, so anything outside
+/// `[A-Za-z0-9]` becomes an underscore.
+String flavorCompilationCondition(String flavor) =>
+    'HW_FLAVOR_${flavor.toUpperCase().replaceAll(RegExp(r'[^A-Za-z0-9]'), '_')}';
+
 /// Converts a PascalCase or camelCase string into snake_case.
 String toSnakeCase(String input) {
   final trimmed = input.trim();

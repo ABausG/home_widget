@@ -108,6 +108,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       iOS: iosConfig,
       localization: localization,
       widgetUrl: constantValue.getField('widgetUrl')?.toStringValue(),
+      flavors: _extractFlavors(constantValue.getField('flavors')),
     ),
     className: generatedClassName,
     dataFields: dataFields,
@@ -193,6 +194,35 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
+  );
+}
+
+Map<String, HomeWidgetFlavor>? _extractFlavors(DartObject? obj) {
+  if (obj == null || obj.isNull) return null;
+
+  final entries = obj.toMapValue();
+  if (entries == null) return null;
+
+  final flavors = <String, HomeWidgetFlavor>{};
+  for (final entry in entries.entries) {
+    final name = entry.key?.toStringValue();
+    if (name == null) continue;
+    flavors[name] = _extractFlavor(entry.value);
+  }
+  return flavors;
+}
+
+HomeWidgetFlavor _extractFlavor(DartObject? obj) {
+  if (obj == null || obj.isNull) return const HomeWidgetFlavor();
+
+  return HomeWidgetFlavor(iOS: _extractIosFlavor(obj.getField('iOS')));
+}
+
+HomeWidgetIOSFlavor? _extractIosFlavor(DartObject? obj) {
+  if (obj == null || obj.isNull) return null;
+
+  return HomeWidgetIOSFlavor(
+    groupId: obj.getField('groupId')?.toStringValue(),
   );
 }
 

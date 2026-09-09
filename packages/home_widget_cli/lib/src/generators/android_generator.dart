@@ -5,6 +5,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
+import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../models/extensions.dart';
 import '../util/android_package.dart';
@@ -64,6 +65,10 @@ class AndroidGenerator {
       );
       return;
     }
+
+    // Before anything is written: a receiver written into a source set of a
+    // flavor Gradle does not know is merged into no build at all.
+    if (spec.hasFlavors) _verifyDeclaredFlavorsExist();
 
     final detectedPackage = tryDetectAndroidPackage(projectRoot);
     final packageName =
@@ -480,7 +485,9 @@ class AndroidGenerator {
       providerInfoName: providerInfoName,
       handleLocaleChange: handlesLocaleChange,
       label: '@string/$labelResourceName',
+      flavors: spec.declaredFlavors,
     );
+    if (spec.hasFlavors) _reportFlavorMismatches();
     if (widgetUrl != null) {
       await ensureAndroidManifestLaunchIntent(projectRoot);
     }
@@ -489,6 +496,68 @@ class AndroidGenerator {
       // on Android, which needs the plugin's scheduling receiver declared by the
       // consuming app. Specs without timed fields must not touch the manifest.
       await ensureAndroidManifestScheduledUpdates(projectRoot);
+    }
+  }
+
+  /// Fails for a declared flavor that does not exist on Android.
+  ///
+  /// The receiver of a flavored widget only lives in
+  /// `android/app/src/<flavor>/AndroidManifest.xml`, and Gradle merges that
+  /// source set only for a flavor it knows — so generating for a flavor the
+  /// Android project does not have would drop the widget from every build.
+  ///
+  /// Detection is text-based best effort, so an existing
+  /// `android/app/src/<flavor>/` directory counts as the flavor existing too:
+  /// it is the escape hatch for flavors declared in a way the scan cannot see.
+  void _verifyDeclaredFlavorsExist() {
+    final detected = tryDetectAndroidFlavors(projectRoot);
+
+    for (final flavor in spec.declaredFlavors) {
+      if (detected != null && detected.contains(flavor)) continue;
+      if (_androidSourceSetDir(flavor).existsSync()) continue;
+
+      final detectedList = detected == null
+          ? 'No productFlavors block was found under android/app/'
+          : detected.isEmpty
+              ? 'The productFlavors block under android/app/ declares no '
+                  'flavors'
+              : 'Product flavors found under android/app/: '
+                  '${detected.map((f) => '"$f"').join(', ')}';
+
+      throw GeneratorError(
+        '${spec.data.name} declares the flavor "$flavor", but no Android '
+        'product flavor of that name exists. $detectedList. Gradle merges '
+        'android/app/src/$flavor/ only for a flavor it knows, so the widget '
+        'would be missing from every build. Declare "$flavor" in the '
+        'android/app product flavors, or drop it from the widget. Creating '
+        'the directory android/app/src/$flavor/ also marks the flavor as '
+        'existing, for flavors declared in a way this check cannot read.',
+      );
+    }
+  }
+
+  Directory _androidSourceSetDir(String sourceSet) => Directory(
+        p.join(projectRoot.path, 'android', 'app', 'src', sourceSet),
+      );
+
+  /// Reports the product flavors the Gradle files declare that this widget is
+  /// not generated for. Detection is best effort, so this is never acted on.
+  void _reportFlavorMismatches() {
+    final detected = tryDetectAndroidFlavors(projectRoot);
+    if (detected == null) {
+      logger.detail(
+        'Could not detect Android product flavors under android/app/; '
+        'skipping the flavor report for ${spec.data.name}.',
+      );
+      return;
+    }
+
+    for (final flavor in detected) {
+      if (spec.declaredFlavors.contains(flavor)) continue;
+      logger.detail(
+        '${spec.data.name} is not generated for the Android product flavor '
+        '"$flavor".',
+      );
     }
   }
 

@@ -234,6 +234,30 @@ class WidgetSpec {
   bool get rendersLocalizedContent =>
       constantLocalizedStrings.isNotEmpty || needsLocaleHelpers;
 
+  /// The flavors the widget is generated for, in declaration order.
+  ///
+  /// Empty when the annotation declares none, which means every flavor with the
+  /// base configuration.
+  List<String> get declaredFlavors =>
+      data.flavors?.keys.toList() ?? const <String>[];
+
+  /// Whether the widget restricts itself to a set of flavors.
+  bool get hasFlavors => declaredFlavors.isNotEmpty;
+
+  /// The overrides declared for [name], or null when it is not declared.
+  HomeWidgetFlavor? flavor(String name) => data.flavors?[name];
+
+  HomeWidgetFlavor? _flavor(String? name) =>
+      name == null ? null : data.flavors?[name];
+
+  /// The App Group the widget shares with the app in [flavor], where the
+  /// flavor's override wins over [HomeWidgetIOSConfiguration.groupId].
+  ///
+  /// [flavor] null selects the base configuration. Only ever called for a
+  /// widget that has an iOS configuration.
+  String iosGroupIdFor(String? flavor) =>
+      _flavor(flavor)?.iOS?.groupId ?? data.iOS!.groupId;
+
   /// The URL configured for Android, where the platform value wins over the
   /// top-level [HomeWidget.widgetUrl].
   ///

@@ -324,4 +324,156 @@ android {
       expect(tryDetectAndroidLauncherActivity(root), isNull);
     });
   });
+
+  group('tryDetectAndroidFlavors', () {
+    void writeGradle(String name, String content) {
+      File(p.join(root.path, 'android', 'app', name))
+          .writeAsStringSync(content);
+    }
+
+    test('returns null when no productFlavors block exists', () {
+      writeGradle('build.gradle.kts', '''
+android {
+    namespace = "com.example"
+    defaultConfig {
+        applicationId = "com.example"
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), isNull);
+    });
+
+    test('returns null when android/app does not exist', () {
+      final empty = Directory.systemTemp.createTempSync('hw_no_android');
+      addTearDown(() => empty.deleteSync(recursive: true));
+
+      expect(tryDetectAndroidFlavors(empty), isNull);
+    });
+
+    test('reads the Kotlin DSL create(...) form', () {
+      writeGradle('build.gradle.kts', '''
+android {
+    flavorDimensions += "flavor-type"
+    productFlavors {
+        create("dev") {
+            dimension = "flavor-type"
+            applicationId = "com.example.flavor_check.dev"
+        }
+        create("prod") {
+            dimension = "flavor-type"
+        }
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), ['dev', 'prod']);
+    });
+
+    test('reads the register(...) and quoted-name forms', () {
+      writeGradle('build.gradle.kts', '''
+android {
+    productFlavors {
+        register("dev") { dimension = "flavor-type" }
+        "stg" {
+            dimension = "flavor-type"
+        }
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), ['dev', 'stg']);
+    });
+
+    test('reads the Groovy form and ignores flavor properties', () {
+      writeGradle('build.gradle', '''
+android {
+    flavorDimensions "default"
+    productFlavors {
+        dev {
+            dimension "default"
+            manifestPlaceholders = [appName: "Dev"]
+        }
+        prod {
+            dimension "default"
+        }
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), ['dev', 'prod']);
+    });
+
+    test('scans gradle files other than the build file', () {
+      writeGradle('build.gradle.kts', '''
+apply(from = "flavorizr.gradle.kts")
+
+android {
+    namespace = "com.example.flavor_check"
+}
+''');
+      writeGradle('flavorizr.gradle.kts', '''
+android.apply {
+    flavorDimensions("flavor-type")
+
+    productFlavors {
+        create("dev") {
+            dimension = "flavor-type"
+            applicationId = "com.example.flavor_check.dev"
+            resValue(type = "string", name = "app_name", value = "Dev")
+        }
+        create("prod") {
+            dimension = "flavor-type"
+            applicationId = "com.example.flavor_check"
+        }
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), ['dev', 'prod']);
+    });
+
+    test('deduplicates names declared in more than one file', () {
+      writeGradle('build.gradle', '''
+android {
+    productFlavors {
+        dev { dimension "default" }
+    }
+}
+''');
+      writeGradle('extra.gradle', '''
+android {
+    productFlavors {
+        dev { dimension "default" }
+        prod { dimension "default" }
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), ['dev', 'prod']);
+    });
+
+    test('returns an empty list for an empty productFlavors block', () {
+      writeGradle('build.gradle', '''
+android {
+    productFlavors {
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), isEmpty);
+    });
+
+    test('does not read a same-suffix property as a flavor block', () {
+      writeGradle('build.gradle', '''
+android {
+    myProductFlavors {
+        dev { dimension "default" }
+    }
+}
+''');
+
+      expect(tryDetectAndroidFlavors(root), isNull);
+    });
+  });
 }

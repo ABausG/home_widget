@@ -556,5 +556,65 @@ void main() {
         HWAndroidWidgetCategory.searchbox,
       );
     });
+
+    test('a widget without flavors parses none', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(name: 'No Flavors')
+        class NoFlavorWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.data.flavors, isNull);
+      expect(spec.declaredFlavors, isEmpty);
+    });
+
+    test('parses a flavors map with nested iOS overrides', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Flavored',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.base'),
+          flavors: {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(groupId: 'group.dev'),
+            ),
+            'stg': HomeWidgetFlavor(),
+          },
+        )
+        class FlavoredWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.declaredFlavors, ['dev', 'stg']);
+      expect(spec.flavor('dev')?.iOS?.groupId, 'group.dev');
+      expect(spec.iosGroupIdFor('dev'), 'group.dev');
+
+      // An empty entry declares the flavor and keeps every base value.
+      expect(spec.flavor('stg'), const HomeWidgetFlavor());
+      expect(spec.iosGroupIdFor('stg'), 'group.base');
+    });
+
+    test('parses a flavor that overrides nothing', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Half Flavored',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.base'),
+          flavors: {'dev': HomeWidgetFlavor()},
+        )
+        class HalfFlavoredWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.flavor('dev')?.iOS, isNull);
+      expect(spec.iosGroupIdFor('dev'), 'group.base');
+    });
   });
 }

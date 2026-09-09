@@ -46,6 +46,7 @@ class ConfigurationOptions {}
 | `iOS` | `HomeWidgetIOSConfiguration?` | `null` | iOS-specific configuration (see below). |
 | `localization` | `HomeWidgetLocalization?` | `null` | Default locale, supported locales, and translations of the gallery name and description. See [Localization](/generator/localization). |
 | `widgetUrl` | `String?` | `null` | URL the app is opened with when the widget is tapped. See [Widget Clicks](/generator/widget-url). |
+| `flavors` | `Map<String, HomeWidgetFlavor>?` | `null` | Restricts which Flutter flavors the widget is generated into, with per-flavor overrides. See [Flavors](/generator/flavors). |
 
 A `localization:` block is required as soon as the widget uses a localized string
 (`HWText.localized` or `HWString.localized`) — it supplies the default locale
@@ -88,3 +89,19 @@ Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widget
 | `backgroundColor` | `HWColor?` | `null` | Background color for the widget container. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |
 | `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on iOS. See [Widget Clicks](/generator/widget-url). |
+
+## `HomeWidgetFlavor`
+
+Value of an entry in `@HomeWidget.flavors`. `HomeWidgetFlavor()` means "this flavor, base configuration". See [Flavors](/generator/flavors).
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `iOS` | `HomeWidgetIOSFlavor?` | `null` | iOS overrides for this flavor. |
+
+## `HomeWidgetIOSFlavor`
+
+Per-flavor overrides for `HomeWidgetIOSConfiguration`. Requires the widget to declare `iOS:` configuration. See [Flavors](/generator/flavors).
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `groupId` | `String?` | `null` | Overrides `HomeWidgetIOSConfiguration.groupId` for this flavor. |

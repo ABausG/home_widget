@@ -120,6 +120,14 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 /// receiver's intent-filter so a placed widget re-renders after a system
 /// language change. Set it for widgets that render localized content
 /// themselves.
+///
+/// [flavors] is the set of product flavors the widget exists in. Empty
+/// registers the receiver in `src/main`. Otherwise it is registered in
+/// `src/<flavor>/AndroidManifest.xml` for every flavor — Gradle's manifest
+/// merger folds those into `main`, so the receiver still resolves the
+/// `@xml/…` and `@string/…` resources that live there — and removed from every
+/// other source set, `main` included. Only receivers this generator owns are
+/// ever removed.
 Future<void> ensureAndroidManifestReceiver(
   Directory projectRoot, {
   required String widgetClassName,
@@ -127,26 +135,82 @@ Future<void> ensureAndroidManifestReceiver(
   required String providerInfoName,
   bool handleLocaleChange = false,
   String? label,
+  List<String> flavors = const [],
 }) async {
-  final manifestFile = File(
-    p.join(
-      projectRoot.path,
-      'android',
-      'app',
-      'src',
-      'main',
-      'AndroidManifest.xml',
-    ),
-  );
-  if (!manifestFile.existsSync()) {
-    logger.warn(
-      'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
-      'manifest wiring.',
+  final receiverFqcn = '$appPackageName.${widgetClassName}Receiver';
+  final sourceSets = flavors.isEmpty ? const ['main'] : flavors;
+
+  for (final sourceSet in sourceSets) {
+    _ensureReceiverInSourceSet(
+      projectRoot,
+      sourceSet: sourceSet,
+      receiverFqcn: receiverFqcn,
+      widgetClassName: widgetClassName,
+      providerInfoName: providerInfoName,
+      handleLocaleChange: handleLocaleChange,
+      label: label,
     );
-    return;
   }
 
-  final receiverFqcn = '$appPackageName.${widgetClassName}Receiver';
+  _removeReceiverFromOtherSourceSets(
+    projectRoot,
+    keep: sourceSets.toSet(),
+    receiverFqcn: receiverFqcn,
+    widgetClassName: widgetClassName,
+    providerInfoName: providerInfoName,
+  );
+}
+
+const String _minimalFlavorManifest = '''<?xml version="1.0" encoding="utf-8"?>
+<!-- CREATED AND MANAGED BY THE home_widget CLI - IT ADDS AND REMOVES ITS OWN WIDGET RECEIVERS HERE -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+    </application>
+</manifest>
+''';
+
+File _androidManifestFile(Directory projectRoot, String sourceSet) => File(
+      p.join(
+        projectRoot.path,
+        'android',
+        'app',
+        'src',
+        sourceSet,
+        'AndroidManifest.xml',
+      ),
+    );
+
+XmlElement? _androidApplicationElement(XmlElement manifest) =>
+    manifest.childElements
+        .where((e) => e.localName == 'application')
+        .cast<XmlElement?>()
+        .firstWhere((e) => e != null, orElse: () => null);
+
+void _ensureReceiverInSourceSet(
+  Directory projectRoot, {
+  required String sourceSet,
+  required String receiverFqcn,
+  required String widgetClassName,
+  required String providerInfoName,
+  required bool handleLocaleChange,
+  String? label,
+}) {
+  // A flavor source set is the generator's to create; `main` is the app's.
+  final isMain = sourceSet == 'main';
+  final manifestFile = _androidManifestFile(projectRoot, sourceSet);
+
+  if (!manifestFile.existsSync()) {
+    if (isMain) {
+      logger.warn(
+        'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
+        'manifest wiring.',
+      );
+      return;
+    }
+    manifestFile.parent.createSync(recursive: true);
+    manifestFile.writeAsStringSync(_minimalFlavorManifest);
+    logger.detail('Generated: ${manifestFile.path}');
+  }
 
   final manifestXml = tryParseXmlFile(manifestFile);
   if (manifestXml == null) {
@@ -157,17 +221,17 @@ Future<void> ensureAndroidManifestReceiver(
     return;
   }
 
-  final application = manifestXml.rootElement.childElements
-      .where((e) => e.localName == 'application')
-      .cast<XmlElement?>()
-      .firstWhere((e) => e != null, orElse: () => null);
-
+  var application = _androidApplicationElement(manifestXml.rootElement);
   if (application == null) {
-    logger.warn(
-      'Warning: Could not find <application> in AndroidManifest.xml; skipping '
-      'manifest wiring.',
-    );
-    return;
+    if (isMain) {
+      logger.warn(
+        'Warning: Could not find <application> in AndroidManifest.xml; '
+        'skipping manifest wiring.',
+      );
+      return;
+    }
+    application = XmlElement(XmlName('application'));
+    manifestXml.rootElement.children.add(application);
   }
 
   final existing = _findAndroidWidgetReceiver(
@@ -214,6 +278,47 @@ Future<void> ensureAndroidManifestReceiver(
 
   if (writeXmlFile(manifestFile, manifestXml)) {
     logger.detail('Updated: ${manifestFile.path}');
+  }
+}
+
+/// Drops this widget's receiver from every `android/app/src/<dir>` manifest
+/// whose source set is not in [keep], so a widget that changed its flavors (or
+/// dropped them) leaves no stale registration behind.
+void _removeReceiverFromOtherSourceSets(
+  Directory projectRoot, {
+  required Set<String> keep,
+  required String receiverFqcn,
+  required String widgetClassName,
+  required String providerInfoName,
+}) {
+  final srcDir = Directory(
+    p.join(projectRoot.path, 'android', 'app', 'src'),
+  );
+  if (!srcDir.existsSync()) return;
+
+  for (final dir
+      in srcDir.listSync(followLinks: false).whereType<Directory>()) {
+    if (keep.contains(p.basename(dir.path))) continue;
+
+    final manifestFile = File(p.join(dir.path, 'AndroidManifest.xml'));
+    final manifestXml = tryParseXmlFile(manifestFile);
+    if (manifestXml == null) continue;
+
+    final application = _androidApplicationElement(manifestXml.rootElement);
+    if (application == null) continue;
+
+    final receiver = _findAndroidWidgetReceiver(
+      application,
+      receiverFqcn: receiverFqcn,
+      widgetClassName: widgetClassName,
+      providerInfoName: providerInfoName,
+    );
+    if (receiver == null) continue;
+
+    application.children.remove(receiver);
+    if (writeXmlFile(manifestFile, manifestXml)) {
+      logger.detail('Updated: ${manifestFile.path}');
+    }
   }
 }
 

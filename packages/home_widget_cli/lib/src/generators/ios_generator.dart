@@ -4,6 +4,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:path/path.dart' as p;
 
+import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../models/extensions.dart';
 import '../util/logger.dart';
@@ -64,8 +65,21 @@ class IosGenerator {
       return;
     }
 
+    // Before anything is written: a flavor the Xcode project does not have
+    // compiles the widget out of every build, so there is nothing worth
+    // generating until the configurations exist.
+    if (xcodeproj.existsSync()) {
+      _requireXcodeFlavors(await xcodeproj.readAsString(), iosDir);
+    }
+
     final widgetClassName = '${spec.className}HomeWidget';
-    final groupId = spec.data.iOS!.groupId;
+    final groupId = spec.iosGroupIdFor(null);
+    final flavorAppGroupIds = {
+      for (final flavor in spec.declaredFlavors)
+        flavor: spec.iosGroupIdFor(flavor),
+    };
+    final prefsExpr =
+        'UserDefaults(suiteName: ${iosFlavorEnumName(widgetClassName)}.appGroupId)';
 
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
     await ensureDir(extensionDir);
@@ -210,12 +224,12 @@ struct ${widgetClassName}Entry: TimelineEntry {
 ''';
 
       final loadDataLogic = '''
-    let prefs = UserDefaults(suiteName: "$groupId")
+    let prefs = $prefsExpr
     let data = $className.fromUserDefaults(prefs)
 ''';
       getSnapshotBody = needsEntryTimedEntries
           ? '''
-    let prefs = UserDefaults(suiteName: "$groupId")
+    let prefs = $prefsExpr
     let timedEntries = $className.loadTimedEntries(prefs)
     let data = $className.fromUserDefaults(prefs, timedEntries: timedEntries)
 
@@ -227,7 +241,7 @@ $loadDataLogic
 ''';
       getTimelineBody = hasTimedFields
           ? '''
-    let prefs = UserDefaults(suiteName: "$groupId")
+    let prefs = $prefsExpr
     let timedEntries = $className.loadTimedEntries(prefs)
     let now = Date()
     var entries: [${widgetClassName}Entry] = [
@@ -301,7 +315,7 @@ $loadDataLogic
     final entryTimedEntriesArg =
         needsEntryTimedEntries ? ', timedEntries: entry.timedEntries' : '';
     final viewPrefix = reResolveAtRender
-        ? '    let prefs = UserDefaults(suiteName: "$groupId")\n'
+        ? '    let prefs = $prefsExpr\n'
             '    let data = ${spec.className}Data'
             '.fromUserDefaults(prefs$atEntryDate$entryTimedEntriesArg)\n'
         : '';
@@ -333,6 +347,7 @@ $loadDataLogic
       iosWidgetSwiftTemplate(
         widgetClassName: widgetClassName,
         appGroupId: groupId,
+        flavorAppGroupIds: flavorAppGroupIds,
         widgetUrl: spec.iosWidgetUrl == null
             ? null
             : escapeSwiftStringLiteral(spec.iosWidgetUrl!),
@@ -372,7 +387,10 @@ $loadDataLogic
     logger.detail('Generated: ${widgetSwift.path}');
 
     await widgetBundleSwift.writeAsString(
-      iosWidgetBundleSwiftTemplate(widgetClassName: widgetClassName),
+      iosWidgetBundleSwiftTemplate(
+        widgetClassName: widgetClassName,
+        flavors: spec.declaredFlavors,
+      ),
     );
     logger.detail('Generated: ${widgetBundleSwift.path}');
 
@@ -399,20 +417,23 @@ $loadDataLogic
     );
     logger.detail('Updated: ${extensionEntitlements.path}');
 
-    final runnerEntitlements = File(
-      p.join(iosDir.path, 'Runner', 'Runner.entitlements'),
-    );
-
-    await ensureAppGroupEntitlement(
-      entitlementsFile: runnerEntitlements,
-      appGroupId: groupId,
-    );
-    logger.detail('Updated: ${runnerEntitlements.path}');
+    final flavorEntitlements = <String, String>{};
+    for (final flavor in spec.declaredFlavors) {
+      final name = '$widgetClassName.$flavor.entitlements';
+      final file = File(p.join(iosDir.path, name));
+      await ensureAppGroupEntitlement(
+        entitlementsFile: file,
+        appGroupId: flavorAppGroupIds[flavor]!,
+      );
+      logger.detail('Updated: ${file.path}');
+      flavorEntitlements[flavor] = name;
+    }
 
     if (xcodeproj.existsSync()) {
       await ensureWidgetExtensionTargetInXcodeProject(
         pbxprojFile: xcodeproj,
         widgetClassName: widgetClassName,
+        flavorEntitlements: flavorEntitlements,
       );
 
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
@@ -428,6 +449,137 @@ $loadDataLogic
         );
       }
       logger.detail('Updated: ${xcodeproj.path}');
+    }
+
+    // Read back only now: the Runner configurations this looks at are the ones
+    // the patchers above just settled.
+    final pbxproj =
+        xcodeproj.existsSync() ? await xcodeproj.readAsString() : null;
+    if (pbxproj != null) _reportFlavorMismatches(pbxproj, iosDir);
+    await _updateRunnerEntitlements(
+      iosDir: iosDir,
+      pbxproj: pbxproj,
+      groupId: groupId,
+      flavorAppGroupIds: flavorAppGroupIds,
+    );
+  }
+
+  /// Fails when a declared flavor has no Xcode build configurations.
+  ///
+  /// The widget is guarded by the compilation conditions of the flavors it
+  /// declares, and those only exist on configurations mirroring a Runner
+  /// `Debug-<flavor>`: without them the guard is never satisfied and the widget
+  /// silently disappears from every build.
+  void _requireXcodeFlavors(String pbxproj, Directory iosDir) {
+    if (!spec.hasFlavors) return;
+    final detected = detectXcodeFlavors(pbxproj, projectDir: iosDir);
+    final missing = spec.declaredFlavors
+        .where((flavor) => !detected.contains(flavor))
+        .toList(growable: false);
+    if (missing.isEmpty) return;
+
+    final wanted = missing
+        .map(
+          (flavor) => '"$flavor" needs Debug-$flavor, Release-$flavor and '
+              'Profile-$flavor',
+        )
+        .join('; ');
+    throw GeneratorError(
+      '${spec.data.name} declares the flavor'
+      '${missing.length == 1 ? '' : 's'} '
+      '${missing.map((flavor) => '"$flavor"').join(', ')}, which '
+      'Runner.xcodeproj does not have: $wanted. '
+      '${detected.isEmpty ? 'It defines no flavored build configurations at all.' : 'It defines ${detected.map((flavor) => '"$flavor"').join(', ')}.'} '
+      'Add the build configurations, then generate again.',
+    );
+  }
+
+  /// Adds every App Group the widget uses to the Runner entitlements that
+  /// carry it.
+  ///
+  /// A flavor signs with the files its own Runner configurations name, so its
+  /// group has to land in every one of them rather than in the shared one — the
+  /// Debug and Release configurations of a flavor routinely sign with different
+  /// files, and a group written to only one of them is missing from the other's
+  /// builds. Flavors whose configurations name none fall back to the file the
+  /// scaffolder creates.
+  ///
+  /// A configuration naming a file through a build variable only Xcode can
+  /// resolve is left to the user: writing to a guessed path would create a
+  /// second entitlements file that nothing signs with.
+  Future<void> _updateRunnerEntitlements({
+    required Directory iosDir,
+    required String? pbxproj,
+    required String groupId,
+    required Map<String, String> flavorAppGroupIds,
+  }) async {
+    const defaultPath = 'Runner/Runner.entitlements';
+    final groupsByPath = <String, Set<String>>{};
+
+    for (final entry in <String?, String>{
+      null: groupId,
+      ...flavorAppGroupIds,
+    }.entries) {
+      final flavor = entry.key;
+      final settings = pbxproj == null
+          ? const <String>[]
+          : runnerEntitlementsSettingsForFlavor(
+              pbxproj,
+              flavor,
+              projectDir: iosDir,
+            );
+      if (settings.isEmpty) {
+        groupsByPath
+            .putIfAbsent(defaultPath, () => <String>{})
+            .add(entry.value);
+        continue;
+      }
+
+      for (final setting in settings) {
+        final path = resolveProjectRelativePath(setting);
+        if (path == null) {
+          logger.warn(
+            'Warning: The Runner configuration '
+            '${flavor == null ? '' : 'of flavor "$flavor" '}signs with '
+            '"$setting", which only Xcode can resolve. Add the App Group '
+            '${entry.value} to that entitlements file by hand.',
+          );
+          continue;
+        }
+        groupsByPath.putIfAbsent(path, () => <String>{}).add(entry.value);
+      }
+    }
+
+    for (final entry in groupsByPath.entries) {
+      final file = File(p.join(iosDir.path, entry.key));
+      for (final appGroupId in entry.value) {
+        await ensureAppGroupEntitlement(
+          entitlementsFile: file,
+          appGroupId: appGroupId,
+        );
+      }
+      logger.detail('Updated: ${file.path}');
+      if (entry.value.length > 1) {
+        logger.info(
+          '${entry.key} now lists several App Groups '
+          '(${entry.value.join(', ')}) because the flavors sharing it use '
+          'different ones. Point each flavor at its own Runner entitlements '
+          'file via CODE_SIGN_ENTITLEMENTS to keep them apart.',
+        );
+      }
+    }
+  }
+
+  /// Notes the Xcode flavors the widget leaves out.
+  void _reportFlavorMismatches(String pbxproj, Directory iosDir) {
+    if (!spec.hasFlavors) return;
+    final detected = detectXcodeFlavors(pbxproj, projectDir: iosDir);
+
+    for (final flavor in detected) {
+      if (spec.declaredFlavors.contains(flavor)) continue;
+      logger.detail(
+        '${spec.data.name} is not generated for the Xcode flavor "$flavor".',
+      );
     }
   }
 

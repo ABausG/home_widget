@@ -300,6 +300,39 @@ class MissingAsset {}
     );
 
     test(
+      'returns software exit when a generator rejects a declared flavor',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'flavored.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Flavored',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+  flavors: {'dev': HomeWidgetFlavor()},
+  widget: HWText(HWString('title')),
+)
+class Flavored {}
+''');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(that: allOf(contains('Flavored'), contains('"dev"'))),
+          ),
+        ).called(1);
+        verifyNever(() => mockLogger.err(any(that: contains('Unexpected'))));
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
       'returns software exit when schema validation fails',
       () async {
         final project = await TestFlutterProject.create();

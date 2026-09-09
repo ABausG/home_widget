@@ -47,6 +47,7 @@ void validateWidgetData(WidgetSpec spec) {
   }
 
   _validateWidgetUrls(spec);
+  _validateFlavors(spec);
   _validateImageKeys(spec);
   _validateNoConflictingKeys(spec);
   validateLocalization(spec);
@@ -98,6 +99,46 @@ void _validateWidgetUrl(
       'widgetUrl must be an absolute URI including a scheme, e.g. '
       'myapp://details.',
     );
+  }
+}
+
+/// Rejects a flavor map that would generate nothing, or that overrides a
+/// platform the widget is not configured for.
+void _validateFlavors(WidgetSpec spec) {
+  final flavors = spec.data.flavors;
+  if (flavors == null) return;
+
+  if (flavors.isEmpty) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": flavors is empty, so the widget would exist '
+      'in no flavor at all. Omit flavors to generate it for every flavor.',
+    );
+  }
+
+  for (final entry in flavors.entries) {
+    final name = entry.key;
+    if (name.trim().isEmpty) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": a flavor name is empty. Name the flavor '
+        'exactly as the native project spells it, e.g. "dev".',
+      );
+    }
+
+    final flavor = entry.value;
+    if (flavor.iOS != null && spec.data.iOS == null) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": flavor "$name" carries iOS overrides but '
+        'the widget has no iOS: HomeWidgetIOSConfiguration(...), so no iOS '
+        'widget is generated for it to override.',
+      );
+    }
+    final groupId = flavor.iOS?.groupId;
+    if (groupId != null && groupId.trim().isEmpty) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": flavor "$name" has an empty iOS groupId. '
+        'Omit it to keep the App Group of the base configuration.',
+      );
+    }
   }
 }
 

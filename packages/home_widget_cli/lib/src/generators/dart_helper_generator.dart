@@ -87,6 +87,9 @@ class DartHelperGenerator {
     if (hasTimedData) {
       buffer.writeln("import 'package:flutter/foundation.dart';");
     }
+    if (usesAppGroupId && spec.hasFlavors) {
+      buffer.writeln("import 'package:flutter/services.dart';");
+    }
     if (hasImageFields) {
       buffer.writeln("import 'package:flutter/widgets.dart';");
     }
@@ -101,7 +104,7 @@ class DartHelperGenerator {
 
     if (hasDataFields) {
       if (usesAppGroupId) {
-        buffer.writeln("  static const String _\$appGroupId = '$appGroupId';");
+        _writeAppGroupId(buffer, appGroupId);
         buffer.writeln();
       }
       buffer.writeln(
@@ -1241,6 +1244,26 @@ class DartHelperGenerator {
   /// writes and the native `hwParseIsoDate` helper reads back.
   String _dartIsoExpr(String valueExpr) =>
       '$valueExpr.toUtc().toIso8601String()';
+
+  /// Emits the App Group the data calls write to.
+  ///
+  /// A widget declaring flavors resolves it from the flavor the app was built
+  /// with, since one generated helper serves them all; the base group answers
+  /// for every other flavor.
+  void _writeAppGroupId(StringBuffer buffer, String baseGroupId) {
+    if (!spec.hasFlavors) {
+      buffer.writeln("  static const String _\$appGroupId = '$baseGroupId';");
+      return;
+    }
+    buffer.writeln(
+      '  static String get _\$appGroupId => switch (appFlavor) {',
+    );
+    for (final flavor in spec.declaredFlavors) {
+      buffer.writeln("    '$flavor' => '${spec.iosGroupIdFor(flavor)}',");
+    }
+    buffer.writeln("    _ => '$baseGroupId',");
+    buffer.writeln('  };');
+  }
 
   String _appGroupIdArg(bool usesAppGroupId) =>
       usesAppGroupId ? r', appGroupId: _$appGroupId' : '';

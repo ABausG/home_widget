@@ -77,4 +77,96 @@ void main() {
 
     expect(out, isNot(contains('.widgetURL(')));
   });
+
+  test('iosWidgetSwiftTemplate emits a plain flavor enum without flavors', () {
+    final out = iosWidgetSwiftTemplate(
+      widgetClassName: 'BareHomeWidget',
+      appGroupId: 'group.bare',
+    );
+
+    expect(
+      out,
+      contains(
+        'enum BareHomeWidgetFlavor {\n'
+        '  static let appGroupId = "group.bare"\n'
+        '}',
+      ),
+    );
+    expect(out, isNot(contains('#if HW_FLAVOR')));
+    expect(
+      out,
+      contains('// App Group ID used here: BareHomeWidgetFlavor.appGroupId'),
+    );
+  });
+
+  test('iosWidgetSwiftTemplate switches the flavor enum on the conditions', () {
+    final out = iosWidgetSwiftTemplate(
+      widgetClassName: 'WeatherHomeWidget',
+      appGroupId: 'group.example',
+      flavorAppGroupIds: const {
+        'dev': 'group.example.dev',
+        'prod': 'group.example',
+      },
+    );
+
+    expect(
+      out,
+      contains(
+        'enum WeatherHomeWidgetFlavor {\n'
+        '  #if HW_FLAVOR_DEV\n'
+        '  static let appGroupId = "group.example.dev"\n'
+        '  #elseif HW_FLAVOR_PROD\n'
+        '  static let appGroupId = "group.example"\n'
+        '  #else\n'
+        '  static let appGroupId = "group.example"\n'
+        '  #endif\n'
+        '}',
+      ),
+    );
+  });
+
+  test('iosFlavorEnumSwift maps a flavor name onto its condition', () {
+    final out = iosFlavorEnumSwift(
+      widgetClassName: 'MixedHomeWidget',
+      appGroupId: 'group.base',
+      flavorAppGroupIds: const {'in-house': 'group.inhouse'},
+    );
+
+    expect(out, contains('#if HW_FLAVOR_IN_HOUSE'));
+    expect(out, contains('static let appGroupId = "group.inhouse"'));
+  });
+
+  test('iosWidgetBundleSwiftTemplate registers the widget unconditionally', () {
+    final out = iosWidgetBundleSwiftTemplate(
+      widgetClassName: 'BareHomeWidget',
+    );
+
+    expect(
+      out,
+      contains(
+        '  var body: some Widget {\n'
+        '    BareHomeWidget()\n'
+        '  }',
+      ),
+    );
+    expect(out, isNot(contains('#if')));
+  });
+
+  test('iosWidgetBundleSwiftTemplate guards the widget with its flavors', () {
+    final out = iosWidgetBundleSwiftTemplate(
+      widgetClassName: 'WeatherHomeWidget',
+      flavors: const ['dev', 'prod'],
+    );
+
+    expect(
+      out,
+      contains(
+        '  var body: some Widget {\n'
+        '    #if HW_FLAVOR_DEV || HW_FLAVOR_PROD\n'
+        '    WeatherHomeWidget()\n'
+        '    #endif\n'
+        '  }',
+      ),
+    );
+  });
 }

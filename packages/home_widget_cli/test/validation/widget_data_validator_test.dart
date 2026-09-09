@@ -198,6 +198,125 @@ void main() {
       expect(() => validateWidgetData(spec), returnsNormally);
     });
 
+    test('accepts flavors overriding the platforms the widget configures', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          android: const HomeWidgetAndroidConfiguration(),
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.t'),
+          flavors: const {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(groupId: 'group.dev'),
+            ),
+            'stg': HomeWidgetFlavor(),
+          },
+        ),
+        className: 'T',
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
+    test('throws when the flavor map is empty', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'T', flavors: const {}),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"T"'),
+              contains('flavors is empty'),
+              contains('no flavor'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when a flavor name is blank', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          flavors: const {'  ': HomeWidgetFlavor()},
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"T"'), contains('flavor name is empty')),
+          ),
+        ),
+      );
+    });
+
+    test('throws when a flavor overrides iOS on a widget without iOS', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          android: const HomeWidgetAndroidConfiguration(),
+          flavors: const {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(groupId: 'group.dev'),
+            ),
+          },
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"dev"'),
+              contains('iOS overrides'),
+              contains('HomeWidgetIOSConfiguration'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when a flavor groupId is empty', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.t'),
+          flavors: const {
+            'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: '  ')),
+          },
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"dev"'),
+              contains('empty iOS groupId'),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('accepts image fields with distinct derived keys', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),

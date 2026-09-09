@@ -285,6 +285,42 @@ class HomeWidgetIOSConfiguration {
       widgetUrl.hashCode;
 }
 
+/// Per-flavor overrides of [HomeWidgetIOSConfiguration].
+///
+/// A null field keeps the value of the base configuration.
+class HomeWidgetIOSFlavor {
+  /// Replaces [HomeWidgetIOSConfiguration.groupId] in this flavor.
+  final String? groupId;
+
+  const HomeWidgetIOSFlavor({this.groupId});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidgetIOSFlavor && groupId == other.groupId;
+
+  @override
+  int get hashCode => groupId.hashCode;
+}
+
+/// What one entry of [HomeWidget.flavors] changes about the widget.
+///
+/// Each field overrides its counterpart in the base configuration; an empty
+/// `HomeWidgetFlavor()` declares a flavor that keeps the base values.
+class HomeWidgetFlavor {
+  /// iOS overrides for this flavor.
+  final HomeWidgetIOSFlavor? iOS;
+
+  const HomeWidgetFlavor({this.iOS});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is HomeWidgetFlavor && iOS == other.iOS;
+
+  @override
+  int get hashCode => iOS.hashCode;
+}
+
 /// Localization settings for a widget.
 ///
 /// [supportedLocales] is the canonical locale set: it defines the generated Dart
@@ -389,6 +425,14 @@ class HomeWidget {
   /// [HomeWidgetIOSConfiguration.widgetUrl] to override it for that platform.
   final String? widgetUrl;
 
+  /// The flavors the widget is generated for, each with its overrides.
+  ///
+  /// A present map is the exact set of flavors the widget exists in, so a
+  /// flavor missing from it gets no widget. Omit it to generate the widget for
+  /// every flavor with the base configuration. Names are matched against the
+  /// native flavors case sensitively.
+  final Map<String, HomeWidgetFlavor>? flavors;
+
   const HomeWidget({
     required this.name,
     this.description,
@@ -398,6 +442,7 @@ class HomeWidget {
     this.iOS,
     this.localization,
     this.widgetUrl,
+    this.flavors,
   });
 
   @override
@@ -411,7 +456,8 @@ class HomeWidget {
           android == other.android &&
           iOS == other.iOS &&
           localization == other.localization &&
-          widgetUrl == other.widgetUrl;
+          widgetUrl == other.widgetUrl &&
+          mapEquals(flavors, other.flavors);
 
   @override
   int get hashCode =>
@@ -422,5 +468,15 @@ class HomeWidget {
       android.hashCode ^
       iOS.hashCode ^
       localization.hashCode ^
-      widgetUrl.hashCode;
+      widgetUrl.hashCode ^
+      _flavorsHash(flavors);
 }
+
+/// Order-insensitive hash of [flavors], so two annotations spelling the same
+/// flavors in a different order agree with their `==`.
+int _flavorsHash(Map<String, HomeWidgetFlavor>? flavors) => flavors == null
+    ? null.hashCode
+    : Object.hashAllUnordered([
+        for (final entry in flavors.entries)
+          Object.hash(entry.key, entry.value),
+      ]);
