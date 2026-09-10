@@ -1,174 +1,5 @@
 part of 'hw_widget.dart';
 
-/// Name of the Kotlin helper decoding a saved image file, emitted once per
-/// generated file by [kotlinImageFileHelper].
-const String kotlinImageFileFunction = 'hwDecodeImageFile';
-
-/// Name of the Swift helper decoding an image file at its display size,
-/// emitted once per generated file by [swiftImageDecodeHelper].
-const String swiftImageDecodeFunction = 'hwDecodeImage';
-
-/// Fallback edge length in pixels for an [HWImage] that declares no size.
-///
-/// The Android counterpart falls back to the screen's shorter side, which no
-/// widget exceeds. WidgetKit has no equivalent reading available inside an
-/// extension, so a flat cap of the same order stands in for it.
-const int swiftImageFallbackPixels = 1536;
-
-/// Top-level Swift helper backing every [HWImage] in a generated file.
-///
-/// WidgetKit caps how much memory an extension may use while rendering, so a
-/// full-resolution photo has to be downsampled rather than decoded whole. The
-/// target is the image's declared size in pixels; one that sizes itself from
-/// the layout falls back to [swiftImageFallbackPixels]. Mirrors
-/// [kotlinImageSampleHelper], except that ImageIO scales to the exact bound
-/// instead of a power-of-two step.
-const String swiftImageDecodeHelper = '''
-private func $swiftImageDecodeFunction(
-  _ path: String, _ widthPt: Double?, _ heightPt: Double?
-) -> UIImage? {
-  guard
-    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil)
-  else { return nil }
-  let displayScale = UITraitCollection.current.displayScale
-  let scale = displayScale > 0 ? displayScale : 3
-  let fallback = CGFloat($swiftImageFallbackPixels)
-  let targetWidth = widthPt.map { CGFloat(\$0) * scale } ?? fallback
-  let targetHeight = heightPt.map { CGFloat(\$0) * scale } ?? fallback
-  let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
-  guard maxPixelSize > 0 else { return nil }
-  let options: [CFString: Any] = [
-    kCGImageSourceCreateThumbnailFromImageAlways: true,
-    kCGImageSourceCreateThumbnailWithTransform: true,
-    kCGImageSourceShouldCacheImmediately: true,
-    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
-  ]
-  guard
-    let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
-  else { return nil }
-  return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
-}''';
-
-/// Name of the Kotlin helper computing a power-of-two `inSampleSize`, emitted
-/// once per generated file by [kotlinImageSampleHelper].
-const String kotlinImageSampleFunction = 'hwImageSampleSize';
-
-/// Top-level Kotlin helper shared by every image decode in a generated file.
-///
-/// RemoteViews cap how much bitmap memory a widget may hand to the launcher, so
-/// a full-resolution photo has to be subsampled before it is decoded. The target
-/// is the image's declared size in pixels; an axis the widget declares no size
-/// for follows the source's aspect ratio, or — with neither axis declared —
-/// falls back to the screen's shorter side, which no widget exceeds.
-const String kotlinImageSampleHelper = '''
-private fun $kotlinImageSampleFunction(
-    context: android.content.Context,
-    bounds: BitmapFactory.Options,
-    widthDp: Double?,
-    heightDp: Double?,
-): Int {
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
-    val metrics = context.resources.displayMetrics
-    val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
-    val widthPx = widthDp?.let { (it * metrics.density).toInt() }
-    val heightPx = heightDp?.let { (it * metrics.density).toInt() }
-    val targetWidth = widthPx
-        ?: heightPx?.let {
-            (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
-        }
-        ?: fallback
-    val targetHeight = heightPx
-        ?: widthPx?.let {
-            (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
-        }
-        ?: fallback
-    if (targetWidth <= 0 || targetHeight <= 0) return 1
-    var sampleSize = 1
-    while (bounds.outWidth / (sampleSize * 2) >= targetWidth &&
-        bounds.outHeight / (sampleSize * 2) >= targetHeight) {
-        sampleSize *= 2
-    }
-    return sampleSize
-}''';
-
-/// Top-level Kotlin helper backing every runtime [HWImage] in a generated file.
-///
-/// A saved image is an absolute file path; anything else is a Flutter asset
-/// key, which is how a gallery preview stands in for an image the app has not
-/// saved yet. That branch calls [kotlinFlutterAssetHelper], so a generated file
-/// emitting this helper has to emit that one too.
-const String kotlinImageFileHelper = '''
-private fun $kotlinImageFileFunction(
-    context: android.content.Context,
-    path: String,
-    widthDp: Double?,
-    heightDp: Double?,
-): android.graphics.Bitmap? = if (!path.startsWith("/")) {
-    $kotlinFlutterAssetFunction(context, path, widthDp, heightDp)
-} else {
-    try {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-            null
-        } else {
-            BitmapFactory.decodeFile(
-                path,
-                BitmapFactory.Options().apply {
-                    inSampleSize = $kotlinImageSampleFunction(context, bounds, widthDp, heightDp)
-                },
-            )
-        }
-    } catch (_: Exception) {
-        null
-    }
-}''';
-
-/// File-scope Swift helper backing every [HWImage.asset] in a generated file.
-///
-/// The widget extension is installed at `Runner.app/PlugIns/<name>.appex`, so
-/// the containing app bundle — and with it `flutter_assets` — is two levels up
-/// from the extension's own bundle.
-const String swiftFlutterAssetHelper = '''
-private func $swiftFlutterAssetFunction(_ asset: String) -> String? {
-  let appBundleURL = Bundle.main.bundleURL
-    .deletingLastPathComponent()
-    .deletingLastPathComponent()
-  let url = appBundleURL
-    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
-    .appendingPathComponent(asset)
-  return FileManager.default.fileExists(atPath: url.path) ? url.path : nil
-}''';
-
-/// Top-level Kotlin helper backing every [HWImage.asset] in a generated file.
-///
-/// Flutter assets ship inside the APK under `assets/flutter_assets/`, which is
-/// what the asset manager of the app context reads from.
-const String kotlinFlutterAssetHelper = '''
-private fun $kotlinFlutterAssetFunction(
-    context: android.content.Context,
-    asset: String,
-    widthDp: Double?,
-    heightDp: Double?,
-): android.graphics.Bitmap? = try {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    context.assets.open("flutter_assets/\$asset").use {
-        BitmapFactory.decodeStream(it, null, bounds)
-    }
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-        null
-    } else {
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = $kotlinImageSampleFunction(context, bounds, widthDp, heightDp)
-        }
-        context.assets.open("flutter_assets/\$asset").use {
-            BitmapFactory.decodeStream(it, null, options)
-        }
-    }
-} catch (_: Exception) {
-    null
-}''';
-
 /// How an [HWImage] is inscribed into its layout bounds.
 ///
 /// Maps to SwiftUI `aspectRatio(contentMode:)` and Glance `ContentScale`.
@@ -292,9 +123,11 @@ class HWImage extends HWWidget implements HWDataWidget {
   Set<HWDataType<dynamic>> get dataDependencies => {dataType};
 
   @override
+  Set<HWNativeHelper> get renderHelpers => const {HWNativeHelper.hwDecodeImage};
+
+  @override
   Set<String> get kotlinImports {
     final imports = <String>{
-      'import android.graphics.BitmapFactory',
       'import androidx.glance.Image',
       'import androidx.glance.ImageProvider',
       'import androidx.glance.layout.ContentScale',
@@ -364,15 +197,19 @@ class HWImage extends HWWidget implements HWDataWidget {
     final buffer = StringBuffer();
 
     final image = imageData;
-    final pathExpr = image.isAsset
-        ? '$swiftFlutterAssetFunction('
-            '"${escapeSwiftStringLiteral(image.effectiveAssetKey!)}")'
-        : dataType.swiftAccess(dataExpr);
     final sizeArgs = '${width ?? 'nil'}, ${height ?? 'nil'}';
-    buffer.writeln(
-      '${pad}if let path = $pathExpr, '
-      'let uiImage = $swiftImageDecodeFunction(path, $sizeArgs) {',
-    );
+    if (image.isAsset) {
+      final asset = escapeSwiftStringLiteral(image.effectiveAssetKey!);
+      buffer.writeln(
+        '${pad}if let uiImage = hwDecodeImage("$asset", $sizeArgs) {',
+      );
+    } else {
+      final access = dataType.swiftAccess(dataExpr);
+      buffer.writeln(
+        '${pad}if let path = $access, '
+        'let uiImage = hwDecodeImage(path, $sizeArgs) {',
+      );
+    }
     buffer.writeln('$pad    Image(uiImage: uiImage)');
     buffer.writeln('$pad        .resizable()');
 
@@ -422,7 +259,7 @@ class HWImage extends HWWidget implements HWDataWidget {
     if (image.isAsset) {
       final asset = escapeKotlinStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
-        '$pad$kotlinFlutterAssetFunction(context, "$asset", $sizeArgs)'
+        '${pad}hwDecodeImage(context, "$asset", $sizeArgs)'
         '?.let { bitmap ->',
       );
       closePad = pad;
@@ -430,7 +267,7 @@ class HWImage extends HWWidget implements HWDataWidget {
       final access = dataType.kotlinAccess(dataExpr);
       buffer.writeln(
         '$pad$access?.let { path -> '
-        '$kotlinImageFileFunction(context, path, $sizeArgs) }',
+        'hwDecodeImage(context, path, $sizeArgs) }',
       );
       buffer.writeln('$pad    ?.let { bitmap ->');
       closePad = '$pad    ';

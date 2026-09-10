@@ -78,7 +78,7 @@ class HWText extends HWWidget implements HWDataWidget {
   ///
   /// A plain [HWText.new] bound to a number carries no [numberFormat] but still
   /// renders through the default decimal format, so this is what the emitted
-  /// call and [formatHelpers] both follow.
+  /// call and [renderHelpers] both follow.
   HWNumberFormat? get effectiveNumberFormat {
     if (numberFormat != null) return numberFormat;
     return formatsNumber ? HWNumberFormat.defaultFormat : null;
@@ -94,7 +94,8 @@ class HWText extends HWWidget implements HWDataWidget {
   }
 
   /// The native functions rendering this text, the time zone's included.
-  Set<HWNativeHelper> get formatHelpers => {
+  @override
+  Set<HWNativeHelper> get renderHelpers => {
         if (effectiveNumberFormat case final format?) format.helper,
         if (effectiveDateFormat case final format?) ...[
           format.helper,

@@ -67,14 +67,12 @@ Future<int> runCli(List<String> args) async {
   }
 }
 
-String _usage(CommandRunner<int> runner) {
-  final buffer = StringBuffer();
-  buffer.writeln('Usage: home_widget <command> [arguments]');
-  buffer.writeln('');
-  buffer.writeln('Global options:');
-  buffer.writeln(runner.argParser.usage);
-  buffer.writeln('');
-  buffer.writeln('Available commands:');
-  buffer.writeln(runner.usage);
-  return buffer.toString();
-}
+String _usage(CommandRunner<int> runner) => '''
+Usage: home_widget <command> [arguments]
+
+Global options:
+${runner.argParser.usage}
+
+Available commands:
+${runner.usage}
+''';

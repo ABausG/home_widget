@@ -22,627 +22,132 @@ class DartHelperGenerator {
   /// than plain values; the Kotlin and Swift readers must decode them the
   /// same way.
   String generate() {
-    final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final timedFields = spec.timedDataFields;
-    final hasTimedData = timedFields.isNotEmpty;
     // Timed JSON groups are intentionally absent from [spec.jsonDataGroups]
     // (timed fields live inside the timed data file), but they reuse the exact
     // same generated `*JsonData` classes. The validator forbids sharing a root
     // key between a timed and an untimed field, so class names never collide.
     final timedJsonGroups = spec.timedJsonDataGroups;
-    final timedClass = '${spec.className}TimedData';
-    final timedImages = spec.timedImageFields;
-    final jsonImages = spec.jsonImageFields;
-    final timedJsonImages = spec.timedJsonImageFields;
-    // Every timed image key is namespaced by its timestamp, so the timed save
-    // path and its pruning cover the JSON leaves of a timed group too.
-    final allTimedImageKeys = <String>[
-      for (final image in timedImages) image.key,
-      for (final image in timedJsonImages) image.storageKey,
-    ];
-    final hasImageFields = spec.hasRuntimeImages;
-    final hasDataFields =
-        primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedData;
-    final appGroupId = spec.data.iOS?.groupId;
-    final usesAppGroupId = hasDataFields && appGroupId != null;
+    final timedFields = spec.timedDataFields;
+    final hasTimedData = timedFields.isNotEmpty;
+    final className = _helperClassName;
+    final iosName = _iosName;
 
-    final receiverName = '${spec.className}HomeWidgetReceiver';
-    final String androidName;
-    final bool androidNameIsQualified;
-    if (spec.data.android != null && spec.data.android!.packageName != null) {
-      androidName = '${spec.data.android!.packageName}.$receiverName';
-      androidNameIsQualified = true;
-    } else {
-      androidName = receiverName;
-      androidNameIsQualified = false;
-    }
-    final String androidNameArg = androidNameIsQualified
-        ? "qualifiedAndroidName: '$androidName'"
-        : "androidName: '$androidName'";
+    final imports = <String>[
+      if (spec.hasWidgetUrl) "import 'dart:async';",
+      // Localized fields store their translations as a single JSON blob, so
+      // they need `dart:convert` too — but none of the file plumbing JSON
+      // groups use.
+      if (jsonGroups.isNotEmpty ||
+          _translationFields.isNotEmpty ||
+          hasTimedData)
+        "import 'dart:convert';",
+      // `dart:io` carries both the JSON/timed file plumbing and the `Platform`
+      // check deciding which platform's widget URL a click has to match.
+      if (jsonGroups.isNotEmpty || hasTimedData || spec.hasWidgetUrl)
+        "import 'dart:io';",
+      if (jsonGroups.isNotEmpty && !hasTimedData) "import 'dart:typed_data';",
+      if (hasTimedData) "import 'package:flutter/foundation.dart';",
+      if (_usesAppGroupId && spec.hasFlavors)
+        "import 'package:flutter/services.dart';",
+      if (spec.hasRuntimeImages) "import 'package:flutter/widgets.dart';",
+      "import 'package:home_widget/home_widget.dart';",
+    ];
 
     final buffer = StringBuffer();
-    buffer.writeln('// dart format off');
-    buffer.writeln('// GENERATED CODE - DO NOT MODIFY BY HAND');
-    buffer.writeln('// ignore_for_file: type=lint');
-    buffer.writeln();
-    if (spec.hasWidgetUrl) {
-      buffer.writeln("import 'dart:async';");
-    }
-    // Localized fields store their translations as a single JSON blob, so they
-    // need `dart:convert` too — but none of the file plumbing JSON groups use.
-    if (jsonGroups.isNotEmpty ||
-        _translationFields.isNotEmpty ||
-        hasTimedData) {
-      buffer.writeln("import 'dart:convert';");
-    }
-    // `dart:io` carries both the JSON/timed file plumbing and the `Platform`
-    // check deciding which platform's widget URL a click has to match.
-    if (jsonGroups.isNotEmpty || hasTimedData || spec.hasWidgetUrl) {
-      buffer.writeln("import 'dart:io';");
-    }
-    if (jsonGroups.isNotEmpty && !hasTimedData) {
-      buffer.writeln("import 'dart:typed_data';");
-    }
-    if (hasTimedData) {
-      buffer.writeln("import 'package:flutter/foundation.dart';");
-    }
-    if (usesAppGroupId && spec.hasFlavors) {
-      buffer.writeln("import 'package:flutter/services.dart';");
-    }
-    if (hasImageFields) {
-      buffer.writeln("import 'package:flutter/widgets.dart';");
-    }
-    buffer.writeln("import 'package:home_widget/home_widget.dart';");
-    buffer.writeln();
+    buffer.write('''
+// dart format off
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint
 
-    final className = _helperClassName;
+''');
 
-    buffer.writeln('class $className {');
-    buffer.writeln('  const $className._();');
-    buffer.writeln();
-
-    if (hasDataFields) {
-      if (usesAppGroupId) {
-        _writeAppGroupId(buffer, appGroupId);
-        buffer.writeln();
-      }
-      buffer.writeln(
-        "  static const String _\$paramPrefix = 'home_widget.${spec.className}';",
-      );
-      buffer.writeln();
-      for (final field in _translationFields) {
-        _writeDefaultsConstant(buffer, field);
-        buffer.writeln();
-      }
-      buffer.writeln('  static Future<void> saveData({');
-      for (final field in primitiveFields) {
-        if (field is HWImageData) {
-          buffer.writeln('    ImageProvider? ${field.key},');
-          continue;
-        }
-        final type = field is HWLocalizedString
-            ? _translationsClassName
-            : field.dartType;
-        buffer.writeln('    $type? ${field.key},');
-      }
-      for (final group in jsonGroups) {
-        final jsonClass = _dartJsonClassName(group.key);
-        buffer.writeln('    $jsonClass? ${group.key},');
-      }
-      if (hasTimedData) {
-        buffer.writeln('    Map<DateTime, $timedClass>? timedData,');
-      }
-      buffer.writeln('  }) {');
-      buffer.writeln('    return Future.wait([');
-      for (final field in primitiveFields) {
-        if (field is HWImageData) {
-          buffer.writeln(
-            "      if (${field.key} != null) HomeWidget.saveImage('"
-            r"${_$paramPrefix}."
-            "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
-          );
-          continue;
-        }
-        if (field is HWLocalizedString) {
-          buffer.writeln(
-            "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
-            r"${_$paramPrefix}."
-            "${field.key}', jsonEncode(${field.key}.toMap())"
-            "${_appGroupIdArg(usesAppGroupId)}),",
-          );
-          continue;
-        }
-        if (field is HWDateTime) {
-          // The wire format is the UTC ISO string the native `hwParseIsoDate`
-          // helper reads back.
-          buffer.writeln(
-            "      if (${field.key} != null) HomeWidget.saveWidgetData<String>('"
-            r"${_$paramPrefix}."
-            "${field.key}', ${_dartIsoExpr(field.key)}"
-            "${_appGroupIdArg(usesAppGroupId)}),",
-          );
-          continue;
-        }
-        final type = field.dartType;
-        buffer.writeln(
-          "      if (${field.key} != null) HomeWidget.saveWidgetData<$type>('"
-          r"${_$paramPrefix}."
-          "${field.key}', ${field.key}${_appGroupIdArg(usesAppGroupId)}),",
-        );
-      }
-      for (final group in jsonGroups) {
-        final images = jsonImages.where((i) => i.rootKey == group.key).toList();
-        buffer.writeln('      if (${group.key} != null) () async {');
-        final valuesExpr =
-            images.isEmpty ? '${group.key}.toJson()' : '_${group.key}Json';
-        if (images.isNotEmpty) {
-          buffer.writeln(
-            '        final $valuesExpr = ${group.key}.toJson();',
-          );
-          for (final image in images) {
-            _writeJsonImageSave(
-              buffer,
-              indent: '        ',
-              image: image,
-              objectExpr: group.key,
-              ownerNullable: false,
-              mapExpr: valuesExpr,
-              keyLiteral: r'${_$paramPrefix}.' + image.storageKey,
-              usesAppGroupId: usesAppGroupId,
-            );
-          }
-        }
-        buffer.writeln(
-          "        await HomeWidget.saveFile('"
-          r"${_$paramPrefix}."
-          "${group.key}', Uint8List.fromList(utf8.encode(jsonEncode($valuesExpr))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
-        );
-        buffer.writeln('      }(),');
-      }
-      if (hasTimedData) {
-        buffer.writeln('      if (timedData != null) () async {');
-        buffer.writeln(
-          '        final _timedTimes = timedData.keys.toList()..sort();',
-        );
-        if (allTimedImageKeys.isNotEmpty) {
-          // Read before anything is written: the file about to be overwritten
-          // is the only record of which per-timestamp images exist.
-          buffer.writeln(
-            '        final _storedTimes = await _\$storedTimedKeys();',
-          );
-        }
-        buffer.writeln('        if (_timedTimes.isEmpty) {');
-        buffer.writeln(
-          "          await HomeWidget.saveWidgetData('"
-          r"${_$paramPrefix}."
-          "timedData', null${_appGroupIdArg(usesAppGroupId)});",
-        );
-        if (allTimedImageKeys.isNotEmpty) {
-          buffer.writeln(
-            '          await _\$deleteTimedImages(_storedTimes);',
-          );
-        }
-        _writeGuardedScheduleCall(
-          buffer,
-          indent: '          ',
-          call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
-          cancels: true,
-        );
-        buffer.writeln('          return;');
-        buffer.writeln('        }');
-        if (allTimedImageKeys.isEmpty) {
-          buffer.writeln('        final _timedJson = <String, dynamic>{');
-          buffer.writeln('          for (final _time in _timedTimes)');
-          buffer.writeln(
-            '            _time.toUtc().millisecondsSinceEpoch.toString(): '
-            'timedData[_time]!.toJson(),',
-          );
-          buffer.writeln('        };');
-        } else {
-          buffer.writeln('        final _timedJson = <String, dynamic>{};');
-          buffer.writeln('        for (final _time in _timedTimes) {');
-          buffer.writeln(
-            '          final _millis = _time.toUtc().millisecondsSinceEpoch;',
-          );
-          buffer.writeln('          final _entry = timedData[_time]!;');
-          buffer.writeln('          final _values = _entry.toJson();');
-          for (final image in timedImages) {
-            final local = _timedImageLocal(image.key);
-            buffer.writeln('          final $local = _entry.${image.key};');
-            buffer.writeln('          if ($local != null) {');
-            buffer.writeln(
-              "            _values['${image.key}'] = "
-              "await HomeWidget.saveImage('"
-              r"${_$paramPrefix}."
-              'timedData.${image.key}.'
-              r'$_millis'
-              "', $local${_appGroupIdArg(usesAppGroupId)});",
-            );
-            // A timestamp that keeps its slot but loses its image would
-            // otherwise leave the PNG of the previous schedule behind, with
-            // nothing left pointing at it.
-            buffer.writeln(
-              '          } else if (_storedTimes.contains(_millis)) {',
-            );
-            buffer.writeln(
-              "            await HomeWidget.saveWidgetData<String>('"
-              r"${_$paramPrefix}."
-              'timedData.${image.key}.'
-              r'$_millis'
-              "', null${_appGroupIdArg(usesAppGroupId)});",
-            );
-            buffer.writeln('          }');
-          }
-          for (final image in timedJsonImages) {
-            _writeJsonImageSave(
-              buffer,
-              indent: '          ',
-              image: image,
-              objectExpr: '_entry.${image.rootKey}',
-              ownerNullable: true,
-              mapExpr: "(_values['${image.rootKey}']! "
-                  'as Map<String, dynamic>)',
-              keyLiteral: r'${_$paramPrefix}.timedData.'
-                  '${image.storageKey}'
-                  r'.$_millis',
-              usesAppGroupId: usesAppGroupId,
-              deleteGuard: '_storedTimes.contains(_millis)',
-            );
-          }
-          buffer.writeln(
-            '          _timedJson[_millis.toString()] = _values;',
-          );
-          buffer.writeln('        }');
-        }
-        buffer.writeln(
-          "        await HomeWidget.saveFile('"
-          r"${_$paramPrefix}."
-          "timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json'${_appGroupIdArg(usesAppGroupId)});",
-        );
-        if (allTimedImageKeys.isNotEmpty) {
-          buffer.writeln(
-            '        await _\$deleteTimedImages(_storedTimes.where('
-            '(_millis) => !_timedJson.containsKey(_millis.toString())));',
-          );
-        }
-        _writeGuardedScheduleCall(
-          buffer,
-          indent: '        ',
-          call:
-              'HomeWidget.scheduleWidgetUpdates(_timedTimes, $androidNameArg)',
-        );
-        buffer.writeln('      }(),');
-      }
-      buffer.writeln('    ]);');
-      buffer.writeln('  }');
-      buffer.writeln();
-
-      buffer.writeln('  static Future<void> deleteData({');
-      for (final field in primitiveFields) {
-        buffer.writeln('    bool ${field.key} = false,');
-      }
-      for (final group in jsonGroups) {
-        buffer.writeln('    bool ${group.key} = false,');
-      }
-      if (hasTimedData) {
-        buffer.writeln('    bool timedData = false,');
-      }
-      buffer.writeln('  }) {');
-      buffer.writeln('    return Future.wait([');
-      for (final field in primitiveFields) {
-        // Localized fields need no special case: all their translations
-        // live in one entry, so clearing that key clears all of them.
-        buffer.writeln(
-          "      if (${field.key}) HomeWidget.saveWidgetData('"
-          r"${_$paramPrefix}."
-          "${field.key}', null${_appGroupIdArg(usesAppGroupId)}),",
-        );
-      }
-      for (final group in jsonGroups) {
-        final images = jsonImages.where((i) => i.rootKey == group.key).toList();
-        if (images.isEmpty) {
-          buffer.writeln(
-            "      if (${group.key}) HomeWidget.saveWidgetData('"
-            r"${_$paramPrefix}."
-            "${group.key}', null${_appGroupIdArg(usesAppGroupId)}),",
-          );
-          continue;
-        }
-        // The blob is only half the group: each image leaf owns a PNG of its
-        // own, which clearing the blob key does not reach.
-        buffer.writeln('      if (${group.key}) () async {');
-        buffer.writeln(
-          "        await HomeWidget.saveWidgetData('"
-          r"${_$paramPrefix}."
-          "${group.key}', null${_appGroupIdArg(usesAppGroupId)});",
-        );
-        for (final image in images) {
-          buffer.writeln(
-            "        await HomeWidget.saveWidgetData<String>('"
-            r"${_$paramPrefix}."
-            "${image.storageKey}', null${_appGroupIdArg(usesAppGroupId)});",
-          );
-        }
-        buffer.writeln('      }(),');
-      }
-      if (hasTimedData) {
-        buffer.writeln('      if (timedData) () async {');
-        if (allTimedImageKeys.isNotEmpty) {
-          buffer.writeln(
-            '        final _storedTimes = await _\$storedTimedKeys();',
-          );
-        }
-        buffer.writeln(
-          "        await HomeWidget.saveWidgetData('"
-          r"${_$paramPrefix}."
-          "timedData', null${_appGroupIdArg(usesAppGroupId)});",
-        );
-        if (allTimedImageKeys.isNotEmpty) {
-          buffer.writeln('        await _\$deleteTimedImages(_storedTimes);');
-        }
-        _writeGuardedScheduleCall(
-          buffer,
-          indent: '        ',
-          call: 'HomeWidget.cancelScheduledWidgetUpdates($androidNameArg)',
-          cancels: true,
-        );
-        buffer.writeln('      }(),');
-      }
-      buffer.writeln('    ]);');
-      buffer.writeln('  }');
-      buffer.writeln();
-
-      final recordFieldParts = <String>[
-        ...primitiveFields.map(
-          (f) => f is HWLocalizedString
-              ? '$_translationsClassName ${f.key}'
-              : '${f.dartType}? ${f.key}',
-        ),
-        ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
-        if (hasTimedData) 'Map<DateTime, $timedClass>? timedData',
-      ];
-      final recordFields = recordFieldParts.join(', ');
-      final topLevelImages = primitiveFields.whereType<HWImageData>().toList();
-      if (_translationFields.isNotEmpty ||
-          hasTimedData ||
-          topLevelImages.isNotEmpty) {
-        buffer.writeln('  /// Reads every stored value back.');
-        buffer.writeln('  ///');
-      }
-      if (_translationFields.isNotEmpty) {
-        buffer.writeln(
-          '  /// Localized fields come back fully populated: anything stored '
-          'by [saveData]',
-        );
-        buffer.writeln(
-          '  /// is merged over the compiled defaults, so every locale always '
-          'has text.',
-        );
-        if (_localizedFields.isNotEmpty) {
-          buffer.writeln(
-            '  /// To read the raw stored blob instead — to tell an override '
-            'apart from a',
-          );
-          buffer.writeln(
-            '  /// shipped default — use `HomeWidget.getWidgetData` on the '
-            'preferences key.',
-          );
-        }
-        if (hasTimedData || topLevelImages.isNotEmpty) {
-          buffer.writeln('  ///');
-        }
-      }
-      if (hasTimedData) {
-        buffer.writeln(
-          '  /// The keys of [timedData] are local-time [DateTime]s, so they '
-          'compare equal to a',
-        );
-        buffer.writeln(
-          '  /// local [DateTime] for the same instant. Timestamps are stored '
-          'as epoch',
-        );
-        buffer.writeln(
-          '  /// milliseconds: sub-millisecond precision of the saved keys is '
-          'not preserved.',
-        );
-        buffer.writeln(
-          '  /// Keys are compared by instant, so a local [DateTime] and its '
-          '`toUtc()` twin',
-        );
-        buffer.writeln(
-          '  /// denote the same entry and only one of them survives a save.',
-        );
-      }
-      if (topLevelImages.isNotEmpty) {
-        if (hasTimedData) {
-          buffer.writeln('  ///');
-        }
-        final names = topLevelImages.map((f) => '[${f.key}]').join(', ');
-        buffer.writeln(
-          '  /// $names ${topLevelImages.length == 1 ? 'comes' : 'come'} back '
-          'as the file path of the PNG',
-        );
-        buffer.writeln(
-          '  /// `saveData` wrote, not as an `ImageProvider`, and the file it '
-          'points at may',
-        );
-        buffer.writeln(
-          '  /// since have been removed. Nested and timed images are handed '
-          'back as an',
-        );
-        buffer.writeln('  /// `ImageProvider` instead.');
-      }
-      buffer.writeln(
-        '  static Future<({$recordFields})> getData() async {',
-      );
-      for (final group in jsonGroups) {
-        final jsonClass = _dartJsonClassName(group.key);
-        buffer.writeln(
-          "    final _${group.key}Path = await HomeWidget.getWidgetData<String>('"
-          r"${_$paramPrefix}."
-          "${group.key}'${_appGroupIdArg(usesAppGroupId)});",
-        );
-        buffer.writeln('    $jsonClass? ${group.key};');
-        buffer.writeln('    if (_${group.key}Path != null) {');
-        buffer.writeln('      try {');
-        buffer.writeln(
-          '        final raw = await File(_${group.key}Path).readAsString();',
-        );
-        buffer.writeln(
-          '        final decoded = jsonDecode(raw);',
-        );
-        buffer.writeln(
-          '        if (decoded is Map<String, dynamic>) ${group.key} = $jsonClass.fromJson(decoded);',
-        );
-        buffer.writeln('      } on Exception {');
-        buffer.writeln('        ${group.key} = null;');
-        buffer.writeln('      }');
-        buffer.writeln('    }');
-      }
-      if (hasTimedData) {
-        buffer.writeln(
-          "    final _timedDataPath = await HomeWidget.getWidgetData<String>('"
-          r"${_$paramPrefix}."
-          "timedData'${_appGroupIdArg(usesAppGroupId)});",
-        );
-        buffer.writeln('    Map<DateTime, $timedClass>? timedData;');
-        buffer.writeln('    if (_timedDataPath != null) {');
-        buffer.writeln('      try {');
-        buffer.writeln(
-          '        final raw = await File(_timedDataPath).readAsString();',
-        );
-        buffer.writeln('        final decoded = jsonDecode(raw);');
-        buffer.writeln('        if (decoded is Map<String, dynamic>) {');
-        buffer.writeln('          final entries = <DateTime, $timedClass>{};');
-        buffer.writeln('          for (final entry in decoded.entries) {');
-        buffer.writeln(
-          '            final millis = int.tryParse(entry.key);',
-        );
-        buffer.writeln('            if (millis == null) continue;');
-        buffer.writeln('            final value = entry.value;');
-        buffer.writeln(
-          '            entries[DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal()] = '
-          '$timedClass.fromJson(value is Map<String, dynamic> ? value : null);',
-        );
-        buffer.writeln('          }');
-        buffer.writeln('          timedData = entries;');
-        buffer.writeln('        }');
-        buffer.writeln('      } on Exception {');
-        buffer.writeln('        timedData = null;');
-        buffer.writeln('      }');
-        buffer.writeln('    }');
-      }
-      buffer.writeln('    return (');
-      for (final field in primitiveFields) {
-        if (field is HWLocalizedString) {
-          buffer.writeln(
-            "      ${field.key}: _\$mergeTranslations(${_defaultsFieldName(field)}, "
-            "await _\$readLocalized('"
-            r"${_$paramPrefix}."
-            "${field.key}')),",
-          );
-          continue;
-        }
-        if (field is HWDateTime) {
-          buffer.writeln(
-            "      ${field.key}: _readDateTime(await HomeWidget.getWidgetData<String>('"
-            r"${_$paramPrefix}."
-            "${field.key}'${_appGroupIdArg(usesAppGroupId)})),",
-          );
-          continue;
-        }
-        final type = field.dartType;
-        final defaultValue = field.defaultValue;
-        var defaultLiteral = '';
-        if (defaultValue != null) {
-          defaultLiteral = defaultValue is String
-              ? ", defaultValue: '${escapeDartStringLiteral(defaultValue)}'"
-              : ', defaultValue: $defaultValue';
-        }
-        buffer.writeln(
-          "      ${field.key}: await HomeWidget.getWidgetData<$type>('"
-          r"${_$paramPrefix}."
-          "${field.key}'$defaultLiteral${_appGroupIdArg(usesAppGroupId)}),",
-        );
-      }
-      for (final group in jsonGroups) {
-        buffer.writeln('      ${group.key}: ${group.key},');
-      }
-      if (hasTimedData) {
-        buffer.writeln('      timedData: timedData,');
-      }
-      buffer.writeln('    );');
-      buffer.writeln('  }');
-      buffer.writeln();
+    for (final import in imports) {
+      buffer.writeln(import);
     }
 
-    buffer.writeln();
-    buffer.writeln('  static Future<bool?> updateWidget() {');
+    buffer.write('''
 
-    final iosName =
-        spec.data.iOS != null ? '${spec.className}HomeWidget' : null;
+class $className {
+  const $className._();
 
-    buffer.writeln('    return HomeWidget.updateWidget(');
-    buffer.writeln('      $androidNameArg,');
+''');
+
+    if (_hasDataFields) {
+      buffer.write(_dataMembers());
+    }
+
+    buffer.write('''
+
+  static Future<bool?> updateWidget() {
+    return HomeWidget.updateWidget(
+      $_androidNameArg,
+''');
+
     if (iosName != null) {
       buffer.writeln("      iOSName: '$iosName',");
     }
-    buffer.writeln('    );');
-    buffer.writeln('  }');
+
+    buffer.write('''
+    );
+  }
+''');
 
     if (spec.data.android != null) {
-      buffer.writeln();
-      _writeUpdatePreview(buffer, androidNameArg);
-      buffer.writeln();
-      _writePinHelpers(buffer, androidNameArg);
+      buffer
+        ..writeln()
+        ..write(_updatePreviewHelper())
+        ..writeln()
+        ..write(_pinHelpers());
     }
-    buffer.writeln();
-    _writeInstallHelpers(buffer, receiverName: receiverName, iosName: iosName);
+    buffer
+      ..writeln()
+      ..write(_installHelpers());
 
     if (spec.hasWidgetUrl) {
-      buffer.writeln();
-      _writeLaunchHelpers(buffer);
+      buffer
+        ..writeln()
+        ..write(_launchHelpers());
     }
-    if (allTimedImageKeys.isNotEmpty) {
-      buffer.writeln();
-      _writeTimedImageHelpers(buffer, allTimedImageKeys, usesAppGroupId);
+    if (_allTimedImageKeys.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..write(_timedImageHelpers());
     }
     if (_localizedFields.isNotEmpty) {
-      buffer.writeln();
-      _writeLocalizedReader(buffer, usesAppGroupId);
+      buffer
+        ..writeln()
+        ..write(_localizedReader());
     }
     if (_translationFields.isNotEmpty) {
-      buffer.writeln();
-      _writeTranslationsMerger(buffer);
+      buffer
+        ..writeln()
+        ..write(_translationsMerger());
     }
 
     buffer.writeln('}');
 
     if (_translationFields.isNotEmpty) {
-      buffer.writeln();
-      _writeTranslationsClass(buffer);
+      buffer
+        ..writeln()
+        ..write(_translationsClass());
     }
 
     if (hasTimedData) {
-      buffer.writeln();
-      _writeDartTimedDataClass(
-        buffer: buffer,
-        className: timedClass,
-        timedFields: timedFields,
-      );
+      buffer
+        ..writeln()
+        ..write(_timedDataClass(timedFields));
     }
 
     for (final group in [...jsonGroups, ...timedJsonGroups]) {
-      final jsonClass = _dartJsonClassName(group.key);
-      final tree = _buildJsonTree(group.children);
-      buffer.writeln();
-      _writeDartJsonNodeClass(
-        buffer: buffer,
-        className: jsonClass,
-        node: tree,
-        isRoot: true,
-      );
+      buffer
+        ..writeln()
+        ..write(
+          _jsonNodeClass(
+            className: _dartJsonClassName(group.key),
+            node: _buildJsonTree(group.children),
+          ),
+        );
     }
     final usedReaders = <String>{
       for (final group in [...jsonGroups, ...timedJsonGroups])
@@ -651,12 +156,13 @@ class DartHelperGenerator {
         if (!member.jsonRoot) _dartTimedReadFunction(member.leafType!),
       // A top-level date is stored as a string and parsed back by `getData`
       // through the same reader its JSON and timed spellings use.
-      for (final field in primitiveFields)
+      for (final field in spec.primitiveDataFields)
         if (field is HWDateTime) _dartReadFunction(field),
     };
     if (usedReaders.isNotEmpty) {
-      buffer.writeln();
-      _writeDartJsonReaders(buffer, usedReaders);
+      buffer
+        ..writeln()
+        ..write(_jsonReaders(usedReaders));
     }
 
     return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
@@ -680,63 +186,334 @@ class DartHelperGenerator {
 
   String get _helperClassName => '${spec.className}HomeWidget';
 
+  /// The WidgetKit kind of this widget, or null where no iOS widget exists.
+  String? get _iosName =>
+      spec.data.iOS != null ? '${spec.className}HomeWidget' : null;
+
+  /// The Android receiver this widget's helpers name.
+  String get _receiverName => '${spec.className}HomeWidgetReceiver';
+
+  /// The argument naming that receiver, qualified where the annotation says
+  /// which package it lives in.
+  String get _androidNameArg {
+    final packageName = spec.data.android?.packageName;
+    return packageName == null
+        ? "androidName: '$_receiverName'"
+        : "qualifiedAndroidName: '$packageName.$_receiverName'";
+  }
+
+  /// Whether the widget stores anything at all, and so carries the data
+  /// methods.
+  bool get _hasDataFields =>
+      spec.primitiveDataFields.isNotEmpty ||
+      spec.jsonDataGroups.isNotEmpty ||
+      spec.timedDataFields.isNotEmpty;
+
+  /// Whether every data call names the App Group it reads and writes through.
+  bool get _usesAppGroupId => _hasDataFields && spec.data.iOS?.groupId != null;
+
+  /// Every timed image key is namespaced by its timestamp, so the timed save
+  /// path and its pruning cover the JSON leaves of a timed group too.
+  List<String> get _allTimedImageKeys => [
+        for (final image in spec.timedImageFields) image.key,
+        for (final image in spec.timedJsonImageFields) image.storageKey,
+      ];
+
   List<String> get _supportedLocales =>
       spec.data.localization?.supportedLocales ?? const <String>[];
 
   String get _translationsClassName =>
       '${spec.className}HomeWidgetTranslations';
 
+  String get _timedDataClassName => '${spec.className}TimedData';
+
+  /// The literal the generated code stores [suffix] under: the widget's param
+  /// prefix, then the key.
+  String _paramKey(String suffix) => "'\${_\$paramPrefix}.$suffix'";
+
   /// The identifier of the field holding [field]'s compiled translations. One
   /// per keyed string, since a widget may declare several.
   String _defaultsFieldName(HWLocalizedString field) => '${field.key}Defaults';
 
+  /// The App Group constant, the param prefix, the compiled translations and
+  /// the three data methods a widget with stored data carries.
+  String _dataMembers() {
+    final buffer = StringBuffer();
+    if (_usesAppGroupId) {
+      buffer
+        ..write(_appGroupIdDeclaration(spec.data.iOS!.groupId))
+        ..writeln();
+    }
+    buffer.write('''
+  static const String _\$paramPrefix = 'home_widget.${spec.className}';
+
+''');
+    for (final field in _translationFields) {
+      buffer
+        ..write(_defaultsConstant(field))
+        ..writeln();
+    }
+    buffer
+      ..write(_saveDataMethod())
+      ..writeln()
+      ..write(_deleteDataMethod())
+      ..writeln()
+      ..write(_getDataMethod())
+      ..writeln();
+    return buffer.toString();
+  }
+
+  /// Emits the App Group the data calls write to.
+  ///
+  /// A widget declaring flavors resolves it from the flavor the app was built
+  /// with, since one generated helper serves them all; the base group answers
+  /// for every other flavor.
+  String _appGroupIdDeclaration(String baseGroupId) {
+    if (!spec.hasFlavors) {
+      return '''
+  static const String _\$appGroupId = '$baseGroupId';
+''';
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('  static String get _\$appGroupId => switch (appFlavor) {');
+
+    for (final flavor in spec.declaredFlavors) {
+      buffer.writeln("    '$flavor' => '${spec.iosGroupIdFor(flavor)}',");
+    }
+
+    buffer.write('''
+    _ => '$baseGroupId',
+  };
+''');
+
+    return buffer.toString();
+  }
+
   /// The compiled translations for one keyed string, exposed on the helper
   /// class so callers can read the shipped text without going through
   /// `getData`.
-  void _writeDefaultsConstant(StringBuffer buffer, HWLocalizedString field) {
-    buffer.writeln(
-      '  /// The translations compiled into the widget for `${field.key}`.',
-    );
-    buffer.writeln('  ///');
-    buffer.writeln(
-      '  /// `getData` merges anything stored by `saveData` over these, so a',
-    );
-    buffer.writeln(
-      '  /// locale the app never pushed still resolves to shipped text.',
-    );
-    buffer.writeln(
-      '  static const $_translationsClassName ${_defaultsFieldName(field)} =',
-    );
-    buffer.writeln('      $_translationsClassName(');
+  String _defaultsConstant(HWLocalizedString field) {
+    final buffer = StringBuffer();
+    buffer.write('''
+  /// The translations compiled into the widget for `${field.key}`.
+  ///
+  /// `getData` merges anything stored by `saveData` over these, so a
+  /// locale the app never pushed still resolves to shipped text.
+  static const $_translationsClassName ${_defaultsFieldName(field)} =
+      $_translationsClassName(
+''');
+
     for (final locale in _supportedLocales) {
-      final value = field.defaultTranslations[locale] ?? '';
-      buffer.writeln(
-        '        ${localeIdentifier(locale)}: '
-        "'${escapeDartStringLiteral(value)}',",
+      final text = escapeDartStringLiteral(
+        field.defaultTranslations[locale] ?? '',
       );
+      buffer.writeln("        ${localeIdentifier(locale)}: '$text',");
     }
-    buffer.writeln('      );');
+
+    buffer.write('''
+      );
+''');
+
+    return buffer.toString();
   }
 
-  /// Merges a stored translation blob over the compiled defaults.
-  void _writeTranslationsMerger(StringBuffer buffer) {
-    buffer.writeln(
-      '  static $_translationsClassName _\$mergeTranslations(',
-    );
-    buffer.writeln('    $_translationsClassName defaults,');
-    buffer.writeln('    Map<String, String>? stored,');
-    buffer.writeln('  ) {');
-    buffer.writeln('    if (stored == null) return defaults;');
-    buffer.writeln('    return $_translationsClassName(');
-    for (final locale in _supportedLocales) {
-      final identifier = localeIdentifier(locale);
-      buffer.writeln(
-        "      $identifier: stored['${escapeDartStringLiteral(locale)}'] "
-        '?? defaults.$identifier,',
-      );
+  /// The type `saveData` takes for [field]: a translations object for a
+  /// localized string, the field's own Dart type otherwise.
+  String _saveParameterType(HWDataType<dynamic> field) =>
+      field is HWLocalizedString ? _translationsClassName : field.dartType;
+
+  String _saveDataMethod() {
+    final primitiveFields = spec.primitiveDataFields;
+    final jsonGroups = spec.jsonDataGroups;
+    final hasTimedData = spec.timedDataFields.isNotEmpty;
+
+    final parameters = <String>[
+      for (final field in primitiveFields)
+        if (field is HWImageData)
+          '    ImageProvider? ${field.key},'
+        else
+          '    ${_saveParameterType(field)}? ${field.key},',
+      for (final group in jsonGroups)
+        '    ${_dartJsonClassName(group.key)}? ${group.key},',
+      if (hasTimedData) '    Map<DateTime, $_timedDataClassName>? timedData,',
+    ];
+
+    final entries = <String>[
+      for (final field in primitiveFields) _primitiveSave(field),
+      for (final group in jsonGroups) _jsonGroupSave(group),
+      if (hasTimedData) _timedDataSave(),
+    ];
+
+    final buffer = StringBuffer();
+    buffer.writeln('  static Future<void> saveData({');
+
+    for (final parameter in parameters) {
+      buffer.writeln(parameter);
     }
-    buffer.writeln('    );');
-    buffer.writeln('  }');
+
+    buffer.write('''
+  }) {
+    return Future.wait([
+''');
+
+    for (final entry in entries) {
+      buffer.writeln(entry);
+    }
+
+    buffer.write('''
+    ]);
+  }
+''');
+
+    return buffer.toString();
+  }
+
+  /// The `saveData` entry writing one top-level field.
+  String _primitiveSave(HWDataType<dynamic> field) {
+    final key = field.key;
+    final keyLiteral = _paramKey(key);
+    if (field is HWImageData) {
+      return '      if ($key != null) '
+          'HomeWidget.saveImage($keyLiteral, $key$_appGroupIdArg),';
+    }
+    if (field is HWLocalizedString) {
+      return '      if ($key != null) HomeWidget.saveWidgetData<String>('
+          '$keyLiteral, jsonEncode($key.toMap())$_appGroupIdArg),';
+    }
+    if (field is HWDateTime) {
+      // The wire format is the UTC ISO string the native `hwParseIsoDate`
+      // helper reads back.
+      return '      if ($key != null) HomeWidget.saveWidgetData<String>('
+          '$keyLiteral, ${_dartIsoExpr(key)}$_appGroupIdArg),';
+    }
+    return '      if ($key != null) '
+        'HomeWidget.saveWidgetData<${field.dartType}>('
+        '$keyLiteral, $key$_appGroupIdArg),';
+  }
+
+  /// A `Future.wait` entry running [body] inside an immediately invoked async
+  /// closure, opened by [header].
+  String _asyncEntry(String header, List<String> body) {
+    final buffer = StringBuffer();
+    buffer.writeln(header);
+
+    for (final line in body) {
+      buffer.writeln(line);
+    }
+
+    buffer.write('      }(),');
+
+    return buffer.toString();
+  }
+
+  /// The `saveData` entry writing one JSON group's blob, and the PNG of every
+  /// image leaf hanging off it.
+  String _jsonGroupSave(JsonDataGroup group) {
+    final images =
+        spec.jsonImageFields.where((i) => i.rootKey == group.key).toList();
+    final valuesExpr =
+        images.isEmpty ? '${group.key}.toJson()' : '_${group.key}Json';
+
+    final body = <String>[
+      if (images.isNotEmpty) ...[
+        '        final $valuesExpr = ${group.key}.toJson();',
+        for (final image in images)
+          _jsonImageSave(
+            indent: '        ',
+            image: image,
+            objectExpr: group.key,
+            ownerNullable: false,
+            mapExpr: valuesExpr,
+            keyLiteral: _paramKey(image.storageKey),
+          ),
+      ],
+      '        await HomeWidget.saveFile(${_paramKey(group.key)}, '
+          'Uint8List.fromList(utf8.encode(jsonEncode($valuesExpr))), '
+          "extension: 'json'$_appGroupIdArg);",
+    ];
+
+    return _asyncEntry('      if (${group.key} != null) () async {', body);
+  }
+
+  /// The `saveData` entry writing the whole timeline, its per-timestamp images
+  /// and the platform schedule that renders it.
+  String _timedDataSave() {
+    final hasTimedImages = _allTimedImageKeys.isNotEmpty;
+
+    final body = <String>[
+      '        final _timedTimes = timedData.keys.toList()..sort();',
+      // Read before anything is written: the file about to be overwritten is
+      // the only record of which per-timestamp images exist.
+      if (hasTimedImages)
+        '        final _storedTimes = await _\$storedTimedKeys();',
+      '        if (_timedTimes.isEmpty) {',
+      '          await HomeWidget.saveWidgetData(${_paramKey('timedData')}, '
+          'null$_appGroupIdArg);',
+      if (hasTimedImages) '          await _\$deleteTimedImages(_storedTimes);',
+      _guardedScheduleCall(
+        indent: '          ',
+        call: 'HomeWidget.cancelScheduledWidgetUpdates($_androidNameArg)',
+        cancels: true,
+      ),
+      '          return;',
+      '        }',
+      if (!hasTimedImages) ...[
+        '        final _timedJson = <String, dynamic>{',
+        '          for (final _time in _timedTimes)',
+        '            _time.toUtc().millisecondsSinceEpoch.toString(): '
+            'timedData[_time]!.toJson(),',
+        '        };',
+      ] else ...[
+        '        final _timedJson = <String, dynamic>{};',
+        '        for (final _time in _timedTimes) {',
+        '          final _millis = _time.toUtc().millisecondsSinceEpoch;',
+        '          final _entry = timedData[_time]!;',
+        '          final _values = _entry.toJson();',
+        for (final image in spec.timedImageFields) _timedImageSave(image),
+        for (final image in spec.timedJsonImageFields)
+          _jsonImageSave(
+            indent: '          ',
+            image: image,
+            objectExpr: '_entry.${image.rootKey}',
+            ownerNullable: true,
+            mapExpr: "(_values['${image.rootKey}']! "
+                'as Map<String, dynamic>)',
+            keyLiteral: _paramKey('timedData.${image.storageKey}.\$_millis'),
+            deleteGuard: '_storedTimes.contains(_millis)',
+          ),
+        '          _timedJson[_millis.toString()] = _values;',
+        '        }',
+      ],
+      '        await HomeWidget.saveFile(${_paramKey('timedData')}, '
+          'Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), '
+          "extension: 'json'$_appGroupIdArg);",
+      if (hasTimedImages)
+        '        await _\$deleteTimedImages(_storedTimes.where('
+            '(_millis) => !_timedJson.containsKey(_millis.toString())));',
+      _guardedScheduleCall(
+        indent: '        ',
+        call: 'HomeWidget.scheduleWidgetUpdates(_timedTimes, $_androidNameArg)',
+      ),
+    ];
+
+    return _asyncEntry('      if (timedData != null) () async {', body);
+  }
+
+  /// Saves the image of one timed field, or clears the slot it held before.
+  ///
+  /// A timestamp that keeps its slot but loses its image would otherwise leave
+  /// the PNG of the previous schedule behind, with nothing left pointing at it.
+  String _timedImageSave(HWImageData image) {
+    final local = _timedImageLocal(image.key);
+    final keyLiteral = _paramKey('timedData.${image.key}.\$_millis');
+    return '''
+          final $local = _entry.${image.key};
+          if ($local != null) {
+            _values['${image.key}'] = await HomeWidget.saveImage($keyLiteral, $local$_appGroupIdArg);
+          } else if (_storedTimes.contains(_millis)) {
+            await HomeWidget.saveWidgetData<String>($keyLiteral, null$_appGroupIdArg);
+          }''';
   }
 
   /// Emits the save (and clear) of one image sitting at the leaf of a JSON
@@ -752,56 +529,333 @@ class DartHelperGenerator {
   /// [deleteGuard], when set, narrows the clear-out of a missing image to the
   /// keys that can actually hold a file (the timed case, where a key exists per
   /// timestamp rather than once).
-  void _writeJsonImageSave(
-    StringBuffer buffer, {
+  String _jsonImageSave({
     required String indent,
     required JsonImageField image,
     required String objectExpr,
     required bool ownerNullable,
     required String mapExpr,
     required String keyLiteral,
-    required bool usesAppGroupId,
     String? deleteGuard,
   }) {
     final path = image.path;
     final local = _jsonImageLocal(image.storageKey);
 
-    final access = StringBuffer(objectExpr);
-    for (var i = 0; i < path.length; i++) {
-      access.write(i == 0 && !ownerNullable ? '.' : '?.');
-      access.write(path[i]);
-    }
+    final access = [
+      objectExpr,
+      for (final (index, segment) in path.indexed)
+        '${index == 0 && !ownerNullable ? '.' : '?.'}$segment',
+    ].join();
 
     var parentMap = mapExpr;
-    for (var i = 0; i < path.length - 1; i++) {
-      parentMap = "($parentMap['${path[i]}']! as Map<String, dynamic>)";
+    for (final segment in path.take(path.length - 1)) {
+      parentMap = "($parentMap['$segment']! as Map<String, dynamic>)";
     }
 
-    final appGroupArg = _appGroupIdArg(usesAppGroupId);
-    buffer.writeln('${indent}final $local = $access;');
-    buffer.writeln('${indent}if ($local != null) {');
-    buffer.writeln(
-      "$indent  $parentMap['${path.last}'] = "
-      "await HomeWidget.saveImage('$keyLiteral', $local$appGroupArg);",
+    final elseBranch = deleteGuard == null
+        ? '$indent} else {'
+        : '$indent} else if ($deleteGuard) {';
+
+    return '''
+${indent}final $local = $access;
+${indent}if ($local != null) {
+$indent  $parentMap['${path.last}'] = await HomeWidget.saveImage($keyLiteral, $local$_appGroupIdArg);
+$elseBranch
+$indent  await HomeWidget.saveWidgetData<String>($keyLiteral, null$_appGroupIdArg);
+$indent}''';
+  }
+
+  String _deleteDataMethod() {
+    final primitiveFields = spec.primitiveDataFields;
+    final jsonGroups = spec.jsonDataGroups;
+    final hasTimedData = spec.timedDataFields.isNotEmpty;
+
+    final parameters = <String>[
+      for (final field in primitiveFields) '    bool ${field.key} = false,',
+      for (final group in jsonGroups) '    bool ${group.key} = false,',
+      if (hasTimedData) '    bool timedData = false,',
+    ];
+
+    final entries = <String>[
+      // Localized fields need no special case: all their translations
+      // live in one entry, so clearing that key clears all of them.
+      for (final field in primitiveFields)
+        '      if (${field.key}) '
+            'HomeWidget.saveWidgetData(${_paramKey(field.key)}, '
+            'null$_appGroupIdArg),',
+      for (final group in jsonGroups) _jsonGroupDelete(group),
+      if (hasTimedData) _timedDataDelete(),
+    ];
+
+    final buffer = StringBuffer();
+    buffer.writeln('  static Future<void> deleteData({');
+
+    for (final parameter in parameters) {
+      buffer.writeln(parameter);
+    }
+
+    buffer.write('''
+  }) {
+    return Future.wait([
+''');
+
+    for (final entry in entries) {
+      buffer.writeln(entry);
+    }
+
+    buffer.write('''
+    ]);
+  }
+''');
+
+    return buffer.toString();
+  }
+
+  /// The `deleteData` entry clearing one JSON group.
+  ///
+  /// The blob is only half the group: each image leaf owns a PNG of its own,
+  /// which clearing the blob key does not reach.
+  String _jsonGroupDelete(JsonDataGroup group) {
+    final images =
+        spec.jsonImageFields.where((i) => i.rootKey == group.key).toList();
+    if (images.isEmpty) {
+      return '      if (${group.key}) '
+          'HomeWidget.saveWidgetData(${_paramKey(group.key)}, '
+          'null$_appGroupIdArg),';
+    }
+
+    final body = <String>[
+      '        await HomeWidget.saveWidgetData(${_paramKey(group.key)}, '
+          'null$_appGroupIdArg);',
+      for (final image in images)
+        '        await HomeWidget.saveWidgetData<String>('
+            '${_paramKey(image.storageKey)}, null$_appGroupIdArg);',
+    ];
+
+    return _asyncEntry('      if (${group.key}) () async {', body);
+  }
+
+  /// The `deleteData` entry taking the whole timeline, its images and its
+  /// platform schedule away again.
+  String _timedDataDelete() {
+    final hasTimedImages = _allTimedImageKeys.isNotEmpty;
+
+    final body = <String>[
+      if (hasTimedImages)
+        '        final _storedTimes = await _\$storedTimedKeys();',
+      '        await HomeWidget.saveWidgetData(${_paramKey('timedData')}, '
+          'null$_appGroupIdArg);',
+      if (hasTimedImages) '        await _\$deleteTimedImages(_storedTimes);',
+      _guardedScheduleCall(
+        indent: '        ',
+        call: 'HomeWidget.cancelScheduledWidgetUpdates($_androidNameArg)',
+        cancels: true,
+      ),
+    ];
+
+    return _asyncEntry('      if (timedData) () async {', body);
+  }
+
+  String _getDataMethod() {
+    final primitiveFields = spec.primitiveDataFields;
+    final jsonGroups = spec.jsonDataGroups;
+    final hasTimedData = spec.timedDataFields.isNotEmpty;
+    final topLevelImages = primitiveFields.whereType<HWImageData>().toList();
+
+    final recordFields = <String>[
+      ...primitiveFields.map(
+        (f) => f is HWLocalizedString
+            ? '$_translationsClassName ${f.key}'
+            : '${f.dartType}? ${f.key}',
+      ),
+      ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
+      if (hasTimedData) 'Map<DateTime, $_timedDataClassName>? timedData',
+    ].join(', ');
+
+    final prelude = <String>[
+      for (final group in jsonGroups) _jsonGroupRead(group),
+      if (hasTimedData) _timedDataRead(),
+    ];
+
+    final values = <String>[
+      for (final field in primitiveFields) _primitiveRead(field),
+      for (final group in jsonGroups) '      ${group.key}: ${group.key},',
+      if (hasTimedData) '      timedData: timedData,',
+    ];
+
+    final buffer = StringBuffer();
+
+    for (final line in _getDataDoc(topLevelImages)) {
+      buffer.writeln(line);
+    }
+
+    buffer.writeln('  static Future<({$recordFields})> getData() async {');
+
+    for (final line in prelude) {
+      buffer.writeln(line);
+    }
+
+    buffer.writeln('    return (');
+
+    for (final line in values) {
+      buffer.writeln(line);
+    }
+
+    buffer.write('''
     );
-    buffer.writeln(
-      deleteGuard == null
-          ? '$indent} else {'
-          : '$indent} else if ($deleteGuard) {',
+  }
+''');
+
+    return buffer.toString();
+  }
+
+  /// The doc comment on `getData`, naming everything that reads back
+  /// differently from what was handed to `saveData`.
+  List<String> _getDataDoc(List<HWImageData> topLevelImages) {
+    final hasTimedData = spec.timedDataFields.isNotEmpty;
+    final names = topLevelImages.map((f) => '[${f.key}]').join(', ');
+    return <String>[
+      if (_translationFields.isNotEmpty ||
+          hasTimedData ||
+          topLevelImages.isNotEmpty) ...[
+        '  /// Reads every stored value back.',
+        '  ///',
+      ],
+      if (_translationFields.isNotEmpty) ...[
+        '  /// Localized fields come back fully populated: anything stored '
+            'by [saveData]',
+        '  /// is merged over the compiled defaults, so every locale always '
+            'has text.',
+        if (_localizedFields.isNotEmpty) ...[
+          '  /// To read the raw stored blob instead — to tell an override '
+              'apart from a',
+          '  /// shipped default — use `HomeWidget.getWidgetData` on the '
+              'preferences key.',
+        ],
+        if (hasTimedData || topLevelImages.isNotEmpty) '  ///',
+      ],
+      if (hasTimedData) ...[
+        '  /// The keys of [timedData] are local-time [DateTime]s, so they '
+            'compare equal to a',
+        '  /// local [DateTime] for the same instant. Timestamps are stored '
+            'as epoch',
+        '  /// milliseconds: sub-millisecond precision of the saved keys is '
+            'not preserved.',
+        '  /// Keys are compared by instant, so a local [DateTime] and its '
+            '`toUtc()` twin',
+        '  /// denote the same entry and only one of them survives a save.',
+      ],
+      if (topLevelImages.isNotEmpty) ...[
+        if (hasTimedData) '  ///',
+        '  /// $names ${topLevelImages.length == 1 ? 'comes' : 'come'} back '
+            'as the file path of the PNG',
+        '  /// `saveData` wrote, not as an `ImageProvider`, and the file it '
+            'points at may',
+        '  /// since have been removed. Nested and timed images are handed '
+            'back as an',
+        '  /// `ImageProvider` instead.',
+      ],
+    ];
+  }
+
+  /// Reads one JSON group's blob back off disk, leaving it null where the file
+  /// is gone or holds something else.
+  String _jsonGroupRead(JsonDataGroup group) {
+    final jsonClass = _dartJsonClassName(group.key);
+    return '''
+    final _${group.key}Path = await HomeWidget.getWidgetData<String>(${_paramKey(group.key)}$_appGroupIdArg);
+    $jsonClass? ${group.key};
+    if (_${group.key}Path != null) {
+      try {
+        final raw = await File(_${group.key}Path).readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) ${group.key} = $jsonClass.fromJson(decoded);
+      } on Exception {
+        ${group.key} = null;
+      }
+    }''';
+  }
+
+  /// Reads the timeline back, keyed by the local [DateTime] of each entry.
+  String _timedDataRead() => '''
+    final _timedDataPath = await HomeWidget.getWidgetData<String>(${_paramKey('timedData')}$_appGroupIdArg);
+    Map<DateTime, $_timedDataClassName>? timedData;
+    if (_timedDataPath != null) {
+      try {
+        final raw = await File(_timedDataPath).readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          final entries = <DateTime, $_timedDataClassName>{};
+          for (final entry in decoded.entries) {
+            final millis = int.tryParse(entry.key);
+            if (millis == null) continue;
+            final value = entry.value;
+            entries[DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal()] = $_timedDataClassName.fromJson(value is Map<String, dynamic> ? value : null);
+          }
+          timedData = entries;
+        }
+      } on Exception {
+        timedData = null;
+      }
+    }''';
+
+  /// The `getData` record field reading one top-level value back.
+  String _primitiveRead(HWDataType<dynamic> field) {
+    final key = field.key;
+    if (field is HWLocalizedString) {
+      return '      $key: _\$mergeTranslations(${_defaultsFieldName(field)}, '
+          'await _\$readLocalized(${_paramKey(key)})),';
+    }
+    if (field is HWDateTime) {
+      return '      $key: _readDateTime('
+          'await HomeWidget.getWidgetData<String>('
+          '${_paramKey(key)}$_appGroupIdArg)),';
+    }
+    final defaultValue = field.defaultValue;
+    var defaultLiteral = '';
+    if (defaultValue != null) {
+      defaultLiteral = defaultValue is String
+          ? ", defaultValue: '${escapeDartStringLiteral(defaultValue)}'"
+          : ', defaultValue: $defaultValue';
+    }
+    return '      $key: '
+        'await HomeWidget.getWidgetData<${field.dartType}>('
+        '${_paramKey(key)}$defaultLiteral$_appGroupIdArg),';
+  }
+
+  /// Merges a stored translation blob over the compiled defaults.
+  String _translationsMerger() {
+    final buffer = StringBuffer();
+    buffer.write('''
+  static $_translationsClassName _\$mergeTranslations(
+    $_translationsClassName defaults,
+    Map<String, String>? stored,
+  ) {
+    if (stored == null) return defaults;
+    return $_translationsClassName(
+''');
+
+    for (final locale in _supportedLocales) {
+      final identifier = localeIdentifier(locale);
+      final tag = escapeDartStringLiteral(locale);
+      buffer.writeln(
+        "      $identifier: stored['$tag'] ?? defaults.$identifier,",
+      );
+    }
+
+    buffer.write('''
     );
-    buffer.writeln(
-      "$indent  await HomeWidget.saveWidgetData<String>('$keyLiteral', "
-      'null$appGroupArg);',
-    );
-    buffer.writeln('$indent}');
+  }
+''');
+
+    return buffer.toString();
   }
 
   /// Emits the helper re-rendering the widget's entry in the gallery.
   ///
   /// Emitted only for specs with an Android configuration: re-rendering a
   /// gallery preview is an Android feature, and WidgetKit renders its own.
-  void _writeUpdatePreview(StringBuffer buffer, String androidNameArg) {
-    buffer.write('''
+  String _updatePreviewHelper() => '''
   /// Asks the launcher to re-render this widget's gallery preview.
   ///
   /// Android 15 and newer only; returns false elsewhere and when the system
@@ -810,18 +864,16 @@ class DartHelperGenerator {
   /// needed after data changes that should show in the gallery right away.
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
-      $androidNameArg,
+      $_androidNameArg,
     ) ?? false;
   }
-''');
-  }
+''';
 
   /// Emits the helpers asking the launcher to place this widget.
   ///
   /// Emitted only for specs with an Android configuration: pinning is an
   /// Android feature, and a widget without one has no Android widget to pin.
-  void _writePinHelpers(StringBuffer buffer, String androidNameArg) {
-    buffer.write('''
+  String _pinHelpers() => '''
   /// Whether the launcher lets the app ask to add this widget to the home
   /// screen: Android 8 or newer with a launcher that supports pinning. Always
   /// false on iOS.
@@ -835,23 +887,19 @@ class DartHelperGenerator {
   /// and does nothing anywhere else.
   static Future<void> requestPinWidget() {
     return HomeWidget.requestPinWidget(
-      $androidNameArg,
+      $_androidNameArg,
     );
   }
-''');
-  }
+''';
 
   /// Emits the helpers reporting where this widget is currently placed.
-  void _writeInstallHelpers(
-    StringBuffer buffer, {
-    required String receiverName,
-    required String? iosName,
-  }) {
+  String _installHelpers() {
     final androidMatch = spec.data.android != null
-        ? "androidClassName.endsWith('.$receiverName')"
+        ? "androidClassName.endsWith('.$_receiverName')"
         : 'false';
+    final iosName = _iosName;
     final iosMatch = iosName != null ? "info.iOSKind == '$iosName'" : 'false';
-    buffer.write('''
+    return '''
   /// Every instance of this widget currently placed on a home screen.
   ///
   /// Android reports one entry per placed instance, iOS one entry per family
@@ -878,137 +926,17 @@ class DartHelperGenerator {
     }
     return $iosMatch;
   }
-''');
+''';
   }
 
   /// Emits the helpers telling the app that the widget was tapped.
   ///
   /// Emitted only for specs configuring a widget URL, which is what makes the
   /// platforms report a click at all.
-  void _writeLaunchHelpers(StringBuffer buffer) {
+  String _launchHelpers() {
     final urlFields = _widgetUrlFields;
+    final filterDoc = _filterDoc;
 
-    for (final entry in urlFields.entries) {
-      final platform = _widgetUrlPlatform(entry.key);
-      buffer.writeln(
-        '  /// The URL a tap on the widget opens the app with$platform, as the '
-        'app',
-      );
-      buffer.writeln('  /// will receive it.');
-      buffer.writeln('  ///');
-      buffer.writeln(
-        '  /// The configured `widgetUrl` carrying the `homeWidget` query',
-      );
-      buffer.writeln(
-        '  /// parameter, parsed — so its scheme is lower-cased, exactly like',
-      );
-      buffer.writeln('  /// the URL handed to the app.');
-      buffer.writeln(
-        "  static final Uri ${entry.key} = "
-        "Uri.parse('${escapeDartStringLiteral(entry.value)}');",
-      );
-      buffer.writeln();
-    }
-    buffer.writeln(
-      '  /// The URL the app was launched with by a tap on the widget, or null',
-    );
-    buffer.writeln('  /// when it was started any other way.');
-    buffer.writeln('  ///');
-    _writeFilterDoc(buffer);
-    buffer
-        .writeln('  static Future<Uri?> initiallyLaunchedFromWidget() async {');
-    buffer.writeln(
-      '    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();',
-    );
-    buffer.writeln('    if (uri == null || !_\$matchesWidgetUrl(uri)) {');
-    buffer.writeln('      return null;');
-    buffer.writeln('    }');
-    buffer.writeln('    return uri;');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln(
-      '  /// The URL of every tap on the widget while the app is running.',
-    );
-    buffer.writeln(
-      '  ///',
-    );
-    buffer.writeln(
-      '  /// A tap that started the app in the first place is not replayed here',
-    );
-    buffer.writeln(
-      '  /// — read [initiallyLaunchedFromWidget] for that one, or listen to',
-    );
-    buffer.writeln('  /// [launchedFromWidget] for both.');
-    buffer.writeln('  ///');
-    _writeFilterDoc(buffer);
-    buffer.writeln('  static Stream<Uri> get widgetClicked =>');
-    buffer.writeln('      HomeWidget.widgetClicked');
-    buffer.writeln(
-      '          .where((uri) => uri != null && _\$matchesWidgetUrl(uri))',
-    );
-    buffer.writeln('          .cast<Uri>();');
-    buffer.writeln();
-    buffer.writeln('  /// Every tap on the widget, launch included.');
-    buffer.writeln('  ///');
-    buffer.writeln(
-      '  /// Yields the launch URL first when the app was started by a tap on',
-    );
-    buffer.writeln(
-      '  /// the widget, then every tap that follows while it runs. Taps landing',
-    );
-    buffer.writeln(
-      '  /// while the launch URL is still being read are kept, not dropped.',
-    );
-    buffer.writeln('  ///');
-    _writeFilterDoc(buffer);
-    buffer.writeln('  static Stream<Uri> launchedFromWidget() async* {');
-    buffer.writeln('    final clicks = StreamController<Uri>();');
-    buffer.writeln('    final subscription = HomeWidget.widgetClicked.listen(');
-    buffer.writeln('      (uri) {');
-    buffer.writeln(
-      '        if (uri != null && _\$matchesWidgetUrl(uri)) clicks.add(uri);',
-    );
-    buffer.writeln('      },');
-    buffer.writeln('      onDone: clicks.close,');
-    buffer.writeln('    );');
-    buffer.writeln('    try {');
-    buffer.writeln(
-      '      final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();',
-    );
-    buffer.writeln(
-      '      if (initial != null && _\$matchesWidgetUrl(initial)) yield initial;',
-    );
-    buffer.writeln('      yield* clicks.stream;');
-    buffer.writeln('    } finally {');
-    buffer.writeln('      await subscription.cancel();');
-    buffer.writeln('      await clicks.close();');
-    buffer.writeln('    }');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln(
-      "  /// Whether [uri] is the URL this platform's widget opens.",
-    );
-    buffer.writeln('  ///');
-    buffer.writeln(
-      '  /// Schemes are compared case-insensitively: the URL reaches the app '
-      'parsed,',
-    );
-    buffer.writeln(
-      '  /// which lower-cases the scheme it was written with.',
-    );
-    buffer.writeln('  static bool _\$matchesWidgetUrl(Uri uri) {');
-    buffer.writeln('    final url = _\$platformWidgetUrl;');
-    buffer.writeln('    if (url == null) return false;');
-    buffer.writeln(
-      '    return _\$lowerCaseScheme(uri) == _\$lowerCaseScheme(url);',
-    );
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln(
-      '  /// The URL the widget opens on the platform the app is running on, or',
-    );
-    buffer.writeln('  /// null where it opens none.');
-    buffer.writeln('  static Uri? get _\$platformWidgetUrl {');
     final androidField = urlFields.containsKey('widgetUrl')
         ? 'widgetUrl'
         : urlFields.containsKey('androidWidgetUrl')
@@ -1019,6 +947,87 @@ class DartHelperGenerator {
         : urlFields.containsKey('iosWidgetUrl')
             ? 'iosWidgetUrl'
             : null;
+
+    final buffer = StringBuffer();
+
+    for (final entry in urlFields.entries) {
+      buffer.write('''
+  /// The URL a tap on the widget opens the app with${_widgetUrlPlatform(entry.key)}, as the app
+  /// will receive it.
+  ///
+  /// The configured `widgetUrl` carrying the `homeWidget` query
+  /// parameter, parsed — so its scheme is lower-cased, exactly like
+  /// the URL handed to the app.
+  static final Uri ${entry.key} = Uri.parse('${escapeDartStringLiteral(entry.value)}');
+
+''');
+    }
+
+    buffer.write('''
+  /// The URL the app was launched with by a tap on the widget, or null
+  /// when it was started any other way.
+  ///
+$filterDoc
+  static Future<Uri?> initiallyLaunchedFromWidget() async {
+    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+    if (uri == null || !_\$matchesWidgetUrl(uri)) {
+      return null;
+    }
+    return uri;
+  }
+
+  /// The URL of every tap on the widget while the app is running.
+  ///
+  /// A tap that started the app in the first place is not replayed here
+  /// — read [initiallyLaunchedFromWidget] for that one, or listen to
+  /// [launchedFromWidget] for both.
+  ///
+$filterDoc
+  static Stream<Uri> get widgetClicked =>
+      HomeWidget.widgetClicked
+          .where((uri) => uri != null && _\$matchesWidgetUrl(uri))
+          .cast<Uri>();
+
+  /// Every tap on the widget, launch included.
+  ///
+  /// Yields the launch URL first when the app was started by a tap on
+  /// the widget, then every tap that follows while it runs. Taps landing
+  /// while the launch URL is still being read are kept, not dropped.
+  ///
+$filterDoc
+  static Stream<Uri> launchedFromWidget() async* {
+    final clicks = StreamController<Uri>();
+    final subscription = HomeWidget.widgetClicked.listen(
+      (uri) {
+        if (uri != null && _\$matchesWidgetUrl(uri)) clicks.add(uri);
+      },
+      onDone: clicks.close,
+    );
+    try {
+      final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      if (initial != null && _\$matchesWidgetUrl(initial)) yield initial;
+      yield* clicks.stream;
+    } finally {
+      await subscription.cancel();
+      await clicks.close();
+    }
+  }
+
+  /// Whether [uri] is the URL this platform's widget opens.
+  ///
+  /// Schemes are compared case-insensitively: the URL reaches the app parsed,
+  /// which lower-cases the scheme it was written with.
+  static bool _\$matchesWidgetUrl(Uri uri) {
+    final url = _\$platformWidgetUrl;
+    if (url == null) return false;
+    return _\$lowerCaseScheme(uri) == _\$lowerCaseScheme(url);
+  }
+
+  /// The URL the widget opens on the platform the app is running on, or
+  /// null where it opens none.
+  static Uri? get _\$platformWidgetUrl {
+''');
+
     if (androidField != null) {
       buffer.writeln('    if (Platform.isAndroid) return $androidField;');
     }
@@ -1026,25 +1035,22 @@ class DartHelperGenerator {
       buffer.writeln('    if (Platform.isIOS) return $iosField;');
     }
     buffer.writeln('    return null;');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln('  static String _\$lowerCaseScheme(Uri uri) {');
-    buffer.writeln('    final text = uri.toString();');
-    buffer.writeln(
-      '    return uri.scheme.toLowerCase() + text.substring(uri.scheme.length);',
-    );
-    buffer.writeln('  }');
+
+    buffer.write('''
+  }
+
+  static String _\$lowerCaseScheme(Uri uri) {
+    final text = uri.toString();
+    return uri.scheme.toLowerCase() + text.substring(uri.scheme.length);
+  }
+''');
+
+    return buffer.toString();
   }
 
   /// The doc-comment paragraph every launch helper carries, naming what the
   /// emitted filter lets through.
-  void _writeFilterDoc(StringBuffer buffer) {
-    buffer.writeln(
-      '  /// Only the URL this widget opens on the platform the app is running',
-    );
-    buffer.writeln(
-      '  /// on is reported; a tap on any other widget is not.',
-    );
+  String get _filterDoc {
     final androidUrl = spec.androidWidgetUrl;
     final iosUrl = spec.iosWidgetUrl;
     final without = androidUrl == null
@@ -1052,13 +1058,19 @@ class DartHelperGenerator {
         : iosUrl == null
             ? 'iOS'
             : null;
+    final buffer = StringBuffer();
+    buffer.write('''
+  /// Only the URL this widget opens on the platform the app is running
+  /// on is reported; a tap on any other widget is not.''');
+
     if (without != null) {
-      buffer.writeln(
-        '  /// Nothing is ever reported on $without, where the widget opens no '
-        'URL',
-      );
-      buffer.writeln('  /// of its own.');
+      buffer.write('''
+
+  /// Nothing is ever reported on $without, where the widget opens no URL
+  /// of its own.''');
     }
+
+    return buffer.toString();
   }
 
   /// The runtime URLs exposed on the generated class, by field name.
@@ -1089,186 +1101,170 @@ class DartHelperGenerator {
   /// The timestamps of the stored timeline are the only record of which images
   /// exist: each one was written under `<prefix>.timedData.<field>.<millis>`,
   /// so clearing that key deletes both the preferences entry and the PNG.
-  /// [imageKeys] holds the `<field>` part of every timed image, a JSON group's
-  /// dotted leaf paths included.
-  void _writeTimedImageHelpers(
-    StringBuffer buffer,
-    List<String> imageKeys,
-    bool usesAppGroupId,
-  ) {
-    buffer.writeln('  static Future<List<int>> _\$storedTimedKeys() async {');
-    buffer.writeln(
-      "    final path = await HomeWidget.getWidgetData<String>('"
-      r"${_$paramPrefix}."
-      "timedData'${_appGroupIdArg(usesAppGroupId)});",
-    );
-    buffer.writeln('    if (path == null) return const [];');
-    buffer.writeln('    try {');
-    buffer.writeln(
-      '      final decoded = jsonDecode(await File(path).readAsString());',
-    );
-    buffer.writeln(
-      '      if (decoded is! Map<String, dynamic>) return const [];',
-    );
-    buffer.writeln('      return [');
-    buffer.writeln('        for (final key in decoded.keys)');
-    buffer
-        .writeln('          if (int.tryParse(key) case final millis?) millis,');
-    buffer.writeln('      ];');
-    buffer.writeln('    } on Exception {');
-    buffer.writeln('      return const [];');
-    buffer.writeln('    }');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln(
-      '  static Future<void> _\$deleteTimedImages(Iterable<int> times) async {',
-    );
-    buffer.writeln('    await Future.wait([');
-    buffer.writeln('      for (final _millis in times)');
-    final keys = imageKeys.map((key) => "'$key'").join(', ');
-    buffer.writeln('        for (final _key in const [$keys])');
-    buffer.writeln(
-      "          HomeWidget.saveWidgetData<String>('"
-      r"${_$paramPrefix}.timedData.$_key.$_millis"
-      "', null${_appGroupIdArg(usesAppGroupId)}),",
-    );
-    buffer.writeln('    ]);');
-    buffer.writeln('  }');
+  /// [_allTimedImageKeys] holds the `<field>` part of every timed image, a JSON
+  /// group's dotted leaf paths included.
+  String _timedImageHelpers() {
+    final keys = _allTimedImageKeys.map((key) => "'$key'").join(', ');
+    final timedKey = _paramKey(r'timedData.$_key.$_millis');
+    return '''
+  static Future<List<int>> _\$storedTimedKeys() async {
+    final path = await HomeWidget.getWidgetData<String>(${_paramKey('timedData')}$_appGroupIdArg);
+    if (path == null) return const [];
+    try {
+      final decoded = jsonDecode(await File(path).readAsString());
+      if (decoded is! Map<String, dynamic>) return const [];
+      return [
+        for (final key in decoded.keys)
+          if (int.tryParse(key) case final millis?) millis,
+      ];
+    } on Exception {
+      return const [];
+    }
   }
 
-  /// Reads the stored translation blob for [key] back into a raw map, which
+  static Future<void> _\$deleteTimedImages(Iterable<int> times) async {
+    await Future.wait([
+      for (final _millis in times)
+        for (final _key in const [$keys])
+          HomeWidget.saveWidgetData<String>($timedKey, null$_appGroupIdArg),
+    ]);
+  }
+''';
+  }
+
+  /// Reads the stored translation blob for a key back into a raw map, which
   /// `getData` then merges over the compiled defaults.
   ///
   /// Mirrors the leniency of the native readers — anything that is not a JSON
   /// object of strings reads back as null instead of throwing.
-  void _writeLocalizedReader(StringBuffer buffer, bool usesAppGroupId) {
-    buffer.writeln(
-      '  static Future<Map<String, String>?> _\$readLocalized(String key) async {',
-    );
-    buffer.writeln(
-      "    final raw = await HomeWidget.getWidgetData<String>(key"
-      '${_appGroupIdArg(usesAppGroupId)});',
-    );
-    buffer.writeln('    if (raw == null) return null;');
-    buffer.writeln('    Object? decoded;');
-    buffer.writeln('    try {');
-    buffer.writeln('      decoded = jsonDecode(raw);');
-    buffer.writeln('    } on FormatException {');
-    buffer.writeln('      return null;');
-    buffer.writeln('    }');
-    buffer.writeln('    if (decoded is! Map) return null;');
-    buffer.writeln('    final values = <String, String>{};');
-    buffer.writeln('    decoded.forEach((locale, value) {');
-    buffer.writeln(
-      '      if (locale is String && value is String) values[locale] = value;',
-    );
-    buffer.writeln('    });');
-    buffer.writeln('    return values.isEmpty ? null : values;');
-    buffer.writeln('  }');
+  String _localizedReader() => '''
+  static Future<Map<String, String>?> _\$readLocalized(String key) async {
+    final raw = await HomeWidget.getWidgetData<String>(key$_appGroupIdArg);
+    if (raw == null) return null;
+    Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
+    }
+    if (decoded is! Map) return null;
+    final values = <String, String>{};
+    decoded.forEach((locale, value) {
+      if (locale is String && value is String) values[locale] = value;
+    });
+    return values.isEmpty ? null : values;
   }
+''';
 
   /// A translation set for one string, with every supported locale required so
   /// that adding a locale becomes a compile error until it is translated.
-  void _writeTranslationsClass(StringBuffer buffer) {
+  String _translationsClass() {
     final locales = _supportedLocales;
-    buffer.writeln('class $_translationsClassName {');
-    buffer.writeln('  const $_translationsClassName({');
+
+    final buffer = StringBuffer();
+    buffer.write('''
+class $_translationsClassName {
+  const $_translationsClassName({
+''');
+
     for (final locale in locales) {
       buffer.writeln('    required this.${localeIdentifier(locale)},');
     }
-    buffer.writeln('  });');
-    buffer.writeln();
+
+    buffer.write('''
+  });
+
+''');
+
     for (final locale in locales) {
       buffer.writeln('  final String ${localeIdentifier(locale)};');
     }
-    buffer.writeln();
-    buffer.writeln('  Map<String, String> toMap() => {');
+
+    buffer.write('''
+
+  Map<String, String> toMap() => {
+''');
+
     for (final locale in locales) {
       buffer.writeln("        '$locale': ${localeIdentifier(locale)},");
     }
-    buffer.writeln('      };');
-    buffer.writeln();
-    _writeResolve(buffer);
-    buffer.writeln('}');
+
+    buffer.write('''
+      };
+
+''');
+
+    buffer
+      ..write(_resolveMethod())
+      ..writeln('}');
+
+    return buffer.toString();
   }
 
   /// `resolve(tag)` — the widget's own matching chain, for one explicit tag.
   ///
   /// Must stay in step with `hwResolveLocalized` in the Kotlin and Swift
   /// helpers, or a preview would disagree with what the widget renders.
-  void _writeResolve(StringBuffer buffer) {
+  String _resolveMethod() {
     final baseIdentifier = _baseLocaleIdentifier;
-    buffer.writeln(
-      '  /// The text this set resolves to for the BCP-47 locale [tag].',
-    );
-    buffer.writeln('  ///');
-    buffer.writeln(
-      '  /// Tries the exact tag (`pt-PT`), then the tag with its last subtag',
-    );
-    buffer.writeln(
-      '  /// dropped, and so on down to the bare language (`zh-Hant-TW` →',
-    );
-    buffer.writeln(
-      '  /// `zh-Hant` → `zh`), then any entry with the same language but a',
-    );
-    buffer.writeln(
-      '  /// different region or script (`pt-BR`; the lexicographically',
-    );
-    buffer.writeln(
-      "  /// smallest wins if several match), and finally the widget's default",
-    );
-    buffer.writeln(
-      '  /// locale. Matching is case-insensitive, and `_` is treated as `-`.',
-    );
-    buffer.writeln('  ///');
-    buffer.writeln(
-      '  /// The widget natively runs these same steps against *every* entry',
-    );
-    buffer.writeln(
-      "  /// of the OS preferred-language list in order; this answers for one",
-    );
-    buffer.writeln(
-      '  /// explicit tag, which is what previews and tests need.',
-    );
-    buffer.writeln('  String resolve(String tag) {');
     // Tags are case-insensitive per BCP-47, so both sides fold to lower case.
     // The native resolvers only ever see canonically cased tags, so folding
     // here cannot conflate two genuinely different tags.
-    buffer.writeln('    final values = {');
-    buffer.writeln('      for (final entry in toMap().entries)');
-    buffer.writeln('        entry.key.toLowerCase(): entry.value,');
-    buffer.writeln('    };');
-    buffer.writeln(
-      "    final normalized = tag.replaceAll('_', '-').toLowerCase();",
-    );
+    final buffer = StringBuffer();
+    buffer.write('''
+  /// The text this set resolves to for the BCP-47 locale [tag].
+  ///
+  /// Tries the exact tag (`pt-PT`), then the tag with its last subtag
+  /// dropped, and so on down to the bare language (`zh-Hant-TW` →
+  /// `zh-Hant` → `zh`), then any entry with the same language but a
+  /// different region or script (`pt-BR`; the lexicographically
+  /// smallest wins if several match), and finally the widget's default
+  /// locale. Matching is case-insensitive, and `_` is treated as `-`.
+  ///
+  /// The widget natively runs these same steps against *every* entry
+  /// of the OS preferred-language list in order; this answers for one
+  /// explicit tag, which is what previews and tests need.
+  String resolve(String tag) {
+    final values = {
+      for (final entry in toMap().entries)
+        entry.key.toLowerCase(): entry.value,
+    };
+    final normalized = tag.replaceAll('_', '-').toLowerCase();
+''');
+
     if (baseIdentifier == null) {
-      buffer.writeln("    return values[normalized] ?? '';");
-      buffer.writeln('  }');
-      return;
+      buffer.write('''
+    return values[normalized] ?? '';
+  }
+''');
+      return buffer.toString();
     }
+
     // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
-    buffer.writeln('    var candidate = normalized;');
-    buffer.writeln('    while (true) {');
-    buffer.writeln('      final match = values[candidate];');
-    buffer.writeln('      if (match != null) return match;');
-    buffer.writeln("      final cut = candidate.lastIndexOf('-');");
-    buffer.writeln('      if (cut <= 0) break;');
-    buffer.writeln('      candidate = candidate.substring(0, cut);');
-    buffer.writeln('    }');
-    buffer.writeln('    final language = candidate;');
-    buffer.writeln('    String? sibling;');
-    buffer.writeln('    for (final key in values.keys) {');
-    buffer.writeln("      if (key.split('-').first != language) continue;");
-    buffer.writeln(
-      '      if (sibling == null || key.compareTo(sibling) < 0) sibling = key;',
-    );
-    buffer.writeln('    }');
-    buffer.writeln('    if (sibling != null) {');
-    buffer.writeln('      final match = values[sibling];');
-    buffer.writeln('      if (match != null) return match;');
-    buffer.writeln('    }');
-    buffer.writeln('    return $baseIdentifier;');
-    buffer.writeln('  }');
+    buffer.write('''
+    var candidate = normalized;
+    while (true) {
+      final match = values[candidate];
+      if (match != null) return match;
+      final cut = candidate.lastIndexOf('-');
+      if (cut <= 0) break;
+      candidate = candidate.substring(0, cut);
+    }
+    final language = candidate;
+    String? sibling;
+    for (final key in values.keys) {
+      if (key.split('-').first != language) continue;
+      if (sibling == null || key.compareTo(sibling) < 0) sibling = key;
+    }
+    if (sibling != null) {
+      final match = values[sibling];
+      if (match != null) return match;
+    }
+    return $baseIdentifier;
+  }
+''');
+
+    return buffer.toString();
   }
 
   /// The field holding the widget's default-locale text, or null when there is
@@ -1292,8 +1288,7 @@ class DartHelperGenerator {
   ///
   /// Set [cancels] on the paths that take the timeline away again, so the
   /// emitted comment and error context describe what actually happened.
-  void _writeGuardedScheduleCall(
-    StringBuffer buffer, {
+  String _guardedScheduleCall({
     required String indent,
     required String call,
     bool cancels = false,
@@ -1304,21 +1299,20 @@ class DartHelperGenerator {
     final description = cancels
         ? 'cancelling scheduled updates for the ${spec.className} widget'
         : 'scheduling updates for the ${spec.className} widget';
-    buffer.writeln('${indent}try {');
-    buffer.writeln('$indent  await $call;');
-    buffer.writeln('$indent} catch (error, stackTrace) {');
-    buffer.writeln('$indent  $comment');
-    buffer.writeln('$indent  FlutterError.reportError(');
-    buffer.writeln('$indent    FlutterErrorDetails(');
-    buffer.writeln('$indent      exception: error,');
-    buffer.writeln('$indent      stack: stackTrace,');
-    buffer.writeln("$indent      library: 'home_widget',");
-    buffer.writeln(
-      "$indent      context: ErrorDescription('$description'),",
-    );
-    buffer.writeln('$indent    ),');
-    buffer.writeln('$indent  );');
-    buffer.writeln('$indent}');
+    return '''
+${indent}try {
+$indent  await $call;
+$indent} catch (error, stackTrace) {
+$indent  $comment
+$indent  FlutterError.reportError(
+$indent    FlutterErrorDetails(
+$indent      exception: error,
+$indent      stack: stackTrace,
+$indent      library: 'home_widget',
+$indent      context: ErrorDescription('$description'),
+$indent    ),
+$indent  );
+$indent}''';
   }
 
   /// Local variable holding the `ImageProvider` of a plain timed image.
@@ -1339,28 +1333,8 @@ class DartHelperGenerator {
   String _dartIsoExpr(String valueExpr) =>
       '$valueExpr.toUtc().toIso8601String()';
 
-  /// Emits the App Group the data calls write to.
-  ///
-  /// A widget declaring flavors resolves it from the flavor the app was built
-  /// with, since one generated helper serves them all; the base group answers
-  /// for every other flavor.
-  void _writeAppGroupId(StringBuffer buffer, String baseGroupId) {
-    if (!spec.hasFlavors) {
-      buffer.writeln("  static const String _\$appGroupId = '$baseGroupId';");
-      return;
-    }
-    buffer.writeln(
-      '  static String get _\$appGroupId => switch (appFlavor) {',
-    );
-    for (final flavor in spec.declaredFlavors) {
-      buffer.writeln("    '$flavor' => '${spec.iosGroupIdFor(flavor)}',");
-    }
-    buffer.writeln("    _ => '$baseGroupId',");
-    buffer.writeln('  };');
-  }
-
-  String _appGroupIdArg(bool usesAppGroupId) =>
-      usesAppGroupId ? r', appGroupId: _$appGroupId' : '';
+  String get _appGroupIdArg =>
+      _usesAppGroupId ? r', appGroupId: _$appGroupId' : '';
 
   String _dartJsonClassName(String key) => '${toPascalCase(key)}JsonData';
 
@@ -1376,103 +1350,113 @@ class DartHelperGenerator {
     return root;
   }
 
-  void _writeDartJsonNodeClass({
-    required StringBuffer buffer,
+  String _jsonNodeClass({
     required String className,
     required _JsonPathNode node,
-    required bool isRoot,
   }) {
+    final fields = <String>[
+      for (final entry in node.children.entries)
+        if (_isLeaf(entry.value))
+          if (entry.value.leafType is HWImageData)
+            '''
+  /// The image stored at this leaf.
+  ///
+  /// `saveData` writes it to its own PNG and puts that path in the blob;
+  /// `getData` hands it back as a `FileImage` of that PNG.
+  final ImageProvider? ${entry.key};'''
+          else
+            '  final ${entry.value.leafType!.dartType}? ${entry.key};'
+        else
+          '  final ${_dartChildClassName(className, entry.key)}? ${entry.key};',
+    ];
+
+    final fromJson = <String>[
+      for (final entry in node.children.entries)
+        if (_isLeaf(entry.value))
+          '      ${entry.key}: '
+              '${_dartReadFunction(entry.value.leafType!)}'
+              "(json['${entry.key}'])"
+              '${_dartDefaultLiteral(entry.value.leafType!)},'
+        else
+          "      ${entry.key}: json['${entry.key}'] is Map<String, dynamic> ? ${_dartChildClassName(className, entry.key)}.fromJson(json['${entry.key}'] as Map<String, dynamic>) : null,",
+    ];
+
+    final toJson = <String>[
+      for (final entry in node.children.entries)
+        // An image leaf is deliberately absent: only `saveData` knows the path
+        // its PNG was written to, and it puts it into this map afterwards.
+        if (!(_isLeaf(entry.value) && entry.value.leafType is HWImageData))
+          if (_isLeaf(entry.value))
+            "      if (${entry.key} != null) '${entry.key}': "
+                '${entry.value.leafType is HWDateTime ? _dartIsoExpr('${entry.key}!') : entry.key},'
+          else
+            "      if (${entry.key} != null) '${entry.key}': ${entry.key}!.toJson(),",
+    ];
+
+    final buffer = StringBuffer();
     buffer.writeln('class $className {');
-    for (final entry in node.children.entries) {
-      final key = entry.key;
-      final child = entry.value;
-      if (child.leafType != null && child.children.isEmpty) {
-        final leaf = child.leafType!;
-        if (leaf is HWImageData) {
-          buffer.writeln('  /// The image stored at this leaf.');
-          buffer.writeln('  ///');
-          buffer.writeln(
-            '  /// `saveData` writes it to its own PNG and puts that path in '
-            'the blob;',
-          );
-          buffer.writeln(
-            '  /// `getData` hands it back as a `FileImage` of that PNG.',
-          );
-          buffer.writeln('  final ImageProvider? $key;');
-          continue;
-        }
-        buffer.writeln('  final ${leaf.dartType}? $key;');
-      } else {
-        final childClass = _dartChildClassName(className, key);
-        buffer.writeln('  final $childClass? $key;');
-      }
+
+    for (final line in fields) {
+      buffer.writeln(line);
     }
-    buffer.writeln();
-    buffer.writeln('  const $className({');
+
+    buffer.write('''
+
+  const $className({
+''');
+
     for (final key in node.children.keys) {
       buffer.writeln('    this.$key,');
     }
-    buffer.writeln('  });');
-    buffer.writeln();
-    buffer
-        .writeln('  factory $className.fromJson(Map<String, dynamic>? json) {');
-    buffer.writeln('    json ??= const {};');
-    buffer.writeln('    return $className(');
-    for (final entry in node.children.entries) {
-      final key = entry.key;
-      final child = entry.value;
-      if (child.leafType != null && child.children.isEmpty) {
-        final fallback = _dartDefaultLiteral(child.leafType!);
-        buffer.writeln(
-          "      $key: ${_dartReadFunction(child.leafType!)}(json['$key'])$fallback,",
-        );
-      } else {
-        final childClass = _dartChildClassName(className, key);
-        buffer.writeln(
-          "      $key: json['$key'] is Map<String, dynamic> ? $childClass.fromJson(json['$key'] as Map<String, dynamic>) : null,",
-        );
-      }
+
+    buffer.write('''
+  });
+
+  factory $className.fromJson(Map<String, dynamic>? json) {
+    json ??= const {};
+    return $className(
+''');
+
+    for (final line in fromJson) {
+      buffer.writeln(line);
     }
-    buffer.writeln('    );');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln('  Map<String, dynamic> toJson() {');
-    buffer.writeln('    return {');
-    for (final entry in node.children.entries) {
-      final key = entry.key;
-      final child = entry.value;
-      if (child.leafType is HWImageData && child.children.isEmpty) {
-        // Deliberately absent: only `saveData` knows the path this image's PNG
-        // was written to, and it puts it into this map afterwards.
-        continue;
-      }
-      if (child.leafType != null && child.children.isEmpty) {
-        final value =
-            child.leafType is HWDateTime ? _dartIsoExpr('$key!') : key;
-        buffer.writeln("      if ($key != null) '$key': $value,");
-      } else {
-        buffer.writeln("      if ($key != null) '$key': $key!.toJson(),");
-      }
+
+    buffer.write('''
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+''');
+
+    for (final line in toJson) {
+      buffer.writeln(line);
     }
-    buffer.writeln('    };');
-    buffer.writeln('  }');
-    buffer.writeln('}');
+
+    buffer.write('''
+    };
+  }
+}
+''');
 
     for (final entry in node.children.entries) {
-      final key = entry.key;
-      final child = entry.value;
-      if (child.children.isNotEmpty || child.leafType == null) {
-        buffer.writeln();
-        final childClass = _dartChildClassName(className, key);
-        _writeDartJsonNodeClass(
-          buffer: buffer,
-          className: childClass,
-          node: child,
-          isRoot: false,
+      if (_isLeaf(entry.value)) continue;
+      buffer
+        ..writeln()
+        ..write(
+          _jsonNodeClass(
+            className: _dartChildClassName(className, entry.key),
+            node: entry.value,
+          ),
         );
-      }
     }
+
+    return buffer.toString();
   }
+
+  /// Whether [node] carries a value of its own rather than a nested object.
+  bool _isLeaf(_JsonPathNode node) =>
+      node.leafType != null && node.children.isEmpty;
 
   /// Members of the generated `<ClassName>TimedData` class, in declaration
   /// order, with JSON root keys collapsed to a single member.
@@ -1512,149 +1496,190 @@ class DartHelperGenerator {
     return members;
   }
 
-  void _writeDartTimedDataClass({
-    required StringBuffer buffer,
-    required String className,
-    required List<HWTimedData<dynamic>> timedFields,
-  }) {
+  String _timedDataClass(List<HWTimedData<dynamic>> timedFields) {
+    final className = _timedDataClassName;
     final members = _timedMembers(timedFields);
 
+    final fields = <String>[
+      for (final member in members)
+        if (member.isImage)
+          '''
+  /// The image shown from this entry's timestamp on.
+  ///
+  /// `saveData` writes it to its own PNG and stores that path in the entry;
+  /// `getData` hands it back as a `FileImage` of that PNG.
+  final ${member.type}? ${member.key};'''
+        else
+          '  final ${member.type}? ${member.key};',
+    ];
+
+    final fromJson = <String>[
+      for (final member in members) _timedMemberRead(member),
+    ];
+
+    final toJson = <String>[
+      // Images are deliberately absent: only `saveData` knows the path an
+      // entry's PNG was written to, and it adds it to this map afterwards.
+      for (final member in members)
+        if (!member.isImage) _timedMemberWrite(member),
+    ];
+
+    final buffer = StringBuffer();
     buffer.writeln('class $className {');
-    for (final member in members) {
-      if (member.isImage) {
-        buffer.writeln(
-          '  /// The image shown from this entry\'s timestamp on.',
-        );
-        buffer.writeln('  ///');
-        buffer.writeln(
-          '  /// `saveData` writes it to its own PNG and stores that path in '
-          'the entry;',
-        );
-        buffer.writeln(
-          '  /// `getData` hands it back as a `FileImage` of that PNG.',
-        );
-      }
-      buffer.writeln('  final ${member.type}? ${member.key};');
+
+    for (final line in fields) {
+      buffer.writeln(line);
     }
-    buffer.writeln();
-    buffer.writeln('  const $className({');
+
+    buffer.write('''
+
+  const $className({
+''');
+
     for (final member in members) {
       buffer.writeln('    this.${member.key},');
     }
-    buffer.writeln('  });');
-    buffer.writeln();
-    buffer
-        .writeln('  factory $className.fromJson(Map<String, dynamic>? json) {');
-    buffer.writeln('    json ??= const {};');
-    buffer.writeln('    return $className(');
-    for (final member in members) {
-      final key = member.key;
-      final leafType = member.leafType;
-      if (member.jsonRoot) {
-        buffer.writeln(
-          "      $key: json['$key'] is Map<String, dynamic> ? ${member.type}.fromJson(json['$key'] as Map<String, dynamic>) : null,",
-        );
-      } else if (member.isImage) {
-        buffer.writeln("      $key: _readFileImage(json['$key']),");
-      } else if (leafType is HWLocalizedString) {
-        // Same merge as `getData` runs on an untimed field, so an entry that
-        // carries only some locales still reads back complete.
-        buffer.writeln(
-          "      $key: $_helperClassName._\$mergeTranslations("
+
+    buffer.write('''
+  });
+
+  factory $className.fromJson(Map<String, dynamic>? json) {
+    json ??= const {};
+    return $className(
+''');
+
+    for (final line in fromJson) {
+      buffer.writeln(line);
+    }
+
+    buffer.write('''
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+''');
+
+    for (final line in toJson) {
+      buffer.writeln(line);
+    }
+
+    buffer.write('''
+    };
+  }
+}
+''');
+
+    return buffer.toString();
+  }
+
+  /// Reads one member of a timed entry back out of its JSON object.
+  String _timedMemberRead(_TimedMember member) {
+    final key = member.key;
+    if (member.jsonRoot) {
+      return "      $key: json['$key'] is Map<String, dynamic> ? ${member.type}.fromJson(json['$key'] as Map<String, dynamic>) : null,";
+    }
+    if (member.isImage) {
+      return "      $key: _readFileImage(json['$key']),";
+    }
+    final leafType = member.leafType!;
+    if (leafType is HWLocalizedString) {
+      // Same merge as `getData` runs on an untimed field, so an entry that
+      // carries only some locales still reads back complete.
+      return '      $key: $_helperClassName._\$mergeTranslations('
           '$_helperClassName.${_defaultsFieldName(leafType)}, '
-          "_readTranslations(json['$key'])),",
-        );
-      } else {
-        final fallback = _dartDefaultLiteral(leafType!);
-        buffer.writeln(
-          "      $key: ${_dartReadFunction(leafType)}(json['$key'])$fallback,",
-        );
-      }
+          "_readTranslations(json['$key'])),";
     }
-    buffer.writeln('    );');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln('  Map<String, dynamic> toJson() {');
-    buffer.writeln('    return {');
-    for (final member in members) {
-      final key = member.key;
-      // Images are deliberately absent: only `saveData` knows the path an
-      // entry's PNG was written to, and it adds it to this map afterwards.
-      if (member.isImage) continue;
-      if (member.jsonRoot) {
-        buffer.writeln("      if ($key != null) '$key': $key!.toJson(),");
-      } else if (member.leafType is HWLocalizedString) {
-        // Every locale travels in the entry; the native readers merge it over
-        // the compiled translations again on the other side.
-        buffer.writeln("      if ($key != null) '$key': $key!.toMap(),");
-      } else if (member.leafType is HWDateTime) {
-        buffer.writeln(
-          "      if ($key != null) '$key': ${_dartIsoExpr('$key!')},",
-        );
-      } else {
-        buffer.writeln("      if ($key != null) '$key': $key,");
-      }
+    return '      $key: ${_dartReadFunction(leafType)}'
+        "(json['$key'])${_dartDefaultLiteral(leafType)},";
+  }
+
+  /// Writes one member of a timed entry into its JSON object.
+  String _timedMemberWrite(_TimedMember member) {
+    final key = member.key;
+    if (member.jsonRoot) {
+      return "      if ($key != null) '$key': $key!.toJson(),";
     }
-    buffer.writeln('    };');
-    buffer.writeln('  }');
-    buffer.writeln('}');
+    if (member.leafType is HWLocalizedString) {
+      // Every locale travels in the entry; the native readers merge it over
+      // the compiled translations again on the other side.
+      return "      if ($key != null) '$key': $key!.toMap(),";
+    }
+    if (member.leafType is HWDateTime) {
+      return "      if ($key != null) '$key': ${_dartIsoExpr('$key!')},";
+    }
+    return "      if ($key != null) '$key': $key,";
   }
 
   /// Emits only the `_read*` helpers in [usedReaders] so generated files never
   /// contain unused private functions (which trip `unused_element`).
-  void _writeDartJsonReaders(StringBuffer buffer, Set<String> usedReaders) {
+  String _jsonReaders(Set<String> usedReaders) {
+    final buffer = StringBuffer();
+
     if (usedReaders.contains('_readString')) {
-      buffer.writeln(
-        'String? _readString(Object? value) => value is String ? value : null;',
-      );
+      buffer.write('''
+String? _readString(Object? value) => value is String ? value : null;
+''');
     }
+
     if (usedReaders.contains('_readInt')) {
-      buffer.writeln(
-        'int? _readInt(Object? value) => value is num ? value.toInt() : null;',
-      );
+      buffer.write('''
+int? _readInt(Object? value) => value is num ? value.toInt() : null;
+''');
     }
+
     if (usedReaders.contains('_readDouble')) {
-      buffer.writeln(
-        'double? _readDouble(Object? value) => value is num ? value.toDouble() : null;',
-      );
+      buffer.write('''
+double? _readDouble(Object? value) => value is num ? value.toDouble() : null;
+''');
     }
+
     if (usedReaders.contains('_readBool')) {
-      buffer.writeln(
-        'bool? _readBool(Object? value) => value is bool ? value : null;',
-      );
+      buffer.write('''
+bool? _readBool(Object? value) => value is bool ? value : null;
+''');
     }
+
+    // Anything that is not a readable ISO 8601 string comes back as null,
+    // the same way the native `hwParseIsoDate` helper answers.
     if (usedReaders.contains('_readDateTime')) {
-      // Anything that is not a readable ISO 8601 string comes back as null, the
-      // same way the native `hwParseIsoDate` helper answers.
-      buffer.writeln('DateTime? _readDateTime(Object? value) {');
-      buffer.writeln('  if (value is! String || value.isEmpty) return null;');
-      buffer.writeln('  return DateTime.tryParse(value)?.toUtc();');
-      buffer.writeln('}');
+      buffer.write('''
+DateTime? _readDateTime(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value)?.toUtc();
+}
+''');
     }
+
+    // The stored value is the absolute path of the PNG `saveData` wrote; a
+    // path whose file is gone reads back as null, like a missing image.
     if (usedReaders.contains('_readFileImage')) {
-      // The stored value is the absolute path of the PNG `saveData` wrote; a
-      // path whose file is gone reads back as null, like a missing image.
-      buffer.writeln('ImageProvider? _readFileImage(Object? value) {');
-      buffer.writeln('  if (value is! String || value.isEmpty) return null;');
-      buffer.writeln('  final file = File(value);');
-      buffer.writeln('  return file.existsSync() ? FileImage(file) : null;');
-      buffer.writeln('}');
+      buffer.write('''
+ImageProvider? _readFileImage(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  final file = File(value);
+  return file.existsSync() ? FileImage(file) : null;
+}
+''');
     }
+
+    // Lenient in the same way as the native decoders: anything that is not
+    // a JSON object of strings reads back as null and leaves the compiled
+    // translations in place.
     if (usedReaders.contains('_readTranslations')) {
-      // Lenient in the same way as the native decoders: anything that is not a
-      // JSON object of strings reads back as null and leaves the compiled
-      // translations in place.
-      buffer.writeln('Map<String, String>? _readTranslations(Object? value) {');
-      buffer.writeln('  if (value is! Map) return null;');
-      buffer.writeln('  final values = <String, String>{};');
-      buffer.writeln('  value.forEach((locale, text) {');
-      buffer.writeln(
-        '    if (locale is String && text is String) values[locale] = text;',
-      );
-      buffer.writeln('  });');
-      buffer.writeln('  return values.isEmpty ? null : values;');
-      buffer.writeln('}');
+      buffer.write('''
+Map<String, String>? _readTranslations(Object? value) {
+  if (value is! Map) return null;
+  final values = <String, String>{};
+  value.forEach((locale, text) {
+    if (locale is String && text is String) values[locale] = text;
+  });
+  return values.isEmpty ? null : values;
+}
+''');
     }
+
+    return buffer.toString();
   }
 
   String _dartReadFunction(HWDataType<dynamic> field) {

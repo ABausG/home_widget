@@ -342,7 +342,8 @@ void main() {
       ),
     );
 
-    // Imports required by the emitted Glance image code.
+    // Imports required by the emitted Glance image code and by the decoder.
+    expect(content, contains('import android.graphics.Bitmap'));
     expect(content, contains('import android.graphics.BitmapFactory'));
     expect(content, contains('import androidx.glance.Image'));
     expect(content, contains('import androidx.glance.ImageProvider'));
@@ -360,7 +361,7 @@ void main() {
       content,
       contains(
         'widgetData.avatar?.let { path -> '
-        'hwDecodeImageFile(context, path, 100.0, 100.0) }',
+        'hwDecodeImage(context, path, 100.0, 100.0) }',
       ),
     );
     expect(content, contains('provider = ImageProvider(bitmap),'));
@@ -372,28 +373,20 @@ void main() {
     expect(
       content,
       contains(
-        'flutterAssetBitmap(context, "assets/logo.png", null, null)'
+        'hwDecodeImage(context, "assets/logo.png", null, null)'
         '?.let { bitmap ->',
       ),
     );
     expect(content, contains('contentScale = ContentScale.Crop,'));
 
-    // Both decode paths subsample through one shared helper, emitted once for
-    // the whole file.
+    // Both sources go through one decoder, emitted once for the whole file,
+    // and it subsamples whichever one it reads.
     expect(content, contains('inJustDecodeBounds = true'));
-    expect(
-      content,
-      contains(
-        'inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)',
-      ),
-    );
-    expect('private fun hwImageSampleSize('.allMatches(content).length, 1);
-    expect('private fun hwDecodeImageFile('.allMatches(content).length, 1);
-    expect('private fun flutterAssetBitmap('.allMatches(content).length, 1);
+    expect(content, contains('inSampleSize = sampleSize(bounds)'));
+    expect('private fun hwDecodeImage('.allMatches(content).length, 1);
   });
 
-  test('emits the asset helper alongside the file decoder that calls it',
-      () async {
+  test('emits one decoder for a runtime image', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'RuntimeOnly',
@@ -413,14 +406,14 @@ void main() {
       ),
     ).readAsStringSync();
 
-    // The file decoder reads anything that is not an absolute path as an asset
-    // key, so it never ships without the asset decoder it delegates to.
-    expect(content, contains('private fun flutterAssetBitmap('));
-    expect(content, contains('private fun hwDecodeImageFile('));
-    expect(content, contains('private fun hwImageSampleSize('));
+    // A stored path can still be an asset key — that is how a preview stands in
+    // for an image the app has not saved yet — so the one decoder reads both.
+    expect('private fun hwDecodeImage('.allMatches(content).length, 1);
+    expect(content, contains('BitmapFactory.decodeFile(path, options)'));
+    expect(content, contains(r'context.assets.open("flutter_assets/$path")'));
   });
 
-  test('emits no file decoder when every image is an asset', () async {
+  test('emits the same decoder when every image is an asset', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'AssetOnly',
@@ -440,12 +433,10 @@ void main() {
       ),
     ).readAsStringSync();
 
-    expect(content, contains('private fun flutterAssetBitmap('));
-    expect(content, contains('private fun hwImageSampleSize('));
-    expect(content, isNot(contains('hwDecodeImageFile')));
+    expect('private fun hwDecodeImage('.allMatches(content).length, 1);
   });
 
-  test('imports BitmapFactory when no HWImage is rendered', () async {
+  test('emits nothing image-related when no HWImage is rendered', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'UnrenderedImage',
@@ -465,8 +456,11 @@ void main() {
       ),
     ).readAsStringSync();
 
-    expect(content, contains('private fun hwImageSampleSize('));
-    expect(content, contains('import android.graphics.BitmapFactory'));
+    // The path is still read into the data class; nothing decodes it.
+    expect(content, contains('val avatar: String? = null,'));
+    expect(content, isNot(contains('hwDecodeImage')));
+    expect(content, isNot(contains('BitmapFactory')));
+    expect(content, isNot(contains('import android.graphics.Bitmap')));
   });
 
   test('reads a timed image path out of the active entry', () async {
@@ -503,10 +497,10 @@ void main() {
       content,
       contains(
         'widgetData.slide?.let { path -> '
-        'hwDecodeImageFile(context, path, null, null) }',
+        'hwDecodeImage(context, path, null, null) }',
       ),
     );
-    expect(content, contains('private fun flutterAssetBitmap('));
+    expect(content, contains('private fun hwDecodeImage('));
 
     // A timed image makes the widget time-based, so the resolver ships and the
     // scheduled updates it needs are wired the same as for any timed field.
@@ -545,10 +539,10 @@ void main() {
       content,
       contains(
         'widgetData.contact?.avatar?.let { path -> '
-        'hwDecodeImageFile(context, path, null, null) }',
+        'hwDecodeImage(context, path, null, null) }',
       ),
     );
-    expect(content, contains('private fun flutterAssetBitmap('));
+    expect(content, contains('private fun hwDecodeImage('));
   });
 
   test('prefixes a package asset with packages/<package>', () async {
@@ -576,7 +570,7 @@ void main() {
     expect(
       content,
       contains(
-        'flutterAssetBitmap(context, '
+        'hwDecodeImage(context, '
         '"packages/my_icons/assets/logo.png", null, null)',
       ),
     );

@@ -266,6 +266,153 @@ void main() {
       expect(spec.resolvesLocalizedOnRead, isFalse);
       expect(spec.rendersLocalizedContent, isFalse);
     });
+
+    // The flags still drive the `hwLocales` local, the `locales` parameters
+    // and the LOCALE_CHANGED wiring, while [WidgetSpec.nativeHelpers] alone
+    // decides what is emitted. They have to keep answering alike, or a
+    // generated file calls a helper it never declared.
+    group('agree with the resolved helpers', () {
+      const localized = HWLocalizedString(
+        'greeting',
+        defaultTranslations: {'en': 'Hi', 'de': 'Hallo'},
+      );
+
+      final matrix = <String, WidgetSpec>{
+        'nothing localized': _spec(dataFields: const [HWString('label')]),
+        'a keyed string': _spec(dataFields: const [localized]),
+        'a timed keyed string':
+            _spec(dataFields: const [HWTimedData(localized)]),
+        'a JSON leaf': _spec(dataFields: const [HWJson('profile', localized)]),
+        'a timed JSON leaf': _spec(
+          dataFields: const [HWTimedData(HWJson('profile', localized))],
+        ),
+        'keyed and timed together': _spec(
+          dataFields: const [
+            localized,
+            HWTimedData(
+              HWLocalizedString('headline', defaultTranslations: {'en': 'N'}),
+            ),
+          ],
+        ),
+        'a keyed string beside an image and a date': _spec(
+          dataFields: const [
+            localized,
+            HWImageData('avatar'),
+            HWDateTime('when'),
+          ],
+          widgetTree: const HWImage(HWImageData('avatar')),
+        ),
+      };
+
+      matrix.forEach((description, spec) {
+        test(description, () {
+          final helpers = spec.nativeHelpers;
+          expect(
+            spec.needsLocaleHelpers,
+            helpers.contains(HWNativeHelper.hwCurrentLocales),
+            reason: 'needsLocaleHelpers',
+          );
+          expect(
+            spec.needsLocalizedRead,
+            helpers.contains(HWNativeHelper.hwReadLocalized),
+            reason: 'needsLocalizedRead',
+          );
+          expect(
+            spec.needsTimedLocalizedRead,
+            helpers.contains(HWNativeHelper.hwReadTimedLocalized),
+            reason: 'needsTimedLocalizedRead',
+          );
+        });
+      });
+    });
+
+    test('a constant string resolves through the OS, not through a helper', () {
+      // ignore: invalid_use_of_internal_member
+      const constant = HWLocalizedString.resolved(
+        'greeting',
+        defaultTranslations: {'en': 'Hi'},
+        isConstant: true,
+        defaultLocale: 'en',
+      );
+      final spec = _spec(
+        dataFields: const [constant],
+        widgetTree: const HWText(constant),
+      );
+
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('a keyed string resolves to the whole localization closure', () {
+      final spec = _spec(dataFields: const [top]);
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+        HWNativeHelper.hwLocalizedEntries,
+        HWNativeHelper.hwLocalize,
+        HWNativeHelper.hwDecodeLocalized,
+        HWNativeHelper.hwReadLocalized,
+      });
+    });
+
+    test('a timed keyed string reads the entry instead of a key', () {
+      final spec = _spec(dataFields: const [HWTimedData(top)]);
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+        HWNativeHelper.hwLocalizedEntries,
+        HWNativeHelper.hwLocalize,
+        HWNativeHelper.hwReadTimedLocalized,
+      });
+    });
+
+    test('a JSON leaf is resolved at the render site, timed or not', () {
+      const expected = {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      };
+      expect(
+        _spec(dataFields: const [HWJson('profile', leaf)])
+            .nativeHelpers
+            .toSet(),
+        expected,
+      );
+      expect(
+        _spec(dataFields: const [HWTimedData(HWJson('profile', leaf))])
+            .nativeHelpers
+            .toSet(),
+        expected,
+      );
+    });
+  });
+
+  group('WidgetSpec image helpers', () {
+    test('an image a widget renders names the decoder', () {
+      for (final tree in const <HWImage>[
+        HWImage(HWImageData('avatar')),
+        HWImage.asset('assets/logo.png'),
+        HWImage(HWTimedData(HWImageData('avatar'))),
+        HWImage(HWJson('contact', HWImageData('avatar'))),
+      ]) {
+        final spec = _spec(
+          dataFields: [tree.dataType],
+          widgetTree: tree,
+        );
+        expect(spec.nativeHelpers, [HWNativeHelper.hwDecodeImage]);
+      }
+    });
+
+    test('an image field nothing renders names nothing', () {
+      final spec = _spec(
+        dataFields: const [HWImageData('avatar')],
+        widgetTree: const HWText.fixed('no image here'),
+      );
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('the decoder does not make the widget locale-dependent', () {
+      expect(HWNativeHelper.hwDecodeImage.localeDependent, isFalse);
+    });
   });
 
   group('WidgetSpec gallery text', () {
@@ -735,9 +882,24 @@ void main() {
 
     test('a tree using every helper resolves all of them, deps first', () {
       final spec = _spec(
-        dataFields: const [HWDateTime('when'), HWString('zone')],
+        dataFields: const [
+          HWDateTime('when'),
+          HWString('zone'),
+          HWLocalizedString(
+            'greeting',
+            defaultTranslations: {'en': 'Hi'},
+          ),
+          HWTimedData(
+            HWLocalizedString(
+              'headline',
+              defaultTranslations: {'en': 'News'},
+            ),
+          ),
+          HWImageData('avatar'),
+        ],
         widgetTree: const HWColumn(
           children: [
+            HWImage(HWImageData('avatar')),
             HWText.number(HWInt('count')),
             HWText.number(
               HWDouble('share'),

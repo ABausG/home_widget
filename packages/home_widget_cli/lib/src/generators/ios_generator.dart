@@ -11,7 +11,6 @@ import '../util/logger.dart';
 import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
-import '../util/localization_templates.dart';
 import '../util/naming.dart';
 import '../util/string_catalog.dart';
 import '../util/xcode_pbxproj_patcher.dart';
@@ -149,7 +148,7 @@ class IosGenerator {
       }
       if (hasTimedFields) {
         buffer.writeln();
-        _writeSwiftTimedDataHelpers(buffer);
+        buffer.write(_swiftTimedDataHelpers());
       }
       buffer.writeln('}');
       // Keys are unique within each list, and the validator forbids sharing a
@@ -157,34 +156,40 @@ class IosGenerator {
       // collide across the two.
       for (final group in [...jsonGroups, ...timedJsonGroups]) {
         buffer.writeln();
-        _writeSwiftJsonNodeStruct(
-          buffer: buffer,
-          structName: _jsonStructName(group.key),
-          node: _buildJsonTree(group.children),
-          isRoot: true,
+        buffer.write(
+          _swiftJsonNodeStruct(
+            structName: _jsonStructName(group.key),
+            node: _buildJsonTree(group.children),
+            isRoot: true,
+          ),
         );
       }
       extraContent = buffer.toString();
 
-      // A `var` with an initializer keeps the memberwise init, so only the
-      // preview call sites have to mention it.
-      final entryTimedEntriesField = needsEntryTimedEntries
-          ? '  let timedEntries: [(date: Date, values: [String: Any])]\n'
-          : '';
-      final entryPreviewField =
-          entryCarriesPreview ? '  var preview: Bool = false\n' : '';
-      entryDefinition = '''
+      final entryBuffer = StringBuffer();
+      entryBuffer.write('''
 struct ${widgetClassName}Entry: TimelineEntry {
   let date: Date
   let data: $className
-$entryTimedEntriesField$entryPreviewField}
-''';
+''');
+      if (needsEntryTimedEntries) {
+        entryBuffer.writeln(
+          '  let timedEntries: [(date: Date, values: [String: Any])]',
+        );
+      }
+      // A `var` with an initializer keeps the memberwise init, so only the
+      // preview call sites have to mention it.
+      if (entryCarriesPreview) {
+        entryBuffer.writeln('  var preview: Bool = false');
+      }
+      entryBuffer.writeln('}');
+      entryDefinition = entryBuffer.toString();
 
       final previewArg = entryCarriesPreview ? ', preview: true' : '';
-      final previewSnapshot = !previewDiffers
-          ? ''
-          : needsEntryTimedEntries
-              ? '''
+      final snapshotBuffer = StringBuffer();
+      if (previewDiffers) {
+        if (needsEntryTimedEntries) {
+          snapshotBuffer.write('''
     if context.isPreview {
       let prefs: UserDefaults? = $previewPrefsExpr
       let timedEntries = $className.loadTimedEntries(prefs)
@@ -194,8 +199,9 @@ $entryTimedEntriesField$entryPreviewField}
       return
     }
 
-'''
-              : '''
+''');
+        } else {
+          snapshotBuffer.write('''
     if context.isPreview {
       let prefs: UserDefaults? = $previewPrefsExpr
       let data = $className.$previewFactory(prefs)
@@ -203,84 +209,98 @@ $entryTimedEntriesField$entryPreviewField}
       return
     }
 
-''';
-
-      final loadDataLogic = '''
-    let prefs = $prefsExpr
-    let data = $className.fromUserDefaults(prefs)
-''';
-      getSnapshotBody = previewSnapshot +
-          (needsEntryTimedEntries
-              ? '''
+''');
+        }
+      }
+      if (needsEntryTimedEntries) {
+        snapshotBuffer.write('''
     let prefs = $prefsExpr
     let timedEntries = $className.loadTimedEntries(prefs)
     let data = $className.fromUserDefaults(prefs, timedEntries: timedEntries)
 
     completion(${widgetClassName}Entry(date: Date(), data: data, timedEntries: timedEntries))
-'''
-              : '''
-$loadDataLogic
+''');
+      } else {
+        snapshotBuffer.write('''
+    let prefs = $prefsExpr
+    let data = $className.fromUserDefaults(prefs)
+
     completion(${widgetClassName}Entry(date: Date(), data: data))
 ''');
-      getTimelineBody = hasTimedFields
-          ? '''
+      }
+      getSnapshotBody = snapshotBuffer.toString();
+
+      final timelineBuffer = StringBuffer();
+      if (hasTimedFields) {
+        // The trailing comma opens the argument list for the `timedEntries:`
+        // line that follows it.
+        final entryComma = needsEntryTimedEntries ? ',' : '';
+        timelineBuffer.write('''
     let prefs = $prefsExpr
     let timedEntries = $className.loadTimedEntries(prefs)
     let now = Date()
     var entries: [${widgetClassName}Entry] = [
       ${widgetClassName}Entry(
         date: now,
-        data: $className.fromUserDefaults(prefs, at: now, timedEntries: timedEntries)${needsEntryTimedEntries ? ',\n        timedEntries: timedEntries' : ''}
+''');
+        timelineBuffer.writeln(
+          '        data: $className.fromUserDefaults('
+          'prefs, at: now, timedEntries: timedEntries)$entryComma',
+        );
+        if (needsEntryTimedEntries) {
+          timelineBuffer.writeln('        timedEntries: timedEntries');
+        }
+        timelineBuffer.write('''
       )
     ]
     for timedEntry in timedEntries where timedEntry.date > now {
       entries.append(
         ${widgetClassName}Entry(
           date: timedEntry.date,
-          data: $className.fromUserDefaults(prefs, at: timedEntry.date, timedEntries: timedEntries)${needsEntryTimedEntries ? ',\n          timedEntries: timedEntries' : ''}
+''');
+        timelineBuffer.writeln(
+          '          data: $className.fromUserDefaults('
+          'prefs, at: timedEntry.date, timedEntries: timedEntries)$entryComma',
+        );
+        if (needsEntryTimedEntries) {
+          timelineBuffer.writeln('          timedEntries: timedEntries');
+        }
+        timelineBuffer.write('''
         )
       )
     }
     completion(Timeline(entries: entries, policy: .atEnd))
-'''
-          : '''
-$loadDataLogic
+''');
+      } else {
+        timelineBuffer.write('''
+    let prefs = $prefsExpr
+    let data = $className.fromUserDefaults(prefs)
+
     completion(Timeline(entries: [${widgetClassName}Entry(date: Date(), data: data)], policy: .atEnd))
-''';
+''');
+      }
+      getTimelineBody = timelineBuffer.toString();
     }
 
-    // File-scope helpers, each emitted only for the widgets that reach it.
-    //
-    // Localization: constants and gallery strings resolve through the string
-    // catalog; only strings the widget resolves itself need the helpers, and
-    // only fields carrying stored translations need a reader — from their own
-    // preferences key, from the timed entry, or both, which is also exactly
-    // when the shared merge helpers are used.
-    //
-    // Images: every image is decoded through the downsampling helper, whatever
-    // its source; bundled ones additionally need their path resolved out of
-    // the containing app.
-    //
-    // Formatting: the spec resolves the number, date and time-zone helpers the
-    // tree and the declared fields reach to their transitive closure, already
-    // ordered so each one is declared after what it calls.
+    // File-scope helpers: the spec resolves every helper the tree renders
+    // through and every one the declared fields are read back with to its
+    // transitive closure, already ordered so each one is declared after what
+    // it calls.
     final fileHelpers = <String>[
-      if (spec.needsLocaleHelpers) swiftLocalizeHelpers,
-      if (spec.resolvesLocalizedOnRead) swiftLocalizedMergeHelpers,
-      if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
-      if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
-      if (spec.hasImages) swiftImageDecodeHelper,
-      if (spec.assetImageFields.isNotEmpty ||
-          spec.previewAssetImageFields.isNotEmpty)
-        swiftFlutterAssetHelper,
       for (final helper in spec.nativeHelpers)
         helper.toSwift(0, dataExpr: '').trim(),
     ];
     if (fileHelpers.isNotEmpty) {
-      extraContent = [
-        if (extraContent != null) extraContent,
-        ...fileHelpers,
-      ].join('\n\n');
+      final buffer = StringBuffer();
+      if (extraContent != null) buffer.write(extraContent);
+      for (final helper in fileHelpers) {
+        if (buffer.isNotEmpty) {
+          buffer.writeln();
+          buffer.writeln();
+        }
+        buffer.write(helper);
+      }
+      extraContent = buffer.toString();
     }
 
     final dataExpr = !hasDataFields
@@ -296,17 +316,6 @@ $loadDataLogic
     final entryTimedEntriesArg =
         needsEntryTimedEntries ? ', timedEntries: entry.timedEntries' : '';
     final reReadArgs = 'prefs$atEntryDate$entryTimedEntriesArg';
-    final reReadPrefs = entryCarriesPreview && previewPrefsExpr != prefsExpr
-        ? '    let prefs: UserDefaults? = '
-            'entry.preview ? $previewPrefsExpr : $prefsExpr\n'
-        : '    let prefs = $prefsExpr\n';
-    final reReadData = entryCarriesPreview && spec.hasPreviewValues
-        ? '    let data = entry.preview\n'
-            '      ? ${spec.className}Data.$previewFactory($reReadArgs)\n'
-            '      : ${spec.className}Data.fromUserDefaults($reReadArgs)\n'
-        : '    let data = ${spec.className}Data'
-            '.fromUserDefaults($reReadArgs)\n';
-    final viewPrefix = reResolveAtRender ? '$reReadPrefs$reReadData' : '';
 
     final treeCode = emitSwiftWidgetBody(
       spec.effectiveWidgetTree,
@@ -320,7 +329,33 @@ $loadDataLogic
     final containerBackgroundModifier = hasCustomBg
         ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
         : '.applyContainerBackground()';
-    entryViewBody = '$viewPrefix$treeCode\n    $containerBackgroundModifier';
+
+    final viewBuffer = StringBuffer();
+    if (reResolveAtRender) {
+      if (entryCarriesPreview && previewPrefsExpr != prefsExpr) {
+        viewBuffer.writeln(
+          '    let prefs: UserDefaults? = '
+          'entry.preview ? $previewPrefsExpr : $prefsExpr',
+        );
+      } else {
+        viewBuffer.writeln('    let prefs = $prefsExpr');
+      }
+      if (entryCarriesPreview && spec.hasPreviewValues) {
+        viewBuffer.write('''
+    let data = entry.preview
+      ? ${spec.className}Data.$previewFactory($reReadArgs)
+      : ${spec.className}Data.fromUserDefaults($reReadArgs)
+''');
+      } else {
+        viewBuffer.writeln(
+          '    let data = ${spec.className}Data'
+          '.fromUserDefaults($reReadArgs)',
+        );
+      }
+    }
+    viewBuffer.writeln(treeCode);
+    viewBuffer.write('    $containerBackgroundModifier');
+    entryViewBody = viewBuffer.toString();
 
     String? supportedFamilies;
     if (spec.data.iOS?.supportedFamilies != null &&
@@ -350,8 +385,12 @@ $loadDataLogic
                 '${entryCarriesPreview ? ', preview: true' : ''})'
             : null,
         extraContent: extraContent,
-        // CGImageSource lives in ImageIO, which SwiftUI does not re-export.
-        extraImports: [if (spec.hasImages) 'import ImageIO'],
+        // What the helper bodies reach beyond what a widget extension already
+        // imports — CGImageSource, say, lives in ImageIO, which SwiftUI does
+        // not re-export.
+        extraImports: <String>{
+          for (final helper in spec.nativeHelpers) ...helper.swiftImports,
+        }.toList(),
         entryDefinition: entryDefinition,
         getSnapshotBody: getSnapshotBody,
         getTimelineBody: getTimelineBody,
@@ -642,39 +681,52 @@ $loadDataLogic
     final pathFactory = preview ? 'previewFromPath' : 'fromPath';
     final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
 
-    final arguments = <String>[
-      for (final field in spec.primitiveDataFields)
-        '${field.key}: ${field.iosReadValue(
-          store: 'defaults',
-          key: '\\(paramPrefix).${field.key}',
-          preview: preview,
-        )}',
-      for (final group in spec.jsonDataGroups)
-        '${group.key}: ${_jsonStructName(group.key)}.$pathFactory('
-            'defaults?.string(forKey: "\\(paramPrefix).${group.key}"))',
-      for (final field in spec.timedPrimitiveDataFields)
-        '${field.key}: ${_swiftTimedRead(field, preview: preview)}',
-      for (final group in spec.timedJsonDataGroups)
-        '${group.key}: ${_jsonStructName(group.key)}.$jsonFactory('
-            'timedValues["${group.key}"] as? [String: Any])',
-    ];
-
-    final signature = spec.timedDataFields.isEmpty
-        ? '  static func $name(_ defaults: UserDefaults?) -> $className {\n'
-        : '''
+    final buffer = StringBuffer();
+    if (spec.timedDataFields.isEmpty) {
+      buffer.writeln(
+        '  static func $name(_ defaults: UserDefaults?) -> $className {',
+      );
+    } else {
+      buffer.write('''
   static func $name(
     _ defaults: UserDefaults?,
     at date: Date = Date(),
     timedEntries: [(date: Date, values: [String: Any])]? = nil
   ) -> $className {
     let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
-''';
-
-    return '''
-$signature    return $className(
-${arguments.map((argument) => '      $argument,\n').join()}    )
+''');
+    }
+    buffer.writeln('    return $className(');
+    for (final field in spec.primitiveDataFields) {
+      final read = field.iosReadValue(
+        store: 'defaults',
+        key: '\\(paramPrefix).${field.key}',
+        preview: preview,
+      );
+      buffer.writeln('      ${field.key}: $read,');
+    }
+    for (final group in spec.jsonDataGroups) {
+      buffer.writeln(
+        '      ${group.key}: ${_jsonStructName(group.key)}.$pathFactory('
+        'defaults?.string(forKey: "\\(paramPrefix).${group.key}")),',
+      );
+    }
+    for (final field in spec.timedPrimitiveDataFields) {
+      buffer.writeln(
+        '      ${field.key}: ${_swiftTimedRead(field, preview: preview)},',
+      );
+    }
+    for (final group in spec.timedJsonDataGroups) {
+      buffer.writeln(
+        '      ${group.key}: ${_jsonStructName(group.key)}.$jsonFactory('
+        'timedValues["${group.key}"] as? [String: Any]),',
+      );
+    }
+    buffer.write('''
+    )
   }
-''';
+''');
+    return buffer.toString();
   }
 
   /// The Swift expression resolving one time-based primitive out of the active
@@ -717,52 +769,34 @@ ${arguments.map((argument) => '      $argument,\n').join()}    )
   /// root localized field's timed value is stored as a locale-tag-to-text
   /// object rather than a plain value, so callers read `values[key]` as a
   /// `[String: Any]`, not the leaf type.
-  void _writeSwiftTimedDataHelpers(StringBuffer buffer) {
-    buffer.writeln(
-      '  fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(date: Date, values: [String: Any])] {',
-    );
-    buffer.writeln(
-      '    guard let path = defaults?.string(forKey: "\\(paramPrefix).timedData") else { return [] }',
-    );
-    buffer.writeln(
-      '    guard FileManager.default.fileExists(atPath: path) else { return [] }',
-    );
-    buffer.writeln('    do {');
-    buffer.writeln(
-      '      let raw = try Data(contentsOf: URL(fileURLWithPath: path))',
-    );
-    buffer.writeln(
-      '      guard let json = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return [] }',
-    );
-    buffer.writeln(
-      '      var entries: [(date: Date, values: [String: Any])] = []',
-    );
-    buffer.writeln('      for (key, value) in json {');
-    buffer.writeln(
-      '        guard let millis = Double(key), let values = value as? [String: Any] else { continue }',
-    );
-    buffer.writeln(
-      '        entries.append((date: Date(timeIntervalSince1970: millis / 1000), values: values))',
-    );
-    buffer.writeln('      }');
-    buffer.writeln('      entries.sort { \$0.date < \$1.date }');
-    buffer.writeln('      return entries');
-    buffer.writeln('    } catch {');
-    buffer.writeln('      return []');
-    buffer.writeln('    }');
-    buffer.writeln('  }');
-    buffer.writeln();
-    buffer.writeln(
-      '  fileprivate static func activeTimedValues(_ entries: [(date: Date, values: [String: Any])], at date: Date) -> [String: Any] {',
-    );
-    buffer.writeln('    var values: [String: Any] = [:]');
-    buffer.writeln('    for entry in entries {');
-    buffer.writeln('      if entry.date > date { break }');
-    buffer.writeln('      values = entry.values');
-    buffer.writeln('    }');
-    buffer.writeln('    return values');
-    buffer.writeln('  }');
+  String _swiftTimedDataHelpers() => '''
+  fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(date: Date, values: [String: Any])] {
+    guard let path = defaults?.string(forKey: "\\(paramPrefix).timedData") else { return [] }
+    guard FileManager.default.fileExists(atPath: path) else { return [] }
+    do {
+      let raw = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return [] }
+      var entries: [(date: Date, values: [String: Any])] = []
+      for (key, value) in json {
+        guard let millis = Double(key), let values = value as? [String: Any] else { continue }
+        entries.append((date: Date(timeIntervalSince1970: millis / 1000), values: values))
+      }
+      entries.sort { \$0.date < \$1.date }
+      return entries
+    } catch {
+      return []
+    }
   }
+
+  fileprivate static func activeTimedValues(_ entries: [(date: Date, values: [String: Any])], at date: Date) -> [String: Any] {
+    var values: [String: Any] = [:]
+    for entry in entries {
+      if entry.date > date { break }
+      values = entry.values
+    }
+    return values
+  }
+''';
 
   String _swiftDefaultLiteral(HWDataType<dynamic> field) {
     final defaultValue = field.defaultValue;
@@ -824,25 +858,31 @@ ${arguments.map((argument) => '      $argument,\n').join()}    )
     required bool preview,
   }) {
     final name = preview ? 'previewFromJson' : 'fromJson';
-    final unwrap = isRoot && !preview
-        ? '    guard let values = json else { return nil }'
-        : '    let values = json ?? [:]';
-    final arguments = <String>[
-      for (final entry in node.children.entries)
-        '${entry.key}: ${_swiftJsonNodeRead(
-          structName: structName,
-          key: entry.key,
-          child: entry.value,
-          preview: preview,
-        )}',
-    ];
-    return '''
-  static func $name(_ json: [String: Any]?) -> $structName? {
-$unwrap
-    return $structName(
-${arguments.map((argument) => '      $argument,\n').join()}    )
+
+    final buffer = StringBuffer();
+    buffer.writeln(
+      '  static func $name(_ json: [String: Any]?) -> $structName? {',
+    );
+    buffer.writeln(
+      isRoot && !preview
+          ? '    guard let values = json else { return nil }'
+          : '    let values = json ?? [:]',
+    );
+    buffer.writeln('    return $structName(');
+    for (final entry in node.children.entries) {
+      final read = _swiftJsonNodeRead(
+        structName: structName,
+        key: entry.key,
+        child: entry.value,
+        preview: preview,
+      );
+      buffer.writeln('      ${entry.key}: $read,');
+    }
+    buffer.write('''
+    )
   }
-''';
+''');
+    return buffer.toString();
   }
 
   /// The Swift expression one generated JSON factory reads a single child with.
@@ -891,12 +931,12 @@ ${arguments.map((argument) => '      $argument,\n').join()}    )
     return 'hwResolveLocalized(hwCurrentLocales(), $values, baseLocale: "$base")';
   }
 
-  void _writeSwiftJsonNodeStruct({
-    required StringBuffer buffer,
+  String _swiftJsonNodeStruct({
     required String structName,
     required _SwiftJsonNode node,
     required bool isRoot,
   }) {
+    final buffer = StringBuffer();
     buffer.writeln('struct $structName {');
     for (final entry in node.children.entries) {
       final key = entry.key;
@@ -940,15 +980,16 @@ ${arguments.map((argument) => '      $argument,\n').join()}    )
       final child = entry.value;
       if (child.children.isNotEmpty) {
         buffer.writeln();
-        final childStruct = '$structName${toPascalCase(key)}';
-        _writeSwiftJsonNodeStruct(
-          buffer: buffer,
-          structName: childStruct,
-          node: child,
-          isRoot: false,
+        buffer.write(
+          _swiftJsonNodeStruct(
+            structName: '$structName${toPascalCase(key)}',
+            node: child,
+            isRoot: false,
+          ),
         );
       }
     }
+    return buffer.toString();
   }
 }
 

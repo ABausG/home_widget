@@ -69,16 +69,16 @@ struct ImageShowcaseHomeWidgetEntryView: View {
   var body: some View {
     VStack(alignment: .center) {
       Spacer()
-      if let path = flutterAssetPath("assets/logo.png"),
-        let uiImage = hwDecodeImage(path, 24.0, 24.0)
-      {
+      if let uiImage = hwDecodeImage("assets/logo.png", 24.0, 24.0) {
         Image(uiImage: uiImage)
           .resizable()
           .aspectRatio(contentMode: .fit)
           .frame(width: 24.0, height: 24.0)
           .accessibilityLabel("App logo")
       }
-      if let hwImagePath = entry.data.picture, FileManager.default.fileExists(atPath: hwImagePath) {
+      if let hwImagePath = entry.data.picture,
+        !hwImagePath.hasPrefix("/") || FileManager.default.fileExists(atPath: hwImagePath)
+      {
         if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
           Image(uiImage: uiImage)
             .resizable()
@@ -174,8 +174,7 @@ struct ImageShowcaseData {
   ) -> ImageShowcaseData {
     let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
     return ImageShowcaseData(
-      picture: (defaults?.string(forKey: "\(paramPrefix).picture")
-        ?? flutterAssetPath("assets/dash.png")),
+      picture: (defaults?.string(forKey: "\(paramPrefix).picture") ?? "assets/dash.png"),
       contact: ImageShowcaseContactJsonData.previewFromPath(
         defaults?.string(forKey: "\(paramPrefix).contact")),
       slide: timedValues["slide"] as? String,
@@ -265,11 +264,20 @@ struct ImageShowcaseContactJsonData {
   }
 }
 
-private func hwDecodeImage(
-  _ path: String, _ widthPt: Double?, _ heightPt: Double?
-) -> UIImage? {
-  guard
-    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil)
+func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> UIImage? {
+  func assetFile(_ asset: String) -> String? {
+    let appBundleURL = Bundle.main.bundleURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let url =
+      appBundleURL
+      .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+      .appendingPathComponent(asset)
+    return FileManager.default.fileExists(atPath: url.path) ? url.path : nil
+  }
+
+  guard let file = path.hasPrefix("/") ? path : assetFile(path),
+    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: file) as CFURL, nil)
   else { return nil }
   let displayScale = UITraitCollection.current.displayScale
   let scale = displayScale > 0 ? displayScale : 3
@@ -288,15 +296,4 @@ private func hwDecodeImage(
     let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
   else { return nil }
   return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
-}
-
-private func flutterAssetPath(_ asset: String) -> String? {
-  let appBundleURL = Bundle.main.bundleURL
-    .deletingLastPathComponent()
-    .deletingLastPathComponent()
-  let url =
-    appBundleURL
-    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
-    .appendingPathComponent(asset)
-  return FileManager.default.fileExists(atPath: url.path) ? url.path : nil
 }

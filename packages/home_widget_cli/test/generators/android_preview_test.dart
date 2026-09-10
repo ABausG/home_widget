@@ -321,9 +321,10 @@ void main() {
           '"\${PREFERENCES_PREFIX}.avatar", "assets/logo.png"),',
         ),
       );
-      // The decoder routes anything that is not an absolute path to the asset
-      // decoder, so the preview asset only renders if that one ships.
-      expect(content, contains('private fun flutterAssetBitmap('));
+      // The decoder reads anything that is not an absolute path out of the
+      // APK's assets, so the preview key renders through the same call.
+      expect(content, contains('private fun hwDecodeImage('));
+      expect(content, contains(r'context.assets.open("flutter_assets/$path")'));
     });
 
     test('a localized string previews with its own translations', () async {

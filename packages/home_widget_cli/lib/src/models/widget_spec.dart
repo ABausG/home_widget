@@ -572,12 +572,15 @@ class WidgetSpec {
   /// Every native helper the generated widget sources have to declare, each
   /// one after the helpers it calls.
   ///
-  /// The widget tree names the helpers it renders through, and every declared
-  /// field the helpers reading it back -- a date the widget never shows is
-  /// still parsed into the data class. This resolves both to their transitive
-  /// closure, so a generator can emit `helper.swift` / `helper.kotlin` down
-  /// the list and every call is already in scope. Ordering breaks ties by
-  /// name, so the same widget always generates the same file.
+  /// The widget tree names the helpers it renders through — decoding a picture,
+  /// formatting a number — and every declared field the helpers reading it back
+  /// — a date the widget never shows is still parsed into the data class. This
+  /// is the one source of truth for what a generated file declares, so a field
+  /// nothing displays never drags a render helper in. Both are resolved to
+  /// their transitive closure, so a generator can emit `helper.swift` /
+  /// `helper.kotlin` down the list and every call is already in scope.
+  /// Ordering breaks ties by name, so the same widget always generates the
+  /// same file.
   List<HWNativeHelper> get nativeHelpers {
     final closure = <String, HWNativeHelper>{};
     void collect(HWNativeHelper helper) {
@@ -622,11 +625,6 @@ class WidgetSpec {
       runtimeImageFields.isNotEmpty ||
       jsonImageFields.isNotEmpty ||
       timedJsonImageFields.isNotEmpty;
-
-  /// Whether the widget renders any image at all, asset images included.
-  ///
-  /// Drives the shared native decode helpers, which both routes go through.
-  bool get hasImages => imageDataFields.isNotEmpty || hasRuntimeImages;
 
   List<JsonImageField> _jsonImages(List<JsonDataGroup> groups) => [
         for (final group in groups)

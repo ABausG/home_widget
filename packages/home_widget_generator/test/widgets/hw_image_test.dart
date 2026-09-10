@@ -35,6 +35,18 @@ void main() {
         });
       });
 
+      test('names the decode helper wherever the image comes from', () {
+        for (final image in const [
+          HWImage(HWImageData('avatar')),
+          HWImage.asset('assets/logo.png'),
+          HWImage(HWTimedData(HWImageData('slide'))),
+          HWImage(HWJson('contact', HWImageData('avatar'))),
+        ]) {
+          expect(image.renderHelpers, {HWNativeHelper.hwDecodeImage});
+          expect(image.nativeHelpers, contains(HWNativeHelper.hwDecodeImage));
+        }
+      });
+
       test('assetPackage is null for the data constructor', () {
         expect(const HWImage(HWImageData('avatar')).assetPackage, isNull);
         expect(const HWImage.asset('assets/logo.png').assetPackage, isNull);
@@ -44,12 +56,12 @@ void main() {
         const image = HWImage.asset('assets/logo.png', package: 'my_icons');
         expect(
           image.toSwift(0, dataExpr: 'data'),
-          contains('flutterAssetPath("packages/my_icons/assets/logo.png")'),
+          contains('hwDecodeImage("packages/my_icons/assets/logo.png"'),
         );
         expect(
           image.toKotlin(0, dataExpr: 'data'),
           contains(
-            'flutterAssetBitmap(context, '
+            'hwDecodeImage(context, '
             '"packages/my_icons/assets/logo.png", null, null)',
           ),
         );
@@ -125,11 +137,13 @@ void main() {
         );
       });
 
-      test('reads an asset image from the app bundle', () {
+      test('reads an asset image through the decode helper', () {
         const node = HWImage.asset('assets/logo.png');
         expect(
           node.toSwift(0, dataExpr: 'entry.widgetData'),
-          contains('if let path = flutterAssetPath("assets/logo.png"),'),
+          contains(
+            'if let uiImage = hwDecodeImage("assets/logo.png", nil, nil) {',
+          ),
         );
       });
 
@@ -266,25 +280,12 @@ void main() {
     });
 
     group('Android (Glance)', () {
-      test('the file decoder falls through to the asset decoder', () {
-        expect(
-          kotlinImageFileHelper,
-          contains(
-            'if (!path.startsWith("/")) {\n'
-            '    $kotlinFlutterAssetFunction(context, path, widthDp, heightDp)\n'
-            '} else {',
-          ),
-        );
-        // An absolute path still takes the file branch.
-        expect(kotlinImageFileHelper, contains('BitmapFactory.decodeFile('));
-      });
-
       test('emits a subsampled bitmap decode for runtime data', () {
         const node = HWImage(HWImageData('avatar'));
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           'data.avatar?.let { path -> '
-          'hwDecodeImageFile(context, path, null, null) }\n'
+          'hwDecodeImage(context, path, null, null) }\n'
           '    ?.let { bitmap ->\n'
           '        Image(\n'
           '            provider = ImageProvider(bitmap),\n'
@@ -300,7 +301,7 @@ void main() {
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           startsWith(
-            'flutterAssetBitmap(context, "assets/logo.png", null, null)'
+            'hwDecodeImage(context, "assets/logo.png", null, null)'
             '?.let { bitmap ->',
           ),
         );
@@ -354,14 +355,14 @@ void main() {
               .toKotlin(0, dataExpr: 'data'),
           startsWith(
             'data.a?.let { path -> '
-            'hwDecodeImageFile(context, path, 100.0, 50.0) }',
+            'hwDecodeImage(context, path, 100.0, 50.0) }',
           ),
         );
         expect(
           const HWImage.asset('assets/logo.png', width: 24)
               .toKotlin(0, dataExpr: 'data'),
           startsWith(
-            'flutterAssetBitmap(context, "assets/logo.png", 24.0, null)',
+            'hwDecodeImage(context, "assets/logo.png", 24.0, null)',
           ),
         );
       });
@@ -393,7 +394,7 @@ void main() {
         expect(
           node.toKotlin(1, dataExpr: 'data'),
           '    data.avatar?.let { path -> '
-          'hwDecodeImageFile(context, path, null, null) }\n'
+          'hwDecodeImage(context, path, null, null) }\n'
           '        ?.let { bitmap ->\n'
           '            Image(\n'
           '                provider = ImageProvider(bitmap),\n'
@@ -406,11 +407,21 @@ void main() {
 
       test('kotlinImports cover the emitted calls', () {
         expect(const HWImage(HWImageData('a')).kotlinImports, {
-          'import android.graphics.BitmapFactory',
           'import androidx.glance.Image',
           'import androidx.glance.ImageProvider',
           'import androidx.glance.layout.ContentScale',
         });
+      });
+
+      test('leaves the decoder its own imports to declare', () {
+        expect(
+          const HWImage(HWImageData('a')).kotlinImports,
+          isNot(contains('import android.graphics.BitmapFactory')),
+        );
+        expect(
+          HWNativeHelper.hwDecodeImage.kotlinImports,
+          contains('import android.graphics.BitmapFactory'),
+        );
       });
 
       test('kotlinImports add sizing imports for width and height', () {
@@ -472,7 +483,7 @@ void main() {
           node.toKotlin(0, dataExpr: 'data'),
           startsWith(
             'data.contact?.avatar?.let { path -> '
-            'hwDecodeImageFile(context, path, null, null) }',
+            'hwDecodeImage(context, path, null, null) }',
           ),
         );
       });

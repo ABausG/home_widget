@@ -4,6 +4,7 @@
 package es.antonborri.generator_basics
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -57,7 +58,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
   fun previewFingerprint(context: Context): String {
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "1e478d5f",
+            "83ae6ce0",
             ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
             hwPreviewData.toString(),
             listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
@@ -94,7 +95,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Spacer(modifier = GlanceModifier.defaultWeight())
-          flutterAssetBitmap(context, "assets/logo.png", 24.0, 24.0)?.let { bitmap ->
+          hwDecodeImage(context, "assets/logo.png", 24.0, 24.0)?.let { bitmap ->
             Image(
                 provider = ImageProvider(bitmap),
                 contentDescription = "App logo",
@@ -108,7 +109,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
               } == true
           ) {
             widgetData.picture
-                ?.let { path -> hwDecodeImageFile(context, path, 64.0, 64.0) }
+                ?.let { path -> hwDecodeImage(context, path, 64.0, 64.0) }
                 ?.let { bitmap ->
                   Image(
                       provider = ImageProvider(bitmap),
@@ -131,7 +132,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
           Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(modifier = GlanceModifier.defaultWeight())
             widgetData.slide
-                ?.let { path -> hwDecodeImageFile(context, path, 28.0, 28.0) }
+                ?.let { path -> hwDecodeImage(context, path, 28.0, 28.0) }
                 ?.let { bitmap ->
                   Image(
                       provider = ImageProvider(bitmap),
@@ -142,7 +143,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 }
             widgetData.contact
                 ?.avatar
-                ?.let { path -> hwDecodeImageFile(context, path, 28.0, 28.0) }
+                ?.let { path -> hwDecodeImage(context, path, 28.0, 28.0) }
                 ?.let { bitmap ->
                   Image(
                       provider = ImageProvider(bitmap),
@@ -286,89 +287,61 @@ data class ImageShowcaseContactJsonData(
   }
 }
 
-private fun hwImageSampleSize(
-    context: android.content.Context,
-    bounds: BitmapFactory.Options,
-    widthDp: Double?,
-    heightDp: Double?,
-): Int {
-  if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
-  val metrics = context.resources.displayMetrics
-  val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
-  val widthPx = widthDp?.let { (it * metrics.density).toInt() }
-  val heightPx = heightDp?.let { (it * metrics.density).toInt() }
-  val targetWidth =
-      widthPx
-          ?: heightPx?.let {
-            (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
-          }
-          ?: fallback
-  val targetHeight =
-      heightPx
-          ?: widthPx?.let {
-            (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
-          }
-          ?: fallback
-  if (targetWidth <= 0 || targetHeight <= 0) return 1
-  var sampleSize = 1
-  while (
-      bounds.outWidth / (sampleSize * 2) >= targetWidth &&
-          bounds.outHeight / (sampleSize * 2) >= targetHeight
-  ) {
-    sampleSize *= 2
-  }
-  return sampleSize
-}
-
-private fun hwDecodeImageFile(
-    context: android.content.Context,
+private fun hwDecodeImage(
+    context: Context,
     path: String,
     widthDp: Double?,
     heightDp: Double?,
-): android.graphics.Bitmap? =
-    if (!path.startsWith("/")) {
-      flutterAssetBitmap(context, path, widthDp, heightDp)
-    } else {
-      try {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-          null
-        } else {
-          BitmapFactory.decodeFile(
-              path,
-              BitmapFactory.Options().apply {
-                inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)
-              },
-          )
-        }
-      } catch (_: Exception) {
-        null
-      }
-    }
-
-private fun flutterAssetBitmap(
-    context: android.content.Context,
-    asset: String,
-    widthDp: Double?,
-    heightDp: Double?,
-): android.graphics.Bitmap? =
-    try {
-      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-      context.assets.open("flutter_assets/$asset").use {
-        BitmapFactory.decodeStream(it, null, bounds)
-      }
-      if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-        null
+): Bitmap? {
+  fun decode(options: BitmapFactory.Options): Bitmap? =
+      if (path.startsWith("/")) {
+        BitmapFactory.decodeFile(path, options)
       } else {
-        val options =
-            BitmapFactory.Options().apply {
-              inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)
-            }
-        context.assets.open("flutter_assets/$asset").use {
+        context.assets.open("flutter_assets/$path").use {
           BitmapFactory.decodeStream(it, null, options)
         }
       }
-    } catch (_: Exception) {
-      null
+
+  fun sampleSize(bounds: BitmapFactory.Options): Int {
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
+    val metrics = context.resources.displayMetrics
+    val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
+    val widthPx = widthDp?.let { (it * metrics.density).toInt() }
+    val heightPx = heightDp?.let { (it * metrics.density).toInt() }
+    val targetWidth =
+        widthPx
+            ?: heightPx?.let {
+              (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
+            }
+            ?: fallback
+    val targetHeight =
+        heightPx
+            ?: widthPx?.let {
+              (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
+            }
+            ?: fallback
+    if (targetWidth <= 0 || targetHeight <= 0) return 1
+    var sampleSize = 1
+    while (
+        bounds.outWidth / (sampleSize * 2) >= targetWidth &&
+            bounds.outHeight / (sampleSize * 2) >= targetHeight
+    ) {
+      sampleSize *= 2
     }
+    return sampleSize
+  }
+
+  return try {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    decode(bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+      null
+    } else {
+      decode(
+          BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds) },
+      )
+    }
+  } catch (_: Exception) {
+    null
+  }
+}

@@ -72,6 +72,8 @@ void main() {
           helper: helper.kotlinImports.map(importedName).toSet(),
       };
       const shortNames = [
+        'Bitmap',
+        'BitmapFactory',
         'Build',
         'CompactDecimalFormat',
         'ConfigurationCompat',
@@ -80,7 +82,10 @@ void main() {
         'DateFormat',
         'DecimalFormat',
         'DecimalFormatSymbols',
+        'JSONObject',
+        'Locale',
         'NumberFormat',
+        'SharedPreferences',
         'SimpleDateFormat',
         'TimeZone',
       ];
@@ -150,10 +155,22 @@ void main() {
       }
     });
 
+    test('declares its Swift imports as import lines', () {
+      for (final helper in HWNativeHelper.values) {
+        for (final line in helper.swiftImports) {
+          expect(line, startsWith('import '), reason: helper.name);
+          expect(line.split(' ').length, 2, reason: helper.name);
+        }
+      }
+    });
+
     test('renders locale-dependently unless it only reads a value back', () {
       const localeIndependent = {
         HWNativeHelper.hwParseIsoDate,
         HWNativeHelper.hwResolveTimeZone,
+        HWNativeHelper.hwLocalizedEntries,
+        HWNativeHelper.hwDecodeLocalized,
+        HWNativeHelper.hwDecodeImage,
       };
       for (final helper in HWNativeHelper.values) {
         expect(
@@ -452,6 +469,172 @@ void main() {
         HWNativeHelper.hwFormatLocale,
         HWNativeHelper.hwResolveTimeZone,
       ]);
+    });
+  });
+
+  group('hwCurrentLocales', () {
+    const helper = HWNativeHelper.hwCurrentLocales;
+
+    test('reads the preferred languages as BCP 47 tags', () {
+      expect(swiftOf(helper), contains('Locale.preferredLanguages'));
+      expect(kotlinOf(helper), contains('ConfigurationCompat'));
+      expect(kotlinOf(helper), contains('locale.toLanguageTag()'));
+      expect(kotlinOf(helper), isNot(contains('getLanguage()')));
+    });
+
+    test('depends on nothing', () {
+      expect(helper.dependencies, isEmpty);
+    });
+  });
+
+  group('hwResolveLocalized', () {
+    const helper = HWNativeHelper.hwResolveLocalized;
+
+    test('truncates before it reaches for a sibling locale', () {
+      for (final body in [swiftOf(helper), kotlinOf(helper)]) {
+        final truncation = body.indexOf('Progressive truncation');
+        final sibling = body.indexOf('Same language, different region');
+        expect(truncation, greaterThanOrEqualTo(0));
+        expect(sibling, greaterThan(truncation));
+      }
+    });
+
+    test('falls back to the base locale, and to nothing past it', () {
+      expect(swiftOf(helper), contains('return values[baseLocale]'));
+      expect(swiftOf(helper), contains('-> String?'));
+      expect(kotlinOf(helper), contains('return values[baseLocale]'));
+      expect(kotlinOf(helper), contains('): String?'));
+    });
+
+    test('takes the locale list rather than reading it itself', () {
+      expect(helper.dependencies, isEmpty);
+      expect(swiftOf(helper), contains('_ locales: [String]'));
+      expect(kotlinOf(helper), contains('locales: List<String>'));
+    });
+  });
+
+  group('hwLocalize', () {
+    const helper = HWNativeHelper.hwLocalize;
+
+    test('renders a missing translation as empty text', () {
+      expect(swiftOf(helper), contains('?? ""'));
+      expect(kotlinOf(helper), contains('?: ""'));
+    });
+
+    test('depends on the locale list and the resolver', () {
+      expect(helper.dependencies, [
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      ]);
+    });
+  });
+
+  group('hwLocalizedEntries', () {
+    const helper = HWNativeHelper.hwLocalizedEntries;
+
+    test('keeps only the string entries', () {
+      expect(swiftOf(helper), contains('as? String'));
+      expect(kotlinOf(helper), contains('is String'));
+      expect(helper.kotlinImports, ['import org.json.JSONObject']);
+    });
+
+    test('depends on nothing', () {
+      expect(helper.dependencies, isEmpty);
+    });
+  });
+
+  group('hwDecodeLocalized', () {
+    const helper = HWNativeHelper.hwDecodeLocalized;
+
+    test('reads unusable input as nothing stored', () {
+      expect(swiftOf(helper), contains('-> [String: String]?'));
+      expect(swiftOf(helper), contains('try?'));
+      expect(kotlinOf(helper), contains('catch (_: Exception)'));
+    });
+
+    test('depends on the entry decoder', () {
+      expect(helper.dependencies, [HWNativeHelper.hwLocalizedEntries]);
+    });
+  });
+
+  group('hwReadLocalized', () {
+    const helper = HWNativeHelper.hwReadLocalized;
+
+    test('merges the stored map over the compiled translations', () {
+      expect(swiftOf(helper), contains('merged.merge(stored)'));
+      expect(kotlinOf(helper), contains('merged.putAll(it)'));
+      expect(
+        helper.kotlinImports,
+        contains('import android.content.SharedPreferences'),
+      );
+    });
+
+    test('depends on the decoder and the resolver', () {
+      expect(helper.dependencies, [
+        HWNativeHelper.hwDecodeLocalized,
+        HWNativeHelper.hwLocalize,
+      ]);
+    });
+  });
+
+  group('hwReadTimedLocalized', () {
+    const helper = HWNativeHelper.hwReadTimedLocalized;
+
+    test('takes its stored map from the timed entry', () {
+      expect(swiftOf(helper), contains('timedValues[key] as? [String: Any]'));
+      expect(kotlinOf(helper), contains('timedValues.optJSONObject(key)'));
+    });
+
+    test('depends on the entry decoder and the resolver', () {
+      expect(helper.dependencies, [
+        HWNativeHelper.hwLocalizedEntries,
+        HWNativeHelper.hwLocalize,
+      ]);
+    });
+  });
+
+  group('hwDecodeImage', () {
+    const helper = HWNativeHelper.hwDecodeImage;
+
+    test('routes an absolute path to a file and anything else to an asset', () {
+      expect(swiftOf(helper), contains('path.hasPrefix("/")'));
+      expect(
+        swiftOf(helper),
+        contains('Frameworks/App.framework/flutter_assets'),
+      );
+      expect(kotlinOf(helper), contains('path.startsWith("/")'));
+      expect(kotlinOf(helper), contains('BitmapFactory.decodeFile(path'));
+      expect(
+        kotlinOf(helper),
+        contains(r'context.assets.open("flutter_assets/$path")'),
+      );
+    });
+
+    test('downsamples to the declared size', () {
+      expect(
+        swiftOf(helper),
+        contains('kCGImageSourceThumbnailMaxPixelSize: maxPixelSize'),
+      );
+      expect(kotlinOf(helper), contains('inJustDecodeBounds = true'));
+      expect(kotlinOf(helper), contains('inSampleSize = sampleSize(bounds)'));
+    });
+
+    test('reads an unusable source as no image', () {
+      expect(swiftOf(helper), contains('-> UIImage?'));
+      expect(kotlinOf(helper), contains('catch (_: Exception)'));
+    });
+
+    test('names ImageIO, which a widget extension does not already import', () {
+      expect(helper.swiftImports, {'import ImageIO'});
+      expect(helper.kotlinImports, {
+        'import android.content.Context',
+        'import android.graphics.Bitmap',
+        'import android.graphics.BitmapFactory',
+      });
+    });
+
+    test('depends on nothing', () {
+      expect(helper.dependencies, isEmpty);
     });
   });
 }

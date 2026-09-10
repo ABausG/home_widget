@@ -87,7 +87,8 @@ void main() {
           imageExists.toSwift(0, dataExpr: 'entry.data'),
           startsWith(
             'if let hwImagePath = entry.data.avatar, '
-            'FileManager.default.fileExists(atPath: hwImagePath) {',
+            '(!hwImagePath.hasPrefix("/") || '
+            'FileManager.default.fileExists(atPath: hwImagePath)) {',
           ),
         );
         // An empty string is not an asset key, so it never counts as present.
@@ -113,7 +114,8 @@ void main() {
           timedJsonImage.toSwift(0, dataExpr: 'entry.data'),
           startsWith(
             'if let hwImagePath = entry.data.slot?.picture, '
-            'FileManager.default.fileExists(atPath: hwImagePath) {',
+            '(!hwImagePath.hasPrefix("/") || '
+            'FileManager.default.fileExists(atPath: hwImagePath)) {',
           ),
         );
         expect(

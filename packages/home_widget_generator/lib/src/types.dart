@@ -4,7 +4,6 @@ import 'formats.dart';
 import 'generator_error.dart';
 import 'native_helpers.dart';
 import 'utils/content_hash.dart';
-import 'utils/image_helper_names.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
 
@@ -113,13 +112,26 @@ sealed class HWDataType<T> {
   /// time-based.
   HWDataType<dynamic> get unwrapped => this;
 
-  /// The native functions reading a stored value of this type back.
+  /// The native functions reading a stored value of this type back out of its
+  /// own preferences key.
   ///
   /// Empty for the types native code reads straight out of the store; a field
   /// traveling as an encoded string names the helper decoding it, so it
   /// reaches the generated file even when nothing displays the value.
   /// Rendering helpers are named by the widget that renders, not here.
   List<HWNativeHelper> get nativeHelpers => const [];
+
+  /// [nativeHelpers] for a read out of the timed entry active at render time,
+  /// which is where an [HWTimedData] field's value comes from instead of a
+  /// preferences key.
+  ///
+  /// Mirrors the [androidReadValue] / `androidTimedReadValue` split: a type
+  /// that reads the same way from either place inherits the default.
+  List<HWNativeHelper> get timedNativeHelpers => nativeHelpers;
+
+  /// [nativeHelpers] for a read as a leaf of a decoded JSON group, mirroring
+  /// the [androidReadValue] / `androidJsonReadValue` split.
+  List<HWNativeHelper> get jsonNativeHelpers => nativeHelpers;
 
   /// Whether [other] describes the same field as this one.
   ///
@@ -442,6 +454,27 @@ class HWLocalizedString extends HWString {
               escapeSwiftStringLiteral(previewBaseLocaleTag!)
             )
           : (swiftMapLiteral, escapeSwiftStringLiteral(baseLocaleTag));
+
+  /// A constant is a platform resource the OS resolves, so it needs nothing;
+  /// every other string is merged and resolved by the widget itself.
+  @override
+  List<HWNativeHelper> get nativeHelpers =>
+      isConstant ? const [] : const [HWNativeHelper.hwReadLocalized];
+
+  @override
+  List<HWNativeHelper> get timedNativeHelpers =>
+      isConstant ? const [] : const [HWNativeHelper.hwReadTimedLocalized];
+
+  /// A JSON leaf carries no stored locale map to merge — the decoded group is
+  /// the map — so it is resolved at the render site out of the compiled
+  /// translations alone.
+  @override
+  List<HWNativeHelper> get jsonNativeHelpers => isConstant
+      ? const []
+      : const [
+          HWNativeHelper.hwCurrentLocales,
+          HWNativeHelper.hwResolveLocalized,
+        ];
 
   @override
   String androidReadValue({
@@ -1280,13 +1313,13 @@ class HWImageData extends HWDataType<String> {
     return asset == null ? null : '"${escapeKotlinStringLiteral(asset)}"';
   }
 
-  /// The Swift fallback resolves [previewAsset] to an absolute bundle path, so
-  /// the value reaching the decoder is the same shape a stored image has.
+  /// The Swift fallback is [previewAsset] itself, exactly like the Kotlin one:
+  /// the decoder reads a value that is not an absolute path as an asset key on
+  /// either platform.
   @override
   String? codegenSwiftFallbackLiteral({bool preview = false}) {
     final asset = preview ? previewAsset : null;
-    if (asset == null) return null;
-    return '$swiftFlutterAssetFunction("${escapeSwiftStringLiteral(asset)}")';
+    return asset == null ? null : '"${escapeSwiftStringLiteral(asset)}"';
   }
 
   /// Always throws: an image path is not meaningful display text.
@@ -1394,8 +1427,16 @@ class HWJson<T> extends HWDataType<T> {
   @override
   String get swiftType => 'String';
 
+  /// The leaf is reached by decoding the group, wherever the group itself was
+  /// read from, so all three sites resolve to the leaf's JSON read.
   @override
-  List<HWNativeHelper> get nativeHelpers => child.nativeHelpers;
+  List<HWNativeHelper> get jsonNativeHelpers => child.jsonNativeHelpers;
+
+  @override
+  List<HWNativeHelper> get nativeHelpers => jsonNativeHelpers;
+
+  @override
+  List<HWNativeHelper> get timedNativeHelpers => jsonNativeHelpers;
 
   /// The group travels as one encoded string; the leaf's preview applies where
   /// that string is decoded.
@@ -1694,8 +1735,10 @@ class HWTimedData<T> extends HWDataType<T> {
   @override
   String swiftReadExpr(String dataExpr) => data.swiftReadExpr(dataExpr);
 
+  /// The value is read out of the active timed entry, never out of a
+  /// preferences key of its own.
   @override
-  List<HWNativeHelper> get nativeHelpers => data.nativeHelpers;
+  List<HWNativeHelper> get nativeHelpers => data.timedNativeHelpers;
 
   @override
   HWDataType<dynamic> get unwrapped => data;

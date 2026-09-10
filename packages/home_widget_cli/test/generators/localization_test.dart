@@ -126,6 +126,18 @@ Future<String> _runGenerated(String dart, String body) async {
 
 /// The `Greeting` widget's generated resource file for one locale, or `''`
 /// when the generator wrote none.
+/// One emitted helper's source, from [declaration] to the line closing it.
+///
+/// The helpers come out in the order [WidgetSpec.nativeHelpers] resolves, so a
+/// slice between two of them would pin that order rather than the body.
+String _helperBody(String source, String declaration) {
+  final start = source.indexOf(declaration);
+  expect(start, greaterThanOrEqualTo(0), reason: 'no $declaration emitted');
+  final end = source.indexOf('\n}', start);
+  expect(end, greaterThan(start), reason: '$declaration is never closed');
+  return source.substring(start, end);
+}
+
 String _strings(Directory root, [String? qualifier]) {
   final file = _ownedFile(root, qualifier);
   return file.existsSync() ? file.readAsStringSync() : '';
@@ -501,7 +513,8 @@ void main() {
       ).readAsStringSync();
 
       // Malformed JSON must not reach the widget as an exception.
-      expect(kotlin, contains('org.json.JSONObject(raw)'));
+      expect(kotlin, contains('JSONObject(raw)'));
+      expect(kotlin, contains('import org.json.JSONObject'));
       expect(kotlin, contains('} catch (_: Exception) {'));
       // A null decode leaves the merged map as the compiled values alone.
       expect(
@@ -530,10 +543,7 @@ void main() {
         ),
       ).readAsStringSync();
 
-      final read = kotlin.substring(
-        kotlin.indexOf('private fun hwReadLocalized('),
-        kotlin.indexOf('private fun hwDecodeLocalized('),
-      );
+      final read = _helperBody(kotlin, 'private fun hwReadLocalized(');
 
       // The compiled translations are the base of the map the blob lands on,
       // so a locale the blob omits keeps its shipped text instead of dropping
@@ -569,8 +579,8 @@ void main() {
       expect(kotlin, contains('for (index in 0 until configured.size())'));
       expect(
         kotlin,
-        contains('private fun hwCurrentLocales(context: android.content.Context'
-            '): List<String>'),
+        contains(
+            'private fun hwCurrentLocales(context: Context): List<String>'),
       );
       // ...and each entry is tried in turn, before the widget's default locale
       // applies.
@@ -592,20 +602,14 @@ void main() {
         ),
       ).readAsStringSync();
 
-      final collect = kotlin.substring(
-        kotlin.indexOf('private fun hwCurrentLocales('),
-        kotlin.indexOf('private fun hwResolveLocalized('),
-      );
+      final collect = _helperBody(kotlin, 'private fun hwCurrentLocales(');
 
       // `Locale.getLanguage()` still answers with the obsolete codes (iw for
       // he, in for id, ji for yi) and drops the script subtag, so a Hebrew or
       // Traditional-Chinese device would never match its key. toLanguageTag()
       // canonicalizes both.
       expect(collect, contains('locale.toLanguageTag()'));
-      expect(
-        collect,
-        contains('java.util.Locale.getDefault().toLanguageTag()'),
-      );
+      expect(collect, contains('Locale.getDefault().toLanguageTag()'));
       expect(collect, isNot(contains('locale.language')));
       expect(collect, isNot(contains('locale.country')));
     });
@@ -623,10 +627,7 @@ void main() {
         ),
       ).readAsStringSync();
 
-      final resolve = kotlin.substring(
-        kotlin.indexOf('private fun hwResolveLocalized('),
-        kotlin.indexOf('private fun hwLocalize('),
-      );
+      final resolve = _helperBody(kotlin, 'private fun hwResolveLocalized(');
 
       // zh-Hant-TW -> zh-Hant -> zh, so a script subtag is honoured before the
       // sibling scan could flatten it to whichever key sorts first.
@@ -1312,10 +1313,7 @@ android {
     test('overlays the stored blob onto the compiled map per locale', () async {
       final swift = await generateSwift(_spec(widget: HWText(_localized())));
 
-      final read = swift.substring(
-        swift.indexOf('func hwReadLocalized('),
-        swift.indexOf('func hwDecodeLocalized('),
-      );
+      final read = _helperBody(swift, 'func hwReadLocalized(');
 
       // The compiled translations are the base of the map the blob lands on,
       // so a locale the blob omits keeps its shipped text instead of dropping
@@ -1346,10 +1344,7 @@ android {
     test('truncates one subtag at a time before any sibling scan', () async {
       final swift = await generateSwift(_spec(widget: HWText(_localized())));
 
-      final resolve = swift.substring(
-        swift.indexOf('func hwResolveLocalized('),
-        swift.indexOf('func hwLocalize('),
-      );
+      final resolve = _helperBody(swift, 'func hwResolveLocalized(');
 
       // zh-Hant-TW -> zh-Hant -> zh, mirroring the Kotlin and Dart chains, so
       // a Traditional-Chinese device cannot land on a Simplified key just

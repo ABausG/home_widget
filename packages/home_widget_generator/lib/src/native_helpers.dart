@@ -1,4 +1,5 @@
-/// The native functions a generated widget calls to format its values.
+/// The native functions a generated widget calls to read, resolve, format and
+/// render its values.
 ///
 /// Each helper is a self-contained pair of Swift and Kotlin function bodies
 /// plus the helpers it calls. A widget's tree names the ones it needs
@@ -21,9 +22,10 @@ import 'widgets/hw_generatable.dart';
 /// The Swift body goes to file scope in the generated Widget.swift, the Kotlin
 /// one to a private top-level function in the generated `<Name>HomeWidget.kt`.
 /// Both come out of [toSwift] / [toKotlin], which ignore their arguments: a
-/// helper is the same source wherever it lands. The Kotlin bodies use short
-/// type names and name what that costs in [kotlinImports], which the generator
-/// merges into the file's import block alongside the widgets' own.
+/// helper is the same source wherever it lands. The bodies use short type
+/// names and name what that costs in [kotlinImports] / [swiftImports], which
+/// the generator merges into the file's import block alongside the widgets'
+/// own.
 enum HWNativeHelper implements HWGeneratable {
   /// The locale every formatter runs in: the device's own, region included.
   ///
@@ -504,12 +506,402 @@ private fun hwFormatDateStyled(
       HWNativeHelper.hwFormatLocale,
       HWNativeHelper.hwResolveTimeZone,
     ],
+  ),
+
+  /// The user's preferred languages, most-wanted first, as BCP 47 tags.
+  ///
+  /// Android reads the tags through `toLanguageTag()` rather than
+  /// `getLanguage()`, which still returns the obsolete ISO 639 codes (iw, in,
+  /// ji) and drops the script subtag — a `zh-Hant` device would arrive as
+  /// plain `zh` and lose against a `zh-Hans` translation. Swift needs no
+  /// context threaded in, as `Locale` is globally reachable.
+  hwCurrentLocales(
+    swift: r'''
+func hwCurrentLocales() -> [String] {
+  let preferred = Locale.preferredLanguages.map {
+    $0.replacingOccurrences(of: "_", with: "-")
+  }
+  if preferred.isEmpty {
+    return [Locale.current.identifier.replacingOccurrences(of: "_", with: "-")]
+  }
+  return preferred
+}''',
+    kotlin: '''
+private fun hwCurrentLocales(context: Context): List<String> {
+    val configured = ConfigurationCompat
+        .getLocales(context.resources.configuration)
+    val tags = mutableListOf<String>()
+    for (index in 0 until configured.size()) {
+        val locale = configured[index] ?: continue
+        val tag = locale.toLanguageTag()
+        if (tag.isNotEmpty() && tag != "und") tags.add(tag)
+    }
+    if (tags.isEmpty()) {
+        val fallback = Locale.getDefault().toLanguageTag()
+        if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
+    }
+    return tags
+}''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import androidx.core.os.ConfigurationCompat',
+      'import java.util.Locale',
+    },
+  ),
+
+  /// Picks the translation for the first of `locales` that matches, or the one
+  /// under `baseLocale`, and null when even that is missing.
+  ///
+  /// Every entry of the list is tried by progressive truncation first
+  /// (`zh-Hant-TW` → `zh-Hant` → `zh`), then against any key sharing its
+  /// language with a different region or script (`pt-PT` → `pt-BR`, the
+  /// lexicographically smallest key winning so the choice is deterministic).
+  ///
+  /// Both parts of that order are load-bearing. Truncation before siblings
+  /// keeps a `zh-Hant-TW` device on `zh-Hant` instead of whichever of
+  /// `zh-Hans`/`zh-Hant` sorts first. The sibling tier keeps compiled
+  /// translations on the same text the OS already picks for platform
+  /// resources, which get Android's parent-locale matching for free; without
+  /// it a `pt-PT` device would render constants in Portuguese and keyed
+  /// strings in the default locale.
+  ///
+  /// The locale list is a parameter on both platforms: a render site that
+  /// resolves several strings reads it once rather than per string.
+  hwResolveLocalized(
+    swift: r'''
+func hwResolveLocalized(
+  _ locales: [String],
+  _ values: [String: String],
+  baseLocale: String
+) -> String? {
+  for tag in locales {
+    // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
+    var candidate = tag.replacingOccurrences(of: "_", with: "-")
+    while true {
+      if let match = values[candidate] { return match }
+      guard let cut = candidate.lastIndex(of: "-"), cut != candidate.startIndex
+      else { break }
+      candidate = String(candidate[candidate.startIndex..<cut])
+    }
+    let language = candidate
+    // Same language, different region or script (pt-PT -> pt-BR).
+    let siblings = values.keys.filter {
+      $0.split(separator: "-").first.map(String.init) == language
+    }
+    if let sibling = siblings.min(), let match = values[sibling] {
+      return match
+    }
+  }
+  return values[baseLocale]
+}''',
+    kotlin: '''
+private fun hwResolveLocalized(
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String? {
+    for (locale in locales) {
+        // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
+        var candidate = locale.replace('_', '-')
+        while (true) {
+            values[candidate]?.let { return it }
+            val cut = candidate.lastIndexOf('-')
+            if (cut <= 0) break
+            candidate = candidate.substring(0, cut)
+        }
+        val language = candidate
+        // Same language, different region or script (pt-PT -> pt-BR).
+        var sibling: String? = null
+        for (key in values.keys) {
+            if (key.substringBefore('-') != language) continue
+            val current = sibling
+            if (current == null || key < current) sibling = key
+        }
+        if (sibling != null) {
+            values[sibling]?.let { return it }
+        }
+    }
+    return values[baseLocale]
+}''',
+  ),
+
+  /// The string entries of a decoded JSON object, skipping anything that is not
+  /// text.
+  ///
+  /// The stored shape of a localized string is one JSON object of locale tag to
+  /// text, so a value of another type is a payload the app wrote wrong; it is
+  /// dropped rather than rendered or thrown over.
+  hwLocalizedEntries(
+    swift: '''
+func hwLocalizedEntries(_ json: [String: Any]) -> [String: String] {
+  var values: [String: String] = [:]
+  for (name, value) in json {
+    if let text = value as? String { values[name] = text }
+  }
+  return values
+}''',
+    kotlin: '''
+private fun hwLocalizedEntries(json: JSONObject): Map<String, String> {
+    val parsed = mutableMapOf<String, String>()
+    val keys = json.keys()
+    while (keys.hasNext()) {
+        val name = keys.next()
+        val value = json.opt(name)
+        if (value is String) parsed[name] = value
+    }
+    return parsed
+}''',
+    kotlinImports: {'import org.json.JSONObject'},
+    localeDependent: false,
+  ),
+
+  /// [hwResolveLocalized] for a render site, where a missing translation is
+  /// empty text rather than a null the layout would have to branch on.
+  hwLocalize(
+    swift: '''
+func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
+  return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
+}''',
+    kotlin: '''
+private fun hwLocalize(
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String = hwResolveLocalized(locales, values, baseLocale) ?: ""''',
+    dependencies: [
+      HWNativeHelper.hwCurrentLocales,
+      HWNativeHelper.hwResolveLocalized,
+    ],
+  ),
+
+  /// Decodes a stored locale map, or null when there is nothing usable.
+  ///
+  /// Unreadable input — absent, malformed, not an object — leaves the compiled
+  /// translations untouched rather than throwing at render time.
+  hwDecodeLocalized(
+    swift: '''
+func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
+  guard let raw, let data = raw.data(using: .utf8) else { return nil }
+  guard let object = try? JSONSerialization.jsonObject(with: data),
+        let json = object as? [String: Any] else { return nil }
+  return hwLocalizedEntries(json)
+}''',
+    kotlin: '''
+private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
+    if (raw == null) return null
+    return try {
+        hwLocalizedEntries(JSONObject(raw))
+    } catch (_: Exception) {
+        null
+    }
+}''',
+    kotlinImports: {'import org.json.JSONObject'},
+    dependencies: [HWNativeHelper.hwLocalizedEntries],
+    localeDependent: false,
+  ),
+
+  /// Resolves a localized string stored under a preferences key.
+  ///
+  /// The stored value is a single JSON object of locale tag to text, written by
+  /// the generated Dart `saveData`. It is laid over the compiled translations
+  /// one locale at a time and only the combined map is resolved — the same
+  /// merge the generated Dart `getData` performs, so an app read and a widget
+  /// render never disagree.
+  hwReadLocalized(
+    swift: '''
+func hwReadLocalized(
+  _ defaults: UserDefaults?,
+  _ key: String,
+  _ values: [String: String],
+  baseLocale: String
+) -> String {
+  var merged = values
+  if let stored = hwDecodeLocalized(defaults?.string(forKey: key)) {
+    merged.merge(stored) { _, new in new }
+  }
+  return hwLocalize(merged, baseLocale: baseLocale)
+}''',
+    kotlin: '''
+private fun hwReadLocalized(
+    prefs: SharedPreferences,
+    key: String,
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String {
+    val merged = values.toMutableMap()
+    hwDecodeLocalized(prefs.getString(key, null))?.let { merged.putAll(it) }
+    return hwLocalize(locales, merged, baseLocale)
+}''',
+    kotlinImports: {'import android.content.SharedPreferences'},
+    dependencies: [
+      HWNativeHelper.hwDecodeLocalized,
+      HWNativeHelper.hwLocalize,
+    ],
+  ),
+
+  /// [hwReadLocalized] with the stored locale map taken from the timed entry
+  /// active at render time instead of from a preferences key.
+  ///
+  /// The two must keep resolving alike: making a value time-based may change
+  /// when it changes, never which translation a device sees.
+  hwReadTimedLocalized(
+    swift: '''
+func hwReadTimedLocalized(
+  _ timedValues: [String: Any],
+  _ key: String,
+  _ values: [String: String],
+  baseLocale: String
+) -> String {
+  var merged = values
+  if let stored = timedValues[key] as? [String: Any] {
+    merged.merge(hwLocalizedEntries(stored)) { _, new in new }
+  }
+  return hwLocalize(merged, baseLocale: baseLocale)
+}''',
+    kotlin: '''
+private fun hwReadTimedLocalized(
+    timedValues: JSONObject,
+    key: String,
+    locales: List<String>,
+    values: Map<String, String>,
+    baseLocale: String,
+): String {
+    val merged = values.toMutableMap()
+    timedValues.optJSONObject(key)?.let { merged.putAll(hwLocalizedEntries(it)) }
+    return hwLocalize(locales, merged, baseLocale)
+}''',
+    kotlinImports: {'import org.json.JSONObject'},
+    dependencies: [
+      HWNativeHelper.hwLocalizedEntries,
+      HWNativeHelper.hwLocalize,
+    ],
+  ),
+
+  /// Decodes an image for display, from a saved file or from a Flutter asset.
+  ///
+  /// An absolute path is a file the app saved; anything else is a Flutter asset
+  /// key, which is both how a bundled image renders and how a gallery preview
+  /// stands in for an image the app has not saved yet. On iOS the widget
+  /// extension is installed at `Runner.app/PlugIns/<name>.appex`, so the
+  /// containing app bundle — and with it `flutter_assets` — is two levels up
+  /// from the extension's own bundle; on Android the assets ship inside the APK
+  /// under `assets/flutter_assets/`.
+  ///
+  /// Both platforms cap how much memory a widget may use while rendering, so a
+  /// full-resolution photo is downsampled rather than decoded whole. The target
+  /// is the image's declared size in pixels. An axis the widget declares no
+  /// size for follows the source's aspect ratio on Android, or — with neither
+  /// axis declared — falls back to the screen's shorter side, which no widget
+  /// exceeds; WidgetKit has no equivalent reading available inside an
+  /// extension, so a flat cap of the same order stands in for it. ImageIO
+  /// scales to the exact bound, `BitmapFactory` to a power-of-two step.
+  ///
+  /// A missing file, an unreadable one or a key naming no asset is null, never
+  /// a throw at render time.
+  hwDecodeImage(
+    swift: r'''
+func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> UIImage? {
+  func assetFile(_ asset: String) -> String? {
+    let appBundleURL = Bundle.main.bundleURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let url = appBundleURL
+      .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+      .appendingPathComponent(asset)
+    return FileManager.default.fileExists(atPath: url.path) ? url.path : nil
+  }
+
+  guard let file = path.hasPrefix("/") ? path : assetFile(path),
+    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: file) as CFURL, nil)
+  else { return nil }
+  let displayScale = UITraitCollection.current.displayScale
+  let scale = displayScale > 0 ? displayScale : 3
+  let fallback = CGFloat(1536)
+  let targetWidth = widthPt.map { CGFloat($0) * scale } ?? fallback
+  let targetHeight = heightPt.map { CGFloat($0) * scale } ?? fallback
+  let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
+  guard maxPixelSize > 0 else { return nil }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true,
+    kCGImageSourceShouldCacheImmediately: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+  ]
+  guard
+    let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+  else { return nil }
+  return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
+}''',
+    kotlin: r'''
+private fun hwDecodeImage(
+    context: Context,
+    path: String,
+    widthDp: Double?,
+    heightDp: Double?,
+): Bitmap? {
+    fun decode(options: BitmapFactory.Options): Bitmap? =
+        if (path.startsWith("/")) {
+            BitmapFactory.decodeFile(path, options)
+        } else {
+            context.assets.open("flutter_assets/$path").use {
+                BitmapFactory.decodeStream(it, null, options)
+            }
+        }
+
+    fun sampleSize(bounds: BitmapFactory.Options): Int {
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
+        val metrics = context.resources.displayMetrics
+        val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
+        val widthPx = widthDp?.let { (it * metrics.density).toInt() }
+        val heightPx = heightDp?.let { (it * metrics.density).toInt() }
+        val targetWidth = widthPx
+            ?: heightPx?.let {
+                (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
+            }
+            ?: fallback
+        val targetHeight = heightPx
+            ?: widthPx?.let {
+                (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
+            }
+            ?: fallback
+        if (targetWidth <= 0 || targetHeight <= 0) return 1
+        var sampleSize = 1
+        while (bounds.outWidth / (sampleSize * 2) >= targetWidth &&
+            bounds.outHeight / (sampleSize * 2) >= targetHeight) {
+            sampleSize *= 2
+        }
+        return sampleSize
+    }
+
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        decode(bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            null
+        } else {
+            decode(
+                BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds) },
+            )
+        }
+    } catch (_: Exception) {
+        null
+    }
+}''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import android.graphics.Bitmap',
+      'import android.graphics.BitmapFactory',
+    },
+    swiftImports: {'import ImageIO'},
+    localeDependent: false,
   );
 
   const HWNativeHelper({
     required String swift,
     required String kotlin,
     this.kotlinImports = const {},
+    this.swiftImports = const {},
     this.dependencies = const [],
     this.localeDependent = true,
   })  : _swift = swift,
@@ -522,6 +914,11 @@ private fun hwFormatDateStyled(
   /// The imports the Kotlin body's short type names stand for.
   @override
   final Set<String> kotlinImports;
+
+  /// The frameworks the Swift body reaches beyond the ones a widget extension
+  /// already imports (Foundation, SwiftUI and WidgetKit, and UIKit through
+  /// them).
+  final Set<String> swiftImports;
 
   /// The helpers these bodies call, which have to be emitted alongside them.
   final List<HWNativeHelper> dependencies;

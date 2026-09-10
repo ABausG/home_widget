@@ -169,26 +169,17 @@ void main() {
     expect(content, contains('.frame(width: 100.0, height: 100.0)'));
     expect(
       content,
-      contains(
-        'if let path = flutterAssetPath("assets/logo.png"), '
-        'let uiImage = hwDecodeImage(path, nil, nil) {',
-      ),
+      contains('if let uiImage = hwDecodeImage("assets/logo.png", nil, nil) {'),
     );
     expect(content, contains('.aspectRatio(contentMode: .fill)'));
 
-    // Both sources decode through the downsampling helper, emitted once, and
-    // ImageIO comes along with it.
+    // Both sources decode through one helper, emitted once, and ImageIO comes
+    // along with it.
     expect(content, contains('import ImageIO'));
-    expect('private func hwDecodeImage'.allMatches(content).length, 1);
+    expect('func hwDecodeImage('.allMatches(content).length, 1);
     expect(
       content,
       contains('kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,'),
-    );
-
-    // The bundle-reading helper is emitted once for the whole file.
-    expect(
-      content,
-      contains('private func flutterAssetPath(_ asset: String) -> String? {'),
     );
     expect(
       content,
@@ -196,30 +187,29 @@ void main() {
         '.appendingPathComponent("Frameworks/App.framework/flutter_assets")',
       ),
     );
-    expect(
-      'private func flutterAssetPath'.allMatches(content).length,
-      1,
-    );
   });
 
-  test('emits the asset helper only when an asset image is present', () async {
+  test('emits nothing image-related when no HWImage is rendered', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
-        name: 'RuntimeOnly',
+        name: 'UnrenderedImage',
         iOS: HomeWidgetIOSConfiguration(groupId: 'group.image'),
       ),
-      className: 'RuntimeOnly',
+      className: 'UnrenderedImage',
       dataFields: const [HWImageData('avatar')],
-      widgetTree: const HWImage(HWImageData('avatar')),
+      widgetTree: const HWText.fixed('no image here'),
     );
 
     await IosGenerator(spec: spec, projectRoot: tempDir).generate();
 
     final content = File(
-      p.join(tempDir.path, 'ios/RuntimeOnlyHomeWidget/Widget.swift'),
+      p.join(tempDir.path, 'ios/UnrenderedImageHomeWidget/Widget.swift'),
     ).readAsStringSync();
 
-    expect(content, isNot(contains('flutterAssetPath')));
+    // The path is still read into the data struct; nothing decodes it.
+    expect(content, contains('let avatar: String?'));
+    expect(content, isNot(contains('hwDecodeImage')));
+    expect(content, isNot(contains('import ImageIO')));
   });
 
   test('reads a timed image path out of the active entry', () async {
@@ -255,7 +245,6 @@ void main() {
       content,
       contains('for timedEntry in timedEntries where timedEntry.date > now {'),
     );
-    expect(content, isNot(contains('flutterAssetPath')));
   });
 
   test('reads an image leaf of a JSON group as a path', () async {
@@ -287,7 +276,6 @@ void main() {
         'let uiImage = hwDecodeImage(path, nil, nil) {',
       ),
     );
-    expect(content, isNot(contains('flutterAssetPath')));
   });
 
   test('prefixes a package asset with packages/<package>', () async {
@@ -311,7 +299,7 @@ void main() {
 
     expect(
       content,
-      contains('flutterAssetPath("packages/my_icons/assets/logo.png")'),
+      contains('hwDecodeImage("packages/my_icons/assets/logo.png", nil, nil)'),
     );
   });
 

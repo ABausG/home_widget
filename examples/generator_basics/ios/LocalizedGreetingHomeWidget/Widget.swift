@@ -131,7 +131,22 @@ func hwCurrentLocales() -> [String] {
   return preferred
 }
 
-// Returns nil when nothing matches, including under the base locale.
+func hwLocalizedEntries(_ json: [String: Any]) -> [String: String] {
+  var values: [String: String] = [:]
+  for (name, value) in json {
+    if let text = value as? String { values[name] = text }
+  }
+  return values
+}
+
+func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
+  guard let raw, let data = raw.data(using: .utf8) else { return nil }
+  guard let object = try? JSONSerialization.jsonObject(with: data),
+    let json = object as? [String: Any]
+  else { return nil }
+  return hwLocalizedEntries(json)
+}
+
 func hwResolveLocalized(
   _ locales: [String],
   _ values: [String: String],
@@ -158,14 +173,6 @@ func hwResolveLocalized(
   return values[baseLocale]
 }
 
-func hwLocalizedEntries(_ json: [String: Any]) -> [String: String] {
-  var values: [String: String] = [:]
-  for (name, value) in json {
-    if let text = value as? String { values[name] = text }
-  }
-  return values
-}
-
 func hwLocalize(_ values: [String: String], baseLocale: String) -> String {
   return hwResolveLocalized(hwCurrentLocales(), values, baseLocale: baseLocale) ?? ""
 }
@@ -181,12 +188,4 @@ func hwReadLocalized(
     merged.merge(stored) { _, new in new }
   }
   return hwLocalize(merged, baseLocale: baseLocale)
-}
-
-func hwDecodeLocalized(_ raw: String?) -> [String: String]? {
-  guard let raw, let data = raw.data(using: .utf8) else { return nil }
-  guard let object = try? JSONSerialization.jsonObject(with: data),
-    let json = object as? [String: Any]
-  else { return nil }
-  return hwLocalizedEntries(json)
 }
