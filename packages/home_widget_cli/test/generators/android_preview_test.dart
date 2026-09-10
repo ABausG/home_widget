@@ -468,6 +468,138 @@ void main() {
       );
     });
 
+    test('a localized JSON leaf previews its translations per locale',
+        () async {
+      final content = await generate(
+        _spec(
+          widget: const HWText(
+            HWJson(
+              'contact',
+              HWString.localized(
+                'name',
+                defaultTranslations: {'en': 'Ada', 'de': 'Ada'},
+                previewTranslations: {'en': 'Sample', 'de': 'Beispiel'},
+              ),
+            ),
+          ),
+          localization: _localization,
+        ),
+      );
+
+      // The preview resolves the preview translations itself instead of
+      // inlining the base locale's text...
+      expect(
+        content,
+        contains(
+          '                name = if (json.has("name") && '
+          '!json.isNull("name")) json.optString("name") else '
+          'hwResolveLocalized(locales, '
+          'mapOf("en" to "Sample", "de" to "Beispiel"), "en"),',
+        ),
+      );
+      // ...which is what the threaded locale list is for.
+      expect(
+        content,
+        contains(
+          '        fun previewFromJson(obj: org.json.JSONObject?, '
+          'locales: List<String>): PreviewContactJsonData? {',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '        fun previewFromPath(path: String?, locales: List<String>): '
+          'PreviewContactJsonData? {\n'
+          '            if (path == null) return previewFromJson('
+          'org.json.JSONObject(), locales)\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '                contact = PreviewContactJsonData.previewFromPath('
+          'prefs.getString("\${PREFERENCES_PREFIX}.contact", null), locales),',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'fun previewFromPreferences(prefs: android.content.SharedPreferences, '
+          'locales: List<String>): PreviewData {',
+        ),
+      );
+      expect(
+        content,
+        contains('        if (preview) PreviewData.previewFromPreferences('
+            'prefs, hwLocales)'),
+      );
+      // The plain read is untouched: no locale list, no resolution.
+      expect(
+        content,
+        contains(
+          '        fun fromJson(obj: org.json.JSONObject?): '
+          'PreviewContactJsonData? {',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'fun fromPreferences(prefs: android.content.SharedPreferences): '
+          'PreviewData {',
+        ),
+      );
+    });
+
+    test(
+        'a localized JSON leaf without preview translations falls back to null',
+        () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn(
+            children: [
+              HWText(
+                HWJson(
+                  'contact',
+                  HWString.localized(
+                    'name',
+                    defaultTranslations: {'en': 'Ada', 'de': 'Ada'},
+                  ),
+                ),
+              ),
+              HWText(HWString('title', previewValue: 'Engineer')),
+            ],
+          ),
+          localization: _localization,
+        ),
+      );
+
+      // Null, not the base locale's text: the render site's own chain resolves
+      // the shipped translations against the reader's locales.
+      expect(
+        content,
+        contains(
+          '                name = if (json.has("name") && '
+          '!json.isNull("name")) json.optString("name") else null,',
+        ),
+      );
+      expect(content, isNot(contains('else "Ada"')));
+      // Nothing to resolve in the factory, so no locale list is threaded in.
+      expect(
+        content,
+        contains(
+          '        fun previewFromJson(obj: org.json.JSONObject?): '
+          'PreviewContactJsonData? {',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'hwResolveLocalized(hwLocales, mapOf("en" to "Ada", "de" to "Ada"), '
+          '"en")',
+        ),
+      );
+    });
+
     test('a timed value previews out of the resolved entry', () async {
       final content = await generate(
         _spec(

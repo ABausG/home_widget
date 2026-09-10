@@ -591,12 +591,9 @@ class DartHelperGenerator {
     buffer.writeln('    );');
     buffer.writeln('  }');
 
-    if (spec.data.android != null || spec.data.iOS != null) {
-      buffer.writeln();
-      _writeUpdatePreview(buffer, androidNameArg, iosName);
-    }
-
     if (spec.data.android != null) {
+      buffer.writeln();
+      _writeUpdatePreview(buffer, androidNameArg);
       buffer.writeln();
       _writePinHelpers(buffer, androidNameArg);
     }
@@ -801,14 +798,9 @@ class DartHelperGenerator {
 
   /// Emits the helper re-rendering the widget's entry in the gallery.
   ///
-  /// Names the widget exactly like `updateWidget`, since the launcher and
-  /// WidgetKit look the preview up by the same identifiers.
-  void _writeUpdatePreview(
-    StringBuffer buffer,
-    String androidNameArg,
-    String? iosName,
-  ) {
-    final iosNameArg = iosName == null ? '' : "\n      iOSName: '$iosName',";
+  /// Emitted only for specs with an Android configuration: re-rendering a
+  /// gallery preview is an Android feature, and WidgetKit renders its own.
+  void _writeUpdatePreview(StringBuffer buffer, String androidNameArg) {
     buffer.write('''
   /// Asks the launcher to re-render this widget's gallery preview.
   ///
@@ -818,7 +810,7 @@ class DartHelperGenerator {
   /// needed after data changes that should show in the gallery right away.
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
-      $androidNameArg,$iosNameArg
+      $androidNameArg,
     ) ?? false;
   }
 ''');

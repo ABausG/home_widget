@@ -68,7 +68,6 @@ class LocalizedGreetingHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'LocalizedGreetingHomeWidgetReceiver',
-      iOSName: 'LocalizedGreetingHomeWidget',
     ) ?? false;
   }
 

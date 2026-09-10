@@ -11,6 +11,8 @@ import kotlin.reflect.KClass
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Registers the previews the launcher shows for a Widget in its gallery.
@@ -29,10 +31,16 @@ import kotlinx.coroutines.launch
  * therefore only pushes a preview when the receiver's
  * [HomeWidgetGlanceWidgetReceiver.previewFingerprint] differs from the one that was stored the last
  * time a preview was accepted, or when the system holds no preview for the Widget any more.
+ *
+ * [registerAll] runs on every Flutter engine attach and an app can hold several engines at once, so
+ * both entry points are serialized process-wide: a sweep that starts while another one is running
+ * waits and then sees the fingerprints that one stored, instead of pushing the same preview twice.
  */
 object HomeWidgetPreviews {
   private const val TAG = "HomeWidgetPreviews"
   private const val PREFERENCES = "HomeWidgetPreviews"
+
+  private val mutex = Mutex()
 
   /**
    * A [SharedPreferences] that holds nothing and cannot be written to.
@@ -73,6 +81,8 @@ object HomeWidgetPreviews {
   /**
    * Asks the system to re-render the gallery preview of [receiverClass].
    *
+   * Suspends until a [registerAll] sweep or another update that is already running has finished.
+   *
    * Returns `false` below Android 15, when [receiverClass] is not a `GlanceAppWidgetReceiver`, and
    * when the system rate limit was hit; `true` when the preview was accepted.
    */
@@ -83,16 +93,29 @@ object HomeWidgetPreviews {
     if (!GlanceAppWidgetReceiver::class.java.isAssignableFrom(receiverClass)) {
       return false
     }
+    val receiver = receiverClass.getDeclaredConstructor().newInstance()
+    val fingerprint = (receiver as? HomeWidgetGlanceWidgetReceiver<*>)?.previewFingerprint(context)
+    return mutex.withLock { updateLocked(context, receiverClass, fingerprint) }
+  }
+
+  /**
+   * Pushes the preview of [receiverClass] and, once the system accepted it, stores [fingerprint] as
+   * the state that preview was rendered from.
+   *
+   * The caller holds [mutex] and has already checked the API level and the receiver type.
+   */
+  private suspend fun updateLocked(
+      context: Context,
+      receiverClass: Class<*>,
+      fingerprint: String?,
+  ): Boolean {
     @Suppress("UNCHECKED_CAST")
     val receiverKClass = receiverClass.kotlin as KClass<out GlanceAppWidgetReceiver>
     val result = GlanceAppWidgetManager(context).setWidgetPreviews(receiverKClass)
     if (result != GlanceAppWidgetManager.SET_WIDGET_PREVIEWS_RESULT_SUCCESS) {
       return false
     }
-    val receiver = receiverClass.getDeclaredConstructor().newInstance()
-    if (receiver is HomeWidgetGlanceWidgetReceiver<*>) {
-      storeFingerprint(context, receiverClass.name, receiver.previewFingerprint(context))
-    }
+    storeFingerprint(context, receiverClass.name, fingerprint)
     return true
   }
 
@@ -104,7 +127,8 @@ object HomeWidgetPreviews {
    * [HomeWidgetGlanceWidgetReceiver.previewFingerprint] is `null` or unchanged are skipped, so an
    * app that renders the same preview on every start does not spend its rate limit. An app update
    * or a reboot can make the system drop a preview it accepted, so a Widget the system reports no
-   * preview for is registered again regardless.
+   * preview for is registered again regardless. A sweep waits for a sweep that is already running,
+   * so the Widgets it registered are skipped rather than registered a second time.
    */
   fun registerAll(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
@@ -112,34 +136,36 @@ object HomeWidgetPreviews {
     }
     val applicationContext = context.applicationContext
     CoroutineScope(Dispatchers.Default).launch {
-      val providers =
+      mutex.withLock {
+        val providers =
+            try {
+              AppWidgetManager.getInstance(applicationContext)
+                  .getInstalledProvidersForPackage(applicationContext.packageName, null)
+            } catch (e: Exception) {
+              Log.w(TAG, "Failed to list the installed Widget providers", e)
+              return@launch
+            }
+        for (provider in providers) {
+          val className = provider.provider.className
           try {
-            AppWidgetManager.getInstance(applicationContext)
-                .getInstalledProvidersForPackage(applicationContext.packageName, null)
+            val receiverClass = Class.forName(className)
+            if (!HomeWidgetGlanceWidgetReceiver::class.java.isAssignableFrom(receiverClass)) {
+              continue
+            }
+            val receiver =
+                receiverClass.getDeclaredConstructor().newInstance()
+                    as HomeWidgetGlanceWidgetReceiver<*>
+            val fingerprint = receiver.previewFingerprint(applicationContext) ?: continue
+            if (
+                provider.generatedPreviewCategories != 0 &&
+                    fingerprint == loadFingerprint(applicationContext, className)
+            ) {
+              continue
+            }
+            updateLocked(applicationContext, receiverClass, fingerprint)
           } catch (e: Exception) {
-            Log.w(TAG, "Failed to list the installed Widget providers", e)
-            return@launch
+            Log.w(TAG, "Failed to update the preview of $className", e)
           }
-      for (provider in providers) {
-        val className = provider.provider.className
-        try {
-          val receiverClass = Class.forName(className)
-          if (!HomeWidgetGlanceWidgetReceiver::class.java.isAssignableFrom(receiverClass)) {
-            continue
-          }
-          val receiver =
-              receiverClass.getDeclaredConstructor().newInstance()
-                  as HomeWidgetGlanceWidgetReceiver<*>
-          val fingerprint = receiver.previewFingerprint(applicationContext) ?: continue
-          if (
-              provider.generatedPreviewCategories != 0 &&
-                  fingerprint == loadFingerprint(applicationContext, className)
-          ) {
-            continue
-          }
-          update(applicationContext, receiverClass)
-        } catch (e: Exception) {
-          Log.w(TAG, "Failed to update the preview of $className", e)
         }
       }
     }

@@ -24,7 +24,6 @@ class BasicCreationHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'BasicCreationHomeWidgetReceiver',
-      iOSName: 'BasicCreationHomeWidget',
     ) ?? false;
   }
 

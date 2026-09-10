@@ -55,7 +55,6 @@ class ConditionalStatusHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'ConditionalStatusHomeWidgetReceiver',
-      iOSName: 'ConditionalStatusHomeWidget',
     ) ?? false;
   }
 

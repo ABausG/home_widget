@@ -83,9 +83,10 @@ class HomeWidget {
   /// twice per hour and Widget), below Android 15, and when the resolved
   /// provider is not a Glance Widget.
   ///
-  /// On iOS this does nothing and returns `false`. WidgetKit renders the
-  /// gallery preview itself by calling the Widget's `getSnapshot` with
-  /// `context.isPreview` set, so there is no preview for the plugin to push.
+  /// On iOS this does nothing and returns `false`, whatever it is passed:
+  /// WidgetKit renders the gallery preview itself by calling the Widget's
+  /// `getSnapshot` with `context.isPreview` set, so there is no preview for the
+  /// plugin to push and no iOS Widget to name.
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
   ///
@@ -98,13 +99,11 @@ class HomeWidget {
   static Future<bool?> updateWidgetPreview({
     String? name,
     String? androidName,
-    String? iOSName,
     String? qualifiedAndroidName,
   }) {
     return _channel.invokeMethod('updateWidgetPreview', {
       'name': name,
       'android': androidName,
-      'ios': iOSName,
       'qualifiedAndroidName': qualifiedAndroidName,
     });
   }

@@ -196,6 +196,14 @@ void main() {
       });
     });
 
+    testWidgets('Update Widget Preview returns false', (tester) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        name: 'HomeWidgetExample',
+      ).timeout(const Duration(seconds: 5));
+
+      expect(returnValue, false);
+    });
+
     group('Initially Launched', () {
       testWidgets(
         'Initially Launched completes and returns null if not launched from widget',

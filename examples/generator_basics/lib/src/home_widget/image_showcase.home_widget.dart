@@ -185,7 +185,6 @@ class ImageShowcaseHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'ImageShowcaseHomeWidgetReceiver',
-      iOSName: 'ImageShowcaseHomeWidget',
     ) ?? false;
   }
 

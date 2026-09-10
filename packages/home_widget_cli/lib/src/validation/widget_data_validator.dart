@@ -703,12 +703,7 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
       );
     }
 
-    // Two spellings of the same package asset (`package:` vs a manual
-    // `packages/<pkg>/` path) derive the same key and are compatible, so they
-    // were already merged above; [_validateImageKeys] gives the more specific
-    // diagnostic for genuine image key collisions. What is left here is a key
-    // given two different previewAssets, which the message below names.
-
+    // Left over: two declarations of one key that describe different fields.
     throw GeneratorError(
       'Widget "${spec.data.name}": the key "${field.key}" is declared as '
       '${_describeDataField(existing)} and ${_describeDataField(field)}. '
@@ -771,30 +766,15 @@ bool _sameTranslations(Map<String, String> a, Map<String, String> b) {
 /// const constructor an annotation could carry; a typo there would otherwise
 /// silently render the preview without a date.
 void _validatePreviewDates(WidgetSpec spec) {
-  for (final field in spec.dataFields) {
-    for (final leaf in _dataLeaves(field)) {
-      if (leaf is! HWDateTime) continue;
-      final iso = leaf.previewIso;
-      if (iso == null || leaf.previewDateTime != null) continue;
-      throw GeneratorError(
-        'Widget "${spec.data.name}": HWDateTime("${leaf.key}") has previewValue '
-        '"$iso", which is not an ISO 8601 date. Write the instant as e.g. '
-        '"2024-03-08T09:41:00Z".',
-      );
-    }
-  }
-}
-
-/// [field] down to the types that carry values: time-based wrappers stripped
-/// and JSON paths descended.
-Iterable<HWDataType<dynamic>> _dataLeaves(HWDataType<dynamic> field) sync* {
-  switch (field) {
-    case HWTimedData<dynamic>():
-      yield* _dataLeaves(field.data);
-    case HWJson<dynamic>():
-      yield* _dataLeaves(field.child);
-    default:
-      yield field;
+  for (final leaf in spec.dataLeaves) {
+    if (leaf is! HWDateTime) continue;
+    final iso = leaf.previewIso;
+    if (iso == null || leaf.previewDateTime != null) continue;
+    throw GeneratorError(
+      'Widget "${spec.data.name}": HWDateTime("${leaf.key}") has previewValue '
+      '"$iso", which is not an ISO 8601 date. Write the instant as e.g. '
+      '"2024-03-08T09:41:00Z".',
+    );
   }
 }
 

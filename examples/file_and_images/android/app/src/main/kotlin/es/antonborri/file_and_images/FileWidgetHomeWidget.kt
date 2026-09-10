@@ -48,16 +48,21 @@ class FileWidgetHomeWidget : GlanceAppWidget() {
   private fun WidgetContent(currentState: HomeWidgetGlanceState, preview: Boolean = false) {
     val prefs = currentState.preferences
     val jsonPath = prefs.getString(FILE_JSON_KEY, null)
+    val fileText =
+        if (jsonPath != null && File(jsonPath).isFile) File(jsonPath).readText(Charsets.UTF_8)
+        else null
+    val parsedName = fileText?.let {
+      try {
+        JSONObject(it).optString("name", "World").ifEmpty { "World" }
+      } catch (_: Exception) {
+        null
+      }
+    }
     val jsonString: String
     val name: String
-    if (jsonPath != null && File(jsonPath).isFile) {
-      jsonString = File(jsonPath).readText(Charsets.UTF_8)
-      name =
-          try {
-            JSONObject(jsonString).optString("name", "World").ifEmpty { "World" }
-          } catch (_: Exception) {
-            "World"
-          }
+    if (fileText != null && (parsedName != null || !preview)) {
+      jsonString = fileText
+      name = parsedName ?: "World"
     } else if (preview) {
       jsonString = PREVIEW_JSON
       name = "Preview"

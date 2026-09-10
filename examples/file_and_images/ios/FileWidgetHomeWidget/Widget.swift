@@ -47,11 +47,12 @@ struct Provider: TimelineProvider {
       return ("World", defaultJson, false)
     }
 
+    guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      return ("World", json, false)
+    }
+
     var name = "World"
-    if let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-      let n = obj["name"] as? String,
-      !n.isEmpty
-    {
+    if let n = obj["name"] as? String, !n.isEmpty {
       name = n
     }
 

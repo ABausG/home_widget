@@ -94,11 +94,8 @@ sealed class HWDataType<T> {
   String? codegenSwiftPreviewLiteral() => null; // coverage:ignore-line
 
   /// Kotlin literal a generated read falls back on when the store holds
-  /// nothing, or null when this type has none.
-  ///
-  /// [codegenKotlinPreviewLiteral] in a [preview] that has one, and
-  /// [codegenKotlinDefaultLiteral] otherwise, so one flag switches every read
-  /// between the widget and the gallery.
+  /// nothing: [codegenKotlinPreviewLiteral] in a [preview] that has one,
+  /// [codegenKotlinDefaultLiteral] otherwise, and null when there is neither.
   String? codegenKotlinFallbackLiteral({bool preview = false}) =>
       (preview ? codegenKotlinPreviewLiteral() : null) ??
       codegenKotlinDefaultLiteral();
@@ -932,9 +929,8 @@ class HWBool extends HWDataType<bool> {
 class HWDateTime extends HWDataType<DateTime> {
   /// The `previewValue` argument exactly as written, unparsed.
   ///
-  /// Named apart from [previewValue] because that one is the [DateTime] the
-  /// base class types it as; this is the text it was spelled with, which the
-  /// CLI validator rejects when it does not parse.
+  /// [previewValue] is this text parsed; the CLI validator rejects a spelling
+  /// that does not parse.
   final String? previewIso;
 
   const HWDateTime(super.key, {String? previewValue})
@@ -969,8 +965,8 @@ class HWDateTime extends HWDataType<DateTime> {
   /// otherwise.
   ///
   /// A date is read through the same parse everywhere it is stored, so the
-  /// fallback is the string the app would have written rather than the native
-  /// `Date` literal [codegenKotlinPreviewLiteral] builds for a data-class field.
+  /// fallback is the string the app would have written rather than a native
+  /// `Date` literal.
   String _isoFallback({required bool preview}) =>
       preview ? previewIso ?? '' : '';
 
@@ -1093,26 +1089,6 @@ class HWDateTime extends HWDataType<DateTime> {
   }) =>
       androidJsonReadValue(objExpr: valuesExpr, key: key, preview: preview);
 
-  /// The generated data class holds a `java.util.Date`, so the preview is one
-  /// too rather than the ISO string it was written as.
-  @override
-  String? codegenKotlinPreviewLiteral() {
-    final date = previewDateTime;
-    return date == null
-        ? null
-        : 'java.util.Date(${date.millisecondsSinceEpoch}L)';
-  }
-
-  /// Swift counterpart of [codegenKotlinPreviewLiteral].
-  @override
-  String? codegenSwiftPreviewLiteral() {
-    final date = previewDateTime;
-    return date == null
-        ? null
-        : 'Date(timeIntervalSince1970: '
-            '${date.millisecondsSinceEpoch / 1000})';
-  }
-
   /// Compared on [previewIso] rather than the parsed instant, so two different
   /// unparseable spellings stay in conflict instead of both reading as unset.
   @override
@@ -1211,10 +1187,6 @@ class HWImageData extends HWDataType<String> {
     return 'packages/$package/$path';
   }
 
-  /// The full asset key Flutter resolves [previewAsset] with, or null when
-  /// there is none.
-  String? get previewAssetKey => previewAsset;
-
   @override
   String get key => assetPath == null
       ? super.key
@@ -1296,7 +1268,7 @@ class HWImageData extends HWDataType<String> {
     return read;
   }
 
-  /// The Kotlin fallback is [previewAssetKey] itself: a stored image is an
+  /// The Kotlin fallback is [previewAsset] itself: a stored image is an
   /// absolute file path, and the generated decoder reads anything else as an
   /// asset key.
   ///
@@ -1304,15 +1276,15 @@ class HWImageData extends HWDataType<String> {
   /// nothing — and an asset image needs none, as it names its own asset.
   @override
   String? codegenKotlinFallbackLiteral({bool preview = false}) {
-    final asset = preview ? previewAssetKey : null;
+    final asset = preview ? previewAsset : null;
     return asset == null ? null : '"${escapeKotlinStringLiteral(asset)}"';
   }
 
-  /// The Swift fallback resolves [previewAssetKey] to an absolute bundle path,
-  /// so the value reaching the decoder is the same shape a stored image has.
+  /// The Swift fallback resolves [previewAsset] to an absolute bundle path, so
+  /// the value reaching the decoder is the same shape a stored image has.
   @override
   String? codegenSwiftFallbackLiteral({bool preview = false}) {
-    final asset = preview ? previewAssetKey : null;
+    final asset = preview ? previewAsset : null;
     if (asset == null) return null;
     return '$swiftFlutterAssetFunction("${escapeSwiftStringLiteral(asset)}")';
   }
@@ -1425,8 +1397,8 @@ class HWJson<T> extends HWDataType<T> {
   @override
   List<HWNativeHelper> get nativeHelpers => child.nativeHelpers;
 
-  /// The group travels as one encoded string with no fallback of its own; the
-  /// leaf's preview is applied where that string is decoded.
+  /// The group travels as one encoded string; the leaf's preview applies where
+  /// that string is decoded.
   @override
   String androidReadValue({
     required String store,

@@ -137,7 +137,6 @@ class ForecastHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'ForecastHomeWidgetReceiver',
-      iOSName: 'ForecastHomeWidget',
     ) ?? false;
   }
 

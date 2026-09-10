@@ -58,9 +58,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWText.number(
         HWDouble('total', defaultValue: 0, previewValue: 1234.5),
         format: HWNumberFormat.currency(
-          currency: HWCurrency.data(
-            HWString('currency', defaultValue: 'EUR', previewValue: 'EUR'),
-          ),
+          currency: HWCurrency.data(HWString('currency', defaultValue: 'EUR')),
         ),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,
@@ -88,7 +86,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             HWDateTime('deliveryAt', previewValue: '2026-09-09T13:00:00Z'),
             format: HWDateFormat.jm,
             timeZone: HWTimeZone.data(
-              HWString('deliveryZone', defaultValue: '', previewValue: ''),
+              HWString('deliveryZone', defaultValue: ''),
             ),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),

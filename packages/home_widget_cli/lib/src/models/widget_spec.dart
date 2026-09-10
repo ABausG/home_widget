@@ -72,9 +72,8 @@ class JsonImageField {
 
 /// Separator between the parts [WidgetSpec.previewContentHash] digests.
 ///
-/// Spelled through [String.fromCharCode] rather than written out, so this
-/// source file carries no control character of its own. Do not change it: the
-/// digest it produces is what decides whether a launcher re-renders a preview.
+/// Do not change it: the digest it produces is what decides whether a launcher
+/// re-renders a preview.
 final String _hashSeparator = String.fromCharCode(31);
 
 /// Specification for a home widget.
@@ -106,12 +105,9 @@ class WidgetSpec {
   /// [declaredDataFields] with every compatible re-declaration of a key folded
   /// into a single field, in first-seen order.
   ///
-  /// One key is routinely declared in several places in the widget tree — a
-  /// `defaultValue` written at one node and a `previewValue` at another — and
-  /// the generators need the one field carrying both. Declarations that are
-  /// not [HWDataType.isCompatibleWith] each other stay separate entries, the
-  /// way they arrive; `validateWidgetData` rejects such a spec before any
-  /// generator sees it, with a message naming both.
+  /// Declarations that are not [HWDataType.isCompatibleWith] each other stay
+  /// separate entries; `validateWidgetData` rejects such a spec before any
+  /// generator sees it.
   List<HWDataType<dynamic>> get dataFields {
     final merged = <HWDataType<dynamic>>[];
     for (final field in declaredDataFields) {
@@ -351,7 +347,7 @@ class WidgetSpec {
 
   /// Whether any field ships a value the gallery preview shows in place of
   /// stored data, wherever it is declared.
-  bool get hasPreviewValues => _previewLeaves.any(_hasPreviewValue);
+  bool get hasPreviewValues => dataLeaves.any(_hasPreviewValue);
 
   /// Runtime images previewing through a Flutter asset, wherever they are
   /// declared.
@@ -359,7 +355,7 @@ class WidgetSpec {
   /// Validated like [assetImageFields] and read by the native generators to
   /// bundle the preview image.
   List<HWImageData> get previewAssetImageFields => [
-        for (final leaf in _previewLeaves)
+        for (final leaf in dataLeaves)
           if (leaf case final HWImageData image)
             if (image.previewAsset != null) image,
       ];
@@ -389,9 +385,9 @@ class WidgetSpec {
     return digest.toRadixString(16).padLeft(8, '0');
   }
 
-  /// Every data field down to its leaf: time-based wrappers stripped and JSON
-  /// paths descended, since a preview value can sit at any of those.
-  Iterable<HWDataType<dynamic>> get _previewLeaves sync* {
+  /// Every data field down to the type that carries values: time-based wrappers
+  /// stripped and JSON paths descended.
+  Iterable<HWDataType<dynamic>> get dataLeaves sync* {
     for (final field in dataFields) {
       yield* _leavesOf(field);
     }

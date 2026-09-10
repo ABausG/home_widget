@@ -75,7 +75,8 @@ void main() {
         );
       });
 
-      test('an image field is checked on disk, not just for a stored path', () {
+      test('an absolute image path is checked on disk, an asset key is not',
+          () {
         const imageExists = HWDataExists(
           data: HWImageData('avatar'),
           whenPresent: HWText.fixed('Present'),
@@ -89,28 +90,13 @@ void main() {
             'FileManager.default.fileExists(atPath: hwImagePath) {',
           ),
         );
+        // An empty string is not an asset key, so it never counts as present.
         expect(
           imageExists.toKotlin(0, dataExpr: 'widgetData'),
           startsWith(
             'if (widgetData.avatar?.let '
-            '{ !it.startsWith("/") || java.io.File(it).exists() } '
-            '== true) {',
-          ),
-        );
-      });
-
-      test('an asset key counts as present without a disk check', () {
-        const previewImage = HWDataExists(
-          data: HWImageData('picture', previewAsset: 'assets/dash.png'),
-          whenPresent: HWText.fixed('Present'),
-          whenAbsent: HWText.fixed('Absent'),
-        );
-
-        expect(
-          previewImage.toKotlin(0, dataExpr: 'widgetData'),
-          startsWith(
-            'if (widgetData.picture?.let '
-            '{ !it.startsWith("/") || java.io.File(it).exists() } '
+            '{ it.isNotEmpty() && '
+            '(!it.startsWith("/") || java.io.File(it).exists()) } '
             '== true) {',
           ),
         );
@@ -134,7 +120,8 @@ void main() {
           timedJsonImage.toKotlin(0, dataExpr: 'widgetData'),
           startsWith(
             'if (widgetData.slot?.picture?.let '
-            '{ !it.startsWith("/") || java.io.File(it).exists() } '
+            '{ it.isNotEmpty() && '
+            '(!it.startsWith("/") || java.io.File(it).exists()) } '
             '== true) {',
           ),
         );

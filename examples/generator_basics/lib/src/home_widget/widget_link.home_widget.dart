@@ -26,7 +26,6 @@ class WidgetLinkHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'WidgetLinkHomeWidgetReceiver',
-      iOSName: 'WidgetLinkHomeWidget',
     ) ?? false;
   }
 

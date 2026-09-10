@@ -348,7 +348,6 @@ void main() {
       await HomeWidget.updateWidgetPreview(
         name: 'name',
         androidName: 'androidName',
-        iOSName: 'iOSName',
         qualifiedAndroidName: 'com.example.androidName',
       ),
       true,
@@ -358,7 +357,7 @@ void main() {
 
     expect(arguments['name'], 'name');
     expect(arguments['android'], 'androidName');
-    expect(arguments['ios'], 'iOSName');
+    expect(arguments.containsKey('ios'), false);
     expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
   });
 

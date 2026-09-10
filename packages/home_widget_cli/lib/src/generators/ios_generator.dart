@@ -339,8 +339,10 @@ $loadDataLogic
         widgetUrl: spec.iosWidgetUrl == null
             ? null
             : escapeSwiftStringLiteral(spec.iosWidgetUrl!),
-        // The redacted placeholder shows the same sample data as the gallery
-        // preview, and never the stored data.
+        // The redacted placeholder is built from the same sample data as the
+        // gallery preview, with no store to read at build time. A widget that
+        // re-resolves at render still re-reads there, so with live preview data
+        // on it can end up showing the stored values.
         placeholderBody: hasDataFields
             ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data'
                 '.$previewFactory(nil)'
@@ -869,11 +871,24 @@ ${arguments.map((argument) => '      $argument,\n').join()}    )
     // The conditional cast already yields nil when the value is absent or of
     // another type; coalescing that to nil again is a Swift warning.
     final fallback = preview
-        ? leaf.codegenSwiftFallbackLiteral(preview: true)
+        ? leaf is HWLocalizedString
+            ? _swiftPreviewLocalizedFallback(leaf)
+            : leaf.codegenSwiftFallbackLiteral(preview: true)
         : leaf.defaultValue == null
             ? null
             : _swiftDefaultLiteral(leaf);
     return fallback == null ? read : '($read) ?? $fallback';
+  }
+
+  /// The preview fallback of a localized JSON leaf: its preview translations
+  /// resolved against the reader's locales, or null without them, which sends
+  /// the render site to the shipped translations rather than to one locale's
+  /// text.
+  String? _swiftPreviewLocalizedFallback(HWLocalizedString leaf) {
+    final values = leaf.swiftPreviewMapLiteral;
+    if (values == null) return null;
+    final base = escapeSwiftStringLiteral(leaf.previewBaseLocaleTag!);
+    return 'hwResolveLocalized(hwCurrentLocales(), $values, baseLocale: "$base")';
   }
 
   void _writeSwiftJsonNodeStruct({

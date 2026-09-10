@@ -296,7 +296,6 @@ void main() {
           'static Future<bool> updatePreview() async {\n'
           '    return await HomeWidget.updateWidgetPreview(\n'
           "      qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver',\n"
-          "      iOSName: 'ExampleWidgetHomeWidget',\n"
           '    ) ?? false;\n'
           '  }',
         ),
@@ -316,6 +315,7 @@ void main() {
       final spec = WidgetSpec(
         data: HomeWidget(
           name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(),
           iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
         ),
         className: 'ExampleWidget',
@@ -330,19 +330,42 @@ void main() {
       );
     });
 
-    test('updatePreview names no iOS widget without an iOS configuration', () {
+    test('updatePreview never names an iOS widget', () {
       final spec = WidgetSpec(
         data: HomeWidget(
           name: 'ExampleWidget',
           android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+      final call = output.substring(
+        output.indexOf('HomeWidget.updateWidgetPreview('),
+      );
+
+      // `updateWidget` right above it does name one, so only the preview call
+      // is read here.
+      expect(
+        call.substring(0, call.indexOf(');')),
+        isNot(contains('iOSName:')),
+      );
+    });
+
+    test('no updatePreview for an iOS-only widget', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
         ),
         className: 'ExampleWidget',
       );
 
       final output = DartHelperGenerator(spec).generate();
 
-      expect(output, contains('HomeWidget.updateWidgetPreview('));
-      expect(output, isNot(contains('iOSName:')));
+      expect(output, contains('static Future<bool?> updateWidget() {'));
+      expect(output, isNot(contains('updatePreview')));
     });
 
     test('no updatePreview without any platform configuration', () {

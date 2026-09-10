@@ -55,7 +55,6 @@ class SimpleDataHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'SimpleDataHomeWidgetReceiver',
-      iOSName: 'SimpleDataHomeWidget',
     ) ?? false;
   }
 

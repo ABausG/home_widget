@@ -39,6 +39,7 @@ void main() {
         ),
         className: 'ExampleWidget',
         dataFields: dataFields,
+        widgetTree: widget,
       );
 
   const prefsExpr =
@@ -470,6 +471,83 @@ void main() {
         contains(
           '      inner: ExampleWidgetStatsJsonDataInner.fromJson('
           'values["inner"] as? [String: Any]),\n',
+        ),
+      );
+    });
+
+    test('resolves a localized leaf against the reader locales', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWJson(
+              'stats',
+              HWString.localized(
+                'city',
+                defaultTranslations: {'en': 'Berlin', 'de': 'Berlin'},
+                previewTranslations: {'en': 'Sample', 'de': 'Beispiel'},
+              ),
+            ),
+          ],
+        ),
+      );
+
+      // The preview twin resolves the preview translations rather than
+      // collapsing them to the base locale's text...
+      expect(
+        content,
+        contains(
+          '      city: (values["city"] as? String) ?? hwResolveLocalized('
+          'hwCurrentLocales(), ["en": "Sample", "de": "Beispiel"], '
+          'baseLocale: "en"),\n',
+        ),
+      );
+      // ...while the shipped factory keeps reading the stored value alone.
+      expect(
+        content,
+        contains('      city: values["city"] as? String,\n'),
+      );
+    });
+
+    test('leaves a localized leaf without preview translations nil', () async {
+      const widget = HWColumn(
+        children: [
+          HWText(
+            HWJson(
+              'stats',
+              HWString.localized(
+                'city',
+                defaultTranslations: {'en': 'Berlin', 'de': 'Berlin'},
+              ),
+            ),
+          ),
+          HWText(HWString('label', previewValue: 'Sample')),
+        ],
+      );
+      final content = await generate(
+        specOf(
+          dataFields: widget.dataDependencies.toList(),
+          widget: widget,
+        ),
+      );
+
+      // Nil, not the base locale's text: the render site's own chain resolves
+      // the shipped translations against the reader's locales.
+      expect(
+        content,
+        contains('''
+  static func previewFromJson(_ json: [String: Any]?) -> ExampleWidgetStatsJsonData? {
+    let values = json ?? [:]
+    return ExampleWidgetStatsJsonData(
+      city: values["city"] as? String,
+    )
+  }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          'Text(((data.stats?.city) ?? hwResolveLocalized(hwCurrentLocales(), '
+          '["en": "Berlin", "de": "Berlin"], baseLocale: "en") ?? "Berlin"))',
         ),
       );
     });

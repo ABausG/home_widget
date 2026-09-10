@@ -7,6 +7,8 @@
 /// fast, offline lookup without relying on network access at runtime.
 library;
 
+import 'gradle_utils.dart';
+
 /// Kotlin version -> *latest* compatible Compose compiler version, derived from
 /// the table above (when multiple Compose compiler versions map to the same
 /// Kotlin version, we pick the highest Compose compiler version).
@@ -129,21 +131,21 @@ String? composeCompilerForKotlin(String kotlinVersion) {
   final exact = kotlinToComposeCompiler[normalized];
   if (exact != null) return exact;
 
-  final target = _parseVersion3(normalized);
+  final target = parseDottedVersion3(normalized);
   if (target == null) return null;
 
   String? bestKotlin;
   for (final k in kotlinToComposeCompiler.keys) {
-    final kv = _parseVersion3(k);
+    final kv = parseDottedVersion3(k);
     if (kv == null) continue;
     if (kv.$1 != target.$1 || kv.$2 != target.$2) continue; // require same x.y
     // pick the highest kv <= target
-    if (_compareVersion3(kv, target) <= 0) {
+    if (compareDottedVersion3(kv, target) <= 0) {
       if (bestKotlin == null) {
         bestKotlin = k;
       } else {
-        final bestV = _parseVersion3(bestKotlin);
-        if (bestV != null && _compareVersion3(kv, bestV) > 0) {
+        final bestV = parseDottedVersion3(bestKotlin);
+        if (bestV != null && compareDottedVersion3(kv, bestV) > 0) {
           bestKotlin = k;
         }
       }
@@ -156,26 +158,9 @@ String? composeCompilerForKotlin(String kotlinVersion) {
 
 // --- internal helpers ---
 
+/// [input] reduced to `x.y.z`, dropping any suffix like `-RC` / `-betaXX`.
 String? _normalizeVersion3(String input) {
-  // Strip whitespace and any suffix like `-RC` / `-betaXX` / `+...`.
-  final trimmed = input.trim();
-  final m = RegExp(r'^(\d+)\.(\d+)\.(\d+)').firstMatch(trimmed);
-  if (m == null) return null;
-  return '${m.group(1)}.${m.group(2)}.${m.group(3)}';
-}
-
-(int, int, int)? _parseVersion3(String v) {
-  final m = RegExp(r'^(\d+)\.(\d+)\.(\d+)$').firstMatch(v);
-  if (m == null) return null;
-  return (
-    int.parse(m.group(1)!),
-    int.parse(m.group(2)!),
-    int.parse(m.group(3)!)
-  );
-}
-
-int _compareVersion3((int, int, int) a, (int, int, int) b) {
-  if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
-  if (a.$2 != b.$2) return a.$2.compareTo(b.$2);
-  return a.$3.compareTo(b.$3);
+  final parsed = parseDottedVersion3(input, allowSuffix: true);
+  if (parsed == null) return null;
+  return '${parsed.$1}.${parsed.$2}.${parsed.$3}';
 }

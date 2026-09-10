@@ -90,7 +90,6 @@ class NumberDateFormattingHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'NumberDateFormattingHomeWidgetReceiver',
-      iOSName: 'NumberDateFormattingHomeWidget',
     ) ?? false;
   }
 

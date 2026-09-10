@@ -515,21 +515,7 @@ void main() {
       const bad = HWDateTime('when', previewValue: 'tomorrow');
       expect(bad.previewIso, 'tomorrow');
       expect(bad.previewDateTime, isNull);
-      expect(bad.codegenKotlinPreviewLiteral(), isNull);
-      expect(bad.codegenSwiftPreviewLiteral(), isNull);
-    });
-
-    test('emits the literal in the type the data class field has', () {
-      expect(
-        type.codegenKotlinPreviewLiteral(),
-        'java.util.Date(1609459200000L)',
-      );
-      expect(
-        type.codegenSwiftPreviewLiteral(),
-        'Date(timeIntervalSince1970: 1609459200.0)',
-      );
-      expect(const HWDateTime('when').codegenKotlinPreviewLiteral(), isNull);
-      expect(const HWDateTime('when').codegenSwiftPreviewLiteral(), isNull);
+      expect(bad.previewValue, isNull);
     });
 
     test('equality is on the written text, not the parsed instant', () {
@@ -681,17 +667,23 @@ void main() {
     test('a runtime image takes one, an asset image does not', () {
       const runtime = HWImageData('avatar', previewAsset: 'assets/sample.png');
       expect(runtime.previewAsset, 'assets/sample.png');
-      expect(runtime.previewAssetKey, 'assets/sample.png');
-      expect(const HWImageData('avatar').previewAssetKey, isNull);
+      expect(const HWImageData('avatar').previewAsset, isNull);
       expect(const HWImageData.asset('assets/logo.png').previewAsset, isNull);
     });
 
-    test('a packages/ prefix is kept as written', () {
+    test('a packages/ prefix reaches the generated code as written', () {
       const type = HWImageData(
         'avatar',
         previewAsset: 'packages/my_icons/assets/sample.png',
       );
-      expect(type.previewAssetKey, 'packages/my_icons/assets/sample.png');
+      expect(
+        type.codegenKotlinFallbackLiteral(preview: true),
+        '"packages/my_icons/assets/sample.png"',
+      );
+      expect(
+        type.codegenSwiftFallbackLiteral(preview: true),
+        'flutterAssetPath("packages/my_icons/assets/sample.png")',
+      );
     });
 
     test('the preview asset participates in equality and hashCode', () {

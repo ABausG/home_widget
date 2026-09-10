@@ -301,7 +301,6 @@ class _FileWidgetState extends State<FileWidget> {
     try {
       final updated = await HomeWidget.updateWidgetPreview(
         androidName: 'FileWidgetHomeWidgetReceiver',
-        iOSName: 'FileWidgetHomeWidget',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(

@@ -60,7 +60,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         NumberDateFormattingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "9156e38e",
+            "f25b9238",
             ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
             hwPreviewData.toString(),
         )

@@ -9,6 +9,11 @@ void main() {
       expect(composeCompilerForKotlin('1.9.22'), '1.5.10');
     });
 
+    test('ignores a pre-release suffix', () {
+      expect(composeCompilerForKotlin('1.9.25-RC'), '1.5.15');
+      expect(composeCompilerForKotlin('1.9.24-rc1'), '1.5.14');
+    });
+
     test('falls back to closest lower patch within same major/minor', () {
       // Not currently in table; should fall back to 1.9.25.
       expect(composeCompilerForKotlin('1.9.26'), '1.5.15');

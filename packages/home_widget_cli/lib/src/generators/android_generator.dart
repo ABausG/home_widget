@@ -48,6 +48,11 @@ class AndroidGenerator {
     // emit Kotlin that does not compile.
     final needsLocaleArg = spec.resolvesLocalizedOnRead;
     final needsResolver = spec.needsLocaleHelpers;
+    // A preview resolves the JSON leaves that ship preview translations itself,
+    // which the plain read leaves to the render site.
+    final previewNeedsLocaleArg = needsLocaleArg ||
+        (spec.hasPreviewValues &&
+            [...jsonGroups, ...timedJsonGroups].any(_previewResolvesLocalized));
 
     final nativeHelpers = spec.nativeHelpers;
 
@@ -158,6 +163,8 @@ class AndroidGenerator {
           className: jsonClass,
           node: tree,
           isRoot: true,
+          previewNeedsLocales:
+              spec.hasPreviewValues && _previewResolvesLocalized(group),
         );
       }
       dataClassContent = buffer.toString();
@@ -209,11 +216,12 @@ class AndroidGenerator {
     if (hasDataFields) {
       final className = '${spec.className}Data';
       final localeArg = needsLocaleArg ? ', hwLocales' : '';
+      final previewLocaleArg = previewNeedsLocaleArg ? ', hwLocales' : '';
       bodyBuffer.writeln('    val prefs = currentState.preferences');
       if (spec.hasPreviewValues) {
         bodyBuffer.writeln(
           '    val widgetData =\n'
-          '        if (preview) $className.previewFromPreferences(prefs$localeArg)\n'
+          '        if (preview) $className.previewFromPreferences(prefs$previewLocaleArg)\n'
           '        else $className.fromPreferences(prefs$localeArg)',
         );
       } else {
@@ -373,6 +381,7 @@ class AndroidGenerator {
             hasDataFields: hasDataFields,
             needsResolver: needsResolver,
             needsLocaleArg: needsLocaleArg,
+            previewNeedsLocaleArg: previewNeedsLocaleArg,
             previewPreferences: previewPreferences,
           )
         : null;
@@ -674,8 +683,8 @@ class AndroidGenerator {
   ///
   /// [preview] emits the `previewFromPreferences` twin, whose reads fall back
   /// on the shipped preview values instead of the defaults. It is a separate
-  /// function rather than a flag on the one factory so that the widget itself
-  /// carries no branch the launcher takes and it does not.
+  /// function so the widget itself carries no branch the launcher takes and it
+  /// does not.
   void _writeAndroidDataFactory({
     required StringBuffer buffer,
     required String className,
@@ -684,8 +693,13 @@ class AndroidGenerator {
     final name = preview ? 'previewFromPreferences' : 'fromPreferences';
     final fromPath = preview ? 'previewFromPath' : 'fromPath';
     final fromJson = preview ? 'previewFromJson' : 'fromJson';
-    final localeParam =
-        spec.resolvesLocalizedOnRead ? ', locales: List<String>' : '';
+    String groupLocaleArg(JsonDataGroup group) =>
+        preview && _previewResolvesLocalized(group) ? ', locales' : '';
+    final needsLocales = spec.resolvesLocalizedOnRead ||
+        (preview &&
+            [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]
+                .any(_previewResolvesLocalized));
+    final localeParam = needsLocales ? ', locales: List<String>' : '';
 
     final assignments = <String>[];
     for (final field in spec.primitiveDataFields) {
@@ -700,7 +714,8 @@ class AndroidGenerator {
       final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
       assignments.add(
         '                ${group.key} = $jsonClass.$fromPath('
-        'prefs.getString("\${PREFERENCES_PREFIX}.${group.key}", null)),',
+        'prefs.getString("\${PREFERENCES_PREFIX}.${group.key}", null)'
+        '${groupLocaleArg(group)}),',
       );
     }
     for (final field in spec.timedPrimitiveDataFields) {
@@ -731,7 +746,8 @@ class AndroidGenerator {
       final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
       assignments.add(
         '                ${group.key} = $jsonClass.$fromJson('
-        'timedValues.optJSONObject("${group.key}")),',
+        'timedValues.optJSONObject("${group.key}")'
+        '${groupLocaleArg(group)}),',
       );
     }
 
@@ -754,14 +770,14 @@ ${assignments.join('\n')}
   /// The `previewFingerprint` the generated receiver forwards to the plugin,
   /// which re-registers the gallery preview whenever it changes.
   ///
-  /// It has to cover everything the preview renders from that is not fixed at
-  /// generation time: [WidgetSpec.previewContentHash] stands for the
-  /// annotation, the locale tags for a language change, and — only where the
-  /// preview reads stored data — that data for a save.
+  /// Covers everything the preview renders from that is not fixed at generation
+  /// time: [WidgetSpec.previewContentHash] for the annotation, the locale tags
+  /// for a language change, and the stored data where the preview reads it.
   String _previewFingerprintFunction({
     required bool hasDataFields,
     required bool needsResolver,
     required bool needsLocaleArg,
+    required bool previewNeedsLocaleArg,
     required String previewPreferences,
   }) {
     final locals = <String>[];
@@ -778,9 +794,13 @@ ${assignments.join('\n')}
     }
 
     if (spec.androidUsesLiveDataInPreview && hasDataFields) {
+      final usesPreviewFactory = spec.hasPreviewValues;
       final factory =
-          spec.hasPreviewValues ? 'previewFromPreferences' : 'fromPreferences';
-      final localeArg = needsLocaleArg ? ', hwLocales' : '';
+          usesPreviewFactory ? 'previewFromPreferences' : 'fromPreferences';
+      final localeArg =
+          (usesPreviewFactory ? previewNeedsLocaleArg : needsLocaleArg)
+              ? ', hwLocales'
+              : '';
       locals.add(
         '    val hwPreviewData =\n'
         '        ${spec.className}Data.$factory($previewPreferences$localeArg)',
@@ -876,6 +896,7 @@ $listItems
     required String className,
     required _JsonPathNode node,
     required bool isRoot,
+    required bool previewNeedsLocales,
   }) {
     buffer.writeln('data class $className(');
     for (final entry in node.children.entries) {
@@ -904,6 +925,7 @@ $listItems
       node: node,
       isRoot: isRoot,
       preview: false,
+      previewNeedsLocales: previewNeedsLocales,
     );
     if (spec.hasPreviewValues) {
       buffer.writeln();
@@ -913,6 +935,7 @@ $listItems
         node: node,
         isRoot: isRoot,
         preview: true,
+        previewNeedsLocales: previewNeedsLocales,
       );
     }
     buffer.writeln('    }');
@@ -929,6 +952,7 @@ $listItems
           className: childClass,
           node: child,
           isRoot: false,
+          previewNeedsLocales: previewNeedsLocales,
         );
       }
     }
@@ -941,25 +965,33 @@ $listItems
   /// object rather than returning null when the group was never saved — which
   /// is what nested nodes already do, and what makes those leaf fallbacks reach
   /// a gallery preview at all.
+  ///
+  /// [previewNeedsLocales] threads the OS locale list through the preview twins,
+  /// which a localized leaf shipping preview translations resolves against.
   void _writeAndroidJsonFactories({
     required StringBuffer buffer,
     required String className,
     required _JsonPathNode node,
     required bool isRoot,
     required bool preview,
+    required bool previewNeedsLocales,
   }) {
     final fromPath = preview ? 'previewFromPath' : 'fromPath';
     final fromJson = preview ? 'previewFromJson' : 'fromJson';
-    final absent = preview ? '$fromJson(org.json.JSONObject())' : 'null';
+    final withLocales = preview && previewNeedsLocales;
+    final localeParam = withLocales ? ', locales: List<String>' : '';
+    final localeArg = withLocales ? ', locales' : '';
+    final absent =
+        preview ? '$fromJson(org.json.JSONObject()$localeArg)' : 'null';
 
     if (isRoot) {
       buffer.write('''
-        fun $fromPath(path: String?): $className? {
+        fun $fromPath(path: String?$localeParam): $className? {
             if (path == null) return $absent
             return try {
                 val file = java.io.File(path)
                 if (!file.exists()) return $absent
-                $fromJson(org.json.JSONObject(file.readText()))
+                $fromJson(org.json.JSONObject(file.readText())$localeArg)
             } catch (_: Exception) {
                 $absent
             }
@@ -984,7 +1016,7 @@ $listItems
         final childClass = '$className${toPascalCase(key)}';
         assignments.add(
           '                $key = $childClass.$fromJson('
-          'json.optJSONObject("$key")),',
+          'json.optJSONObject("$key")$localeArg),',
         );
       }
     }
@@ -994,7 +1026,7 @@ $listItems
         : '            val json = obj ?: org.json.JSONObject()';
 
     buffer.write('''
-        fun $fromJson(obj: org.json.JSONObject?): $className? {
+        fun $fromJson(obj: org.json.JSONObject?$localeParam): $className? {
 $json
             return $className(
 ${assignments.join('\n')}
@@ -1021,7 +1053,9 @@ ${assignments.join('\n')}
     // Only the preview goes through the shared fallback resolution; the plain
     // read keeps the literal the data class field is declared with.
     final fallback = preview
-        ? type.codegenKotlinFallbackLiteral(preview: true) ?? 'null'
+        ? type is HWLocalizedString
+            ? _kotlinPreviewLocalizedFallback(type)
+            : type.codegenKotlinFallbackLiteral(preview: true) ?? 'null'
         : _kotlinDefaultLiteral(type);
     // An image's timed value is the absolute path of the PNG that was saved for
     // that timestamp, so it reads exactly like a string.
@@ -1039,6 +1073,25 @@ ${assignments.join('\n')}
     }
     return fallback;
   }
+
+  /// The preview fallback of a localized JSON leaf: its preview translations
+  /// resolved against the reader's locales, or `null` without them, which sends
+  /// the render site to the shipped translations rather than to one locale's
+  /// text.
+  String _kotlinPreviewLocalizedFallback(HWLocalizedString leaf) {
+    final values = leaf.kotlinPreviewMapLiteral;
+    if (values == null) return 'null';
+    final base = escapeKotlinStringLiteral(leaf.previewBaseLocaleTag!);
+    return 'hwResolveLocalized(locales, $values, "$base")';
+  }
+
+  /// Whether [group] has a localized leaf whose preview translations the preview
+  /// factories resolve, and so need the locale list for.
+  static bool _previewResolvesLocalized(JsonDataGroup group) =>
+      group.children.any((child) {
+        final type = child.type;
+        return type is HWLocalizedString && type.previewTranslations != null;
+      });
 }
 
 class _JsonPathNode {

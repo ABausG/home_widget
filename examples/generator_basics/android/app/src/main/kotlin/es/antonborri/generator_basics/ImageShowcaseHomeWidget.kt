@@ -57,7 +57,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
   fun previewFingerprint(context: Context): String {
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "0efc234e",
+            "1e478d5f",
             ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
             hwPreviewData.toString(),
         )
@@ -99,7 +99,9 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
             )
           }
           if (
-              widgetData.picture?.let { !it.startsWith("/") || java.io.File(it).exists() } == true
+              widgetData.picture?.let {
+                it.isNotEmpty() && (!it.startsWith("/") || java.io.File(it).exists())
+              } == true
           ) {
             widgetData.picture
                 ?.let { path -> hwDecodeImageFile(context, path, 64.0, 64.0) }

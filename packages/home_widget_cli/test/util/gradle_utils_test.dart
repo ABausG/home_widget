@@ -220,13 +220,15 @@ dependencies {
       expect(warnings, isEmpty);
     });
 
-    test('leaves a version it cannot compare alone', () {
-      for (final version in const [
+    test('leaves a version it cannot compare alone, but says so', () {
+      const versions = [
         r'$glanceVersion',
+        r'${glance.version}',
         '1.1.0-beta01',
         '1.1',
         'latest.release',
-      ]) {
+      ];
+      for (final version in versions) {
         final input = '''
 dependencies {
     implementation("androidx.glance:glance-appwidget:$version")
@@ -243,7 +245,32 @@ dependencies {
           reason: version,
         );
       }
-      expect(warnings, isEmpty);
+
+      expect(warnings, hasLength(versions.length));
+      for (var i = 0; i < versions.length; i++) {
+        expect(warnings[i], contains(versions[i]));
+        expect(warnings[i], contains(minimumGlanceVersion));
+        expect(warnings[i], isNot(contains('Raising')));
+      }
+    });
+
+    test('warns once per file about an uncomparable pin', () {
+      const input = r'''
+dependencies {
+    implementation("androidx.glance:glance-appwidget:$glanceVersion")
+    debugImplementation("androidx.glance:glance-appwidget:$glanceVersion")
+}
+''';
+
+      expect(
+        ensureGlanceDependency(
+          input,
+          dialect: GradleDialect.kts,
+          glanceVersion: '1.2.0',
+        ),
+        input,
+      );
+      expect(warnings, hasLength(1));
     });
 
     test('leaves a declaration without a version alone', () {
@@ -282,6 +309,33 @@ dependencies {
         2,
       );
       expect(warnings, hasLength(1));
+    });
+  });
+
+  group('dotted version helpers', () {
+    test('parses x.y.z and rejects anything else', () {
+      expect(parseDottedVersion3('1.2.3'), (1, 2, 3));
+      expect(parseDottedVersion3('  1.2.3  '), (1, 2, 3));
+      expect(parseDottedVersion3('1.2'), isNull);
+      expect(parseDottedVersion3('1.2.3-rc1'), isNull);
+      expect(parseDottedVersion3(r'$version'), isNull);
+    });
+
+    test('drops a suffix only when asked to', () {
+      expect(parseDottedVersion3('1.2.3-rc1', allowSuffix: true), (1, 2, 3));
+      expect(parseDottedVersion3('1.2.3+4', allowSuffix: true), (1, 2, 3));
+      expect(parseDottedVersion3('x1.2.3', allowSuffix: true), isNull);
+    });
+
+    test('orders by major, then minor, then patch', () {
+      expect(compareDottedVersionStrings3('1.2.3', '1.2.3'), 0);
+      expect(compareDottedVersionStrings3('2.0.0', '1.9.9'), isPositive);
+      expect(compareDottedVersionStrings3('1.2.3', '1.3.0'), isNegative);
+      expect(compareDottedVersionStrings3('1.2.10', '1.2.9'), isPositive);
+      expect(
+        ['1.10.0', '1.2.0', '2.0.0']..sort(compareDottedVersionStrings3),
+        ['1.2.0', '1.10.0', '2.0.0'],
+      );
     });
   });
 }

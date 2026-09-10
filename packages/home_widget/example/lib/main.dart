@@ -146,7 +146,6 @@ class _MyAppState extends State<MyApp> {
       final updated = await HomeWidget.updateWidgetPreview(
         qualifiedAndroidName:
             'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
-        iOSName: 'HomeWidgetExample',
       );
       if (!mounted) return;
       ScaffoldMessenger.of(

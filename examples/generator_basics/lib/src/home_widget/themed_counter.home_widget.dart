@@ -50,7 +50,6 @@ class ThemedCounterHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'ThemedCounterHomeWidgetReceiver',
-      iOSName: 'ThemedCounterHomeWidget',
     ) ?? false;
   }
 

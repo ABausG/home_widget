@@ -60,8 +60,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class Forecast {}
 ```
 
-With the user's data not yet saved, the launcher's widget picker shows "Berlin" and "Sunny, 21°"
-instead of "Nowhere" and "No forecast, 0°" — a far more convincing preview of what the widget looks
+With the user's data not yet saved, the launcher's widget picker shows "Berlin", "Sunny" and "21"
+instead of "Nowhere", "No forecast" and "0" — a far more convincing preview of what the widget looks
 like once it is placed.
 
 `HWString`, `HWInt`, `HWDouble` and `HWBool` all take `previewValue` the same way `defaultValue`
@@ -121,9 +121,10 @@ Here the iOS gallery shows the curated preview, while Android shows the real, al
 ## Registering the preview on Android
 
 Android's generated preview needs Android 15 (API 35) and [Jetpack Glance](/setup/android) 1.2 or
-newer — `home_widget_cli` raises a lower pinned Glance dependency itself, warning when it does. The
-plugin's `minSdkVersion` stays 23; devices below API 35 are unaffected and keep showing the static
-`android:previewImage`.
+newer. `home_widget_cli` raises a plain `x.y.z` Glance pin below that itself, warning when it does;
+a pin it cannot compare — a `$variable`, or the dependency spelled through a version catalog — is
+only reported, and raising it is left to you. The plugin's `minSdkVersion` is 23; devices below
+API 35 are unaffected and keep showing the static `android:previewImage`.
 
 The generated `GlanceAppWidget` overrides `providePreview` for you, built from the same annotation
 as the home-screen content. The plugin also registers that preview automatically: whenever a
@@ -147,7 +148,8 @@ automatic registration:
 class Forecast {}
 ```
 
-Every generated helper also gains a manual refresh, whether or not automatic registration is on:
+Every helper generated for an Android widget also gains a manual refresh, whether or not automatic
+registration is on:
 
 ```dart
 /// Asks the launcher to re-render this widget's gallery preview.
@@ -155,8 +157,9 @@ static Future<bool> updatePreview();
 ```
 
 Call it right after an event that should show in the gallery immediately — a sign-in, for example —
-rather than waiting for the next automatic registration. `updatePreview()` returns `false` on iOS,
-below Android 15, and when the rate limit was hit. See [Widget
+rather than waiting for the next automatic registration. `updatePreview()` returns `false` below
+Android 15 and when the rate limit was hit. An iOS-only widget gets no `updatePreview()`: WidgetKit
+renders the gallery preview itself. See [Widget
 Previews](/features/widget-previews#registering-the-preview) for the underlying plugin API.
 
 ## Dates
@@ -239,10 +242,11 @@ live data, resolves the entry from a separate read: live `UserDefaults` when
 preview values and `useLiveDataInPreview` left on keeps rendering exactly as it did before this
 feature: the same live read the home screen uses.
 
-The redacted placeholder — shown before the app has ever provided data — always reads with `nil`
-`UserDefaults`, so it never shows live data regardless of `useLiveDataInPreview`. A field with a
-`previewValue` shows that instead of `defaultValue`; one without still falls back to `defaultValue`,
-exactly as it did before this feature.
+The redacted placeholder — shown before the app has ever provided data — builds its entry with no
+store at all, so a field with a `previewValue` shows that instead of `defaultValue`, and one without
+still falls back to `defaultValue`, exactly as it did before this feature. A widget that re-resolves
+its data at render time — one carrying a non-constant `HWString.localized` — reads the store again
+in the view, so with `useLiveDataInPreview` on the placeholder can end up showing stored values.
 </Accordion>
 
 <Accordion title="Android">
@@ -257,4 +261,8 @@ a Flutter engine attaches, re-registering only the previews whose fingerprint ch
 call or that the system dropped in the meantime — see [Registering the preview on Android](#registering-the-preview-on-android). Set
 `autoUpdatePreview: false` to opt out, and call the generated `updatePreview()` for a manual refresh
 either way.
+
+A timed widget's live-data part of that fingerprint is resolved at the instant it is computed, so it
+changes once the active timed entry rolls over — such a widget re-registers its preview on the next
+app start after the rollover.
 </Accordion>

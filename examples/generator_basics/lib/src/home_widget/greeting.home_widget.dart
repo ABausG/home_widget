@@ -50,7 +50,6 @@ class GreetingHomeWidget {
   static Future<bool> updatePreview() async {
     return await HomeWidget.updateWidgetPreview(
       androidName: 'GreetingHomeWidgetReceiver',
-      iOSName: 'GreetingHomeWidget',
     ) ?? false;
   }
 

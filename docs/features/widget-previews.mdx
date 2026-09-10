@@ -90,10 +90,15 @@ class MyWidgetReceiver : HomeWidgetGlanceWidgetReceiver<MyGlanceWidget>() {
 
   override fun previewFingerprint(context: Context): String {
     val data = HomeWidgetPlugin.getData(context)
-    return "${data.getString("title", "")}|${data.getString("message", "")}"
+    val title = data.getString("title", "")!!
+    val message = data.getString("message", "")!!
+    return "${title.length}:$title|${message.length}:$message"
   }
 }
 ```
+
+Prefixing each value with its length keeps the fingerprint unambiguous — plain `"$title|$message"`
+would collide as soon as one of the values contains a `|`.
 
 Whenever a Flutter engine attaches, the plugin walks the installed Widget providers of your app,
 compares each fingerprint against the one stored when its preview was last accepted, and only
