@@ -60,6 +60,10 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
             "1e478d5f",
             ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
             hwPreviewData.toString(),
+            listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
+                .joinToString(",") { hwPath ->
+                  hwPath?.let { java.io.File(it).lastModified().toString() } ?: ""
+                },
         )
         .joinToString("|")
   }

@@ -772,7 +772,9 @@ ${assignments.join('\n')}
   ///
   /// Covers everything the preview renders from that is not fixed at generation
   /// time: [WidgetSpec.previewContentHash] for the annotation, the locale tags
-  /// for a language change, and the stored data where the preview reads it.
+  /// for a language change, the stored data where the preview reads it, and the
+  /// modification time of every runtime image file that data points at, whose
+  /// path stays the same when its bytes are replaced.
   String _previewFingerprintFunction({
     required bool hasDataFields,
     required bool needsResolver,
@@ -806,6 +808,15 @@ ${assignments.join('\n')}
         '        ${spec.className}Data.$factory($previewPreferences$localeArg)',
       );
       parts.add('hwPreviewData.toString()');
+
+      final imagePaths = _previewImagePathAccessors('hwPreviewData');
+      if (imagePaths.isNotEmpty) {
+        parts.add(
+          'listOf(${imagePaths.join(', ')}).joinToString(",") '
+          '{ hwPath -> hwPath?.let { java.io.File(it).lastModified().toString() }'
+          ' ?: "" }',
+        );
+      }
     }
 
     final preamble = locals.isEmpty ? '' : '${locals.join('\n')}\n';
@@ -817,6 +828,18 @@ $listItems
     ).joinToString("|")
   }''';
   }
+
+  /// Kotlin accessors, from [dataExpr], for every runtime image path the
+  /// preview can read. Asset images are left out; they have no runtime file.
+  List<String> _previewImagePathAccessors(String dataExpr) => [
+        for (final field in spec.runtimeImageFields) '$dataExpr.${field.key}',
+        for (final field in [
+          ...spec.jsonImageFields,
+          ...spec.timedJsonImageFields,
+        ])
+          if (!field.image.isAsset)
+            '$dataExpr.${field.rootKey}?.${field.path.join('?.')}',
+      ];
 
   /// Emits the companion-object helper resolving the timed data entry that is
   /// active at `now` (greatest timestamp <= now), or an empty object.

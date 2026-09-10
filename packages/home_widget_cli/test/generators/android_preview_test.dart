@@ -678,6 +678,54 @@ void main() {
       expect(content, contains('import androidx.core.os.ConfigurationCompat'));
     });
 
+    test('covers the mtime of every runtime image the preview reads', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn(
+            children: [
+              HWImage.asset('assets/logo.png'),
+              HWImage(HWImageData('picture')),
+              HWImage(HWTimedData(HWImageData('slide'))),
+              HWImage(HWJson('contact', HWImageData('avatar'))),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      hwPreviewData.toString(),\n'
+          '      listOf(hwPreviewData.picture, hwPreviewData.slide, '
+          'hwPreviewData.contact?.avatar).joinToString(",") '
+          '{ hwPath -> hwPath?.let { java.io.File(it).lastModified().toString() }'
+          ' ?: "" },\n',
+        ),
+      );
+    });
+
+    test('an asset-only widget keeps the fingerprint file-free', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn(
+            children: [
+              HWImage.asset('assets/logo.png'),
+              HWText(HWString('greeting', previewValue: 'Hi')),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      hwPreviewData.toString(),\n'
+          '    ).joinToString("|")',
+        ),
+      );
+      expect(content, isNot(contains('lastModified()')));
+    });
+
     test('leaves out the data when the preview does not read it', () async {
       final content = await generate(
         _spec(
