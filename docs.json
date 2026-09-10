@@ -60,6 +60,7 @@
         { "title": "Configurable Widgets", "href": "/features/configurable-widgets" },
         { "title": "iOS Lock Screen Widgets", "href": "/features/ios-lock-screen" },
         { "title": "Pin Widget (Android)", "href": "/features/pin-widget" },
+        { "title": "Widget Previews (Android)", "href": "/features/widget-previews" },
         { "title": "Background Updates", "href": "/features/background-updates" }
       ]
     },
@@ -94,6 +95,7 @@
         { "title": "Formatting", "href": "/generator/formatting" },
         { "title": "Time-based Content", "href": "/generator/timed-data" },
         { "title": "Widget Clicks", "href": "/generator/widget-url" },
+        { "title": "Previews", "href": "/generator/previews" },
         { "title": "Pinning & Install Status", "href": "/generator/install-status" },
         { "title": "Flavors", "href": "/generator/flavors" }
       ]

@@ -42,4 +42,4 @@ android {
 
 flutter { source = "../.." }
 
-dependencies { implementation("androidx.glance:glance-appwidget:1.1.1") }
+dependencies { implementation("androidx.glance:glance-appwidget:1.2.0") }

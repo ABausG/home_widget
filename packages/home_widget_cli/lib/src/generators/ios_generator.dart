@@ -81,6 +81,26 @@ class IosGenerator {
     final prefsExpr =
         'UserDefaults(suiteName: ${iosFlavorEnumName(widgetClassName)}.appGroupId)';
 
+    // Localized strings must be resolved at render time so a system language
+    // change is picked up without waiting for a new timeline. Timeline entries
+    // still carry a snapshot for WidgetKit, but the view re-reads.
+    final reResolveAtRender = spec.needsLocaleHelpers;
+
+    // What the gallery reads: its own defaults only where the widget opts into
+    // live data, and the preview factories only where a field ships a sample.
+    // With neither, a preview is the same read as the widget's own and no
+    // branch is emitted at all.
+    final previewPrefsExpr = spec.iosUsesLiveDataInPreview ? prefsExpr : 'nil';
+    final previewFactory =
+        spec.hasPreviewValues ? 'previewFromUserDefaults' : 'fromUserDefaults';
+    final previewDiffers =
+        spec.hasPreviewValues || !spec.iosUsesLiveDataInPreview;
+
+    // A view that re-reads at render would otherwise pull live data back into a
+    // preview entry, so the entry has to say which read it was built with.
+    final entryCarriesPreview =
+        hasDataFields && reResolveAtRender && previewDiffers;
+
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
     await ensureDir(extensionDir);
 
@@ -109,84 +129,24 @@ class IosGenerator {
         buffer.writeln('  let ${field.key}: $type?');
       }
       for (final group in jsonGroups) {
-        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-        buffer.writeln('  let ${group.key}: $jsonClass?');
+        buffer.writeln('  let ${group.key}: ${_jsonStructName(group.key)}?');
       }
       for (final field in timedPrimitiveFields) {
         buffer.writeln('  let ${field.key}: ${field.swiftType}?');
       }
       for (final group in timedJsonGroups) {
-        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-        buffer.writeln('  let ${group.key}: $jsonClass?');
+        buffer.writeln('  let ${group.key}: ${_jsonStructName(group.key)}?');
       }
       buffer.writeln();
       buffer.writeln(
         '  static let paramPrefix = "home_widget.${spec.className}"',
       );
       buffer.writeln();
-      if (hasTimedFields) {
-        buffer.writeln('  static func fromUserDefaults(');
-        buffer.writeln('    _ defaults: UserDefaults?,');
-        buffer.writeln('    at date: Date = Date(),');
-        buffer.writeln(
-          '    timedEntries: [(date: Date, values: [String: Any])]? = nil',
-        );
-        buffer.writeln('  ) -> $className {');
-        buffer.writeln(
-          '    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)',
-        );
-      } else {
-        buffer.writeln(
-          '  static func fromUserDefaults(_ defaults: UserDefaults?) -> $className {',
-        );
+      buffer.write(_swiftDataFactory(preview: false));
+      if (spec.hasPreviewValues) {
+        buffer.writeln();
+        buffer.write(_swiftDataFactory(preview: true));
       }
-      buffer.writeln('    return $className(');
-      for (final field in primitiveFields) {
-        final readLogic = field.iosReadValue(
-          store: 'defaults',
-          key: '\\(paramPrefix).${field.key}',
-        );
-        buffer.writeln('      ${field.key}: $readLogic,');
-      }
-      for (final group in jsonGroups) {
-        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-        buffer.writeln(
-          '      ${group.key}: $jsonClass.fromPath(defaults?.string(forKey: "\\(paramPrefix).${group.key}")),',
-        );
-      }
-      for (final field in timedPrimitiveFields) {
-        // Checked before the plain cast, which would read a timed translation
-        // as the text of a single locale rather than as the locale map it is.
-        if (field is HWLocalizedString) {
-          buffer.writeln(
-            '      ${field.key}: '
-            '${field.iosTimedReadValue(valuesExpr: 'timedValues')},',
-          );
-          continue;
-        }
-        // Also checked before the plain cast: a date travels as an ISO string,
-        // so casting the entry value to `Date` would always miss.
-        if (field is HWDateTime) {
-          buffer.writeln(
-            '      ${field.key}: '
-            '${field.iosTimedReadValue(valuesExpr: 'timedValues')},',
-          );
-          continue;
-        }
-        final fallback = field.codegenSwiftDefaultLiteral();
-        final read = 'timedValues["${field.key}"] as? ${field.swiftType}';
-        buffer.writeln(
-          '      ${field.key}: ${fallback == null ? read : '($read) ?? $fallback'},',
-        );
-      }
-      for (final group in timedJsonGroups) {
-        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-        buffer.writeln(
-          '      ${group.key}: $jsonClass.fromJson(timedValues["${group.key}"] as? [String: Any]),',
-        );
-      }
-      buffer.writeln('    )');
-      buffer.writeln('  }');
       if (hasTimedFields) {
         buffer.writeln();
         _writeSwiftTimedDataHelpers(buffer);
@@ -196,49 +156,72 @@ class IosGenerator {
       // root key between a timed and an untimed field, so struct names never
       // collide across the two.
       for (final group in [...jsonGroups, ...timedJsonGroups]) {
-        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln();
-        final tree = _buildJsonTree(group.children);
         _writeSwiftJsonNodeStruct(
           buffer: buffer,
-          structName: jsonClass,
-          node: tree,
+          structName: _jsonStructName(group.key),
+          node: _buildJsonTree(group.children),
           isRoot: true,
         );
       }
       extraContent = buffer.toString();
 
-      entryDefinition = needsEntryTimedEntries
-          ? '''
+      // A `var` with an initializer keeps the memberwise init, so only the
+      // preview call sites have to mention it.
+      final entryTimedEntriesField = needsEntryTimedEntries
+          ? '  let timedEntries: [(date: Date, values: [String: Any])]\n'
+          : '';
+      final entryPreviewField =
+          entryCarriesPreview ? '  var preview: Bool = false\n' : '';
+      entryDefinition = '''
 struct ${widgetClassName}Entry: TimelineEntry {
   let date: Date
   let data: $className
-  let timedEntries: [(date: Date, values: [String: Any])]
-}
+$entryTimedEntriesField$entryPreviewField}
+''';
+
+      final previewArg = entryCarriesPreview ? ', preview: true' : '';
+      final previewSnapshot = !previewDiffers
+          ? ''
+          : needsEntryTimedEntries
+              ? '''
+    if context.isPreview {
+      let prefs: UserDefaults? = $previewPrefsExpr
+      let timedEntries = $className.loadTimedEntries(prefs)
+      let data = $className.$previewFactory(prefs, timedEntries: timedEntries)
+
+      completion(${widgetClassName}Entry(date: Date(), data: data, timedEntries: timedEntries$previewArg))
+      return
+    }
+
 '''
-          : '''
-struct ${widgetClassName}Entry: TimelineEntry {
-  let date: Date
-  let data: $className
-}
+              : '''
+    if context.isPreview {
+      let prefs: UserDefaults? = $previewPrefsExpr
+      let data = $className.$previewFactory(prefs)
+      completion(${widgetClassName}Entry(date: Date(), data: data$previewArg))
+      return
+    }
+
 ''';
 
       final loadDataLogic = '''
     let prefs = $prefsExpr
     let data = $className.fromUserDefaults(prefs)
 ''';
-      getSnapshotBody = needsEntryTimedEntries
-          ? '''
+      getSnapshotBody = previewSnapshot +
+          (needsEntryTimedEntries
+              ? '''
     let prefs = $prefsExpr
     let timedEntries = $className.loadTimedEntries(prefs)
     let data = $className.fromUserDefaults(prefs, timedEntries: timedEntries)
 
     completion(${widgetClassName}Entry(date: Date(), data: data, timedEntries: timedEntries))
 '''
-          : '''
+              : '''
 $loadDataLogic
     completion(${widgetClassName}Entry(date: Date(), data: data))
-''';
+''');
       getTimelineBody = hasTimedFields
           ? '''
     let prefs = $prefsExpr
@@ -287,7 +270,9 @@ $loadDataLogic
       if (spec.needsLocalizedRead) swiftLocalizedReadHelper,
       if (spec.needsTimedLocalizedRead) swiftTimedLocalizedReadHelper,
       if (spec.hasImages) swiftImageDecodeHelper,
-      if (spec.assetImageFields.isNotEmpty) swiftFlutterAssetHelper,
+      if (spec.assetImageFields.isNotEmpty ||
+          spec.previewAssetImageFields.isNotEmpty)
+        swiftFlutterAssetHelper,
       for (final helper in spec.nativeHelpers)
         helper.toSwift(0, dataExpr: '').trim(),
     ];
@@ -298,10 +283,6 @@ $loadDataLogic
       ].join('\n\n');
     }
 
-    // Localized strings must be resolved at render time so a system language
-    // change is picked up without waiting for a new timeline. Timeline entries
-    // still carry a snapshot for WidgetKit, but the view re-reads.
-    final reResolveAtRender = spec.needsLocaleHelpers;
     final dataExpr = !hasDataFields
         ? 'null'
         : reResolveAtRender
@@ -314,11 +295,18 @@ $loadDataLogic
     final atEntryDate = hasTimedFields ? ', at: entry.date' : '';
     final entryTimedEntriesArg =
         needsEntryTimedEntries ? ', timedEntries: entry.timedEntries' : '';
-    final viewPrefix = reResolveAtRender
-        ? '    let prefs = $prefsExpr\n'
-            '    let data = ${spec.className}Data'
-            '.fromUserDefaults(prefs$atEntryDate$entryTimedEntriesArg)\n'
-        : '';
+    final reReadArgs = 'prefs$atEntryDate$entryTimedEntriesArg';
+    final reReadPrefs = entryCarriesPreview && previewPrefsExpr != prefsExpr
+        ? '    let prefs: UserDefaults? = '
+            'entry.preview ? $previewPrefsExpr : $prefsExpr\n'
+        : '    let prefs = $prefsExpr\n';
+    final reReadData = entryCarriesPreview && spec.hasPreviewValues
+        ? '    let data = entry.preview\n'
+            '      ? ${spec.className}Data.$previewFactory($reReadArgs)\n'
+            '      : ${spec.className}Data.fromUserDefaults($reReadArgs)\n'
+        : '    let data = ${spec.className}Data'
+            '.fromUserDefaults($reReadArgs)\n';
+    final viewPrefix = reResolveAtRender ? '$reReadPrefs$reReadData' : '';
 
     final treeCode = emitSwiftWidgetBody(
       spec.effectiveWidgetTree,
@@ -351,10 +339,15 @@ $loadDataLogic
         widgetUrl: spec.iosWidgetUrl == null
             ? null
             : escapeSwiftStringLiteral(spec.iosWidgetUrl!),
+        // The redacted placeholder is built from the same sample data as the
+        // gallery preview, with no store to read at build time. A widget that
+        // re-resolves at render still re-reads there, so with live preview data
+        // on it can end up showing the stored values.
         placeholderBody: hasDataFields
             ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data'
-                '.fromUserDefaults(nil)'
-                '${needsEntryTimedEntries ? ', timedEntries: []' : ''})'
+                '.$previewFactory(nil)'
+                '${needsEntryTimedEntries ? ', timedEntries: []' : ''}'
+                '${entryCarriesPreview ? ', preview: true' : ''})'
             : null,
         extraContent: extraContent,
         // CGImageSource lives in ImageIO, which SwiftUI does not re-export.
@@ -632,6 +625,82 @@ $loadDataLogic
     return entries;
   }
 
+  /// The Swift struct holding the JSON group rooted at [key].
+  String _jsonStructName(String key) =>
+      '${spec.className}${toPascalCase(key)}JsonData';
+
+  /// The static factory building the generated data class out of the app
+  /// group's UserDefaults.
+  ///
+  /// [preview] emits the `previewFromUserDefaults` twin instead, identical down
+  /// to its parameters except that every read falls back on the field's preview
+  /// value before its default. Callers hand it `nil` defaults to keep stored
+  /// data out of the gallery entirely.
+  String _swiftDataFactory({required bool preview}) {
+    final className = '${spec.className}Data';
+    final name = preview ? 'previewFromUserDefaults' : 'fromUserDefaults';
+    final pathFactory = preview ? 'previewFromPath' : 'fromPath';
+    final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
+
+    final arguments = <String>[
+      for (final field in spec.primitiveDataFields)
+        '${field.key}: ${field.iosReadValue(
+          store: 'defaults',
+          key: '\\(paramPrefix).${field.key}',
+          preview: preview,
+        )}',
+      for (final group in spec.jsonDataGroups)
+        '${group.key}: ${_jsonStructName(group.key)}.$pathFactory('
+            'defaults?.string(forKey: "\\(paramPrefix).${group.key}"))',
+      for (final field in spec.timedPrimitiveDataFields)
+        '${field.key}: ${_swiftTimedRead(field, preview: preview)}',
+      for (final group in spec.timedJsonDataGroups)
+        '${group.key}: ${_jsonStructName(group.key)}.$jsonFactory('
+            'timedValues["${group.key}"] as? [String: Any])',
+    ];
+
+    final signature = spec.timedDataFields.isEmpty
+        ? '  static func $name(_ defaults: UserDefaults?) -> $className {\n'
+        : '''
+  static func $name(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> $className {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+''';
+
+    return '''
+$signature    return $className(
+${arguments.map((argument) => '      $argument,\n').join()}    )
+  }
+''';
+  }
+
+  /// The Swift expression resolving one time-based primitive out of the active
+  /// timed entry.
+  String _swiftTimedRead(HWDataType<dynamic> field, {required bool preview}) {
+    // Checked before the plain cast, which would read a timed translation as
+    // the text of a single locale rather than as the locale map it is.
+    if (field is HWLocalizedString) {
+      return field.iosTimedReadValue(
+        valuesExpr: 'timedValues',
+        preview: preview,
+      );
+    }
+    // Also checked before the plain cast: a date travels as an ISO string, so
+    // casting the entry value to `Date` would always miss.
+    if (field is HWDateTime) {
+      return field.iosTimedReadValue(
+        valuesExpr: 'timedValues',
+        preview: preview,
+      );
+    }
+    final fallback = field.codegenSwiftFallbackLiteral(preview: preview);
+    final read = 'timedValues["${field.key}"] as? ${field.swiftType}';
+    return fallback == null ? read : '($read) ?? $fallback';
+  }
+
   /// Emits the timed-data file loader and the active-entry resolver used by
   /// `fromUserDefaults` when the spec has [WidgetSpec.timedDataFields].
   ///
@@ -716,6 +785,112 @@ $loadDataLogic
     return root;
   }
 
+  /// `fromPath` on a generated JSON root struct, or its `previewFromPath` twin.
+  ///
+  /// The twin never gives up on the group: an unset or unreadable path still
+  /// yields a struct built from an empty object, so every leaf falls back on
+  /// its preview value even before the app has saved the group once.
+  String _swiftJsonPathFactory({
+    required String structName,
+    required bool preview,
+  }) {
+    final name = preview ? 'previewFromPath' : 'fromPath';
+    final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
+    final absent = preview ? '$jsonFactory([:])' : 'nil';
+    return '''
+  static func $name(_ path: String?) -> $structName? {
+    guard let path else { return $absent }
+    guard FileManager.default.fileExists(atPath: path) else { return $absent }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return $absent }
+      return $jsonFactory(json)
+    } catch {
+      return $absent
+    }
+  }
+''';
+  }
+
+  /// `fromJson` on a generated JSON struct, or its `previewFromJson` twin.
+  ///
+  /// Nested nodes materialize from an absent object either way; only the root
+  /// distinguishes the two, so that a widget with nothing stored still renders
+  /// its preview values.
+  String _swiftJsonFactory({
+    required String structName,
+    required _SwiftJsonNode node,
+    required bool isRoot,
+    required bool preview,
+  }) {
+    final name = preview ? 'previewFromJson' : 'fromJson';
+    final unwrap = isRoot && !preview
+        ? '    guard let values = json else { return nil }'
+        : '    let values = json ?? [:]';
+    final arguments = <String>[
+      for (final entry in node.children.entries)
+        '${entry.key}: ${_swiftJsonNodeRead(
+          structName: structName,
+          key: entry.key,
+          child: entry.value,
+          preview: preview,
+        )}',
+    ];
+    return '''
+  static func $name(_ json: [String: Any]?) -> $structName? {
+$unwrap
+    return $structName(
+${arguments.map((argument) => '      $argument,\n').join()}    )
+  }
+''';
+  }
+
+  /// The Swift expression one generated JSON factory reads a single child with.
+  String _swiftJsonNodeRead({
+    required String structName,
+    required String key,
+    required _SwiftJsonNode child,
+    required bool preview,
+  }) {
+    final leaf = child.leafType;
+    if (leaf == null || child.children.isNotEmpty) {
+      final childStruct = '$structName${toPascalCase(key)}';
+      final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
+      return '$childStruct.$jsonFactory(values["$key"] as? [String: Any])';
+    }
+    // A date leaf is stored as an ISO string, so it is parsed rather than cast,
+    // and has no default to fall back on.
+    if (leaf is HWDateTime) {
+      return leaf.iosJsonReadValue(
+        objExpr: 'values',
+        key: key,
+        preview: preview,
+      );
+    }
+    final read = 'values["$key"] as? ${leaf.swiftType}';
+    // The conditional cast already yields nil when the value is absent or of
+    // another type; coalescing that to nil again is a Swift warning.
+    final fallback = preview
+        ? leaf is HWLocalizedString
+            ? _swiftPreviewLocalizedFallback(leaf)
+            : leaf.codegenSwiftFallbackLiteral(preview: true)
+        : leaf.defaultValue == null
+            ? null
+            : _swiftDefaultLiteral(leaf);
+    return fallback == null ? read : '($read) ?? $fallback';
+  }
+
+  /// The preview fallback of a localized JSON leaf: its preview translations
+  /// resolved against the reader's locales, or null without them, which sends
+  /// the render site to the shipped translations rather than to one locale's
+  /// text.
+  String? _swiftPreviewLocalizedFallback(HWLocalizedString leaf) {
+    final values = leaf.swiftPreviewMapLiteral;
+    if (values == null) return null;
+    final base = escapeSwiftStringLiteral(leaf.previewBaseLocaleTag!);
+    return 'hwResolveLocalized(hwCurrentLocales(), $values, baseLocale: "$base")';
+  }
+
   void _writeSwiftJsonNodeStruct({
     required StringBuffer buffer,
     required String structName,
@@ -741,67 +916,23 @@ $loadDataLogic
       }
     }
     buffer.writeln();
-    if (isRoot) {
-      buffer
-          .writeln('  static func fromPath(_ path: String?) -> $structName? {');
-      buffer.writeln('    guard let path else { return nil }');
-      buffer.writeln(
-        '    guard FileManager.default.fileExists(atPath: path) else { return nil }',
-      );
-      buffer.writeln('    do {');
-      buffer.writeln(
-        '      let data = try Data(contentsOf: URL(fileURLWithPath: path))',
-      );
-      buffer.writeln(
-        '      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }',
-      );
-      buffer.writeln('      return fromJson(json)');
-      buffer.writeln('    } catch {');
-      buffer.writeln('      return nil');
-      buffer.writeln('    }');
-      buffer.writeln('  }');
-      buffer.writeln();
-    }
-    buffer.writeln(
-      '  static func fromJson(_ json: [String: Any]?) -> $structName? {',
-    );
-    if (isRoot) {
-      buffer.writeln('    guard let values = json else { return nil }');
-    } else {
-      buffer.writeln('    let values = json ?? [:]');
-    }
-    buffer.writeln('    return $structName(');
-    for (final entry in node.children.entries) {
-      final key = entry.key;
-      final child = entry.value;
-      if (child.leafType != null && child.children.isEmpty) {
-        final leaf = child.leafType!;
-        // A date leaf is stored as an ISO string, so it is parsed rather than
-        // cast, and has no default to fall back on.
-        if (leaf is HWDateTime) {
-          buffer.writeln(
-            '      $key: '
-            '${leaf.iosJsonReadValue(objExpr: 'values', key: key)},',
-          );
-          continue;
-        }
-        final read = 'values["$key"] as? ${leaf.swiftType}';
-        // The conditional cast already yields nil when the value is absent or
-        // of another type; coalescing that to nil again is a Swift warning.
-        final fallback =
-            leaf.defaultValue == null ? null : _swiftDefaultLiteral(leaf);
-        buffer.writeln(
-          '      $key: ${fallback == null ? read : '($read) ?? $fallback'},',
+    for (final preview in [false, if (spec.hasPreviewValues) true]) {
+      if (preview) buffer.writeln();
+      if (isRoot) {
+        buffer.write(
+          _swiftJsonPathFactory(structName: structName, preview: preview),
         );
-      } else {
-        final childStruct = '$structName${toPascalCase(key)}';
-        buffer.writeln(
-          '      $key: $childStruct.fromJson(values["$key"] as? [String: Any]),',
-        );
+        buffer.writeln();
       }
+      buffer.write(
+        _swiftJsonFactory(
+          structName: structName,
+          node: node,
+          isRoot: isRoot,
+          preview: preview,
+        ),
+      );
     }
-    buffer.writeln('    )');
-    buffer.writeln('  }');
     buffer.writeln('}');
 
     for (final entry in node.children.entries) {

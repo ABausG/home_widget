@@ -83,6 +83,10 @@ The whole map is written as a single JSON file (via the same `HomeWidget.saveFil
 
 The keys returned by `getData()` are **local-time** `DateTime`s, so they compare equal to a local `DateTime` for the same instant — a map that was saved with local keys round-trips with `containsKey`. Because timestamps are stored as epoch milliseconds, sub-millisecond precision of the keys is not preserved.
 
+The widget gallery preview shows a single instant, resolved the same way as any other field: the
+wrapped type's own `previewValue` (or `previewAsset`/`previewTranslations`), not a schedule. See
+[Previews](/generator/previews).
+
 ## Resolution
 
 At any point in time, the **active entry** is the one with the greatest timestamp at or before "now". Its values fill the timed fields for that moment. If a field is missing from the active entry, it falls back to that field's own `defaultValue`, then `null` — the same rule as regular data fields. If there is no entry at or before now (empty map, every entry still in the future, or nothing has been saved yet), every timed field uses its default. Entries never merge with one another — each one stands entirely on its own.

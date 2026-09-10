@@ -13,10 +13,17 @@ enum SimpleDataHomeWidgetFlavor {
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> SimpleDataHomeWidgetEntry {
-    SimpleDataHomeWidgetEntry(date: Date(), data: SimpleDataData.fromUserDefaults(nil))
+    SimpleDataHomeWidgetEntry(date: Date(), data: SimpleDataData.previewFromUserDefaults(nil))
   }
 
   func getSnapshot(in context: Context, completion: @escaping (SimpleDataHomeWidgetEntry) -> Void) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
+      let data = SimpleDataData.previewFromUserDefaults(prefs)
+      completion(SimpleDataHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
     let data = SimpleDataData.fromUserDefaults(prefs)
 
@@ -96,6 +103,13 @@ struct SimpleDataData {
     return SimpleDataData(
       label: defaults?.string(forKey: "\(paramPrefix).label"),
       value: defaults?.object(forKey: "\(paramPrefix).value") as? Int,
+    )
+  }
+
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> SimpleDataData {
+    return SimpleDataData(
+      label: (defaults?.string(forKey: "\(paramPrefix).label") ?? "Hello"),
+      value: (defaults?.object(forKey: "\(paramPrefix).value") as? Int ?? 42),
     )
   }
 }

@@ -297,6 +297,24 @@ class _FileWidgetState extends State<FileWidget> {
     }
   }
 
+  Future<void> _updateWidgetPreview() async {
+    try {
+      final updated = await HomeWidget.updateWidgetPreview(
+        androidName: 'FileWidgetHomeWidgetReceiver',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Preview updated: $updated')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_initializing) {
@@ -339,6 +357,10 @@ class _FileWidgetState extends State<FileWidget> {
             ),
           ),
           ElevatedButton(onPressed: _updateFile, child: Text('Update')),
+          ElevatedButton(
+            onPressed: _updateWidgetPreview,
+            child: Text('Update gallery preview'),
+          ),
         ],
       ),
     );

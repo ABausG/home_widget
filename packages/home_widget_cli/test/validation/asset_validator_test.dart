@@ -389,5 +389,114 @@ void main() {
         );
       });
     });
+
+    group('previewAsset', () {
+      test('accepts a declared preview asset that exists', () {
+        writeProjectFile('assets/preview.png', 'png');
+        writePubspec(['assets/preview.png']);
+
+        expect(
+          () => validateAssets(
+            specWith(
+              const [HWImageData('avatar', previewAsset: 'assets/preview.png')],
+            ),
+            projectRoot,
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('rejects a preview asset that is missing on disk', () {
+        writePubspec(['assets/preview.png']);
+
+        expect(
+          () => validateAssets(
+            specWith(
+              const [HWImageData('avatar', previewAsset: 'assets/preview.png')],
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('Missing asset'),
+                contains('assets/preview.png'),
+                contains('previewAsset'),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a preview asset the pubspec does not bundle', () {
+        writeProjectFile('assets/preview.png', 'png');
+        writePubspec([]);
+
+        expect(
+          () => validateAssets(
+            specWith(
+              const [HWImageData('avatar', previewAsset: 'assets/preview.png')],
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('Undeclared asset'),
+            ),
+          ),
+        );
+      });
+
+      test('checks a preview asset nested in a JSON group', () {
+        writePubspec(['assets/preview.png']);
+
+        expect(
+          () => validateAssets(
+            specWith(
+              const [
+                HWJson(
+                  'contact',
+                  HWImageData('photo', previewAsset: 'assets/preview.png'),
+                ),
+              ],
+            ),
+            projectRoot,
+          ),
+          throwsA(isA<GeneratorError>()),
+        );
+      });
+
+      test('resolves a packages/ preview asset through the package config', () {
+        final packageDir =
+            Directory.systemTemp.createTempSync('hw_pkg_preview_');
+        addTearDown(() => packageDir.deleteSync(recursive: true));
+        writePackageConfig('my_icons', packageDir);
+
+        expect(
+          () => validateAssets(
+            specWith(
+              const [
+                HWImageData(
+                  'avatar',
+                  previewAsset: 'packages/my_icons/preview.png',
+                ),
+              ],
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('Missing package asset'),
+            ),
+          ),
+        );
+      });
+    });
   });
 }

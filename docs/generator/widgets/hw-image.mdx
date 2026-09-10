@@ -25,6 +25,10 @@ HWImage(
 )
 ```
 
+`HWImageData` also takes a `previewAsset`: a Flutter asset shown in the widget gallery until the app
+has saved a real picture, validated exactly like an `HWImage.asset` path. See
+[Preview assets](/generator/previews#preview-assets).
+
 ### HWImage.asset
 
 `const HWImage.asset(String path, {String? package, double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`

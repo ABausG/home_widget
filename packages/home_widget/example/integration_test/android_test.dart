@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -104,6 +105,62 @@ void main() {
       ).timeout(const Duration(seconds: 5));
 
       expect(returnValue, true);
+    });
+  });
+
+  group('Update Widget Preview', () {
+    const glanceReceiverClassName = 'glance.HomeWidgetReceiver';
+    const qualifiedGlanceReceiverName =
+        'es.antonborri.home_widget_example.$glanceReceiverClassName';
+
+    // The system accepts about two previews per hour and Widget, so only the
+    // first of these tests can expect a preview to be accepted.
+    testWidgets('Update Widget Preview with qualifiedAndroidName', (
+      tester,
+    ) async {
+      final sdkInt = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        qualifiedAndroidName: qualifiedGlanceReceiverName,
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, sdkInt < 35 ? false : true);
+    });
+
+    testWidgets('Update Widget Preview with androidName only', (tester) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        androidName: glanceReceiverClassName,
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, isA<bool>());
+    });
+
+    testWidgets('Update Widget Preview with name only', (tester) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        name: glanceReceiverClassName,
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, isA<bool>());
+    });
+
+    testWidgets('Update Widget Preview of a non Glance Widget returns false', (
+      tester,
+    ) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        qualifiedAndroidName:
+            'es.antonborri.home_widget_example.HomeWidgetExampleProvider',
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, false);
+    });
+
+    testWidgets('Update Widget Preview of an unknown Widget throws', (
+      tester,
+    ) async {
+      await expectLater(
+        HomeWidget.updateWidgetPreview(name: 'UnknownWidgetReceiver'),
+        throwsA(isA<PlatformException>().having((e) => e.code, 'code', '-8')),
+      );
     });
   });
 

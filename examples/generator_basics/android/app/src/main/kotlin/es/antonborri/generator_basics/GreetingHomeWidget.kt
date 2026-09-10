@@ -7,6 +7,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -26,6 +27,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 class GreetingHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -34,10 +36,36 @@ class GreetingHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData = GreetingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "c9486ef3",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val prefs = currentState.preferences
-    val widgetData = GreetingData.fromPreferences(prefs)
+    val widgetData =
+        if (preview) GreetingData.previewFromPreferences(prefs)
+        else GreetingData.fromPreferences(prefs)
     GlanceTheme {
       Box(
           modifier =
@@ -68,6 +96,12 @@ data class GreetingData(
     fun fromPreferences(prefs: android.content.SharedPreferences): GreetingData {
       return GreetingData(
           name = prefs.getString("${PREFERENCES_PREFIX}.name", "world"),
+      )
+    }
+
+    fun previewFromPreferences(prefs: android.content.SharedPreferences): GreetingData {
+      return GreetingData(
+          name = prefs.getString("${PREFERENCES_PREFIX}.name", "Anton"),
       )
     }
   }

@@ -29,6 +29,7 @@ import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.actionStartActivity
 import es.antonborri.home_widget_example.MainActivity
 
@@ -41,13 +42,27 @@ class HomeWidgetGlanceAppWidget : GlanceAppWidget() {
     provideContent { GlanceContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      GlanceContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
   @Composable
-  private fun GlanceContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun GlanceContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val data = currentState.preferences
     val imagePath = data.getString("dashIcon", null)
 
-    val title = data.getString("title", "")!!
-    val message = data.getString("message", "")!!
+    val title = data.getString("title", if (preview) "Hello" else "")!!
+    val message = data.getString("message", if (preview) "Preview data" else "")!!
 
     Box(
         modifier =
@@ -78,9 +93,11 @@ class HomeWidgetGlanceAppWidget : GlanceAppWidget() {
                         )
                 ),
         )
-        imagePath?.let {
-          val bitmap = BitmapFactory.decodeFile(it)
-          Image(androidx.glance.ImageProvider(bitmap), null)
+        if (!preview) {
+          imagePath?.let {
+            val bitmap = BitmapFactory.decodeFile(it)
+            Image(androidx.glance.ImageProvider(bitmap), null)
+          }
         }
       }
     }

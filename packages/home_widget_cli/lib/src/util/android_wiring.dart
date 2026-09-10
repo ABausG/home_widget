@@ -17,7 +17,7 @@ import 'xml_utils.dart';
 /// - Compose build features
 /// - Kotlin Compose Compiler extension (if needed)
 Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
-  const fallbackGlanceVersion = '1.1.0';
+  const fallbackGlanceVersion = minimumGlanceVersion;
   final glanceVersion = await _tryResolveLatestAndroidxReleaseVersion(
         groupPath: 'androidx/glance',
         artifactId: 'glance-appwidget',
@@ -771,7 +771,7 @@ Future<String?> _tryResolveLatestAndroidxReleaseVersion({
       }
 
       if (versions.isEmpty) return null;
-      versions.sort(_compareDottedInts3);
+      versions.sort(compareDottedVersionStrings3);
       return versions.last;
     } finally {
       client.close(force: true);
@@ -780,16 +780,4 @@ Future<String?> _tryResolveLatestAndroidxReleaseVersion({
     return null;
   }
   // coverage:ignore-end
-}
-
-int _compareDottedInts3(String a, String b) {
-  List<int> parse(String s) =>
-      s.split('.').map(int.parse).toList(growable: false);
-  final ap = parse(a);
-  final bp = parse(b);
-  for (var i = 0; i < 3; i++) {
-    final diff = ap[i].compareTo(bp[i]);
-    if (diff != 0) return diff;
-  }
-  return 0;
 }

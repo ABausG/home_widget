@@ -1,6 +1,8 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 /// Greeting widget from the package README — caption + dynamic name field.
+/// `name` carries a `previewValue`, so the gallery shows "Anton" instead of
+/// the fallback "world".
 @HomeWidget(
   name: 'Greeting',
   android: HomeWidgetAndroidConfiguration(),
@@ -16,7 +18,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         style: HWRoleTextStyle(role: HWTextStyleRole.caption),
       ),
       HWText(
-        HWString('name', defaultValue: 'world'),
+        HWString('name', defaultValue: 'world', previewValue: 'Anton'),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,
           fontWeight: HWFontWeight.bold,

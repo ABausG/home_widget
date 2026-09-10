@@ -28,14 +28,14 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 
 | Variant     | Constructor                                | Dart type             | Description                                                                                  |
 | ----------- | ------------------------------------------ | --------------------- | -------------------------------------------------------------------------------------------- |
-| `HWString`  | `HWString(key, {defaultValue})`            | `String`              | Stored as a string in `SharedPreferences` / `UserDefaults`.                                  |
-| `HWString.localized` | `HWString.localized(key, {required defaultTranslations})` | generated translations class | Per-locale text. `defaultTranslations` maps locale tag to the text shipped with the widget; your app can override any locale at runtime. |
-| `HWInt`     | `HWInt(key, {defaultValue})`               | `int`                 | Integer value.                                                                               |
-| `HWDouble`  | `HWDouble(key, {defaultValue})`            | `double`              | Double / float value.                                                                        |
-| `HWBool`    | `HWBool(key, {defaultValue})`              | `bool`                | Boolean value.                                                                               |
-| `HWDateTime`| `HWDateTime(key)`                          | `DateTime`            | A point in time, stored as an ISO-8601 UTC string. Rendered in the device's locale and time zone — see [Formatting](/generator/formatting). |
+| `HWString`  | `HWString(key, {defaultValue, previewValue})` | `String`            | Stored as a string in `SharedPreferences` / `UserDefaults`.                                  |
+| `HWString.localized` | `HWString.localized(key, {required defaultTranslations, previewTranslations})` | generated translations class | Per-locale text. `defaultTranslations` maps locale tag to the text shipped with the widget; your app can override any locale at runtime. |
+| `HWInt`     | `HWInt(key, {defaultValue, previewValue})` | `int`                 | Integer value.                                                                               |
+| `HWDouble`  | `HWDouble(key, {defaultValue, previewValue})` | `double`            | Double / float value.                                                                        |
+| `HWBool`    | `HWBool(key, {defaultValue, previewValue})` | `bool`               | Boolean value.                                                                               |
+| `HWDateTime`| `HWDateTime(key, {previewValue})`          | `DateTime`            | A point in time, stored as an ISO-8601 UTC string. Rendered in the device's locale and time zone — see [Formatting](/generator/formatting). |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
-| `HWImageData` | `HWImageData(key)` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
+| `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
@@ -50,6 +50,8 @@ When a `defaultValue` is provided it's used both in the generated Dart helper an
 `HWImageData` and `HWDateTime` are the exceptions: neither supports a `defaultValue`. A missing image simply renders nothing — see [`HWImage`](/generator/widgets/hw-image) for a placeholder pattern using `HWDataExists`. A missing date renders as empty text, and the same `HWDataExists` pattern gives it a placeholder.
 
 A missing **number** is the other special case: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as a formatted `0` rather than as nothing — see [Missing values](/generator/formatting#missing-values).
+
+`HWString`, `HWInt`, `HWDouble`, `HWBool` and `HWDateTime` also take a `previewValue` next to their default; `HWImageData` takes a `previewAsset` and `HWString.localized` takes `previewTranslations` instead. `HWJson` and `HWTimedData` declare none of their own — they preview through the type they wrap or the leaf they address. Each of these is a sample shown only in the widget gallery, never on the home screen. See [Previews](/generator/previews).
 
 ## Image data
 

@@ -266,6 +266,19 @@ void main() {
     });
 
     group('Android (Glance)', () {
+      test('the file decoder falls through to the asset decoder', () {
+        expect(
+          kotlinImageFileHelper,
+          contains(
+            'if (!path.startsWith("/")) {\n'
+            '    $kotlinFlutterAssetFunction(context, path, widthDp, heightDp)\n'
+            '} else {',
+          ),
+        );
+        // An absolute path still takes the file branch.
+        expect(kotlinImageFileHelper, contains('BitmapFactory.decodeFile('));
+      });
+
       test('emits a subsampled bitmap decode for runtime data', () {
         const node = HWImage(HWImageData('avatar'));
         expect(

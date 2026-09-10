@@ -142,6 +142,76 @@ void main() {
       expect(on, isNot(equals(off)));
     });
 
+    test('preview defaults are live data, updated automatically', () {
+      const widget = HomeWidget(name: 'n');
+      expect(widget.useLiveDataInPreview, isTrue);
+
+      const android = HomeWidgetAndroidConfiguration();
+      expect(android.useLiveDataInPreview, isNull);
+      expect(android.autoUpdatePreview, isTrue);
+
+      expect(
+        const HomeWidgetIOSConfiguration(groupId: 'g').useLiveDataInPreview,
+        isNull,
+      );
+    });
+
+    test('equality includes useLiveDataInPreview on every level', () {
+      const widget = HomeWidget(name: 'n');
+      expect(widget, const HomeWidget(name: 'n', useLiveDataInPreview: true));
+      expect(
+        widget.hashCode,
+        const HomeWidget(name: 'n', useLiveDataInPreview: true).hashCode,
+      );
+      expect(
+        widget,
+        isNot(equals(const HomeWidget(name: 'n', useLiveDataInPreview: false))),
+      );
+
+      const android =
+          HomeWidgetAndroidConfiguration(useLiveDataInPreview: false);
+      expect(
+        android,
+        const HomeWidgetAndroidConfiguration(useLiveDataInPreview: false),
+      );
+      expect(android, isNot(equals(const HomeWidgetAndroidConfiguration())));
+
+      const ios = HomeWidgetIOSConfiguration(
+        groupId: 'g',
+        useLiveDataInPreview: false,
+      );
+      expect(
+        ios,
+        const HomeWidgetIOSConfiguration(
+          groupId: 'g',
+          useLiveDataInPreview: false,
+        ),
+      );
+      expect(
+        ios.hashCode,
+        const HomeWidgetIOSConfiguration(
+          groupId: 'g',
+          useLiveDataInPreview: false,
+        ).hashCode,
+      );
+      expect(
+        ios,
+        isNot(equals(const HomeWidgetIOSConfiguration(groupId: 'g'))),
+      );
+    });
+
+    test('Android configuration equality includes autoUpdatePreview', () {
+      const on = HomeWidgetAndroidConfiguration();
+      const off = HomeWidgetAndroidConfiguration(autoUpdatePreview: false);
+
+      expect(on, const HomeWidgetAndroidConfiguration(autoUpdatePreview: true));
+      expect(
+        on.hashCode,
+        const HomeWidgetAndroidConfiguration(autoUpdatePreview: true).hashCode,
+      );
+      expect(on, isNot(equals(off)));
+    });
+
     test('HomeWidget equality includes localization', () {
       final a = HomeWidget(
         name: 'n',

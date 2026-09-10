@@ -835,4 +835,300 @@ void main() {
       expect(a, isNot(equals(b)));
     });
   });
+
+  group('WidgetSpec.dataFields', () {
+    test('folds two declarations of one key into a single field', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('title', defaultValue: 'Hello'),
+          HWString('title', previewValue: 'Preview'),
+        ],
+      );
+
+      expect(spec.declaredDataFields, hasLength(2));
+      expect(spec.dataFields, hasLength(1));
+      final merged = spec.dataFields.single as HWString;
+      expect(merged.defaultValue, 'Hello');
+      expect(merged.previewValue, 'Preview');
+    });
+
+    test('keeps first-seen order across merges', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('title'),
+          HWInt('count', defaultValue: 1),
+          HWString('title', previewValue: 'Preview'),
+        ],
+      );
+
+      expect(spec.dataFields.map((f) => f.key), ['title', 'count']);
+    });
+
+    test('merges the leaf of a JSON path', () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson(
+            'profile',
+            HWString('name', defaultValue: 'Anon', previewValue: 'Ada'),
+          ),
+        ],
+      );
+
+      expect(spec.dataFields, hasLength(1));
+      final leaf = (spec.dataFields.single as HWJson).leafType as HWString;
+      expect(leaf.defaultValue, 'Anon');
+      expect(leaf.previewValue, 'Ada');
+    });
+
+    test('leaves a JSON leaf apart when only one side declares a defaultValue',
+        () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson('profile', HWString('name', previewValue: 'Ada')),
+        ],
+      );
+
+      expect(spec.dataFields, hasLength(2));
+    });
+
+    test('merges the data of a time-based field', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWInt('score', defaultValue: 0)),
+          HWTimedData(HWInt('score', previewValue: 42)),
+        ],
+      );
+
+      expect(spec.dataFields, hasLength(1));
+      final inner = spec.dataFields.single.unwrapped as HWInt;
+      expect(inner.defaultValue, 0);
+      expect(inner.previewValue, 42);
+    });
+
+    test('leaves declarations that disagree apart for the validator', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('title', previewValue: 'A'),
+          HWString('title', previewValue: 'B'),
+        ],
+      );
+
+      expect(
+        spec.dataFields.map((f) => (f as HWString).previewValue),
+        ['A', 'B'],
+      );
+    });
+
+    test('a merged JSON group carries one child per path', () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson(
+            'profile',
+            HWString('name', defaultValue: 'Anon', previewValue: 'Ada'),
+          ),
+          HWJson('profile', HWInt('age', previewValue: 36)),
+        ],
+      );
+
+      final group = spec.jsonDataGroups.single;
+      expect(group.children.map((c) => c.path.single), ['name', 'age']);
+      expect((group.children.first.type as HWString).defaultValue, 'Anon');
+      expect((group.children.first.type as HWString).previewValue, 'Ada');
+    });
+
+    test('a timed JSON group merges its leaf the same way', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+          HWTimedData(
+            HWJson('weather', HWString('condition', previewValue: 'Sunny')),
+          ),
+        ],
+      );
+
+      final group = spec.timedJsonDataGroups.single;
+      expect(group.children, hasLength(1));
+      expect((group.children.single.type as HWString).previewValue, 'Sunny');
+    });
+
+    test('a leaf default set on one side only stays a second child', () {
+      // Such a spec never reaches a generator: validateWidgetData reports the
+      // conflict off the very children this getter hands its path trie, which
+      // is why the two declarations arrive here unmerged.
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson('profile', HWString('name', previewValue: 'Ada')),
+        ],
+      );
+
+      final group = spec.jsonDataGroups.single;
+      expect(group.children.map((c) => c.path.single), ['name', 'name']);
+    });
+  });
+
+  group('WidgetSpec preview configuration', () {
+    test('platform values override the top-level one', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          useLiveDataInPreview: false,
+          android: HomeWidgetAndroidConfiguration(
+            useLiveDataInPreview: true,
+            autoUpdatePreview: false,
+          ),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.t'),
+        ),
+        className: 'T',
+      );
+
+      expect(spec.androidUsesLiveDataInPreview, isTrue);
+      expect(spec.iosUsesLiveDataInPreview, isFalse);
+      expect(spec.androidAutoUpdatePreview, isFalse);
+    });
+
+    test('defaults to live data and automatic registration', () {
+      final spec = _spec();
+      expect(spec.androidUsesLiveDataInPreview, isTrue);
+      expect(spec.iosUsesLiveDataInPreview, isTrue);
+      expect(spec.androidAutoUpdatePreview, isTrue);
+    });
+  });
+
+  group('WidgetSpec.hasPreviewValues', () {
+    test('is false without any preview value', () {
+      final spec = _spec(
+        dataFields: const [HWString('title', defaultValue: 'Hi')],
+      );
+      expect(spec.hasPreviewValues, isFalse);
+    });
+
+    test('finds preview values wherever they are declared', () {
+      const fields = <HWDataType<dynamic>>[
+        HWString('a', previewValue: 'x'),
+        HWDateTime('b', previewValue: '2024-03-08T09:41:00Z'),
+        HWImageData('c', previewAsset: 'assets/preview.png'),
+        HWJson('d', HWInt('inner', previewValue: 3)),
+        HWTimedData(HWDouble('e', previewValue: 1.5)),
+        HWString.localized(
+          'f',
+          defaultTranslations: {'en': 'Hi'},
+          previewTranslations: {'en': 'Sample'},
+        ),
+      ];
+
+      for (final field in fields) {
+        expect(
+          _spec(dataFields: [field]).hasPreviewValues,
+          isTrue,
+          reason: '$field',
+        );
+      }
+    });
+  });
+
+  group('WidgetSpec.previewAssetImageFields', () {
+    test('lists runtime images with a preview asset, nested ones included', () {
+      final spec = _spec(
+        dataFields: const [
+          HWImageData('plain'),
+          HWImageData('avatar', previewAsset: 'assets/avatar.png'),
+          HWJson('contact', HWImageData('photo', previewAsset: 'assets/p.png')),
+          HWTimedData(HWImageData('slide', previewAsset: 'assets/s.png')),
+        ],
+      );
+
+      expect(
+        spec.previewAssetImageFields.map((i) => i.previewAsset),
+        ['assets/avatar.png', 'assets/p.png', 'assets/s.png'],
+      );
+    });
+  });
+
+  group('WidgetSpec.previewContentHash', () {
+    test('is a stable 8-digit hex digest', () {
+      final spec = _spec(dataFields: const [HWString('title')]);
+      expect(spec.previewContentHash, matches(RegExp(r'^[0-9a-f]{8}$')));
+      final same = _spec(dataFields: const [HWString('title')]);
+      expect(spec.previewContentHash, same.previewContentHash);
+    });
+
+    test('changes with every value the preview renders', () {
+      final base = _spec(dataFields: const [HWString('title')]);
+
+      final variants = <String, WidgetSpec>{
+        'previewValue': _spec(
+          dataFields: const [HWString('title', previewValue: 'Sample')],
+        ),
+        'defaultValue': _spec(
+          dataFields: const [HWString('title', defaultValue: 'Hi')],
+        ),
+        'preview asset': _spec(
+          dataFields: const [
+            HWString('title'),
+            HWImageData('a', previewAsset: 'assets/a.png'),
+          ],
+        ),
+        'widget tree': _spec(
+          dataFields: const [HWString('title')],
+          widgetTree: const HWText.fixed('other'),
+        ),
+        'preview instant': _spec(
+          dataFields: const [
+            HWString('title'),
+            HWDateTime('when', previewValue: '2024-03-08T09:41:00Z'),
+          ],
+        ),
+      };
+
+      for (final entry in variants.entries) {
+        expect(
+          entry.value.previewContentHash,
+          isNot(base.previewContentHash),
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('changes when the preview configuration changes', () {
+      final live = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+      );
+      final frozen = WidgetSpec(
+        data: HomeWidget(name: 'T', useLiveDataInPreview: false),
+        className: 'T',
+      );
+
+      expect(live.previewContentHash, isNot(frozen.previewContentHash));
+    });
+
+    test('ignores the order translations are written in', () {
+      WidgetSpec specFor(Map<String, String> preview) => WidgetSpec(
+            data: HomeWidget(
+              name: 'T',
+              localization: const HomeWidgetLocalization(
+                defaultLocale: 'en',
+                supportedLocales: ['en', 'de'],
+              ),
+            ),
+            className: 'T',
+            dataFields: [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: preview,
+              ),
+            ],
+          );
+
+      expect(
+        specFor({'en': 'Sample', 'de': 'Beispiel'}).previewContentHash,
+        specFor({'de': 'Beispiel', 'en': 'Sample'}).previewContentHash,
+      );
+    });
+  });
 }

@@ -15,6 +15,18 @@ class AdaptiveGreetingHomeWidget {
     );
   }
 
+  /// Asks the launcher to re-render this widget's gallery preview.
+  ///
+  /// Android 15 and newer only; returns false elsewhere and when the system
+  /// rate limit (about two updates per hour and widget) was hit. The plugin
+  /// registers the preview automatically when the app starts, so this is only
+  /// needed after data changes that should show in the gallery right away.
+  static Future<bool> updatePreview() async {
+    return await HomeWidget.updateWidgetPreview(
+      androidName: 'AdaptiveGreetingHomeWidgetReceiver',
+    ) ?? false;
+  }
+
   /// Whether the launcher lets the app ask to add this widget to the home
   /// screen: Android 8 or newer with a launcher that supports pinning. Always
   /// false on iOS.

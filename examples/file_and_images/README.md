@@ -38,3 +38,17 @@ UserDefaults(suiteName: appGroupId)?.string(forKey: imageKey)  // then UIImage(c
 ```swift
 UserDefaults(suiteName: appGroupId)?.string(forKey: fileJsonKey)  // then Data(contentsOf: URL(fileURLWithPath:))
 ```
+
+**Preview** — [`FileWidgetHomeWidget.kt`](android/app/src/main/kotlin/es/antonborri/file_and_images/FileWidgetHomeWidget.kt), [`FileWidgetHomeWidgetReceiver.kt`](android/app/src/main/kotlin/es/antonborri/file_and_images/FileWidgetHomeWidgetReceiver.kt), see [`docs/features/widget-previews.mdx`](../../docs/features/widget-previews.mdx):
+
+```kotlin
+override suspend fun providePreview(context: Context, widgetCategory: Int) {
+  provideContent {
+    WidgetContent(HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), preview = true)
+  }
+}
+```
+
+The receiver's `previewFingerprint` includes the saved path and its `lastModified()`, so rewriting the file re-registers the preview.
+
+On iOS the same fallback lives in `getSnapshot`, which WidgetKit calls with `context.isPreview`.

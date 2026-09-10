@@ -27,6 +27,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -37,10 +38,36 @@ class ForecastHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData = ForecastData.previewFromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "8a5e956c",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val prefs = currentState.preferences
-    val widgetData = ForecastData.fromPreferences(prefs)
+    val widgetData =
+        if (preview) ForecastData.previewFromPreferences(prefs)
+        else ForecastData.fromPreferences(prefs)
     GlanceTheme {
       Box(
           modifier =
@@ -98,6 +125,24 @@ data class ForecastData(
               if (timedValues.has("temperature") && !timedValues.isNull("temperature"))
                   timedValues.optLong("temperature")
               else 0L,
+      )
+    }
+
+    fun previewFromPreferences(
+        prefs: android.content.SharedPreferences,
+        now: Long = System.currentTimeMillis(),
+    ): ForecastData {
+      val timedValues = resolveTimedValues(prefs, now)
+      return ForecastData(
+          city = prefs.getString("${PREFERENCES_PREFIX}.city", "Berlin"),
+          condition =
+              if (timedValues.has("condition") && !timedValues.isNull("condition"))
+                  timedValues.optString("condition")
+              else "Sunny",
+          temperature =
+              if (timedValues.has("temperature") && !timedValues.isNull("temperature"))
+                  timedValues.optLong("temperature")
+              else 21L,
       )
     }
 

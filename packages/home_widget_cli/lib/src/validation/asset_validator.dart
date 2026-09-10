@@ -22,16 +22,20 @@ import '../models/widget_spec.dart';
 /// config is missing or does not list the package (e.g. `pub get` has not run
 /// yet) the field is skipped silently rather than failing generation.
 ///
-/// Runtime images are never validated: their bytes only exist at runtime.
+/// Runtime images are never validated: their bytes only exist at runtime —
+/// except for the `previewAsset` a runtime image previews with, which is a
+/// bundled asset and is checked exactly like a declared one.
 void validateAssets(WidgetSpec spec, Directory projectRoot) {
-  final assetFields = spec.assetImageFields;
-  if (assetFields.isEmpty) return;
+  final references = <_AssetReference>[
+    for (final image in spec.assetImageFields) _AssetReference.from(image),
+    for (final image in spec.previewAssetImageFields)
+      _AssetReference.preview(image.previewAsset!),
+  ];
+  if (references.isEmpty) return;
 
   _PubspecAssets? appAssets;
 
-  for (final image in assetFields) {
-    final reference = _AssetReference.from(image);
-
+  for (final reference in references) {
     if (reference.package != null) {
       _validatePackageAsset(spec, reference, projectRoot);
       continue;
@@ -54,10 +58,15 @@ class _AssetReference {
   /// The asset key as it appears to Flutter, used in error messages.
   final String effectiveKey;
 
+  /// How the asset was declared, named so an error points at the right
+  /// argument.
+  final String origin;
+
   const _AssetReference({
     required this.package,
     required this.path,
     required this.effectiveKey,
+    required this.origin,
   });
 
   /// Splits [image] into package and package-relative path.
@@ -73,26 +82,39 @@ class _AssetReference {
         package: package,
         path: image.assetPath!,
         effectiveKey: effectiveKey,
+        origin: 'HWImage.asset(...)',
       );
     }
 
+    return _AssetReference.of(effectiveKey, origin: 'HWImage.asset(...)');
+  }
+
+  /// The asset a runtime image previews with, which has no `package:`
+  /// argument: a dependency's asset is spelled `packages/<pkg>/<rest>`.
+  factory _AssetReference.preview(String previewAsset) =>
+      _AssetReference.of(previewAsset, origin: 'previewAsset');
+
+  /// [assetKey] split on a `packages/<pkg>/` prefix, if it has one.
+  factory _AssetReference.of(String assetKey, {required String origin}) {
     const prefix = 'packages/';
-    if (effectiveKey.startsWith(prefix)) {
-      final rest = effectiveKey.substring(prefix.length);
+    if (assetKey.startsWith(prefix)) {
+      final rest = assetKey.substring(prefix.length);
       final slash = rest.indexOf('/');
       if (slash > 0 && slash < rest.length - 1) {
         return _AssetReference(
           package: rest.substring(0, slash),
           path: rest.substring(slash + 1),
-          effectiveKey: effectiveKey,
+          effectiveKey: assetKey,
+          origin: origin,
         );
       }
     }
 
     return _AssetReference(
       package: null,
-      path: effectiveKey,
-      effectiveKey: effectiveKey,
+      path: assetKey,
+      effectiveKey: assetKey,
+      origin: origin,
     );
   }
 }
@@ -108,7 +130,7 @@ void _validateAppAsset(
     throw GeneratorError(
       'Missing asset for widget "${spec.className}": '
       '"${reference.path}" does not exist at ${file.path}. '
-      'Create the file or fix the path in HWImage.asset(...).',
+      'Create the file or fix the path in ${reference.origin}.',
     );
   }
 

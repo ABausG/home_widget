@@ -6,6 +6,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// - `hasData` absent  -> "No Data – Open App"
 /// - `hasData` present, `enabled` true  -> green "Enabled"
 /// - `hasData` present, `enabled` false -> red "Disabled"
+///
+/// Both fields carry a `previewValue` of `true`, so the widget gallery shows
+/// the green "Enabled" branch instead of "No Data".
 @HomeWidget(
   name: 'Conditional Status',
   android: HomeWidgetAndroidConfiguration(),
@@ -15,9 +18,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   ),
   widget: HWFill(
     child: HWDataExists(
-      data: HWBool('hasData'),
+      data: HWBool('hasData', previewValue: true),
       whenPresent: HWBoolConditional(
-        data: HWBool('enabled', defaultValue: true),
+        data: HWBool('enabled', defaultValue: true, previewValue: true),
         whenTrue: HWColumn(
           mainAxisAlignment: HWMainAxisAlignment.center,
           crossAxisAlignment: HWCrossAxisAlignment.center,

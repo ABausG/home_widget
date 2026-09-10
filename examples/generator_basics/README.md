@@ -16,15 +16,19 @@ small and each one demonstrates a different feature of the generator:
 - `conditional_status.dart` – a widget that branches on whether data is present
   using `HWDataExists` and `HWBoolConditional`.
 - `localized_greeting.dart` – translated body text and gallery entry via
-  `HWText.localized` and `HWString.localized`.
+  `HWText.localized` and `HWString.localized`, with `previewTranslations` for
+  the widget gallery.
 - `forecast.dart` – time-based content via `HWTimedData`: the widget swaps its
-  own values at the times passed to `saveData(timedData: {...})`.
+  own values at the times passed to `saveData(timedData: {...})`. Every field
+  also carries a `previewValue`, and the app has a "Refresh the gallery
+  preview" action wired to the generated `updatePreview()`.
 - `image_showcase.dart` – a bundled asset image (`HWImage.asset`), a runtime
   image (`HWImage`) wrapped in `HWDataExists` for a placeholder, a time-based
   image (`HWImage(HWTimedData(HWImageData(...)))`) that alternates between two
   pictures on a schedule, and an image read out of a JSON group
   (`HWImage(HWJson('contact', HWImageData('avatar')))`) so a name and a picture
-  travel together.
+  travel together. The runtime image sets `previewAsset` so the gallery shows
+  a picture before the app has saved one.
 - `number_date_formatting.dart` – locale-aware formatting: `HWText.number` with
   `HWNumberFormat.decimal` / `.percent` / `.compact`, a currency whose ISO code
   comes from data (`HWCurrency.data(HWString('currency'))`), a hardcoded but

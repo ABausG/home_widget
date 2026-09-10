@@ -379,7 +379,10 @@ class WidgetValueDecoder {
       }
       final imageKey = getField(obj, 'key')?.toStringValue();
       if (imageKey == null) return null; // coverage:ignore-line
-      return HWImageData(imageKey);
+      return HWImageData(
+        imageKey,
+        previewAsset: getField(obj, 'previewAsset')?.toStringValue(),
+      );
     }
 
     final key = getField(obj, 'key')?.toStringValue();
@@ -393,24 +396,45 @@ class WidgetValueDecoder {
         defaultTranslations: localizedValues,
         isConstant: getField(obj, 'isConstant')?.toBoolValue() ?? false,
         defaultLocale: defaultLocale,
+        previewTranslations:
+            decodeStringMap(getField(obj, 'previewTranslations')),
         resourcePrefix: resourcePrefix,
       );
     }
 
     if (typeName == 'HWString') {
       final defaultValue = getField(obj, 'defaultValue')?.toStringValue();
-      return HWString(key, defaultValue: defaultValue);
+      return HWString(
+        key,
+        defaultValue: defaultValue,
+        previewValue: getField(obj, 'previewValue')?.toStringValue(),
+      );
     } else if (typeName == 'HWInt') {
       final defaultValue = getField(obj, 'defaultValue')?.toIntValue();
-      return HWInt(key, defaultValue: defaultValue);
+      return HWInt(
+        key,
+        defaultValue: defaultValue,
+        previewValue: getField(obj, 'previewValue')?.toIntValue(),
+      );
     } else if (typeName == 'HWDouble') {
       final defaultValue = getField(obj, 'defaultValue')?.toDoubleValue();
-      return HWDouble(key, defaultValue: defaultValue);
+      return HWDouble(
+        key,
+        defaultValue: defaultValue,
+        previewValue: getField(obj, 'previewValue')?.toDoubleValue(),
+      );
     } else if (typeName == 'HWBool') {
       final defaultValue = getField(obj, 'defaultValue')?.toBoolValue();
-      return HWBool(key, defaultValue: defaultValue);
+      return HWBool(
+        key,
+        defaultValue: defaultValue,
+        previewValue: getField(obj, 'previewValue')?.toBoolValue(),
+      );
     } else if (typeName == 'HWDateTime') {
-      return HWDateTime(key);
+      return HWDateTime(
+        key,
+        previewValue: getField(obj, 'previewIso')?.toStringValue(),
+      );
     } else if (typeName == 'HWTimedData') {
       final dataObj = getField(obj, 'data');
       if (dataObj != null && dataObj.type?.element?.name == 'HWTimedData') {

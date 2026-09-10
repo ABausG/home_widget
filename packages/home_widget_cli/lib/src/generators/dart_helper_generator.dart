@@ -593,6 +593,8 @@ class DartHelperGenerator {
 
     if (spec.data.android != null) {
       buffer.writeln();
+      _writeUpdatePreview(buffer, androidNameArg);
+      buffer.writeln();
       _writePinHelpers(buffer, androidNameArg);
     }
     buffer.writeln();
@@ -792,6 +794,26 @@ class DartHelperGenerator {
       'null$appGroupArg);',
     );
     buffer.writeln('$indent}');
+  }
+
+  /// Emits the helper re-rendering the widget's entry in the gallery.
+  ///
+  /// Emitted only for specs with an Android configuration: re-rendering a
+  /// gallery preview is an Android feature, and WidgetKit renders its own.
+  void _writeUpdatePreview(StringBuffer buffer, String androidNameArg) {
+    buffer.write('''
+  /// Asks the launcher to re-render this widget's gallery preview.
+  ///
+  /// Android 15 and newer only; returns false elsewhere and when the system
+  /// rate limit (about two updates per hour and widget) was hit. The plugin
+  /// registers the preview automatically when the app starts, so this is only
+  /// needed after data changes that should show in the gallery right away.
+  static Future<bool> updatePreview() async {
+    return await HomeWidget.updateWidgetPreview(
+      $androidNameArg,
+    ) ?? false;
+  }
+''');
   }
 
   /// Emits the helpers asking the launcher to place this widget.

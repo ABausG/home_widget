@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -29,6 +30,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 class ConditionalStatusHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -37,10 +39,37 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData =
+        ConditionalStatusData.previewFromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "e058c98d",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val prefs = currentState.preferences
-    val widgetData = ConditionalStatusData.fromPreferences(prefs)
+    val widgetData =
+        if (preview) ConditionalStatusData.previewFromPreferences(prefs)
+        else ConditionalStatusData.fromPreferences(prefs)
     GlanceTheme {
       Box(
           modifier =
@@ -126,6 +155,19 @@ data class ConditionalStatusData(
               if (prefs.contains("${PREFERENCES_PREFIX}.hasData"))
                   prefs.getBoolean("${PREFERENCES_PREFIX}.hasData", false)
               else null,
+          enabled =
+              if (prefs.contains("${PREFERENCES_PREFIX}.enabled"))
+                  prefs.getBoolean("${PREFERENCES_PREFIX}.enabled", false)
+              else true,
+      )
+    }
+
+    fun previewFromPreferences(prefs: android.content.SharedPreferences): ConditionalStatusData {
+      return ConditionalStatusData(
+          hasData =
+              if (prefs.contains("${PREFERENCES_PREFIX}.hasData"))
+                  prefs.getBoolean("${PREFERENCES_PREFIX}.hasData", false)
+              else true,
           enabled =
               if (prefs.contains("${PREFERENCES_PREFIX}.enabled"))
                   prefs.getBoolean("${PREFERENCES_PREFIX}.enabled", false)

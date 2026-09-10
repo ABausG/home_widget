@@ -392,7 +392,8 @@ void main() {
     expect('private fun flutterAssetBitmap('.allMatches(content).length, 1);
   });
 
-  test('emits the asset helper only when an asset image is present', () async {
+  test('emits the asset helper alongside the file decoder that calls it',
+      () async {
     final spec = WidgetSpec(
       data: HomeWidget(
         name: 'RuntimeOnly',
@@ -412,7 +413,9 @@ void main() {
       ),
     ).readAsStringSync();
 
-    expect(content, isNot(contains('flutterAssetBitmap')));
+    // The file decoder reads anything that is not an absolute path as an asset
+    // key, so it never ships without the asset decoder it delegates to.
+    expect(content, contains('private fun flutterAssetBitmap('));
     expect(content, contains('private fun hwDecodeImageFile('));
     expect(content, contains('private fun hwImageSampleSize('));
   });
@@ -503,7 +506,7 @@ void main() {
         'hwDecodeImageFile(context, path, null, null) }',
       ),
     );
-    expect(content, isNot(contains('flutterAssetBitmap')));
+    expect(content, contains('private fun flutterAssetBitmap('));
 
     // A timed image makes the widget time-based, so the resolver ships and the
     // scheduled updates it needs are wired the same as for any timed field.
@@ -545,7 +548,7 @@ void main() {
         'hwDecodeImageFile(context, path, null, null) }',
       ),
     );
-    expect(content, isNot(contains('flutterAssetBitmap')));
+    expect(content, contains('private fun flutterAssetBitmap('));
   });
 
   test('prefixes a package asset with packages/<package>', () async {

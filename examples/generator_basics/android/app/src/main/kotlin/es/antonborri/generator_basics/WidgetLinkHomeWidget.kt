@@ -8,6 +8,7 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -26,6 +27,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.actionStartActivity
 
 class WidgetLinkHomeWidget : GlanceAppWidget() {
@@ -33,6 +35,20 @@ class WidgetLinkHomeWidget : GlanceAppWidget() {
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
     provideContent { WidgetContent(context, currentState()) }
+  }
+
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(context, HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)))
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    return listOf(
+            "dfce3086",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+        )
+        .joinToString("|")
   }
 
   @Composable

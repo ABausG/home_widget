@@ -616,5 +616,52 @@ void main() {
       expect(spec!.flavor('dev')?.iOS, isNull);
       expect(spec.iosGroupIdFor('dev'), 'group.base');
     });
+
+    test('defaults the preview configuration', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Preview Defaults',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.preview'),
+        )
+        class PreviewDefaultsWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.data.useLiveDataInPreview, isTrue);
+      expect(spec.data.android!.useLiveDataInPreview, isNull);
+      expect(spec.data.android!.autoUpdatePreview, isTrue);
+      expect(spec.data.iOS!.useLiveDataInPreview, isNull);
+      expect(spec.androidUsesLiveDataInPreview, isTrue);
+      expect(spec.iosUsesLiveDataInPreview, isTrue);
+    });
+
+    test('parses the preview configuration on every level', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Preview Config',
+          useLiveDataInPreview: false,
+          android: HomeWidgetAndroidConfiguration(
+            useLiveDataInPreview: true,
+            autoUpdatePreview: false,
+          ),
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.preview',
+            useLiveDataInPreview: false,
+          ),
+        )
+        class PreviewConfigWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.data.useLiveDataInPreview, isFalse);
+      expect(spec.androidUsesLiveDataInPreview, isTrue);
+      expect(spec.androidAutoUpdatePreview, isFalse);
+      expect(spec.iosUsesLiveDataInPreview, isFalse);
+    });
   });
 }

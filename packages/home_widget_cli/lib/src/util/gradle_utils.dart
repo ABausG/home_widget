@@ -10,6 +10,14 @@
 /// than relying on exact line matches.
 library;
 
+import 'logger.dart';
+
+/// The Glance version a generated widget preview needs.
+///
+/// Composing a preview outside a running widget arrived in Glance 1.2.0, so an
+/// app pinned below it would not compile the generated preview provider.
+const String minimumGlanceVersion = '1.2.0';
+
 /// The dialect of a Gradle build script.
 enum GradleDialect {
   /// Groovy-based Gradle scripts (`.gradle`).
@@ -63,12 +71,24 @@ String ensureKotlinComposeCompilerPlugin(
 
 /// Ensures the Jetpack Glance `appwidget` dependency is present in the
 /// Gradle build script, inserting it idempotently if missing.
+///
+/// An app that already spells the artifact out keeps its own declaration,
+/// except that a plain `x.y.z` version below [minimumGlanceVersion] is raised
+/// to [glanceVersion] — a lower pin cannot build the generated preview. A
+/// version spelled any other way (a variable, a pre-release) is not comparable
+/// and only warned about.
+///
+/// A version-catalog accessor (`implementation(libs.glance.appwidget)`) does
+/// not contain the artifact string at all, so it is not recognized as a
+/// declaration and a second, spelled-out one is inserted.
 String ensureGlanceDependency(
   String input, {
   required GradleDialect dialect,
   required String glanceVersion,
 }) {
-  if (input.contains('androidx.glance:glance-appwidget')) return input;
+  if (input.contains(_glanceArtifact)) {
+    return _raiseGlanceVersion(input, glanceVersion: glanceVersion);
+  }
 
   final lines = input.split('\n');
   final depsStart = _indexWhere(lines, RegExp(r'^\s*dependencies\s*\{'));
@@ -127,6 +147,87 @@ String ensureGlanceDependency(
   final out = lines.join('\n');
   return out.endsWith('\n') ? out : '$out\n';
 }
+
+const String _glanceArtifact = 'androidx.glance:glance-appwidget';
+
+/// Matches the artifact together with the version it is pinned to, stopping at
+/// whatever quote or bracket closes the coordinate string.
+final RegExp _glanceCoordinatePattern =
+    RegExp('${RegExp.escape(_glanceArtifact)}:([^\\s"\')]*)');
+
+/// Rewrites every outdated Glance pin in [input] to [glanceVersion], warning
+/// once when it does and once when a pin cannot be compared at all.
+String _raiseGlanceVersion(String input, {required String glanceVersion}) {
+  var warnedOutdated = false;
+  var warnedIncomparable = false;
+  return input.replaceAllMapped(_glanceCoordinatePattern, (match) {
+    final version = match.group(1)!;
+    final parsed = parseDottedVersion3(version);
+    // A variable, a pre-release or anything else not spelled `x.y.z` is not
+    // ours to reinterpret, so it is only reported.
+    if (parsed == null) {
+      if (!warnedIncomparable) {
+        warnedIncomparable = true;
+        logger.warn(
+          'Warning: androidx.glance:glance-appwidget is pinned to $version, '
+          'which is not a plain x.y.z version this tool can check. Generated '
+          'widget previews need Glance $minimumGlanceVersion or newer.',
+        );
+      }
+      return match.group(0)!;
+    }
+    if (compareDottedVersion3(parsed, _minimumGlance) >= 0) {
+      return match.group(0)!;
+    }
+    if (!warnedOutdated) {
+      warnedOutdated = true;
+      logger.warn(
+        'Warning: androidx.glance:glance-appwidget is pinned to $version, but '
+        'generated widget previews need Glance $minimumGlanceVersion or newer. '
+        'Raising the dependency to $glanceVersion.',
+      );
+    }
+    return '$_glanceArtifact:$glanceVersion';
+  });
+}
+
+final (int, int, int) _minimumGlance = parseDottedVersion3(
+  minimumGlanceVersion,
+)!;
+
+final RegExp _dottedVersion3 = RegExp(r'^(\d+)\.(\d+)\.(\d+)$');
+final RegExp _dottedVersion3Prefix = RegExp(r'^(\d+)\.(\d+)\.(\d+)');
+
+/// [version] as an `x.y.z` triple, or null when it is not spelled that way.
+///
+/// [allowSuffix] also accepts a trailing pre-release or build suffix
+/// (`1.2.3-rc01`, `1.2.3+4`), which is dropped.
+(int, int, int)? parseDottedVersion3(
+  String version, {
+  bool allowSuffix = false,
+}) {
+  final pattern = allowSuffix ? _dottedVersion3Prefix : _dottedVersion3;
+  final match = pattern.firstMatch(version.trim());
+  if (match == null) return null;
+  return (
+    int.parse(match.group(1)!),
+    int.parse(match.group(2)!),
+    int.parse(match.group(3)!),
+  );
+}
+
+/// Orders two versions read by [parseDottedVersion3].
+int compareDottedVersion3((int, int, int) a, (int, int, int) b) {
+  if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
+  if (a.$2 != b.$2) return a.$2.compareTo(b.$2);
+  return a.$3.compareTo(b.$3);
+}
+
+/// Orders two `x.y.z` strings, both of which have to parse.
+int compareDottedVersionStrings3(String a, String b) => compareDottedVersion3(
+      parseDottedVersion3(a)!,
+      parseDottedVersion3(b)!,
+    );
 
 /// Ensures Compose is enabled via `buildFeatures` (and optionally
 /// `composeOptions`) in the Gradle build script.

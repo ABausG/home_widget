@@ -20,6 +20,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import java.io.File
 import org.json.JSONObject
 
@@ -30,26 +31,41 @@ class FileWidgetHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), preview = true)
+    }
+  }
+
   companion object {
     /** Same id as HomeWidget.saveFile in Flutter (`_fileJsonKey` in main.dart). */
-    private const val FILE_JSON_KEY = "fileJson"
+    internal const val FILE_JSON_KEY = "fileJson"
     private const val DEFAULT_JSON = "{ \"name\": \"World\" }"
+    private const val PREVIEW_JSON = "{ \"name\": \"Preview\" }"
   }
 
   @Composable
-  private fun WidgetContent(currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(currentState: HomeWidgetGlanceState, preview: Boolean = false) {
     val prefs = currentState.preferences
     val jsonPath = prefs.getString(FILE_JSON_KEY, null)
+    val fileText =
+        if (jsonPath != null && File(jsonPath).isFile) File(jsonPath).readText(Charsets.UTF_8)
+        else null
+    val parsedName = fileText?.let {
+      try {
+        JSONObject(it).optString("name", "World").ifEmpty { "World" }
+      } catch (_: Exception) {
+        null
+      }
+    }
     val jsonString: String
     val name: String
-    if (jsonPath != null && File(jsonPath).isFile) {
-      jsonString = File(jsonPath).readText(Charsets.UTF_8)
-      name =
-          try {
-            JSONObject(jsonString).optString("name", "World").ifEmpty { "World" }
-          } catch (_: Exception) {
-            "World"
-          }
+    if (fileText != null && (parsedName != null || !preview)) {
+      jsonString = fileText
+      name = parsedName ?: "World"
+    } else if (preview) {
+      jsonString = PREVIEW_JSON
+      name = "Preview"
     } else {
       jsonString = DEFAULT_JSON
       name = "World"

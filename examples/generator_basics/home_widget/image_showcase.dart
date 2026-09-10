@@ -6,7 +6,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///   app bundle with nothing to save.
 /// - `HWImage(HWImageData('picture'))` renders an image the app saves at
 ///   runtime via `saveData(picture: ...)`. Until that happens the
-///   `HWDataExists` branch shows a placeholder text.
+///   `HWDataExists` branch shows a placeholder text — except in the widget
+///   gallery, where `previewAsset: 'assets/dash.png'` stands in for it.
 /// - `HWImage(HWTimedData(HWImageData('slide')))` renders one image per
 ///   timestamp: the app hands `saveData(timedData: {...})` an `ImageProvider`
 ///   for each slot and the widget swaps them on its own.
@@ -35,9 +36,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             semanticLabel: 'App logo',
           ),
           HWDataExists(
-            data: HWImageData('picture'),
+            data: HWImageData('picture', previewAsset: 'assets/dash.png'),
             whenPresent: HWImage(
-              HWImageData('picture'),
+              HWImageData('picture', previewAsset: 'assets/dash.png'),
               width: 64,
               height: 64,
               fit: HWImageFit.cover,
