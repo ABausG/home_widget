@@ -50,6 +50,7 @@ void validateWidgetData(WidgetSpec spec) {
   _validateFlavors(spec);
   _validateImageKeys(spec);
   _validateNoConflictingKeys(spec);
+  _validatePreviewDates(spec);
   validateLocalization(spec);
   _validateConditionalData(spec);
   _validateTimedDataKeys(spec);
@@ -549,6 +550,16 @@ void validateLocalization(WidgetSpec spec) {
       requireDefaultLocale: true,
       defaultLocale: localization.defaultLocale,
     );
+    // The gallery preview resolves preview text through the same chain the
+    // widget resolves its shipped text with, so an incomplete map would leave a
+    // locale previewing nothing.
+    _validateLocaleMap(
+      field.previewTranslations,
+      supported: supported,
+      descriptor: '$descriptor previewTranslations',
+      requireDefaultLocale: true,
+      defaultLocale: localization.defaultLocale,
+    );
   }
 
   _validateGalleryString(
@@ -652,7 +663,7 @@ void _validateLocaleMap(
 /// checked by the path trie instead.
 void _validateNoConflictingKeys(WidgetSpec spec) {
   final seen = <String, HWDataType<dynamic>>{};
-  for (final field in spec.dataFields) {
+  for (final field in spec.declaredDataFields) {
     if (field is HWLocalizedString && field.isConstant) continue;
 
     final existing = seen[field.key];
@@ -660,7 +671,13 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
       seen[field.key] = field;
       continue;
     }
-    if (existing == field) continue;
+    // Compatible declarations describe one field between them; the merged one
+    // is carried forward so a third declaration is checked against everything
+    // set so far. This is the same fold `WidgetSpec.dataFields` performs.
+    if (existing.isCompatibleWith(field)) {
+      seen[field.key] = existing.mergedWith(field);
+      continue;
+    }
     if (existing is HWJson && field is HWJson) continue;
 
     // Timed HWJson declarations merge into one group per root key, exactly like
@@ -674,21 +691,23 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
     }
 
     if (existing is HWLocalizedString && field is HWLocalizedString) {
+      final subject = _sameTranslations(
+        existing.defaultTranslations,
+        field.defaultTranslations,
+      )
+          ? 'different previewTranslations'
+          : 'different translations';
       throw GeneratorError(
         'Widget "${spec.data.name}": two HWString.localized("${field.key}") '
-        'entries declare different translations. Give them distinct keys.',
+        'entries declare $subject. Give them distinct keys.',
       );
     }
 
     // Two spellings of the same package asset (`package:` vs a manual
-    // `packages/<pkg>/` path) derive the same key but are not real conflicts;
-    // [_validateImageKeys] gives the more specific diagnostic for genuine
-    // image key collisions.
-    if (existing is HWImageData &&
-        field is HWImageData &&
-        existing.effectiveAssetKey == field.effectiveAssetKey) {
-      continue;
-    }
+    // `packages/<pkg>/` path) derive the same key and are compatible, so they
+    // were already merged above; [_validateImageKeys] gives the more specific
+    // diagnostic for genuine image key collisions. What is left here is a key
+    // given two different previewAssets, which the message below names.
 
     throw GeneratorError(
       'Widget "${spec.data.name}": the key "${field.key}" is declared as '
@@ -698,12 +717,85 @@ void _validateNoConflictingKeys(WidgetSpec spec) {
   }
 }
 
+/// Names [field] the way its declaration reads, down to the values that make
+/// two declarations of one key disagree.
 String _describeDataField(HWDataType<dynamic> field) {
-  if (field is HWLocalizedString) return 'HWString.localized';
+  if (field is HWTimedData) {
+    return 'HWTimedData(${_describeDataField(field.data)})';
+  }
+  if (field is HWLocalizedString) {
+    final preview = field.previewTranslations;
+    if (preview == null) return 'HWString.localized';
+    return 'HWString.localized(previewTranslations: $preview)';
+  }
   if (field is HWJson) return 'HWJson';
-  final defaultValue = field.defaultValue;
-  if (defaultValue == null) return '${field.runtimeType}';
-  return '${field.runtimeType}(defaultValue: $defaultValue)';
+  if (field is HWImageData) {
+    final preview = field.previewAsset;
+    if (preview == null) return '${field.runtimeType}';
+    return '${field.runtimeType}(previewAsset: "$preview")';
+  }
+
+  final arguments = <String>[
+    if (field.defaultValue != null) 'defaultValue: ${field.defaultValue}',
+    if (_previewArgument(field) case final preview?) 'previewValue: $preview',
+  ];
+  if (arguments.isEmpty) return '${field.runtimeType}';
+  return '${field.runtimeType}(${arguments.join(', ')})';
+}
+
+/// The preview value of [field] as written, or null when it sets none.
+///
+/// A date is reported as its ISO text rather than as the parsed instant, since
+/// that is what the annotation spells and what a conflict is about.
+String? _previewArgument(HWDataType<dynamic> field) {
+  if (field is HWDateTime) {
+    final iso = field.previewIso;
+    return iso == null ? null : '"$iso"';
+  }
+  final preview = field.previewValue;
+  if (preview == null) return null;
+  return preview is String ? '"$preview"' : '$preview';
+}
+
+bool _sameTranslations(Map<String, String> a, Map<String, String> b) {
+  if (a.length != b.length) return false;
+  for (final entry in a.entries) {
+    if (b[entry.key] != entry.value) return false;
+  }
+  return true;
+}
+
+/// Rejects a preview instant that is not an ISO 8601 date.
+///
+/// [HWDateTime] keeps the text it was written with, because [DateTime] has no
+/// const constructor an annotation could carry; a typo there would otherwise
+/// silently render the preview without a date.
+void _validatePreviewDates(WidgetSpec spec) {
+  for (final field in spec.dataFields) {
+    for (final leaf in _dataLeaves(field)) {
+      if (leaf is! HWDateTime) continue;
+      final iso = leaf.previewIso;
+      if (iso == null || leaf.previewDateTime != null) continue;
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWDateTime("${leaf.key}") has previewValue '
+        '"$iso", which is not an ISO 8601 date. Write the instant as e.g. '
+        '"2024-03-08T09:41:00Z".',
+      );
+    }
+  }
+}
+
+/// [field] down to the types that carry values: time-based wrappers stripped
+/// and JSON paths descended.
+Iterable<HWDataType<dynamic>> _dataLeaves(HWDataType<dynamic> field) sync* {
+  switch (field) {
+    case HWTimedData<dynamic>():
+      yield* _dataLeaves(field.data);
+    case HWJson<dynamic>():
+      yield* _dataLeaves(field.child);
+    default:
+      yield field;
+  }
 }
 
 /// Rejects keys that are declared both time-based and regular, because both
@@ -820,7 +912,18 @@ final class _TrieNode {
         );
       }
       if (slot.leafField != null) {
-        if (_sameJsonLeaf(slot.leafField!, field)) {
+        // Compatible leaves describe one property between them, so the merged
+        // one takes the slot and a third declaration is checked against it.
+        // Compared as the [HWJson] declarations they came from, since a leaf
+        // default is inlined at every site rendering the path and so has to
+        // agree, which the leaf types alone do not require.
+        final existing = _jsonDeclarationOf(jsonRootKey, slot.leafField!);
+        final incoming = _jsonDeclarationOf(jsonRootKey, field);
+        if (existing.isCompatibleWith(incoming)) {
+          slot.leafField = JsonDataField(
+            path: field.path,
+            type: (existing.mergedWith(incoming) as HWJson<dynamic>).leafType,
+          );
           return;
         }
         throw GeneratorError(
@@ -837,18 +940,14 @@ final class _TrieNode {
   }
 }
 
-bool _sameJsonLeaf(JsonDataField a, JsonDataField b) =>
-    _segmentsEqual(a.path, b.path) &&
-    identical(a.type.runtimeType, b.type.runtimeType) &&
-    a.type.key == b.type.key &&
-    a.type.defaultValue == b.type.defaultValue;
-
-bool _segmentsEqual(List<String> a, List<String> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
+/// [field] rebuilt as the [HWJson] declaration it was flattened from, so that
+/// two leaves at one path are compared by that type's own rule.
+HWJson<dynamic> _jsonDeclarationOf(String jsonRootKey, JsonDataField field) {
+  var wrapped = field.type;
+  for (final segment in field.path.reversed.skip(1)) {
+    wrapped = HWJson<dynamic>(segment, wrapped);
   }
-  return true;
+  return HWJson<dynamic>(jsonRootKey, wrapped);
 }
 
 String _dotted(List<String> segments) =>
@@ -860,8 +959,10 @@ String _fieldSummaryIncoming(JsonDataField field) =>
 String _fieldSummary(JsonDataField field) {
   final dv = field.type.defaultValue;
   final dvText = dv == null ? 'no default' : 'default=$dv';
+  final preview = _previewArgument(field.type);
+  final previewText = preview == null ? '' : ', preview=$preview';
   return '${field.path.join('.')} → '
-      '${field.type.runtimeType} (${field.type.key}, $dvText)';
+      '${field.type.runtimeType} (${field.type.key}, $dvText$previewText)';
 }
 
 String _jsonConflictMessage(String jsonRootKey, {required String reason}) =>

@@ -47,6 +47,7 @@ class ConfigurationOptions {}
 | `localization` | `HomeWidgetLocalization?` | `null` | Default locale, supported locales, and translations of the gallery name and description. See [Localization](/generator/localization). |
 | `widgetUrl` | `String?` | `null` | URL the app is opened with when the widget is tapped. See [Widget Clicks](/generator/widget-url). |
 | `flavors` | `Map<String, HomeWidgetFlavor>?` | `null` | Restricts which Flutter flavors the widget is generated into, with per-flavor overrides. See [Flavors](/generator/flavors). |
+| `useLiveDataInPreview` | `bool` | `true` | Whether the widget gallery preview reads stored data ahead of `previewValue`. Overridable per platform. See [Previews](/generator/previews). |
 
 A `localization:` block is required as soon as the widget uses a localized string
 (`HWText.localized` or `HWString.localized`) — it supplies the default locale
@@ -77,6 +78,8 @@ Maps to [`AppWidgetProviderInfo`](https://developer.android.com/reference/androi
 | `fillWidgetContent` | `bool` | `true` | Applies `GlanceModifier.fillMaxSize()` to the root. |
 | `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on Android. See [Widget Clicks](/generator/widget-url). |
 | `openAppOnTap` | `bool` | `true` | If `false`, the widget root is not made clickable at all, so tapping it does nothing — even when a `widgetUrl` is set. See [Widget Clicks](/generator/widget-url). |
+| `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on Android. `null` inherits it. See [Previews](/generator/previews). |
+| `autoUpdatePreview` | `bool` | `true` | Whether the plugin registers the generated preview with the launcher automatically on app start (Android 15+). See [Previews](/generator/previews#registering-the-preview-on-android). |
 
 ## `HomeWidgetIOSConfiguration`
 
@@ -89,6 +92,7 @@ Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widget
 | `backgroundColor` | `HWColor?` | `null` | Background color for the widget container. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |
 | `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on iOS. See [Widget Clicks](/generator/widget-url). |
+| `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on iOS. `null` inherits it. See [Previews](/generator/previews). |
 
 ## `HomeWidgetFlavor`
 

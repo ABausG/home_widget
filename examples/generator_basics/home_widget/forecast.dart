@@ -11,6 +11,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///     },
 ///   );
 ///   await ForecastHomeWidget.updateWidget();
+///
+/// Every field also carries a `previewValue`, so the widget gallery shows
+/// "Berlin", "Sunny" and 21° before the app has ever saved anything.
 @HomeWidget(
   name: 'Forecast',
   android: HomeWidgetAndroidConfiguration(),
@@ -22,17 +25,25 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     crossAxisAlignment: HWCrossAxisAlignment.start,
     children: [
       HWText(
-        HWString('city', defaultValue: 'Nowhere'),
+        HWString('city', defaultValue: 'Nowhere', previewValue: 'Berlin'),
         style: HWRoleTextStyle(role: HWTextStyleRole.caption),
       ),
       HWText(
-        HWTimedData(HWString('condition', defaultValue: 'No forecast')),
+        HWTimedData(
+          HWString(
+            'condition',
+            defaultValue: 'No forecast',
+            previewValue: 'Sunny',
+          ),
+        ),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,
           fontWeight: HWFontWeight.bold,
         ),
       ),
-      HWText(HWTimedData(HWInt('temperature', defaultValue: 0))),
+      HWText(
+        HWTimedData(HWInt('temperature', defaultValue: 0, previewValue: 21)),
+      ),
     ],
   ),
 )

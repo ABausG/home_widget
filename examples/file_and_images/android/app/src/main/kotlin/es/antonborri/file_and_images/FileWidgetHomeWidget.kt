@@ -20,6 +20,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import java.io.File
 import org.json.JSONObject
 
@@ -30,14 +31,21 @@ class FileWidgetHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), preview = true)
+    }
+  }
+
   companion object {
     /** Same id as HomeWidget.saveFile in Flutter (`_fileJsonKey` in main.dart). */
-    private const val FILE_JSON_KEY = "fileJson"
+    internal const val FILE_JSON_KEY = "fileJson"
     private const val DEFAULT_JSON = "{ \"name\": \"World\" }"
+    private const val PREVIEW_JSON = "{ \"name\": \"Preview\" }"
   }
 
   @Composable
-  private fun WidgetContent(currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(currentState: HomeWidgetGlanceState, preview: Boolean = false) {
     val prefs = currentState.preferences
     val jsonPath = prefs.getString(FILE_JSON_KEY, null)
     val jsonString: String
@@ -50,6 +58,9 @@ class FileWidgetHomeWidget : GlanceAppWidget() {
           } catch (_: Exception) {
             "World"
           }
+    } else if (preview) {
+      jsonString = PREVIEW_JSON
+      name = "Preview"
     } else {
       jsonString = DEFAULT_JSON
       name = "World"

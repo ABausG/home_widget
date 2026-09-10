@@ -19,6 +19,10 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** HomeWidgetPlugin */
 class HomeWidgetPlugin :
@@ -42,6 +46,8 @@ class HomeWidgetPlugin :
     eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "home_widget/updates")
     eventChannel.setStreamHandler(this)
     context = flutterPluginBinding.applicationContext
+
+    HomeWidgetPreviews.registerAll(context)
   }
 
   override fun onMethodCall(call: MethodCall, result: Result) {
@@ -113,6 +119,24 @@ class HomeWidgetPlugin :
         intent.putExtra(HomeWidgetPlugin.TRIGGERED_FROM_HOME_WIDGET, true)
         context.sendBroadcast(intent)
         result.success(true)
+      }
+      "updateWidgetPreview" -> {
+        val javaClass = resolveWidgetClass(call, result, "-8") ?: return
+        CoroutineScope(Dispatchers.Default).launch {
+          val updated = runCatching { HomeWidgetPreviews.update(context, javaClass) }
+          withContext(Dispatchers.Main) {
+            updated.fold(
+                { result.success(it) },
+                {
+                  result.error(
+                      "-8",
+                      "Failed to update the preview of ${javaClass.name}: ${it.message}",
+                      it,
+                  )
+                },
+            )
+          }
+        }
       }
       "scheduleWidgetUpdates" -> {
         val javaClass = resolveWidgetClass(call, result, "-6") ?: return

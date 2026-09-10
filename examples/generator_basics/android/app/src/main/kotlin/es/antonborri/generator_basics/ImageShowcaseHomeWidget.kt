@@ -8,6 +8,7 @@ import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -34,6 +35,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 class ImageShowcaseHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -42,10 +44,36 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "0efc234e",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val prefs = currentState.preferences
-    val widgetData = ImageShowcaseData.fromPreferences(prefs)
+    val widgetData =
+        if (preview) ImageShowcaseData.previewFromPreferences(prefs)
+        else ImageShowcaseData.fromPreferences(prefs)
     GlanceTheme {
       Box(
           modifier =
@@ -70,7 +98,9 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.width(24.0.dp).height(24.0.dp),
             )
           }
-          if (widgetData.picture?.let { java.io.File(it).exists() } == true) {
+          if (
+              widgetData.picture?.let { !it.startsWith("/") || java.io.File(it).exists() } == true
+          ) {
             widgetData.picture
                 ?.let { path -> hwDecodeImageFile(context, path, 64.0, 64.0) }
                 ?.let { bitmap ->
@@ -154,6 +184,24 @@ data class ImageShowcaseData(
       )
     }
 
+    fun previewFromPreferences(
+        prefs: android.content.SharedPreferences,
+        now: Long = System.currentTimeMillis(),
+    ): ImageShowcaseData {
+      val timedValues = resolveTimedValues(prefs, now)
+      return ImageShowcaseData(
+          picture = prefs.getString("${PREFERENCES_PREFIX}.picture", "assets/dash.png"),
+          contact =
+              ImageShowcaseContactJsonData.previewFromPath(
+                  prefs.getString("${PREFERENCES_PREFIX}.contact", null)
+              ),
+          slide =
+              if (timedValues.has("slide") && !timedValues.isNull("slide"))
+                  timedValues.optString("slide")
+              else null,
+      )
+    }
+
     private fun resolveTimedValues(
         prefs: android.content.SharedPreferences,
         now: Long,
@@ -209,6 +257,26 @@ data class ImageShowcaseContactJsonData(
           name = if (json.has("name") && !json.isNull("name")) json.optString("name") else "",
       )
     }
+
+    fun previewFromPath(path: String?): ImageShowcaseContactJsonData? {
+      if (path == null) return previewFromJson(org.json.JSONObject())
+      return try {
+        val file = java.io.File(path)
+        if (!file.exists()) return previewFromJson(org.json.JSONObject())
+        previewFromJson(org.json.JSONObject(file.readText()))
+      } catch (_: Exception) {
+        previewFromJson(org.json.JSONObject())
+      }
+    }
+
+    fun previewFromJson(obj: org.json.JSONObject?): ImageShowcaseContactJsonData? {
+      val json = obj ?: org.json.JSONObject()
+      return ImageShowcaseContactJsonData(
+          avatar =
+              if (json.has("avatar") && !json.isNull("avatar")) json.optString("avatar") else null,
+          name = if (json.has("name") && !json.isNull("name")) json.optString("name") else "",
+      )
+    }
   }
 }
 
@@ -252,21 +320,25 @@ private fun hwDecodeImageFile(
     widthDp: Double?,
     heightDp: Double?,
 ): android.graphics.Bitmap? =
-    try {
-      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-      BitmapFactory.decodeFile(path, bounds)
-      if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+    if (!path.startsWith("/")) {
+      flutterAssetBitmap(context, path, widthDp, heightDp)
+    } else {
+      try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+          null
+        } else {
+          BitmapFactory.decodeFile(
+              path,
+              BitmapFactory.Options().apply {
+                inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)
+              },
+          )
+        }
+      } catch (_: Exception) {
         null
-      } else {
-        BitmapFactory.decodeFile(
-            path,
-            BitmapFactory.Options().apply {
-              inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)
-            },
-        )
       }
-    } catch (_: Exception) {
-      null
     }
 
 private fun flutterAssetBitmap(

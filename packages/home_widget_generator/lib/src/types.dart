@@ -4,6 +4,7 @@ import 'formats.dart';
 import 'generator_error.dart';
 import 'native_helpers.dart';
 import 'utils/content_hash.dart';
+import 'utils/image_helper_names.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
 
@@ -14,6 +15,12 @@ sealed class HWDataType<T> {
 
   /// The default value.
   T? get defaultValue;
+
+  /// The sample value the widget gallery shows for this key.
+  ///
+  /// Only ever rendered in a preview: the widget itself falls back to
+  /// [defaultValue] as before.
+  T? get previewValue;
 
   /// The Dart type string.
   String get dartType;
@@ -27,12 +34,23 @@ sealed class HWDataType<T> {
   /// Returns the Kotlin code to read this value from SharedPreferences.
   /// [store] is the variable name of the SharedPreferences instance (e.g. "prefs").
   /// [key] is the full key string (e.g. "${PREFERENCES_PREFIX}.count").
-  String androidReadValue({required String store, required String key});
+  /// [preview] reads for the widget gallery, where a stored value still wins
+  /// but [previewValue] takes the place of [defaultValue] behind it.
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  });
 
   /// Returns the Swift code to read this value from UserDefaults.
   /// [store] is the variable name of the UserDefaults instance (e.g. "defaults").
   /// [key] is the full key string.
-  String iosReadValue({required String store, required String key});
+  /// [preview] behaves as in [androidReadValue].
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  });
 
   /// Returns the Kotlin code to stringify this value for display.
   /// [outerValue] is the nullable value expression (e.g. "data.count").
@@ -67,6 +85,29 @@ sealed class HWDataType<T> {
   /// or null when there is no default.
   String? codegenSwiftDefaultLiteral() => null; // coverage:ignore-line
 
+  /// Kotlin literal representing [previewValue] for generated native code,
+  /// or null when there is no preview value.
+  String? codegenKotlinPreviewLiteral() => null; // coverage:ignore-line
+
+  /// Swift literal representing [previewValue] for generated native code,
+  /// or null when there is no preview value.
+  String? codegenSwiftPreviewLiteral() => null; // coverage:ignore-line
+
+  /// Kotlin literal a generated read falls back on when the store holds
+  /// nothing, or null when this type has none.
+  ///
+  /// [codegenKotlinPreviewLiteral] in a [preview] that has one, and
+  /// [codegenKotlinDefaultLiteral] otherwise, so one flag switches every read
+  /// between the widget and the gallery.
+  String? codegenKotlinFallbackLiteral({bool preview = false}) =>
+      (preview ? codegenKotlinPreviewLiteral() : null) ??
+      codegenKotlinDefaultLiteral();
+
+  /// Swift counterpart of [codegenKotlinFallbackLiteral].
+  String? codegenSwiftFallbackLiteral({bool preview = false}) =>
+      (preview ? codegenSwiftPreviewLiteral() : null) ??
+      codegenSwiftDefaultLiteral();
+
   /// This type with any time-based wrapper removed.
   ///
   /// Returns `this` for every variant except [HWTimedData], which returns the
@@ -83,23 +124,61 @@ sealed class HWDataType<T> {
   /// Rendering helpers are named by the widget that renders, not here.
   List<HWNativeHelper> get nativeHelpers => const [];
 
+  /// Whether [other] describes the same field as this one.
+  ///
+  /// Two declarations of a key are compatible when they are the same kind of
+  /// field and every optional value they both set agrees; a value set on one
+  /// side only is carried over by [mergedWith].
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      runtimeType == other.runtimeType &&
+      key == other.key &&
+      _mergeable(defaultValue, other.defaultValue) &&
+      _mergeable(previewValue, other.previewValue);
+
+  /// This field carrying the values set by either declaration.
+  ///
+  /// Throws a [GeneratorError] when [other] is not [isCompatibleWith] this.
+  /// [other] is untyped so that a mismatched pair reaches that error rather
+  /// than failing the argument's own type check first.
+  HWDataType<T> mergedWith(HWDataType<dynamic> other) {
+    if (!isCompatibleWith(other)) {
+      throw GeneratorError(
+        'Conflicting declarations for data key "$key": $runtimeType and '
+        '${other.runtimeType} describe different fields.',
+      );
+    }
+    return _merged(other);
+  }
+
+  /// [mergedWith] once [other] is known to be compatible, and so to be of this
+  /// same type.
+  HWDataType<T> _merged(HWDataType<dynamic> other);
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HWDataType &&
           runtimeType == other.runtimeType &&
           key == other.key &&
-          defaultValue == other.defaultValue;
+          defaultValue == other.defaultValue &&
+          previewValue == other.previewValue;
 
   @override
-  int get hashCode => Object.hash(key, defaultValue);
+  int get hashCode => Object.hash(key, defaultValue, previewValue);
 }
+
+/// Whether two declarations of the same optional value can be merged: they
+/// agree, or only one of them sets it.
+bool _mergeable(Object? a, Object? b) => a == null || b == null || a == b;
 
 class HWString extends HWDataType<String> {
   @override
   final String? defaultValue;
 
-  const HWString(super.key, {this.defaultValue});
+  @override
+  final String? previewValue;
+
+  const HWString(super.key, {this.defaultValue, this.previewValue});
 
   /// A string whose shipped value differs per locale, and which can additionally
   /// be overridden per locale at runtime via the generated `saveData`.
@@ -110,10 +189,14 @@ class HWString extends HWDataType<String> {
   /// then any key sharing that language with a different region or script
   /// (`pt-BR`) — before falling back to the default locale.
   ///
+  /// [previewTranslations] is the sample text the widget gallery shows, in the
+  /// same shape.
+  ///
   /// A const factory, so it is usable inside a `@HomeWidget(...)` annotation.
   const factory HWString.localized(
     String key, {
     required Map<String, String> defaultTranslations,
+    Map<String, String>? previewTranslations,
   }) = HWLocalizedString;
 
   @override
@@ -126,19 +209,24 @@ class HWString extends HWDataType<String> {
   String get swiftType => 'String';
 
   @override
-  String androidReadValue({required String store, required String key}) {
-    final fallback = defaultValue != null
-        ? '"${escapeKotlinStringLiteral(defaultValue!)}"'
-        : 'null';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
     return '$store.getString("$key", $fallback)';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
     final read = '$store?.string(forKey: "$key")';
-    if (defaultValue != null) {
-      return '($read ?? "${escapeSwiftStringLiteral(defaultValue!)}")';
-    }
+    final fallback = codegenSwiftFallbackLiteral(preview: preview);
+    if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
 
@@ -168,6 +256,30 @@ class HWString extends HWDataType<String> {
     if (d == null) return null;
     return '"${escapeSwiftStringLiteral(d)}"';
   }
+
+  @override
+  String? codegenKotlinPreviewLiteral() {
+    final p = previewValue;
+    if (p == null) return null;
+    return '"${escapeKotlinStringLiteral(p)}"';
+  }
+
+  @override
+  String? codegenSwiftPreviewLiteral() {
+    final p = previewValue;
+    if (p == null) return null;
+    return '"${escapeSwiftStringLiteral(p)}"';
+  }
+
+  @override
+  HWString _merged(HWDataType<dynamic> other) {
+    final string = other as HWString;
+    return HWString(
+      key,
+      defaultValue: defaultValue ?? string.defaultValue,
+      previewValue: previewValue ?? string.previewValue,
+    );
+  }
 }
 
 /// A [HWString] whose shipped value differs per locale.
@@ -183,6 +295,10 @@ class HWString extends HWDataType<String> {
 class HWLocalizedString extends HWString {
   /// Locale tag (`en`, `pt-BR`) to shipped text.
   final Map<String, String> defaultTranslations;
+
+  /// Locale tag to sample text for the widget gallery, or null when the string
+  /// previews with its [defaultTranslations].
+  final Map<String, String>? previewTranslations;
 
   /// True when this string is inlined at build time rather than data-backed.
   final bool isConstant;
@@ -201,6 +317,7 @@ class HWLocalizedString extends HWString {
   const HWLocalizedString(
     super.key, {
     required this.defaultTranslations,
+    this.previewTranslations,
   })  : isConstant = false,
         defaultLocale = null,
         resourcePrefix = null;
@@ -212,6 +329,7 @@ class HWLocalizedString extends HWString {
     required this.defaultTranslations,
     required this.isConstant,
     required this.defaultLocale,
+    this.previewTranslations,
     this.resourcePrefix,
   });
 
@@ -229,26 +347,63 @@ class HWLocalizedString extends HWString {
   /// default locale was stamped (validation rejects that in real generation).
   ///
   /// Codegen-internal; see [resourceName].
-  String get baseLocaleTag {
-    final locale = defaultLocale;
-    if (locale != null && defaultTranslations.containsKey(locale)) {
-      return locale;
-    }
-    return defaultTranslations.keys.isEmpty
-        ? ''
-        : defaultTranslations.keys.first;
-  }
+  String get baseLocaleTag => _baseLocaleTagOf(defaultTranslations);
 
   /// The base-locale text.
   ///
   /// Codegen-internal; see [resourceName].
   String get baseValue => defaultTranslations[baseLocaleTag] ?? '';
 
+  /// [baseLocaleTag] of [previewTranslations], or null without them.
+  ///
+  /// Codegen-internal; see [resourceName].
+  String? get previewBaseLocaleTag {
+    final translations = previewTranslations;
+    return translations == null ? null : _baseLocaleTagOf(translations);
+  }
+
+  /// The base-locale preview text, or null without [previewTranslations].
+  ///
+  /// Codegen-internal; see [resourceName].
+  String? get previewBaseValue {
+    final translations = previewTranslations;
+    if (translations == null) return null;
+    return translations[_baseLocaleTagOf(translations)] ?? '';
+  }
+
+  String _baseLocaleTagOf(Map<String, String> translations) {
+    final locale = defaultLocale;
+    if (locale != null && translations.containsKey(locale)) return locale;
+    return translations.keys.isEmpty ? '' : translations.keys.first;
+  }
+
   /// `mapOf("en" to "Hello", "de" to "Hallo")`
   @internal
-  String get kotlinMapLiteral {
-    if (defaultTranslations.isEmpty) return 'emptyMap()';
-    final entries = defaultTranslations.entries
+  String get kotlinMapLiteral => _kotlinMapLiteralOf(defaultTranslations);
+
+  /// `["en": "Hello", "de": "Hallo"]`
+  @internal
+  String get swiftMapLiteral => _swiftMapLiteralOf(defaultTranslations);
+
+  /// [kotlinMapLiteral] of [previewTranslations], or null without them.
+  ///
+  /// Codegen-internal; see [resourceName].
+  String? get kotlinPreviewMapLiteral {
+    final translations = previewTranslations;
+    return translations == null ? null : _kotlinMapLiteralOf(translations);
+  }
+
+  /// [swiftMapLiteral] of [previewTranslations], or null without them.
+  ///
+  /// Codegen-internal; see [resourceName].
+  String? get swiftPreviewMapLiteral {
+    final translations = previewTranslations;
+    return translations == null ? null : _swiftMapLiteralOf(translations);
+  }
+
+  static String _kotlinMapLiteralOf(Map<String, String> translations) {
+    if (translations.isEmpty) return 'emptyMap()';
+    final entries = translations.entries
         .map(
           (e) => '"${escapeKotlinStringLiteral(e.key)}" to '
               '"${escapeKotlinStringLiteral(e.value)}"',
@@ -257,11 +412,9 @@ class HWLocalizedString extends HWString {
     return 'mapOf($entries)';
   }
 
-  /// `["en": "Hello", "de": "Hallo"]`
-  @internal
-  String get swiftMapLiteral {
-    if (defaultTranslations.isEmpty) return '[:]';
-    final entries = defaultTranslations.entries
+  static String _swiftMapLiteralOf(Map<String, String> translations) {
+    if (translations.isEmpty) return '[:]';
+    final entries = translations.entries
         .map(
           (e) => '"${escapeSwiftStringLiteral(e.key)}": '
               '"${escapeSwiftStringLiteral(e.value)}"',
@@ -270,16 +423,47 @@ class HWLocalizedString extends HWString {
     return '[$entries]';
   }
 
+  /// The compiled translations a read resolves against, and the locale it falls
+  /// back to: [previewTranslations] in a [preview] that has them, otherwise
+  /// [defaultTranslations].
+  ///
+  /// The stored locale map still wins over both, so a preview shows real data
+  /// once there is some.
+  (String, String) _kotlinCompiled({required bool preview}) =>
+      preview && previewTranslations != null
+          ? (
+              kotlinPreviewMapLiteral!,
+              escapeKotlinStringLiteral(previewBaseLocaleTag!)
+            )
+          : (kotlinMapLiteral, escapeKotlinStringLiteral(baseLocaleTag));
+
+  /// Swift counterpart of [_kotlinCompiled].
+  (String, String) _swiftCompiled({required bool preview}) =>
+      preview && previewTranslations != null
+          ? (
+              swiftPreviewMapLiteral!,
+              escapeSwiftStringLiteral(previewBaseLocaleTag!)
+            )
+          : (swiftMapLiteral, escapeSwiftStringLiteral(baseLocaleTag));
+
   @override
-  String androidReadValue({required String store, required String key}) {
-    return 'hwReadLocalized($store, "$key", locales, $kotlinMapLiteral, '
-        '"${escapeKotlinStringLiteral(baseLocaleTag)}")';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final (map, base) = _kotlinCompiled(preview: preview);
+    return 'hwReadLocalized($store, "$key", locales, $map, "$base")';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
-    return 'hwReadLocalized($store, "$key", $swiftMapLiteral, '
-        'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final (map, base) = _swiftCompiled(preview: preview);
+    return 'hwReadLocalized($store, "$key", $map, baseLocale: "$base")';
   }
 
   /// Kotlin expression resolving this string out of the active timed entry,
@@ -292,18 +476,26 @@ class HWLocalizedString extends HWString {
   /// becoming time-based.
   ///
   /// Codegen-internal; see [resourceName].
-  String androidTimedReadValue({required String valuesExpr}) {
+  String androidTimedReadValue({
+    required String valuesExpr,
+    bool preview = false,
+  }) {
+    final (map, base) = _kotlinCompiled(preview: preview);
     return 'hwReadTimedLocalized($valuesExpr, "$key", locales, '
-        '$kotlinMapLiteral, "${escapeKotlinStringLiteral(baseLocaleTag)}")';
+        '$map, "$base")';
   }
 
   /// Swift counterpart of [androidTimedReadValue], where [valuesExpr] is the
   /// `[String: Any]` dictionary holding the active timed entry.
   ///
   /// Codegen-internal; see [resourceName].
-  String iosTimedReadValue({required String valuesExpr}) {
-    return 'hwReadTimedLocalized($valuesExpr, "$key", $swiftMapLiteral, '
-        'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}")';
+  String iosTimedReadValue({
+    required String valuesExpr,
+    bool preview = false,
+  }) {
+    final (map, base) = _swiftCompiled(preview: preview);
+    return 'hwReadTimedLocalized($valuesExpr, "$key", $map, '
+        'baseLocale: "$base")';
   }
 
   /// Constants read from `res/values[-<locale>]/strings.xml`.
@@ -347,6 +539,45 @@ class HWLocalizedString extends HWString {
       '"${escapeSwiftStringLiteral(baseValue)}"';
 
   @override
+  String? codegenKotlinPreviewLiteral() {
+    final value = previewBaseValue;
+    return value == null ? null : '"${escapeKotlinStringLiteral(value)}"';
+  }
+
+  @override
+  String? codegenSwiftPreviewLiteral() {
+    final value = previewBaseValue;
+    return value == null ? null : '"${escapeSwiftStringLiteral(value)}"';
+  }
+
+  /// Compatible with another declaration of the same key carrying the same
+  /// [defaultTranslations]; only [previewTranslations] may be set on one side.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWLocalizedString &&
+      key == other.key &&
+      isConstant == other.isConstant &&
+      mapEquals(defaultTranslations, other.defaultTranslations) &&
+      (previewTranslations == null ||
+          other.previewTranslations == null ||
+          mapEquals(previewTranslations, other.previewTranslations));
+
+  /// Keeps the receiver's [defaultLocale] and [resourcePrefix], which the
+  /// parser stamps on rather than the annotation author.
+  @override
+  HWLocalizedString _merged(HWDataType<dynamic> other) {
+    final localized = other as HWLocalizedString;
+    return HWLocalizedString.resolved(
+      key,
+      defaultTranslations: defaultTranslations,
+      isConstant: isConstant,
+      defaultLocale: defaultLocale,
+      previewTranslations: previewTranslations ?? localized.previewTranslations,
+      resourcePrefix: resourcePrefix,
+    );
+  }
+
+  @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HWLocalizedString &&
@@ -354,7 +585,8 @@ class HWLocalizedString extends HWString {
           isConstant == other.isConstant &&
           defaultLocale == other.defaultLocale &&
           resourcePrefix == other.resourcePrefix &&
-          mapEquals(defaultTranslations, other.defaultTranslations);
+          mapEquals(defaultTranslations, other.defaultTranslations) &&
+          mapEquals(previewTranslations, other.previewTranslations);
 
   @override
   int get hashCode => Object.hash(
@@ -363,6 +595,9 @@ class HWLocalizedString extends HWString {
         defaultLocale,
         resourcePrefix,
         localizedContentHash(defaultTranslations),
+        previewTranslations == null
+            ? null
+            : localizedContentHash(previewTranslations!),
       );
 }
 
@@ -398,7 +633,10 @@ class HWInt extends HWNumericDataType<int> {
   @override
   final int? defaultValue;
 
-  const HWInt(super.key, {this.defaultValue});
+  @override
+  final int? previewValue;
+
+  const HWInt(super.key, {this.defaultValue, this.previewValue});
 
   @override
   String get dartType => 'int';
@@ -410,8 +648,12 @@ class HWInt extends HWNumericDataType<int> {
   String get swiftType => 'Int';
 
   @override
-  String androidReadValue({required String store, required String key}) {
-    final fallback = codegenKotlinDefaultLiteral() ?? 'null';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
     // A Dart int is stored as an Int only while it fits 32 bits and as a Long
     // beyond that, so getInt would throw on large values.
     return 'if ($store.contains("$key")) '
@@ -421,9 +663,14 @@ class HWInt extends HWNumericDataType<int> {
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
     final read = '$store?.object(forKey: "$key") as? Int';
-    if (defaultValue != null) return '($read ?? $defaultValue)';
+    final fallback = codegenSwiftFallbackLiteral(preview: preview);
+    if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
 
@@ -469,13 +716,34 @@ class HWInt extends HWNumericDataType<int> {
   @override
   String? codegenSwiftDefaultLiteral() =>
       defaultValue == null ? null : '${defaultValue!}';
+
+  @override
+  String? codegenKotlinPreviewLiteral() =>
+      previewValue == null ? null : '${previewValue!}L';
+
+  @override
+  String? codegenSwiftPreviewLiteral() =>
+      previewValue == null ? null : '${previewValue!}';
+
+  @override
+  HWInt _merged(HWDataType<dynamic> other) {
+    final number = other as HWInt;
+    return HWInt(
+      key,
+      defaultValue: defaultValue ?? number.defaultValue,
+      previewValue: previewValue ?? number.previewValue,
+    );
+  }
 }
 
 class HWDouble extends HWNumericDataType<double> {
   @override
   final double? defaultValue;
 
-  const HWDouble(super.key, {this.defaultValue});
+  @override
+  final double? previewValue;
+
+  const HWDouble(super.key, {this.defaultValue, this.previewValue});
 
   @override
   String get dartType => 'double';
@@ -487,17 +755,26 @@ class HWDouble extends HWNumericDataType<double> {
   String get swiftType => 'Double';
 
   @override
-  String androidReadValue({required String store, required String key}) {
-    final fallback = codegenKotlinDefaultLiteral() ?? 'null';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
     return 'if ($store.contains("$key")) '
         'java.lang.Double.longBitsToDouble($store.getLong("$key", 0L)) '
         'else $fallback';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
     final read = '$store?.object(forKey: "$key") as? Double';
-    if (defaultValue != null) return '($read ?? $defaultValue)';
+    final fallback = codegenSwiftFallbackLiteral(preview: preview);
+    if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
 
@@ -541,13 +818,32 @@ class HWDouble extends HWNumericDataType<double> {
 
   @override
   String? codegenSwiftDefaultLiteral() => defaultValue?.toString();
+
+  @override
+  String? codegenKotlinPreviewLiteral() => previewValue?.toString();
+
+  @override
+  String? codegenSwiftPreviewLiteral() => previewValue?.toString();
+
+  @override
+  HWDouble _merged(HWDataType<dynamic> other) {
+    final number = other as HWDouble;
+    return HWDouble(
+      key,
+      defaultValue: defaultValue ?? number.defaultValue,
+      previewValue: previewValue ?? number.previewValue,
+    );
+  }
 }
 
 class HWBool extends HWDataType<bool> {
   @override
   final bool? defaultValue;
 
-  const HWBool(super.key, {this.defaultValue});
+  @override
+  final bool? previewValue;
+
+  const HWBool(super.key, {this.defaultValue, this.previewValue});
 
   @override
   String get dartType => 'bool';
@@ -559,15 +855,24 @@ class HWBool extends HWDataType<bool> {
   String get swiftType => 'Bool';
 
   @override
-  String androidReadValue({required String store, required String key}) {
-    final fallback = defaultValue?.toString() ?? 'null';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
     return 'if ($store.contains("$key")) $store.getBoolean("$key", false) else $fallback';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
     final read = '$store?.object(forKey: "$key") as? Bool';
-    if (defaultValue != null) return '($read ?? $defaultValue)';
+    final fallback = codegenSwiftFallbackLiteral(preview: preview);
+    if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
 
@@ -591,6 +896,24 @@ class HWBool extends HWDataType<bool> {
   @override
   String? codegenSwiftDefaultLiteral() =>
       defaultValue == null ? null : '${defaultValue!}';
+
+  @override
+  String? codegenKotlinPreviewLiteral() =>
+      previewValue == null ? null : '$previewValue';
+
+  @override
+  String? codegenSwiftPreviewLiteral() =>
+      previewValue == null ? null : '${previewValue!}';
+
+  @override
+  HWBool _merged(HWDataType<dynamic> other) {
+    final flag = other as HWBool;
+    return HWBool(
+      key,
+      defaultValue: defaultValue ?? flag.defaultValue,
+      previewValue: previewValue ?? flag.previewValue,
+    );
+  }
 }
 
 /// A point in time, rendered by `HWText.dateTime`.
@@ -603,11 +926,30 @@ class HWBool extends HWDataType<bool> {
 ///
 /// There is no fixed variant and no default value: a widget with no date yet
 /// renders empty text rather than a stand-in moment.
+///
+/// A preview instant is written as an ISO 8601 string, since [DateTime] has no
+/// const constructor to put in an annotation.
 class HWDateTime extends HWDataType<DateTime> {
-  const HWDateTime(super.key);
+  /// The `previewValue` argument exactly as written, unparsed.
+  ///
+  /// Named apart from [previewValue] because that one is the [DateTime] the
+  /// base class types it as; this is the text it was spelled with, which the
+  /// CLI validator rejects when it does not parse.
+  final String? previewIso;
+
+  const HWDateTime(super.key, {String? previewValue})
+      : previewIso = previewValue;
 
   @override
   DateTime? get defaultValue => null;
+
+  /// [previewIso] parsed, or null when it is unset or not a valid ISO 8601
+  /// string.
+  DateTime? get previewDateTime =>
+      previewIso == null ? null : DateTime.tryParse(previewIso!);
+
+  @override
+  DateTime? get previewValue => previewDateTime;
 
   @override
   String get dartType => 'DateTime';
@@ -622,14 +964,34 @@ class HWDateTime extends HWDataType<DateTime> {
   List<HWNativeHelper> get nativeHelpers =>
       const [HWNativeHelper.hwParseIsoDate];
 
+  /// The ISO text a read parses when nothing is stored: [previewIso] in a
+  /// [preview] that has one, and the empty string — which parses to no date —
+  /// otherwise.
+  ///
+  /// A date is read through the same parse everywhere it is stored, so the
+  /// fallback is the string the app would have written rather than the native
+  /// `Date` literal [codegenKotlinPreviewLiteral] builds for a data-class field.
+  String _isoFallback({required bool preview}) =>
+      preview ? previewIso ?? '' : '';
+
   @override
-  String androidReadValue({required String store, required String key}) {
-    return 'hwParseIsoDate($store.getString("$key", null) ?: "")';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final iso = escapeKotlinStringLiteral(_isoFallback(preview: preview));
+    return 'hwParseIsoDate($store.getString("$key", null) ?: "$iso")';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
-    return 'hwParseIsoDate($store?.string(forKey: "$key") ?? "")';
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final iso = escapeSwiftStringLiteral(_isoFallback(preview: preview));
+    return 'hwParseIsoDate($store?.string(forKey: "$key") ?? "$iso")';
   }
 
   @override
@@ -688,8 +1050,14 @@ class HWDateTime extends HWDataType<DateTime> {
   /// `values["k"] as? Date` cast the other leaf types use would always miss.
   ///
   /// Codegen-internal: consumed by `home_widget_cli`, not by app code.
-  String iosJsonReadValue({required String objExpr, required String key}) =>
-      'hwParseIsoDate(($objExpr["$key"] as? String) ?? "")';
+  String iosJsonReadValue({
+    required String objExpr,
+    required String key,
+    bool preview = false,
+  }) {
+    final iso = escapeSwiftStringLiteral(_isoFallback(preview: preview));
+    return 'hwParseIsoDate(($objExpr["$key"] as? String) ?? "$iso")';
+  }
 
   /// Kotlin counterpart of [iosJsonReadValue], where [objExpr] is a
   /// `JSONObject`.
@@ -698,23 +1066,74 @@ class HWDateTime extends HWDataType<DateTime> {
   String androidJsonReadValue({
     required String objExpr,
     required String key,
-  }) =>
-      'hwParseIsoDate(if ($objExpr.has("$key") && !$objExpr.isNull("$key")) '
-      '$objExpr.optString("$key") else "")';
+    bool preview = false,
+  }) {
+    final iso = escapeKotlinStringLiteral(_isoFallback(preview: preview));
+    return 'hwParseIsoDate(if ($objExpr.has("$key") && !$objExpr.isNull("$key")) '
+        '$objExpr.optString("$key") else "$iso")';
+  }
 
   /// Swift expression resolving this date out of the active timed entry, where
   /// [valuesExpr] is the `[String: Any]` dictionary holding that entry.
   ///
   /// Codegen-internal; see [iosJsonReadValue].
-  String iosTimedReadValue({required String valuesExpr}) =>
-      iosJsonReadValue(objExpr: valuesExpr, key: key);
+  String iosTimedReadValue({
+    required String valuesExpr,
+    bool preview = false,
+  }) =>
+      iosJsonReadValue(objExpr: valuesExpr, key: key, preview: preview);
 
   /// Kotlin counterpart of [iosTimedReadValue], where [valuesExpr] is a
   /// `JSONObject`.
   ///
   /// Codegen-internal; see [iosJsonReadValue].
-  String androidTimedReadValue({required String valuesExpr}) =>
-      androidJsonReadValue(objExpr: valuesExpr, key: key);
+  String androidTimedReadValue({
+    required String valuesExpr,
+    bool preview = false,
+  }) =>
+      androidJsonReadValue(objExpr: valuesExpr, key: key, preview: preview);
+
+  /// The generated data class holds a `java.util.Date`, so the preview is one
+  /// too rather than the ISO string it was written as.
+  @override
+  String? codegenKotlinPreviewLiteral() {
+    final date = previewDateTime;
+    return date == null
+        ? null
+        : 'java.util.Date(${date.millisecondsSinceEpoch}L)';
+  }
+
+  /// Swift counterpart of [codegenKotlinPreviewLiteral].
+  @override
+  String? codegenSwiftPreviewLiteral() {
+    final date = previewDateTime;
+    return date == null
+        ? null
+        : 'Date(timeIntervalSince1970: '
+            '${date.millisecondsSinceEpoch / 1000})';
+  }
+
+  /// Compared on [previewIso] rather than the parsed instant, so two different
+  /// unparseable spellings stay in conflict instead of both reading as unset.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWDateTime &&
+      key == other.key &&
+      _mergeable(previewIso, other.previewIso);
+
+  @override
+  HWDateTime _merged(HWDataType<dynamic> other) => HWDateTime(
+        key,
+        previewValue: previewIso ?? (other as HWDateTime).previewIso,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWDateTime && key == other.key && previewIso == other.previewIso;
+
+  @override
+  int get hashCode => Object.hash(key, previewIso);
 }
 
 /// An image rendered by [HWImage].
@@ -738,8 +1157,15 @@ class HWImageData extends HWDataType<String> {
   /// `AssetImage`.
   final String? package;
 
+  /// The Flutter asset shown in the widget gallery while there is no runtime
+  /// image, or null when the preview stays empty.
+  ///
+  /// Spelled like [assetPath], except that a `packages/<package>/` prefix is
+  /// the only way to name a dependency's asset here.
+  final String? previewAsset;
+
   /// An image whose bytes are supplied at runtime under [key].
-  const HWImageData(super.key)
+  const HWImageData(super.key, {this.previewAsset})
       : assetPath = null,
         package = null;
 
@@ -750,8 +1176,11 @@ class HWImageData extends HWDataType<String> {
   ///
   /// A [path] that already starts with `packages/` is the manual spelling of
   /// the same thing and must not be combined with [package].
+  ///
+  /// There is no preview asset: a bundled image previews as itself.
   const HWImageData.asset(String path, {this.package})
       : assetPath = path,
+        previewAsset = null,
         super('');
 
   /// Whether this image is a Flutter asset read from the app bundle.
@@ -781,6 +1210,10 @@ class HWImageData extends HWDataType<String> {
     }
     return 'packages/$package/$path';
   }
+
+  /// The full asset key Flutter resolves [previewAsset] with, or null when
+  /// there is none.
+  String? get previewAssetKey => previewAsset;
 
   @override
   String get key => assetPath == null
@@ -828,6 +1261,10 @@ class HWImageData extends HWDataType<String> {
   @override
   String? get defaultValue => null;
 
+  /// An image previews through [previewAsset], not through a stored value.
+  @override
+  String? get previewValue => null;
+
   @override
   String get dartType => 'String';
 
@@ -838,13 +1275,46 @@ class HWImageData extends HWDataType<String> {
   String get swiftType => 'String';
 
   @override
-  String androidReadValue({required String store, required String key}) {
-    return '$store.getString("$key", null)';
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
+    return '$store.getString("$key", $fallback)';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
-    return '$store?.string(forKey: "$key")';
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final read = '$store?.string(forKey: "$key")';
+    final fallback = codegenSwiftFallbackLiteral(preview: preview);
+    if (fallback != null) return '($read ?? $fallback)';
+    return read;
+  }
+
+  /// The Kotlin fallback is [previewAssetKey] itself: a stored image is an
+  /// absolute file path, and the generated decoder reads anything else as an
+  /// asset key.
+  ///
+  /// There is no default fallback — a runtime image with nothing saved renders
+  /// nothing — and an asset image needs none, as it names its own asset.
+  @override
+  String? codegenKotlinFallbackLiteral({bool preview = false}) {
+    final asset = preview ? previewAssetKey : null;
+    return asset == null ? null : '"${escapeKotlinStringLiteral(asset)}"';
+  }
+
+  /// The Swift fallback resolves [previewAssetKey] to an absolute bundle path,
+  /// so the value reaching the decoder is the same shape a stored image has.
+  @override
+  String? codegenSwiftFallbackLiteral({bool preview = false}) {
+    final asset = preview ? previewAssetKey : null;
+    if (asset == null) return null;
+    return '$swiftFlutterAssetFunction("${escapeSwiftStringLiteral(asset)}")';
   }
 
   /// Always throws: an image path is not meaningful display text.
@@ -874,16 +1344,36 @@ class HWImageData extends HWDataType<String> {
     );
   }
 
+  /// Compatible with another declaration of the same image — matched on
+  /// [effectiveAssetKey] rather than on how the asset was spelled — that does
+  /// not set a different [previewAsset].
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWImageData &&
+      rawKey == other.rawKey &&
+      effectiveAssetKey == other.effectiveAssetKey &&
+      _mergeable(previewAsset, other.previewAsset);
+
+  @override
+  HWImageData _merged(HWDataType<dynamic> other) {
+    if (isAsset) return this;
+    return HWImageData(
+      rawKey,
+      previewAsset: previewAsset ?? (other as HWImageData).previewAsset,
+    );
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HWImageData &&
           rawKey == other.rawKey &&
           assetPath == other.assetPath &&
-          package == other.package;
+          package == other.package &&
+          previewAsset == other.previewAsset;
 
   @override
-  int get hashCode => Object.hash(rawKey, assetPath, package);
+  int get hashCode => Object.hash(rawKey, assetPath, package, previewAsset);
 
   /// The key exactly as declared, before any derivation from [assetPath].
   ///
@@ -921,6 +1411,9 @@ class HWJson<T> extends HWDataType<T> {
   T? get defaultValue => leafType.defaultValue as T?;
 
   @override
+  T? get previewValue => leafType.previewValue as T?;
+
+  @override
   String get dartType => 'Map<String, dynamic>';
 
   @override
@@ -932,13 +1425,23 @@ class HWJson<T> extends HWDataType<T> {
   @override
   List<HWNativeHelper> get nativeHelpers => child.nativeHelpers;
 
+  /// The group travels as one encoded string with no fallback of its own; the
+  /// leaf's preview is applied where that string is decoded.
   @override
-  String androidReadValue({required String store, required String key}) {
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
     return '$store.getString("$key", null)';
   }
 
   @override
-  String iosReadValue({required String store, required String key}) {
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
     return '$store?.string(forKey: "$key")';
   }
 
@@ -1004,6 +1507,21 @@ class HWJson<T> extends HWDataType<T> {
   @override
   String? codegenSwiftDefaultLiteral() => leafType.codegenSwiftDefaultLiteral();
 
+  @override
+  String? codegenKotlinPreviewLiteral() =>
+      leafType.codegenKotlinPreviewLiteral();
+
+  @override
+  String? codegenSwiftPreviewLiteral() => leafType.codegenSwiftPreviewLiteral();
+
+  @override
+  String? codegenKotlinFallbackLiteral({bool preview = false}) =>
+      leafType.codegenKotlinFallbackLiteral(preview: preview);
+
+  @override
+  String? codegenSwiftFallbackLiteral({bool preview = false}) =>
+      leafType.codegenSwiftFallbackLiteral(preview: preview);
+
   /// Kotlin `text = ...` argument for Glance Text when bound to nested JSON data.
   String kotlinGlanceJsonTextInterpolation(String dataExpr) {
     final read = kotlinReadExpr(dataExpr);
@@ -1037,16 +1555,34 @@ class HWJson<T> extends HWDataType<T> {
     return 'String(describing: ($read))';
   }
 
+  /// Compatible with another path of the same key whose [child] is compatible,
+  /// which for a nested group recurses down to the leaf.
+  ///
+  /// The leaf [defaultValue] must match exactly, since render sites inline it.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWJson &&
+      key == other.key &&
+      child.isCompatibleWith(other.child) &&
+      leafType.defaultValue == other.leafType.defaultValue;
+
+  @override
+  HWJson<T> _merged(HWDataType<dynamic> other) {
+    final json = other as HWJson<dynamic>;
+    return HWJson<T>(key, child.mergedWith(json.child));
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is HWJson &&
           key == other.key &&
           child == other.child &&
-          defaultValue == other.defaultValue;
+          defaultValue == other.defaultValue &&
+          previewValue == other.previewValue;
 
   @override
-  int get hashCode => Object.hash(key, child, defaultValue);
+  int get hashCode => Object.hash(key, child, defaultValue, previewValue);
 }
 
 /// The [HWImageData] a data field ultimately describes, or null when the field
@@ -1125,6 +1661,9 @@ class HWTimedData<T> extends HWDataType<T> {
   T? get defaultValue => data.defaultValue;
 
   @override
+  T? get previewValue => data.previewValue;
+
+  @override
   String get dartType => data.dartType;
 
   @override
@@ -1134,12 +1673,28 @@ class HWTimedData<T> extends HWDataType<T> {
   String get swiftType => data.swiftType;
 
   @override
-  String androidReadValue({required String store, required String key}) =>
-      data.androidReadValue(store: store, key: key);
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) =>
+      data.androidReadValue(store: store, key: key, preview: preview);
 
   @override
-  String iosReadValue({required String store, required String key}) =>
-      data.iosReadValue(store: store, key: key);
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) =>
+      data.iosReadValue(store: store, key: key, preview: preview);
+
+  @override
+  String? codegenKotlinFallbackLiteral({bool preview = false}) =>
+      data.codegenKotlinFallbackLiteral(preview: preview);
+
+  @override
+  String? codegenSwiftFallbackLiteral({bool preview = false}) =>
+      data.codegenSwiftFallbackLiteral(preview: preview);
 
   @override
   String androidToString({
@@ -1179,6 +1734,17 @@ class HWTimedData<T> extends HWDataType<T> {
   /// so `runtimeType` must not take part in the hash: `HWTimedData<String>` and
   /// `HWTimedData<dynamic>` wrapping equal data are equal and must hash equal.
   static const String _hashTag = 'HWTimedData';
+
+  /// Compatible with another timed declaration wrapping compatible data.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWTimedData && data.isCompatibleWith(other.data);
+
+  @override
+  HWTimedData<T> _merged(HWDataType<dynamic> other) {
+    final timed = other as HWTimedData<dynamic>;
+    return HWTimedData<T>(data.mergedWith(timed.data));
+  }
 
   @override
   bool operator ==(Object other) =>

@@ -1,0 +1,260 @@
+---
+title: Previews
+description: Sample data the widget gallery shows for a generated widget.
+---
+
+# Previews
+
+When a user browses the widget gallery of their launcher, a generated widget can be shown filled
+with sample data instead of empty text and placeholder icons. Every data-backed type takes a
+`previewValue` next to its `defaultValue`, only ever rendered in the gallery — the widget on the
+home screen keeps using stored data, then `defaultValue`, exactly as before.
+
+<Info>
+This page covers preview values on generated widgets. For the underlying mechanism — Jetpack
+Glance's `providePreview`, iOS's `getSnapshot(context.isPreview)` — and for adding a preview to a
+hand-written widget, see [Widget Previews](/features/widget-previews).
+</Info>
+
+## Declaring preview values
+
+Add `previewValue` (or `previewAsset` / `previewTranslations`, for images and localized strings)
+next to `defaultValue`:
+
+```dart
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Forecast',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.app',
+    supportedFamilies: [HWWidgetFamily.systemSmall],
+  ),
+  widget: HWColumn(
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    children: [
+      HWText(
+        HWString('city', defaultValue: 'Nowhere', previewValue: 'Berlin'),
+        style: HWRoleTextStyle(role: HWTextStyleRole.caption),
+      ),
+      HWText(
+        HWTimedData(
+          HWString(
+            'condition',
+            defaultValue: 'No forecast',
+            previewValue: 'Sunny',
+          ),
+        ),
+        style: HWRoleTextStyle(
+          role: HWTextStyleRole.title,
+          fontWeight: HWFontWeight.bold,
+        ),
+      ),
+      HWText(
+        HWTimedData(HWInt('temperature', defaultValue: 0, previewValue: 21)),
+      ),
+    ],
+  ),
+)
+class Forecast {}
+```
+
+With the user's data not yet saved, the launcher's widget picker shows "Berlin" and "Sunny, 21°"
+instead of "Nowhere" and "No forecast, 0°" — a far more convincing preview of what the widget looks
+like once it is placed.
+
+`HWString`, `HWInt`, `HWDouble` and `HWBool` all take `previewValue` the same way `defaultValue`
+works. `HWDateTime`, `HWImageData` and `HWString.localized` each have their own shape, covered
+below. `HWTimedData` and `HWJson` have no preview of their own — the preview shown is the one
+carried by the type they wrap or the leaf they address.
+
+Constant `HWText.localized` text takes no preview value: it is a fixed string compiled into the
+widget, so it is already the same text the preview would show.
+
+## Precedence
+
+For each field, the gallery preview resolves in this order:
+
+1. **Stored data** — a value already saved with `saveData`.
+2. **`previewValue`** — the sample declared on the annotation.
+3. **`defaultValue`**.
+
+On the home screen nothing changes: a placed widget still resolves stored data, then
+`defaultValue` — `previewValue` never reaches it.
+
+## Curated previews: `useLiveDataInPreview`
+
+By default the gallery preview reads whatever the app has already saved, same as the home screen.
+Set `useLiveDataInPreview: false` on `@HomeWidget` to have the preview skip stored data entirely and
+show `previewValue`, then `defaultValue` — useful for a widget whose real data is private, or where
+a curated preview simply looks better than whatever an early user happens to have saved:
+
+```dart
+@HomeWidget(
+  name: 'Portfolio',
+  useLiveDataInPreview: false,
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWText(HWDouble('balance', defaultValue: 0, previewValue: 12480.50)),
+)
+class Portfolio {}
+```
+
+`useLiveDataInPreview` can be overridden per platform with the same field on
+`HomeWidgetAndroidConfiguration` and `HomeWidgetIOSConfiguration`; `null` (the default) inherits the
+top-level setting:
+
+```dart
+@HomeWidget(
+  name: 'Portfolio',
+  useLiveDataInPreview: false,
+  android: HomeWidgetAndroidConfiguration(useLiveDataInPreview: true),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWText(HWDouble('balance', defaultValue: 0, previewValue: 12480.50)),
+)
+class Portfolio {}
+```
+
+Here the iOS gallery shows the curated preview, while Android shows the real, already-saved data.
+
+## Registering the preview on Android
+
+Android's generated preview needs Android 15 (API 35) and [Jetpack Glance](/setup/android) 1.2 or
+newer — `home_widget_cli` raises a lower pinned Glance dependency itself, warning when it does. The
+plugin's `minSdkVersion` stays 23; devices below API 35 are unaffected and keep showing the static
+`android:previewImage`.
+
+The generated `GlanceAppWidget` overrides `providePreview` for you, built from the same annotation
+as the home-screen content. The plugin also registers that preview automatically: whenever a
+Flutter engine attaches, it re-renders and hands over the preview for any generated widget whose
+content changed since the last registration, using a fingerprint of the annotation, the device's
+locale, and — only where the preview reads live data — the values currently in storage. It also
+re-registers a widget whose preview the system no longer holds, which is the case after an app
+update or a reboot. Android rate-limits preview updates to roughly **two per hour per widget**, so
+this only spends that budget when the gallery would otherwise show something else.
+
+Set `autoUpdatePreview: false` on `HomeWidgetAndroidConfiguration` to opt a widget out of that
+automatic registration:
+
+```dart
+@HomeWidget(
+  name: 'Forecast',
+  android: HomeWidgetAndroidConfiguration(autoUpdatePreview: false),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWText(HWString('city', defaultValue: 'Nowhere', previewValue: 'Berlin')),
+)
+class Forecast {}
+```
+
+Every generated helper also gains a manual refresh, whether or not automatic registration is on:
+
+```dart
+/// Asks the launcher to re-render this widget's gallery preview.
+static Future<bool> updatePreview();
+```
+
+Call it right after an event that should show in the gallery immediately — a sign-in, for example —
+rather than waiting for the next automatic registration. `updatePreview()` returns `false` on iOS,
+below Android 15, and when the rate limit was hit. See [Widget
+Previews](/features/widget-previews#registering-the-preview) for the underlying plugin API.
+
+## Dates
+
+`HWDateTime` has no `defaultValue`, but it does take a `previewValue` — spelled as an ISO 8601
+string, since `DateTime` has no `const` constructor an annotation could hold:
+
+```dart
+HWText.dateTime(
+  HWDateTime('due', previewValue: '2026-09-09T10:00:00Z'),
+  format: HWDateFormat.yMMMd,
+)
+```
+
+A `previewValue` that does not parse as an ISO 8601 date is a generation error naming the field and
+the text it was given.
+
+## Preview assets
+
+A runtime `HWImageData` takes a `previewAsset`: a Flutter asset shown in the gallery until the app
+has saved a real picture. It is validated exactly like an `HWImage.asset` path — declared under
+`flutter.assets`, or resolved inside the named package:
+
+```dart
+HWImage(HWImageData('avatar', previewAsset: 'assets/preview/avatar.png'))
+```
+
+`HWImageData.asset` — a bundled image with no key — takes no `previewAsset`: it already previews as
+itself, since there is nothing else it could show.
+
+## Localized preview translations
+
+`HWString.localized` takes `previewTranslations`, in the same shape as `defaultTranslations` and
+validated by the same completeness rules — every supported locale, the default locale included:
+
+```dart
+HWText(
+  HWString.localized(
+    'greeting',
+    defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    previewTranslations: {'en': 'Hello, Anton', 'de': 'Hallo, Anton'},
+  ),
+)
+```
+
+## Declaring one key in several places
+
+The same key can carry a `previewValue` in one place and not in another — for example a display
+field with a sample value, and the same field named again in a conditional:
+
+```dart
+widget: HWColumn(
+  children: [
+    HWText(HWString('city', previewValue: 'Berlin')),
+    HWDataExists(
+      data: HWString('city'),
+      whenPresent: HWText.fixed('Forecast available'),
+      whenAbsent: HWText.fixed('Open the app'),
+    ),
+  ],
+),
+```
+
+Two declarations of a key merge as long as each of `defaultValue` and `previewValue` is equal
+between them, or set on only one side. Declaring two different values for the same key on both
+sides is a generation error naming both declarations.
+
+<Warning>
+A leaf reached through `HWJson` is the exception: every declaration of that leaf must give it the
+same `defaultValue`, since render sites inline it directly. `previewValue` still merges as usual.
+</Warning>
+
+## How it works per platform
+
+<Accordion title="iOS">
+`getSnapshot` checks `context.isPreview` and, where the widget has any `previewValue` or opts out of
+live data, resolves the entry from a separate read: live `UserDefaults` when
+`useLiveDataInPreview` is on for that widget, `nil` otherwise — either way falling back to
+`previewValue`, then `defaultValue`, ahead of the widget's own defaults-only read. A widget with no
+preview values and `useLiveDataInPreview` left on keeps rendering exactly as it did before this
+feature: the same live read the home screen uses.
+
+The redacted placeholder — shown before the app has ever provided data — always reads with `nil`
+`UserDefaults`, so it never shows live data regardless of `useLiveDataInPreview`. A field with a
+`previewValue` shows that instead of `defaultValue`; one without still falls back to `defaultValue`,
+exactly as it did before this feature.
+</Accordion>
+
+<Accordion title="Android">
+The generated `GlanceAppWidget` overrides `providePreview`, reading from the app's live
+`SharedPreferences` when `useLiveDataInPreview` is on for that widget and from an empty store
+otherwise, resolved through the same generated data class as the home-screen content — with
+`previewValue` standing in for `defaultValue` wherever the widget declares one.
+
+Registering that preview with the launcher is a separate step from rendering it: the generated
+receiver overrides `previewFingerprint`, and the plugin calls it for every generated widget whenever
+a Flutter engine attaches, re-registering only the previews whose fingerprint changed since the last
+call or that the system dropped in the meantime — see [Registering the preview on Android](#registering-the-preview-on-android). Set
+`autoUpdatePreview: false` to opt out, and call the generated `updatePreview()` for a manual refresh
+either way.
+</Accordion>

@@ -14,12 +14,20 @@ enum ConditionalStatusHomeWidgetFlavor {
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ConditionalStatusHomeWidgetEntry {
     ConditionalStatusHomeWidgetEntry(
-      date: Date(), data: ConditionalStatusData.fromUserDefaults(nil))
+      date: Date(), data: ConditionalStatusData.previewFromUserDefaults(nil))
   }
 
   func getSnapshot(
     in context: Context, completion: @escaping (ConditionalStatusHomeWidgetEntry) -> Void
   ) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(
+        suiteName: ConditionalStatusHomeWidgetFlavor.appGroupId)
+      let data = ConditionalStatusData.previewFromUserDefaults(prefs)
+      completion(ConditionalStatusHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: ConditionalStatusHomeWidgetFlavor.appGroupId)
     let data = ConditionalStatusData.fromUserDefaults(prefs)
 
@@ -120,6 +128,13 @@ struct ConditionalStatusData {
   static func fromUserDefaults(_ defaults: UserDefaults?) -> ConditionalStatusData {
     return ConditionalStatusData(
       hasData: defaults?.object(forKey: "\(paramPrefix).hasData") as? Bool,
+      enabled: (defaults?.object(forKey: "\(paramPrefix).enabled") as? Bool ?? true),
+    )
+  }
+
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> ConditionalStatusData {
+    return ConditionalStatusData(
+      hasData: (defaults?.object(forKey: "\(paramPrefix).hasData") as? Bool ?? true),
       enabled: (defaults?.object(forKey: "\(paramPrefix).enabled") as? Bool ?? true),
     )
   }

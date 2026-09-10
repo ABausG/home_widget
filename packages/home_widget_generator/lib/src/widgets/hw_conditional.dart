@@ -110,6 +110,12 @@ class HWDataExists extends HWConditional {
 
   /// An image's stored value is a file path, and the file it points at can be
   /// gone while the path is still stored, so the check has to reach the disk.
+  ///
+  /// On Android a value that is not an absolute path is a Flutter asset key —
+  /// what a gallery preview stands in with — and names a file bundled in the
+  /// APK, so it counts as present without a disk check, matching how
+  /// [kotlinImageFileHelper] decodes it. Swift needs no such branch: its
+  /// preview fallback resolves the asset to an absolute bundle path.
   @override
   String conditionSwift({required String dataExpr}) {
     final access = data.swiftAccess(dataExpr);
@@ -124,7 +130,8 @@ class HWDataExists extends HWConditional {
   String conditionKotlin({required String dataExpr}) {
     final access = data.kotlinAccess(dataExpr);
     if (imageLeafOf(data) != null) {
-      return '$access?.let { java.io.File(it).exists() } == true';
+      return '$access?.let '
+          '{ !it.startsWith("/") || java.io.File(it).exists() } == true';
     }
     return '$access != null';
   }

@@ -109,6 +109,8 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       localization: localization,
       widgetUrl: constantValue.getField('widgetUrl')?.toStringValue(),
       flavors: _extractFlavors(constantValue.getField('flavors')),
+      useLiveDataInPreview:
+          constantValue.getField('useLiveDataInPreview')?.toBoolValue() ?? true,
     ),
     className: generatedClassName,
     dataFields: dataFields,
@@ -170,6 +172,9 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
     fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
     widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
     openAppOnTap: obj.getField('openAppOnTap')?.toBoolValue() ?? true,
+    // Nullable on purpose: unset inherits the top-level value.
+    useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
+    autoUpdatePreview: obj.getField('autoUpdatePreview')?.toBoolValue() ?? true,
   );
 }
 
@@ -194,6 +199,7 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
+    useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
   );
 }
 

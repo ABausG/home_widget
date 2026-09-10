@@ -71,6 +71,44 @@ class HomeWidget {
     });
   }
 
+  /// Refreshes the preview the launcher shows for the Widget in its gallery
+  ///
+  /// This is Android only and requires Android 15 (API 35). There the system is
+  /// asked to re-render the generated preview of the Widget from its Glance
+  /// `providePreview`, so the gallery can show the Widget filled with the
+  /// current data instead of a static image.
+  ///
+  /// Returns `true` when the system accepted the new preview. Returns `false`
+  /// when the system rate limit was hit (previews may only be updated about
+  /// twice per hour and Widget), below Android 15, and when the resolved
+  /// provider is not a Glance Widget.
+  ///
+  /// On iOS this does nothing and returns `false`. WidgetKit renders the
+  /// gallery preview itself by calling the Widget's `getSnapshot` with
+  /// `context.isPreview` set, so there is no preview for the plugin to push.
+  ///
+  /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
+  ///
+  /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
+  /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
+  ///
+  /// On Android, throws a `PlatformException` (code `-8`) if no
+  /// `AppWidgetProvider` matching [qualifiedAndroidName]/[androidName]/[name]
+  /// can be resolved, or if rendering the preview failed.
+  static Future<bool?> updateWidgetPreview({
+    String? name,
+    String? androidName,
+    String? iOSName,
+    String? qualifiedAndroidName,
+  }) {
+    return _channel.invokeMethod('updateWidgetPreview', {
+      'name': name,
+      'android': androidName,
+      'ios': iOSName,
+      'qualifiedAndroidName': qualifiedAndroidName,
+    });
+  }
+
   /// Schedules updates of the HomeScreen Widget at the given [updateTimes]
   ///
   /// This is Android only. There the plugin uses `AlarmManager` to broadcast a

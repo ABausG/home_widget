@@ -6,6 +6,7 @@ private let appGroupId = "group.es.antonborri.exampleHomeWidget"
 private let fileJsonKey = "fileJson"
 
 private let defaultJson = "{ \"name\": \"World\" }"
+private let previewJson = "{ \"name\": \"Preview\" }"
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> FileWidgetHomeWidgetEntry {
@@ -13,32 +14,37 @@ struct Provider: TimelineProvider {
   }
 
   func getSnapshot(in context: Context, completion: @escaping (FileWidgetHomeWidgetEntry) -> Void) {
-    completion(Self.entry())
+    completion(Self.entry(preview: context.isPreview))
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
     completion(Timeline(entries: [Self.entry()], policy: .atEnd))
   }
 
-  private static func entry() -> FileWidgetHomeWidgetEntry {
-    let (name, json) = loadFromFile()
+  private static func entry(preview: Bool = false) -> FileWidgetHomeWidgetEntry {
+    let (name, json, found) = loadFromFile()
+    // The gallery calls this with `isPreview` before any file was saved.
+    if preview && !found {
+      return FileWidgetHomeWidgetEntry(
+        date: Date(), displayName: "Preview", jsonString: previewJson)
+    }
     return FileWidgetHomeWidgetEntry(date: Date(), displayName: name, jsonString: json)
   }
 
-  private static func loadFromFile() -> (String, String) {
+  private static func loadFromFile() -> (String, String, Bool) {
     let prefs = UserDefaults(suiteName: appGroupId)
     guard let path = prefs?.string(forKey: fileJsonKey), !path.isEmpty else {
-      return ("World", defaultJson)
+      return ("World", defaultJson, false)
     }
     guard FileManager.default.fileExists(atPath: path) else {
-      return ("World", defaultJson)
+      return ("World", defaultJson, false)
     }
     guard
       let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
       let json = String(data: data, encoding: .utf8),
       !json.isEmpty
     else {
-      return ("World", defaultJson)
+      return ("World", defaultJson, false)
     }
 
     var name = "World"
@@ -49,7 +55,7 @@ struct Provider: TimelineProvider {
       name = n
     }
 
-    return (name, json)
+    return (name, json, true)
   }
 }
 

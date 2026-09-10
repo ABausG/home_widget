@@ -16,6 +16,10 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// - `HWDateFormat.yMMMd` orders and spells the date the way the locale does.
 /// - `HWTimeZone.data(HWString('deliveryZone'))` shows the delivery time on the
 ///   destination's wall clock, not the viewer's.
+///
+/// `placedAt` carries a `previewValue` — an ISO 8601 string, since `DateTime`
+/// has no `const` constructor — so the gallery preview shows a real date
+/// instead of empty text.
 @HomeWidget(
   name: 'Number Date Formatting',
   description:
@@ -36,7 +40,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText.number(
-            HWInt('orderNumber', defaultValue: 0),
+            HWInt('orderNumber', defaultValue: 0, previewValue: 10248),
             format: HWNumberFormat.decimal(useGrouping: false),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
@@ -45,16 +49,18 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText.dateTime(
-            HWDateTime('placedAt'),
+            HWDateTime('placedAt', previewValue: '2026-09-09T10:00:00Z'),
             format: HWDateFormat.yMMMd,
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
         ],
       ),
       HWText.number(
-        HWDouble('total', defaultValue: 0),
+        HWDouble('total', defaultValue: 0, previewValue: 1234.5),
         format: HWNumberFormat.currency(
-          currency: HWCurrency.data(HWString('currency', defaultValue: 'EUR')),
+          currency: HWCurrency.data(
+            HWString('currency', defaultValue: 'EUR', previewValue: 'EUR'),
+          ),
         ),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,
@@ -64,11 +70,11 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWRow(
         children: [
           HWText.number(
-            HWDouble('discount', defaultValue: 0),
+            HWDouble('discount', defaultValue: 0, previewValue: 0.15),
             format: HWNumberFormat.percent(),
           ),
           HWText.fixed(' off · '),
-          HWText(HWInt('items', defaultValue: 0)),
+          HWText(HWInt('items', defaultValue: 0, previewValue: 1204)),
           HWText.fixed(' items'),
         ],
       ),
@@ -79,10 +85,10 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText.dateTime(
-            HWDateTime('deliveryAt'),
+            HWDateTime('deliveryAt', previewValue: '2026-09-09T13:00:00Z'),
             format: HWDateFormat.jm,
             timeZone: HWTimeZone.data(
-              HWString('deliveryZone', defaultValue: ''),
+              HWString('deliveryZone', defaultValue: '', previewValue: ''),
             ),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
@@ -91,7 +97,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWRow(
         children: [
           HWText.number(
-            HWInt('points', defaultValue: 0),
+            HWInt('points', defaultValue: 0, previewValue: 12400),
             format: HWNumberFormat.compact(),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),

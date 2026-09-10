@@ -14,12 +14,20 @@ enum NumberDateFormattingHomeWidgetFlavor {
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> NumberDateFormattingHomeWidgetEntry {
     NumberDateFormattingHomeWidgetEntry(
-      date: Date(), data: NumberDateFormattingData.fromUserDefaults(nil))
+      date: Date(), data: NumberDateFormattingData.previewFromUserDefaults(nil))
   }
 
   func getSnapshot(
     in context: Context, completion: @escaping (NumberDateFormattingHomeWidgetEntry) -> Void
   ) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(
+        suiteName: NumberDateFormattingHomeWidgetFlavor.appGroupId)
+      let data = NumberDateFormattingData.previewFromUserDefaults(prefs)
+      completion(NumberDateFormattingHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: NumberDateFormattingHomeWidgetFlavor.appGroupId)
     let data = NumberDateFormattingData.fromUserDefaults(prefs)
 
@@ -156,6 +164,22 @@ struct NumberDateFormattingData {
       deliveryAt: hwParseIsoDate(defaults?.string(forKey: "\(paramPrefix).deliveryAt") ?? ""),
       deliveryZone: (defaults?.string(forKey: "\(paramPrefix).deliveryZone") ?? ""),
       points: (defaults?.object(forKey: "\(paramPrefix).points") as? Int ?? 0),
+    )
+  }
+
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> NumberDateFormattingData {
+    return NumberDateFormattingData(
+      orderNumber: (defaults?.object(forKey: "\(paramPrefix).orderNumber") as? Int ?? 10248),
+      placedAt: hwParseIsoDate(
+        defaults?.string(forKey: "\(paramPrefix).placedAt") ?? "2026-09-09T10:00:00Z"),
+      total: (defaults?.object(forKey: "\(paramPrefix).total") as? Double ?? 1234.5),
+      currency: (defaults?.string(forKey: "\(paramPrefix).currency") ?? "EUR"),
+      discount: (defaults?.object(forKey: "\(paramPrefix).discount") as? Double ?? 0.15),
+      items: (defaults?.object(forKey: "\(paramPrefix).items") as? Int ?? 1204),
+      deliveryAt: hwParseIsoDate(
+        defaults?.string(forKey: "\(paramPrefix).deliveryAt") ?? "2026-09-09T13:00:00Z"),
+      deliveryZone: (defaults?.string(forKey: "\(paramPrefix).deliveryZone") ?? ""),
+      points: (defaults?.object(forKey: "\(paramPrefix).points") as? Int ?? 12400),
     )
   }
 }

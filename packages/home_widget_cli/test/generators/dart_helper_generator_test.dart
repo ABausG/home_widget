@@ -278,6 +278,85 @@ void main() {
       expect(output, contains("iOSName: 'ExampleWidgetHomeWidget',"));
     });
 
+    test('generates updatePreview naming the widget like updateWidget', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static Future<bool> updatePreview() async {\n'
+          '    return await HomeWidget.updateWidgetPreview(\n'
+          "      qualifiedAndroidName: 'com.example.ExampleWidgetHomeWidgetReceiver',\n"
+          "      iOSName: 'ExampleWidgetHomeWidget',\n"
+          '    ) ?? false;\n'
+          '  }',
+        ),
+      );
+      // Sits directly after updateWidget, where a caller looks for it.
+      expect(
+        output.indexOf('updatePreview'),
+        greaterThan(output.indexOf('updateWidget()')),
+      );
+      expect(
+        output.indexOf('updatePreview'),
+        lessThan(output.indexOf('isRequestPinWidgetSupported')),
+      );
+    });
+
+    test('updatePreview falls back to the bare android name', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('HomeWidget.updateWidgetPreview('));
+      expect(
+        output,
+        contains("androidName: 'ExampleWidgetHomeWidgetReceiver',"),
+      );
+    });
+
+    test('updatePreview names no iOS widget without an iOS configuration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('HomeWidget.updateWidgetPreview('));
+      expect(output, isNot(contains('iOSName:')));
+    });
+
+    test('no updatePreview without any platform configuration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('static Future<bool?> updateWidget() {'));
+      expect(output, isNot(contains('updatePreview')));
+    });
+
     test('generates updateWidget method with default android name', () {
       final spec = WidgetSpec(
         data: HomeWidget(

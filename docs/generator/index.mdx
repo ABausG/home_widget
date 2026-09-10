@@ -16,7 +16,7 @@ To run the generator, use the companion [`home_widget_cli`](/cli) tool. It disco
 
 From a single annotated Dart class, the generator produces:
 
-- A typed **Dart helper** (e.g. `MyWidgetHomeWidget`) with `saveData(...)`, `getData()`, `deleteData(...)`, and `updateWidget()` methods, plus pinning (`requestPinWidget()`) and install status (`isInstalled()`, `getInstalledWidgets()`) scoped to that one widget.
+- A typed **Dart helper** (e.g. `MyWidgetHomeWidget`) with `saveData(...)`, `getData()`, `deleteData(...)`, and `updateWidget()` methods, plus pinning (`requestPinWidget()`), install status (`isInstalled()`, `getInstalledWidgets()`), and a gallery preview refresh (`updatePreview()`) scoped to that one widget.
 - An **iOS widget extension** using SwiftUI and WidgetKit, including the `TimelineProvider`, `TimelineEntry`, and `View` wired up to your App Group.
 - An **Android widget** using Jetpack Glance, including the `GlanceAppWidget`, `GlanceAppWidgetReceiver`, and the `appwidget-provider` XML.
 

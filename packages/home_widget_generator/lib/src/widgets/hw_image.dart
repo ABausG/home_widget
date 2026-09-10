@@ -1,13 +1,5 @@
 part of 'hw_widget.dart';
 
-/// Name of the Swift helper resolving a Flutter asset inside the containing
-/// app's bundle, emitted once per generated file by [swiftFlutterAssetHelper].
-const String swiftFlutterAssetFunction = 'flutterAssetPath';
-
-/// Name of the Kotlin helper decoding a Flutter asset out of the APK, emitted
-/// once per generated file by [kotlinFlutterAssetHelper].
-const String kotlinFlutterAssetFunction = 'flutterAssetBitmap';
-
 /// Name of the Kotlin helper decoding a saved image file, emitted once per
 /// generated file by [kotlinImageFileHelper].
 const String kotlinImageFileFunction = 'hwDecodeImageFile';
@@ -100,27 +92,36 @@ private fun $kotlinImageSampleFunction(
 }''';
 
 /// Top-level Kotlin helper backing every runtime [HWImage] in a generated file.
+///
+/// A saved image is an absolute file path; anything else is a Flutter asset
+/// key, which is how a gallery preview stands in for an image the app has not
+/// saved yet. That branch calls [kotlinFlutterAssetHelper], so a generated file
+/// emitting this helper has to emit that one too.
 const String kotlinImageFileHelper = '''
 private fun $kotlinImageFileFunction(
     context: android.content.Context,
     path: String,
     widthDp: Double?,
     heightDp: Double?,
-): android.graphics.Bitmap? = try {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeFile(path, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+): android.graphics.Bitmap? = if (!path.startsWith("/")) {
+    $kotlinFlutterAssetFunction(context, path, widthDp, heightDp)
+} else {
+    try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            null
+        } else {
+            BitmapFactory.decodeFile(
+                path,
+                BitmapFactory.Options().apply {
+                    inSampleSize = $kotlinImageSampleFunction(context, bounds, widthDp, heightDp)
+                },
+            )
+        }
+    } catch (_: Exception) {
         null
-    } else {
-        BitmapFactory.decodeFile(
-            path,
-            BitmapFactory.Options().apply {
-                inSampleSize = $kotlinImageSampleFunction(context, bounds, widthDp, heightDp)
-            },
-        )
     }
-} catch (_: Exception) {
-    null
 }''';
 
 /// File-scope Swift helper backing every [HWImage.asset] in a generated file.

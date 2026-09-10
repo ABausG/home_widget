@@ -14,12 +14,20 @@ enum LocalizedGreetingHomeWidgetFlavor {
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> LocalizedGreetingHomeWidgetEntry {
     LocalizedGreetingHomeWidgetEntry(
-      date: Date(), data: LocalizedGreetingData.fromUserDefaults(nil))
+      date: Date(), data: LocalizedGreetingData.previewFromUserDefaults(nil), preview: true)
   }
 
   func getSnapshot(
     in context: Context, completion: @escaping (LocalizedGreetingHomeWidgetEntry) -> Void
   ) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(
+        suiteName: LocalizedGreetingHomeWidgetFlavor.appGroupId)
+      let data = LocalizedGreetingData.previewFromUserDefaults(prefs)
+      completion(LocalizedGreetingHomeWidgetEntry(date: Date(), data: data, preview: true))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: LocalizedGreetingHomeWidgetFlavor.appGroupId)
     let data = LocalizedGreetingData.fromUserDefaults(prefs)
 
@@ -41,6 +49,7 @@ struct Provider: TimelineProvider {
 struct LocalizedGreetingHomeWidgetEntry: TimelineEntry {
   let date: Date
   let data: LocalizedGreetingData
+  var preview: Bool = false
 }
 
 struct LocalizedGreetingHomeWidgetEntryView: View {
@@ -48,7 +57,10 @@ struct LocalizedGreetingHomeWidgetEntryView: View {
 
   var body: some View {
     let prefs = UserDefaults(suiteName: LocalizedGreetingHomeWidgetFlavor.appGroupId)
-    let data = LocalizedGreetingData.fromUserDefaults(prefs)
+    let data =
+      entry.preview
+      ? LocalizedGreetingData.previewFromUserDefaults(prefs)
+      : LocalizedGreetingData.fromUserDefaults(prefs)
     VStack(alignment: .leading) {
       Text(NSLocalizedString("home_widget_localized_greeting_t_1e28f816", comment: ""))
         .font(.caption)
@@ -97,6 +109,14 @@ struct LocalizedGreetingData {
       greeting: hwReadLocalized(
         defaults, "\(paramPrefix).greeting", ["en": "Hello", "de": "Hallo", "pt-BR": "Olá"],
         baseLocale: "en"),
+    )
+  }
+
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> LocalizedGreetingData {
+    return LocalizedGreetingData(
+      greeting: hwReadLocalized(
+        defaults, "\(paramPrefix).greeting",
+        ["en": "Hello, Anton", "de": "Hallo, Anton", "pt-BR": "Olá, Anton"], baseLocale: "en"),
     )
   }
 }

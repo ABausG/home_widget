@@ -31,6 +31,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Currency
@@ -45,10 +46,37 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData =
+        NumberDateFormattingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "9156e38e",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val prefs = currentState.preferences
-    val widgetData = NumberDateFormattingData.fromPreferences(prefs)
+    val widgetData =
+        if (preview) NumberDateFormattingData.previewFromPreferences(prefs)
+        else NumberDateFormattingData.fromPreferences(prefs)
     GlanceTheme {
       Box(
           modifier =
@@ -213,6 +241,58 @@ data class NumberDateFormattingData(
                     prefs.getLong("${PREFERENCES_PREFIX}.points", 0L)
                   })
               else 0L,
+      )
+    }
+
+    fun previewFromPreferences(prefs: android.content.SharedPreferences): NumberDateFormattingData {
+      return NumberDateFormattingData(
+          orderNumber =
+              if (prefs.contains("${PREFERENCES_PREFIX}.orderNumber"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.orderNumber", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.orderNumber", 0L)
+                  })
+              else 10248L,
+          placedAt =
+              hwParseIsoDate(
+                  prefs.getString("${PREFERENCES_PREFIX}.placedAt", null) ?: "2026-09-09T10:00:00Z"
+              ),
+          total =
+              if (prefs.contains("${PREFERENCES_PREFIX}.total"))
+                  java.lang.Double.longBitsToDouble(
+                      prefs.getLong("${PREFERENCES_PREFIX}.total", 0L)
+                  )
+              else 1234.5,
+          currency = prefs.getString("${PREFERENCES_PREFIX}.currency", "EUR"),
+          discount =
+              if (prefs.contains("${PREFERENCES_PREFIX}.discount"))
+                  java.lang.Double.longBitsToDouble(
+                      prefs.getLong("${PREFERENCES_PREFIX}.discount", 0L)
+                  )
+              else 0.15,
+          items =
+              if (prefs.contains("${PREFERENCES_PREFIX}.items"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.items", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.items", 0L)
+                  })
+              else 1204L,
+          deliveryAt =
+              hwParseIsoDate(
+                  prefs.getString("${PREFERENCES_PREFIX}.deliveryAt", null)
+                      ?: "2026-09-09T13:00:00Z"
+              ),
+          deliveryZone = prefs.getString("${PREFERENCES_PREFIX}.deliveryZone", ""),
+          points =
+              if (prefs.contains("${PREFERENCES_PREFIX}.points"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.points", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.points", 0L)
+                  })
+              else 12400L,
       )
     }
   }

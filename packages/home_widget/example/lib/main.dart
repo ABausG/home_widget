@@ -141,6 +141,22 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _updateWidgetPreview() async {
+    try {
+      final updated = await HomeWidget.updateWidgetPreview(
+        qualifiedAndroidName:
+            'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+        iOSName: 'HomeWidgetExample',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Preview updated: $updated')));
+    } on PlatformException catch (exception) {
+      debugPrint('Error Updating Widget Preview. $exception');
+    }
+  }
+
   Future _loadData() async {
     try {
       return await Future.wait([
@@ -255,6 +271,10 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: _sendAndUpdate,
                 child: const Text('Send Data to Widget'),
+              ),
+              ElevatedButton(
+                onPressed: _updateWidgetPreview,
+                child: const Text('Update gallery preview'),
               ),
               ElevatedButton(
                 onPressed: _loadData,

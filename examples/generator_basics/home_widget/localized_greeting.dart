@@ -13,6 +13,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///
 /// Values are pushed per locale, so the widget picks the right text when it
 /// re-renders after a language change.
+///
+/// `greeting` also carries `previewTranslations`, so the widget gallery shows
+/// a name-bearing sample instead of the plain shipped text.
 @HomeWidget(
   name: 'Localized Greeting',
   description: 'Greets you in your language',
@@ -43,6 +46,11 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         HWString.localized(
           'greeting',
           defaultTranslations: {'en': 'Hello', 'de': 'Hallo', 'pt-BR': 'Olá'},
+          previewTranslations: {
+            'en': 'Hello, Anton',
+            'de': 'Hallo, Anton',
+            'pt-BR': 'Olá, Anton',
+          },
         ),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,

@@ -13,6 +13,17 @@ abstract class HomeWidgetGlanceWidgetReceiver<T : GlanceAppWidget> : GlanceAppWi
   abstract override val glanceAppWidget: T
 
   /**
+   * Describes what [GlanceAppWidget.providePreview] would currently render for this Widget.
+   *
+   * [HomeWidgetPreviews.registerAll] compares this against the value stored when the preview was
+   * last accepted and only re-registers the preview when it changed, which keeps the system's rate
+   * limit for preview updates available for actual changes.
+   *
+   * Returning `null` (the default) opts the Widget out of the automatic registration.
+   */
+  open fun previewFingerprint(context: Context): String? = null
+
+  /**
    * Re-arms the scheduled updates of this Widget when its first instance is added.
    *
    * Safety net for an alarm that was lost while no instance existed. The system already draws the

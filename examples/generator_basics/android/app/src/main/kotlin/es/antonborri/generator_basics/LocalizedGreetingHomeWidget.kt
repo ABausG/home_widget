@@ -26,6 +26,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 class LocalizedGreetingHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -34,11 +35,39 @@ class LocalizedGreetingHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwLocales = hwCurrentLocales(context)
+    val hwPreviewData =
+        LocalizedGreetingData.previewFromPreferences(HomeWidgetPlugin.getData(context), hwLocales)
+    return listOf(
+            "cfd7deee",
+            hwLocales.joinToString(","),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val hwLocales = hwCurrentLocales(context)
     val prefs = currentState.preferences
-    val widgetData = LocalizedGreetingData.fromPreferences(prefs, hwLocales)
+    val widgetData =
+        if (preview) LocalizedGreetingData.previewFromPreferences(prefs, hwLocales)
+        else LocalizedGreetingData.fromPreferences(prefs, hwLocales)
     GlanceTheme {
       Box(
           modifier =
@@ -80,6 +109,22 @@ data class LocalizedGreetingData(
                   "${PREFERENCES_PREFIX}.greeting",
                   locales,
                   mapOf("en" to "Hello", "de" to "Hallo", "pt-BR" to "Olá"),
+                  "en",
+              ),
+      )
+    }
+
+    fun previewFromPreferences(
+        prefs: android.content.SharedPreferences,
+        locales: List<String>,
+    ): LocalizedGreetingData {
+      return LocalizedGreetingData(
+          greeting =
+              hwReadLocalized(
+                  prefs,
+                  "${PREFERENCES_PREFIX}.greeting",
+                  locales,
+                  mapOf("en" to "Hello, Anton", "de" to "Hallo, Anton", "pt-BR" to "Olá, Anton"),
                   "en",
               ),
       )

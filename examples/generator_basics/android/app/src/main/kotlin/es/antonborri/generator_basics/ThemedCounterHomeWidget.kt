@@ -30,6 +30,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -38,6 +39,22 @@ class ThemedCounterHomeWidget : GlanceAppWidget() {
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
     provideContent { WidgetContent(context, currentState()) }
+  }
+
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(context, HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)))
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData = ThemedCounterData.fromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "7b21a8fe",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
   }
 
   @Composable

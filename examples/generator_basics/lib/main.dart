@@ -263,6 +263,15 @@ class _HomePageState extends State<_HomePage> {
                 await ForecastHomeWidget.updateWidget();
               },
             ),
+            ListTile(
+              title: const Text('Refresh the gallery preview'),
+              subtitle: const Text(
+                'updatePreview() — Android 15+ only, rate-limited to about '
+                'twice per hour and widget.',
+              ),
+              trailing: const Icon(Icons.wallpaper_outlined),
+              onTap: ForecastHomeWidget.updatePreview,
+            ),
           ],
         ),
 

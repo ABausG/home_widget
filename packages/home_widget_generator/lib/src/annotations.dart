@@ -141,6 +141,18 @@ class HomeWidgetAndroidConfiguration {
   /// even if a [widgetUrl] is configured.
   final bool openAppOnTap;
 
+  /// Whether the gallery preview reads the widget's stored data on Android.
+  ///
+  /// Null inherits [HomeWidget.useLiveDataInPreview].
+  final bool? useLiveDataInPreview;
+
+  /// Whether the plugin registers the generated preview with the launcher when
+  /// the app starts, on Android 15 and higher.
+  ///
+  /// Defaults to `true`. The generated `updatePreview()` helper triggers the
+  /// same registration by hand either way.
+  final bool autoUpdatePreview;
+
   const HomeWidgetAndroidConfiguration({
     this.packageName,
     this.minWidth,
@@ -160,6 +172,8 @@ class HomeWidgetAndroidConfiguration {
     this.fillWidgetContent = true,
     this.widgetUrl,
     this.openAppOnTap = true,
+    this.useLiveDataInPreview,
+    this.autoUpdatePreview = true,
   });
 
   @override
@@ -183,7 +197,9 @@ class HomeWidgetAndroidConfiguration {
           applyContentPadding == other.applyContentPadding &&
           fillWidgetContent == other.fillWidgetContent &&
           widgetUrl == other.widgetUrl &&
-          openAppOnTap == other.openAppOnTap;
+          openAppOnTap == other.openAppOnTap &&
+          useLiveDataInPreview == other.useLiveDataInPreview &&
+          autoUpdatePreview == other.autoUpdatePreview;
 
   @override
   int get hashCode =>
@@ -204,7 +220,9 @@ class HomeWidgetAndroidConfiguration {
       applyContentPadding.hashCode ^
       fillWidgetContent.hashCode ^
       widgetUrl.hashCode ^
-      openAppOnTap.hashCode;
+      openAppOnTap.hashCode ^
+      useLiveDataInPreview.hashCode ^
+      autoUpdatePreview.hashCode;
 }
 
 /// The size and shape of a widget.
@@ -258,12 +276,18 @@ class HomeWidgetIOSConfiguration {
   /// Overrides [HomeWidget.widgetUrl] on iOS.
   final String? widgetUrl;
 
+  /// Whether the gallery preview reads the widget's stored data on iOS.
+  ///
+  /// Null inherits [HomeWidget.useLiveDataInPreview].
+  final bool? useLiveDataInPreview;
+
   const HomeWidgetIOSConfiguration({
     required this.groupId,
     this.supportedFamilies,
     this.backgroundColor,
     this.applyContentPadding = true,
     this.widgetUrl,
+    this.useLiveDataInPreview,
   });
 
   @override
@@ -274,7 +298,8 @@ class HomeWidgetIOSConfiguration {
           supportedFamilies == other.supportedFamilies &&
           backgroundColor == other.backgroundColor &&
           applyContentPadding == other.applyContentPadding &&
-          widgetUrl == other.widgetUrl;
+          widgetUrl == other.widgetUrl &&
+          useLiveDataInPreview == other.useLiveDataInPreview;
 
   @override
   int get hashCode =>
@@ -282,7 +307,8 @@ class HomeWidgetIOSConfiguration {
       supportedFamilies.hashCode ^
       backgroundColor.hashCode ^
       applyContentPadding.hashCode ^
-      widgetUrl.hashCode;
+      widgetUrl.hashCode ^
+      useLiveDataInPreview.hashCode;
 }
 
 /// Per-flavor overrides of [HomeWidgetIOSConfiguration].
@@ -433,6 +459,17 @@ class HomeWidget {
   /// native flavors case sensitively.
   final Map<String, HomeWidgetFlavor>? flavors;
 
+  /// Whether the widget gallery preview shows the widget's stored data.
+  ///
+  /// Defaults to `true`, where a value in the preview is the stored one, then
+  /// the field's `previewValue`, then its `defaultValue`. With `false` the
+  /// preview never reads stored data and shows `previewValue`, then
+  /// `defaultValue`. Set
+  /// [HomeWidgetAndroidConfiguration.useLiveDataInPreview] or
+  /// [HomeWidgetIOSConfiguration.useLiveDataInPreview] to override it for that
+  /// platform.
+  final bool useLiveDataInPreview;
+
   const HomeWidget({
     required this.name,
     this.description,
@@ -443,6 +480,7 @@ class HomeWidget {
     this.localization,
     this.widgetUrl,
     this.flavors,
+    this.useLiveDataInPreview = true,
   });
 
   @override
@@ -457,7 +495,8 @@ class HomeWidget {
           iOS == other.iOS &&
           localization == other.localization &&
           widgetUrl == other.widgetUrl &&
-          mapEquals(flavors, other.flavors);
+          mapEquals(flavors, other.flavors) &&
+          useLiveDataInPreview == other.useLiveDataInPreview;
 
   @override
   int get hashCode =>
@@ -469,7 +508,8 @@ class HomeWidget {
       iOS.hashCode ^
       localization.hashCode ^
       widgetUrl.hashCode ^
-      _flavorsHash(flavors);
+      _flavorsHash(flavors) ^
+      useLiveDataInPreview.hashCode;
 }
 
 /// Order-insensitive hash of [flavors], so two annotations spelling the same

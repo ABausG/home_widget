@@ -17,7 +17,7 @@ import 'xml_utils.dart';
 /// - Compose build features
 /// - Kotlin Compose Compiler extension (if needed)
 Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
-  const fallbackGlanceVersion = '1.1.0';
+  const fallbackGlanceVersion = minimumGlanceVersion;
   final glanceVersion = await _tryResolveLatestAndroidxReleaseVersion(
         groupPath: 'androidx/glance',
         artifactId: 'glance-appwidget',

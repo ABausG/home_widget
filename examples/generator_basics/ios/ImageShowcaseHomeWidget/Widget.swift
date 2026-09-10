@@ -14,12 +14,19 @@ enum ImageShowcaseHomeWidgetFlavor {
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ImageShowcaseHomeWidgetEntry {
-    ImageShowcaseHomeWidgetEntry(date: Date(), data: ImageShowcaseData.fromUserDefaults(nil))
+    ImageShowcaseHomeWidgetEntry(date: Date(), data: ImageShowcaseData.previewFromUserDefaults(nil))
   }
 
   func getSnapshot(
     in context: Context, completion: @escaping (ImageShowcaseHomeWidgetEntry) -> Void
   ) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(suiteName: ImageShowcaseHomeWidgetFlavor.appGroupId)
+      let data = ImageShowcaseData.previewFromUserDefaults(prefs)
+      completion(ImageShowcaseHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: ImageShowcaseHomeWidgetFlavor.appGroupId)
     let data = ImageShowcaseData.fromUserDefaults(prefs)
 
@@ -160,6 +167,21 @@ struct ImageShowcaseData {
     )
   }
 
+  static func previewFromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ImageShowcaseData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return ImageShowcaseData(
+      picture: (defaults?.string(forKey: "\(paramPrefix).picture")
+        ?? flutterAssetPath("assets/dash.png")),
+      contact: ImageShowcaseContactJsonData.previewFromPath(
+        defaults?.string(forKey: "\(paramPrefix).contact")),
+      slide: timedValues["slide"] as? String,
+    )
+  }
+
   fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(
     date: Date, values: [String: Any]
   )] {
@@ -214,6 +236,28 @@ struct ImageShowcaseContactJsonData {
 
   static func fromJson(_ json: [String: Any]?) -> ImageShowcaseContactJsonData? {
     guard let values = json else { return nil }
+    return ImageShowcaseContactJsonData(
+      avatar: values["avatar"] as? String,
+      name: (values["name"] as? String) ?? "",
+    )
+  }
+
+  static func previewFromPath(_ path: String?) -> ImageShowcaseContactJsonData? {
+    guard let path else { return previewFromJson([:]) }
+    guard FileManager.default.fileExists(atPath: path) else { return previewFromJson([:]) }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return previewFromJson([:])
+      }
+      return previewFromJson(json)
+    } catch {
+      return previewFromJson([:])
+    }
+  }
+
+  static func previewFromJson(_ json: [String: Any]?) -> ImageShowcaseContactJsonData? {
+    let values = json ?? [:]
     return ImageShowcaseContactJsonData(
       avatar: values["avatar"] as? String,
       name: (values["name"] as? String) ?? "",

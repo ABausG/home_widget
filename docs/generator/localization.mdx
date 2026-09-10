@@ -90,6 +90,11 @@ await LocalizedGreetingHomeWidget.saveData(
 of `BuildContext`.) Flutter's `Locale` takes language and country as
 **separate** arguments — `Locale('pt', 'BR')`, not `Locale('pt-BR')`.
 
+`HWString.localized` also takes `previewTranslations`, in the same shape as
+`defaultTranslations` and validated by the same completeness rules — sample
+text the widget gallery shows ahead of the shipped translations. See
+[Previews](/generator/previews#localized-preview-translations).
+
 Unlike a plain `HWString`, this one is resolved by the widget itself, at render
 time, against the device's *entire* preferred-language list — a pt-PT device
 gets `pt-BR` text rather than falling straight to the default locale. See [How a

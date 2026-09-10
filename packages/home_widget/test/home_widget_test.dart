@@ -43,6 +43,8 @@ void main() {
           return 'TestData';
         case 'updateWidget':
           return true;
+        case 'updateWidgetPreview':
+          return true;
         case 'setAppGroupId':
           return true;
         case 'initiallyLaunchedFromHomeWidget':
@@ -325,6 +327,25 @@ void main() {
   test('updateWidget', () async {
     expect(
       await HomeWidget.updateWidget(
+        name: 'name',
+        androidName: 'androidName',
+        iOSName: 'iOSName',
+        qualifiedAndroidName: 'com.example.androidName',
+      ),
+      true,
+    );
+
+    final arguments = await passedArguments.future;
+
+    expect(arguments['name'], 'name');
+    expect(arguments['android'], 'androidName');
+    expect(arguments['ios'], 'iOSName');
+    expect(arguments['qualifiedAndroidName'], 'com.example.androidName');
+  });
+
+  test('updateWidgetPreview', () async {
+    expect(
+      await HomeWidget.updateWidgetPreview(
         name: 'name',
         androidName: 'androidName',
         iOSName: 'iOSName',

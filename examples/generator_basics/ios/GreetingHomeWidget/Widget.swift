@@ -13,10 +13,17 @@ enum GreetingHomeWidgetFlavor {
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> GreetingHomeWidgetEntry {
-    GreetingHomeWidgetEntry(date: Date(), data: GreetingData.fromUserDefaults(nil))
+    GreetingHomeWidgetEntry(date: Date(), data: GreetingData.previewFromUserDefaults(nil))
   }
 
   func getSnapshot(in context: Context, completion: @escaping (GreetingHomeWidgetEntry) -> Void) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(suiteName: GreetingHomeWidgetFlavor.appGroupId)
+      let data = GreetingData.previewFromUserDefaults(prefs)
+      completion(GreetingHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: GreetingHomeWidgetFlavor.appGroupId)
     let data = GreetingData.fromUserDefaults(prefs)
 
@@ -86,6 +93,12 @@ struct GreetingData {
   static func fromUserDefaults(_ defaults: UserDefaults?) -> GreetingData {
     return GreetingData(
       name: (defaults?.string(forKey: "\(paramPrefix).name") ?? "world"),
+    )
+  }
+
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> GreetingData {
+    return GreetingData(
+      name: (defaults?.string(forKey: "\(paramPrefix).name") ?? "Anton"),
     )
   }
 }

@@ -13,10 +13,17 @@ enum ForecastHomeWidgetFlavor {
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> ForecastHomeWidgetEntry {
-    ForecastHomeWidgetEntry(date: Date(), data: ForecastData.fromUserDefaults(nil))
+    ForecastHomeWidgetEntry(date: Date(), data: ForecastData.previewFromUserDefaults(nil))
   }
 
   func getSnapshot(in context: Context, completion: @escaping (ForecastHomeWidgetEntry) -> Void) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(suiteName: ForecastHomeWidgetFlavor.appGroupId)
+      let data = ForecastData.previewFromUserDefaults(prefs)
+      completion(ForecastHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
     let prefs = UserDefaults(suiteName: ForecastHomeWidgetFlavor.appGroupId)
     let data = ForecastData.fromUserDefaults(prefs)
 
@@ -113,6 +120,19 @@ struct ForecastData {
       city: (defaults?.string(forKey: "\(paramPrefix).city") ?? "Nowhere"),
       condition: (timedValues["condition"] as? String) ?? "No forecast",
       temperature: (timedValues["temperature"] as? Int) ?? 0,
+    )
+  }
+
+  static func previewFromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ForecastData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return ForecastData(
+      city: (defaults?.string(forKey: "\(paramPrefix).city") ?? "Berlin"),
+      condition: (timedValues["condition"] as? String) ?? "Sunny",
+      temperature: (timedValues["temperature"] as? Int) ?? 21,
     )
   }
 

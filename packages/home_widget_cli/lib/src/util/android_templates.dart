@@ -6,6 +6,15 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 /// [widgetClassName]: The class name of the widget (e.g., `ExampleWidgetHomeWidget`).
 /// [contentBody]: Optional body content for the `WidgetContent` composable.
 ///                If null, a placeholder text is generated.
+/// [previewPreferences]: The `SharedPreferences` expression `providePreview`
+///                composes the gallery preview from. Defaults to the data the
+///                app itself saved, which is what the widget body reads.
+/// [previewParameter]: Whether `WidgetContent` takes the `preview` flag that
+///                `providePreview` passes. Only a body that reads differently
+///                in the gallery has anything to do with it.
+/// [previewFingerprint]: Optional Kotlin body of `previewFingerprint`, which
+///                describes what the preview currently renders. Omitting it
+///                leaves the widget out of the automatic preview registration.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceWidgetTemplate({
   required String packageName,
@@ -13,6 +22,9 @@ String androidGlanceWidgetTemplate({
   String? contentBody,
   String? extraContent,
   Set<String>? additionalImports,
+  String previewPreferences = 'HomeWidgetPlugin.getData(context)',
+  bool previewParameter = false,
+  String? previewFingerprint,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -33,6 +45,7 @@ String androidGlanceWidgetTemplate({
       'import androidx.glance.text.Text',
       'import es.antonborri.home_widget.HomeWidgetGlanceState',
       'import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition',
+      'import es.antonborri.home_widget.HomeWidgetPlugin',
     });
   }
 
@@ -66,7 +79,8 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
-import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition${additionalImports != null && additionalImports.isNotEmpty ? '\n${additionalImports.join('\n')}' : ''}
+import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin${additionalImports != null && additionalImports.isNotEmpty ? '\n${additionalImports.join('\n')}' : ''}
 
 class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -75,8 +89,12 @@ class $widgetClassName : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent { WidgetContent(context, HomeWidgetGlanceState($previewPreferences)${previewParameter ? ', preview = true' : ''}) }
+  }
+${previewFingerprint == null ? '' : '\n$previewFingerprint\n'}
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState${previewParameter ? ', preview: Boolean = false' : ''}) {
 $body
   }
 }
@@ -95,10 +113,14 @@ ${extraContent ?? ''}
 ///
 /// [packageName]: The Android package name.
 /// [widgetClassName]: The class name of the widget.
+/// [previewFingerprint]: Whether the widget declares a `previewFingerprint`,
+///                which the receiver forwards so the plugin can re-register the
+///                gallery preview once it changed.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceReceiverTemplate({
   required String packageName,
   required String widgetClassName,
+  bool previewFingerprint = false,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -107,10 +129,10 @@ String androidGlanceReceiverTemplate({
 $head
 package $packageName
 
-import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
+${previewFingerprint ? 'import android.content.Context\n' : ''}import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
 class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassName>() {
-  override val glanceAppWidget = $widgetClassName()
+  override val glanceAppWidget = $widgetClassName()${previewFingerprint ? '\n\n  override fun previewFingerprint(context: Context): String =\n      glanceAppWidget.previewFingerprint(context)' : ''}
 }
 ''';
 }

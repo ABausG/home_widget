@@ -25,6 +25,7 @@ import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
+import es.antonborri.home_widget.HomeWidgetPlugin
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -35,10 +36,36 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
     provideContent { WidgetContent(context, currentState()) }
   }
 
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent {
+      WidgetContent(
+          context,
+          HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+          preview = true,
+      )
+    }
+  }
+
+  fun previewFingerprint(context: Context): String {
+    val hwPreviewData = SimpleDataData.previewFromPreferences(HomeWidgetPlugin.getData(context))
+    return listOf(
+            "4a13e0d1",
+            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwPreviewData.toString(),
+        )
+        .joinToString("|")
+  }
+
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState) {
+  private fun WidgetContent(
+      context: Context,
+      currentState: HomeWidgetGlanceState,
+      preview: Boolean = false,
+  ) {
     val prefs = currentState.preferences
-    val widgetData = SimpleDataData.fromPreferences(prefs)
+    val widgetData =
+        if (preview) SimpleDataData.previewFromPreferences(prefs)
+        else SimpleDataData.fromPreferences(prefs)
     GlanceTheme {
       Box(
           modifier =
@@ -91,6 +118,20 @@ data class SimpleDataData(
                     prefs.getLong("${PREFERENCES_PREFIX}.value", 0L)
                   })
               else null,
+      )
+    }
+
+    fun previewFromPreferences(prefs: android.content.SharedPreferences): SimpleDataData {
+      return SimpleDataData(
+          label = prefs.getString("${PREFERENCES_PREFIX}.label", "Hello"),
+          value =
+              if (prefs.contains("${PREFERENCES_PREFIX}.value"))
+                  (try {
+                    prefs.getInt("${PREFERENCES_PREFIX}.value", 0).toLong()
+                  } catch (_: ClassCastException) {
+                    prefs.getLong("${PREFERENCES_PREFIX}.value", 0L)
+                  })
+              else 42L,
       )
     }
   }

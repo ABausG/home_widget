@@ -1,3 +1,4 @@
+export '../utils/image_helper_names.dart';
 export 'hw_widget.dart';
 export 'hw_alignment.dart';
 export 'hw_color.dart';

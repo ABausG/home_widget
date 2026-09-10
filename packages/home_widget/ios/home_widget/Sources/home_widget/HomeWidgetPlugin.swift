@@ -188,6 +188,11 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
             code: "-3", message: "InvalidArguments updateWidget must be called with name",
             details: nil))
       }
+    } else if call.method == "updateWidgetPreview" {
+      // Generated previews are Android only. WidgetKit renders the gallery preview itself by
+      // calling the Widget's getSnapshot with context.isPreview set, so there is no preview for
+      // the plugin to push here.
+      result(false)
     } else if call.method == "scheduleWidgetUpdates"
       || call.method == "cancelScheduledWidgetUpdates"
       || call.method == "canScheduleExactWidgetUpdates"

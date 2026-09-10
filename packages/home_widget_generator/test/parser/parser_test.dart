@@ -579,6 +579,74 @@ class TestWidget {}
       );
     });
 
+    test('parses preview values on every data type', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataOnly([
+    HWString('s', defaultValue: 'd', previewValue: 'p'),
+    HWInt('i', previewValue: 7),
+    HWDouble('d', previewValue: 1.5),
+    HWBool('b', previewValue: true),
+    HWDateTime('when', previewValue: '2021-01-01T00:00:00Z'),
+    HWJson('root', HWInt('n', previewValue: 3)),
+    HWTimedData(HWString('t', previewValue: 'later')),
+  ]),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(
+        (widget as HWDataOnly).data,
+        const [
+          HWString('s', defaultValue: 'd', previewValue: 'p'),
+          HWInt('i', previewValue: 7),
+          HWDouble('d', previewValue: 1.5),
+          HWBool('b', previewValue: true),
+          HWDateTime('when', previewValue: '2021-01-01T00:00:00Z'),
+          HWJson('root', HWInt('n', previewValue: 3)),
+          HWTimedData(HWString('t', previewValue: 'later')),
+        ],
+      );
+    });
+
+    test('parses previewTranslations on a localized string', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText(
+    HWString.localized(
+      'greeting',
+      defaultTranslations: {'en': 'Hello'},
+      previewTranslations: {'en': 'Sample'},
+    ),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final localized = (widget as HWText).dataType! as HWLocalizedString;
+      expect(localized.defaultTranslations, {'en': 'Hello'});
+      expect(localized.previewTranslations, {'en': 'Sample'});
+    });
+
+    test('parses a preview asset on a runtime image', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWImage(
+    HWImageData('avatar', previewAsset: 'assets/sample.png'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(
+        (widget as HWImage).imageData,
+        const HWImageData('avatar', previewAsset: 'assets/sample.png'),
+      );
+    });
+
     test('parses HWText.number with every number format', () async {
       final code = '''
 @HomeWidget(

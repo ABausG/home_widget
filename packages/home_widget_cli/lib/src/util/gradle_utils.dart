@@ -10,6 +10,14 @@
 /// than relying on exact line matches.
 library;
 
+import 'logger.dart';
+
+/// The Glance version a generated widget preview needs.
+///
+/// Composing a preview outside a running widget arrived in Glance 1.2.0, so an
+/// app pinned below it would not compile the generated preview provider.
+const String minimumGlanceVersion = '1.2.0';
+
 /// The dialect of a Gradle build script.
 enum GradleDialect {
   /// Groovy-based Gradle scripts (`.gradle`).
@@ -63,12 +71,20 @@ String ensureKotlinComposeCompilerPlugin(
 
 /// Ensures the Jetpack Glance `appwidget` dependency is present in the
 /// Gradle build script, inserting it idempotently if missing.
+///
+/// An app that already declares Glance keeps its own declaration, except that a
+/// plain `x.y.z` version below [minimumGlanceVersion] is raised to
+/// [glanceVersion] — a lower pin cannot build the generated preview. A version
+/// spelled any other way (a variable, a version catalog reference, a
+/// pre-release) is not comparable and is left exactly as written.
 String ensureGlanceDependency(
   String input, {
   required GradleDialect dialect,
   required String glanceVersion,
 }) {
-  if (input.contains('androidx.glance:glance-appwidget')) return input;
+  if (input.contains(_glanceArtifact)) {
+    return _raiseGlanceVersion(input, glanceVersion: glanceVersion);
+  }
 
   final lines = input.split('\n');
   final depsStart = _indexWhere(lines, RegExp(r'^\s*dependencies\s*\{'));
@@ -126,6 +142,54 @@ String ensureGlanceDependency(
   }
   final out = lines.join('\n');
   return out.endsWith('\n') ? out : '$out\n';
+}
+
+const String _glanceArtifact = 'androidx.glance:glance-appwidget';
+
+/// Matches the artifact together with the version it is pinned to, stopping at
+/// whatever quote or bracket closes the coordinate string.
+final RegExp _glanceCoordinatePattern =
+    RegExp('${RegExp.escape(_glanceArtifact)}:([^\\s"\')]*)');
+
+/// Rewrites every outdated Glance pin in [input] to [glanceVersion], warning
+/// once when it does.
+String _raiseGlanceVersion(String input, {required String glanceVersion}) {
+  var warned = false;
+  return input.replaceAllMapped(_glanceCoordinatePattern, (match) {
+    final version = match.group(1)!;
+    if (!_isOutdatedGlanceVersion(version)) return match.group(0)!;
+    if (!warned) {
+      warned = true;
+      logger.warn(
+        'Warning: androidx.glance:glance-appwidget is pinned to $version, but '
+        'generated widget previews need Glance $minimumGlanceVersion or newer. '
+        'Raising the dependency to $glanceVersion.',
+      );
+    }
+    return '$_glanceArtifact:$glanceVersion';
+  });
+}
+
+/// Whether [version] is a plain `x.y.z` older than [minimumGlanceVersion].
+///
+/// False for anything else, which is what leaves a variable or a pre-release
+/// pin untouched: those are not ours to reinterpret.
+bool _isOutdatedGlanceVersion(String version) {
+  final parts = version.split('.');
+  if (parts.length != 3) return false;
+
+  final numbers = <int>[];
+  for (final part in parts) {
+    final number = int.tryParse(part);
+    if (number == null) return false;
+    numbers.add(number);
+  }
+
+  final minimum = minimumGlanceVersion.split('.').map(int.parse).toList();
+  for (var i = 0; i < minimum.length; i++) {
+    if (numbers[i] != minimum[i]) return numbers[i] < minimum[i];
+  }
+  return false;
 }
 
 /// Ensures Compose is enabled via `buildFeatures` (and optionally

@@ -5,6 +5,7 @@ import '../native_helpers.dart';
 import '../parser/widget_value_decoder.dart';
 import '../types.dart';
 import '../utils/apply_swift_modifier.dart';
+import '../utils/image_helper_names.dart';
 import '../utils/inject_glance_modifier.dart';
 import '../utils/string_literals.dart';
 import 'hw_alignment.dart';

@@ -1694,7 +1694,511 @@ void main() {
       );
     });
   });
+
+  group('merging duplicate declarations', () {
+    test('accepts a default and a preview value written apart', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWString('title', defaultValue: 'Hello'),
+            HWString('title', previewValue: 'Sample'),
+          ]),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('accepts them at a JSON leaf', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWJson('profile', HWString('name', defaultValue: 'Anon')),
+            HWJson(
+              'profile',
+              HWString('name', defaultValue: 'Anon', previewValue: 'Ada'),
+            ),
+          ]),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('accepts them on a time-based field', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWTimedData(HWInt('score', defaultValue: 0)),
+            HWTimedData(HWInt('score', previewValue: 42)),
+          ]),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects two different preview values, naming key and both', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWString('title', previewValue: 'A'),
+            HWString('title', previewValue: 'B'),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('"title"'),
+            contains('previewValue: "A"'),
+            contains('previewValue: "B"'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects two different default values, naming both', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWInt('count', defaultValue: 1),
+            HWInt('count', defaultValue: 2),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('"count"'),
+            contains('defaultValue: 1'),
+            contains('defaultValue: 2'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects two different preview assets for one image key', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWImageData('avatar', previewAsset: 'assets/a.png'),
+            HWImageData('avatar', previewAsset: 'assets/b.png'),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('"avatar"'),
+            contains('previewAsset: "assets/a.png"'),
+            contains('previewAsset: "assets/b.png"'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects two different preview values at a JSON leaf', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWJson('profile', HWString('name', previewValue: 'Ada')),
+            HWJson('profile', HWString('name', previewValue: 'Grace')),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('profile'),
+            contains('preview="Ada"'),
+            contains('preview="Grace"'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects two different preview translations', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {'en': 'A', 'de': 'A'},
+              ),
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {'en': 'B', 'de': 'B'},
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('"title"'),
+            contains('different previewTranslations'),
+          ),
+        ),
+      );
+    });
+
+    test('still rejects a timed and an untimed declaration of one key', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWInt('score', defaultValue: 0),
+            HWTimedData(HWInt('score')),
+          ]),
+        ),
+        _throwsMessage(contains('"score"')),
+      );
+    });
+
+    test('still rejects a localized and a plain declaration of one key', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              const HWString('title'),
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(contains('"title"')),
+      );
+    });
+
+    test('still rejects a JSON leaf clashing with nested JSON', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWJson('profile', HWString('name')),
+            HWJson('profile', HWJson('name', HWString('first'))),
+          ]),
+        ),
+        _throwsMessage(contains('Conflicting JSON paths')),
+      );
+    });
+
+    test('still rejects two types at one JSON leaf', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWJson('profile', HWString('name')),
+            HWJson('profile', HWInt('name')),
+          ]),
+        ),
+        _throwsMessage(contains('conflicting leaves')),
+      );
+    });
+  });
+
+  group('JSON leaf defaults', () {
+    // Every site rendering a JSON path inlines the leaf's default behind the
+    // read, so two declarations of one path describe the same leaf only when
+    // their defaults agree; a preview value still merges across them.
+    HWDataType<dynamic> leafOf(WidgetSpec spec, {bool timed = false}) {
+      final groups = timed ? spec.timedJsonDataGroups : spec.jsonDataGroups;
+      return groups.single.children.single.type;
+    }
+
+    test('rejects a default declared on one side only', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWJson('profile', HWString('name', defaultValue: 'Anon')),
+            HWJson('profile', HWString('name')),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('"profile"'),
+            contains('conflicting leaves at "name"'),
+            contains('default=Anon'),
+            contains('no default'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts the same default on both sides', () {
+      final spec = _declaring(const [
+        HWJson('profile', HWString('name', defaultValue: 'Anon')),
+        HWJson('profile', HWString('name', defaultValue: 'Anon')),
+      ]);
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect((leafOf(spec) as HWString).defaultValue, 'Anon');
+    });
+
+    test('merges a preview value declared on one side only', () {
+      final spec = _declaring(const [
+        HWJson('profile', HWString('name')),
+        HWJson('profile', HWString('name', previewValue: 'Ada')),
+      ]);
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      final leaf = leafOf(spec) as HWString;
+      expect(leaf.defaultValue, isNull);
+      expect(leaf.previewValue, 'Ada');
+    });
+
+    test('rejects a default declared on one side only of a timed group', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWTimedData(
+              HWJson('weather', HWString('condition', defaultValue: 'Sun')),
+            ),
+            HWTimedData(HWJson('weather', HWString('condition'))),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('"weather"'),
+            contains('conflicting leaves at "condition"'),
+            contains('default=Sun'),
+            contains('no default'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts the same default on both sides of a timed group', () {
+      final spec = _declaring(const [
+        HWTimedData(
+          HWJson('weather', HWString('condition', defaultValue: 'Sun')),
+        ),
+        HWTimedData(
+          HWJson('weather', HWString('condition', defaultValue: 'Sun')),
+        ),
+      ]);
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect((leafOf(spec, timed: true) as HWString).defaultValue, 'Sun');
+    });
+
+    test('merges a preview value across a timed group', () {
+      final spec = _declaring(const [
+        HWTimedData(HWJson('weather', HWString('condition'))),
+        HWTimedData(
+          HWJson('weather', HWString('condition', previewValue: 'Sunny')),
+        ),
+      ]);
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect((leafOf(spec, timed: true) as HWString).previewValue, 'Sunny');
+    });
+
+    test('applies one level deeper down a nested path', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWJson(
+              'profile',
+              HWJson('user', HWString('name', defaultValue: 'Anon')),
+            ),
+            HWJson('profile', HWJson('user', HWString('name'))),
+          ]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('conflicting leaves at "user.name"'),
+            contains('default=Anon'),
+            contains('no default'),
+          ),
+        ),
+      );
+
+      final merged = _declaring(const [
+        HWJson(
+          'profile',
+          HWJson('user', HWString('name', defaultValue: 'Anon')),
+        ),
+        HWJson(
+          'profile',
+          HWJson(
+            'user',
+            HWString('name', defaultValue: 'Anon', previewValue: 'Ada'),
+          ),
+        ),
+      ]);
+
+      expect(() => validateWidgetData(merged), returnsNormally);
+      final leaf = leafOf(merged) as HWString;
+      expect(leaf.defaultValue, 'Anon');
+      expect(leaf.previewValue, 'Ada');
+    });
+  });
+
+  group('preview values', () {
+    test('rejects a preview instant that is not ISO 8601', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [HWDateTime('startsAt', previewValue: 'tomorrow')]),
+        ),
+        _throwsMessage(
+          allOf(contains('"startsAt"'), contains('"tomorrow"')),
+        ),
+      );
+    });
+
+    test('rejects it at a JSON leaf and inside a timed field too', () {
+      const nested = <HWDataType<dynamic>>[
+        HWJson('event', HWDateTime('at', previewValue: 'nope')),
+        HWTimedData(HWDateTime('at', previewValue: 'nope')),
+      ];
+      for (final field in nested) {
+        expect(
+          () => validateWidgetData(_declaring([field])),
+          _throwsMessage(contains('"nope"')),
+          reason: '$field',
+        );
+      }
+    });
+
+    test('accepts a parseable preview instant', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            const [
+              HWDateTime('startsAt', previewValue: '2024-03-08T09:41:00Z'),
+            ],
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('requires previewTranslations to cover every supported locale', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {'en': 'Sample'},
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('previewTranslations'),
+            contains('missing translations for de'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects an empty previewTranslations map', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {},
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('previewTranslations'),
+            contains('locale map is empty'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a preview locale outside supportedLocales', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {'en': 'A', 'de': 'B', 'fr': 'C'},
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(contains('previewTranslations'), contains('"fr"')),
+        ),
+      );
+    });
+
+    test('validates previewTranslations of timed and JSON strings alike', () {
+      final fields = <HWDataType<dynamic>>[
+        HWTimedData(
+          HWString.localized(
+            'title',
+            defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+            previewTranslations: const {'en': 'Sample'},
+          ),
+        ),
+        HWJson(
+          'group',
+          HWString.localized(
+            'title',
+            defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+            previewTranslations: const {'en': 'Sample'},
+          ),
+        ),
+      ];
+
+      for (final field in fields) {
+        expect(
+          () => validateWidgetData(
+            _declaring([field], localization: _localization),
+          ),
+          _throwsMessage(contains('previewTranslations')),
+          reason: '$field',
+        );
+      }
+    });
+
+    test('accepts complete previewTranslations', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {'en': 'Sample', 'de': 'Beispiel'},
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+  });
 }
+
+const HomeWidgetLocalization _localization = HomeWidgetLocalization(
+  defaultLocale: 'en',
+  supportedLocales: ['en', 'de'],
+);
+
+/// A spec declaring [dataFields] verbatim, without going through a tree, so a
+/// test can write the same key twice.
+WidgetSpec _declaring(
+  List<HWDataType<dynamic>> dataFields, {
+  HomeWidgetLocalization? localization,
+}) =>
+    WidgetSpec(
+      data: HomeWidget(name: 'T', localization: localization),
+      className: 'T',
+      dataFields: dataFields,
+    );
 
 /// A spec whose data fields are exactly what [tree] binds, the way the parser
 /// builds one.

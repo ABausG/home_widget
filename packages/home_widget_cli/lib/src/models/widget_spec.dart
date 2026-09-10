@@ -1,5 +1,6 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
+import '../util/fnv_hash.dart';
 import '../util/naming.dart';
 
 /// A JSON object field grouped by its root key for native codegen.
@@ -69,6 +70,13 @@ class JsonImageField {
   int get hashCode => Object.hash(rootKey, storageKey, image);
 }
 
+/// Separator between the parts [WidgetSpec.previewContentHash] digests.
+///
+/// Spelled through [String.fromCharCode] rather than written out, so this
+/// source file carries no control character of its own. Do not change it: the
+/// digest it produces is what decides whether a launcher re-renders a preview.
+final String _hashSeparator = String.fromCharCode(31);
+
 /// Specification for a home widget.
 class WidgetSpec {
   /// The annotated configuration data.
@@ -77,8 +85,12 @@ class WidgetSpec {
   /// The name of the Dart class (from annotated class).
   final String className;
 
-  /// The data fields defined in the annotation.
-  final List<HWDataType<dynamic>> dataFields;
+  /// The data fields exactly as the annotation declares them, one entry per
+  /// place a key is mentioned.
+  ///
+  /// Only validation reads these; everything else wants [dataFields], where the
+  /// declarations of one key have been folded together.
+  final List<HWDataType<dynamic>> declaredDataFields;
 
   /// The widget tree definition (if any).
   final HWWidget? widgetTree;
@@ -87,23 +99,46 @@ class WidgetSpec {
   const WidgetSpec({
     required this.data,
     required this.className,
-    this.dataFields = const [],
+    List<HWDataType<dynamic>> dataFields = const [],
     this.widgetTree,
-  });
+  }) : declaredDataFields = dataFields;
+
+  /// [declaredDataFields] with every compatible re-declaration of a key folded
+  /// into a single field, in first-seen order.
+  ///
+  /// One key is routinely declared in several places in the widget tree — a
+  /// `defaultValue` written at one node and a `previewValue` at another — and
+  /// the generators need the one field carrying both. Declarations that are
+  /// not [HWDataType.isCompatibleWith] each other stay separate entries, the
+  /// way they arrive; `validateWidgetData` rejects such a spec before any
+  /// generator sees it, with a message naming both.
+  List<HWDataType<dynamic>> get dataFields {
+    final merged = <HWDataType<dynamic>>[];
+    for (final field in declaredDataFields) {
+      final existing = merged.indexWhere((f) => f.isCompatibleWith(field));
+      if (existing == -1) {
+        merged.add(field);
+        continue;
+      }
+      merged[existing] = merged[existing].mergedWith(field);
+    }
+    return merged;
+  }
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is WidgetSpec &&
           data == other.data &&
           className == other.className &&
-          dataFields == other.dataFields &&
+          declaredDataFields == other.declaredDataFields &&
           widgetTree == other.widgetTree;
 
   @override
   int get hashCode =>
       data.hashCode ^
       className.hashCode ^
-      dataFields.hashCode ^
+      declaredDataFields.hashCode ^
       widgetTree.hashCode;
 
   /// The effective widget tree, returning [widgetTree] if provided, or a
@@ -296,6 +331,123 @@ class WidgetSpec {
 
   /// Whether tapping the widget opens the app on either platform.
   bool get hasWidgetUrl => hasAndroidWidgetUrl || hasIosWidgetUrl;
+
+  /// Whether the Android gallery preview reads the widget's stored data, where
+  /// the platform value wins over the top-level
+  /// [HomeWidget.useLiveDataInPreview].
+  ///
+  /// True renders a field as its stored value, then its preview value, then its
+  /// default; false never reaches for stored data.
+  bool get androidUsesLiveDataInPreview =>
+      data.android?.useLiveDataInPreview ?? data.useLiveDataInPreview;
+
+  /// [androidUsesLiveDataInPreview] for iOS.
+  bool get iosUsesLiveDataInPreview =>
+      data.iOS?.useLiveDataInPreview ?? data.useLiveDataInPreview;
+
+  /// Whether the plugin registers the generated preview with the launcher on
+  /// app start, which only Android 15 and newer supports.
+  bool get androidAutoUpdatePreview => data.android?.autoUpdatePreview ?? true;
+
+  /// Whether any field ships a value the gallery preview shows in place of
+  /// stored data, wherever it is declared.
+  bool get hasPreviewValues => _previewLeaves.any(_hasPreviewValue);
+
+  /// Runtime images previewing through a Flutter asset, wherever they are
+  /// declared.
+  ///
+  /// Validated like [assetImageFields] and read by the native generators to
+  /// bundle the preview image.
+  List<HWImageData> get previewAssetImageFields => [
+        for (final leaf in _previewLeaves)
+          if (leaf case final HWImageData image)
+            if (image.previewAsset != null) image,
+      ];
+
+  /// A stable hex digest of everything the generated preview renders from.
+  ///
+  /// The Android generator stamps it into the preview fingerprint, so that a
+  /// launcher only re-renders a gallery preview once the annotation actually
+  /// changed what it shows. It therefore has to cover the widget tree, every
+  /// data field's shipped and preview values, and the preview configuration —
+  /// and it has to be identical across runs, which rules out hashing anything
+  /// backed by object identity.
+  String get previewContentHash {
+    final parts = <String>[
+      className,
+      galleryName,
+      galleryDescription ?? '',
+      supportedLocales.join(','),
+      'live=$androidUsesLiveDataInPreview',
+      'auto=$androidAutoUpdatePreview',
+      // The emitted Glance source is the one serialization of the tree that
+      // covers layout, styling and the values inlined into it.
+      effectiveWidgetTree.toKotlin(0, dataExpr: 'data'),
+      for (final field in dataFields) _fieldFingerprint(field),
+    ];
+    final digest = fnv1a32(parts.join(_hashSeparator));
+    return digest.toRadixString(16).padLeft(8, '0');
+  }
+
+  /// Every data field down to its leaf: time-based wrappers stripped and JSON
+  /// paths descended, since a preview value can sit at any of those.
+  Iterable<HWDataType<dynamic>> get _previewLeaves sync* {
+    for (final field in dataFields) {
+      yield* _leavesOf(field);
+    }
+  }
+
+  static Iterable<HWDataType<dynamic>> _leavesOf(
+    HWDataType<dynamic> field,
+  ) sync* {
+    switch (field) {
+      case HWTimedData<dynamic>():
+        yield* _leavesOf(field.data);
+      case HWJson<dynamic>():
+        yield* _leavesOf(field.child);
+      default:
+        yield field;
+    }
+  }
+
+  static bool _hasPreviewValue(HWDataType<dynamic> leaf) => switch (leaf) {
+        HWDateTime() => leaf.previewIso != null,
+        HWImageData() => leaf.previewAsset != null,
+        HWLocalizedString() => leaf.previewTranslations != null,
+        _ => leaf.previewValue != null,
+      };
+
+  /// One field's contribution to [previewContentHash], spelled out rather than
+  /// hashed through `toString`, which no data type promises.
+  static String _fieldFingerprint(HWDataType<dynamic> field) {
+    switch (field) {
+      case HWTimedData<dynamic>():
+        return 'timed(${_fieldFingerprint(field.data)})';
+      case HWJson<dynamic>():
+        return 'json(${field.key}>${_fieldFingerprint(field.child)})';
+      case HWLocalizedString():
+        return 'localized(${field.key},${field.isConstant},'
+            '${_translationsFingerprint(field.defaultTranslations)},'
+            '${_translationsFingerprint(field.previewTranslations)})';
+      case HWImageData():
+        return 'image(${field.rawKey},${field.effectiveAssetKey},'
+            '${field.previewAsset})';
+      case HWDateTime():
+        return 'date(${field.key},${field.previewIso})';
+      default:
+        return '${field.runtimeType}(${field.key},${field.defaultValue},'
+            '${field.previewValue})';
+    }
+  }
+
+  /// [values] as a digest-stable string: locales sorted, so the same
+  /// translations written in another order hash the same.
+  static String _translationsFingerprint(Map<String, String>? values) {
+    if (values == null) return '-';
+    final entries = values.entries.map((e) => '${e.key}=${e.value}').toList()
+      ..sort();
+    return entries.join(_hashSeparator);
+  }
 
   /// [value] carrying the `homeWidget` query parameter.
   ///
@@ -497,42 +649,40 @@ class WidgetSpec {
 
   List<JsonDataGroup> _groupJsonFields(Iterable<HWJson<dynamic>> fields) {
     final orderedKeys = <String>[];
-    final groupedChildren = <String, List<JsonDataField>>{};
+    final grouped = <String, List<HWJson<dynamic>>>{};
 
     for (final field in fields) {
-      if (!orderedKeys.contains(field.key)) {
+      final declarations = grouped.putIfAbsent(field.key, () {
         orderedKeys.add(field.key);
-        groupedChildren[field.key] = <JsonDataField>[];
-      }
-
-      final leafType = field.leafType;
-      final path = field.pathSegments;
-      final existing = groupedChildren[field.key]!;
-      if (existing.any((e) => _samePath(e.path, path) && e.type == leafType)) {
+        return <HWJson<dynamic>>[];
+      });
+      // Two declarations of one path carry one merged leaf, the same way
+      // [dataFields] folds top-level keys together. The whole [HWJson] decides,
+      // not its leaf, so the rule that a leaf default has to agree lives in one
+      // place. Incompatible declarations are kept apart so the validator's path
+      // trie reports the conflict.
+      final duplicate =
+          declarations.indexWhere((e) => e.isCompatibleWith(field));
+      if (duplicate != -1) {
+        declarations[duplicate] =
+            declarations[duplicate].mergedWith(field) as HWJson<dynamic>;
         continue;
       }
-      groupedChildren[field.key]!.add(
-        JsonDataField(
-          path: path,
-          type: leafType,
-        ),
-      );
+      declarations.add(field);
     }
 
     return [
       for (final key in orderedKeys)
         JsonDataGroup(
           key: key,
-          children: groupedChildren[key]!,
+          children: [
+            for (final declaration in grouped[key]!)
+              JsonDataField(
+                path: declaration.pathSegments,
+                type: declaration.leafType,
+              ),
+          ],
         ),
     ];
-  }
-
-  bool _samePath(List<String> a, List<String> b) {
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }
