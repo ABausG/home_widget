@@ -291,18 +291,21 @@ void main() {
       );
     });
 
-    test('resolves a preview image to its bundled asset path', () async {
+    test('falls a preview image back to its asset key', () async {
       final content = await generate(
         specOf(
           dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
         ),
       );
 
+      // The decoder reads a value that is not an absolute path as an asset
+      // key, so the stored shape and the fallback are the same on both
+      // platforms.
       expect(
         content,
         contains(
           '      photo: (defaults?.string(forKey: "\\(paramPrefix).photo") '
-          '?? flutterAssetPath("a/logo.png")),\n',
+          '?? "a/logo.png"),\n',
         ),
       );
     });
@@ -575,25 +578,28 @@ void main() {
   });
 
   group('file helpers', () {
-    test('emits the asset resolver for a preview asset alone', () async {
+    test('emits the decoder for the image the preview renders', () async {
       final content = await generate(
         specOf(
           dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
+          widget: const HWImage(HWImageData('photo')),
         ),
       );
 
-      expect(
-        content,
-        contains('private func flutterAssetPath(_ asset: String)'),
-      );
+      expect(content, contains('func hwDecodeImage('));
+      expect(content, contains('import ImageIO'));
     });
 
-    test('emits no asset resolver without any asset', () async {
+    test('emits no decoder for a preview asset nothing renders', () async {
       final content = await generate(
-        specOf(dataFields: const [HWImageData('photo')]),
+        specOf(
+          dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
+          widget: const HWText.fixed('no image here'),
+        ),
       );
 
-      expect(content, isNot(contains('private func flutterAssetPath')));
+      expect(content, isNot(contains('hwDecodeImage')));
+      expect(content, isNot(contains('import ImageIO')));
     });
   });
 

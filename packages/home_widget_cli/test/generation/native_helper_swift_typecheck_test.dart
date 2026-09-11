@@ -19,7 +19,7 @@ const _targets = [
 
 /// Exercises every helper the way generated code does, so an unguarded API or a
 /// changed signature is a compile error rather than a runtime surprise.
-const _driver = '''
+const _driver = r'''
 func hwHelperSmokeDriver() {
   let locale = hwFormatLocale()
   let zone = hwResolveTimeZone("Europe/Berlin")
@@ -39,13 +39,35 @@ func hwHelperSmokeDriver() {
   print(hwFormatDatePattern(date, "dd.MM.yyyy HH:mm", timeZone: "UTC"))
   print(hwFormatDateStyled(date, dateStyle: .medium, timeStyle: .short))
   print(hwFormatDateStyled(date, dateStyle: .full, timeStyle: .none, timeZone: "Asia/Tokyo"))
+
+  let locales = hwCurrentLocales()
+  print(hwResolveLocalized(locales, ["en": "Hi", "de": "Hallo"], baseLocale: "en") as Any)
+  print(hwLocalize(["en": "Hi"], baseLocale: "en"))
+  print(hwLocalizedEntries(["en": "Hi", "count": 1]))
+  print(hwDecodeLocalized("{\"en\":\"Hi\"}") as Any)
+  print(hwDecodeLocalized(nil) as Any)
+  print(hwReadLocalized(UserDefaults.standard, "greeting", ["en": "Hi"], baseLocale: "en"))
+  print(hwReadLocalized(nil, "greeting", ["en": "Hi"], baseLocale: "en"))
+  print(hwReadTimedLocalized(["greeting": ["en": "Hi"]], "greeting", ["en": "Hi"], baseLocale: "en"))
+
+  print(hwDecodeImage("/tmp/hw-does-not-exist.png", 100, 50) as Any)
+  print(hwDecodeImage("assets/logo.png", nil, nil) as Any)
+  print(hwImageExists(nil))
+  print(hwImageExists(""))
+  print(hwImageExists("/tmp/hw-does-not-exist.png"))
+  print(hwImageExists("assets/logo.png"))
 }
 ''';
 
-/// Every helper body, each one after the helpers it calls.
+/// Every helper body, each one after the helpers it calls, under the imports a
+/// generated widget extension has plus the ones the helpers ask for.
 String buildSwiftSource() {
   final emitted = <HWNativeHelper>{};
-  final buffer = StringBuffer('import Foundation\n\n');
+  final imports = <String>{
+    'import UIKit',
+    for (final helper in HWNativeHelper.values) ...helper.swiftImports,
+  };
+  final buffer = StringBuffer('${imports.join('\n')}\n\n');
 
   void write(HWNativeHelper helper) {
     if (!emitted.add(helper)) return;

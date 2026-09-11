@@ -49,15 +49,57 @@ void main() {
       bool isConstant = false,
       String? defaultLocale = 'en',
       Map<String, String> defaultTranslations = values,
+      Map<String, String>? previewTranslations,
       String? resourcePrefix = 'home_widget_greeting',
     }) =>
         HWLocalizedString.resolved(
           key,
           defaultTranslations: defaultTranslations,
+          previewTranslations: previewTranslations,
           isConstant: isConstant,
           defaultLocale: defaultLocale,
           resourcePrefix: resourcePrefix,
         );
+
+    const resolvers = {
+      HWNativeHelper.hwCurrentLocales,
+      HWNativeHelper.hwResolveLocalized,
+    };
+
+    test('a keyed string is resolved while it is read', () {
+      expect(localized().nativeHelpers, [HWNativeHelper.hwReadLocalized]);
+      expect(
+        localized().timedNativeHelpers,
+        [HWNativeHelper.hwReadTimedLocalized],
+      );
+      expect(localized().renderHelpers, isEmpty);
+    });
+
+    test('a JSON leaf is resolved where it is displayed', () {
+      final leaf = localized();
+      expect(leaf.jsonNativeHelpers, isEmpty);
+      expect(leaf.jsonRenderHelpers, resolvers);
+
+      final json = HWJson<String>('profile', leaf);
+      expect(json.nativeHelpers, isEmpty);
+      expect(json.renderHelpers, resolvers);
+      expect(HWJson<String>('outer', json).renderHelpers, resolvers);
+      expect(HWTimedData<String>(json).renderHelpers, resolvers);
+      expect(HWTimedData<String>(json).nativeHelpers, isEmpty);
+    });
+
+    test('preview translations of a JSON leaf are resolved as it is read', () {
+      final leaf = localized(previewTranslations: const {'en': 'Sample'});
+      expect(leaf.jsonNativeHelpers.toSet(), resolvers);
+      expect(HWJson<String>('profile', leaf).nativeHelpers.toSet(), resolvers);
+    });
+
+    test('a constant leaf resolves through the OS, not through a helper', () {
+      final leaf = localized(key: '', isConstant: true);
+      expect(leaf.jsonNativeHelpers, isEmpty);
+      expect(leaf.jsonRenderHelpers, isEmpty);
+      expect(leaf.renderHelpers, isEmpty);
+    });
 
     test('dedupes in a Set despite Dart maps not being structurally equal', () {
       final a = localized();

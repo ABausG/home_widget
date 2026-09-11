@@ -29,25 +29,24 @@ String androidGlanceWidgetTemplate({
 }) {
   final head = header ?? _defaultHeader;
 
-  if (additionalImports != null) {
-    additionalImports = additionalImports.difference({
-      'import androidx.compose.runtime.Composable',
-      'import android.content.Context',
-      'import androidx.compose.ui.graphics.Color',
-      'import androidx.glance.GlanceId',
-      'import androidx.glance.GlanceModifier',
-      'import androidx.glance.appwidget.GlanceAppWidget',
-      'import androidx.glance.appwidget.provideContent',
-      'import androidx.glance.background',
-      'import androidx.glance.currentState',
-      'import androidx.glance.layout.Box',
-      'import androidx.glance.layout.fillMaxSize',
-      'import androidx.glance.text.Text',
-      'import es.antonborri.home_widget.HomeWidgetGlanceState',
-      'import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition',
-      'import es.antonborri.home_widget.HomeWidgetPlugin',
-    });
-  }
+  final extraImports = additionalImports?.difference({
+        'import androidx.compose.runtime.Composable',
+        'import android.content.Context',
+        'import androidx.compose.ui.graphics.Color',
+        'import androidx.glance.GlanceId',
+        'import androidx.glance.GlanceModifier',
+        'import androidx.glance.appwidget.GlanceAppWidget',
+        'import androidx.glance.appwidget.provideContent',
+        'import androidx.glance.background',
+        'import androidx.glance.currentState',
+        'import androidx.glance.layout.Box',
+        'import androidx.glance.layout.fillMaxSize',
+        'import androidx.glance.text.Text',
+        'import es.antonborri.home_widget.HomeWidgetGlanceState',
+        'import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition',
+        'import es.antonborri.home_widget.HomeWidgetPlugin',
+      }) ??
+      const <String>{};
 
   final body = contentBody ??
       '''
@@ -60,7 +59,8 @@ String androidGlanceWidgetTemplate({
     }
 ''';
 
-  return '''
+  final buffer = StringBuffer();
+  buffer.write('''
 $head
 //
 // This is a placeholder Glance (Jetpack Compose) widget.
@@ -80,7 +80,14 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.text.Text
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
-import es.antonborri.home_widget.HomeWidgetPlugin${additionalImports != null && additionalImports.isNotEmpty ? '\n${additionalImports.join('\n')}' : ''}
+import es.antonborri.home_widget.HomeWidgetPlugin
+''');
+
+  for (final import in extraImports) {
+    buffer.writeln(import);
+  }
+
+  buffer.write('''
 
 class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -92,7 +99,16 @@ class $widgetClassName : GlanceAppWidget() {
   override suspend fun providePreview(context: Context, widgetCategory: Int) {
     provideContent { WidgetContent(context, HomeWidgetGlanceState($previewPreferences)${previewParameter ? ', preview = true' : ''}) }
   }
-${previewFingerprint == null ? '' : '\n$previewFingerprint\n'}
+''');
+
+  if (previewFingerprint != null) {
+    buffer
+      ..writeln()
+      ..writeln(previewFingerprint);
+  }
+
+  buffer.write('''
+
   @Composable
   private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState${previewParameter ? ', preview: Boolean = false' : ''}) {
 $body
@@ -100,7 +116,9 @@ $body
 }
 
 ${extraContent ?? ''}
-''';
+''');
+
+  return buffer.toString();
 }
 
 /// Generates the Kotlin code for the HomeWidgetGlanceWidgetReceiver.
@@ -125,16 +143,37 @@ String androidGlanceReceiverTemplate({
 }) {
   final head = header ?? _defaultHeader;
 
-  return '''
+  final buffer = StringBuffer();
+  buffer.write('''
 $head
 package $packageName
 
-${previewFingerprint ? 'import android.content.Context\n' : ''}import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
+''');
+
+  if (previewFingerprint) {
+    buffer.writeln('import android.content.Context');
+  }
+
+  buffer.write('''
+import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
 class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassName>() {
-  override val glanceAppWidget = $widgetClassName()${previewFingerprint ? '\n\n  override fun previewFingerprint(context: Context): String =\n      glanceAppWidget.previewFingerprint(context)' : ''}
+  override val glanceAppWidget = $widgetClassName()
+''');
+
+  if (previewFingerprint) {
+    buffer.write('''
+
+  override fun previewFingerprint(context: Context): String =
+      glanceAppWidget.previewFingerprint(context)
+''');
+  }
+
+  buffer.write('''
 }
-''';
+''');
+
+  return buffer.toString();
 }
 
 /// Generates the `appwidget-provider` XML content.
@@ -171,39 +210,38 @@ String androidAppWidgetProviderInfoTemplate({
 }) {
   final head = header ?? '<!-- $_defaultHeader -->';
 
-  final buffer = StringBuffer();
-  buffer.writeln('<?xml version="1.0" encoding="utf-8"?>');
-  buffer.writeln(head);
-  buffer.writeln(
-    '<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"',
-  );
-  buffer.writeln('    android:initialLayout="@layout/$initialLayoutName"');
-  buffer.writeln('    android:minWidth="${minWidth}dp"');
-  buffer.writeln('    android:minHeight="${minHeight}dp"');
-  buffer.writeln('    android:updatePeriodMillis="$updatePeriodMillis"');
-  buffer.writeln('    android:resizeMode="$resizeMode"');
-  buffer.writeln('    android:widgetCategory="$widgetCategory"');
+  final optionalAttributes = <String>[
+    if (minResizeWidth != null)
+      '    android:minResizeWidth="${minResizeWidth}dp"',
+    if (minResizeHeight != null)
+      '    android:minResizeHeight="${minResizeHeight}dp"',
+    if (maxResizeWidth != null)
+      '    android:maxResizeWidth="${maxResizeWidth}dp"',
+    if (maxResizeHeight != null)
+      '    android:maxResizeHeight="${maxResizeHeight}dp"',
+    if (targetCellWidth != null)
+      '    android:targetCellWidth="$targetCellWidth"',
+    if (targetCellHeight != null)
+      '    android:targetCellHeight="$targetCellHeight"',
+    if (descriptionResource != null)
+      '    android:description="$descriptionResource"',
+  ];
 
-  if (minResizeWidth != null) {
-    buffer.writeln('    android:minResizeWidth="${minResizeWidth}dp"');
-  }
-  if (minResizeHeight != null) {
-    buffer.writeln('    android:minResizeHeight="${minResizeHeight}dp"');
-  }
-  if (maxResizeWidth != null) {
-    buffer.writeln('    android:maxResizeWidth="${maxResizeWidth}dp"');
-  }
-  if (maxResizeHeight != null) {
-    buffer.writeln('    android:maxResizeHeight="${maxResizeHeight}dp"');
-  }
-  if (targetCellWidth != null) {
-    buffer.writeln('    android:targetCellWidth="$targetCellWidth"');
-  }
-  if (targetCellHeight != null) {
-    buffer.writeln('    android:targetCellHeight="$targetCellHeight"');
-  }
-  if (descriptionResource != null) {
-    buffer.writeln('    android:description="$descriptionResource"');
+  final buffer = StringBuffer();
+  buffer.write('''
+<?xml version="1.0" encoding="utf-8"?>
+$head
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/$initialLayoutName"
+    android:minWidth="${minWidth}dp"
+    android:minHeight="${minHeight}dp"
+    android:updatePeriodMillis="$updatePeriodMillis"
+    android:resizeMode="$resizeMode"
+    android:widgetCategory="$widgetCategory"
+''');
+
+  for (final attribute in optionalAttributes) {
+    buffer.writeln(attribute);
   }
 
   buffer.writeln('/>');

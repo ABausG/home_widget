@@ -1039,7 +1039,7 @@ class TestWidget {}
       expect(image.fit, HWImageFit.cover);
       expect(image.semanticLabel, 'Logo');
       final swift = image.toSwift(0, dataExpr: 'data');
-      expect(swift, contains('flutterAssetPath("assets/images/logo.png")'));
+      expect(swift, contains('hwDecodeImage("assets/images/logo.png"'));
       expect(swift, contains('.frame(width: 100.0, height: 50.0)'));
       expect(swift, contains('.accessibilityLabel("Logo")'));
     });
@@ -1067,7 +1067,7 @@ class TestWidget {}
       });
       expect(
         image.toSwift(0, dataExpr: 'data'),
-        contains('flutterAssetPath("packages/my_icons/assets/logo.png")'),
+        contains('hwDecodeImage("packages/my_icons/assets/logo.png"'),
       );
     });
 
@@ -1123,10 +1123,11 @@ class TestWidget {}
       expect(
         column.kotlinImports,
         containsAll(<String>[
-          'import android.graphics.BitmapFactory',
           'import androidx.glance.Image',
+          'import androidx.glance.ImageProvider',
         ]),
       );
+      expect(column.nativeHelpers, contains(HWNativeHelper.hwDecodeImage));
     });
 
     test('throws when annotation constant value cannot be computed', () async {

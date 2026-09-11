@@ -11,7 +11,6 @@ import '../models/extensions.dart';
 import '../util/android_package.dart';
 import '../util/android_templates.dart';
 import '../util/android_wiring.dart';
-import '../util/localization_templates.dart';
 import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
@@ -59,9 +58,20 @@ class AndroidGenerator {
     // Gallery strings do not count — the launcher resolves those on its own.
     // A formatted number or date is locale-dependent too, so a widget that only
     // formats still goes stale on a language change; parsing a date it never
-    // shows does not.
+    // shows does not. The preview fingerprint's own locale read does not count
+    // either: it only decides when the gallery preview is re-rendered, not
+    // whether the running widget's content is stale.
     final handlesLocaleChange = spec.rendersLocalizedContent ||
         nativeHelpers.any((helper) => helper.localeDependent);
+
+    // A preview fingerprint always folds in the current locale tags, so
+    // whenever one is emitted the generated file needs hwCurrentLocales
+    // whether or not anything else already pulled it in.
+    final fileNativeHelpers = spec.androidAutoUpdatePreview
+        ? resolveNativeHelpers(
+            [...nativeHelpers, HWNativeHelper.hwCurrentLocales],
+          )
+        : nativeHelpers;
 
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
@@ -126,81 +136,49 @@ class AndroidGenerator {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln('    val ${group.key}: $jsonClass? = null,');
       }
-      buffer.writeln(') {');
-      buffer.writeln('    companion object {');
-      buffer.writeln(
-        '        private const val PREFERENCES_PREFIX = "home_widget.${spec.className}"',
-      );
+      buffer.write('''
+) {
+    companion object {
+        private const val PREFERENCES_PREFIX = "home_widget.${spec.className}"
+''');
       buffer.writeln();
-      _writeAndroidDataFactory(
-        buffer: buffer,
-        className: className,
-        preview: false,
-      );
+      buffer.write(_androidDataFactory(className: className, preview: false));
       if (spec.hasPreviewValues) {
         buffer.writeln();
-        _writeAndroidDataFactory(
-          buffer: buffer,
-          className: className,
-          preview: true,
-        );
+        buffer.write(_androidDataFactory(className: className, preview: true));
       }
       if (hasTimedFields) {
         buffer.writeln();
-        _writeKotlinTimedDataResolver(buffer);
+        buffer.write(_kotlinTimedDataResolver());
       }
-      buffer.writeln('    }');
-      buffer.writeln('}');
+      buffer.write('''
+    }
+}
+''');
       // Keys are unique within each list, and the validator forbids sharing a
       // root key between a timed and an untimed field, so class names never
       // collide across the two.
       for (final group in [...jsonGroups, ...timedJsonGroups]) {
-        final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln();
-        final tree = _buildJsonTree(group.children);
-        _writeAndroidJsonNodeClass(
-          buffer: buffer,
-          className: jsonClass,
-          node: tree,
-          isRoot: true,
-          previewNeedsLocales:
-              spec.hasPreviewValues && _previewResolvesLocalized(group),
+        buffer.write(
+          _androidJsonNodeClass(
+            className: '${spec.className}${toPascalCase(group.key)}JsonData',
+            node: _buildJsonTree(group.children),
+            isRoot: true,
+            previewNeedsLocales:
+                spec.hasPreviewValues && _previewResolvesLocalized(group),
+          ),
         );
       }
       dataClassContent = buffer.toString();
     }
 
-    // File-scope helpers, each emitted only for the widgets that reach it.
-    //
-    // Localization: constants resolve through `R.string`; only strings the
-    // widget resolves itself need the helpers, and only fields carrying stored
-    // translations need a reader — from their own preferences key, from the
-    // timed entry, or both, which is also exactly when the shared merge helpers
-    // are used.
-    //
-    // Images: every image decode subsamples, so the sample-size helper comes
-    // along with either source; the file decoder is for runtime images and the
-    // asset decoder for bundled ones, for a runtime image previewing through an
-    // asset, and for the file decoder itself, which routes an asset key to it.
-    //
-    // Formatting: the spec resolves the number, date and time-zone helpers the
-    // tree and the declared fields reach to their transitive closure, already
-    // ordered so each one is declared after what it calls.
-    final needsImageHelpers = spec.hasImages ||
-        spec.hasRuntimeImages ||
-        spec.assetImageFields.isNotEmpty;
+    // File-scope helpers: the spec resolves every helper the tree renders
+    // through and every one the declared fields are read back with to its
+    // transitive closure, already ordered so each one is declared after what
+    // it calls.
     final fileHelpers = <String>[
-      if (needsResolver) kotlinLocalizeHelpers,
-      if (needsLocaleArg) kotlinLocalizedMergeHelpers,
-      if (spec.needsLocalizedRead) kotlinLocalizedReadHelper,
-      if (spec.needsTimedLocalizedRead) kotlinTimedLocalizedReadHelper,
-      if (spec.hasImages) kotlinImageSampleHelper,
-      if (spec.hasRuntimeImages) kotlinImageFileHelper,
-      if (spec.hasRuntimeImages ||
-          spec.assetImageFields.isNotEmpty ||
-          spec.previewAssetImageFields.isNotEmpty)
-        kotlinFlutterAssetHelper,
-      for (final helper in nativeHelpers)
+      for (final helper in fileNativeHelpers)
         helper.toKotlin(0, dataExpr: '').trim(),
     ];
     if (fileHelpers.isNotEmpty) {
@@ -219,11 +197,11 @@ class AndroidGenerator {
       final previewLocaleArg = previewNeedsLocaleArg ? ', hwLocales' : '';
       bodyBuffer.writeln('    val prefs = currentState.preferences');
       if (spec.hasPreviewValues) {
-        bodyBuffer.writeln(
-          '    val widgetData =\n'
-          '        if (preview) $className.previewFromPreferences(prefs$previewLocaleArg)\n'
-          '        else $className.fromPreferences(prefs$localeArg)',
-        );
+        bodyBuffer.write('''
+    val widgetData =
+        if (preview) $className.previewFromPreferences(prefs$previewLocaleArg)
+        else $className.fromPreferences(prefs$localeArg)
+''');
       } else {
         bodyBuffer.writeln(
           '    val widgetData = $className.fromPreferences(prefs$localeArg)',
@@ -301,16 +279,10 @@ class AndroidGenerator {
     contentBody = bodyBuffer.toString();
 
     final layoutImports = (spec.effectiveWidgetTree.kotlinImports).toSet();
-    // The image helpers reference BitmapFactory unqualified, and a tree that
-    // declares an image field without rendering an HWImage contributes no
-    // import of its own.
-    if (needsImageHelpers) {
-      layoutImports.add('import android.graphics.BitmapFactory');
-    }
-    // The format helpers spell their types short; the aliased
+    // The helpers spell their types short; the aliased
     // `android.text.format.DateFormat` keeps the skeleton resolver apart from
     // the `java.text.DateFormat` the styled one uses.
-    for (final helper in nativeHelpers) {
+    for (final helper in fileNativeHelpers) {
       layoutImports.addAll(helper.kotlinImports);
     }
     if (useTheme) {
@@ -379,17 +351,11 @@ class AndroidGenerator {
     final previewFingerprint = spec.androidAutoUpdatePreview
         ? _previewFingerprintFunction(
             hasDataFields: hasDataFields,
-            needsResolver: needsResolver,
             needsLocaleArg: needsLocaleArg,
             previewNeedsLocaleArg: previewNeedsLocaleArg,
             previewPreferences: previewPreferences,
           )
         : null;
-    // Without a resolver of its own the fingerprint reads the configured
-    // locales directly, which only the compat call does below API 24.
-    if (previewFingerprint != null && !needsResolver) {
-      layoutImports.add('import androidx.core.os.ConfigurationCompat');
-    }
 
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
@@ -685,8 +651,7 @@ class AndroidGenerator {
   /// on the shipped preview values instead of the defaults. It is a separate
   /// function so the widget itself carries no branch the launcher takes and it
   /// does not.
-  void _writeAndroidDataFactory({
-    required StringBuffer buffer,
+  String _androidDataFactory({
     required String className,
     required bool preview,
   }) {
@@ -700,19 +665,32 @@ class AndroidGenerator {
             [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]
                 .any(_previewResolvesLocalized));
     final localeParam = needsLocales ? ', locales: List<String>' : '';
+    final hasTimedFields = spec.timedDataFields.isNotEmpty;
+    final nowParam =
+        hasTimedFields ? ', now: Long = System.currentTimeMillis()' : '';
 
-    final assignments = <String>[];
+    final buffer = StringBuffer();
+    buffer.writeln(
+      '        fun $name(prefs: android.content.SharedPreferences'
+      '$localeParam$nowParam): $className {',
+    );
+    if (hasTimedFields) {
+      buffer.writeln(
+        '            val timedValues = resolveTimedValues(prefs, now)',
+      );
+    }
+    buffer.writeln('            return $className(');
     for (final field in spec.primitiveDataFields) {
       final readLogic = field.androidReadValue(
         store: 'prefs',
         key: '\${PREFERENCES_PREFIX}.${field.key}',
         preview: preview,
       );
-      assignments.add('                ${field.key} = $readLogic,');
+      buffer.writeln('                ${field.key} = $readLogic,');
     }
     for (final group in spec.jsonDataGroups) {
       final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-      assignments.add(
+      buffer.writeln(
         '                ${group.key} = $jsonClass.$fromPath('
         'prefs.getString("\${PREFERENCES_PREFIX}.${group.key}", null)'
         '${groupLocaleArg(group)}),',
@@ -740,31 +718,21 @@ class AndroidGenerator {
             preview: preview,
           ),
       };
-      assignments.add('                ${field.key} = $valueExpr,');
+      buffer.writeln('                ${field.key} = $valueExpr,');
     }
     for (final group in spec.timedJsonDataGroups) {
       final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
-      assignments.add(
+      buffer.writeln(
         '                ${group.key} = $jsonClass.$fromJson('
         'timedValues.optJSONObject("${group.key}")'
         '${groupLocaleArg(group)}),',
       );
     }
-
-    final hasTimedFields = spec.timedDataFields.isNotEmpty;
-    final nowParam =
-        hasTimedFields ? ', now: Long = System.currentTimeMillis()' : '';
-    final resolveTimed = hasTimedFields
-        ? '            val timedValues = resolveTimedValues(prefs, now)\n'
-        : '';
-
     buffer.write('''
-        fun $name(prefs: android.content.SharedPreferences$localeParam$nowParam): $className {
-$resolveTimed            return $className(
-${assignments.join('\n')}
             )
         }
 ''');
+    return buffer.toString();
   }
 
   /// The `previewFingerprint` the generated receiver forwards to the plugin,
@@ -777,23 +745,17 @@ ${assignments.join('\n')}
   /// path stays the same when its bytes are replaced.
   String _previewFingerprintFunction({
     required bool hasDataFields,
-    required bool needsResolver,
     required bool needsLocaleArg,
     required bool previewNeedsLocaleArg,
     required String previewPreferences,
   }) {
-    final locals = <String>[];
-    final parts = <String>['"${spec.previewContentHash}"'];
-
-    if (needsResolver) {
-      locals.add('    val hwLocales = hwCurrentLocales(context)');
-      parts.add('hwLocales.joinToString(",")');
-    } else {
-      parts.add(
-        'ConfigurationCompat.getLocales(context.resources.configuration)'
-        '.toLanguageTags()',
-      );
-    }
+    final buffer = StringBuffer();
+    buffer.writeln('  fun previewFingerprint(context: Context): String {');
+    buffer.writeln('    val hwLocales = hwCurrentLocales(context)');
+    final parts = <String>[
+      '"${spec.previewContentHash}"',
+      'hwLocales.joinToString(",")',
+    ];
 
     if (spec.androidUsesLiveDataInPreview && hasDataFields) {
       final usesPreviewFactory = spec.hasPreviewValues;
@@ -803,10 +765,10 @@ ${assignments.join('\n')}
           (usesPreviewFactory ? previewNeedsLocaleArg : needsLocaleArg)
               ? ', hwLocales'
               : '';
-      locals.add(
-        '    val hwPreviewData =\n'
-        '        ${spec.className}Data.$factory($previewPreferences$localeArg)',
-      );
+      buffer.write('''
+    val hwPreviewData =
+        ${spec.className}Data.$factory($previewPreferences$localeArg)
+''');
       parts.add('hwPreviewData.toString()');
 
       final imagePaths = _previewImagePathAccessors('hwPreviewData');
@@ -819,14 +781,14 @@ ${assignments.join('\n')}
       }
     }
 
-    final preamble = locals.isEmpty ? '' : '${locals.join('\n')}\n';
-    final listItems = parts.map((part) => '      $part,').join('\n');
-    return '''
-  fun previewFingerprint(context: Context): String {
-$preamble    return listOf(
-$listItems
+    buffer.writeln('    return listOf(');
+    for (final part in parts) {
+      buffer.writeln('      $part,');
+    }
+    buffer.write('''
     ).joinToString("|")
-  }''';
+  }''');
+    return buffer.toString();
   }
 
   /// Kotlin accessors, from [dataExpr], for every runtime image path the
@@ -850,47 +812,31 @@ $listItems
   /// ios_generator.dart parses on iOS; the three must stay in step. A root
   /// localized field's timed value comes back as a locale-tag-to-text
   /// object rather than a plain value, matching how it was written.
-  void _writeKotlinTimedDataResolver(StringBuffer buffer) {
-    buffer.writeln(
-      '        private fun resolveTimedValues(prefs: android.content.SharedPreferences, now: Long): org.json.JSONObject {',
-    );
-    buffer.writeln(
-      '            val path = prefs.getString("\${PREFERENCES_PREFIX}.timedData", null) ?: return org.json.JSONObject()',
-    );
-    buffer.writeln('            return try {');
-    buffer.writeln('                val file = java.io.File(path)');
-    buffer.writeln(
-      '                if (!file.exists()) return org.json.JSONObject()',
-    );
-    buffer.writeln(
-      '                val json = org.json.JSONObject(file.readText())',
-    );
-    buffer.writeln('                var activeKey: String? = null');
-    buffer.writeln('                var activeTimestamp = 0L');
-    buffer.writeln('                val keys = json.keys()');
-    buffer.writeln('                while (keys.hasNext()) {');
-    buffer.writeln('                    val key = keys.next()');
-    buffer.writeln(
-      '                    val timestamp = key.toLongOrNull() ?: continue',
-    );
-    buffer.writeln(
-      '                    if (timestamp <= now && (activeKey == null || timestamp > activeTimestamp)) {',
-    );
-    buffer.writeln('                        activeKey = key');
-    buffer.writeln('                        activeTimestamp = timestamp');
-    buffer.writeln('                    }');
-    buffer.writeln('                }');
-    buffer.writeln(
-      '                val resolvedKey = activeKey ?: return org.json.JSONObject()',
-    );
-    buffer.writeln(
-      '                json.optJSONObject(resolvedKey) ?: org.json.JSONObject()',
-    );
-    buffer.writeln('            } catch (_: Exception) {');
-    buffer.writeln('                org.json.JSONObject()');
-    buffer.writeln('            }');
-    buffer.writeln('        }');
-  }
+  String _kotlinTimedDataResolver() => '''
+        private fun resolveTimedValues(prefs: android.content.SharedPreferences, now: Long): org.json.JSONObject {
+            val path = prefs.getString("\${PREFERENCES_PREFIX}.timedData", null) ?: return org.json.JSONObject()
+            return try {
+                val file = java.io.File(path)
+                if (!file.exists()) return org.json.JSONObject()
+                val json = org.json.JSONObject(file.readText())
+                var activeKey: String? = null
+                var activeTimestamp = 0L
+                val keys = json.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val timestamp = key.toLongOrNull() ?: continue
+                    if (timestamp <= now && (activeKey == null || timestamp > activeTimestamp)) {
+                        activeKey = key
+                        activeTimestamp = timestamp
+                    }
+                }
+                val resolvedKey = activeKey ?: return org.json.JSONObject()
+                json.optJSONObject(resolvedKey) ?: org.json.JSONObject()
+            } catch (_: Exception) {
+                org.json.JSONObject()
+            }
+        }
+''';
 
   String _kotlinDefaultLiteral(HWDataType<dynamic> field) {
     final defaultValue = field.defaultValue;
@@ -914,13 +860,13 @@ $listItems
     return root;
   }
 
-  void _writeAndroidJsonNodeClass({
-    required StringBuffer buffer,
+  String _androidJsonNodeClass({
     required String className,
     required _JsonPathNode node,
     required bool isRoot,
     required bool previewNeedsLocales,
   }) {
+    final buffer = StringBuffer();
     buffer.writeln('data class $className(');
     for (final entry in node.children.entries) {
       final key = entry.key;
@@ -940,45 +886,51 @@ $listItems
         buffer.writeln('    val $key: $childClass? = null,');
       }
     }
-    buffer.writeln(') {');
-    buffer.writeln('    companion object {');
-    _writeAndroidJsonFactories(
-      buffer: buffer,
-      className: className,
-      node: node,
-      isRoot: isRoot,
-      preview: false,
-      previewNeedsLocales: previewNeedsLocales,
-    );
-    if (spec.hasPreviewValues) {
-      buffer.writeln();
-      _writeAndroidJsonFactories(
-        buffer: buffer,
+    buffer.write('''
+) {
+    companion object {
+''');
+    buffer.write(
+      _androidJsonFactories(
         className: className,
         node: node,
         isRoot: isRoot,
-        preview: true,
+        preview: false,
         previewNeedsLocales: previewNeedsLocales,
+      ),
+    );
+    if (spec.hasPreviewValues) {
+      buffer.writeln();
+      buffer.write(
+        _androidJsonFactories(
+          className: className,
+          node: node,
+          isRoot: isRoot,
+          preview: true,
+          previewNeedsLocales: previewNeedsLocales,
+        ),
       );
     }
-    buffer.writeln('    }');
-    buffer.writeln('}');
+    buffer.write('''
+    }
+}
+''');
 
     for (final entry in node.children.entries) {
-      final key = entry.key;
       final child = entry.value;
       if (child.children.isNotEmpty) {
         buffer.writeln();
-        final childClass = '$className${toPascalCase(key)}';
-        _writeAndroidJsonNodeClass(
-          buffer: buffer,
-          className: childClass,
-          node: child,
-          isRoot: false,
-          previewNeedsLocales: previewNeedsLocales,
+        buffer.write(
+          _androidJsonNodeClass(
+            className: '$className${toPascalCase(entry.key)}',
+            node: child,
+            isRoot: false,
+            previewNeedsLocales: previewNeedsLocales,
+          ),
         );
       }
     }
+    return buffer.toString();
   }
 
   /// Emits the factories of one JSON node class into its companion object.
@@ -991,8 +943,7 @@ $listItems
   ///
   /// [previewNeedsLocales] threads the OS locale list through the preview twins,
   /// which a localized leaf shipping preview translations resolves against.
-  void _writeAndroidJsonFactories({
-    required StringBuffer buffer,
+  String _androidJsonFactories({
     required String className,
     required _JsonPathNode node,
     required bool isRoot,
@@ -1007,6 +958,7 @@ $listItems
     final absent =
         preview ? '$fromJson(org.json.JSONObject()$localeArg)' : 'null';
 
+    final buffer = StringBuffer();
     if (isRoot) {
       buffer.write('''
         fun $fromPath(path: String?$localeParam): $className? {
@@ -1023,7 +975,19 @@ $listItems
 ''');
     }
 
-    final assignments = <String>[];
+    buffer.writeln(
+      '        fun $fromJson(obj: org.json.JSONObject?$localeParam): '
+      '$className? {',
+    );
+    if (isRoot && !preview) {
+      buffer.write('''
+            if (obj == null) return null
+            val json = obj
+''');
+    } else {
+      buffer.writeln('            val json = obj ?: org.json.JSONObject()');
+    }
+    buffer.writeln('            return $className(');
     for (final entry in node.children.entries) {
       final key = entry.key;
       final child = entry.value;
@@ -1034,28 +998,19 @@ $listItems
           type: child.leafType!,
           preview: preview,
         );
-        assignments.add('                $key = $valueExpr,');
+        buffer.writeln('                $key = $valueExpr,');
       } else {
-        final childClass = '$className${toPascalCase(key)}';
-        assignments.add(
-          '                $key = $childClass.$fromJson('
+        buffer.writeln(
+          '                $key = $className${toPascalCase(key)}.$fromJson('
           'json.optJSONObject("$key")$localeArg),',
         );
       }
     }
-
-    final json = isRoot && !preview
-        ? '            if (obj == null) return null\n            val json = obj'
-        : '            val json = obj ?: org.json.JSONObject()';
-
     buffer.write('''
-        fun $fromJson(obj: org.json.JSONObject?$localeParam): $className? {
-$json
-            return $className(
-${assignments.join('\n')}
             )
         }
 ''');
+    return buffer.toString();
   }
 
   String _androidLeafReadExpression({

@@ -161,7 +161,7 @@ void main() {
       );
       expect(
         image.codegenSwiftFallbackLiteral(preview: true),
-        'flutterAssetPath("assets/sample.png")',
+        '"assets/sample.png"',
       );
 
       // Nothing to stand in for: an asset image already names its own asset.
@@ -203,7 +203,7 @@ void main() {
       expect(
         const HWTimedData(HWImageData('a', previewAsset: 'assets/s.png'))
             .codegenSwiftFallbackLiteral(preview: true),
-        'flutterAssetPath("assets/s.png")',
+        '"assets/s.png"',
       );
     });
   });
@@ -353,8 +353,7 @@ void main() {
       );
       expect(
         type.iosReadValue(store: 'defaults', key: 'w.avatar', preview: true),
-        '(defaults?.string(forKey: "w.avatar") '
-        '?? flutterAssetPath("assets/sample.png"))',
+        '(defaults?.string(forKey: "w.avatar") ?? "assets/sample.png")',
       );
       // Without one there is nothing to show, exactly as at runtime.
       const plain = HWImageData('avatar');
@@ -682,7 +681,7 @@ void main() {
       );
       expect(
         type.codegenSwiftFallbackLiteral(preview: true),
-        'flutterAssetPath("packages/my_icons/assets/sample.png")',
+        '"packages/my_icons/assets/sample.png"',
       );
     });
 

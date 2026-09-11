@@ -4,9 +4,11 @@
 package es.antonborri.generator_basics
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.os.ConfigurationCompat
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -27,6 +29,8 @@ import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
+import java.util.Locale
+import org.json.JSONObject
 
 class LocalizedGreetingHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -132,8 +136,8 @@ data class LocalizedGreetingData(
   }
 }
 
-private fun hwCurrentLocales(context: android.content.Context): List<String> {
-  val configured = androidx.core.os.ConfigurationCompat.getLocales(context.resources.configuration)
+private fun hwCurrentLocales(context: Context): List<String> {
+  val configured = ConfigurationCompat.getLocales(context.resources.configuration)
   val tags = mutableListOf<String>()
   for (index in 0 until configured.size()) {
     val locale = configured[index] ?: continue
@@ -141,13 +145,32 @@ private fun hwCurrentLocales(context: android.content.Context): List<String> {
     if (tag.isNotEmpty() && tag != "und") tags.add(tag)
   }
   if (tags.isEmpty()) {
-    val fallback = java.util.Locale.getDefault().toLanguageTag()
+    val fallback = Locale.getDefault().toLanguageTag()
     if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
   }
   return tags
 }
 
-// Returns null when nothing matches, including under the base locale.
+private fun hwLocalizedEntries(json: JSONObject): Map<String, String> {
+  val parsed = mutableMapOf<String, String>()
+  val keys = json.keys()
+  while (keys.hasNext()) {
+    val name = keys.next()
+    val value = json.opt(name)
+    if (value is String) parsed[name] = value
+  }
+  return parsed
+}
+
+private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
+  if (raw == null) return null
+  return try {
+    hwLocalizedEntries(JSONObject(raw))
+  } catch (_: Exception) {
+    null
+  }
+}
+
 private fun hwResolveLocalized(
     locales: List<String>,
     values: Map<String, String>,
@@ -181,17 +204,6 @@ private fun hwResolveLocalized(
   return values[baseLocale]
 }
 
-private fun hwLocalizedEntries(json: org.json.JSONObject): Map<String, String> {
-  val parsed = mutableMapOf<String, String>()
-  val keys = json.keys()
-  while (keys.hasNext()) {
-    val name = keys.next()
-    val value = json.opt(name)
-    if (value is String) parsed[name] = value
-  }
-  return parsed
-}
-
 private fun hwLocalize(
     locales: List<String>,
     values: Map<String, String>,
@@ -199,7 +211,7 @@ private fun hwLocalize(
 ): String = hwResolveLocalized(locales, values, baseLocale) ?: ""
 
 private fun hwReadLocalized(
-    prefs: android.content.SharedPreferences,
+    prefs: SharedPreferences,
     key: String,
     locales: List<String>,
     values: Map<String, String>,
@@ -208,13 +220,4 @@ private fun hwReadLocalized(
   val merged = values.toMutableMap()
   hwDecodeLocalized(prefs.getString(key, null))?.let { merged.putAll(it) }
   return hwLocalize(locales, merged, baseLocale)
-}
-
-private fun hwDecodeLocalized(raw: String?): Map<String, String>? {
-  if (raw == null) return null
-  return try {
-    hwLocalizedEntries(org.json.JSONObject(raw))
-  } catch (_: Exception) {
-    null
-  }
 }

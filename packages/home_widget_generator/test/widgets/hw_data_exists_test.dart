@@ -75,8 +75,7 @@ void main() {
         );
       });
 
-      test('an absolute image path is checked on disk, an asset key is not',
-          () {
+      test('an image is checked through the existence helper', () {
         const imageExists = HWDataExists(
           data: HWImageData('avatar'),
           whenPresent: HWText.fixed('Present'),
@@ -85,24 +84,19 @@ void main() {
 
         expect(
           imageExists.toSwift(0, dataExpr: 'entry.data'),
-          startsWith(
-            'if let hwImagePath = entry.data.avatar, '
-            'FileManager.default.fileExists(atPath: hwImagePath) {',
-          ),
+          startsWith('if hwImageExists(entry.data.avatar) {'),
         );
-        // An empty string is not an asset key, so it never counts as present.
         expect(
           imageExists.toKotlin(0, dataExpr: 'widgetData'),
-          startsWith(
-            'if (widgetData.avatar?.let '
-            '{ it.isNotEmpty() && '
-            '(!it.startsWith("/") || java.io.File(it).exists()) } '
-            '== true) {',
-          ),
+          startsWith('if (hwImageExists(context, widgetData.avatar)) {'),
+        );
+        expect(
+          imageExists.nativeHelpers,
+          contains(HWNativeHelper.hwImageExists),
         );
       });
 
-      test('a wrapped image field is checked on disk too', () {
+      test('a wrapped image field is checked the same way', () {
         const timedJsonImage = HWDataExists(
           data: HWTimedData(HWJson('slot', HWImageData('picture'))),
           whenPresent: HWText.fixed('Present'),
@@ -111,19 +105,24 @@ void main() {
 
         expect(
           timedJsonImage.toSwift(0, dataExpr: 'entry.data'),
-          startsWith(
-            'if let hwImagePath = entry.data.slot?.picture, '
-            'FileManager.default.fileExists(atPath: hwImagePath) {',
-          ),
+          startsWith('if hwImageExists(entry.data.slot?.picture) {'),
         );
         expect(
           timedJsonImage.toKotlin(0, dataExpr: 'widgetData'),
           startsWith(
-            'if (widgetData.slot?.picture?.let '
-            '{ it.isNotEmpty() && '
-            '(!it.startsWith("/") || java.io.File(it).exists()) } '
-            '== true) {',
+            'if (hwImageExists(context, widgetData.slot?.picture)) {',
           ),
+        );
+        expect(
+          timedJsonImage.nativeHelpers,
+          contains(HWNativeHelper.hwImageExists),
+        );
+      });
+
+      test('a non-image field drags no image helper in', () {
+        expect(
+          dataExists.nativeHelpers,
+          isNot(contains(HWNativeHelper.hwImageExists)),
         );
       });
     });

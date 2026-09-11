@@ -4,6 +4,7 @@
 package es.antonborri.generator_basics
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,8 @@ import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
+import java.io.File
+import java.util.Locale
 
 class ImageShowcaseHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -55,10 +58,11 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
   }
 
   fun previewFingerprint(context: Context): String {
+    val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "1e478d5f",
-            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            "e9e6ed83",
+            hwLocales.joinToString(","),
             hwPreviewData.toString(),
             listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
                 .joinToString(",") { hwPath ->
@@ -94,7 +98,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Spacer(modifier = GlanceModifier.defaultWeight())
-          flutterAssetBitmap(context, "assets/logo.png", 24.0, 24.0)?.let { bitmap ->
+          hwDecodeImage(context, "assets/logo.png", 24.0, 24.0)?.let { bitmap ->
             Image(
                 provider = ImageProvider(bitmap),
                 contentDescription = "App logo",
@@ -102,13 +106,9 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.width(24.0.dp).height(24.0.dp),
             )
           }
-          if (
-              widgetData.picture?.let {
-                it.isNotEmpty() && (!it.startsWith("/") || java.io.File(it).exists())
-              } == true
-          ) {
+          if (hwImageExists(context, widgetData.picture)) {
             widgetData.picture
-                ?.let { path -> hwDecodeImageFile(context, path, 64.0, 64.0) }
+                ?.let { path -> hwDecodeImage(context, path, 64.0, 64.0) }
                 ?.let { bitmap ->
                   Image(
                       provider = ImageProvider(bitmap),
@@ -131,7 +131,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
           Row(verticalAlignment = Alignment.CenterVertically) {
             Spacer(modifier = GlanceModifier.defaultWeight())
             widgetData.slide
-                ?.let { path -> hwDecodeImageFile(context, path, 28.0, 28.0) }
+                ?.let { path -> hwDecodeImage(context, path, 28.0, 28.0) }
                 ?.let { bitmap ->
                   Image(
                       provider = ImageProvider(bitmap),
@@ -142,7 +142,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 }
             widgetData.contact
                 ?.avatar
-                ?.let { path -> hwDecodeImageFile(context, path, 28.0, 28.0) }
+                ?.let { path -> hwDecodeImage(context, path, 28.0, 28.0) }
                 ?.let { bitmap ->
                   Image(
                       provider = ImageProvider(bitmap),
@@ -286,89 +286,87 @@ data class ImageShowcaseContactJsonData(
   }
 }
 
-private fun hwImageSampleSize(
-    context: android.content.Context,
-    bounds: BitmapFactory.Options,
-    widthDp: Double?,
-    heightDp: Double?,
-): Int {
-  if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
-  val metrics = context.resources.displayMetrics
-  val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
-  val widthPx = widthDp?.let { (it * metrics.density).toInt() }
-  val heightPx = heightDp?.let { (it * metrics.density).toInt() }
-  val targetWidth =
-      widthPx
-          ?: heightPx?.let {
-            (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
-          }
-          ?: fallback
-  val targetHeight =
-      heightPx
-          ?: widthPx?.let {
-            (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
-          }
-          ?: fallback
-  if (targetWidth <= 0 || targetHeight <= 0) return 1
-  var sampleSize = 1
-  while (
-      bounds.outWidth / (sampleSize * 2) >= targetWidth &&
-          bounds.outHeight / (sampleSize * 2) >= targetHeight
-  ) {
-    sampleSize *= 2
+private fun hwCurrentLocales(context: Context): List<String> {
+  val configured = ConfigurationCompat.getLocales(context.resources.configuration)
+  val tags = mutableListOf<String>()
+  for (index in 0 until configured.size()) {
+    val locale = configured[index] ?: continue
+    val tag = locale.toLanguageTag()
+    if (tag.isNotEmpty() && tag != "und") tags.add(tag)
   }
-  return sampleSize
+  if (tags.isEmpty()) {
+    val fallback = Locale.getDefault().toLanguageTag()
+    if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
+  }
+  return tags
 }
 
-private fun hwDecodeImageFile(
-    context: android.content.Context,
+private fun hwDecodeImage(
+    context: Context,
     path: String,
     widthDp: Double?,
     heightDp: Double?,
-): android.graphics.Bitmap? =
-    if (!path.startsWith("/")) {
-      flutterAssetBitmap(context, path, widthDp, heightDp)
-    } else {
-      try {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(path, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-          null
-        } else {
-          BitmapFactory.decodeFile(
-              path,
-              BitmapFactory.Options().apply {
-                inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)
-              },
-          )
-        }
-      } catch (_: Exception) {
-        null
-      }
-    }
-
-private fun flutterAssetBitmap(
-    context: android.content.Context,
-    asset: String,
-    widthDp: Double?,
-    heightDp: Double?,
-): android.graphics.Bitmap? =
-    try {
-      val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-      context.assets.open("flutter_assets/$asset").use {
-        BitmapFactory.decodeStream(it, null, bounds)
-      }
-      if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-        null
+): Bitmap? {
+  fun decode(options: BitmapFactory.Options): Bitmap? =
+      if (path.startsWith("/")) {
+        BitmapFactory.decodeFile(path, options)
       } else {
-        val options =
-            BitmapFactory.Options().apply {
-              inSampleSize = hwImageSampleSize(context, bounds, widthDp, heightDp)
-            }
-        context.assets.open("flutter_assets/$asset").use {
+        context.assets.open("flutter_assets/$path").use {
           BitmapFactory.decodeStream(it, null, options)
         }
       }
-    } catch (_: Exception) {
-      null
+
+  fun sampleSize(bounds: BitmapFactory.Options): Int {
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
+    val metrics = context.resources.displayMetrics
+    val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
+    val widthPx = widthDp?.let { (it * metrics.density).toInt() }
+    val heightPx = heightDp?.let { (it * metrics.density).toInt() }
+    val targetWidth =
+        widthPx
+            ?: heightPx?.let {
+              (it.toLong() * bounds.outWidth / bounds.outHeight).toInt().coerceAtLeast(1)
+            }
+            ?: fallback
+    val targetHeight =
+        heightPx
+            ?: widthPx?.let {
+              (it.toLong() * bounds.outHeight / bounds.outWidth).toInt().coerceAtLeast(1)
+            }
+            ?: fallback
+    if (targetWidth <= 0 || targetHeight <= 0) return 1
+    var sampleSize = 1
+    while (
+        bounds.outWidth / (sampleSize * 2) >= targetWidth &&
+            bounds.outHeight / (sampleSize * 2) >= targetHeight
+    ) {
+      sampleSize *= 2
     }
+    return sampleSize
+  }
+
+  return try {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    decode(bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+      null
+    } else {
+      decode(
+          BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds) },
+      )
+    }
+  } catch (_: Exception) {
+    null
+  }
+}
+
+private fun hwImageExists(context: Context, path: String?): Boolean {
+  if (path.isNullOrEmpty()) return false
+  if (path.startsWith("/")) return File(path).exists()
+  return try {
+    context.assets.open("flutter_assets/$path").close()
+    true
+  } catch (_: Exception) {
+    false
+  }
+}

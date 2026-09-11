@@ -5,7 +5,6 @@ import '../native_helpers.dart';
 import '../parser/widget_value_decoder.dart';
 import '../types.dart';
 import '../utils/apply_swift_modifier.dart';
-import '../utils/image_helper_names.dart';
 import '../utils/inject_glance_modifier.dart';
 import '../utils/string_literals.dart';
 import 'hw_alignment.dart';
@@ -109,19 +108,29 @@ sealed class HWWidget implements HWGeneratable {
     }
   }
 
+  /// The native functions displaying this one widget, before their own
+  /// dependencies are resolved.
+  ///
+  /// Empty for a widget that renders its values as they are stored; the ones
+  /// that put a value through a native function — [HWText] formatting a number
+  /// or resolving a translation, [HWImage] decoding a picture — name it here,
+  /// [HWDataType.renderHelpers] of what they display included, so that a field
+  /// declared but never displayed does not drag a render helper in.
+  Set<HWNativeHelper> get renderHelpers => const {};
+
   /// The native functions this subtree calls, before their own dependencies
   /// are resolved.
   ///
   /// Two things ask for one: reading a value back — every data dependency in
   /// the subtree, whether or not anything displays it — and rendering one,
-  /// which only an [HWText] does.
+  /// which each widget answers for itself through [renderHelpers].
   Set<HWNativeHelper> get nativeHelpers {
     final helpers = <HWNativeHelper>{};
     for (final widget in descendants) {
       for (final dependency in widget.dataDependencies) {
         helpers.addAll(dependency.nativeHelpers);
       }
-      if (widget is HWText) helpers.addAll(widget.formatHelpers);
+      helpers.addAll(widget.renderHelpers);
     }
     return helpers;
   }

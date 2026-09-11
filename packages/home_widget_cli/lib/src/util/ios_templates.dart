@@ -17,23 +17,30 @@ String iosFlavorEnumSwift({
   required String appGroupId,
   Map<String, String> flavorAppGroupIds = const {},
 }) {
-  final buffer = StringBuffer();
-  buffer.writeln('enum ${iosFlavorEnumName(widgetClassName)} {');
+  final enumName = iosFlavorEnumName(widgetClassName);
+
   if (flavorAppGroupIds.isEmpty) {
-    buffer.writeln('  static let appGroupId = "$appGroupId"');
-  } else {
-    var first = true;
-    for (final entry in flavorAppGroupIds.entries) {
-      final condition = flavorCompilationCondition(entry.key);
-      buffer.writeln('  #${first ? 'if' : 'elseif'} $condition');
-      buffer.writeln('  static let appGroupId = "${entry.value}"');
-      first = false;
-    }
-    buffer.writeln('  #else');
-    buffer.writeln('  static let appGroupId = "$appGroupId"');
-    buffer.writeln('  #endif');
+    return '''
+enum $enumName {
+  static let appGroupId = "$appGroupId"
+}''';
   }
-  buffer.write('}');
+
+  final buffer = StringBuffer();
+  buffer.writeln('enum $enumName {');
+
+  for (final (index, entry) in flavorAppGroupIds.entries.indexed) {
+    final directive = index == 0 ? 'if' : 'elseif';
+    buffer.writeln('  #$directive ${flavorCompilationCondition(entry.key)}');
+    buffer.writeln('  static let appGroupId = "${entry.value}"');
+  }
+
+  buffer.write('''
+  #else
+  static let appGroupId = "$appGroupId"
+  #endif
+}''');
+
   return buffer.toString();
 }
 
@@ -94,56 +101,76 @@ struct ${widgetClassName}Entry: TimelineEntry {
     Text("$widgetClassName (placeholder)")
 ''';
 
-  final buffer = StringBuffer();
-  buffer.writeln(head);
-  buffer.writeln('//');
-  buffer.writeln('// Placeholder SwiftUI widget.');
-  buffer.writeln('//');
-  buffer.writeln('// App Group ID used here: $flavorEnumName.appGroupId');
-  buffer.writeln();
-  for (final import in {
+  final imports = {
     'import SwiftUI',
     'import WidgetKit',
     ...?extraImports,
   }.toList()
-    ..sort()) {
+    ..sort();
+
+  final configuration = <String>[
+    // A string literal keeps SwiftUI's LocalizedStringKey overload, which
+    // projects shipping their own Localizable.strings in the extension rely on.
+    // Only switch to a computed String when translations were actually
+    // configured.
+    if (displayNameExpression != null)
+      '    .configurationDisplayName($displayNameExpression)'
+    else
+      '    .configurationDisplayName("${displayName ?? widgetClassName}")',
+    if (descriptionExpression != null)
+      '    .description($descriptionExpression)'
+    else if (description != null)
+      '    .description("$description")',
+    if (supportedFamilies != null) '    .supportedFamilies($supportedFamilies)',
+    if (!applyContentPadding) '    .disableContentMarginsIfNeeded()',
+  ];
+
+  final includesContainerBackground =
+      entryViewBody?.contains('.applyContainerBackground') ?? false;
+
+  final flavorEnum = iosFlavorEnumSwift(
+    widgetClassName: widgetClassName,
+    appGroupId: appGroupId,
+    flavorAppGroupIds: flavorAppGroupIds,
+  );
+
+  final buffer = StringBuffer();
+  buffer.write('''
+$head
+//
+// Placeholder SwiftUI widget.
+//
+// App Group ID used here: $flavorEnumName.appGroupId
+
+''');
+
+  for (final import in imports) {
     buffer.writeln(import);
   }
-  buffer.writeln();
-  buffer.writeln(
-    iosFlavorEnumSwift(
-      widgetClassName: widgetClassName,
-      appGroupId: appGroupId,
-      flavorAppGroupIds: flavorAppGroupIds,
-    ),
-  );
-  buffer.writeln();
-  buffer.writeln('struct Provider: TimelineProvider {');
-  buffer.writeln(
-    '  func placeholder(in context: Context) -> ${widgetClassName}Entry {',
-  );
-  buffer.writeln(
-    '    ${placeholderBody ?? '${widgetClassName}Entry(date: Date())'}',
-  );
-  buffer.writeln('  }');
-  buffer.writeln();
-  buffer.writeln(
-    '  func getSnapshot(in context: Context, completion: @escaping (${widgetClassName}Entry) -> Void) {',
-  );
-  buffer.writeln(snapshotBody);
-  buffer.writeln('  }');
-  buffer.writeln();
-  buffer.writeln(
-    '  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {',
-  );
-  buffer.writeln(timelineBody);
-  buffer.writeln('  }');
-  buffer.writeln('}');
-  buffer.writeln();
-  buffer.writeln(entryDef);
-  buffer.writeln();
-  buffer.writeln('struct ${widgetClassName}EntryView: View {');
-  buffer.writeln('  var entry: Provider.Entry');
+
+  buffer.write('''
+
+$flavorEnum
+
+struct Provider: TimelineProvider {
+  func placeholder(in context: Context) -> ${widgetClassName}Entry {
+    ${placeholderBody ?? '${widgetClassName}Entry(date: Date())'}
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (${widgetClassName}Entry) -> Void) {
+$snapshotBody
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+$timelineBody
+  }
+}
+
+$entryDef
+
+struct ${widgetClassName}EntryView: View {
+  var entry: Provider.Entry
+''');
 
   if (swiftViewModifiers != null && swiftViewModifiers.isNotEmpty) {
     buffer.writeln();
@@ -152,58 +179,41 @@ struct ${widgetClassName}Entry: TimelineEntry {
     }
   }
 
-  buffer.writeln();
-  buffer.writeln('  var body: some View {');
-  buffer.writeln(viewBody);
+  buffer.write('''
+
+  var body: some View {
+$viewBody
+''');
+
   if (widgetUrl != null) {
     buffer.writeln('    .widgetURL(URL(string: "$widgetUrl"))');
   }
-  buffer.writeln('  }');
-  buffer.writeln('}');
-  buffer.writeln();
-  buffer.writeln('struct $widgetClassName: Widget {');
-  buffer.writeln('  let kind: String = "$widgetClassName"');
-  buffer.writeln();
-  buffer.writeln('  var body: some WidgetConfiguration {');
-  buffer.writeln(
-    '    StaticConfiguration(kind: kind, provider: Provider()) { entry in',
-  );
-  buffer.writeln('      ${widgetClassName}EntryView(entry: entry)');
-  buffer.writeln('    }');
-  // A string literal keeps SwiftUI's LocalizedStringKey overload, which projects
-  // shipping their own Localizable.strings in the extension rely on. Only switch
-  // to a computed String when translations were actually configured.
-  if (displayNameExpression != null) {
-    buffer.writeln('    .configurationDisplayName($displayNameExpression)');
-  } else {
-    buffer.writeln(
-      '    .configurationDisplayName("${displayName ?? widgetClassName}")',
-    );
+
+  buffer.write('''
+  }
+}
+
+struct $widgetClassName: Widget {
+  let kind: String = "$widgetClassName"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+      ${widgetClassName}EntryView(entry: entry)
+    }
+''');
+
+  for (final line in configuration) {
+    buffer.writeln(line);
   }
 
-  if (descriptionExpression != null) {
-    buffer.writeln('    .description($descriptionExpression)');
-  } else if (description != null) {
-    buffer.writeln('    .description("$description")');
+  buffer.write('''
   }
+}
 
-  if (supportedFamilies != null) {
-    buffer.writeln('    .supportedFamilies($supportedFamilies)');
-  }
-
-  if (!applyContentPadding) {
-    buffer.writeln('    .disableContentMarginsIfNeeded()');
-  }
-
-  buffer.writeln('  }');
-  buffer.writeln('}');
-  buffer.writeln();
-
-  final includesContainerBackground =
-      entryViewBody?.contains('.applyContainerBackground') ?? false;
+''');
 
   if (includesContainerBackground && !hasCustomContainerBackground) {
-    buffer.writeln('''
+    buffer.write('''
 extension View {
   @ViewBuilder
   func applyContainerBackground() -> some View {
@@ -216,11 +226,12 @@ extension View {
     }
   }
 }
+
 ''');
   }
 
   if (includesContainerBackground && hasCustomContainerBackground) {
-    buffer.writeln('''
+    buffer.write('''
 extension View {
   @ViewBuilder
   func applyContainerBackground<T: View>(_ backgroundView: T) -> some View {
@@ -231,11 +242,12 @@ extension View {
     }
   }
 }
+
 ''');
   }
 
   if (!applyContentPadding) {
-    buffer.writeln('''
+    buffer.write('''
 extension WidgetConfiguration {
   func disableContentMarginsIfNeeded() -> some WidgetConfiguration {
     if #available(iOSApplicationExtension 15.0, macOS 12.0, watchOS 9.0, *) {
@@ -245,6 +257,7 @@ extension WidgetConfiguration {
     }
   }
 }
+
 ''');
   }
 
@@ -266,12 +279,9 @@ String iosWidgetBundleSwiftTemplate({
   String? header,
 }) {
   final head = header ?? _defaultHeader;
-  final body = flavors.isEmpty
-      ? '    $widgetClassName()'
-      : '    #if ${flavors.map(flavorCompilationCondition).join(' || ')}\n'
-          '    $widgetClassName()\n'
-          '    #endif';
-  return '''
+
+  final buffer = StringBuffer();
+  buffer.write('''
 $head
 
 import WidgetKit
@@ -280,10 +290,25 @@ import SwiftUI
 @main
 struct ${widgetClassName}Bundle: WidgetBundle {
   var body: some Widget {
-$body
+''');
+
+  if (flavors.isNotEmpty) {
+    final conditions = flavors.map(flavorCompilationCondition).join(' || ');
+    buffer.writeln('    #if $conditions');
+  }
+
+  buffer.writeln('    $widgetClassName()');
+
+  if (flavors.isNotEmpty) {
+    buffer.writeln('    #endif');
+  }
+
+  buffer.write('''
   }
 }
-''';
+''');
+
+  return buffer.toString();
 }
 
 /// Generates the Info.plist content for the Widget Extension.

@@ -108,31 +108,31 @@ class HWDataExists extends HWConditional {
         ...super.dataDependencies,
       };
 
-  /// An image's stored value is a file path, and the file it points at can be
-  /// gone while the path is still stored, so the check has to reach the disk.
-  /// Swift always has a path: a preview fallback resolves its asset to an
-  /// absolute bundle path.
+  @override
+  Set<HWNativeHelper> get renderHelpers => imageLeafOf(data) == null
+      ? const {}
+      : const {HWNativeHelper.hwImageExists};
+
+  /// An image counts as present when there is an image to display for it:
+  /// a saved file still on disk, or an asset key that names an asset the app
+  /// shipped with. [HWNativeHelper.hwImageExists] decides, on the same routing
+  /// [HWNativeHelper.hwDecodeImage] renders through.
   @override
   String conditionSwift({required String dataExpr}) {
     final access = data.swiftAccess(dataExpr);
     if (imageLeafOf(data) != null) {
-      return 'let hwImagePath = $access, '
-          'FileManager.default.fileExists(atPath: hwImagePath)';
+      return '${HWNativeHelper.hwImageExists.name}($access)';
     }
     return '$access != nil';
   }
 
-  /// As [conditionSwift], except that a non-empty value which is not an
-  /// absolute path is a Flutter asset key bundled in the APK, so it counts as
-  /// present without a disk check, matching how [kotlinImageFileHelper]
-  /// decodes it.
+  /// [conditionSwift]'s rule, with the widget's `context` threaded in: the
+  /// Kotlin helper reaches the app's assets through it.
   @override
   String conditionKotlin({required String dataExpr}) {
     final access = data.kotlinAccess(dataExpr);
     if (imageLeafOf(data) != null) {
-      return '$access?.let '
-          '{ it.isNotEmpty() && '
-          '(!it.startsWith("/") || java.io.File(it).exists()) } == true';
+      return '${HWNativeHelper.hwImageExists.name}(context, $access)';
     }
     return '$access != null';
   }
