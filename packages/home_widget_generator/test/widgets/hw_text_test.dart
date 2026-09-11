@@ -1,6 +1,10 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
+/// The `style` argument a Glance `Text` carries when nothing sets a color.
+const defaultStyleArg =
+    'style = TextStyle(color = GlanceTheme.colors.onSurface)';
+
 void main() {
   group('HWText', () {
     group('model', () {
@@ -52,7 +56,7 @@ void main() {
           text.toKotlin(0, dataExpr: 'widgetData'),
           'Text(text = hwFormatDecimal('
           '(widgetData.payload?.count ?: 3L), null, null, true, '
-          'hwFormatLocale(context)))',
+          'hwFormatLocale(context)), $defaultStyleArg)',
         );
       });
 
@@ -71,7 +75,8 @@ void main() {
         test('Kotlin reads the leaf with its default', () {
           expect(
             label.toKotlin(0, dataExpr: 'widgetData'),
-            'Text(text = (widgetData.payload?.label ?: "x"))',
+            'Text(text = (widgetData.payload?.label ?: "x"), '
+            '$defaultStyleArg)',
           );
         });
 
@@ -320,15 +325,16 @@ void main() {
         );
       });
 
-      test(
-          'textAlign only, no style: style is TextStyle with only align in Kotlin',
+      test('textAlign only, no style: the default color joins it in Kotlin',
           () {
         const node = HWText.fixed('Hi', textAlign: HWTextAlign.end);
         final r = node.toKotlin(0, dataExpr: 'd');
         expect(
           r,
           contains(
-            'Text(text = "Hi", style = TextStyle(textAlign = TextAlign.End))',
+            'Text(text = "Hi", style = TextStyle('
+            'color = GlanceTheme.colors.onSurface, '
+            'textAlign = TextAlign.End))',
           ),
         );
       });
@@ -338,7 +344,22 @@ void main() {
         final r = node.toKotlin(0, dataExpr: 'd');
         expect(
           r,
-          contains('TextStyle(textAlign = TextAlign.Start)'),
+          contains('textAlign = TextAlign.Start)'),
+        );
+      });
+
+      test('textAlign is appended after a color that brings its own parens',
+          () {
+        const node = HWText.fixed(
+          'C',
+          style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
+          textAlign: HWTextAlign.center,
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'd'),
+          'Text(text = "C", style = TextStyle(color = ColorProvider('
+          'day = Color(0xFFFF0000), night = Color(0xFFFF0000)), '
+          'textAlign = TextAlign.Center))',
         );
       });
 
@@ -354,7 +375,7 @@ void main() {
       test('emits fixed text', () {
         final node = HWText.fixed('Hello');
         final result = node.toKotlin(0, dataExpr: 'data');
-        expect(result, 'Text(text = "Hello")');
+        expect(result, 'Text(text = "Hello", $defaultStyleArg)');
       });
 
       test('emits string data ref', () {
@@ -363,7 +384,7 @@ void main() {
           0,
           dataExpr: 'data',
         );
-        expect(result, 'Text(text = data.label ?: "")');
+        expect(result, 'Text(text = data.label ?: "", $defaultStyleArg)');
       });
 
       test('emits int data ref in the default decimal format', () {
@@ -375,7 +396,7 @@ void main() {
         expect(
           result,
           'Text(text = hwFormatDecimal((data.count ?: 0L), '
-          'null, null, true, hwFormatLocale(context)))',
+          'null, null, true, hwFormatLocale(context)), $defaultStyleArg)',
         );
       });
 
@@ -385,7 +406,10 @@ void main() {
           0,
           dataExpr: 'data',
         );
-        expect(result, 'Text(text = (data.flag?.toString() ?: "false"))');
+        expect(
+          result,
+          'Text(text = (data.flag?.toString() ?: "false"), $defaultStyleArg)',
+        );
       });
 
       test('emits double data ref in the default decimal format', () {
@@ -397,20 +421,20 @@ void main() {
         expect(
           result,
           'Text(text = hwFormatDecimal((data.ratio ?: 0.0), '
-          'null, null, true, hwFormatLocale(context)))',
+          'null, null, true, hwFormatLocale(context)), $defaultStyleArg)',
         );
       });
 
       test('escapes strings', () {
         final node = HWText.fixed('Price: \$5');
         final result = node.toKotlin(0, dataExpr: 'data');
-        expect(result, 'Text(text = "Price: \\\$5")');
+        expect(result, 'Text(text = "Price: \\\$5", $defaultStyleArg)');
       });
 
       test('respects indent', () {
         final node = HWText.fixed('Hello');
         final result = node.toKotlin(1, dataExpr: 'data');
-        expect(result, '    Text(text = "Hello")');
+        expect(result, '    Text(text = "Hello", $defaultStyleArg)');
       });
 
       test('style and textAlign in Glance output', () {
@@ -549,7 +573,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatDecimal((widgetData.v ?: 0.0), 1, 2, false, '
-        'hwFormatLocale(context)))',
+        'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -566,7 +590,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatPercent((widgetData.progress ?: 0.0), null, 0, '
-        'hwFormatLocale(context)))',
+        'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -582,7 +606,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatCompact((widgetData.steps ?: 0L), '
-        'hwFormatLocale(context)))',
+        'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -598,7 +622,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatNumberPattern((widgetData.v ?: 0.0), '
-        '"#,##0.00", hwFormatLocale(context)))',
+        '"#,##0.00", hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -619,7 +643,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatCurrency((widgetData.price ?: 0.0), "EUR", 2, '
-        'hwFormatLocale(context)))',
+        'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -642,7 +666,8 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatCurrency((widgetData.price ?: 0.0), '
-        'widgetData.cur ?: "", null, hwFormatLocale(context)))',
+        'widgetData.cur ?: "", null, hwFormatLocale(context)), '
+        '$defaultStyleArg)',
       );
     });
 
@@ -678,7 +703,7 @@ void main() {
           format: HWNumberFormat.compact(),
         ).toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatCompact((widgetData.payload?.v ?: 0.0), '
-        'hwFormatLocale(context)))',
+        'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -715,7 +740,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = hwFormatDecimal(1234.0, null, null, true, '
-        'hwFormatLocale(context)))',
+        'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
 
@@ -727,7 +752,8 @@ void main() {
       );
       expect(
         text.toKotlin(0, dataExpr: 'd'),
-        'Text(text = hwFormatCompact(12.5, hwFormatLocale(context)))',
+        'Text(text = hwFormatCompact(12.5, hwFormatLocale(context)), '
+        '$defaultStyleArg)',
       );
     });
 
@@ -778,7 +804,7 @@ void main() {
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = widgetData.when?.let { hwFormatDateStyled(it, '
         'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
-        'hwFormatLocale(context)) } ?: "")',
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -795,7 +821,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = widgetData.when?.let { hwFormatDateSkeleton(it, '
-        '"yMMMd", hwFormatLocale(context)) } ?: "")',
+        '"yMMMd", hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -840,7 +866,7 @@ void main() {
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = widgetData.payload?.when?.let { hwFormatDateStyled(it, '
         'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
-        'hwFormatLocale(context)) } ?: "")',
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
   });
@@ -880,7 +906,8 @@ void main() {
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = widgetData.when?.let { hwFormatDateStyled(it, '
         'java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, '
-        'hwFormatLocale(context), "Europe/Berlin") } ?: "")',
+        'hwFormatLocale(context), "Europe/Berlin") } ?: "", '
+        '$defaultStyleArg)',
       );
     });
 

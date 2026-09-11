@@ -55,7 +55,7 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         ConditionalStatusData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "e058c98d",
+            "1937fc62",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -125,7 +125,12 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
             Spacer(modifier = GlanceModifier.defaultWeight())
             Text(
                 text = "No Data",
-                style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
             )
             Text(
                 text = "Open the app",

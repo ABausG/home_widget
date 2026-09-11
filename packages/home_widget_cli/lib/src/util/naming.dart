@@ -1,3 +1,5 @@
+import 'package:home_widget_generator/home_widget_generator.dart';
+
 /// Converts an arbitrary string into PascalCase suitable for class names.
 String toPascalCase(String input) {
   final parts = input
@@ -60,9 +62,7 @@ String localeIdentifier(String tag) {
 
   final identifier = buffer.toString();
   if (RegExp(r'^[0-9]').hasMatch(identifier)) return 'locale$identifier';
-  return _reservedDartWords.contains(identifier)
-      ? '${identifier}_'
-      : identifier;
+  return dartReservedWords.contains(identifier) ? '${identifier}_' : identifier;
 }
 
 /// Converts a BCP-47 locale tag into an Android resource directory qualifier.
@@ -141,17 +141,6 @@ String androidStringResourceText(String value) {
 /// A bare `%` reads as a format specifier, and two of them in one string fail
 /// the build with "Multiple substitutions specified in non-positional format".
 bool androidStringNeedsFormattedFalse(String value) => value.contains('%');
-
-/// Reserved words that cannot be used as a parameter name.
-///
-/// Deliberately narrower than the validator's keyword list: contextual keywords
-/// such as `async` are legal identifiers here.
-const Set<String> _reservedDartWords = {
-  'assert', 'break', 'case', 'catch', 'class', 'const', 'continue', //
-  'default', 'do', 'else', 'enum', 'extends', 'false', 'final', 'finally',
-  'for', 'if', 'in', 'is', 'new', 'null', 'rethrow', 'return', 'super',
-  'switch', 'this', 'throw', 'true', 'try', 'var', 'void', 'while', 'with',
-};
 
 /// The namespace every platform resource this widget owns is written under.
 ///

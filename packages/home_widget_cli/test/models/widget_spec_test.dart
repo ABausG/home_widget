@@ -47,6 +47,149 @@ void main() {
     });
   });
 
+  group('WidgetSpec fonts and icons', () {
+    const brandIcons = HWIconFont(family: 'BrandIcons', package: 'brand_icons');
+    const mood = HWIconData.resolved(
+      'mood',
+      entries: [
+        HWIconEntry('happy', 0xE88A),
+        HWIconEntry('sad', 0xE25B),
+      ],
+      iconFont: brandIcons,
+    );
+
+    test('fontResourcePrefix namespaces by the widget class', () {
+      expect(_spec(name: 'MyWidget').fontResourcePrefix, 'hw_font_my_widget');
+    });
+
+    test('fontVariants collects every family, weight and slant in the tree',
+        () {
+      final spec = _spec(
+        widgetTree: const HWColumn(
+          children: [
+            HWText.fixed('a', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText.fixed(
+              'b',
+              style: HWTextStyle(
+                fontFamily: 'Chewy',
+                fontWeight: HWFontWeight.bold,
+              ),
+            ),
+            HWText.fixed('c', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText.fixed('d'),
+          ],
+        ),
+      );
+
+      expect(spec.fontVariants, {
+        const HWFontVariant(family: 'Chewy', weight: 400, italic: false),
+        const HWFontVariant(family: 'Chewy', weight: 700, italic: false),
+      });
+    });
+
+    test('fontVariants is empty for a widget in the platform font', () {
+      expect(_spec(widgetTree: const HWText.fixed('a')).fontVariants, isEmpty);
+    });
+
+    test('iconCodePoints unions the tree and every icon field', () {
+      final spec = _spec(
+        dataFields: const [mood],
+        widgetTree: const HWColumn(
+          children: [
+            HWIcon.glyph(0xE5CD, font: brandIcons),
+            HWIcon(mood),
+          ],
+        ),
+      );
+
+      expect(spec.iconCodePoints, {
+        brandIcons: {0xE5CD, 0xE88A, 0xE25B},
+      });
+    });
+
+    test('iconFields descends the timed and JSON wrappers', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('label'),
+          mood,
+          HWTimedData(mood),
+          HWJson('profile', mood),
+        ],
+        widgetTree: const HWText.fixed('a'),
+      );
+
+      expect(spec.iconFields, hasLength(3));
+      expect(spec.iconFields.every((f) => f.key == 'mood'), isTrue);
+      // A field the tree never renders still reaches the font, or `saveData`
+      // could store a glyph the copy does not carry.
+      expect(spec.iconCodePoints[brandIcons], {0xE88A, 0xE25B});
+    });
+
+    test('usesFonts is true for either a custom family or an icon', () {
+      expect(_spec(widgetTree: const HWText.fixed('a')).usesFonts, isFalse);
+      expect(
+        _spec(
+          widgetTree: const HWText.fixed(
+            'a',
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ).usesFonts,
+        isTrue,
+      );
+      expect(
+        _spec(widgetTree: const HWIcon.glyph(0xE88A, font: brandIcons))
+            .usesFonts,
+        isTrue,
+      );
+    });
+
+    test('previewContentHash changes with the icons a field may hold', () {
+      String hashOf(HWIconData field) => _spec(
+            dataFields: [field],
+            widgetTree: HWIcon(field),
+          ).previewContentHash;
+
+      final base = hashOf(mood);
+      expect(
+        hashOf(
+          const HWIconData.resolved(
+            'mood',
+            entries: [
+              HWIconEntry('happy', 0xE88A),
+              HWIconEntry('sad', 0xE25B),
+            ],
+            iconFont: brandIcons,
+            previewValue: 0xE25B,
+          ),
+        ),
+        isNot(base),
+      );
+      expect(
+        hashOf(
+          const HWIconData.resolved(
+            'mood',
+            entries: [HWIconEntry('happy', 0xE88A)],
+            iconFont: brandIcons,
+          ),
+        ),
+        isNot(base),
+      );
+      expect(
+        hashOf(
+          const HWIconData.resolved(
+            'mood',
+            entries: [
+              HWIconEntry('happy', 0xE88A),
+              HWIconEntry('sad', 0xE25B),
+            ],
+            iconFont: HWIconFont(family: 'MaterialIcons'),
+          ),
+        ),
+        isNot(base),
+      );
+    });
+  });
+
   group('WidgetSpec image fields', () {
     test('default tree renders image fields with HWImage', () {
       final spec = _spec(
@@ -914,6 +1057,8 @@ void main() {
               whenPresent: HWImage(HWImageData('avatar')),
               whenAbsent: HWText.fixed('none'),
             ),
+            HWText.fixed('styled', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWIcon.glyph(0xE88A, font: HWIconFont(family: 'MaterialIcons')),
           ],
         ),
       );

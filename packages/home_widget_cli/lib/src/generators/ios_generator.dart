@@ -9,7 +9,9 @@ import '../models/widget_spec.dart';
 import '../models/extensions.dart';
 import '../util/logger.dart';
 import '../util/entitlements.dart';
+import '../util/font_resolver.dart';
 import '../util/fs.dart';
+import '../util/icon_font_writer.dart';
 import '../util/ios_templates.dart';
 import '../util/naming.dart';
 import '../util/string_catalog.dart';
@@ -102,6 +104,15 @@ class IosGenerator {
 
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
     await ensureDir(extensionDir);
+
+    // Icon fonts are copied into the extension bundle because Flutter
+    // tree-shakes them out of `flutter_assets`; text fonts stay where they are
+    // and the extension looks them up as it renders.
+    final iconFonts = await writeIosIconFonts(
+      spec: spec,
+      extensionDir: extensionDir,
+      fonts: FontResolver(projectRoot),
+    );
 
     final widgetSwift = File(p.join(extensionDir.path, 'Widget.swift'));
     final widgetBundleSwift = File(
@@ -472,6 +483,17 @@ struct ${widgetClassName}Entry: TimelineEntry {
           pbxprojFile: xcodeproj,
           widgetClassName: widgetClassName,
           locales: spec.supportedLocales,
+        );
+      }
+
+      // An icon font only ships if the extension target copies it, which a
+      // project with explicit groups does not do on its own.
+      if (iconFonts.written.isNotEmpty || iconFonts.removed.isNotEmpty) {
+        await ensureWidgetResourceFilesInXcodeProject(
+          pbxprojFile: xcodeproj,
+          widgetClassName: widgetClassName,
+          resourceFileNames: iconFonts.written,
+          removedFileNames: iconFonts.removed,
         );
       }
       logger.detail('Updated: ${xcodeproj.path}');

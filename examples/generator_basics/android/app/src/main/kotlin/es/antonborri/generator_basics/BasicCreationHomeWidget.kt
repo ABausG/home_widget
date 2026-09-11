@@ -22,6 +22,7 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -43,7 +44,7 @@ class BasicCreationHomeWidget : GlanceAppWidget() {
   fun previewFingerprint(context: Context): String {
     val hwLocales = hwCurrentLocales(context)
     return listOf(
-            "5d75b0fc",
+            "d4b17e74",
             hwLocales.joinToString(","),
         )
         .joinToString("|")
@@ -61,7 +62,7 @@ class BasicCreationHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         Column {
-          Text(text = "Basic Creation")
+          Text(text = "Basic Creation", style = TextStyle(color = GlanceTheme.colors.onSurface))
         }
       }
     }

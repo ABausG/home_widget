@@ -465,6 +465,14 @@ class WidgetSpec {
             '${field.previewAsset})';
       case HWDateTime():
         return 'date(${field.key},${field.previewIso})';
+      case HWIconData():
+        final entries = [
+          for (final entry in field.entries)
+            '${entry.name}=${entry.codePoint}'
+                '${entry.matchTextDirection ? '>rtl' : ''}',
+        ];
+        return 'icon(${field.key},${field.iconFont},${entries.join(',')},'
+            '${field.defaultValue},${field.previewValue})';
       default:
         return '${field.runtimeType}(${field.key},${field.defaultValue},'
             '${field.previewValue})';
@@ -509,6 +517,49 @@ class WidgetSpec {
 
   /// Namespace for every platform resource this widget owns.
   String get resourcePrefix => widgetResourcePrefix(className);
+
+  /// Namespace for every font file this widget owns.
+  ///
+  /// Held apart from [resourcePrefix] because the decoder stamps it onto every
+  /// icon before a spec exists, so both have to be derived from the class name
+  /// the same way.
+  String get fontResourcePrefix => hwFontResourcePrefix(toSnakeCase(className));
+
+  /// Every custom font file the widget renders text with.
+  ///
+  /// One entry per family, weight and slant the tree actually uses, which is
+  /// what the generated per-widget font tables are built from.
+  Set<HWFontVariant> get fontVariants => effectiveWidgetTree.fontVariants;
+
+  /// The icon fields this widget stores, wherever they are declared.
+  ///
+  /// Time-based and JSON wrappers are descended, so a field reaches this list
+  /// however it is spelled.
+  List<HWIconData> get iconFields => [
+        for (final field in dataFields)
+          if (iconLeafOf(field) case final icon?) icon,
+      ];
+
+  /// Every icon glyph this widget can draw, per icon font.
+  ///
+  /// The tree's own icons plus every glyph [iconFields] may hold — a field the
+  /// tree never renders still travels through `saveData`, and an icon font is
+  /// subset down to exactly this set.
+  Map<HWIconFont, Set<int>> get iconCodePoints {
+    final glyphs = <HWIconFont, Set<int>>{};
+    effectiveWidgetTree.iconCodePoints.forEach((font, codePoints) {
+      glyphs.putIfAbsent(font, () => <int>{}).addAll(codePoints);
+    });
+    for (final field in iconFields) {
+      final font = field.iconFont;
+      if (font == null) continue;
+      glyphs.putIfAbsent(font, () => <int>{}).addAll(field.codePoints);
+    }
+    return glyphs;
+  }
+
+  /// Whether the widget renders text in a custom font or draws any icon.
+  bool get usesFonts => fontVariants.isNotEmpty || iconCodePoints.isNotEmpty;
 
   /// Resource holding the gallery title.
   String get labelResourceName => '${resourcePrefix}_label';

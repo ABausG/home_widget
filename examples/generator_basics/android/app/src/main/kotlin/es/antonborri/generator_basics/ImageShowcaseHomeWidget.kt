@@ -61,7 +61,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "e9e6ed83",
+            "bfe506b4",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
             listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
@@ -153,7 +153,12 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 }
             Text(
                 text = (widgetData.contact?.name ?: ""),
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
           }

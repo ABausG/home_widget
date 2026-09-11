@@ -965,6 +965,112 @@ void main() {
     });
   });
 
+  group('ensureWidgetResourceFilesInXcodeProject', () {
+    Future<String> wire({
+      List<String> files = const ['hw_font_icons_materialicons.otf'],
+      List<String> removed = const [],
+    }) {
+      return ensureWidgetResourceFilesInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+        resourceFileNames: files,
+        removedFileNames: removed,
+      ).then((_) => pbxprojFile.readAsStringSync());
+    }
+
+    test('adds the font as a resource of the extension', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+
+      final result = await wire();
+
+      expect(
+        result,
+        contains('lastKnownFileType = file; '
+            'path = hw_font_icons_materialicons.otf;'),
+      );
+      // Copied by the target, or the widget finds no font at runtime.
+      final resourcesPhase = RegExp(
+        r'isa = PBXResourcesBuildPhase;[\s\S]*?files = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(
+        resourcesPhase,
+        contains('hw_font_icons_materialicons.otf in Resources'),
+      );
+      // And visible in the extension's group in Xcode.
+      final group = RegExp(
+        r'isa = PBXGroup;[\s\S]*?children = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(group, contains('/* hw_font_icons_materialicons.otf */'));
+    });
+
+    test('wires every file it is handed', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+
+      final result = await wire(
+        files: const [
+          'hw_font_icons_materialicons.otf',
+          'hw_font_icons_cupertinoicons_cupertino_icons.ttf',
+        ],
+      );
+
+      final resourcesPhase = RegExp(
+        r'isa = PBXResourcesBuildPhase;[\s\S]*?files = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(resourcesPhase, contains('hw_font_icons_materialicons.otf'));
+      expect(
+        resourcesPhase,
+        contains('hw_font_icons_cupertinoicons_cupertino_icons.ttf'),
+      );
+    });
+
+    test('is idempotent', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+
+      final first = await wire();
+      final second = await wire();
+
+      expect(second, first);
+    });
+
+    test('a pruned file loses every reference to it', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+      await wire();
+
+      final result = await wire(
+        files: const [],
+        removed: const ['hw_font_icons_materialicons.otf'],
+      );
+
+      expect(result, isNot(contains('hw_font_icons_materialicons.otf')));
+      // The project it started from is back, byte for byte.
+      expect(result, _buildPbxprojWithExtension());
+    });
+
+    test('touches nothing for a synchronized group', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithSynchronizedGroup());
+
+      final result = await wire();
+
+      // The synced folder already copies every file in it; an explicit
+      // reference on top would have Xcode copy the font twice.
+      expect(result, isNot(contains('hw_font_icons_materialicons.otf')));
+      expect(result, _buildPbxprojWithSynchronizedGroup());
+    });
+
+    test('wires the font when only another folder is synchronized', () async {
+      pbxprojFile
+          .writeAsStringSync(_buildPbxprojWithForeignSynchronizedGroup());
+
+      final result = await wire();
+
+      expect(
+        result,
+        contains('lastKnownFileType = file; '
+            'path = hw_font_icons_materialicons.otf;'),
+      );
+    });
+  });
+
   group('flavors', () {
     Future<String> patch({
       Map<String, String> flavorEntitlements = const {},

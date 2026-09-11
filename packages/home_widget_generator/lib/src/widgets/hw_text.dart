@@ -94,7 +94,8 @@ class HWText extends HWWidget implements HWDataWidget {
   }
 
   /// The native functions rendering this text: the format's, the time zone's,
-  /// and whatever displaying the bound value itself goes through.
+  /// the custom font's, and whatever displaying the bound value itself goes
+  /// through.
   @override
   Set<HWNativeHelper> get renderHelpers => {
         if (effectiveNumberFormat case final format?) format.helper,
@@ -102,17 +103,46 @@ class HWText extends HWWidget implements HWDataWidget {
           format.helper,
           ...timeZone.helpers,
         ],
+        if (fontVariant != null) HWNativeHelper.hwFont,
         ...?dataType?.renderHelpers,
       };
 
+  /// The font file this text renders with, or null when it renders in the
+  /// platform's own font.
+  HWFontVariant? get fontVariant => style?.fontVariant;
+
+  /// The color a custom family's glyph mask is tinted in: the style's own, or
+  /// the platform's primary content color.
+  ///
+  /// A Glance `Text` may leave its color unset and inherit one; a bitmap has to
+  /// be given one, as an untinted mask renders white on white.
+  HWColor get _fontTint => style?.effectiveColor ?? hwDefaultContentColor;
+
   @override
   Set<String> get kotlinImports {
+    // Glance cannot name a font family, so a custom one is drawn into a bitmap
+    // by the core plugin and shown as a tinted Image rather than as a Text.
+    if (fontVariant != null) {
+      return {
+        'import androidx.glance.ColorFilter',
+        'import androidx.glance.GlanceModifier',
+        'import androidx.glance.Image',
+        'import androidx.glance.ImageProvider',
+        'import androidx.glance.LocalSize',
+        'import es.antonborri.home_widget.HomeWidgetFonts',
+        if (textAlign != null) 'import androidx.glance.text.TextAlign',
+        ..._fontTint.kotlinImports,
+      };
+    }
+
     final imports = <String>{
       'import androidx.glance.text.Text',
       'import androidx.glance.text.TextStyle',
     };
     if (style != null) {
       imports.addAll(style!.kotlinImports);
+    } else {
+      imports.addAll(hwDefaultContentColorKotlinImports);
     }
     if (textAlign != null) {
       imports.add('import androidx.glance.text.TextAlign');
@@ -483,27 +513,87 @@ class HWText extends HWWidget implements HWDataWidget {
     return viewCall;
   }
 
+  /// The `Image(...)` call rendering this text in its custom font family, which
+  /// Glance's own `Text` cannot name.
+  ///
+  /// The core plugin looks the family up in the app's `FontManifest.json`,
+  /// draws the glyphs into a white mask bitmap out of the file it lands on —
+  /// read in place from `flutter_assets` — and the tint keeps the color a
+  /// themed one that resolves when the launcher inflates the widget. The
+  /// modifier comes first and empty so a parent injecting one chains onto it
+  /// rather than passing a second.
+  ///
+  /// The slant does travel, unlike on iOS: it picked the font file, and the
+  /// core only skews the glyphs when the file it got is not italic itself.
+  String _kotlinFontImage(
+    int indent,
+    String pad,
+    String textValue, {
+    required String dataExpr,
+  }) {
+    final style = this.style!;
+    final variant = fontVariant!;
+    final typeface = 'HomeWidgetFonts.typeface(context, '
+        '"${variant.flutterFamilyKey}", ${variant.weight}, ${variant.italic})';
+    final size = hwSizeLiteral(style.effectiveFontSizeOrDefault);
+    final tint = _fontTint.toKotlin(indent, dataExpr: dataExpr);
+
+    final buffer = StringBuffer();
+    buffer.writeln('${pad}Image(');
+    buffer.writeln('$pad    modifier = GlanceModifier,');
+    buffer.writeln('$pad    provider = ImageProvider(');
+    buffer.writeln('$pad        HomeWidgetFonts.textBitmap(');
+    buffer.writeln('$pad            context,');
+    buffer.writeln('$pad            $typeface,');
+    buffer.writeln('$pad            $textValue,');
+    buffer.writeln('$pad            fontSizeSp = ${size}f,');
+    if (style.effectiveItalic) {
+      buffer.writeln('$pad            italic = true,');
+    }
+    if (style.effectiveUnderline) {
+      buffer.writeln('$pad            underline = true,');
+    }
+    if (style.effectiveLineThrough) {
+      buffer.writeln('$pad            lineThrough = true,');
+    }
+    if (textAlign != null) {
+      buffer.writeln(
+        '$pad            textAlign = ${_kotlinTextAlign(textAlign!)},',
+      );
+    }
+    buffer.writeln(
+      '$pad            maxWidthDp = LocalSize.current.width.value,',
+    );
+    buffer.writeln('$pad        )');
+    buffer.writeln('$pad    ),');
+    buffer.writeln('$pad    contentDescription = $textValue,');
+    buffer.writeln('$pad    colorFilter = ColorFilter.tint($tint),');
+    buffer.write('$pad)');
+    return buffer.toString();
+  }
+
   @override
   String toKotlin(int indent, {required String dataExpr}) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final textValue = _kotlinTextValue(dataExpr);
 
+    if (textValue != null && fontVariant != null) {
+      return _kotlinFontImage(indent, pad, textValue, dataExpr: dataExpr);
+    }
+
     var textArgs = textValue == null ? '' : 'text = $textValue';
 
     if (textArgs.isNotEmpty) {
-      final styleCode = style?.toKotlin(indent, dataExpr: dataExpr) ?? '';
+      var styleCode = style?.toKotlin(indent, dataExpr: dataExpr) ??
+          'TextStyle(color = '
+              '${hwDefaultContentColor.toKotlin(indent, dataExpr: dataExpr)})';
 
       if (textAlign != null) {
         final alignCode = 'textAlign = ${_kotlinTextAlign(textAlign!)}';
-        if (styleCode.isEmpty) {
-          textArgs += ', style = TextStyle($alignCode)';
-        } else {
-          final newStyleCode = styleCode.replaceFirst(')', ', $alignCode)');
-          textArgs += ', style = $newStyleCode';
-        }
-      } else if (styleCode.isNotEmpty) {
-        textArgs += ', style = $styleCode';
+        styleCode =
+            '${styleCode.substring(0, styleCode.length - 1)}, $alignCode)';
       }
+      textArgs += ', style = $styleCode';
 
       return '${pad}Text($textArgs)';
     }

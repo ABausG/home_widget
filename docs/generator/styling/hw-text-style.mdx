@@ -13,10 +13,12 @@ description: Text styling for HWText — font size, weight, color, decorations, 
 | --- | --- | --- | --- |
 | `fontSize` | `double?` | `null` | Point size on iOS, `sp` on Android. |
 | `fontWeight` | `HWFontWeight?` | `null` | One of `w100`–`w900`, `normal`, `bold`. |
-| `color` | `HWColor?` | `null` | Foreground color. See [HWColor](/generator/styling/hw-color). |
+| `color` | `HWColor?` | `null` | Foreground color. Unset, text renders in the platform's primary content color (`Color.primary` on iOS, `GlanceTheme.colors.onSurface` on Android), so it follows light and dark mode. See [HWColor](/generator/styling/hw-color). |
 | `italic` | `bool?` | `null` | Italicizes the text. |
 | `underline` | `bool?` | `null` | Adds an underline decoration. |
 | `lineThrough` | `bool?` | `null` | Adds a strike-through decoration. |
+| `fontFamily` | `String?` | `null` | Name of a font family declared under `flutter: fonts:`. See [Custom fonts](#custom-fonts). |
+| `package` | `String?` | `null` | Package that owns `fontFamily`, mirroring `TextStyle(fontFamily:, package:)`. `null` means the app's own fonts. |
 | `baseStyle` | `HWTextStyle?` | `null` | A style to inherit from. See [Inheritance](#inheritance). |
 
 ```dart
@@ -58,6 +60,20 @@ HWText.fixed(
 ## Inheritance
 
 `baseStyle` lets you compose styles. The generator walks up the chain and uses the first non-null value it finds for each field — so a child only needs to declare what it overrides.
+
+## Custom fonts
+
+Set `fontFamily` to render text in a font your Flutter app bundles, declared under `flutter: fonts:`
+in `pubspec.yaml` exactly as for a regular Flutter `TextStyle`:
+
+```dart
+HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
+```
+
+Pass `package` for a font that ships inside a dependency rather than your app. Both fields resolve
+through `baseStyle` like any other field, so a shared base style can set the family once for every
+style built on top of it. See [Custom Fonts](/generator/custom-fonts) for how a font file is
+picked per weight/style combination and how the text is rendered on each platform.
 
 ## Platform mapping
 

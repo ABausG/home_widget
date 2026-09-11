@@ -1,4 +1,6 @@
 export 'src/annotations.dart';
+export 'src/dart_reserved_words.dart';
+export 'src/fonts.dart';
 export 'src/formats.dart';
 export 'src/native_helpers.dart';
 export 'src/types.dart';

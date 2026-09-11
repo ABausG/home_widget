@@ -1,3 +1,34 @@
+/// The start and end index of the argument list opening after [start], or null
+/// when the next non-space character is not `(`.
+///
+/// Parentheses are balanced and string literals skipped, so a call spread over
+/// several lines or holding a nested call reports its own closing bracket
+/// rather than the first one it runs into.
+(int, int)? _argumentRange(String code, int start) {
+  final open = RegExp(r'\s*\(').matchAsPrefix(code, start);
+  if (open == null) return null;
+
+  var depth = 0;
+  var index = open.end - 1;
+  while (index < code.length) {
+    final char = code[index];
+    if (char == '"') {
+      index++;
+      while (index < code.length && code[index] != '"') {
+        if (code[index] == r'\') index++;
+        index++;
+      }
+    } else if (char == '(') {
+      depth++;
+    } else if (char == ')') {
+      depth--;
+      if (depth == 0) return (open.end, index);
+    }
+    index++;
+  }
+  return null;
+}
+
 /// Helper to parse a typical Compose call (e.g. `Column {` or `Text(...)`)
 /// and inject a modifier string (e.g. `fillMaxSize()`).
 String injectGlanceModifier(String code, String modifier) {
@@ -67,14 +98,15 @@ String injectGlanceModifier(String code, String modifier) {
     }
   }
 
-  final compMatch =
-      RegExp(r'^([A-Z][a-zA-Z0-9_]*)(?:\s*\((.*?)\))?').firstMatch(trimmed);
+  final compMatch = RegExp(r'^[A-Z][a-zA-Z0-9_]*').firstMatch(trimmed);
   if (compMatch != null) {
-    final compName = compMatch.group(1);
-    final args = compMatch.group(2);
+    final compName = compMatch.group(0);
+    final argRange = _argumentRange(trimmed, compMatch.end);
+    final args =
+        argRange == null ? null : trimmed.substring(argRange.$1, argRange.$2);
+    final callEnd = argRange == null ? compMatch.end : argRange.$2 + 1;
 
-    final hasBrace =
-        trimmed.substring(compMatch.end).trimLeft().startsWith('{');
+    final hasBrace = trimmed.substring(callEnd).trimLeft().startsWith('{');
 
     String newArgs = '';
     if (args != null && args.isNotEmpty) {
@@ -92,8 +124,7 @@ String injectGlanceModifier(String code, String modifier) {
     }
 
     final rest = trimmed.substring(
-      compMatch.end +
-          (hasBrace ? trimmed.substring(compMatch.end).indexOf('{') + 1 : 0),
+      callEnd + (hasBrace ? trimmed.substring(callEnd).indexOf('{') + 1 : 0),
     );
 
     if (hasBrace) {

@@ -84,6 +84,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       widgetField,
       defaultLocale: localization?.defaultLocale,
       resourcePrefix: widgetResourcePrefix(generatedClassName),
+      fontResourcePrefix: hwFontResourcePrefix(toSnakeCase(generatedClassName)),
     ).decode();
   }
 

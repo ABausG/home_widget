@@ -47,7 +47,7 @@ class WidgetLinkHomeWidget : GlanceAppWidget() {
   fun previewFingerprint(context: Context): String {
     val hwLocales = hwCurrentLocales(context)
     return listOf(
-            "dfce3086",
+            "96ce4a96",
             hwLocales.joinToString(","),
         )
         .joinToString("|")
@@ -71,10 +71,23 @@ class WidgetLinkHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         Column(horizontalAlignment = Alignment.Start) {
-          Text(text = "Tap me", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal))
+          Text(
+              text = "Tap me",
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 12.sp,
+                      fontWeight = FontWeight.Normal,
+                  ),
+          )
           Text(
               text = "Opens the app",
-              style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 22.sp,
+                      fontWeight = FontWeight.Bold,
+                  ),
           )
         }
       }

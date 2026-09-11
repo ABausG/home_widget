@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../../helpers/font_fixture.dart';
 import '../../helpers/run_cli_in_project.dart';
 import '../../helpers/test_flutter_project.dart';
 import '../scenarios/build_scenario.dart';
@@ -228,23 +229,33 @@ Future<void> _generate(
   }
 }
 
-/// Materializes [BuildScenario.assetPaths] inside the temp project.
+/// Materializes [BuildScenario.assetPaths] and [BuildScenario.fontFamilies]
+/// inside the temp project.
 ///
-/// Each path gets a real (1x1) PNG on disk and an entry in the project's
+/// Each asset path gets a real (1x1) PNG on disk and an entry in the project's
 /// `flutter: assets:` list, which is exactly what the CLI's generate-time asset
 /// validation checks; without both, generation would fail before the platform
-/// build ever runs.
+/// build ever runs. A font family gets a real font file and a `flutter: fonts:`
+/// declaration, which is what the CLI resolves it through.
 Future<void> _writeScenarioAssets(
   TestFlutterProject project,
   BuildScenario scenario,
 ) async {
-  if (scenario.assetPaths.isEmpty) return;
+  if (scenario.assetPaths.isEmpty && scenario.fontFamilies.isEmpty) return;
 
   for (final assetPath in scenario.assetPaths) {
     final file =
         File(p.join(project.root.path, p.joinAll(p.posix.split(assetPath))));
     await file.parent.create(recursive: true);
     await file.writeAsBytes(_onePixelPng);
+  }
+
+  final fontSource = _bundledFontFile();
+  for (final fontPath in scenario.fontFamilies.values) {
+    final file =
+        File(p.join(project.root.path, p.joinAll(p.posix.split(fontPath))));
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(await fontSource.readAsBytes());
   }
 
   final pubspec = File(p.join(project.root.path, 'pubspec.yaml'));
@@ -255,14 +266,48 @@ Future<void> _writeScenarioAssets(
     fail('Could not find a top-level "flutter:" section in ${pubspec.path}');
   }
 
-  final declarations = StringBuffer('\n  assets:');
-  for (final assetPath in scenario.assetPaths) {
-    declarations.write('\n    - $assetPath');
+  final declarations = StringBuffer();
+  if (scenario.assetPaths.isNotEmpty) {
+    declarations.write('\n  assets:');
+    for (final assetPath in scenario.assetPaths) {
+      declarations.write('\n    - $assetPath');
+    }
+  }
+  if (scenario.fontFamilies.isNotEmpty) {
+    declarations.write('\n  fonts:');
+    for (final entry in scenario.fontFamilies.entries) {
+      declarations.write('\n    - family: ${entry.key}');
+      declarations.write('\n      fonts:');
+      declarations.write('\n        - asset: ${entry.value}');
+    }
   }
 
   await pubspec.writeAsString(
     content.replaceRange(match.end, match.end, declarations.toString()),
   );
+}
+
+/// A real font file to stand in for the app's own.
+///
+/// A font the app declares is bundled and read in place, so it has to parse —
+/// the SDK's Roboto is the one font every machine running these tests has.
+File _bundledFontFile() {
+  final sdk = flutterSdkRootForTests;
+  if (sdk == null) fail('Could not locate the Flutter SDK');
+  final file = File(
+    p.join(
+      sdk,
+      'bin',
+      'cache',
+      'artifacts',
+      'material_fonts',
+      'Roboto-Regular.ttf',
+    ),
+  );
+  if (!file.existsSync()) {
+    fail('The Flutter material fonts are not precached at ${file.path}');
+  }
+  return file;
 }
 
 /// A 1x1 transparent PNG, small enough to inline and valid enough to bundle.

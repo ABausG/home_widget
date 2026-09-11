@@ -87,7 +87,8 @@ void main() {
         final result = fill.toKotlin(0, dataExpr: 'data');
         expect(
           result,
-          'Text(modifier = GlanceModifier.fillMaxSize(), text = "a")',
+          'Text(modifier = GlanceModifier.fillMaxSize(), text = "a", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         );
         expect(result, contains('fillMaxSize()'));
       });

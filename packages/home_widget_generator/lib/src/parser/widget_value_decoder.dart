@@ -23,7 +23,20 @@ class WidgetValueDecoder {
   /// the caller knows.
   final String? resourcePrefix;
 
-  WidgetValueDecoder(this.object, {this.defaultLocale, this.resourcePrefix});
+  /// Namespace for the icon font resources generated for this widget, as
+  /// `hw_font_<snake_widget_class>` — what [hwFontResourcePrefix] builds.
+  ///
+  /// Threaded through decoding for the same reason as [resourcePrefix]: an icon
+  /// font is copied per widget, so which widget an icon ended up in decides the
+  /// resource it renders through.
+  final String? fontResourcePrefix;
+
+  WidgetValueDecoder(
+    this.object, {
+    this.defaultLocale,
+    this.resourcePrefix,
+    this.fontResourcePrefix,
+  });
 
   HWWidget decode() {
     if (object == null || object!.isNull) {
@@ -41,6 +54,8 @@ class WidgetValueDecoder {
       return HWText.fromDartObject(object!, this);
     } else if (typeName == 'HWImage') {
       return HWImage.fromDartObject(object!);
+    } else if (typeName == 'HWIcon') {
+      return HWIcon.fromDartObject(object!, this);
     } else if (typeName == 'HWDataOnly') {
       return HWDataOnly.fromDartObject(object!, this);
     } else if (typeName == 'HWAdaptive') {
@@ -69,6 +84,7 @@ class WidgetValueDecoder {
       obj,
       defaultLocale: defaultLocale,
       resourcePrefix: resourcePrefix,
+      fontResourcePrefix: fontResourcePrefix,
     ).decode();
   }
 
@@ -119,6 +135,7 @@ class WidgetValueDecoder {
     return null;
   }
 
+  /// Decodes an [HWTextStyle], or null when [obj] is absent.
   static HWTextStyle? decodeTextStyle(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
@@ -130,6 +147,8 @@ class WidgetValueDecoder {
     final italic = getField(obj, 'italic')?.toBoolValue();
     final underline = getField(obj, 'underline')?.toBoolValue();
     final lineThrough = getField(obj, 'lineThrough')?.toBoolValue();
+    final fontFamily = getField(obj, 'fontFamily')?.toStringValue();
+    final package = getField(obj, 'package')?.toStringValue();
     final baseStyle = decodeTextStyle(getField(obj, 'baseStyle'));
 
     if (typeName == 'HWRoleTextStyle') {
@@ -142,6 +161,8 @@ class WidgetValueDecoder {
         italic: italic,
         underline: underline,
         lineThrough: lineThrough,
+        fontFamily: fontFamily,
+        package: package,
         baseStyle: baseStyle,
       );
     }
@@ -153,8 +174,148 @@ class WidgetValueDecoder {
       italic: italic,
       underline: underline,
       lineThrough: lineThrough,
+      fontFamily: fontFamily,
+      package: package,
       baseStyle: baseStyle,
     );
+  }
+
+  /// The codepoint of a Flutter `IconData` constant, or null when [obj] is not
+  /// one.
+  static int? decodeIconCodePoint(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+    return getField(obj, 'codePoint')?.toIntValue();
+  }
+
+  /// Whether a Flutter `IconData` constant mirrors in a right-to-left layout,
+  /// as its `matchTextDirection` declares.
+  ///
+  /// False for anything that does not carry the field, including an [obj] that
+  /// is not an `IconData` at all.
+  static bool decodeIconMatchTextDirection(DartObject? obj) {
+    if (obj == null || obj.isNull) return false;
+    return getField(obj, 'matchTextDirection')?.toBoolValue() ?? false;
+  }
+
+  /// The font a Flutter `IconData` constant draws its glyph out of, or null
+  /// when [obj] is not one.
+  ///
+  /// An icon without a family is not renderable on its own — nothing says which
+  /// file the glyph lives in — so it decodes as null rather than as a font
+  /// named after nothing.
+  static HWIconFont? decodeIconFont(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+    final family = getField(obj, 'fontFamily')?.toStringValue();
+    if (family == null || family.isEmpty) return null;
+    final package = getField(obj, 'fontPackage')?.toStringValue();
+    return HWIconFont(
+      family: family,
+      package: package == null || package.isEmpty ? null : package,
+    );
+  }
+
+  /// The name the generated enum gives the icon [obj], derived from the way the
+  /// schema names it.
+  ///
+  /// `Icons.wb_sunny` becomes `wbSunny` and `CupertinoIcons.sun_max` becomes
+  /// `sunMax`; an icon written as an inline `IconData(0xe88a, ...)` has no name
+  /// to derive from and falls back to its codepoint, as `icon0xE88A`. A name
+  /// that would collide with a Dart keyword gets a trailing underscore.
+  static String decodeIconName(DartObject obj, int codePoint) {
+    final declared = obj.variable?.name;
+    if (declared == null) return _hexIconName(codePoint);
+
+    final segments = declared
+        .split(RegExp('[^A-Za-z0-9]+'))
+        .where((segment) => segment.isNotEmpty)
+        .toList();
+    if (segments.isEmpty) return _hexIconName(codePoint);
+
+    final buffer = StringBuffer();
+    for (var i = 0; i < segments.length; i++) {
+      final segment = segments[i];
+      buffer.write(
+        i == 0
+            ? '${segment[0].toLowerCase()}${segment.substring(1)}'
+            : '${segment[0].toUpperCase()}${segment.substring(1)}',
+      );
+    }
+
+    final name = buffer.toString();
+    if (RegExp('^[0-9]').hasMatch(name)) return _hexIconName(codePoint);
+    return _takenEnumNames.contains(name) ? '${name}_' : name;
+  }
+
+  /// The name an icon with nothing to derive one from falls back to.
+  static String _hexIconName(int codePoint) =>
+      'icon0x${codePoint.toRadixString(16).toUpperCase()}';
+
+  /// The names a generated enum value cannot take: Dart's reserved words, plus
+  /// the members the generated enum already carries.
+  static const Set<String> _takenEnumNames = {
+    ...dartReservedWords,
+    'codePoint',
+    'hashCode',
+    'icon',
+    'index',
+    'name',
+    'noSuchMethod',
+    'runtimeType',
+    'toString',
+    'values',
+  };
+
+  /// Decodes an [HWIconData], reading every icon's name, codepoint and font.
+  ///
+  /// Throws a [GeneratorError] when the icons are unusable: something other
+  /// than an `IconData` in the list, icons from more than one font, no icons at
+  /// all, a duplicate name, or a default or preview icon that is not one of
+  /// them.
+  static HWIconData decodeIconData(DartObject obj) {
+    final key = getField(obj, 'key')?.toStringValue() ?? '';
+    final rawIcons = getField(obj, 'icons')?.toListValue() ?? const [];
+
+    final entries = <HWIconEntry>[];
+    HWIconFont? font;
+    for (final rawIcon in rawIcons) {
+      final codePoint = decodeIconCodePoint(rawIcon);
+      final iconFont = decodeIconFont(rawIcon);
+      if (codePoint == null || iconFont == null) {
+        throw GeneratorError(
+          'HWIconData "$key" takes Flutter IconData values such as '
+          'Icons.wb_sunny, got: ${rawIcon.type?.element?.name}',
+        );
+      }
+      if (font != null && font != iconFont) {
+        throw GeneratorError(
+          'The icons of HWIconData "$key" come from more than one font '
+          '($font and $iconFont). Every icon of one field is subset out of the '
+          'same font file, so they all have to share it.',
+        );
+      }
+      font = iconFont;
+      entries.add(
+        HWIconEntry(
+          decodeIconName(rawIcon, codePoint),
+          codePoint,
+          matchTextDirection: decodeIconMatchTextDirection(rawIcon),
+        ),
+      );
+    }
+
+    if (font == null) {
+      throw GeneratorError('HWIconData "$key" needs at least one icon.');
+    }
+
+    final icons = HWIconData.resolved(
+      key,
+      entries: entries,
+      iconFont: font,
+      defaultValue: decodeIconCodePoint(getField(obj, 'defaultIcon')),
+      previewValue: decodeIconCodePoint(getField(obj, 'previewIcon')),
+    );
+    icons.validate();
+    return icons;
   }
 
   static HWEdgeInsets? decodeEdgeInsets(DartObject? obj) {
@@ -385,6 +546,10 @@ class WidgetValueDecoder {
       );
     }
 
+    if (typeName == 'HWIconData') {
+      return decodeIconData(obj);
+    }
+
     final key = getField(obj, 'key')?.toStringValue();
     if (key == null) return null;
 
@@ -467,7 +632,8 @@ class WidgetValueDecoder {
           child is! HWBool &&
           child is! HWDateTime &&
           child is! HWJson &&
-          child is! HWImageData) {
+          child is! HWImageData &&
+          child is! HWIconData) {
         return null;
       }
       return HWJson(key, child);

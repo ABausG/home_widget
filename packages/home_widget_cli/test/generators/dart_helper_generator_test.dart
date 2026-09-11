@@ -1770,8 +1770,243 @@ void main() {
         ],
       );
     });
+
+    test('emits an enum for a top-level icon and stores its codepoint', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [_mood],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+      expect(output, contains('enum ForecastMoodIcon {'));
+      expect(
+        output,
+        contains(
+          "wbSunny(IconData(0xe2bd, fontFamily: 'MaterialIcons', "
+          'fontPackage: null)),',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "cloud(IconData(0xe2bf, fontFamily: 'MaterialIcons', "
+          'fontPackage: null));',
+        ),
+      );
+      expect(output, contains('const ForecastMoodIcon(this.icon);'));
+      expect(output, contains('final IconData icon;'));
+      expect(output, contains('int get codePoint => icon.codePoint;'));
+      expect(
+        output,
+        contains('static ForecastMoodIcon? fromCodePoint(int? codePoint) {'),
+      );
+      expect(output, contains('if (codePoint == null) return null;'));
+      expect(
+        output,
+        contains('if (value.codePoint == codePoint) return value;'),
+      );
+
+      // saveData takes the enum and writes the codepoint as an int, exactly
+      // the way an HWInt field is written.
+      expect(output, contains('ForecastMoodIcon? mood,'));
+      expect(
+        output,
+        contains(
+          "if (mood != null) HomeWidget.saveWidgetData<int>('\${_\$paramPrefix}.mood', mood.codePoint),",
+        ),
+      );
+
+      // getData hands the enum back, falling back on the declared default.
+      expect(
+        output,
+        contains('static Future<({ForecastMoodIcon? mood})> getData()'),
+      );
+      expect(
+        output,
+        contains(
+          "mood: ForecastMoodIcon.fromCodePoint(await HomeWidget.getWidgetData<int>('\${_\$paramPrefix}.mood', defaultValue: 0xe2bd)),",
+        ),
+      );
+
+      // Clearing an icon is clearing its key, like any other value.
+      expect(output, contains('bool mood = false,'));
+      expect(
+        output,
+        contains(
+          "if (mood) HomeWidget.saveWidgetData('\${_\$paramPrefix}.mood', null),",
+        ),
+      );
+    });
+
+    test('names the package an icon font comes from', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [
+          HWIconData.resolved(
+            'mood',
+            entries: [HWIconEntry('sunMax', 0xf4b6)],
+            iconFont: HWIconFont(
+              family: 'CupertinoIcons',
+              package: 'cupertino_icons',
+            ),
+          ),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          "sunMax(IconData(0xf4b6, fontFamily: 'CupertinoIcons', "
+          "fontPackage: 'cupertino_icons'));",
+        ),
+      );
+    });
+
+    test('keeps matchTextDirection on a directional icon', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [
+          HWIconData.resolved(
+            'arrow',
+            entries: [
+              HWIconEntry('arrowBack', 0xe5c4, matchTextDirection: true),
+              HWIconEntry('cloud', 0xe2bf),
+            ],
+            iconFont: _materialIcons,
+          ),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          "arrowBack(IconData(0xe5c4, fontFamily: 'MaterialIcons', "
+          'fontPackage: null, matchTextDirection: true)),',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "cloud(IconData(0xe2bf, fontFamily: 'MaterialIcons', "
+          'fontPackage: null));',
+        ),
+      );
+    });
+
+    test('emits one enum per key, not per declaration', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [_mood, _mood],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect('enum ForecastMoodIcon {'.allMatches(output), hasLength(1));
+      expect('ForecastMoodIcon? mood,'.allMatches(output), hasLength(1));
+    });
+
+    test('carries an icon through a JSON group as the enum', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [
+          HWJson('day', _condition),
+          HWJson('day', HWString('label')),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('enum ForecastConditionIcon {'));
+      expect(output, contains('class DayJsonData {'));
+      expect(output, contains('final ForecastConditionIcon? condition;'));
+      expect(
+        output,
+        contains(
+          "condition: ForecastConditionIcon.fromCodePoint(_readInt(json['condition']) ?? 0xe2bf),",
+        ),
+      );
+      expect(
+        output,
+        contains("if (condition != null) 'condition': condition!.codePoint,"),
+      );
+      expect(output, contains('int? _readInt(Object? value)'));
+    });
+
+    test('carries an icon through a timed entry as the enum', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [
+          HWTimedData(_slot),
+          HWTimedData(HWJson('shift', _condition)),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains('enum ForecastSlotIcon {'));
+      expect(output, contains('enum ForecastConditionIcon {'));
+
+      // Timed primitive
+      expect(output, contains('class ForecastTimedData {'));
+      expect(output, contains('final ForecastSlotIcon? slot;'));
+      expect(
+        output,
+        contains(
+          "slot: ForecastSlotIcon.fromCodePoint(_readInt(json['slot'])),",
+        ),
+      );
+      expect(output, contains("if (slot != null) 'slot': slot!.codePoint,"));
+
+      // Timed JSON leaf, which reuses the plain JSON data class
+      expect(output, contains('class ShiftJsonData {'));
+      expect(output, contains('final ForecastConditionIcon? condition;'));
+      expect(
+        output,
+        contains(
+          "condition: ForecastConditionIcon.fromCodePoint(_readInt(json['condition']) ?? 0xe2bf),",
+        ),
+      );
+      expect(
+        output,
+        contains("if (condition != null) 'condition': condition!.codePoint,"),
+      );
+    });
   });
 }
+
+const _materialIcons = HWIconFont(family: 'MaterialIcons');
+
+const _mood = HWIconData.resolved(
+  'mood',
+  entries: [HWIconEntry('wbSunny', 0xe2bd), HWIconEntry('cloud', 0xe2bf)],
+  iconFont: _materialIcons,
+  defaultValue: 0xe2bd,
+);
+
+const _condition = HWIconData.resolved(
+  'condition',
+  entries: [HWIconEntry('cloud', 0xe2bf)],
+  iconFont: _materialIcons,
+  defaultValue: 0xe2bf,
+);
+
+const _slot = HWIconData.resolved(
+  'slot',
+  entries: [HWIconEntry('star', 0xe838)],
+  iconFont: _materialIcons,
+);
 
 /// Runs part of a generated helper in a subprocess, so an encode/decode test
 /// asserts behavior rather than source text.

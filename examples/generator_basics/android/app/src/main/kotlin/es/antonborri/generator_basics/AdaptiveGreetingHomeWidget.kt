@@ -45,7 +45,7 @@ class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
   fun previewFingerprint(context: Context): String {
     val hwLocales = hwCurrentLocales(context)
     return listOf(
-            "9ace95f2",
+            "fc5b98a1",
             hwLocales.joinToString(","),
         )
         .joinToString("|")
@@ -64,7 +64,12 @@ class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
       ) {
         Text(
             text = "Hello Android",
-            style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Medium),
+            style =
+                TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
         )
       }
     }

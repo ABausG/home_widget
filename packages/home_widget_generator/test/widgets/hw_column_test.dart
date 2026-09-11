@@ -218,8 +218,8 @@ void main() {
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains('Column {'));
-        expect(r, contains('Text(text = "a")'));
-        expect(r, contains('Text(text = "b")'));
+        expect(r, contains('Text(text = "a",'));
+        expect(r, contains('Text(text = "b",'));
       });
 
       test('nested Column and Row', () {
@@ -232,15 +232,15 @@ void main() {
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains('Column {'));
         expect(r, contains('Row {'));
-        expect(r, contains('Text(text = "x")'));
-        expect(r, contains('Text(text = "y")'));
+        expect(r, contains('Text(text = "x",'));
+        expect(r, contains('Text(text = "y",'));
       });
 
       test('data-bound child', () {
         final node = HWColumn(children: [HWText(HWString('count'))]);
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains('Column {'));
-        expect(r, contains('Text(text = data.count ?: "")'));
+        expect(r, contains('Text(text = data.count ?: "",'));
       });
 
       test('empty column', () {
@@ -258,7 +258,7 @@ void main() {
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, startsWith('Column {'));
         expect(r, contains('    Row {'));
-        expect(r, contains('        Text(text = "x")'));
+        expect(r, contains('        Text(text = "x",'));
       });
 
       test('crossAxis .center', () {
@@ -360,8 +360,8 @@ void main() {
               .length,
           1,
         );
-        expect(r, contains('Text(text = "a")'));
-        expect(r, contains('Text(text = "b")'));
+        expect(r, contains('Text(text = "a",'));
+        expect(r, contains('Text(text = "b",'));
       });
 
       test('mainAxis .spaceEvenly with weighted Spacers in Kotlin', () {
@@ -376,8 +376,8 @@ void main() {
               .length,
           3,
         );
-        expect(r, contains('Text(text = "a")'));
-        expect(r, contains('Text(text = "b")'));
+        expect(r, contains('Text(text = "a",'));
+        expect(r, contains('Text(text = "b",'));
       });
     });
   });

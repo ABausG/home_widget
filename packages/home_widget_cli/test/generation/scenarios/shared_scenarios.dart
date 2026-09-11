@@ -259,4 +259,48 @@ class ExplicitUrl {}
     expectedAndroidWidgetUrl: 'cliTest://widget?section=main&homeWidget',
     expectedIosWidgetUrl: 'cliTest://widget?section=main&homeWidget',
   ),
+  BuildScenario(
+    description: 'renders text in a custom font and draws icons',
+    className: 'FontAndIcons',
+    widgetSource: '''
+import 'package:flutter/material.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Font And Icons',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    children: [
+      HWText.fixed(
+        'Headline',
+        style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
+      ),
+      HWText(
+        HWString('body'),
+        style: HWTextStyle(
+          fontFamily: 'Chewy',
+          fontWeight: HWFontWeight.bold,
+          italic: true,
+        ),
+      ),
+      HWIcon.fixed(Icons.favorite, size: 32),
+      HWIcon(
+        HWIconData(
+          'mood',
+          icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+          defaultValue: Icons.wb_sunny,
+          previewValue: Icons.cloud,
+        ),
+        semanticLabel: 'Mood',
+      ),
+      HWIcon(HWTimedData(HWIconData('next', icons: [Icons.alarm, Icons.done]))),
+    ],
+  ),
+)
+class FontAndIcons {}
+''',
+    expectsScheduledUpdateWiring: true,
+    fontFamilies: {'Chewy': 'assets/fonts/Chewy-Regular.ttf'},
+  ),
 ];

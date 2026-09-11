@@ -36,6 +36,15 @@ small and each one demonstrates a different feature of the generator:
   default decimal format, and `HWText.dateTime` with a named skeleton
   (`HWDateFormat.yMMMd`) plus a data-bound display zone
   (`HWTimeZone.data(HWString('deliveryZone'))`).
+- `font_and_icons.dart` – a custom font and icons: `HWTextStyle(fontFamily:
+  'Chewy')` renders text in a font declared under `flutter: fonts:` and read in
+  place out of `flutter_assets`, `HWIcon.fixed(Icons.favorite)` draws one
+  hardcoded Material icon, and `HWIcon(HWIconData('mood', icons: [...]))` draws
+  one of ten icons the app picks at runtime through the generated
+  `FontAndIconsMoodIcon` enum. The icon font is copied next to the widget and
+  subset down to those glyphs. One of the ten, `Icons.arrow_forward`, declares
+  `matchTextDirection`, so picking it shows the arrow mirrored in a
+  right-to-left layout.
 - `widget_link.dart` – a `widgetUrl`, so tapping the widget opens the app with
   that URL and the generated `launchedFromWidget()` helper reports it back.
 

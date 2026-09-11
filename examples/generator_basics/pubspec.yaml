@@ -25,3 +25,7 @@ flutter:
   assets:
     - assets/logo.png
     - assets/dash.png
+  fonts:
+    - family: Chewy
+      fonts:
+        - asset: assets/fonts/Chewy-Regular.ttf

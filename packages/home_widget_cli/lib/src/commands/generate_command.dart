@@ -16,6 +16,7 @@ import '../util/dependencies.dart';
 import '../util/exit_codes.dart';
 import '../util/logger.dart';
 import '../validation/asset_validator.dart';
+import '../validation/font_validator.dart';
 
 /// Command that generates native widget code from annotated Dart schemas.
 class GenerateCommand extends Command<int> {
@@ -121,6 +122,7 @@ class GenerateCommand extends Command<int> {
     try {
       for (final item in specs) {
         validateAssets(item.spec, Directory.current);
+        validateFonts(item.spec, Directory.current);
       }
     } on GeneratorError catch (e) {
       logger.err(e.message);

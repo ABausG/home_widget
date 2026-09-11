@@ -1,4 +1,5 @@
 import 'package:analyzer/dart/constant/value.dart';
+import '../fonts.dart';
 import '../formats.dart';
 import '../generator_error.dart';
 import '../native_helpers.dart';
@@ -17,6 +18,7 @@ part 'hw_column.dart';
 part 'hw_row.dart';
 part 'hw_text.dart';
 part 'hw_image.dart';
+part 'hw_icon.dart';
 part 'hw_data_only.dart';
 part 'hw_adaptive.dart';
 part 'hw_fill.dart';
@@ -117,6 +119,40 @@ sealed class HWWidget implements HWGeneratable {
   /// [HWDataType.renderHelpers] of what they display included, so that a field
   /// declared but never displayed does not drag a render helper in.
   Set<HWNativeHelper> get renderHelpers => const {};
+
+  /// The icon glyphs this one widget can render, per icon font.
+  ///
+  /// A constant [HWIcon] contributes its single codepoint, one bound to an
+  /// [HWIconData] every codepoint that field may hold — which is what decides
+  /// the glyphs the icon font is subset down to.
+  Map<HWIconFont, Set<int>> get ownIconCodePoints => const {};
+
+  /// Every custom font file this subtree renders text with.
+  ///
+  /// One file per family, weight and slant actually used, which is what
+  /// `home_widget_cli` copies into the native projects and generates a layout
+  /// for on Android.
+  Set<HWFontVariant> get fontVariants {
+    final variants = <HWFontVariant>{};
+    for (final widget in descendants.whereType<HWText>()) {
+      if (widget.fontVariant case final variant?) variants.add(variant);
+    }
+    return variants;
+  }
+
+  /// Every icon glyph this subtree can render, per icon font.
+  ///
+  /// The union of what each [HWIcon] contributes, so a font shared by several
+  /// icons is subset to all of their glyphs at once.
+  Map<HWIconFont, Set<int>> get iconCodePoints {
+    final glyphs = <HWIconFont, Set<int>>{};
+    for (final widget in descendants) {
+      widget.ownIconCodePoints.forEach((font, codePoints) {
+        glyphs.putIfAbsent(font, () => <int>{}).addAll(codePoints);
+      });
+    }
+    return glyphs;
+  }
 
   /// The native functions this subtree calls, before their own dependencies
   /// are resolved.

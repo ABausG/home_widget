@@ -1,0 +1,130 @@
+---
+title: Custom Fonts
+description: Use a custom font bundled in your Flutter app from native widget code
+---
+
+# Custom Fonts
+
+Widget extensions are native targets: they don't get your Flutter app's fonts for free. This page
+covers loading a font your Flutter app already bundles (via `flutter: fonts:` in `pubspec.yaml`)
+from native widget code.
+
+## iOS
+
+### Option A: register the font normally
+
+Add the `.ttf` to the widget extension target's resources and list it under `UIAppFonts` in the
+extension's `Info.plist`, same as any iOS app font. Then use it like any other custom font:
+
+```swift
+Text("Hello").font(.custom("YourFontName-Regular", size: 16))
+```
+
+The name passed to `.custom` is the font's PostScript name, not the file name.
+
+### Option B: read the font from the Flutter asset bundle
+
+If you don't want to duplicate the font file into the extension, you can load it straight out of
+the Flutter asset bundle at runtime. The extension bundle lives at `Runner.app/PlugIns/<name>.appex`,
+so walking up from it to the `.app` gives you `Frameworks/App.framework/flutter_assets/<asset path>`:
+
+```swift
+import CoreText
+import SwiftUI
+
+func flutterAssetFont(_ asset: String, size: CGFloat) -> Font? {
+  var url = Bundle.main.bundleURL
+  while url.pathExtension != "app" && url.pathComponents.count > 1 {
+    url = url.deletingLastPathComponent()
+  }
+  guard url.pathExtension == "app" else { return nil }
+  let fontURL = url
+    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+    .appendingPathComponent(asset)
+  guard
+    let descriptors = CTFontManagerCreateFontDescriptorsFromURL(fontURL as CFURL) as? [CTFontDescriptor],
+    let descriptor = descriptors.first
+  else { return nil }
+  return Font(CTFontCreateWithFontDescriptor(descriptor, size, nil))
+}
+```
+
+The font must be declared under `flutter: fonts:` in `pubspec.yaml` so it lands in `flutter_assets`.
+This works before the app has ever launched, and needs no Xcode changes.
+
+<Warning>
+The size is baked into the resulting `CTFont`, so `flutterAssetFont` returns a distinct font for
+each size — create one per size you need rather than trying to resize the result.
+</Warning>
+
+## Android
+
+Glance's `TextStyle(fontFamily = FontFamily("..."))` only resolves built-in system font families
+(`serif`, `sans-serif`, ...), never a font your app ships. Reaching for
+`android:fontFamily="@font/..."` in a `RemoteViews` layout looks like the obvious workaround, but
+it's silently ignored: the launcher inflates widget layouts in a restricted context, and
+`TextView` only loads a font resource when `!context.isRestricted()`. A `TypefaceSpan(Typeface)`
+doesn't survive the trip either, since spans are flattened across the `RemoteViews` Binder call.
+There is no XML- or span-based way to get a custom font onto app widget text.
+
+`home_widget` (0.10.0+) works around this by rendering the text to a bitmap on the Dart/plugin side
+and showing it as an `Image` in Glance content, via
+`es.antonborri.home_widget.HomeWidgetFonts`.
+
+### Text in a custom font
+
+Ask for the typeface by family name with `typeface` — the font only needs to be declared under
+`flutter: fonts:` in `pubspec.yaml`, the same as for the iOS asset-bundle option above:
+
+```kotlin
+val typeface = HomeWidgetFonts.typeface(context, "Chewy", 400, false)
+```
+
+The family is the one from `pubspec.yaml` (`Chewy`), or `packages/<package>/<family>` for a font
+that ships inside a package — the key Flutter registers it under. Which file that is comes out of
+the `FontManifest.json` Flutter writes next to the fonts in `flutter_assets`, picked the way
+Flutter picks it: a file of the requested slant beats one of the wrong slant, an exact weight beats
+every other, and otherwise the nearest weight wins. The manifest and the typefaces are cached, and
+`null` comes back for a family nothing declares.
+
+If you'd rather name a file yourself, `assetTypeface(context, "assets/fonts/Chewy-Regular.ttf")`
+takes a raw asset key — the path from `pubspec.yaml`, or `packages/<package>/<path>` for a
+package's font — and reads it from `flutter_assets/<asset>`.
+
+Then render text with that typeface using `textBitmap`, and show it as an `Image`:
+
+```kotlin
+Image(
+    provider = ImageProvider(
+        HomeWidgetFonts.textBitmap(
+            context,
+            HomeWidgetFonts.typeface(context, "Chewy", 400, false),
+            "Hello",
+            fontSizeSp = 24f,
+            maxWidthDp = LocalSize.current.width.value,
+        )
+    ),
+    contentDescription = "Hello",
+    colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+)
+```
+
+`textBitmap` draws the text as a white mask on a transparent background, wrapping at `maxWidthDp`
+and ellipsizing past `maxLines`. It also takes `italic`, `underline`, `lineThrough`, and `textAlign`
+(default `fontSizeSp = 14f`, `maxLines = Int.MAX_VALUE`). Leaving the mask white and tinting it with
+`ColorFilter.tint(...)` is what lets themed colors — `GlanceTheme.colors.onSurface`, or a day/night
+`ColorProvider` — resolve correctly at inflate time, the same way any other tinted Glance icon does.
+
+<Warning>
+The result is an image, not text: it doesn't reflow with the system's dynamic type setting, and
+every call allocates a new bitmap. Reach for this only for short custom-font runs — labels,
+headlines — and use Glance's own `Text` for body copy. Set `contentDescription` to the same string
+so TalkBack still reads it.
+</Warning>
+
+This works on every API level the plugin supports (23+) — no `minSdkVersion` change needed.
+
+<Info>
+The `home_widget_generator` handles all of this automatically — see
+[/generator/custom-fonts](/generator/custom-fonts).
+</Info>

@@ -13,6 +13,7 @@ class BuildScenario {
     this.expectedAndroidWidgetUrl,
     this.expectedIosWidgetUrl,
     this.assetPaths = const [],
+    this.fontFamilies = const {},
   });
 
   /// Human-readable description, used as the test name.
@@ -50,4 +51,12 @@ class BuildScenario {
   /// project's `flutter: assets:` section, which the CLI's generate-time asset
   /// validation requires.
   final List<String> assetPaths;
+
+  /// Font families [widgetSource] renders text in, mapped to the
+  /// project-relative path of the file that ships them (e.g.
+  /// `{'Chewy': 'assets/fonts/Chewy-Regular.ttf'}`).
+  ///
+  /// The runner copies a real font to each path and declares it under
+  /// `flutter: fonts:`, which is what the CLI resolves a family through.
+  final Map<String, String> fontFamilies;
 }

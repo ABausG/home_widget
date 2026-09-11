@@ -1,0 +1,118 @@
+---
+title: Custom Fonts
+description: Use a custom text font in a generated widget.
+---
+
+# Custom Fonts
+
+A generated widget can render text in a font your Flutter app bundles — without you touching Xcode
+or an Android `res/` folder. Declare the font the same way you would for a Flutter `TextStyle`;
+`home_widget_generator` and `home_widget_cli` do the rest at generation time.
+
+```dart
+HWText.fixed('Hello', style: HWTextStyle(fontFamily: 'Chewy'))
+```
+
+<Info>
+This page covers a custom text font on a **generated** widget. Loading a font from a hand-written
+`RemoteViews`/Glance or SwiftUI widget uses the same underlying mechanism, documented on its own at
+[Custom Fonts](/features/custom-fonts).
+</Info>
+
+## Custom text fonts
+
+Declare the font under `flutter: fonts:` in `pubspec.yaml`, exactly as you would to use it inside
+your Flutter app:
+
+```yaml
+flutter:
+  fonts:
+    - family: Chewy
+      fonts:
+        - asset: assets/fonts/Chewy-Regular.ttf
+        - asset: assets/fonts/Chewy-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Chewy-Italic.ttf
+          style: italic
+```
+
+Then reference the family by name from `HWTextStyle`, mirroring Flutter's own
+`TextStyle(fontFamily:, package:)`:
+
+```dart
+HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
+```
+
+`fontFamily` (and `package`) are also available on every `HWRoleTextStyle` constructor, and resolve
+through [`baseStyle`](/generator/styling/hw-text-style#inheritance) like any other field — set the
+family once on a shared base style and every style built on top of it inherits it.
+
+Pass `package` for a font that ships inside a dependency rather than your app, the same as
+`Image.asset(..., package: ...)`:
+
+```dart
+HWTextStyle(fontFamily: 'Chewy', package: 'my_fonts')
+```
+
+### Which file gets used
+
+A font family can ship several files — regular, bold, italic, particular weights. The generated code
+names the family, weight and slant; which file that is, is picked on the device at render time from
+the `FontManifest.json` Flutter writes next to the fonts in `flutter_assets`, so a pubspec that
+gained a bold file needs no regeneration. The rule is the same one the web and Flutter use: an exact
+weight and style match if one exists, otherwise the nearest weight (a lighter file when the target
+is 400 or below, a heavier one otherwise). There is no synthetic bold — a
+`fontWeight: HWFontWeight.bold` with no bold file just renders the nearest file the family actually
+ships.
+
+`home_widget_cli` still checks at generation time that the family is declared somewhere it can see:
+an unknown family, or one with no matching pubspec entry at all, is a generation error naming the
+family and where to declare it.
+
+Italic is treated the same way: if the family ships an italic file, it is used. If it does not, iOS
+renders the upright file (no synthetic slant), while Android applies a synthetic slant on top of the
+upright glyphs — see [How it renders](#how-it-renders) below for why the two platforms differ here.
+
+## How it renders
+
+<Accordion title="iOS">
+The font is read straight out of the Flutter asset bundle through CoreText, the same mechanism
+described in [Option B](/features/custom-fonts#option-b-read-the-font-from-the-flutter-asset-bundle)
+of the core package's font-loading page. There is nothing to add to the Xcode project and no
+`UIAppFonts` entry to write — the generated Swift looks the family up in the bundled
+`FontManifest.json` and resolves the file it names by URL at render time, and it works before the
+Flutter app has ever launched.
+</Accordion>
+
+<Accordion title="Android">
+Jetpack Glance's `TextStyle` cannot load a font your app ships — the launcher inflates widget content
+in a restricted context that silently ignores any font resource. Text set to a custom font is
+instead rendered into a bitmap glyph mask and shown as a tinted `Image`, using the widget's normal
+text color as the tint, exactly like the core package's `HomeWidgetFonts.typeface` and
+`HomeWidgetFonts.textBitmap` described on
+[Custom Fonts](/features/custom-fonts#text-in-a-custom-font). Because of this:
+
+- Reach for a custom font on short runs — labels, headlines — rather than body copy.
+- The text does not reflow when the user changes the system font size; it only picks up a new size
+  the next time the widget updates.
+- TalkBack still reads it: the generated code sets the bitmap's content description to the same
+  text.
+
+This works on every Android version the plugin supports (API 23+) — there's no `minSdkVersion` to
+raise for it.
+</Accordion>
+
+## Version requirement
+
+Custom fonts require `home_widget` **0.10.0 or newer**. `home_widget_cli` checks the resolved
+version in `pubspec.lock` and fails with a clear error if a schema uses `HWTextStyle.fontFamily`
+against an older one.
+
+## Limitations
+
+- `TextStyle.fontFamilyFallback` is not supported: a glyph the chosen font lacks falls back to the
+  platform's own font, not to a family you name.
+- Right-to-left text is supported. SwiftUI on iOS and `StaticLayout` on Android both shape and
+  order bidirectional text; only the font family, weight and slant come from the custom font.
+- Custom-font text renders as a bitmap on Android — see [How it renders](#how-it-renders) for what
+  that means for reflow and body copy.

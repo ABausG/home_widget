@@ -52,7 +52,7 @@ class ForecastHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ForecastData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "8a5e956c",
+            "ac5c8302",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -81,11 +81,21 @@ class ForecastHomeWidget : GlanceAppWidget() {
         Column(horizontalAlignment = Alignment.Start) {
           Text(
               text = widgetData.city ?: "",
-              style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 12.sp,
+                      fontWeight = FontWeight.Normal,
+                  ),
           )
           Text(
               text = widgetData.condition ?: "",
-              style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 22.sp,
+                      fontWeight = FontWeight.Bold,
+                  ),
           )
           Text(
               text =
@@ -95,7 +105,8 @@ class ForecastHomeWidget : GlanceAppWidget() {
                       null,
                       true,
                       hwFormatLocale(context),
-                  )
+                  ),
+              style = TextStyle(color = GlanceTheme.colors.onSurface),
           )
         }
       }

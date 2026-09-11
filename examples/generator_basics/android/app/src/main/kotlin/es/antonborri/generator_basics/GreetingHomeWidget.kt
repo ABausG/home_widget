@@ -51,7 +51,7 @@ class GreetingHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = GreetingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "c9486ef3",
+            "edff486f",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -78,10 +78,23 @@ class GreetingHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         Column(horizontalAlignment = Alignment.Start) {
-          Text(text = "Hello", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal))
+          Text(
+              text = "Hello",
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 12.sp,
+                      fontWeight = FontWeight.Normal,
+                  ),
+          )
           Text(
               text = widgetData.name ?: "",
-              style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 22.sp,
+                      fontWeight = FontWeight.Bold,
+                  ),
           )
         }
       }

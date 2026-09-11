@@ -50,7 +50,8 @@ class DartHelperGenerator {
       if (hasTimedData) "import 'package:flutter/foundation.dart';",
       if (_usesAppGroupId && spec.hasFlavors)
         "import 'package:flutter/services.dart';",
-      if (spec.hasRuntimeImages) "import 'package:flutter/widgets.dart';",
+      if (spec.hasRuntimeImages || _iconEnums.isNotEmpty)
+        "import 'package:flutter/widgets.dart';",
       "import 'package:home_widget/home_widget.dart';",
     ];
 
@@ -114,6 +115,10 @@ class $className {
     );
 
     buffer.writeln('}');
+
+    for (final entry in _iconEnums.entries) {
+      _appendSection(buffer, _iconEnum(entry.key, entry.value));
+    }
 
     _appendSection(
       buffer,
@@ -208,6 +213,111 @@ class $className {
         for (final image in spec.timedImageFields) image.key,
         for (final image in spec.timedJsonImageFields) image.storageKey,
       ];
+
+  /// The icon enums this file declares, by name, in declaration order.
+  ///
+  /// One per icon field, wherever it is declared: top level, at the leaf of a
+  /// JSON group or inside a timed entry. Fields sharing a key are already
+  /// folded together by the spec, so a name appearing twice describes the same
+  /// icon list and emits one enum.
+  Map<String, HWIconData> get _iconEnums {
+    final enums = <String, HWIconData>{};
+    for (final field in spec.dataFields) {
+      final icon = _iconOf(field);
+      if (icon == null) continue;
+      enums.putIfAbsent(_iconEnumName(icon), () => icon);
+    }
+    return enums;
+  }
+
+  /// The icon [field] describes once its entries are resolved, or null where
+  /// it describes none.
+  HWIconData? _iconOf(HWDataType<dynamic> field) {
+    final icon = iconLeafOf(field);
+    return icon == null || icon.entries.isEmpty ? null : icon;
+  }
+
+  String _iconEnumName(HWIconData icon) => icon.enumNameFor(spec.className);
+
+  /// The enum the app picks one of [icon]'s glyphs out of.
+  String _iconEnum(String enumName, HWIconData icon) {
+    final entries = icon.entries;
+    final buffer = StringBuffer();
+    buffer.writeln('/// The icons the `${icon.key}` of this widget can show.');
+    buffer.writeln('enum $enumName {');
+
+    for (final (index, entry) in entries.indexed) {
+      final terminator = index == entries.length - 1 ? ';' : ',';
+      buffer.writeln(
+        '  ${entry.name}('
+        '${_iconDataLiteral(entry, icon.iconFont)})$terminator',
+      );
+    }
+
+    buffer.write('''
+
+  const $enumName(this.icon);
+
+  final IconData icon;
+
+  int get codePoint => icon.codePoint;
+
+  /// The value storing [codePoint], or null when this widget shows no icon
+  /// for it.
+  static $enumName? fromCodePoint(int? codePoint) {
+    if (codePoint == null) return null;
+    for (final value in values) {
+      if (value.codePoint == codePoint) return value;
+    }
+    return null;
+  }
+}
+''');
+
+    return buffer.toString();
+  }
+
+  /// One glyph as the `IconData` the enum value carries.
+  ///
+  /// A directional glyph keeps its `matchTextDirection`, so an `Icon` the app
+  /// builds out of the enum mirrors in a right-to-left layout exactly as the
+  /// widget does.
+  String _iconDataLiteral(HWIconEntry entry, HWIconFont? font) {
+    final family = font?.family;
+    final package = font?.package;
+    return 'IconData(${_hexLiteral(entry.codePoint)}, '
+        'fontFamily: ${_dartStringLiteral(family)}, '
+        'fontPackage: ${_dartStringLiteral(package)}'
+        '${entry.matchTextDirection ? ', matchTextDirection: true' : ''})';
+  }
+
+  String _hexLiteral(int value) => '0x${value.toRadixString(16)}';
+
+  String _dartStringLiteral(String? value) =>
+      value == null ? 'null' : "'${escapeDartStringLiteral(value)}'";
+
+  /// The type the generated Dart shapes carry for one leaf value: the icon
+  /// enum where there is one, the type's own Dart spelling otherwise.
+  String _dartLeafType(HWDataType<dynamic> field) {
+    final icon = _iconOf(field);
+    return icon == null ? field.dartType : _iconEnumName(icon);
+  }
+
+  /// [rawExpr] mapped to the Dart type [_dartLeafType] promises.
+  String _dartLeafDecode(HWDataType<dynamic> field, String rawExpr) {
+    final icon = _iconOf(field);
+    return icon == null
+        ? rawExpr
+        : '${_iconEnumName(icon)}.fromCodePoint($rawExpr)';
+  }
+
+  /// The stored form of the leaf held in [key], for the JSON object it travels
+  /// in.
+  String _dartLeafEncode(HWDataType<dynamic> field, String key) {
+    if (field is HWDateTime) return _dartIsoExpr('$key!');
+    if (_iconOf(field) != null) return '$key!.codePoint';
+    return key;
+  }
 
   List<String> get _supportedLocales =>
       spec.data.localization?.supportedLocales ?? const <String>[];
@@ -309,9 +419,12 @@ class $className {
   }
 
   /// The type `saveData` takes for [field]: a translations object for a
-  /// localized string, the field's own Dart type otherwise.
+  /// localized string, an icon enum for an icon, the field's own Dart type
+  /// otherwise.
   String _saveParameterType(HWDataType<dynamic> field) =>
-      field is HWLocalizedString ? _translationsClassName : field.dartType;
+      field is HWLocalizedString
+          ? _translationsClassName
+          : _dartLeafType(field);
 
   String _saveDataMethod() {
     final primitiveFields = spec.primitiveDataFields;
@@ -376,6 +489,10 @@ class $className {
       // helper reads back.
       return '      if ($key != null) HomeWidget.saveWidgetData<String>('
           '$keyLiteral, ${_dartIsoExpr(key)}$_appGroupIdArg),';
+    }
+    if (_iconOf(field) != null) {
+      return '      if ($key != null) HomeWidget.saveWidgetData<int>('
+          '$keyLiteral, $key.codePoint$_appGroupIdArg),';
     }
     return '      if ($key != null) '
         'HomeWidget.saveWidgetData<${field.dartType}>('
@@ -656,7 +773,7 @@ $indent}''';
       ...primitiveFields.map(
         (f) => f is HWLocalizedString
             ? '$_translationsClassName ${f.key}'
-            : '${f.dartType}? ${f.key}',
+            : '${_dartLeafType(f)}? ${f.key}',
       ),
       ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
       if (hasTimedData) 'Map<DateTime, $_timedDataClassName>? timedData',
@@ -802,6 +919,15 @@ $indent}''';
           '${_paramKey(key)}$_appGroupIdArg)),';
     }
     final defaultValue = field.defaultValue;
+    final icon = _iconOf(field);
+    if (icon != null) {
+      final fallback = defaultValue is int
+          ? ', defaultValue: ${_hexLiteral(defaultValue)}'
+          : '';
+      return '      $key: ${_iconEnumName(icon)}.fromCodePoint('
+          'await HomeWidget.getWidgetData<int>('
+          '${_paramKey(key)}$fallback$_appGroupIdArg)),';
+    }
     var defaultLiteral = '';
     if (defaultValue != null) {
       defaultLiteral = defaultValue is String
@@ -1355,7 +1481,7 @@ $indent}''';
   /// `getData` hands it back as a `FileImage` of that PNG.
   final ImageProvider? ${entry.key};'''
           else
-            '  final ${entry.value.leafType!.dartType}? ${entry.key};'
+            '  final ${_dartLeafType(entry.value.leafType!)}? ${entry.key};'
         else
           '  final ${_dartChildClassName(className, entry.key)}? ${entry.key};',
     ];
@@ -1364,9 +1490,7 @@ $indent}''';
       for (final entry in node.children.entries)
         if (_isLeaf(entry.value))
           '      ${entry.key}: '
-              '${_dartReadFunction(entry.value.leafType!)}'
-              "(json['${entry.key}'])"
-              '${_dartDefaultLiteral(entry.value.leafType!)},'
+              '${_jsonLeafRead(entry.key, entry.value.leafType!)},'
         else
           "      ${entry.key}: json['${entry.key}'] is Map<String, dynamic> ? ${_dartChildClassName(className, entry.key)}.fromJson(json['${entry.key}'] as Map<String, dynamic>) : null,",
     ];
@@ -1378,7 +1502,7 @@ $indent}''';
         if (!(_isLeaf(entry.value) && entry.value.leafType is HWImageData))
           if (_isLeaf(entry.value))
             "      if (${entry.key} != null) '${entry.key}': "
-                '${entry.value.leafType is HWDateTime ? _dartIsoExpr('${entry.key}!') : entry.key},'
+                '${_dartLeafEncode(entry.value.leafType!, entry.key)},'
           else
             "      if (${entry.key} != null) '${entry.key}': ${entry.key}!.toJson(),",
     ];
@@ -1444,6 +1568,14 @@ $indent}''';
     return buffer.toString();
   }
 
+  /// Reads one leaf of a JSON object back into the Dart type its field
+  /// carries.
+  String _jsonLeafRead(String key, HWDataType<dynamic> leafType) {
+    final raw = "${_dartReadFunction(leafType)}(json['$key'])"
+        '${_dartDefaultLiteral(leafType)}';
+    return _dartLeafDecode(leafType, raw);
+  }
+
   /// Whether [node] carries a value of its own rather than a nested object.
   bool _isLeaf(_JsonPathNode node) =>
       node.leafType != null && node.children.isEmpty;
@@ -1476,7 +1608,7 @@ $indent}''';
                 ? _translationsClassName
                 : field is HWImageData
                     ? 'ImageProvider'
-                    : field.dartType,
+                    : _dartLeafType(field),
             jsonRoot: false,
             leafType: field,
           ),
@@ -1580,8 +1712,9 @@ $indent}''';
           '$_helperClassName.${_defaultsFieldName(leafType)}, '
           "_readTranslations(json['$key'])),";
     }
-    return '      $key: ${_dartReadFunction(leafType)}'
-        "(json['$key'])${_dartDefaultLiteral(leafType)},";
+    final raw = "${_dartReadFunction(leafType)}(json['$key'])"
+        '${_dartDefaultLiteral(leafType)}';
+    return '      $key: ${_dartLeafDecode(leafType, raw)},';
   }
 
   /// Writes one member of a timed entry into its JSON object.
@@ -1595,10 +1728,8 @@ $indent}''';
       // the compiled translations again on the other side.
       return "      if ($key != null) '$key': $key!.toMap(),";
     }
-    if (member.leafType is HWDateTime) {
-      return "      if ($key != null) '$key': ${_dartIsoExpr('$key!')},";
-    }
-    return "      if ($key != null) '$key': $key,";
+    return "      if ($key != null) '$key': "
+        '${_dartLeafEncode(member.leafType!, key)},';
   }
 
   /// Emits only the `_read*` helpers in [usedReaders] so generated files never
@@ -1681,6 +1812,9 @@ Map<String, String>? _readTranslations(Object? value) {
     if (field is HWDateTime) return '_readDateTime';
     // The stored value is a path; the Dart API hands back the image itself.
     if (field is HWImageData) return '_readFileImage';
+    // The stored value is a codepoint; the Dart API hands back the enum value
+    // carrying it.
+    if (_iconOf(field) != null) return '_readInt';
     return '_readString';
   }
 
@@ -1704,6 +1838,9 @@ Map<String, String>? _readTranslations(Object? value) {
   String _dartDefaultLiteral(HWDataType<dynamic> field) {
     final defaultValue = field.defaultValue;
     if (defaultValue == null) return '';
+    if (defaultValue is int && _iconOf(field) != null) {
+      return ' ?? ${_hexLiteral(defaultValue)}';
+    }
     if (defaultValue is String) {
       return " ?? '${escapeDartStringLiteral(defaultValue)}'";
     }

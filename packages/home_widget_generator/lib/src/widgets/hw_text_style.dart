@@ -1,20 +1,29 @@
+import '../fonts.dart';
+import '../native_helpers.dart';
 import 'hw_color.dart';
 import 'hw_generatable.dart';
 
 enum HWTextAlign { start, end, center, justify }
 
 enum HWFontWeight {
-  w100,
-  w200,
-  w300,
-  w400,
-  w500,
-  w600,
-  w700,
-  w800,
-  w900,
-  normal,
-  bold
+  w100(100),
+  w200(200),
+  w300(300),
+  w400(400),
+  w500(500),
+  w600(600),
+  w700(700),
+  w800(800),
+  w900(900),
+  normal(400),
+  bold(700);
+
+  const HWFontWeight(this.value);
+
+  /// The weight on the 100..900 scale a font file is declared with.
+  ///
+  /// `normal` and `bold` are the names Flutter gives 400 and 700.
+  final int value;
 }
 
 enum HWTextStyleRole { title, headline, body, callout, caption, captionSmall }
@@ -27,6 +36,20 @@ class HWTextStyle implements HWGeneratable {
   final bool? italic;
   final bool? underline;
   final bool? lineThrough;
+
+  /// The font family text in this style renders with, as declared under
+  /// `flutter: fonts:`, or null for the platform's own font.
+  ///
+  /// Mirrors Flutter's `TextStyle.fontFamily`: [fontWeight] and [italic] then
+  /// pick which file of the family is used rather than being applied on top of
+  /// it, so a family with no matching file renders in its nearest one.
+  final String? fontFamily;
+
+  /// The package declaring [fontFamily], or null when the app declares it.
+  ///
+  /// Mirrors Flutter's `TextStyle.package`.
+  final String? package;
+
   final HWTextStyle? baseStyle;
 
   const HWTextStyle({
@@ -36,6 +59,8 @@ class HWTextStyle implements HWGeneratable {
     this.italic,
     this.underline,
     this.lineThrough,
+    this.fontFamily,
+    this.package,
     this.baseStyle,
   });
 
@@ -54,12 +79,19 @@ class HWTextStyle implements HWGeneratable {
           italic: current.italic,
           underline: current.underline,
           lineThrough: current.lineThrough,
+          fontFamily: current.fontFamily,
+          package: current.package,
         );
       }
       return current;
     }
 
     final baseResolved = _resolveRecursive(current.baseStyle!);
+
+    // A family and the package declaring it resolve together: overriding the
+    // family alone must not keep the base style's package, which would name a
+    // family that package does not declare.
+    final overridesFamily = current.fontFamily != null;
 
     return HWTextStyle(
       fontSize: current.fontSize ?? baseResolved.fontSize,
@@ -68,6 +100,8 @@ class HWTextStyle implements HWGeneratable {
       italic: current.italic ?? baseResolved.italic,
       underline: current.underline ?? baseResolved.underline,
       lineThrough: current.lineThrough ?? baseResolved.lineThrough,
+      fontFamily: current.fontFamily ?? baseResolved.fontFamily,
+      package: overridesFamily ? current.package : baseResolved.package,
     );
   }
 
@@ -82,11 +116,67 @@ class HWTextStyle implements HWGeneratable {
     return null;
   }
 
+  /// The font file text in this style renders with, or null when it renders in
+  /// the platform's own font.
+  ///
+  /// Resolved through the whole `baseStyle` chain: the family and package of
+  /// the style that names them, at the weight and slant the chain resolves to.
+  HWFontVariant? get fontVariant {
+    final resolved = _resolve();
+    final family = resolved.fontFamily;
+    if (family == null) return null;
+    return HWFontVariant(
+      family: family,
+      package: resolved.package,
+      weight: (resolved.fontWeight ??
+              _androidRoleFontWeight(_getEffectiveRole()) ??
+              HWFontWeight.normal)
+          .value,
+      italic: resolved.italic == true,
+    );
+  }
+
+  /// The size text in this style renders at, the effective role's own size
+  /// included, or null when nothing sets one.
+  double? get effectiveFontSize =>
+      _resolve().fontSize ?? _androidRoleFontSize(_getEffectiveRole());
+
+  /// [effectiveFontSize], or [hwDefaultFontSize] when nothing sets one.
+  ///
+  /// Rendering a custom family needs a number on both platforms — iOS bakes it
+  /// into the `CTFont`, Android into the glyph mask — so a style that names one
+  /// but no size lands here rather than on the platform's own default.
+  double get effectiveFontSizeOrDefault =>
+      effectiveFontSize ?? hwDefaultFontSize;
+
+  /// The color text in this style renders in, or null for the platform default.
+  HWColor? get effectiveColor => _resolve().color;
+
+  /// Whether text in this style renders slanted.
+  bool get effectiveItalic => _resolve().italic == true;
+
+  /// Whether text in this style renders underlined.
+  bool get effectiveUnderline => _resolve().underline == true;
+
+  /// Whether text in this style renders struck through.
+  bool get effectiveLineThrough => _resolve().lineThrough == true;
+
   @override
   Set<String> get kotlinImports {
     final resolved = _resolve();
+    // A custom family renders as a bitmap, which takes the size, weight and
+    // decorations as plain values rather than as a Glance TextStyle.
+    if (resolved.fontFamily != null) {
+      return {
+        if (resolved.color != null) ...resolved.color!.kotlinImports,
+      };
+    }
     return {
-      if (resolved.color != null) ...resolved.color!.kotlinImports,
+      'import androidx.glance.text.TextStyle',
+      if (resolved.color != null)
+        ...resolved.color!.kotlinImports
+      else
+        ...hwDefaultContentColorKotlinImports,
       if (resolved.fontSize != null || _getEffectiveRole() != null)
         'import androidx.compose.ui.unit.sp',
       if (resolved.fontWeight != null || _getEffectiveRole() != null)
@@ -111,15 +201,21 @@ class HWTextStyle implements HWGeneratable {
     final effectiveRole = _getEffectiveRole();
     final parts = <String>[];
 
-    // Apply role as semantic font or fallback if size/weight not explicitly provided
-    if (resolved.fontSize != null) {
-      if (resolved.fontWeight != null) {
-        parts.add(
-          '.font(.system(size: ${resolved.fontSize}, weight: ${_swiftFontWeight(resolved.fontWeight!)}))',
-        );
-      } else {
-        parts.add('.font(.system(size: ${resolved.fontSize}))');
-      }
+    final variant = fontVariant;
+    if (variant != null) {
+      // The weight and slant picked the file, so applying them again on top of
+      // it would double up on what the font already is.
+      final size = effectiveFontSizeOrDefault;
+      parts.add(
+        '.font(${HWNativeHelper.hwFont.name}("${variant.flutterFamilyKey}", '
+        '${variant.weight}, ${variant.italic}, ${hwSizeLiteral(size)}))',
+      );
+    } else if (resolved.fontSize != null && resolved.fontWeight != null) {
+      parts.add(
+        '.font(.system(size: ${resolved.fontSize}, weight: ${_swiftFontWeight(resolved.fontWeight!)}))',
+      );
+    } else if (resolved.fontSize != null) {
+      parts.add('.font(.system(size: ${resolved.fontSize}))');
     } else if (effectiveRole != null) {
       parts.add('.font(.${_swiftRole(effectiveRole)})');
       if (resolved.fontWeight != null) {
@@ -135,7 +231,7 @@ class HWTextStyle implements HWGeneratable {
       );
     }
 
-    if (resolved.italic == true) {
+    if (variant == null && resolved.italic == true) {
       parts.add('.italic()');
     }
     if (resolved.underline == true) {
@@ -148,24 +244,26 @@ class HWTextStyle implements HWGeneratable {
     return parts.join('');
   }
 
+  /// The Glance `TextStyle(...)` for this style.
+  ///
+  /// A style naming no color gets [hwDefaultContentColor], which Glance itself
+  /// would render as opaque black.
+  ///
+  /// A custom [fontFamily] is not part of it: Glance cannot name one, so
+  /// `HWText` renders such a style as a bitmap image and reads the individual
+  /// values off this style instead.
   @override
   String toKotlin(int indent, {required String dataExpr}) {
     final resolved = _resolve();
     final effectiveRole = _getEffectiveRole();
     final args = <String>[];
 
-    if (resolved.color != null) {
-      args.add(
-        'color = ${resolved.color!.toKotlin(indent, dataExpr: dataExpr)}',
-      );
-    }
+    final color = resolved.color ?? hwDefaultContentColor;
+    args.add('color = ${color.toKotlin(indent, dataExpr: dataExpr)}');
 
     final size = resolved.fontSize ?? _androidRoleFontSize(effectiveRole);
     if (size != null) {
-      // If ends with .0, strip it to match how generator outputs other numeric literals. (Optional but nice)
-      final sizeStr =
-          size == size.toInt() ? size.toInt().toString() : size.toString();
-      args.add('fontSize = $sizeStr.sp');
+      args.add('fontSize = ${hwSizeLiteral(size)}.sp');
     }
 
     final weight = resolved.fontWeight ?? _androidRoleFontWeight(effectiveRole);
@@ -187,7 +285,6 @@ class HWTextStyle implements HWGeneratable {
       args.add('textDecoration = TextDecoration.LineThrough');
     }
 
-    if (args.isEmpty) return '';
     return 'TextStyle(${args.join(', ')})';
   }
 }
@@ -203,6 +300,8 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   });
 
@@ -213,6 +312,8 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   }) : role = HWTextStyleRole.title;
 
@@ -223,6 +324,8 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   }) : role = HWTextStyleRole.headline;
 
@@ -233,6 +336,8 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   }) : role = HWTextStyleRole.body;
 
@@ -243,6 +348,8 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   }) : role = HWTextStyleRole.callout;
 
@@ -253,6 +360,8 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   }) : role = HWTextStyleRole.caption;
 
@@ -263,9 +372,23 @@ class HWRoleTextStyle extends HWTextStyle {
     super.italic,
     super.underline,
     super.lineThrough,
+    super.fontFamily,
+    super.package,
     super.baseStyle,
   }) : role = HWTextStyleRole.captionSmall;
 }
+
+/// The size a custom font renders at when neither a size nor a role sets one.
+///
+/// A Glance `Text` falls back to the platform's own default, but picking a font
+/// file needs a number, so text in a custom family lands on the body role's
+/// size instead of on nothing.
+const double hwDefaultFontSize = 16.0;
+
+/// [size] as a literal both platforms read as a number, without the trailing
+/// `.0` a whole Dart double stringifies with.
+String hwSizeLiteral(double size) =>
+    size == size.toInt() ? size.toInt().toString() : size.toString();
 
 String _swiftFontWeight(HWFontWeight weight) {
   switch (weight) {

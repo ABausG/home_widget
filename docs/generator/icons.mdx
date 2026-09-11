@@ -1,0 +1,144 @@
+---
+title: Icons
+description: Draw icon glyphs from Material, Cupertino or any other icon font in a generated widget.
+---
+
+# Icons
+
+A generated widget can draw icon glyphs from Material, Cupertino or any other icon font package —
+without you touching Xcode or an Android `res/` folder. `home_widget_generator` and
+`home_widget_cli` do the rest at generation time.
+
+```dart
+HWIcon.fixed(Icons.favorite, size: 24)
+```
+
+<Info>
+This page covers icons on a **generated** widget. Rendering an icon glyph from a hand-written
+`RemoteViews`/Glance or SwiftUI widget uses the same underlying mechanism, documented on its own at
+[Icons](/features/icons).
+</Info>
+
+## Fixed icons
+
+`HWIcon.fixed` takes any `IconData` constant known at generation time — Material, Cupertino, or one
+from any other icon font package:
+
+```dart
+HWIcon.fixed(Icons.favorite, size: 24, color: HWDefaultColor(HWColorRole.contentPrimary))
+HWIcon.fixed(CupertinoIcons.heart_fill, size: 20)
+```
+
+## Runtime icons
+
+Wrap an `HWIconData` to let the icon change based on saved data — a mood, a weather condition, a
+status marker:
+
+```dart
+HWIcon(
+  HWIconData(
+    'mood',
+    icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+    defaultValue: Icons.wb_sunny,
+    previewValue: Icons.cloud,
+  ),
+)
+```
+
+`icons` is required and non-empty, and every icon in the list must come from the same icon font
+family — mixing `Icons.*` and `CupertinoIcons.*` in one list is a generation error. `defaultValue`
+and `previewValue`, when given, must also be members of `icons`.
+
+For each `HWIconData` field the generated Dart helper exposes an enum named
+`<WidgetClassName><FieldKeyPascal>Icon` — a field `mood` on a widget class `FontAndIcons` becomes
+`FontAndIconsMoodIcon` — with one value per listed icon and an `icon` getter returning that
+`IconData` back:
+
+```dart
+enum FontAndIconsMoodIcon {
+  wbSunny(Icons.wb_sunny),
+  cloud(Icons.cloud),
+  umbrella(Icons.umbrella);
+
+  const FontAndIconsMoodIcon(this.icon);
+  final IconData icon;
+}
+```
+
+`saveData` accepts this enum rather than a raw `IconData`, so only an icon actually declared in
+`icons` can ever be saved:
+
+```dart
+await FontAndIconsHomeWidget.saveData(mood: FontAndIconsMoodIcon.cloud);
+await FontAndIconsHomeWidget.updateWidget();
+```
+
+`HWIconData` works nested inside [`HWJson`](/generator/data#nested-json) and
+[`HWTimedData`](/generator/timed-data), the same as any other data type.
+
+## Directional icons
+
+Directional icons mirror in a right-to-left layout exactly as they do in Flutter. An icon whose
+`IconData.matchTextDirection` is set — `Icons.arrow_back`, `Icons.arrow_forward`,
+`Icons.format_list_bulleted` — is drawn flipped horizontally when the widget sits in a right-to-left
+layout, and left alone otherwise. The flag is read off the `IconData` itself, so there is nothing to
+declare: it applies to an `HWIcon.fixed` and to every icon of an `HWIconData` alike, and only the
+directional ones among a list are mirrored.
+
+What counts as a right-to-left layout follows each platform's own rules. Android reads the app's
+locale, so a per-app or device language such as Arabic flips the widget. On iOS a widget extension
+takes its layout direction from the languages **its own bundle** is localized for, exactly like an
+app: an extension localized only for English stays left-to-right under an Arabic system. Ship
+right-to-left translations through [`HWText.localized`](/generator/localization) and the mirror
+follows.
+
+<Info>
+Need to switch between icons from **different** families at runtime — say a filled vs. an outline
+icon set — rather than between icons in one family? Pick between two `HWIcon.fixed` branches with
+[`HWConditional`](/generator/widgets/hw-conditional) instead; `HWIconData` itself only ever picks
+among icons that already share a family.
+</Info>
+
+See [`HWIcon`](/generator/widgets/hw-icon) for the full constructor reference, and
+[Data Types](/generator/data#icon-data) for `HWIconData`'s storage and defaults.
+
+## What the CLI does
+
+Icon glyphs come from tree-shaken icon fonts (`MaterialIcons`, `CupertinoIcons`, or a package's own
+icon font), so the copy Flutter ships in `flutter_assets` cannot be relied on — the specific glyph a
+widget needs may have been shaken out of it. On every `home_widget generate` run,
+`home_widget_cli` builds a **subset font containing exactly the glyphs the schema uses** and copies
+it into the native projects:
+
+- `MaterialIcons` glyphs come from the Flutter SDK's own copy of `MaterialIcons-Regular.otf`.
+- `CupertinoIcons` glyphs come from the `cupertino_icons` package.
+- Any other icon font's glyphs come from that package's own `flutter: fonts:` declaration.
+
+The subset lands at:
+
+- Android — `android/app/src/main/res/font/hw_font_<widget>_icons_<family>.otf`
+- iOS — `ios/<Widget>HomeWidget/hw_font_icons_<family>.otf`, wired into the widget extension
+  target's Resources build phase automatically.
+
+This is fully automatic — no prompt, no CLI flag to turn it on. Every file the CLI writes for this
+is prefixed `hw_font_`, and a file that is no longer referenced by any widget is deleted the next
+time you generate, the same pruning policy the generator already applies to localized string
+resources.
+
+<Info>
+This copy step is for **icon** fonts only. A custom **text** font (the one you set with
+`fontFamily`) is never copied anywhere — both platforms read it in place out of `flutter_assets`, as
+described in [How it renders](/generator/custom-fonts#how-it-renders) on the Custom Fonts page.
+</Info>
+
+## Version requirement
+
+Icons require `home_widget` **0.10.0 or newer**. `home_widget_cli` checks the resolved version in
+`pubspec.lock` and fails with a clear error if a schema uses `HWIcon`/`HWIconData` against an older
+one.
+
+## Limitations
+
+- An icon font must be resolvable at generation time: `MaterialIcons` and `CupertinoIcons` always
+  are, and any other family must be declared under `flutter: fonts:` in the owning package's
+  `pubspec.yaml`.

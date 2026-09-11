@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:home_widget_generator/home_widget_generator.dart';
@@ -7,6 +6,7 @@ import 'package:yaml/yaml.dart';
 
 import '../generator_error.dart';
 import '../models/widget_spec.dart';
+import '../util/package_config.dart';
 
 /// Verifies that every `HWImage.asset` / `HWImageData.asset` in [spec] points at
 /// an asset that will actually be bundled, so a typo fails at generate time
@@ -151,7 +151,7 @@ void _validatePackageAsset(
   _AssetReference reference,
   Directory projectRoot,
 ) {
-  final packageRoot = _resolvePackageAssetRoot(projectRoot, reference.package!);
+  final packageRoot = resolvePackage(projectRoot, reference.package!)?.libRoot;
   // `pub get` may not have run yet, or the package is not a dependency of this
   // project: skip rather than block generation.
   if (packageRoot == null) return;
@@ -165,51 +165,6 @@ void _validatePackageAsset(
     );
   }
 }
-
-/// Resolves the directory that `packages/<package>/...` asset paths are
-/// relative to, i.e. the package's `lib/` folder.
-///
-/// Returns null when `.dart_tool/package_config.json` is absent, unreadable, or
-/// does not contain [package].
-String? _resolvePackageAssetRoot(Directory projectRoot, String package) {
-  final configFile =
-      File(p.join(projectRoot.path, '.dart_tool', 'package_config.json'));
-  if (!configFile.existsSync()) return null;
-
-  final Object? decoded;
-  try {
-    decoded = jsonDecode(configFile.readAsStringSync());
-  } on FormatException {
-    return null;
-  }
-  if (decoded is! Map<String, dynamic>) return null;
-
-  final packages = decoded['packages'];
-  if (packages is! List) return null;
-
-  for (final entry in packages) {
-    if (entry is! Map<String, dynamic>) continue;
-    if (entry['name'] != package) continue;
-
-    final rootUri = entry['rootUri'];
-    if (rootUri is! String) return null;
-
-    // `file:` URIs in package_config.json may be relative to the config file.
-    final base = Uri.file(configFile.absolute.path);
-    final resolvedRoot = base.resolve(_ensureTrailingSlash(rootUri));
-    if (resolvedRoot.scheme != 'file') return null;
-
-    final packageUri = entry['packageUri'];
-    final libUri = resolvedRoot.resolve(
-      _ensureTrailingSlash(packageUri is String ? packageUri : 'lib/'),
-    );
-    return p.fromUri(libUri);
-  }
-
-  return null;
-}
-
-String _ensureTrailingSlash(String uri) => uri.endsWith('/') ? uri : '$uri/';
 
 /// The `flutter: assets:` declarations of the app's `pubspec.yaml`.
 class _PubspecAssets {

@@ -633,13 +633,17 @@ void main() {
     );
     expect(
       content,
-      contains('Text(text = "count: ")'),
+      contains(
+        'Text(text = "count: ", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
     );
     expect(
       content,
       contains(
         'Text(text = hwFormatDecimal((widgetData.count ?: 0L), '
-        'null, null, true, hwFormatLocale(context)))',
+        'null, null, true, hwFormatLocale(context)), '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
       ),
     );
   });
@@ -846,7 +850,13 @@ void main() {
       content,
       contains('val widgetData = TimedWidgetData.fromPreferences(prefs)'),
     );
-    expect(content, contains('Text(text = widgetData.label ?: "")'));
+    expect(
+      content,
+      contains(
+        'Text(text = widgetData.label ?: "", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
+    );
   });
 
   test('generates Kotlin widget with timed JSON data classes', () async {
@@ -899,7 +909,10 @@ void main() {
     expect(content, isNot(contains('import java.io.File')));
     expect(
       content,
-      contains('Text(text = widgetData.weather?.wind?.direction ?: "")'),
+      contains(
+        'Text(text = widgetData.weather?.wind?.direction ?: "", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
     );
   });
 
@@ -1293,7 +1306,13 @@ void main() {
       ),
     );
     expect(content, contains('GlanceTheme {'));
-    expect(content, contains('Text(text = "Simple Data")'));
+    expect(
+      content,
+      contains(
+        'Text(text = "Simple Data", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
+    );
   });
 
   test(
@@ -1822,14 +1841,16 @@ void main() {
         content,
         contains(
           'Text(text = hwFormatCurrency((widgetData.total ?: 0.0), '
-          'widgetData.currency ?: "", null, hwFormatLocale(context)))',
+          'widgetData.currency ?: "", null, hwFormatLocale(context)), '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );
       expect(
         content,
         contains(
           'Text(text = widgetData.placedAt?.let { hwFormatDateSkeleton(it, '
-          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "")',
+          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );
 

@@ -1036,7 +1036,7 @@ android {
             that: allOf(
               contains('could not detect the Android namespace'),
               contains('GreetingHomeWidget.kt'),
-              contains('R.string'),
+              contains('references R'),
             ),
           ),
         ),

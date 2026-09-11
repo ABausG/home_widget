@@ -97,7 +97,7 @@ void main() {
         expect(result, contains('.cornerRadius(12.0.dp)'));
         expect(result, contains('.padding(2.0.dp)'));
         expect(result, contains('.cornerRadius(10.0.dp)'));
-        expect(result, contains('Text(text = "Decorated")'));
+        expect(result, contains('Text(text = "Decorated",'));
       });
 
       test('border without a fill emits a single Box', () {
@@ -120,7 +120,7 @@ void main() {
         expect(result, contains('.cornerRadius(12.0.dp)'));
         expect(result, contains('.padding(2.0.dp)'));
         expect(result, isNot(contains('.cornerRadius(10.0.dp)')));
-        expect(result, contains('Text(text = "Decorated")'));
+        expect(result, contains('Text(text = "Decorated",'));
       });
 
       test('kotlinImports include decoration dependencies', () {

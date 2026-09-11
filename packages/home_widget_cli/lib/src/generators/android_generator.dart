@@ -11,6 +11,8 @@ import '../models/extensions.dart';
 import '../util/android_package.dart';
 import '../util/android_templates.dart';
 import '../util/android_wiring.dart';
+import '../util/font_resolver.dart';
+import '../util/icon_font_writer.dart';
 import '../util/logger.dart';
 import '../util/fs.dart';
 import '../util/naming.dart';
@@ -112,6 +114,15 @@ class AndroidGenerator {
     await ensureDir(kotlinDir);
     await ensureDir(resXmlDir);
 
+    // Icon fonts become `res/font` resources because Flutter tree-shakes them
+    // out of `flutter_assets`; text fonts stay where they are and the core
+    // plugin looks them up as it renders.
+    await writeAndroidIconFonts(
+      spec: spec,
+      projectRoot: projectRoot,
+      fonts: FontResolver(projectRoot),
+    );
+
     final widgetFile = File(p.join(kotlinDir.path, '$widgetClassName.kt'));
 
     String? dataClassContent;
@@ -179,7 +190,12 @@ class AndroidGenerator {
     // it calls.
     final fileHelpers = <String>[
       for (final helper in fileNativeHelpers)
-        helper.toKotlin(0, dataExpr: '').trim(),
+        // A helper whose Kotlin body is empty is one only iOS has — the font
+        // loaders, whose Android counterpart lives in the core plugin. Emitting
+        // its blank body would leave stray separators in the generated file.
+        if (helper.toKotlin(0, dataExpr: '').trim() case final body
+            when body.isNotEmpty)
+          body,
     ];
     if (fileHelpers.isNotEmpty) {
       dataClassContent = [
@@ -333,13 +349,14 @@ class AndroidGenerator {
     // `R` lives in the Gradle namespace, not necessarily the package this file
     // is written into (an annotation may override `packageName`). Unqualified
     // `R` only resolves when the two coincide.
-    if (spec.constantLocalizedStrings.isNotEmpty) {
+    if (spec.constantLocalizedStrings.isNotEmpty ||
+        spec.iconCodePoints.isNotEmpty) {
       final rPackage =
           tryDetectAndroidNamespace(projectRoot) ?? detectedPackage;
       if (rPackage == null) {
         logger.warn(
           'Warning: could not detect the Android namespace. '
-          '${widgetFile.path} references R.string, so the build will fail with '
+          '${widgetFile.path} references R, so the build will fail with '
           'an unresolved reference. Set android.packageName to the module '
           'namespace, or add the import manually.',
         );
@@ -1039,6 +1056,10 @@ class AndroidGenerator {
     // that timestamp, so it reads exactly like a string.
     if (type is HWString || type is HWImageData) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optString("$key") else $fallback';
+    }
+    // A codepoint always fits 32 bits, so unlike HWInt it is read as an Int.
+    if (type is HWIconData) {
+      return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optInt("$key") else $fallback';
     }
     if (type is HWInt) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optLong("$key") else $fallback';
