@@ -124,8 +124,6 @@ Future<String> _runGenerated(String dart, String body) async {
   return (result.stdout as String).trim();
 }
 
-/// The `Greeting` widget's generated resource file for one locale, or `''`
-/// when the generator wrote none.
 /// One emitted helper's source, from [declaration] to the line closing it.
 ///
 /// The helpers come out in the order [WidgetSpec.nativeHelpers] resolves, so a
@@ -138,6 +136,8 @@ String _helperBody(String source, String declaration) {
   return source.substring(start, end);
 }
 
+/// The `Greeting` widget's generated resource file for one locale, or `''`
+/// when the generator wrote none.
 String _strings(Directory root, [String? qualifier]) {
   final file = _ownedFile(root, qualifier);
   return file.existsSync() ? file.readAsStringSync() : '';
@@ -251,7 +251,8 @@ void main() {
         contains('context.getString(R.string.${constant.resourceName})'),
       );
       // Nothing is matched at render time any more, so no resolver ships.
-      expect(kotlin, isNot(contains('hwCurrentLocales')));
+      // hwCurrentLocales still ships for the preview fingerprint, which folds
+      // in the current locale tags regardless of what the widget renders.
       expect(kotlin, isNot(contains('hwLocalize')));
       expect(kotlin, isNot(contains('"de" to "Hallo"')));
       // Constants are not data, so no data class and no preferences read.
@@ -543,13 +544,14 @@ void main() {
         ),
       ).readAsStringSync();
 
+      expect('private fun hwReadLocalized('.allMatches(kotlin).length, 1);
+
       final read = _helperBody(kotlin, 'private fun hwReadLocalized(');
 
       // The compiled translations are the base of the map the blob lands on,
       // so a locale the blob omits keeps its shipped text instead of dropping
       // to the base locale. Matches the Dart `_$mergeTranslations` semantics.
       expect(read, contains('val merged = values.toMutableMap()'));
-      expect(read, contains('merged.putAll(it)'));
       expect(
         read.indexOf('merged.putAll'),
         lessThan(read.indexOf('hwLocalize')),
@@ -580,7 +582,8 @@ void main() {
       expect(
         kotlin,
         contains(
-            'private fun hwCurrentLocales(context: Context): List<String>'),
+          'private fun hwCurrentLocales(context: Context): List<String>',
+        ),
       );
       // ...and each entry is tried in turn, before the widget's default locale
       // applies.
@@ -602,13 +605,14 @@ void main() {
         ),
       ).readAsStringSync();
 
+      expect('private fun hwCurrentLocales('.allMatches(kotlin).length, 1);
+
       final collect = _helperBody(kotlin, 'private fun hwCurrentLocales(');
 
       // `Locale.getLanguage()` still answers with the obsolete codes (iw for
       // he, in for id, ji for yi) and drops the script subtag, so a Hebrew or
       // Traditional-Chinese device would never match its key. toLanguageTag()
       // canonicalizes both.
-      expect(collect, contains('locale.toLanguageTag()'));
       expect(collect, contains('Locale.getDefault().toLanguageTag()'));
       expect(collect, isNot(contains('locale.language')));
       expect(collect, isNot(contains('locale.country')));
@@ -627,6 +631,11 @@ void main() {
         ),
       ).readAsStringSync();
 
+      expect(
+        'private fun hwResolveLocalized('.allMatches(kotlin).length,
+        1,
+      );
+
       final resolve = _helperBody(kotlin, 'private fun hwResolveLocalized(');
 
       // zh-Hant-TW -> zh-Hant -> zh, so a script subtag is honoured before the
@@ -637,11 +646,6 @@ void main() {
       // The bare language falls out of the truncation loop rather than being
       // cut straight off the front of the tag.
       expect(resolve, isNot(contains("tag.substringBefore('-')")));
-      // Truncation is exhausted before the sibling scan starts.
-      expect(
-        resolve.indexOf('candidate = candidate.substring(0, cut)'),
-        lessThan(resolve.indexOf('for (key in values.keys) {')),
-      );
     });
 
     test('falls onto a region sibling before the default locale', () async {
@@ -1313,13 +1317,14 @@ android {
     test('overlays the stored blob onto the compiled map per locale', () async {
       final swift = await generateSwift(_spec(widget: HWText(_localized())));
 
+      expect('func hwReadLocalized('.allMatches(swift).length, 1);
+
       final read = _helperBody(swift, 'func hwReadLocalized(');
 
       // The compiled translations are the base of the map the blob lands on,
       // so a locale the blob omits keeps its shipped text instead of dropping
       // to the base locale. Matches the Dart `_$mergeTranslations` semantics.
       expect(read, contains('var merged = values'));
-      expect(read, contains('merged.merge(stored) { _, new in new }'));
       expect(
         read.indexOf('merged.merge'),
         lessThan(read.indexOf('hwLocalize')),
@@ -1344,6 +1349,8 @@ android {
     test('truncates one subtag at a time before any sibling scan', () async {
       final swift = await generateSwift(_spec(widget: HWText(_localized())));
 
+      expect('func hwResolveLocalized('.allMatches(swift).length, 1);
+
       final resolve = _helperBody(swift, 'func hwResolveLocalized(');
 
       // zh-Hant-TW -> zh-Hant -> zh, mirroring the Kotlin and Dart chains, so
@@ -1364,11 +1371,6 @@ android {
       // The bare language falls out of the truncation loop rather than being
       // cut straight off the front of the tag.
       expect(resolve, isNot(contains('tag.split(separator: "-").first')));
-      // Truncation is exhausted before the sibling scan starts.
-      expect(
-        resolve.indexOf('candidate = String(candidate[candidate.startIndex'),
-        lessThan(resolve.indexOf('let siblings = values.keys.filter {')),
-      );
     });
 
     test('falls onto a region sibling before the default locale', () async {

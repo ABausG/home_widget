@@ -1726,11 +1726,15 @@ void main() {
       String className, {
       List<HWDataType<dynamic>> dataFields = const [],
       HWWidget? widgetTree,
+      bool autoUpdatePreview = true,
     }) =>
         WidgetSpec(
           data: HomeWidget(
             name: className,
-            android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+            android: HomeWidgetAndroidConfiguration(
+              packageName: 'com.example',
+              autoUpdatePreview: autoUpdatePreview,
+            ),
           ),
           className: className,
           dataFields: dataFields,
@@ -1910,7 +1914,7 @@ void main() {
       );
     });
 
-    test('emits no helpers for a widget with neither numbers nor dates',
+    test('emits no format helpers for a widget with neither numbers nor dates',
         () async {
       final content = await generateFor(
         specOf(
@@ -1923,12 +1927,29 @@ void main() {
       expect(content, isNot(contains('hwFormat')));
       expect(content, isNot(contains('hwParseIsoDate')));
       expect(content, isNot(contains('import java.text.NumberFormat')));
-      expect(content, isNot(contains('import java.util.Locale')));
       expect(content, isNot(contains('import java.util.Date')));
+      // The preview fingerprint reads the locale tags, and nothing else here
+      // declares its helper.
+      expect('private fun hwCurrentLocales('.allMatches(content).length, 1);
       expect(
         manifest.readAsStringSync(),
         isNot(contains('android.intent.action.LOCALE_CHANGED')),
       );
+    });
+
+    test('leaves out the locale helper when no preview is registered',
+        () async {
+      final content = await generateFor(
+        specOf(
+          'Plain',
+          dataFields: const [HWString('label')],
+          widgetTree: const HWText(HWString('label')),
+          autoUpdatePreview: false,
+        ),
+      );
+
+      expect(content, isNot(contains('hwCurrentLocales')));
+      expect(content, isNot(contains('import java.util.Locale')));
     });
 
     test('handles LOCALE_CHANGED for a formatting-only widget', () async {

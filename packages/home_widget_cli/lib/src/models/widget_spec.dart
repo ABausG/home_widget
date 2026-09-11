@@ -76,6 +76,37 @@ class JsonImageField {
 /// re-renders a preview.
 final String _hashSeparator = String.fromCharCode(31);
 
+/// [seeds] resolved to their transitive closure, each helper ordered after the
+/// ones it calls.
+///
+/// A generator can emit `helper.swift` / `helper.kotlin` down the returned list
+/// and every call is already in scope. Ordering breaks ties by name, so the
+/// same seeds always generate the same file.
+List<HWNativeHelper> resolveNativeHelpers(Iterable<HWNativeHelper> seeds) {
+  final closure = <String, HWNativeHelper>{};
+  void collect(HWNativeHelper helper) {
+    if (closure.containsKey(helper.name)) return;
+    closure[helper.name] = helper;
+    helper.dependencies.forEach(collect);
+  }
+
+  seeds.forEach(collect);
+
+  final names = closure.keys.toList()..sort();
+  final emitted = <String>{};
+  final ordered = <HWNativeHelper>[];
+  while (ordered.length < names.length) {
+    final next = names.firstWhere(
+      (name) =>
+          !emitted.contains(name) &&
+          closure[name]!.dependencies.every((d) => emitted.contains(d.name)),
+    );
+    emitted.add(next);
+    ordered.add(closure[next]!);
+  }
+  return ordered;
+}
+
 /// Specification for a home widget.
 class WidgetSpec {
   /// The annotated configuration data.
@@ -236,21 +267,25 @@ class WidgetSpec {
     ];
   }
 
-  /// Whether the generated native code needs the locale-resolution helpers.
+  /// Whether the generated native code reads the OS locale list, and so needs
+  /// the locale-resolution helpers.
   ///
   /// Constants and gallery strings do not: they are platform resources,
-  /// resolved by the OS. Everything else the widget matches itself, time-based
-  /// values included — being time-based changes where the translations come
-  /// from, not who resolves them.
-  bool get needsLocaleHelpers => allLocalizedStrings.any((f) => !f.isConstant);
+  /// resolved by the OS. Everything else the widget matches itself — while
+  /// reading a stored translation map or at the render site of a JSON leaf —
+  /// which is what puts the locale reader in [nativeHelpers].
+  bool get needsLocaleHelpers =>
+      nativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
 
   /// Whether the generated native code reads a translation blob back out of
   /// the preferences key of a data field, which only untimed keyed fields do.
-  bool get needsLocalizedRead => keyedLocalizedStrings.isNotEmpty;
+  bool get needsLocalizedRead =>
+      nativeHelpers.contains(HWNativeHelper.hwReadLocalized);
 
   /// Whether the generated native code reads a translation map out of the
   /// timed entry that is active at render time.
-  bool get needsTimedLocalizedRead => timedLocalizedStrings.isNotEmpty;
+  bool get needsTimedLocalizedRead =>
+      nativeHelpers.contains(HWNativeHelper.hwReadTimedLocalized);
 
   /// Whether reading the values of the generated data class resolves a
   /// translation, and so has to be handed the OS locale list.
@@ -576,38 +611,12 @@ class WidgetSpec {
   /// formatting a number — and every declared field the helpers reading it back
   /// — a date the widget never shows is still parsed into the data class. This
   /// is the one source of truth for what a generated file declares, so a field
-  /// nothing displays never drags a render helper in. Both are resolved to
-  /// their transitive closure, so a generator can emit `helper.swift` /
-  /// `helper.kotlin` down the list and every call is already in scope.
-  /// Ordering breaks ties by name, so the same widget always generates the
-  /// same file.
-  List<HWNativeHelper> get nativeHelpers {
-    final closure = <String, HWNativeHelper>{};
-    void collect(HWNativeHelper helper) {
-      if (closure.containsKey(helper.name)) return;
-      closure[helper.name] = helper;
-      helper.dependencies.forEach(collect);
-    }
-
-    effectiveWidgetTree.nativeHelpers.forEach(collect);
-    for (final field in dataFields) {
-      field.nativeHelpers.forEach(collect);
-    }
-
-    final names = closure.keys.toList()..sort();
-    final emitted = <String>{};
-    final ordered = <HWNativeHelper>[];
-    while (ordered.length < names.length) {
-      final next = names.firstWhere(
-        (name) =>
-            !emitted.contains(name) &&
-            closure[name]!.dependencies.every((d) => emitted.contains(d.name)),
-      );
-      emitted.add(next);
-      ordered.add(closure[next]!);
-    }
-    return ordered;
-  }
+  /// nothing displays never drags a render helper in. Both are handed to
+  /// [resolveNativeHelpers], which closes over their dependencies.
+  List<HWNativeHelper> get nativeHelpers => resolveNativeHelpers([
+        ...effectiveWidgetTree.nativeHelpers,
+        for (final field in dataFields) ...field.nativeHelpers,
+      ]);
 
   /// Image leaves of the untimed JSON groups.
   List<JsonImageField> get jsonImageFields => _jsonImages(jsonDataGroups);

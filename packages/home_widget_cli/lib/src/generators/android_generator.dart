@@ -58,9 +58,20 @@ class AndroidGenerator {
     // Gallery strings do not count — the launcher resolves those on its own.
     // A formatted number or date is locale-dependent too, so a widget that only
     // formats still goes stale on a language change; parsing a date it never
-    // shows does not.
+    // shows does not. The preview fingerprint's own locale read does not count
+    // either: it only decides when the gallery preview is re-rendered, not
+    // whether the running widget's content is stale.
     final handlesLocaleChange = spec.rendersLocalizedContent ||
         nativeHelpers.any((helper) => helper.localeDependent);
+
+    // A preview fingerprint always folds in the current locale tags, so
+    // whenever one is emitted the generated file needs hwCurrentLocales
+    // whether or not anything else already pulled it in.
+    final fileNativeHelpers = spec.androidAutoUpdatePreview
+        ? resolveNativeHelpers(
+            [...nativeHelpers, HWNativeHelper.hwCurrentLocales],
+          )
+        : nativeHelpers;
 
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
     if (!androidAppDir.existsSync()) {
@@ -167,20 +178,14 @@ class AndroidGenerator {
     // transitive closure, already ordered so each one is declared after what
     // it calls.
     final fileHelpers = <String>[
-      for (final helper in nativeHelpers)
+      for (final helper in fileNativeHelpers)
         helper.toKotlin(0, dataExpr: '').trim(),
     ];
     if (fileHelpers.isNotEmpty) {
-      final buffer = StringBuffer();
-      if (dataClassContent != null) buffer.write(dataClassContent);
-      for (final helper in fileHelpers) {
-        if (buffer.isNotEmpty) {
-          buffer.writeln();
-          buffer.writeln();
-        }
-        buffer.write(helper);
-      }
-      dataClassContent = buffer.toString();
+      dataClassContent = [
+        if (dataClassContent != null) dataClassContent,
+        ...fileHelpers,
+      ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
     if (needsResolver) {
@@ -277,7 +282,7 @@ class AndroidGenerator {
     // The helpers spell their types short; the aliased
     // `android.text.format.DateFormat` keeps the skeleton resolver apart from
     // the `java.text.DateFormat` the styled one uses.
-    for (final helper in nativeHelpers) {
+    for (final helper in fileNativeHelpers) {
       layoutImports.addAll(helper.kotlinImports);
     }
     if (useTheme) {
@@ -346,17 +351,11 @@ class AndroidGenerator {
     final previewFingerprint = spec.androidAutoUpdatePreview
         ? _previewFingerprintFunction(
             hasDataFields: hasDataFields,
-            needsResolver: needsResolver,
             needsLocaleArg: needsLocaleArg,
             previewNeedsLocaleArg: previewNeedsLocaleArg,
             previewPreferences: previewPreferences,
           )
         : null;
-    // Without a resolver of its own the fingerprint reads the configured
-    // locales directly, which only the compat call does below API 24.
-    if (previewFingerprint != null && !needsResolver) {
-      layoutImports.add('import androidx.core.os.ConfigurationCompat');
-    }
 
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
@@ -746,24 +745,17 @@ class AndroidGenerator {
   /// path stays the same when its bytes are replaced.
   String _previewFingerprintFunction({
     required bool hasDataFields,
-    required bool needsResolver,
     required bool needsLocaleArg,
     required bool previewNeedsLocaleArg,
     required String previewPreferences,
   }) {
     final buffer = StringBuffer();
     buffer.writeln('  fun previewFingerprint(context: Context): String {');
-    final parts = <String>['"${spec.previewContentHash}"'];
-
-    if (needsResolver) {
-      buffer.writeln('    val hwLocales = hwCurrentLocales(context)');
-      parts.add('hwLocales.joinToString(",")');
-    } else {
-      parts.add(
-        'ConfigurationCompat.getLocales(context.resources.configuration)'
-        '.toLanguageTags()',
-      );
-    }
+    buffer.writeln('    val hwLocales = hwCurrentLocales(context)');
+    final parts = <String>[
+      '"${spec.previewContentHash}"',
+      'hwLocales.joinToString(",")',
+    ];
 
     if (spec.androidUsesLiveDataInPreview && hasDataFields) {
       final usesPreviewFactory = spec.hasPreviewValues;

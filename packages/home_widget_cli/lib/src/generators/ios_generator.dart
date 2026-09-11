@@ -291,16 +291,10 @@ struct ${widgetClassName}Entry: TimelineEntry {
         helper.toSwift(0, dataExpr: '').trim(),
     ];
     if (fileHelpers.isNotEmpty) {
-      final buffer = StringBuffer();
-      if (extraContent != null) buffer.write(extraContent);
-      for (final helper in fileHelpers) {
-        if (buffer.isNotEmpty) {
-          buffer.writeln();
-          buffer.writeln();
-        }
-        buffer.write(helper);
-      }
-      extraContent = buffer.toString();
+      extraContent = [
+        if (extraContent != null) extraContent,
+        ...fileHelpers,
+      ].join('\n\n');
     }
 
     final dataExpr = !hasDataFields

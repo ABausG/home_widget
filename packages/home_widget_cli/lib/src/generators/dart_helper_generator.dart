@@ -94,60 +94,42 @@ class $className {
 ''');
 
     if (spec.data.android != null) {
-      buffer
-        ..writeln()
-        ..write(_updatePreviewHelper())
-        ..writeln()
-        ..write(_pinHelpers());
+      _appendSection(buffer, _updatePreviewHelper());
+      _appendSection(buffer, _pinHelpers());
     }
-    buffer
-      ..writeln()
-      ..write(_installHelpers());
+    _appendSection(buffer, _installHelpers());
 
-    if (spec.hasWidgetUrl) {
-      buffer
-        ..writeln()
-        ..write(_launchHelpers());
-    }
-    if (_allTimedImageKeys.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..write(_timedImageHelpers());
-    }
-    if (_localizedFields.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..write(_localizedReader());
-    }
-    if (_translationFields.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..write(_translationsMerger());
-    }
+    _appendSection(buffer, spec.hasWidgetUrl ? _launchHelpers() : null);
+    _appendSection(
+      buffer,
+      _allTimedImageKeys.isNotEmpty ? _timedImageHelpers() : null,
+    );
+    _appendSection(
+      buffer,
+      _localizedFields.isNotEmpty ? _localizedReader() : null,
+    );
+    _appendSection(
+      buffer,
+      _translationFields.isNotEmpty ? _translationsMerger() : null,
+    );
 
     buffer.writeln('}');
 
-    if (_translationFields.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..write(_translationsClass());
-    }
+    _appendSection(
+      buffer,
+      _translationFields.isNotEmpty ? _translationsClass() : null,
+    );
 
-    if (hasTimedData) {
-      buffer
-        ..writeln()
-        ..write(_timedDataClass(timedFields));
-    }
+    _appendSection(buffer, hasTimedData ? _timedDataClass(timedFields) : null);
 
     for (final group in [...jsonGroups, ...timedJsonGroups]) {
-      buffer
-        ..writeln()
-        ..write(
-          _jsonNodeClass(
-            className: _dartJsonClassName(group.key),
-            node: _buildJsonTree(group.children),
-          ),
-        );
+      _appendSection(
+        buffer,
+        _jsonNodeClass(
+          className: _dartJsonClassName(group.key),
+          node: _buildJsonTree(group.children),
+        ),
+      );
     }
     final usedReaders = <String>{
       for (final group in [...jsonGroups, ...timedJsonGroups])
@@ -159,14 +141,22 @@ class $className {
       for (final field in spec.primitiveDataFields)
         if (field is HWDateTime) _dartReadFunction(field),
     };
-    if (usedReaders.isNotEmpty) {
-      buffer
-        ..writeln()
-        ..write(_jsonReaders(usedReaders));
-    }
+    _appendSection(
+      buffer,
+      usedReaders.isNotEmpty ? _jsonReaders(usedReaders) : null,
+    );
 
     return DartFormatter(languageVersion: DartFormatter.latestLanguageVersion)
         .format(buffer.toString());
+  }
+
+  /// Appends [section] to [buffer] on its own blank-line-separated block, or
+  /// does nothing when there is none to add.
+  void _appendSection(StringBuffer buffer, String? section) {
+    if (section == null) return;
+    buffer
+      ..writeln()
+      ..write(section);
   }
 
   /// Keyed localized strings, stored as one JSON blob of locale tag to text

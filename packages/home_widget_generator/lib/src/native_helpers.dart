@@ -895,6 +895,45 @@ private fun hwDecodeImage(
     },
     swiftImports: {'import ImageIO'},
     localeDependent: false,
+  ),
+
+  /// Whether there is an image to display for a stored value.
+  ///
+  /// Routes the value the way [hwDecodeImage] does — an absolute path is a file
+  /// the app saved, anything else a Flutter asset key — and answers for the one
+  /// it lands on: the file is on disk, or the key names an asset that shipped
+  /// with the app. Nothing stored, or an empty string a cleared key can read
+  /// back as, is absent on both platforms.
+  hwImageExists(
+    swift: '''
+func hwImageExists(_ path: String?) -> Bool {
+  guard let path, !path.isEmpty else { return false }
+  if path.hasPrefix("/") {
+    return FileManager.default.fileExists(atPath: path)
+  }
+  let asset = Bundle.main.bundleURL
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+    .appendingPathComponent(path)
+  return FileManager.default.fileExists(atPath: asset.path)
+}''',
+    kotlin: r'''
+private fun hwImageExists(context: Context, path: String?): Boolean {
+    if (path.isNullOrEmpty()) return false
+    if (path.startsWith("/")) return File(path).exists()
+    return try {
+        context.assets.open("flutter_assets/$path").close()
+        true
+    } catch (_: Exception) {
+        false
+    }
+}''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import java.io.File',
+    },
+    localeDependent: false,
   );
 
   const HWNativeHelper({

@@ -133,6 +133,20 @@ sealed class HWDataType<T> {
   /// the [androidReadValue] / `androidJsonReadValue` split.
   List<HWNativeHelper> get jsonNativeHelpers => nativeHelpers;
 
+  /// The native functions called to display a value of this type, before their
+  /// own dependencies are resolved.
+  ///
+  /// Empty for the types shown exactly as they were read; a type whose
+  /// [kotlinReadExpr] / [swiftReadExpr] puts the value through a native
+  /// function names it here, and the widget rendering the value folds these
+  /// into its own `renderHelpers` — so a field nothing displays never drags one
+  /// in.
+  Set<HWNativeHelper> get renderHelpers => const {};
+
+  /// [renderHelpers] for a value displayed out of a decoded JSON group,
+  /// mirroring the [nativeHelpers] / [jsonNativeHelpers] split.
+  Set<HWNativeHelper> get jsonRenderHelpers => renderHelpers;
+
   /// Whether [other] describes the same field as this one.
   ///
   /// Two declarations of a key are compatible when they are the same kind of
@@ -466,15 +480,26 @@ class HWLocalizedString extends HWString {
       isConstant ? const [] : const [HWNativeHelper.hwReadTimedLocalized];
 
   /// A JSON leaf carries no stored locale map to merge — the decoded group is
-  /// the map — so it is resolved at the render site out of the compiled
+  /// the map — so reading one resolves nothing. The exception is a preview,
+  /// whose fallback is [previewTranslations] resolved as the group is decoded.
+  @override
+  List<HWNativeHelper> get jsonNativeHelpers =>
+      isConstant || previewTranslations == null
+          ? const []
+          : const [
+              HWNativeHelper.hwCurrentLocales,
+              HWNativeHelper.hwResolveLocalized,
+            ];
+
+  /// A JSON leaf is resolved where it is displayed, out of the compiled
   /// translations alone.
   @override
-  List<HWNativeHelper> get jsonNativeHelpers => isConstant
-      ? const []
-      : const [
+  Set<HWNativeHelper> get jsonRenderHelpers => isConstant
+      ? const {}
+      : const {
           HWNativeHelper.hwCurrentLocales,
           HWNativeHelper.hwResolveLocalized,
-        ];
+        };
 
   @override
   String androidReadValue({
@@ -1438,6 +1463,11 @@ class HWJson<T> extends HWDataType<T> {
   @override
   List<HWNativeHelper> get timedNativeHelpers => jsonNativeHelpers;
 
+  /// Displaying the group displays its leaf, whose value the read expression
+  /// resolves out of the decoded group.
+  @override
+  Set<HWNativeHelper> get renderHelpers => child.jsonRenderHelpers;
+
   /// The group travels as one encoded string; the leaf's preview applies where
   /// that string is decoded.
   @override
@@ -1739,6 +1769,11 @@ class HWTimedData<T> extends HWDataType<T> {
   /// preferences key of its own.
   @override
   List<HWNativeHelper> get nativeHelpers => data.timedNativeHelpers;
+
+  /// Being time-based changes where the value is read, not how it is
+  /// displayed.
+  @override
+  Set<HWNativeHelper> get renderHelpers => data.renderHelpers;
 
   @override
   HWDataType<dynamic> get unwrapped => data;

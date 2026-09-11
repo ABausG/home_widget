@@ -48,10 +48,11 @@ class ThemedCounterHomeWidget : GlanceAppWidget() {
   }
 
   fun previewFingerprint(context: Context): String {
+    val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ThemedCounterData.fromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
             "7b21a8fe",
-            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
         .joinToString("|")
@@ -128,6 +129,21 @@ data class ThemedCounterData(
       )
     }
   }
+}
+
+private fun hwCurrentLocales(context: Context): List<String> {
+  val configured = ConfigurationCompat.getLocales(context.resources.configuration)
+  val tags = mutableListOf<String>()
+  for (index in 0 until configured.size()) {
+    val locale = configured[index] ?: continue
+    val tag = locale.toLanguageTag()
+    if (tag.isNotEmpty() && tag != "und") tags.add(tag)
+  }
+  if (tags.isEmpty()) {
+    val fallback = Locale.getDefault().toLanguageTag()
+    if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
+  }
+  return tags
 }
 
 private fun hwFormatLocale(context: Context): Locale =

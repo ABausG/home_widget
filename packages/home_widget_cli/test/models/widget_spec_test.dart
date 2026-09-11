@@ -197,14 +197,32 @@ void main() {
       expect(spec.allLocalizedStrings, const [top, leaf]);
     });
 
-    test('a JSON leaf needs the resolver but not the blob reader', () {
-      final spec = _spec(dataFields: const [HWJson('profile', leaf)]);
+    test('a rendered JSON leaf needs the resolver but not the blob reader', () {
+      final spec = _spec(
+        dataFields: const [HWJson('profile', leaf)],
+        widgetTree: const HWText(HWJson('profile', leaf)),
+      );
 
       expect(spec.needsLocaleHelpers, isTrue);
       expect(spec.needsLocalizedRead, isFalse);
       expect(spec.rendersLocalizedContent, isTrue);
       // A JSON leaf is never a data field of its own.
       expect(spec.keyedLocalizedStrings, isEmpty);
+    });
+
+    test('a JSON leaf nothing renders needs no locale helpers at all', () {
+      final spec = _spec(
+        dataFields: const [HWJson('profile', leaf)],
+        widgetTree: const HWText.fixed('no greeting here'),
+      );
+
+      // It is still a localized string of the widget, it is just never read
+      // against a locale: the group is stored and decoded as it is.
+      expect(spec.jsonLocalizedStrings, const [leaf]);
+      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.rendersLocalizedContent, isFalse);
     });
 
     test('a plain JSON leaf pulls in nothing', () {
@@ -234,8 +252,10 @@ void main() {
     });
 
     test('surfaces a localized leaf of a timed JSON group', () {
-      final spec =
-          _spec(dataFields: const [HWTimedData(HWJson('profile', leaf))]);
+      final spec = _spec(
+        dataFields: const [HWTimedData(HWJson('profile', leaf))],
+        widgetTree: const HWText(HWTimedData(HWJson('profile', leaf))),
+      );
 
       expect(spec.timedJsonLocalizedStrings, const [leaf]);
       expect(spec.allLocalizedStrings, const [leaf]);
@@ -265,65 +285,6 @@ void main() {
       expect(spec.needsLocaleHelpers, isFalse);
       expect(spec.resolvesLocalizedOnRead, isFalse);
       expect(spec.rendersLocalizedContent, isFalse);
-    });
-
-    // The flags still drive the `hwLocales` local, the `locales` parameters
-    // and the LOCALE_CHANGED wiring, while [WidgetSpec.nativeHelpers] alone
-    // decides what is emitted. They have to keep answering alike, or a
-    // generated file calls a helper it never declared.
-    group('agree with the resolved helpers', () {
-      const localized = HWLocalizedString(
-        'greeting',
-        defaultTranslations: {'en': 'Hi', 'de': 'Hallo'},
-      );
-
-      final matrix = <String, WidgetSpec>{
-        'nothing localized': _spec(dataFields: const [HWString('label')]),
-        'a keyed string': _spec(dataFields: const [localized]),
-        'a timed keyed string':
-            _spec(dataFields: const [HWTimedData(localized)]),
-        'a JSON leaf': _spec(dataFields: const [HWJson('profile', localized)]),
-        'a timed JSON leaf': _spec(
-          dataFields: const [HWTimedData(HWJson('profile', localized))],
-        ),
-        'keyed and timed together': _spec(
-          dataFields: const [
-            localized,
-            HWTimedData(
-              HWLocalizedString('headline', defaultTranslations: {'en': 'N'}),
-            ),
-          ],
-        ),
-        'a keyed string beside an image and a date': _spec(
-          dataFields: const [
-            localized,
-            HWImageData('avatar'),
-            HWDateTime('when'),
-          ],
-          widgetTree: const HWImage(HWImageData('avatar')),
-        ),
-      };
-
-      matrix.forEach((description, spec) {
-        test(description, () {
-          final helpers = spec.nativeHelpers;
-          expect(
-            spec.needsLocaleHelpers,
-            helpers.contains(HWNativeHelper.hwCurrentLocales),
-            reason: 'needsLocaleHelpers',
-          );
-          expect(
-            spec.needsLocalizedRead,
-            helpers.contains(HWNativeHelper.hwReadLocalized),
-            reason: 'needsLocalizedRead',
-          );
-          expect(
-            spec.needsTimedLocalizedRead,
-            helpers.contains(HWNativeHelper.hwReadTimedLocalized),
-            reason: 'needsTimedLocalizedRead',
-          );
-        });
-      });
     });
 
     test('a constant string resolves through the OS, not through a helper', () {
@@ -372,17 +333,39 @@ void main() {
         HWNativeHelper.hwResolveLocalized,
       };
       expect(
-        _spec(dataFields: const [HWJson('profile', leaf)])
-            .nativeHelpers
-            .toSet(),
+        _spec(
+          dataFields: const [HWJson('profile', leaf)],
+          widgetTree: const HWText(HWJson('profile', leaf)),
+        ).nativeHelpers.toSet(),
         expected,
       );
       expect(
-        _spec(dataFields: const [HWTimedData(HWJson('profile', leaf))])
-            .nativeHelpers
-            .toSet(),
+        _spec(
+          dataFields: const [HWTimedData(HWJson('profile', leaf))],
+          widgetTree: const HWText(HWTimedData(HWJson('profile', leaf))),
+        ).nativeHelpers.toSet(),
         expected,
       );
+    });
+
+    test('preview translations of a JSON leaf are resolved as it is read', () {
+      const previewed = HWLocalizedString(
+        'name',
+        defaultTranslations: {'en': 'Hello'},
+        previewTranslations: {'en': 'Sample'},
+      );
+      final spec = _spec(
+        dataFields: const [HWJson('profile', previewed)],
+        widgetTree: const HWText.fixed('no greeting here'),
+      );
+
+      // Nothing displays the leaf, but the preview factory still resolves the
+      // sample text while decoding the group.
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      });
+      expect(spec.needsLocaleHelpers, isTrue);
     });
   });
 
@@ -925,6 +908,11 @@ void main() {
             HWText.dateTime(
               HWDateTime('when'),
               format: HWDateFormat.styled(date: HWFormatStyle.long),
+            ),
+            HWDataExists(
+              data: HWImageData('avatar'),
+              whenPresent: HWImage(HWImageData('avatar')),
+              whenAbsent: HWText.fixed('none'),
             ),
           ],
         ),

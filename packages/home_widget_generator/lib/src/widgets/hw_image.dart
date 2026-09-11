@@ -198,16 +198,17 @@ class HWImage extends HWWidget implements HWDataWidget {
 
     final image = imageData;
     final sizeArgs = '${width ?? 'nil'}, ${height ?? 'nil'}';
+    final decode = HWNativeHelper.hwDecodeImage.name;
     if (image.isAsset) {
       final asset = escapeSwiftStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
-        '${pad}if let uiImage = hwDecodeImage("$asset", $sizeArgs) {',
+        '${pad}if let uiImage = $decode("$asset", $sizeArgs) {',
       );
     } else {
       final access = dataType.swiftAccess(dataExpr);
       buffer.writeln(
         '${pad}if let path = $access, '
-        'let uiImage = hwDecodeImage(path, $sizeArgs) {',
+        'let uiImage = $decode(path, $sizeArgs) {',
       );
     }
     buffer.writeln('$pad    Image(uiImage: uiImage)');
@@ -255,11 +256,12 @@ class HWImage extends HWWidget implements HWDataWidget {
 
     final image = imageData;
     final sizeArgs = '${width ?? 'null'}, ${height ?? 'null'}';
+    final decode = HWNativeHelper.hwDecodeImage.name;
     final String closePad;
     if (image.isAsset) {
       final asset = escapeKotlinStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
-        '${pad}hwDecodeImage(context, "$asset", $sizeArgs)'
+        '$pad$decode(context, "$asset", $sizeArgs)'
         '?.let { bitmap ->',
       );
       closePad = pad;
@@ -267,7 +269,7 @@ class HWImage extends HWWidget implements HWDataWidget {
       final access = dataType.kotlinAccess(dataExpr);
       buffer.writeln(
         '$pad$access?.let { path -> '
-        'hwDecodeImage(context, path, $sizeArgs) }',
+        '$decode(context, path, $sizeArgs) }',
       );
       buffer.writeln('$pad    ?.let { bitmap ->');
       closePad = '$pad    ';

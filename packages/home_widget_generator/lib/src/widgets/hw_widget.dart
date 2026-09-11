@@ -113,7 +113,8 @@ sealed class HWWidget implements HWGeneratable {
   ///
   /// Empty for a widget that renders its values as they are stored; the ones
   /// that put a value through a native function — [HWText] formatting a number
-  /// or date, [HWImage] decoding a picture — name it here, so that a field
+  /// or resolving a translation, [HWImage] decoding a picture — name it here,
+  /// [HWDataType.renderHelpers] of what they display included, so that a field
   /// declared but never displayed does not drag a render helper in.
   Set<HWNativeHelper> get renderHelpers => const {};
 

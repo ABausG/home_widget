@@ -1101,6 +1101,21 @@ void main() {
       );
     });
 
+    test('a localized JSON leaf is resolved where the text renders it', () {
+      const leaf = HWLocalizedString(
+        'name',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+      );
+      const resolvers = {'hwCurrentLocales', 'hwResolveLocalized'};
+      expect(namesOf(const HWText(HWJson('profile', leaf))), resolvers);
+      expect(
+        namesOf(const HWText(HWTimedData(HWJson('profile', leaf)))),
+        resolvers,
+      );
+      // A keyed string is resolved as it is read instead.
+      expect(namesOf(const HWText(leaf)), {'hwReadLocalized'});
+    });
+
     test('a date nobody displays still needs the parser', () {
       const tree = HWDataExists(
         data: HWDateTime('when'),

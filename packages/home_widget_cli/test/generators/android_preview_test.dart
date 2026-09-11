@@ -664,19 +664,24 @@ void main() {
         content,
         contains(
           '  fun previewFingerprint(context: Context): String {\n'
+          '    val hwLocales = hwCurrentLocales(context)\n'
           '    val hwPreviewData =\n'
           '        PreviewData.previewFromPreferences('
           'HomeWidgetPlugin.getData(context))\n'
           '    return listOf(\n'
           '      "${spec.previewContentHash}",\n'
-          '      ConfigurationCompat.getLocales(context.resources.configuration)'
-          '.toLanguageTags(),\n'
+          '      hwLocales.joinToString(","),\n'
           '      hwPreviewData.toString(),\n'
           '    ).joinToString("|")\n'
           '  }',
         ),
       );
-      expect(content, contains('import androidx.core.os.ConfigurationCompat'));
+      expect(
+        content,
+        contains(
+          'private fun hwCurrentLocales(context: Context): List<String>',
+        ),
+      );
     });
 
     test('covers the mtime of every runtime image the preview reads', () async {
@@ -780,13 +785,7 @@ void main() {
         _spec(widget: const HWText(HWInt('count'))),
       );
 
-      expect(
-        content,
-        contains(
-          '      ConfigurationCompat.getLocales(context.resources.configuration)'
-          '.toLanguageTags(),',
-        ),
-      );
+      expect(content, contains('      hwLocales.joinToString(","),'));
       expect(content, contains('private fun hwFormatLocale('));
       expect(
         'import androidx.core.os.ConfigurationCompat'

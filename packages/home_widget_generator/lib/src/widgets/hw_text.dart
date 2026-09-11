@@ -93,7 +93,8 @@ class HWText extends HWWidget implements HWDataWidget {
     return formatsDate ? HWDateFormat.defaultFormat : null;
   }
 
-  /// The native functions rendering this text, the time zone's included.
+  /// The native functions rendering this text: the format's, the time zone's,
+  /// and whatever displaying the bound value itself goes through.
   @override
   Set<HWNativeHelper> get renderHelpers => {
         if (effectiveNumberFormat case final format?) format.helper,
@@ -101,6 +102,7 @@ class HWText extends HWWidget implements HWDataWidget {
           format.helper,
           ...timeZone.helpers,
         ],
+        ...?dataType?.renderHelpers,
       };
 
   @override

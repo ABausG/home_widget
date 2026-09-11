@@ -82,6 +82,7 @@ void main() {
         'DateFormat',
         'DecimalFormat',
         'DecimalFormatSymbols',
+        'File',
         'JSONObject',
         'Locale',
         'NumberFormat',
@@ -171,6 +172,7 @@ void main() {
         HWNativeHelper.hwLocalizedEntries,
         HWNativeHelper.hwDecodeLocalized,
         HWNativeHelper.hwDecodeImage,
+        HWNativeHelper.hwImageExists,
       };
       for (final helper in HWNativeHelper.values) {
         expect(
@@ -631,6 +633,63 @@ void main() {
         'import android.graphics.Bitmap',
         'import android.graphics.BitmapFactory',
       });
+    });
+
+    test('depends on nothing', () {
+      expect(helper.dependencies, isEmpty);
+    });
+  });
+
+  group('hwImageExists', () {
+    const helper = HWNativeHelper.hwImageExists;
+
+    test('reads nothing stored and an empty path as absent', () {
+      expect(swiftOf(helper), contains('!path.isEmpty'));
+      expect(kotlinOf(helper), contains('path.isNullOrEmpty()'));
+    });
+
+    test('checks an absolute path on disk', () {
+      expect(swiftOf(helper), contains('path.hasPrefix("/")'));
+      expect(
+        swiftOf(helper),
+        contains('FileManager.default.fileExists(atPath: path)'),
+      );
+      expect(kotlinOf(helper), contains('path.startsWith("/")'));
+      expect(kotlinOf(helper), contains('File(path).exists()'));
+    });
+
+    test('checks anything else against the bundled Flutter assets', () {
+      expect(
+        swiftOf(helper),
+        contains('Frameworks/App.framework/flutter_assets'),
+      );
+      expect(
+        kotlinOf(helper),
+        contains(r'context.assets.open("flutter_assets/$path")'),
+      );
+      expect(kotlinOf(helper), contains('catch (_: Exception)'));
+    });
+
+    test('routes a path the way the decoder does', () {
+      final decoder = swiftOf(HWNativeHelper.hwDecodeImage);
+      expect(decoder, contains('Frameworks/App.framework/flutter_assets'));
+      expect(
+        kotlinOf(HWNativeHelper.hwDecodeImage),
+        contains(r'context.assets.open("flutter_assets/$path")'),
+      );
+    });
+
+    test('answers with a plain boolean', () {
+      expect(swiftOf(helper), contains('-> Bool'));
+      expect(kotlinOf(helper), contains('): Boolean'));
+    });
+
+    test('names the Android types it uses, and no Swift framework', () {
+      expect(helper.kotlinImports, {
+        'import android.content.Context',
+        'import java.io.File',
+      });
+      expect(helper.swiftImports, isEmpty);
     });
 
     test('depends on nothing', () {

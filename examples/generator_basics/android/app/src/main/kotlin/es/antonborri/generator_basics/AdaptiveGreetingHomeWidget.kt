@@ -27,6 +27,7 @@ import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
+import java.util.Locale
 
 class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -42,9 +43,10 @@ class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
   }
 
   fun previewFingerprint(context: Context): String {
+    val hwLocales = hwCurrentLocales(context)
     return listOf(
             "9ace95f2",
-            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            hwLocales.joinToString(","),
         )
         .joinToString("|")
   }
@@ -67,4 +69,19 @@ class AdaptiveGreetingHomeWidget : GlanceAppWidget() {
       }
     }
   }
+}
+
+private fun hwCurrentLocales(context: Context): List<String> {
+  val configured = ConfigurationCompat.getLocales(context.resources.configuration)
+  val tags = mutableListOf<String>()
+  for (index in 0 until configured.size()) {
+    val locale = configured[index] ?: continue
+    val tag = locale.toLanguageTag()
+    if (tag.isNotEmpty() && tag != "und") tags.add(tag)
+  }
+  if (tags.isEmpty()) {
+    val fallback = Locale.getDefault().toLanguageTag()
+    if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
+  }
+  return tags
 }

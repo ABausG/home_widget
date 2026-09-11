@@ -76,9 +76,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
           .frame(width: 24.0, height: 24.0)
           .accessibilityLabel("App logo")
       }
-      if let hwImagePath = entry.data.picture,
-        !hwImagePath.hasPrefix("/") || FileManager.default.fileExists(atPath: hwImagePath)
-      {
+      if hwImageExists(entry.data.picture) {
         if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
           Image(uiImage: uiImage)
             .resizable()
@@ -296,4 +294,17 @@ func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> U
     let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
   else { return nil }
   return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
+}
+
+func hwImageExists(_ path: String?) -> Bool {
+  guard let path, !path.isEmpty else { return false }
+  if path.hasPrefix("/") {
+    return FileManager.default.fileExists(atPath: path)
+  }
+  let asset = Bundle.main.bundleURL
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+    .appendingPathComponent(path)
+  return FileManager.default.fileExists(atPath: asset.path)
 }

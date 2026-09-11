@@ -37,6 +37,8 @@ import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
+import java.io.File
+import java.util.Locale
 
 class ImageShowcaseHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
@@ -56,10 +58,11 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
   }
 
   fun previewFingerprint(context: Context): String {
+    val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "83ae6ce0",
-            ConfigurationCompat.getLocales(context.resources.configuration).toLanguageTags(),
+            "e9e6ed83",
+            hwLocales.joinToString(","),
             hwPreviewData.toString(),
             listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
                 .joinToString(",") { hwPath ->
@@ -103,11 +106,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 modifier = GlanceModifier.width(24.0.dp).height(24.0.dp),
             )
           }
-          if (
-              widgetData.picture?.let {
-                it.isNotEmpty() && (!it.startsWith("/") || java.io.File(it).exists())
-              } == true
-          ) {
+          if (hwImageExists(context, widgetData.picture)) {
             widgetData.picture
                 ?.let { path -> hwDecodeImage(context, path, 64.0, 64.0) }
                 ?.let { bitmap ->
@@ -287,6 +286,21 @@ data class ImageShowcaseContactJsonData(
   }
 }
 
+private fun hwCurrentLocales(context: Context): List<String> {
+  val configured = ConfigurationCompat.getLocales(context.resources.configuration)
+  val tags = mutableListOf<String>()
+  for (index in 0 until configured.size()) {
+    val locale = configured[index] ?: continue
+    val tag = locale.toLanguageTag()
+    if (tag.isNotEmpty() && tag != "und") tags.add(tag)
+  }
+  if (tags.isEmpty()) {
+    val fallback = Locale.getDefault().toLanguageTag()
+    if (fallback.isNotEmpty() && fallback != "und") tags.add(fallback)
+  }
+  return tags
+}
+
 private fun hwDecodeImage(
     context: Context,
     path: String,
@@ -343,5 +357,16 @@ private fun hwDecodeImage(
     }
   } catch (_: Exception) {
     null
+  }
+}
+
+private fun hwImageExists(context: Context, path: String?): Boolean {
+  if (path.isNullOrEmpty()) return false
+  if (path.startsWith("/")) return File(path).exists()
+  return try {
+    context.assets.open("flutter_assets/$path").close()
+    true
+  } catch (_: Exception) {
+    false
   }
 }
