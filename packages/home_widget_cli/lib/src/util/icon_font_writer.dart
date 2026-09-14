@@ -79,10 +79,20 @@ Future<WrittenIconFonts> _writeIconFonts({
   required bool Function(String name) isOwned,
 }) async {
   final written = <String>[];
+  final namedBy = <String, HWIconFont>{};
   for (final entry in spec.iconCodePoints.entries) {
     final source = fonts.resolveIconFont(entry.key);
     final bytes = await fonts.subsetIconFont(source, entry.value);
     final name = '${resourceName(entry.key)}.${source.extension}';
+    final clash = namedBy[name];
+    if (clash != null) {
+      throw GeneratorError(
+        'The icon fonts ${_describe(clash)} and ${_describe(entry.key)} of '
+        'widget "${spec.data.name}" both write "$name". Rename one of the '
+        'families so each icon font gets a file of its own.',
+      );
+    }
+    namedBy[name] = entry.key;
     final file = File(p.join(directory.path, name));
     if (await writeBytesIfChanged(file, bytes)) {
       logger.detail('Generated: ${file.path}');
@@ -97,6 +107,10 @@ Future<WrittenIconFonts> _writeIconFonts({
   );
   return WrittenIconFonts(written: written, removed: removed);
 }
+
+String _describe(HWIconFont font) => font.package == null
+    ? '"${font.family}"'
+    : '"${font.family}" of package "${font.package}"';
 
 /// Deletes the files of [directory] that [isOwned] claims and [keep] does not
 /// list.

@@ -1032,6 +1032,41 @@ void main() {
       expect(second, first);
     });
 
+    test('restores a build file that lost its target membership', () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
+      final wired = await wire();
+
+      // Unchecking target membership in Xcode drops the PBXBuildFile and keeps
+      // the file reference.
+      pbxprojFile.writeAsStringSync(
+        wired
+            .split('\n')
+            .where(
+              (line) => !(line.contains('isa = PBXBuildFile;') &&
+                  line.contains('hw_font_icons_materialicons.otf')),
+            )
+            .join('\n'),
+      );
+
+      final result = await wire();
+
+      expect(
+        RegExp(
+          r'isa = PBXBuildFile; fileRef = \w+ '
+          r'/\* hw_font_icons_materialicons\.otf \*/',
+        ).allMatches(result),
+        hasLength(1),
+      );
+      final resourcesPhase = RegExp(
+        r'isa = PBXResourcesBuildPhase;[\s\S]*?files = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(
+        'hw_font_icons_materialicons.otf in Resources'
+            .allMatches(resourcesPhase),
+        hasLength(1),
+      );
+    });
+
     test('a pruned file loses every reference to it', () async {
       pbxprojFile.writeAsStringSync(_buildPbxprojWithExtension());
       await wire();

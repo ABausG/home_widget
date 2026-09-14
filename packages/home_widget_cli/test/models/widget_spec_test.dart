@@ -125,24 +125,6 @@ void main() {
       expect(spec.iconCodePoints[brandIcons], {0xE88A, 0xE25B});
     });
 
-    test('usesFonts is true for either a custom family or an icon', () {
-      expect(_spec(widgetTree: const HWText.fixed('a')).usesFonts, isFalse);
-      expect(
-        _spec(
-          widgetTree: const HWText.fixed(
-            'a',
-            style: HWTextStyle(fontFamily: 'Chewy'),
-          ),
-        ).usesFonts,
-        isTrue,
-      );
-      expect(
-        _spec(widgetTree: const HWIcon.glyph(0xE88A, font: brandIcons))
-            .usesFonts,
-        isTrue,
-      );
-    });
-
     test('default tree renders icon fields with HWIcon', () {
       final spec = _spec(
         name: 'MyWidget',

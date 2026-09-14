@@ -1,4 +1,4 @@
-import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
 /// Converts an arbitrary string into PascalCase suitable for class names.
 String toPascalCase(String input) {

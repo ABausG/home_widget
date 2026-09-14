@@ -82,7 +82,7 @@ void main() {
 
       expect(
         result.written,
-        ['hw_font_mood__icons_brandicons_brand_icons.otf'],
+        ['hw_font_mood__icons_brandicons__brand_icons.otf'],
       );
       expect(
         File(p.join(androidFontDir().path, result.written.single)).existsSync(),
@@ -103,7 +103,7 @@ void main() {
       final file = File(
         p.join(
           androidFontDir().path,
-          'hw_font_mood__icons_brandicons_brand_icons.otf',
+          'hw_font_mood__icons_brandicons__brand_icons.otf',
         ),
       );
       final before = file.statSync().modified;
@@ -200,7 +200,7 @@ void main() {
       expect(result.written, isEmpty);
       expect(
         result.removed,
-        ['hw_font_mood__icons_brandicons_brand_icons.otf'],
+        ['hw_font_mood__icons_brandicons__brand_icons.otf'],
       );
       expect(androidFontDir().listSync(), isEmpty);
     });
@@ -246,7 +246,7 @@ void main() {
         fonts: fonts,
       );
 
-      expect(result.written, ['hw_font_icons_brandicons_brand_icons.otf']);
+      expect(result.written, ['hw_font_icons_brandicons__brand_icons.otf']);
       expect(
         File(p.join(extensionDir.path, result.written.single)).existsSync(),
         isTrue,
@@ -272,30 +272,53 @@ void main() {
     });
   });
 
-  test('a font is subset to every glyph the field may hold', () async {
-    final spec = _spec(
-      widget: const HWIcon(
-        HWIconData.resolved(
-          'mood',
-          entries: [
-            HWIconEntry('happy', 0xE88A),
-            HWIconEntry('sad', 0xE25B),
-          ],
-          iconFont: _brandIcons,
-        ),
-      ),
-      dataFields: const [
-        HWIconData.resolved(
-          'mood',
-          entries: [
-            HWIconEntry('happy', 0xE88A),
-            HWIconEntry('sad', 0xE25B),
-          ],
-          iconFont: _brandIcons,
-        ),
-      ],
+  test('two icon fonts writing the same file name are rejected', () async {
+    // Two families of one package whose resource names snake down to the same
+    // string: one file cannot carry the glyphs of both.
+    final package = writeFontPackage(
+      tempDir,
+      'brand_icons',
+      pubspecFonts: '''
+    - family: Brand Icons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+    - family: Brand-Icons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+      assets: ['fonts/BrandIcons.otf'],
+    );
+    writeFontFixture(
+      tempDir,
+      packages: [FixturePackage(name: 'brand_icons', root: package.path)],
     );
 
-    expect(spec.iconCodePoints[_brandIcons], {0xE88A, 0xE25B});
+    await expectLater(
+      writeAndroidIconFonts(
+        spec: _spec(
+          widget: const HWColumn(
+            children: [
+              HWIcon.glyph(
+                0xE88A,
+                font: HWIconFont(family: 'Brand Icons', package: 'brand_icons'),
+              ),
+              HWIcon.glyph(
+                0xE25B,
+                font: HWIconFont(family: 'Brand-Icons', package: 'brand_icons'),
+              ),
+            ],
+          ),
+        ),
+        projectRoot: tempDir,
+        fonts: FontResolver(tempDir),
+      ),
+      throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('Brand Icons'), contains('Brand-Icons')),
+        ),
+      ),
+    );
   });
 }

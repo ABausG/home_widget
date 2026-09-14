@@ -5,6 +5,7 @@
 /// guarantees for general public use.
 library;
 
+export 'src/dart_reserved_words.dart';
 export 'src/generator_error.dart';
 export 'src/parser/widget_tree_parser.dart';
 export 'src/parser/widget_value_decoder.dart';

@@ -173,6 +173,70 @@ void main() {
       final icons = _mood(defaultValue: 0xE88A, previewValue: 0xE42D);
       expect(icons.validate, returnsNormally);
     });
+
+    test('rejects an icon outside the Unicode range', () {
+      expect(
+        () => const HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('broken', -1)],
+          iconFont: _materialIcons,
+        ).validate(),
+        _throwsGeneratorError(
+          allOf(
+            contains('The icon "broken" of HWIconData "mood"'),
+            contains('outside the Unicode range'),
+          ),
+        ),
+      );
+      expect(
+        () => const HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('broken', 0x110000)],
+          iconFont: _materialIcons,
+        ).validate(),
+        _throwsGeneratorError(contains('outside the Unicode range')),
+      );
+    });
+
+    test('rejects an icon that is half a codepoint', () {
+      expect(
+        () => const HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('half', 0xD800)],
+          iconFont: _materialIcons,
+        ).validate(),
+        _throwsGeneratorError(
+          allOf(
+            contains('The icon "half" of HWIconData "mood"'),
+            contains('surrogate'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a default that is no codepoint', () {
+      expect(
+        () => _mood(defaultValue: 0x110000).validate(),
+        _throwsGeneratorError(
+          allOf(
+            contains('The defaultValue of HWIconData "mood"'),
+            contains('outside the Unicode range'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts the glyphs at either end of the range', () {
+      expect(
+        const HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('first', 0), HWIconEntry('last', 0x10FFFF)],
+          iconFont: _materialIcons,
+          defaultValue: 0x10FFFF,
+        ).validate,
+        returnsNormally,
+      );
+    });
   });
 
   group('HWIconData codegen', () {

@@ -320,6 +320,73 @@ void main() {
       expect(p.equals(file.path, expected), isTrue, reason: file.path);
     });
 
+    test('the app re-declaring a package family resolves in that package', () {
+      final package = writeFontPackage(
+        tempDir,
+        'design_system',
+        pubspecFonts: '''
+    - family: Other
+      fonts:
+        - asset: lib/fonts/Other.ttf
+''',
+        assets: ['lib/fonts/Brand-Regular.ttf'],
+      );
+      writeFontFixture(
+        tempDir,
+        pubspecFonts: '''
+    - family: Brand
+      fonts:
+        - asset: packages/design_system/fonts/Brand-Regular.ttf
+''',
+        packages: [
+          FixturePackage(name: 'design_system', root: package.path),
+        ],
+      );
+
+      final file =
+          FontResolver(tempDir).resolveTextFontFile(variant(family: 'Brand'));
+      expect(file.existsSync(), isTrue, reason: file.path);
+      final expected = p.join(package.path, 'lib/fonts/Brand-Regular.ttf');
+      expect(p.equals(file.path, expected), isTrue, reason: file.path);
+    });
+
+    test('a package naming another package\'s file resolves in that package',
+        () {
+      final designSystem = writeFontPackage(
+        tempDir,
+        'design_system',
+        pubspecFonts: '''
+    - family: Other
+      fonts:
+        - asset: lib/fonts/Other.ttf
+''',
+        assets: ['lib/fonts/Brand-Regular.ttf'],
+      );
+      final theme = writeFontPackage(
+        tempDir,
+        'app_theme',
+        pubspecFonts: '''
+    - family: Brand
+      fonts:
+        - asset: packages/design_system/fonts/Brand-Regular.ttf
+''',
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'design_system', root: designSystem.path),
+          FixturePackage(name: 'app_theme', root: theme.path),
+        ],
+      );
+
+      final file = FontResolver(tempDir).resolveTextFontFile(
+        variant(family: 'Brand', package: 'app_theme'),
+      );
+      expect(file.existsSync(), isTrue, reason: file.path);
+      final expected = p.join(designSystem.path, 'lib/fonts/Brand-Regular.ttf');
+      expect(p.equals(file.path, expected), isTrue, reason: file.path);
+    });
+
     test('an undeclared family names the family and the pubspec section', () {
       writeFontFixture(tempDir);
 
@@ -475,6 +542,37 @@ void main() {
       );
 
       expect(p.equals(source.file.path, font.path), isTrue);
+    });
+
+    test('CupertinoIcons falls back when the family declares no file', () {
+      final package = writeFontPackage(
+        tempDir,
+        'cupertino_icons',
+        pubspecFonts: '''
+    - family: CupertinoIcons
+      fonts: []
+''',
+        assets: ['assets/CupertinoIcons.ttf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'cupertino_icons', root: package.path),
+        ],
+      );
+
+      final source = FontResolver(tempDir).resolveIconFont(
+        const HWIconFont(family: 'CupertinoIcons', package: 'cupertino_icons'),
+      );
+
+      expect(
+        p.equals(
+          source.file.path,
+          p.join(package.path, 'assets', 'CupertinoIcons.ttf'),
+        ),
+        isTrue,
+        reason: source.file.path,
+      );
     });
 
     test('any other icon font resolves through its own fonts declaration', () {

@@ -97,12 +97,10 @@ class FontAndIcons {}
 
 ## Platform mapping
 
-- **iOS:** a SwiftUI [`Text`](https://developer.apple.com/documentation/swiftui/text) holding the
-  glyph's unicode scalar, rendered with a CoreText font loaded from the copied icon font — see
+- **iOS:** the glyph as SwiftUI [`Text`](https://developer.apple.com/documentation/swiftui/text),
+  set in the icon font the CLI copies into the widget extension — see
   [Icons](/generator/icons#what-the-cli-does).
-- **Android:** a Glance [`Image`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#Image(androidx.glance.ImageProvider,kotlin.String,androidx.glance.GlanceModifier,androidx.glance.layout.ContentScale)) of the glyph rendered to a bitmap and tinted with
-  [`ColorFilter.tint`](https://developer.android.com/reference/kotlin/androidx/glance/ColorFilter), the same mechanism as
-  [`HomeWidgetFonts.iconBitmap`](/features/icons#icon-glyphs).
+- **Android:** the glyph as a Glance [`Image`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#Image(androidx.glance.ImageProvider,kotlin.String,androidx.glance.GlanceModifier,androidx.glance.layout.ContentScale)), tinted with the icon's `color`.
 
 An icon that declares `IconData.matchTextDirection`, such as `Icons.arrow_back`, is mirrored in a
 right-to-left layout on both platforms — see [Directional icons](/generator/icons#directional-icons).

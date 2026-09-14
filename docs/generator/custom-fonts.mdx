@@ -10,7 +10,7 @@ or an Android `res/` folder. Declare the font the same way you would for a Flutt
 `home_widget_generator` and `home_widget_cli` do the rest at generation time.
 
 ```dart
-HWText.fixed('Hello', style: HWTextStyle(fontFamily: 'Chewy'))
+HWText.fixed('Hello', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20))
 ```
 
 <Info>
@@ -54,59 +54,50 @@ Pass `package` for a font that ships inside a dependency rather than your app, t
 HWTextStyle(fontFamily: 'Chewy', package: 'my_fonts')
 ```
 
+### Always give it a size
+
+A custom family cannot fall through to the platform's own default text size the way a plain
+`HWTextStyle` does. A style that names a family but no `fontSize` and no role renders at a fixed
+**16**, so set `fontSize` (or a role) explicitly rather than relying on it.
+
+A role next to a family keeps the size and weight the role always gave you, but bakes that size in
+as a fixed one — on iOS too, where it otherwise tracks the system's text-size setting.
+
 ### Which file gets used
 
-A font family can ship several files — regular, bold, italic, particular weights. The generated code
-names the family, weight and slant; which file that is, is picked on the device at render time from
-the `FontManifest.json` Flutter writes next to the fonts in `flutter_assets`, so a pubspec that
-gained a bold file needs no regeneration. The rule is the same one the web and Flutter use: an exact
-weight and style match if one exists, otherwise the nearest weight (a lighter file when the target
-is 400 or below, a heavier one otherwise). There is no synthetic bold — a
-`fontWeight: HWFontWeight.bold` with no bold file just renders the nearest file the family actually
-ships.
+Declare every weight and slant you want the widget to use as part of the family, the same as you
+would for Flutter: `fontWeight: HWFontWeight.bold` or `italic: true` renders a bold or italic file
+only if the family ships one, and otherwise falls back to the closest file it does ship. Neither
+platform synthesizes a missing one.
 
-`home_widget_cli` still checks at generation time that the family is declared somewhere it can see:
-an unknown family, or one with no matching pubspec entry at all, is a generation error naming the
+`home_widget_cli` checks at generation time that the family is declared somewhere it can see: an
+unknown family, or one with no matching pubspec entry at all, is a generation error naming the
 family and where to declare it.
-
-Italic is treated the same way: if the family ships an italic file, it is used. If it does not, iOS
-renders the upright file (no synthetic slant), while Android applies a synthetic slant on top of the
-upright glyphs — see [How it renders](#how-it-renders) below for why the two platforms differ here.
 
 ## How it renders
 
-<Accordion title="iOS">
-The font is read straight out of the Flutter asset bundle through CoreText, the same mechanism
-described in [Option B](/features/custom-fonts#option-b-read-the-font-from-the-flutter-asset-bundle)
-of the core package's font-loading page. There is nothing to add to the Xcode project and no
-`UIAppFonts` entry to write — the generated Swift looks the family up in the bundled
-`FontManifest.json` and resolves the file it names by URL at render time, and it works before the
-Flutter app has ever launched.
-</Accordion>
+Custom-font text renders at the fixed size the style resolved to, so it does not follow the
+system's text-size setting on either platform. A size change only shows up the next time the widget
+updates.
+
+There is nothing to add to the Xcode project or to `android/app/src/main/res/` for a text font:
+both platforms read the font your app already bundles, and it works before the Flutter app has ever
+launched.
 
 <Accordion title="Android">
-Jetpack Glance's `TextStyle` cannot load a font your app ships — the launcher inflates widget content
-in a restricted context that silently ignores any font resource. Text set to a custom font is
-instead rendered into a bitmap glyph mask and shown as a tinted `Image`, using the widget's normal
-text color as the tint, exactly like the core package's `HomeWidgetFonts.typeface` and
-`HomeWidgetFonts.textBitmap` described on
-[Custom Fonts](/features/custom-fonts#text-in-a-custom-font). Because of this:
+Android cannot put a font your app ships onto widget text, so custom-font text is drawn as an image
+there instead. Because of this:
 
 - Reach for a custom font on short runs — labels, headlines — rather than body copy.
-- The text does not reflow when the user changes the system font size; it only picks up a new size
-  the next time the widget updates.
-- TalkBack still reads it: the generated code sets the bitmap's content description to the same
-  text.
-- A bitmap is drawn for a size rather than laid out into one, so the generated widget declares
-  `sizeMode = SizeMode.Exact` — it composes against the size the launcher actually gave it instead
-  of the smallest one the provider declares. Only a widget that renders custom-font text gets it.
-- The room the text has is worked out as the widget is generated: the widget's own size, less the
-  content padding, the `HWPadding` and border of every ancestor, and the width of any fixed-size
-  sibling of its `HWRow` — an `HWIcon`, or an `HWImage` given an explicit `width`. What a sibling
-  holding text takes is only known once it is measured and is not subtracted, so give a text
-  sharing a row with one an `HWFill` or a padding of its own rather than relying on the estimate.
-- `textAlign` works: text aligned anywhere but at the start is drawn into a bitmap as wide as the
-  room it has, so the alignment has somewhere to move it.
+- TalkBack still reads it: the same text is carried over as the image's content description.
+- The room the text has is worked out while the widget is generated, from the widget's own size
+  less the padding and borders around the text and the size of any fixed-size sibling in its
+  `HWRow` or `HWColumn` — an `HWIcon`, or an `HWImage` given an explicit `width` or `height`. What
+  a sibling holding text takes is not known until it is measured and is not subtracted, so give a
+  text sharing a row or column with one an `HWFill` or a padding of its own rather than relying on
+  the estimate.
+- `textAlign` works: text aligned anywhere but at the start is drawn across the full room it has,
+  so the alignment has somewhere to move it.
 - Text taller than the room it has is cut off at the last line that fits, which is ellipsized.
 
 This works on every Android version the plugin supports (API 23+) — there's no `minSdkVersion` to
@@ -123,7 +114,7 @@ against an older one.
 
 - `TextStyle.fontFamilyFallback` is not supported: a glyph the chosen font lacks falls back to the
   platform's own font, not to a family you name.
-- Right-to-left text is supported. SwiftUI on iOS and `StaticLayout` on Android both shape and
-  order bidirectional text; only the font family, weight and slant come from the custom font.
-- Custom-font text renders as a bitmap on Android — see [How it renders](#how-it-renders) for what
+- Right-to-left text is supported: both platforms shape and order bidirectional text as usual, and
+  only the font family, weight and slant come from the custom font.
+- Custom-font text is drawn as an image on Android — see [How it renders](#how-it-renders) for what
   that means for reflow and body copy.

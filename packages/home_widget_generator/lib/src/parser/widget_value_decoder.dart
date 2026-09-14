@@ -1,6 +1,8 @@
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
+import '../dart_reserved_words.dart';
+
 /// Decodes a [DartObject] representing a widget tree into an [HWWidget].
 ///
 /// This uses the analyzer's constant evaluation to read the values of
@@ -207,6 +209,23 @@ class WidgetValueDecoder {
     final family = getField(obj, 'fontFamily')?.toStringValue();
     if (family == null || family.isEmpty) return null;
     final package = getField(obj, 'fontPackage')?.toStringValue();
+    return HWIconFont(
+      family: family,
+      package: package == null || package.isEmpty ? null : package,
+    );
+  }
+
+  /// The [HWIconFont] an `HWIconFont(...)` written in a schema holds, or null
+  /// when [obj] is not one.
+  ///
+  /// The counterpart of [decodeIconFont] for the font a schema names itself:
+  /// it carries `family` and `package`, where a Flutter `IconData` carries
+  /// `fontFamily` and `fontPackage`.
+  static HWIconFont? decodeIconFontDeclaration(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+    final family = getField(obj, 'family')?.toStringValue();
+    if (family == null || family.isEmpty) return null;
+    final package = getField(obj, 'package')?.toStringValue();
     return HWIconFont(
       family: family,
       package: package == null || package.isEmpty ? null : package,

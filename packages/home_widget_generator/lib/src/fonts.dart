@@ -67,15 +67,6 @@ class HWFontVariant {
   String get flutterFamilyKey =>
       package == null ? family : 'packages/$package/$family';
 
-  /// What tells this variant apart from the other files of its family:
-  /// `<family>[_<package>]_<weight>_<n|i>`.
-  String get resourceSuffix => [
-        hwResourceSnakeCase(family),
-        if (package != null) hwResourceSnakeCase(package!),
-        '$weight',
-        italic ? 'i' : 'n',
-      ].join('_');
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -107,12 +98,17 @@ class HWIconFont {
 
   const HWIconFont({required this.family, this.package});
 
-  /// What tells this font apart in a resource name: `icons_<family>[_<package>]`.
-  String get resourceSuffix => [
-        'icons',
-        hwResourceSnakeCase(family),
-        if (package != null) hwResourceSnakeCase(package!),
-      ].join('_');
+  /// What tells this font apart in a resource name:
+  /// `icons_<family>[__<package>]`.
+  ///
+  /// The package is joined with `__` for the reason [androidResourceName]
+  /// gives: over a single underscore a family and a package meet in the middle,
+  /// so `Foo` from `bar_baz` and `Foo_bar` from `baz` would name one file.
+  String get resourceSuffix {
+    final package = this.package;
+    final name = 'icons_${hwResourceSnakeCase(family)}';
+    return package == null ? name : '${name}__${hwResourceSnakeCase(package)}';
+  }
 
   /// The Android `res/font` resource name for this font in the widget
   /// namespaced by [fontResourcePrefix].

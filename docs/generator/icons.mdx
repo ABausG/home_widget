@@ -61,12 +61,25 @@ For each `HWIconData` field the generated Dart helper exposes an enum named
 
 ```dart
 enum FontAndIconsMoodIcon {
-  wbSunny(Icons.wb_sunny),
-  cloud(Icons.cloud),
-  umbrella(Icons.umbrella);
+  wbSunny(IconData(0xe6d9, fontFamily: 'MaterialIcons', fontPackage: null)),
+  cloud(IconData(0xe16f, fontFamily: 'MaterialIcons', fontPackage: null)),
+  umbrella(IconData(0xe68a, fontFamily: 'MaterialIcons', fontPackage: null));
 
   const FontAndIconsMoodIcon(this.icon);
+
   final IconData icon;
+
+  int get codePoint => icon.codePoint;
+
+  /// The value storing [codePoint], or null when this widget shows no icon
+  /// for it.
+  static FontAndIconsMoodIcon? fromCodePoint(int? codePoint) {
+    if (codePoint == null) return null;
+    for (final value in values) {
+      if (value.codePoint == codePoint) return value;
+    }
+    return null;
+  }
 }
 ```
 
@@ -77,6 +90,15 @@ enum FontAndIconsMoodIcon {
 await FontAndIconsHomeWidget.saveData(mood: FontAndIconsMoodIcon.cloud);
 await FontAndIconsHomeWidget.updateWidget();
 ```
+
+`fromCodePoint` is the way back: storage holds the bare code point, and `getData()` runs it through
+`fromCodePoint` for you, yielding `null` when the stored value matches no icon this widget lists.
+
+A value's name comes from the constant you listed, lower-camel-cased — `Icons.wb_sunny` becomes
+`wbSunny`. Two cases fall back: an inline `IconData(0xe6d9, ...)` written in the schema rather than
+a named constant becomes `icon0xE6D9`, and a name that would collide with a Dart keyword or with a
+member the enum already carries (`index`, `name`, `values`, `icon`, `codePoint`, …) gets a trailing
+underscore.
 
 `HWIconData` works nested inside [`HWJson`](/generator/data#nested-json) and
 [`HWTimedData`](/generator/timed-data), the same as any other data type.
@@ -116,9 +138,9 @@ See [`HWIcon`](/generator/widgets/hw-icon) for the full constructor reference, a
 
 ## What the CLI does
 
-Icon glyphs come from tree-shaken icon fonts (`MaterialIcons`, `CupertinoIcons`, or a package's own
-icon font), so the copy Flutter ships in `flutter_assets` cannot be relied on — the specific glyph a
-widget needs may have been shaken out of it. On every `home_widget generate` run,
+Flutter tree-shakes icon fonts (`MaterialIcons`, `CupertinoIcons`, or a package's own icon font)
+down to the glyphs your app itself uses, so the copy shipped with the app cannot be relied on — the
+specific glyph a widget needs may have been shaken out of it. On every `home_widget generate` run,
 `home_widget_cli` builds a **subset font containing exactly the glyphs the schema uses** and copies
 it into the native projects:
 
@@ -126,11 +148,20 @@ it into the native projects:
 - `CupertinoIcons` glyphs come from the `cupertino_icons` package.
 - Any other icon font's glyphs come from that package's own `flutter: fonts:` declaration.
 
+Subsetting needs Flutter's own font subsetting tool out of the SDK cache. When it is not there — a
+cache that was never populated, or a trimmed CI checkout — the CLI copies the font whole instead and
+warns once per run that icon fonts are not being shrunk, pointing at `flutter precache`. The widget
+still renders; the font file is just megabytes rather than kilobytes.
+
 The subset lands at:
 
-- Android — `android/app/src/main/res/font/hw_font_<widget>__icons_<family>.otf`
-- iOS — `ios/<Widget>HomeWidget/hw_font_icons_<family>.otf`, wired into the widget extension
-  target's Resources build phase automatically.
+- Android — `android/app/src/main/res/font/hw_font_<widget>__icons_<family>[__<package>].<ext>`
+- iOS — `ios/<Widget>HomeWidget/hw_font_icons_<family>[__<package>].<ext>`, wired into the widget
+  extension target's Resources build phase automatically.
+
+The name is built from the icon family and, for a family that comes from a dependency, the package
+owning it; `<ext>` follows the source font, so a `MaterialIcons` subset is `.otf` and a
+`CupertinoIcons` one is `.ttf`.
 
 This is fully automatic — no prompt, no CLI flag to turn it on. Every file the CLI writes for this
 is prefixed `hw_font_`, and a file that is no longer referenced by any widget is deleted the next
@@ -139,7 +170,7 @@ resources.
 
 <Info>
 This copy step is for **icon** fonts only. A custom **text** font (the one you set with
-`fontFamily`) is never copied anywhere — both platforms read it in place out of `flutter_assets`, as
+`fontFamily`) is never copied anywhere — both platforms read the font your app already bundles, as
 described in [How it renders](/generator/custom-fonts#how-it-renders) on the Custom Fonts page.
 </Info>
 
@@ -151,6 +182,8 @@ one.
 
 ## Limitations
 
-- An icon font must be resolvable at generation time: `MaterialIcons` and `CupertinoIcons` always
-  are, and any other family must be declared under `flutter: fonts:` in the owning package's
-  `pubspec.yaml`.
+- An icon font must be resolvable at generation time. `MaterialIcons` comes out of the Flutter SDK's
+  own cache, so a checkout that has never been precached fails with a `flutter precache` hint;
+  `CupertinoIcons` comes out of the `cupertino_icons` package, so that dependency has to be in your
+  `pubspec.yaml` and resolved. Any other family must be declared under `flutter: fonts:` in the
+  owning package's `pubspec.yaml`.

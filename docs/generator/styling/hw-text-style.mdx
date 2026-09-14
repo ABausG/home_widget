@@ -72,12 +72,17 @@ HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
 
 Pass `package` for a font that ships inside a dependency rather than your app. Both fields resolve
 through `baseStyle` like any other field, so a shared base style can set the family once for every
-style built on top of it. See [Custom Fonts](/generator/custom-fonts) for how a font file is
-picked per weight/style combination and how the text is rendered on each platform.
+style built on top of it. See [Custom Fonts](/generator/custom-fonts) for what to declare and what
+custom-font text can and cannot do on each platform.
+
+Give a style that names a family a `fontSize` or a role: a custom family cannot fall through to the
+platform's default text size and lands on a fixed **16** instead. A role next to a family is baked
+in as a fixed size too, so on iOS it stops following the system's text-size setting.
 
 ## Platform mapping
 
-- iOS — emitted as SwiftUI [`.font`](https://developer.apple.com/documentation/swiftui/view/font(_:)), [`.foregroundColor`](https://developer.apple.com/documentation/swiftui/view/foregroundcolor(_:)) and decoration modifiers.
+- iOS — emitted as SwiftUI [`.font`](https://developer.apple.com/documentation/swiftui/view/font(_:)), [`.foregroundColor`](https://developer.apple.com/documentation/swiftui/view/foregroundcolor(_:)) and decoration modifiers. A style naming a
+  `fontFamily` renders at a fixed point size instead of a Dynamic Type text style.
 - Android — emitted as Glance [`TextStyle`](https://developer.android.com/reference/kotlin/androidx/glance/text/TextStyle) with `FontWeight`, `FontStyle`, and `TextDecoration`. A style naming a
-  `fontFamily` is the exception: Glance cannot name one, so the text is drawn into a bitmap out of
-  the same values — see [Custom Fonts](/generator/custom-fonts).
+  `fontFamily` is the exception: Android cannot put a bundled font onto widget text, so it is drawn
+  as an image instead — see [Custom Fonts](/generator/custom-fonts).

@@ -18,22 +18,6 @@ void main() {
   });
 
   group('HWFontVariant', () {
-    test('resourceSuffix carries family, weight and slant', () {
-      const variant =
-          HWFontVariant(family: 'Chewy', weight: 400, italic: false);
-      expect(variant.resourceSuffix, 'chewy_400_n');
-    });
-
-    test('resourceSuffix carries the package when there is one', () {
-      const variant = HWFontVariant(
-        family: 'Roboto Mono',
-        package: 'my_fonts',
-        weight: 700,
-        italic: true,
-      );
-      expect(variant.resourceSuffix, 'roboto_mono_my_fonts_700_i');
-    });
-
     test('flutterFamilyKey namespaces a package family', () {
       expect(
         const HWFontVariant(family: 'Chewy', weight: 400, italic: false)
@@ -100,15 +84,24 @@ void main() {
     test('resource names carry the package when there is one', () {
       const font =
           HWIconFont(family: 'CupertinoIcons', package: 'cupertino_icons');
-      expect(font.resourceSuffix, 'icons_cupertinoicons_cupertino_icons');
+      expect(font.resourceSuffix, 'icons_cupertinoicons__cupertino_icons');
       expect(
         font.iosResourceName,
-        'hw_font_icons_cupertinoicons_cupertino_icons',
+        'hw_font_icons_cupertinoicons__cupertino_icons',
       );
       expect(
         font.androidResourceName(null),
-        'hw_font_home_widget__icons_cupertinoicons_cupertino_icons',
+        'hw_font_home_widget__icons_cupertinoicons__cupertino_icons',
       );
+    });
+
+    test('a family a package name could run into keeps its own resource', () {
+      const inPackage = HWIconFont(family: 'Foo', package: 'bar_baz');
+      const named = HWIconFont(family: 'Foo_bar', package: 'baz');
+
+      expect(inPackage.resourceSuffix, 'icons_foo__bar_baz');
+      expect(named.resourceSuffix, 'icons_foo_bar__baz');
+      expect(inPackage.resourceSuffix, isNot(named.resourceSuffix));
     });
 
     test('equality covers family and package', () {

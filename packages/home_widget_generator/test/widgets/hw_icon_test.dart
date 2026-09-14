@@ -128,6 +128,79 @@ void main() {
         ),
       );
     });
+
+    test('renders an undecoded icon as that same error, not a null check', () {
+      const icon = HWIcon.fixed('Icons.home');
+      final unknownFont = throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          contains('The font of this HWIcon is unknown'),
+        ),
+      );
+
+      expect(() => icon.toSwift(0, dataExpr: 'data'), unknownFont);
+      expect(() => icon.toKotlin(0, dataExpr: 'data'), unknownFont);
+    });
+
+    test('throws for a glyph outside the Unicode range', () {
+      final outsideRange = throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          contains('outside the Unicode range'),
+        ),
+      );
+
+      expect(
+        () => const HWIcon.glyph(-1, font: _materialIcons)
+            .toSwift(0, dataExpr: 'data'),
+        outsideRange,
+      );
+      expect(
+        () => const HWIcon.glyph(-1, font: _materialIcons)
+            .toKotlin(0, dataExpr: 'data'),
+        outsideRange,
+      );
+      expect(
+        () => const HWIcon.glyph(0x110000, font: _materialIcons)
+            .toSwift(0, dataExpr: 'data'),
+        outsideRange,
+      );
+    });
+
+    test('throws for a glyph that is half a codepoint', () {
+      final surrogate = throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          contains('surrogate'),
+        ),
+      );
+
+      expect(
+        () => const HWIcon.glyph(0xD800, font: _materialIcons)
+            .toSwift(0, dataExpr: 'data'),
+        surrogate,
+      );
+      expect(
+        () => const HWIcon.glyph(0xDFFF, font: _materialIcons)
+            .toKotlin(0, dataExpr: 'data'),
+        surrogate,
+      );
+    });
+
+    test('renders the glyphs at either end of the range', () {
+      expect(
+        const HWIcon.glyph(0, font: _materialIcons).toSwift(0, dataExpr: 'd'),
+        contains('UInt32(0x0)'),
+      );
+      expect(
+        const HWIcon.glyph(0x10FFFF, font: _materialIcons)
+            .toKotlin(0, dataExpr: 'd'),
+        contains('0x10FFFF'),
+      );
+    });
   });
 
   group('HWIcon iOS', () {
@@ -137,6 +210,7 @@ void main() {
             .toSwift(0, dataExpr: 'data'),
         'Text(String(UnicodeScalar(UInt32(0xE88A))!))\n'
         '    .font(hwBundledFont("hw_font_icons_materialicons", size: 24))\n'
+        '    .frame(width: 24, height: 24)\n'
         '    .foregroundColor(Color.primary)\n'
         '    .accessibilityHidden(true)',
       );
@@ -151,6 +225,7 @@ void main() {
         'let scalar = UnicodeScalar(value) {\n'
         '    Text(String(scalar))\n'
         '        .font(hwBundledFont("hw_font_icons_materialicons", size: 32))\n'
+        '        .frame(width: 32, height: 32)\n'
         '        .foregroundColor(Color(red: 0.0, green: 1.0, blue: 0.0, '
         'opacity: 1.0))\n'
         '        .accessibilityHidden(true)\n'
@@ -178,6 +253,18 @@ void main() {
       );
     });
 
+    test('boxes the glyph the way Android sizes it', () {
+      expect(
+        const HWIcon.glyph(0xE88A, font: _materialIcons, size: 40)
+            .toSwift(0, dataExpr: 'data'),
+        contains('.frame(width: 40, height: 40)'),
+      );
+      expect(
+        const HWIcon(_mood, size: 40).toSwift(0, dataExpr: 'data'),
+        contains('.frame(width: 40, height: 40)'),
+      );
+    });
+
     test('describes itself when there is a semantic label', () {
       expect(
         const HWIcon.glyph(
@@ -198,6 +285,7 @@ void main() {
         ).toSwift(0, dataExpr: 'data'),
         'Text(String(UnicodeScalar(UInt32(0xE5C4))!))\n'
         '    .font(hwBundledFont("hw_font_icons_materialicons", size: 24))\n'
+        '    .frame(width: 24, height: 24)\n'
         '    .foregroundColor(Color.primary)\n'
         '    .accessibilityHidden(true)\n'
         '    .scaleEffect(x: layoutDirection == .rightToLeft ? -1 : 1, y: 1)',
@@ -212,6 +300,7 @@ void main() {
         'let scalar = UnicodeScalar(value) {\n'
         '    Text(String(scalar))\n'
         '        .font(hwBundledFont("hw_font_icons_materialicons", size: 24))\n'
+        '        .frame(width: 24, height: 24)\n'
         '        .foregroundColor(Color.primary)\n'
         '        .accessibilityHidden(true)\n'
         '        .scaleEffect(x: layoutDirection == .rightToLeft && '

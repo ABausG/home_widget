@@ -103,7 +103,9 @@ class HWTextStyle implements HWGeneratable {
       underline: current.underline ?? baseResolved.underline,
       lineThrough: current.lineThrough ?? baseResolved.lineThrough,
       fontFamily: current.fontFamily ?? baseResolved.fontFamily,
-      package: overridesFamily ? current.package : baseResolved.package,
+      package: overridesFamily
+          ? current.package
+          : (current.package ?? baseResolved.package),
     );
   }
 
@@ -438,9 +440,6 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     buffer.writeln('$pad            $typeface,');
     buffer.writeln('$pad            $text,');
     buffer.writeln('$pad            fontSizeSp = ${hwSizeLiteral(fontSize)}f,');
-    if (italic) {
-      buffer.writeln('$pad            italic = true,');
-    }
     if (underline) {
       buffer.writeln('$pad            underline = true,');
     }

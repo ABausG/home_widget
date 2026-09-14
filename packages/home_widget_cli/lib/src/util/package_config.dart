@@ -120,11 +120,19 @@ YamlMap? readFlutterSection(String root) {
 String _ensureTrailingSlash(String uri) => uri.endsWith('/') ? uri : '$uri/';
 
 /// The nearest `.dart_tool/package_config.json` at or above [from].
-File? _findPackageConfig(Directory from) {
+File? _findPackageConfig(Directory from) =>
+    findFileUpwards(from, p.join('.dart_tool', 'package_config.json'));
+
+/// The nearest [relativePath] at or above [from], or null when no directory of
+/// the chain holds it.
+///
+/// A pub workspace keeps the files the tools generate at the workspace root
+/// rather than next to the package's own `pubspec.yaml`, so anything looked up
+/// by convention is looked up the whole way up.
+File? findFileUpwards(Directory from, String relativePath) {
   var current = Directory(p.normalize(from.absolute.path));
   while (true) {
-    final candidate =
-        File(p.join(current.path, '.dart_tool', 'package_config.json'));
+    final candidate = File(p.join(current.path, relativePath));
     if (candidate.existsSync()) return candidate;
     final parent = current.parent;
     if (parent.path == current.path) return null;

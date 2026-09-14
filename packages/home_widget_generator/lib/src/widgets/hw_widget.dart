@@ -228,6 +228,19 @@ double? _fixedKotlinWidth(HWWidget widget) => switch (widget) {
       _ => null,
     };
 
+/// The height in dp [widget] always renders at, or null when it depends on what
+/// it renders.
+double? _fixedKotlinHeight(HWWidget widget) => switch (widget) {
+      HWIcon(:final size) => size,
+      HWImage(:final height) => height,
+      HWPadding(:final child, :final padding) => switch (
+            _fixedKotlinHeight(child)) {
+          final height? => height + padding.top + padding.bottom,
+          _ => null,
+        },
+      _ => null,
+    };
+
 void _emitChildrenWithMainAxisAlignment(
   List<HWWidget> children,
   StringBuffer buffer,

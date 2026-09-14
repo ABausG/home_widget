@@ -17,11 +17,13 @@ void main() {
   group('every helper', () {
     test('declares a function under its own name on every platform it has', () {
       for (final helper in HWNativeHelper.values) {
-        expect(
-          swiftOf(helper),
-          contains('func ${helper.name}('),
-          reason: '${helper.name} Swift body',
-        );
+        if (helper.swift != null) {
+          expect(
+            swiftOf(helper),
+            contains('func ${helper.name}('),
+            reason: '${helper.name} Swift body',
+          );
+        }
         if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper),
@@ -825,7 +827,7 @@ void main() {
     });
 
     test('names CoreText, which a widget extension does not import', () {
-      expect(helper.swiftImports, {'import CoreText'});
+      expect(helper.swiftImports, {'import CoreText', 'import SwiftUI'});
     });
   });
 

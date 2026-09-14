@@ -62,6 +62,7 @@ struct FontAndIconsHomeWidgetEntryView: View {
         Spacer()
         Text(String(UnicodeScalar(UInt32(0xE25B))!))
           .font(hwBundledFont("hw_font_icons_materialicons", size: 24))
+          .frame(width: 24, height: 24)
           .foregroundColor(
             Color(
               red: 0.8980392156862745, green: 0.2235294117647059, blue: 0.20784313725490197,
@@ -69,13 +70,15 @@ struct FontAndIconsHomeWidgetEntryView: View {
           )
           .accessibilityHidden(true)
         Text(String(UnicodeScalar(UInt32(0xF4B6))!))
-          .font(hwBundledFont("hw_font_icons_cupertinoicons_cupertino_icons", size: 24))
+          .font(hwBundledFont("hw_font_icons_cupertinoicons__cupertino_icons", size: 24))
+          .frame(width: 24, height: 24)
           .foregroundColor(
             Color(red: 0.984313725490196, green: 0.5490196078431373, blue: 0.0, opacity: 1.0)
           )
           .accessibilityHidden(true)
         Text(String(UnicodeScalar(UInt32(0xF004))!))
-          .font(hwBundledFont("hw_font_icons_fontawesomesolid_font_awesome_flutter", size: 24))
+          .font(hwBundledFont("hw_font_icons_fontawesomesolid__font_awesome_flutter", size: 24))
+          .frame(width: 24, height: 24)
           .foregroundColor(
             Color(
               red: 0.5568627450980392, green: 0.1411764705882353, blue: 0.6666666666666666,
@@ -91,6 +94,7 @@ struct FontAndIconsHomeWidgetEntryView: View {
       {
         Text(String(scalar))
           .font(hwBundledFont("hw_font_icons_materialicons", size: 40))
+          .frame(width: 40, height: 40)
           .foregroundColor(Color.primary)
           .accessibilityLabel("Mood")
           .scaleEffect(

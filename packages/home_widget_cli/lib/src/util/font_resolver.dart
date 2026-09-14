@@ -241,8 +241,9 @@ class FontResolver {
           '`flutter pub get`.',
         );
       }
-      final declared =
-          packageFonts('cupertino_icons')?.families['CupertinoIcons']?.first;
+      final declared = packageFonts('cupertino_icons')
+          ?.families['CupertinoIcons']
+          ?.firstOrNull;
       final file = declared == null
           ? File(p.join(resolved.root, 'assets', 'CupertinoIcons.ttf'))
           : _assetFile('cupertino_icons', declared.asset);
@@ -305,23 +306,32 @@ class FontResolver {
   ///
   /// A package declares its own fonts relative to its root, the way Flutter
   /// reads them out of the package's `pubspec.yaml` — only the namespaced
-  /// `packages/<pkg>/<path>` spelling is relative to the package's `lib/`.
+  /// `packages/<pkg>/<path>` spelling is relative to the `lib/` of the package
+  /// it names, which is not necessarily the one declaring it: an app may
+  /// re-declare a dependency's family in its own pubspec.
   File _assetFile(String? package, String asset) {
-    final namespaced = asset.startsWith('packages/');
-    final relative = namespaced ? asset.split('/').skip(2).join('/') : asset;
-    final segments = p.posix.split(relative);
+    final segments = p.posix.split(asset);
+    if (segments.first == 'packages' && segments.length > 2) {
+      final owner = _requirePackage(segments[1], asset);
+      return File(p.join(owner.libRoot, p.joinAll(segments.skip(2).toList())));
+    }
     if (package == null) {
       return File(p.join(projectRoot.path, p.joinAll(segments)));
     }
+    return File(
+      p.join(_requirePackage(package, asset).root, p.joinAll(segments)),
+    );
+  }
+
+  ResolvedPackage _requirePackage(String package, String asset) {
     final resolved = _resolve(package);
     if (resolved == null) {
       throw GeneratorError(
-        'Could not resolve the package "$package" that declares "$asset". Run '
+        'Could not resolve the package "$package" that ships "$asset". Run '
         '`flutter pub get` and generate again.',
       );
     }
-    final base = namespaced ? resolved.libRoot : resolved.root;
-    return File(p.join(base, p.joinAll(segments)));
+    return resolved;
   }
 
   /// The one file of [candidates] that renders [weight] and [italic] best.
@@ -404,10 +414,17 @@ class FontResolver {
       final exitCode = await process.exitCode;
       await stdoutDrain;
       final failure = (await stderrOutput).trim();
-      if (exitCode != 0 || !out.existsSync()) {
+      if (exitCode != 0) {
         throw GeneratorError(
           'Subsetting the icon font ${p.basename(source.file.path)} failed '
           '(exit code $exitCode): $failure',
+        );
+      }
+      if (!out.existsSync()) {
+        throw GeneratorError(
+          'Subsetting the icon font ${p.basename(source.file.path)} produced no '
+          'file at ${out.path}, although the subsetter reported success.'
+          '${failure.isEmpty ? '' : ' It wrote: $failure'}',
         );
       }
       return _subsetCache[cacheKey] = await out.readAsBytes();

@@ -992,7 +992,7 @@ func hwFontFromURL(_ url: URL, _ size: CGFloat) -> Font? {
     return Font(CTFontCreateWithFontDescriptor(descriptor, size, nil))
   }
 }''',
-    swiftImports: {'import CoreText'},
+    swiftImports: {'import CoreText', 'import SwiftUI'},
     localeDependent: false,
   ),
 
@@ -1019,6 +1019,7 @@ func hwAssetFont(_ asset: String, _ size: CGFloat) -> Font {
   }
   return font ?? .system(size: size)
 }''',
+    swiftImports: {'import SwiftUI'},
     dependencies: [HWNativeHelper.hwFontFromURL],
     localeDependent: false,
   ),
@@ -1044,6 +1045,7 @@ func hwBundledFont(_ name: String, size: CGFloat) -> Font {
   }
   return font ?? .system(size: size)
 }''',
+    swiftImports: {'import SwiftUI'},
     dependencies: [HWNativeHelper.hwFontFromURL],
     localeDependent: false,
   ),
@@ -1127,6 +1129,7 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
   else { return .system(size: size) }
   return hwAssetFont(nearest.asset, size)
 }''',
+    swiftImports: {'import SwiftUI'},
     dependencies: [HWNativeHelper.hwAssetFont],
     localeDependent: false,
   );

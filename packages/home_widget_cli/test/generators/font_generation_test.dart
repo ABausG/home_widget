@@ -245,7 +245,7 @@ void main() {
       expect(
         swift,
         contains(
-          '.font(hwBundledFont("hw_font_icons_brandicons_brand_icons", '
+          '.font(hwBundledFont("hw_font_icons_brandicons__brand_icons", '
           'size: 24))',
         ),
       );
@@ -266,7 +266,7 @@ void main() {
       );
       expect(
         kotlin,
-        contains('R.font.hw_font_mood__icons_brandicons_brand_icons'),
+        contains('R.font.hw_font_mood__icons_brandicons__brand_icons'),
       );
     });
 
@@ -311,7 +311,7 @@ void main() {
         File(
           p.join(
             tempDir.path,
-            'ios/MoodHomeWidget/hw_font_icons_brandicons_brand_icons.otf',
+            'ios/MoodHomeWidget/hw_font_icons_brandicons__brand_icons.otf',
           ),
         ).existsSync(),
         isTrue,
@@ -321,7 +321,7 @@ void main() {
           p.join(
             tempDir.path,
             'android/app/src/main/res/font/'
-            'hw_font_mood__icons_brandicons_brand_icons.otf',
+            'hw_font_mood__icons_brandicons__brand_icons.otf',
           ),
         ).existsSync(),
         isTrue,

@@ -4,6 +4,7 @@ import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/font_resolver.dart';
 import 'package:home_widget_cli/src/validation/font_validator.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/font_fixture.dart';
@@ -45,17 +46,20 @@ void main() {
 
   /// A project declaring the Chewy family and shipping the BrandIcons package.
   void writeCompleteProject({
+    Directory? root,
     String? lockedHomeWidgetVersion,
     String homeWidgetSource = 'hosted',
+    bool withTextFontFile = true,
   }) {
+    final projectRoot = root ?? tempDir;
     final package = writeFontPackage(
-      tempDir,
+      projectRoot,
       'brand_icons',
       pubspecFonts: _brandIconsDeclaration,
       assets: ['fonts/BrandIcons.otf'],
     );
     writeFontFixture(
-      tempDir,
+      projectRoot,
       pubspecFonts: '''
     - family: Chewy
       fonts:
@@ -65,6 +69,12 @@ void main() {
       lockedHomeWidgetVersion: lockedHomeWidgetVersion,
       homeWidgetSource: homeWidgetSource,
     );
+    if (!withTextFontFile) return;
+    final chewy = File(
+      p.join(projectRoot.path, 'assets', 'fonts', 'Chewy-Regular.ttf'),
+    );
+    chewy.parent.createSync(recursive: true);
+    chewy.writeAsBytesSync(const [0, 1, 2, 3]);
   }
 
   test('a widget using no font or icon is never looked at', () {
@@ -115,6 +125,33 @@ void main() {
           (e) => e.message,
           'message',
           allOf(startsWith('Widget "Mood": '), contains('Missing')),
+        ),
+      ),
+    );
+  });
+
+  test('rejects a text font whose file is not on disk', () {
+    writeCompleteProject(withTextFontFile: false);
+
+    expect(
+      () => validateFonts(
+        _spec(
+          widget: const HWText.fixed(
+            'plain',
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ),
+        tempDir,
+      ),
+      throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          allOf(
+            startsWith('Widget "Mood": '),
+            contains('Chewy'),
+            contains('assets/fonts/Chewy-Regular.ttf'),
+          ),
         ),
       ),
     );
@@ -240,6 +277,25 @@ void main() {
           reason: source,
         );
       }
+    });
+
+    test('reads the lockfile of a workspace root above the project', () {
+      final app = Directory(p.join(tempDir.path, 'app'))
+        ..createSync(recursive: true);
+      writeCompleteProject(root: app);
+      // The workspace keeps the resolution of every package in it.
+      writeFontFixture(tempDir, lockedHomeWidgetVersion: '0.9.2');
+
+      expect(
+        () => validateFonts(_spec(widget: fontWidget()), app),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('0.9.2'),
+          ),
+        ),
+      );
     });
 
     test('is silent without a lockfile', () {

@@ -22,6 +22,32 @@ void main() {
       );
     });
 
+    test('takes the package of the style that names it', () {
+      const base = HWTextStyle(fontFamily: 'Chewy');
+      expect(
+        const HWTextStyle(package: 'my_fonts', baseStyle: base).fontVariant,
+        const HWFontVariant(
+          family: 'Chewy',
+          package: 'my_fonts',
+          weight: 400,
+          italic: false,
+        ),
+      );
+    });
+
+    test('a family of its own drops the package of the style below it', () {
+      const base = HWTextStyle(fontFamily: 'Chewy', package: 'my_fonts');
+      expect(
+        const HWTextStyle(fontFamily: 'Roboto Mono', baseStyle: base)
+            .fontVariant,
+        const HWFontVariant(
+          family: 'Roboto Mono',
+          weight: 400,
+          italic: false,
+        ),
+      );
+    });
+
     test('renders in the regular file when nothing sets a weight', () {
       expect(
         const HWTextStyle(fontFamily: 'Chewy').fontVariant,
@@ -195,7 +221,6 @@ void main() {
         '            HomeWidgetFonts.typeface(context, "Chewy", 700, true),\n'
         '            "Hello",\n'
         '            fontSizeSp = 16f,\n'
-        '            italic = true,\n'
         '            underline = true,\n'
         '            lineThrough = true,\n'
         '            textAlign = TextAlign.Center,\n'
@@ -211,7 +236,7 @@ void main() {
       );
     });
 
-    test('the slant picks the file and lets the core skip the skew', () {
+    test('the slant only picks the file', () {
       const italic = HWTextStyle(fontFamily: 'Chewy', italic: true);
       final kotlin =
           const HWText.fixed('Hello', style: italic).toKotlin(0, dataExpr: 'd');
@@ -219,7 +244,7 @@ void main() {
         kotlin,
         contains('HomeWidgetFonts.typeface(context, "Chewy", 400, true)'),
       );
-      expect(kotlin, contains('italic = true,'));
+      expect(kotlin, isNot(contains('italic')));
     });
 
     test('Android reads a bound value the way a Glance Text would', () {
@@ -502,6 +527,142 @@ void main() {
     });
   });
 
+  group('the height a bitmap text is drawn for', () {
+    const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
+    const text = HWText.fixed('Hello', style: style);
+
+    test('loses what a fixed-size sibling of its column takes', () {
+      const column = HWColumn(
+        children: [
+          HWIcon.glyph(0xE88A, font: HWIconFont(family: 'Material'), size: 24),
+          text,
+        ],
+      );
+
+      final kotlin = column.toKotlin(0, dataExpr: 'data');
+      expect(
+        kotlin,
+        contains(
+          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 24f),',
+        ),
+      );
+      expect(
+        kotlin,
+        contains('maxWidthDp = LocalSize.current.width.value,'),
+        reason: 'a column leaves its children its full width',
+      );
+    });
+
+    test('counts the padding around a fixed-size sibling', () {
+      const column = HWColumn(
+        children: [
+          HWPadding(
+            padding: HWEdgeInsets.symmetric(vertical: 5),
+            child: HWIcon.glyph(
+              0xE88A,
+              font: HWIconFont(family: 'Material'),
+              size: 20,
+            ),
+          ),
+          text,
+        ],
+      );
+
+      expect(
+        column.toKotlin(0, dataExpr: 'data'),
+        contains(
+          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 30f),',
+        ),
+      );
+    });
+
+    test('loses what a fixed-height image sibling of its column takes', () {
+      const column = HWColumn(
+        children: [
+          HWImage.asset('assets/logo.png', height: 40),
+          text,
+        ],
+      );
+
+      expect(
+        column.toKotlin(0, dataExpr: 'data'),
+        contains(
+          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 40f),',
+        ),
+      );
+    });
+
+    test('keeps what an image of an unknown height takes, which is nothing',
+        () {
+      const column = HWColumn(
+        children: [
+          HWImage.asset('assets/logo.png', width: 40),
+          text,
+        ],
+      );
+
+      expect(
+        column.toKotlin(0, dataExpr: 'data'),
+        contains('maxHeightDp = LocalSize.current.height.value,'),
+      );
+    });
+
+    test('keeps what a text of its own column takes, which is unknown', () {
+      const column = HWColumn(children: [HWText.fixed('other'), text]);
+
+      expect(
+        column.toKotlin(0, dataExpr: 'data'),
+        contains('maxHeightDp = LocalSize.current.height.value,'),
+      );
+    });
+
+    test('loses both axes to a column nested in a row', () {
+      const row = HWRow(
+        children: [
+          HWIcon.glyph(0xE88A, font: HWIconFont(family: 'Material'), size: 24),
+          HWColumn(
+            children: [
+              HWIcon.glyph(
+                0xE88A,
+                font: HWIconFont(family: 'Material'),
+                size: 16,
+              ),
+              text,
+            ],
+          ),
+        ],
+      );
+
+      final kotlin = row.toKotlin(0, dataExpr: 'data');
+      expect(
+        kotlin,
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 24f),',
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 16f),',
+        ),
+      );
+    });
+
+    test('leaves the fixed-size sibling itself its own height', () {
+      const icon = HWIcon.glyph(
+        0xE88A,
+        font: HWIconFont(family: 'Material'),
+        size: 24,
+      );
+      const column = HWColumn(children: [icon, text]);
+
+      expect(
+        column.toKotlin(0, dataExpr: 'data'),
+        contains(icon.toKotlin(1, dataExpr: 'data')),
+      );
+    });
+  });
+
   group('the alignment of a bitmap text', () {
     const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
 
@@ -616,10 +777,15 @@ void main() {
           reason: helper.name,
         );
         expect(helper.localeDependent, isFalse, reason: helper.name);
+        expect(
+          helper.swiftImports,
+          contains('import SwiftUI'),
+          reason: helper.name,
+        );
       }
       expect(
         HWNativeHelper.hwFontFromURL.swiftImports,
-        {'import CoreText'},
+        {'import CoreText', 'import SwiftUI'},
       );
       expect(
         HWNativeHelper.hwFontFromURL.toSwift(0, dataExpr: 'data'),

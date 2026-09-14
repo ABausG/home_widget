@@ -155,6 +155,12 @@ class HWIcon extends HWWidget implements HWDataWidget {
     );
   }
 
+  /// What an [HWIcon] that never went through the decoder fails with, where
+  /// the icon is still the raw Flutter constant the annotation wrote.
+  static const String _undecodedMessage =
+      'The font of this HWIcon is unknown. An icon has to be declared in a '
+      '@HomeWidget annotation, or built with HWIcon.glyph.';
+
   /// The font this icon is drawn out of.
   ///
   /// Throws a [GeneratorError] on a tree that was never decoded from a schema,
@@ -162,10 +168,17 @@ class HWIcon extends HWWidget implements HWDataWidget {
   HWIconFont get iconFont {
     final resolved = font ?? iconData?.iconFont;
     if (resolved != null) return resolved;
-    throw GeneratorError(
-      'The font of this HWIcon is unknown. An icon has to be declared in a '
-      '@HomeWidget annotation, or built with HWIcon.glyph.',
-    );
+    throw GeneratorError(_undecodedMessage);
+  }
+
+  /// The icon field a glyphless icon renders, which only the data form has.
+  ///
+  /// Throws the [GeneratorError] [iconFont] throws for an icon the decoder
+  /// never saw, rather than failing on a null check.
+  HWDataType<dynamic> get _boundDataType {
+    final data = dataType;
+    if (data != null) return data;
+    throw GeneratorError(_undecodedMessage);
   }
 
   /// The color the glyph is tinted in: [color], or the platform's primary
@@ -232,6 +245,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
           'Icons.favorite, got: ${iconObj.type?.element?.name}',
         );
       }
+      hwValidateCodePoint(codePoint, 'This HWIcon');
       return HWIcon.resolvedGlyph(
         codePoint,
         font: font,
@@ -241,6 +255,29 @@ class HWIcon extends HWWidget implements HWDataWidget {
         fontResourcePrefix: fontResourcePrefix,
         matchTextDirection:
             WidgetValueDecoder.decodeIconMatchTextDirection(iconObj),
+      );
+    }
+
+    final glyph = WidgetValueDecoder.getField(obj, 'codePoint')?.toIntValue();
+    if (glyph != null) {
+      final fontObj = WidgetValueDecoder.getField(obj, 'font');
+      final font = WidgetValueDecoder.decodeIconFontDeclaration(fontObj);
+      if (font == null) {
+        throw GeneratorError(
+          'Could not decode HWIcon.glyph. Its font has to be an HWIconFont '
+          'naming a family, got: ${fontObj?.type?.element?.name}',
+        );
+      }
+      hwValidateCodePoint(glyph, 'This HWIcon');
+      return HWIcon.resolvedGlyph(
+        glyph,
+        font: font,
+        size: size,
+        color: color,
+        semanticLabel: semanticLabel,
+        fontResourcePrefix: fontResourcePrefix,
+        matchTextDirection:
+            WidgetValueDecoder.decodeIconMatchTextDirection(obj),
       );
     }
 
@@ -268,13 +305,19 @@ class HWIcon extends HWWidget implements HWDataWidget {
   }
 
   /// The SwiftUI modifiers every glyph carries, whatever it is rendered from.
+  ///
+  /// The frame makes the glyph the `size` by `size` box Flutter's `Icon` is and
+  /// Android's `GlanceModifier.size` gives it, rather than whatever advance and
+  /// line height the font happens to declare.
   List<String> _swiftGlyphModifiers(int indent, String dataExpr) {
     final font = '${HWNativeHelper.hwBundledFont.name}'
         '("${iconFont.iosResourceName}", size: ${hwSizeLiteral(size)})';
     final semanticLabel = this.semanticLabel;
     final mirror = _swiftMirrorCondition;
+    final box = hwSizeLiteral(size);
     return [
       '.font($font)',
+      '.frame(width: $box, height: $box)',
       '.foregroundColor(${effectiveColor.toSwift(indent, dataExpr: dataExpr)})',
       if (semanticLabel != null)
         '.accessibilityLabel("${escapeSwiftStringLiteral(semanticLabel)}")'
@@ -305,7 +348,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
     final codePoint = this.codePoint;
     final String bodyPad;
     if (codePoint == null) {
-      final access = dataType!.swiftAccess(dataExpr);
+      final access = _boundDataType.swiftAccess(dataExpr);
       buffer.writeln(
         '${pad}if let codePoint = $access, '
         'let value = UInt32(exactly: codePoint), '
@@ -377,7 +420,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
     }
 
     final buffer = StringBuffer();
-    final access = dataType!.kotlinAccess(dataExpr);
+    final access = _boundDataType.kotlinAccess(dataExpr);
     buffer.writeln('$pad$access?.let { codePoint ->');
     buffer.writeln('$pad    ${_kotlinImage(indent, dataExpr, 'codePoint')}');
     buffer.write('$pad}');
@@ -385,7 +428,9 @@ class HWIcon extends HWWidget implements HWDataWidget {
   }
 
   /// [codePoint] as the hexadecimal literal an icon is usually written as,
-  /// which both platforms read the same way.
-  static String _codePointLiteral(int codePoint) =>
-      '0x${codePoint.toRadixString(16).toUpperCase()}';
+  /// which both platforms read the same way, once it is a glyph at all.
+  static String _codePointLiteral(int codePoint) {
+    hwValidateCodePoint(codePoint, 'This HWIcon');
+    return hwCodePointLiteral(codePoint);
+  }
 }

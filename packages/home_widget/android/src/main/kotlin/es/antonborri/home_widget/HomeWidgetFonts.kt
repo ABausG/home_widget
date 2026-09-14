@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.Typeface
 import android.text.Layout
 import android.text.StaticLayout
@@ -37,10 +38,11 @@ import org.json.JSONArray
 object HomeWidgetFonts {
   private const val TAG = "HomeWidgetFonts"
 
-  /** The largest bitmap either renderer draws, in pixels per side — a guard against a runaway request. */
+  /**
+   * The largest bitmap either renderer draws, in pixels per side — a guard against a runaway
+   * request.
+   */
   private const val MAX_SIZE_PX = 2048
-
-  private const val SYNTHETIC_ITALIC_SKEW = -0.25f
 
   private const val FONT_MANIFEST = "flutter_assets/FontManifest.json"
 
@@ -60,7 +62,8 @@ object HomeWidgetFonts {
    * [sizeDp] density independent pixels.
    *
    * The glyph is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`, and is
-   * centred both horizontally and vertically in the square.
+   * centred both horizontally and vertically in the square. A glyph whose ink reaches past one em —
+   * plenty of icon fonts ship those — is scaled down to fit the square rather than cropped.
    *
    * [matchTextDirection] mirrors the glyph horizontally when the configuration lays out right to
    * left, the way Flutter's `Icon` honours `IconData.matchTextDirection`. Pass it for a directional
@@ -76,9 +79,9 @@ object HomeWidgetFonts {
       sizeDp: Float,
       matchTextDirection: Boolean = false,
   ): Bitmap {
-    val sizePx =
-        (sizeDp * context.resources.displayMetrics.density).roundToInt().coerceIn(1, MAX_SIZE_PX)
-    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val displayMetrics = context.resources.displayMetrics
+    val sizePx = (sizeDp * displayMetrics.density).roundToInt().coerceIn(1, MAX_SIZE_PX)
+    val bitmap = Bitmap.createBitmap(displayMetrics, sizePx, sizePx, Bitmap.Config.ARGB_8888)
     try {
       val typeface = ResourcesCompat.getFont(context, fontRes)
       if (typeface == null) {
@@ -93,6 +96,12 @@ object HomeWidgetFonts {
             textAlign = Paint.Align.CENTER
           }
       val glyph = String(Character.toChars(codePoint))
+      val ink = Rect()
+      paint.getTextBounds(glyph, 0, glyph.length, ink)
+      val inkSize = maxOf(ink.width(), ink.height())
+      if (inkSize > sizePx) {
+        paint.textSize = paint.textSize * sizePx / inkSize
+      }
       val metrics = paint.fontMetrics
       val baseline = sizePx / 2f - (metrics.ascent + metrics.descent) / 2f
       val canvas = Canvas(bitmap)
@@ -165,16 +174,15 @@ object HomeWidgetFonts {
   /**
    * Renders [text] in [typeface] as a white bitmap on a transparent background.
    *
-   * The text is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`. It wraps at
-   * [maxWidthDp] density independent pixels and stops at [maxHeightDp], the last line that fits
+   * The text is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`. It wraps
+   * at [maxWidthDp] density independent pixels and stops at [maxHeightDp], the last line that fits
    * ellipsized, as is the line at [maxLines].
    *
    * The bitmap is only as wide as the widest line, so [textAlign] aligns the lines relative to each
    * other. Pass [fillWidth] to make it [maxWidthDp] wide instead, which is what gives a centred or
    * end aligned line somewhere to sit.
    *
-   * [typeface] falls back to [Typeface.DEFAULT] when it is `null`. [italic] is applied as a
-   * synthetic skew when [typeface] is not italic itself.
+   * [typeface] falls back to [Typeface.DEFAULT] when it is `null`.
    *
    * Never throws: when the text cannot be drawn, a 1 × 1 transparent bitmap is returned.
    */
@@ -183,7 +191,6 @@ object HomeWidgetFonts {
       typeface: Typeface?,
       text: CharSequence,
       fontSizeSp: Float = 14f,
-      italic: Boolean = false,
       underline: Boolean = false,
       lineThrough: Boolean = false,
       textAlign: TextAlign? = null,
@@ -207,9 +214,6 @@ object HomeWidgetFonts {
             color = Color.WHITE
             isUnderlineText = underline
             isStrikeThruText = lineThrough
-            if (italic && !resolvedTypeface.isItalic) {
-              textSkewX = SYNTHETIC_ITALIC_SKEW
-            }
           }
 
       val wrapWidth = (maxWidthDp * displayMetrics.density).toInt().coerceIn(1, MAX_SIZE_PX)
@@ -229,7 +233,8 @@ object HomeWidgetFonts {
         var leftToRight = true
         for (line in 0 until layout.lineCount) {
           widest = maxOf(widest, layout.getLineWidth(line))
-          leftToRight = leftToRight && layout.getParagraphDirection(line) == Layout.DIR_LEFT_TO_RIGHT
+          leftToRight =
+              leftToRight && layout.getParagraphDirection(line) == Layout.DIR_LEFT_TO_RIGHT
         }
         val tight = ceil(widest).toInt().coerceIn(1, width)
         if (tight < width) {
@@ -243,12 +248,17 @@ object HomeWidgetFonts {
       }
 
       val height = layout.height.coerceIn(1, maxHeightPx)
-      val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+      val bitmap = Bitmap.createBitmap(displayMetrics, width, height, Bitmap.Config.ARGB_8888)
       layout.draw(Canvas(bitmap))
       return bitmap
     } catch (e: Exception) {
       Log.w(TAG, "Failed to render the text \"$text\"", e)
-      return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+      return Bitmap.createBitmap(
+          context.resources.displayMetrics,
+          1,
+          1,
+          Bitmap.Config.ARGB_8888,
+      )
     }
   }
 

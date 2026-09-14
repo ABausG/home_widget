@@ -63,7 +63,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "1af427a2",
+            "afa95f88",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -101,7 +101,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                           "Chewy",
                           fontSizeSp = 24f,
                           maxWidthDp = maxOf(0f, LocalSize.current.width.value - 32f),
-                          maxHeightDp = maxOf(0f, LocalSize.current.height.value - 32f),
+                          maxHeightDp = maxOf(0f, LocalSize.current.height.value - 72f),
                       )
                   ),
               contentDescription = "Chewy",
@@ -132,7 +132,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                     ImageProvider(
                         HomeWidgetFonts.iconBitmap(
                             context,
-                            R.font.hw_font_font_and_icons__icons_cupertinoicons_cupertino_icons,
+                            R.font.hw_font_font_and_icons__icons_cupertinoicons__cupertino_icons,
                             0xF4B6,
                             24f,
                         )
@@ -150,7 +150,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                         HomeWidgetFonts.iconBitmap(
                             context,
                             R.font
-                                .hw_font_font_and_icons__icons_fontawesomesolid_font_awesome_flutter,
+                                .hw_font_font_and_icons__icons_fontawesomesolid__font_awesome_flutter,
                             0xF004,
                             24f,
                         )

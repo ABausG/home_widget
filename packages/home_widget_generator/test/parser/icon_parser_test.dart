@@ -42,6 +42,39 @@ class PackageIcon {}
 class NotAnIcon {}
 
 @HomeWidget(
+  name: 'GlyphIcon',
+  widget: HWIcon.glyph(
+    0xe88a,
+    font: HWIconFont(family: 'MaterialIcons'),
+    size: 32,
+    semanticLabel: 'Mood',
+  ),
+)
+class GlyphIcon {}
+
+@HomeWidget(
+  name: 'PackageGlyphIcon',
+  widget: HWIcon.glyph(
+    0xf4b6,
+    font: HWIconFont(family: 'CupertinoIcons', package: 'cupertino_icons'),
+    matchTextDirection: true,
+  ),
+)
+class PackageGlyphIcon {}
+
+@HomeWidget(
+  name: 'OutOfRangeGlyph',
+  widget: HWIcon.glyph(-1, font: HWIconFont(family: 'MaterialIcons')),
+)
+class OutOfRangeGlyph {}
+
+@HomeWidget(
+  name: 'SurrogateGlyph',
+  widget: HWIcon.glyph(0xd800, font: HWIconFont(family: 'MaterialIcons')),
+)
+class SurrogateGlyph {}
+
+@HomeWidget(
   name: 'BoundIcon',
   widget: HWIcon(
     HWIconData(
@@ -286,6 +319,45 @@ void main() {
     });
   });
 
+  group('HWIcon.glyph', () {
+    test('decodes a glyph named without a Flutter icon', () {
+      final icon = widgetOf('GlyphIcon') as HWIcon;
+      expect(icon.codePoint, 0xe88a);
+      expect(icon.font, const HWIconFont(family: 'MaterialIcons'));
+      expect(icon.size, 32);
+      expect(icon.semanticLabel, 'Mood');
+      expect(icon.matchTextDirection, isFalse);
+      expect(icon.fontResourcePrefix, 'hw_font_test_widget');
+      expect(icon.iconCodePoints, {
+        const HWIconFont(family: 'MaterialIcons'): {0xe88a},
+      });
+      expect(
+        icon.toKotlin(0, dataExpr: 'data'),
+        contains('R.font.hw_font_test_widget__icons_materialicons'),
+      );
+    });
+
+    test('decodes the package of its font and its mirroring', () {
+      final icon = widgetOf('PackageGlyphIcon') as HWIcon;
+      expect(
+        icon.font,
+        const HWIconFont(
+          family: 'CupertinoIcons',
+          package: 'cupertino_icons',
+        ),
+      );
+      expect(icon.matchTextDirection, isTrue);
+    });
+
+    test('rejects a glyph that is no codepoint', () {
+      expect(
+        errorOf('OutOfRangeGlyph').message,
+        contains('outside the Unicode range'),
+      );
+      expect(errorOf('SurrogateGlyph').message, contains('surrogate'));
+    });
+  });
+
   group('HWIconData', () {
     test('decodes every icon to a named enum value', () {
       final widget = widgetOf('BoundIcon') as HWIcon;
@@ -452,7 +524,7 @@ void main() {
         contains('HomeWidgetFonts.typeface(context, "Chewy", 400, true)'),
       );
       expect(kotlin, contains('fontSizeSp = 12f,'));
-      expect(kotlin, contains('italic = true,'));
+      expect(kotlin, isNot(contains('italic = true,')));
     });
   });
 }

@@ -39,8 +39,8 @@ Image(
 )
 ```
 
-Like `textBitmap`, `iconBitmap` works on every API level the plugin supports — it loads the font
-with `ResourcesCompat` rather than an `android:fontFamily` attribute.
+Like `textBitmap`, `iconBitmap` works on every API level the plugin supports, and never throws: a
+font it cannot load or a glyph it cannot draw yields a transparent bitmap of the requested size.
 
 A fifth, optional `matchTextDirection` parameter mirrors the glyph horizontally when the
 configuration lays out right to left, the way Flutter's `Icon` honours `IconData.matchTextDirection`.
@@ -51,7 +51,7 @@ in a left-to-right layout:
 HomeWidgetFonts.iconBitmap(
     context,
     R.font.material_icons_regular,
-    0xe5c4,
+    0xe092,
     sizeDp = 24f,
     matchTextDirection = true,
 )

@@ -691,9 +691,6 @@ class WidgetSpec {
     return glyphs;
   }
 
-  /// Whether the widget renders text in a custom font or draws any icon.
-  bool get usesFonts => fontVariants.isNotEmpty || iconCodePoints.isNotEmpty;
-
   /// Resource holding the gallery title.
   String get labelResourceName => '${resourcePrefix}_label';
 

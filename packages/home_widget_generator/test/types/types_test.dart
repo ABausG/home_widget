@@ -169,6 +169,22 @@ void main() {
       expect(type.kotlinAccess('widgetData'), 'widgetData.label');
     });
 
+    test('HWTimedData hands back the getData type of the wrapped type', () {
+      const wrapped = HWImageData('avatar');
+      const type = HWTimedData(wrapped);
+
+      expect(type.dartApiType('Weather'), wrapped.dartApiType('Weather'));
+      expect(
+        type.dartGetDataType('Weather'),
+        wrapped.dartGetDataType('Weather'),
+      );
+      expect(type.dartGetDataType('Weather'), 'String');
+      expect(
+        type.dartGetDataType('Weather'),
+        isNot(type.dartApiType('Weather')),
+      );
+    });
+
     test('HWTimedData delegates JSON accessors and read expressions', () {
       const wrapped =
           HWJson('weather', HWString('condition', defaultValue: 'x'));

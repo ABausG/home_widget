@@ -1601,6 +1601,10 @@ class HWIconData extends HWDataType<int> {
     final seen = <String>{};
     final byCodePoint = <int, String>{};
     for (final entry in entries) {
+      hwValidateCodePoint(
+        entry.codePoint,
+        'The icon "${entry.name}" of HWIconData "$key"',
+      );
       if (!seen.add(entry.name)) {
         throw GeneratorError(
           'HWIconData "$key" names the icon "${entry.name}" twice. Every icon '
@@ -1622,10 +1626,16 @@ class HWIconData extends HWDataType<int> {
 
     final codePoints = this.codePoints;
     final defaultCodePoint = _defaultCodePoint;
-    if (defaultCodePoint != null && !codePoints.contains(defaultCodePoint)) {
-      throw GeneratorError(
-        'The defaultValue of HWIconData "$key" is not one of its icons.',
+    if (defaultCodePoint != null) {
+      hwValidateCodePoint(
+        defaultCodePoint,
+        'The defaultValue of HWIconData "$key"',
       );
+      if (!codePoints.contains(defaultCodePoint)) {
+        throw GeneratorError(
+          'The defaultValue of HWIconData "$key" is not one of its icons.',
+        );
+      }
     }
     final previewCodePoint = _previewCodePoint;
     if (previewCodePoint != null && !codePoints.contains(previewCodePoint)) {
@@ -2127,6 +2137,10 @@ class HWTimedData<T> extends HWDataType<T> {
   @override
   String dartApiType(String widgetClassName) =>
       data.dartApiType(widgetClassName);
+
+  @override
+  String dartGetDataType(String widgetClassName) =>
+      data.dartGetDataType(widgetClassName);
 
   @override
   String dartDecode(String expr, String widgetClassName) =>

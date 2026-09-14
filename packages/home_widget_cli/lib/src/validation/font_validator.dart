@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../util/font_resolver.dart';
+import '../util/package_config.dart';
 
 /// The first `home_widget` release whose native side can render a custom font.
 const String minimumFontHomeWidgetVersion = '0.10.0';
@@ -15,9 +15,9 @@ const String minimumFontHomeWidgetVersion = '0.10.0';
 ///
 /// Three things have to hold: each icon field is a legal set of icons, every
 /// icon font is on disk where the schema says it is, and every text font family
-/// is declared in a pubspec this project can see. Resolution runs here rather
-/// than in the generators so a typo fails the whole command instead of leaving
-/// one platform half-generated.
+/// is declared in a pubspec this project can see and ships the file it names.
+/// Resolution runs here rather than in the generators so a typo fails the whole
+/// command instead of leaving one platform half-generated.
 ///
 /// Whatever fails says which widget it failed for: the fonts of a project are
 /// validated one widget at a time, and none of the errors raised below the
@@ -45,7 +45,14 @@ void _validateFonts(WidgetSpec spec, Directory projectRoot) {
 
   final fonts = FontResolver(projectRoot);
   for (final variant in variants) {
-    fonts.resolveTextFont(variant);
+    final asset = fonts.resolveTextFont(variant);
+    final file = fonts.resolveTextFontFile(variant);
+    if (!file.existsSync()) {
+      throw GeneratorError(
+        'The font family "${variant.family}" is declared as "$asset", which '
+        'does not exist at ${file.path}.',
+      );
+    }
   }
   for (final font in iconFonts) {
     fonts.resolveIconFont(font);
@@ -59,8 +66,8 @@ void _validateFonts(WidgetSpec spec, Directory projectRoot) {
 /// whatever the developer has checked out, and the version in `pubspec.lock`
 /// says nothing about it.
 void _requireHomeWidgetFontSupport(Directory projectRoot) {
-  final lockFile = File(p.join(projectRoot.path, 'pubspec.lock'));
-  if (!lockFile.existsSync()) return;
+  final lockFile = findFileUpwards(projectRoot, 'pubspec.lock');
+  if (lockFile == null) return;
 
   final Object? doc;
   try {

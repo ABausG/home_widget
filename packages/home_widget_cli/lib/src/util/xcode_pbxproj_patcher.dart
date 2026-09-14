@@ -1279,14 +1279,19 @@ String _wireResourceFile(
   final fileRefId = xcodeObjectId('fileref:$name:$widgetClassName');
   final buildFileId = xcodeObjectId('buildfile:$name:$widgetClassName');
 
+  // Unchecking target membership in Xcode drops the build file and keeps the
+  // file reference, so each object is looked for on its own — and looked for as
+  // an object, since the id of either also appears where it is used.
   var updated = pbxproj;
-  if (!updated.contains(fileRefId)) {
+  if (!updated.contains('$fileRefId /* $name */ = {')) {
     updated = _insertIntoSection(
       updated,
       section: 'PBXFileReference',
       content:
           '\t\t$fileRefId /* $name */ = {isa = PBXFileReference; lastKnownFileType = $lastKnownFileType; path = $name; sourceTree = "<group>"; };',
     );
+  }
+  if (!updated.contains('$buildFileId /* $name in Resources */ = {')) {
     updated = _insertIntoSection(
       updated,
       section: 'PBXBuildFile',

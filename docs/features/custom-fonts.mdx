@@ -67,9 +67,8 @@ it's silently ignored: the launcher inflates widget layouts in a restricted cont
 doesn't survive the trip either, since spans are flattened across the `RemoteViews` Binder call.
 There is no XML- or span-based way to get a custom font onto app widget text.
 
-`home_widget` (0.10.0+) works around this by rendering the text to a bitmap on the Dart/plugin side
-and showing it as an `Image` in Glance content, via
-`es.antonborri.home_widget.HomeWidgetFonts`.
+`home_widget` (0.10.0+) works around this by rendering the text to a bitmap and showing it as an
+`Image` in Glance content, via `es.antonborri.home_widget.HomeWidgetFonts`.
 
 ### Text in a custom font
 
@@ -81,11 +80,10 @@ val typeface = HomeWidgetFonts.typeface(context, "Chewy", 400, false)
 ```
 
 The family is the one from `pubspec.yaml` (`Chewy`), or `packages/<package>/<family>` for a font
-that ships inside a package — the key Flutter registers it under. Which file that is comes out of
-the `FontManifest.json` Flutter writes next to the fonts in `flutter_assets`, picked the way
-Flutter picks it: a file of the requested slant beats one of the wrong slant, an exact weight beats
-every other, and otherwise the nearest weight wins. The manifest and the typefaces are cached, and
-`null` comes back for a family nothing declares.
+that ships inside a package — the key Flutter registers it under. The weight and slant pick between
+the files the family declares the way Flutter picks them: a file of the requested slant beats one of
+the wrong slant, an exact weight beats every other, and otherwise the nearest weight wins. Nothing
+is synthesized, and `null` comes back for a family nothing declares.
 
 If you'd rather name a file yourself, `assetTypeface(context, "assets/fonts/Chewy-Regular.ttf")`
 takes a raw asset key — the path from `pubspec.yaml`, or `packages/<package>/<path>` for a
@@ -110,11 +108,11 @@ Image(
 )
 ```
 
-`textBitmap` draws the text as a white mask on a transparent background, wrapping at `maxWidthDp`,
+`textBitmap` draws the text in white on a transparent background, wrapping at `maxWidthDp`,
 cutting off at `maxHeightDp` and ellipsizing the last line that fits, as it does the line at
-`maxLines`. It also takes `italic`, `underline`, `lineThrough`, and `textAlign` (default
+`maxLines`. It also takes `underline`, `lineThrough`, and `textAlign` (default
 `fontSizeSp = 14f`, `maxLines = Int.MAX_VALUE`, `maxHeightDp = Float.MAX_VALUE`); both dimensions
-are capped at 2048 px, so a bitmap never grows past what a widget can hold. Leaving the mask
+are capped at 2048 px, so a bitmap never grows past what a widget can hold. Leaving the text
 white and tinting it with `ColorFilter.tint(...)` is what lets themed colors —
 `GlanceTheme.colors.onSurface`, or a day/night `ColorProvider` — resolve correctly at inflate time,
 the same way any other tinted Glance icon does.
@@ -133,7 +131,7 @@ space a composable was handed.
 
 <Warning>
 The result is an image, not text: it doesn't reflow with the system's dynamic type setting, and
-every call allocates a new bitmap. Reach for this only for short custom-font runs — labels,
+each call renders a new one. Reach for this only for short custom-font runs — labels,
 headlines — and use Glance's own `Text` for body copy. Set `contentDescription` to the same string
 so TalkBack still reads it.
 </Warning>

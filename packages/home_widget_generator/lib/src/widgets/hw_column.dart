@@ -75,6 +75,8 @@ class HWColumn extends HWMultiChildWidget {
     return buffer.toString();
   }
 
+  /// What a sibling holding text takes is not known before it is measured,
+  /// and is ignored.
   @override
   String toKotlinIn(
     int indent, {
@@ -96,6 +98,11 @@ class HWColumn extends HWMultiChildWidget {
       buffer.writeln('${pad}Column {');
     }
 
+    final taken = children.fold<double>(
+      0,
+      (sum, child) => sum + (_fixedKotlinHeight(child) ?? 0),
+    );
+
     _emitChildrenWithMainAxisAlignment(
       children,
       buffer,
@@ -105,7 +112,9 @@ class HWColumn extends HWMultiChildWidget {
       (child, childIndent, data) => child.toKotlinIn(
         childIndent,
         dataExpr: data,
-        constraints: constraints,
+        constraints: constraints.deflate(
+          vertical: taken - (_fixedKotlinHeight(child) ?? 0),
+        ),
       ),
       (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
     );
