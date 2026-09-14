@@ -177,6 +177,23 @@ words:
     # native format helpers (Swift API / SimpleDateFormat pattern)
     - uppercased
     - SSSZ
+    # custom fonts and icons
+    - codepoint
+    - codepoints
+    - ellipsize
+    - flavorizr
+    - fontawesomesolid
+    - glyphless
+    - parcelable
+    - pathed
+    - renderable
+    - roboto
+    - subsetter
+    - themable
+    - undecoded
+    - unmanaged
+    - untinted
+    - upsert
 ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)
     - Lokalisierte

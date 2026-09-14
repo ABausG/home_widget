@@ -45,7 +45,7 @@ import org.json.JSONArray
  * Draws text and icons of a custom font for use in a Glance widget.
  *
  * Glance cannot draw text in a custom font, so the glyphs are drawn into a white mask bitmap here
- * and shown through an `ImageProvider`, which keeps the colour themable through a `ColorFilter`:
+ * and shown through an `ImageProvider`, which keeps the color themable through a `ColorFilter`:
  * ```kotlin
  * Image(
  *     provider = ImageProvider(HomeWidgetFonts.iconBitmap(context, R.font.my_icons, 0xe87d, 24f)),
@@ -103,7 +103,7 @@ object HomeWidgetFonts {
    * Renders the glyph [codePoint] of the font resource [fontRes] as a white bitmap of [sizeDp] ×
    * [sizeDp] density independent pixels.
    *
-   * The glyph is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`, and is
+   * The glyph is drawn in white so it can be recolored with a Glance `ColorFilter.tint`, and is
    * centred both horizontally and vertically in the square. A glyph whose ink reaches past one em —
    * plenty of icon fonts ship those — is scaled down to fit the square rather than cropped.
    *
@@ -216,8 +216,8 @@ object HomeWidgetFonts {
   /**
    * Renders [text] in [typeface] as a white bitmap on a transparent background.
    *
-   * The text is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`. It wraps
-   * at [maxWidthDp] density independent pixels and stops at [maxHeightDp], the last line that fits
+   * The text is drawn in white so it can be recolored with a Glance `ColorFilter.tint`. It wraps at
+   * [maxWidthDp] density independent pixels and stops at [maxHeightDp], the last line that fits
    * ellipsized, as is the line at [maxLines].
    *
    * The bitmap is only as wide as the widest line, so [textAlign] aligns the lines relative to each

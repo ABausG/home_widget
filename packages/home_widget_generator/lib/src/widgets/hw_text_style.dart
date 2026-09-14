@@ -510,7 +510,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
 /// where the next part begins cannot collide with another one.
 final String _boundsKeySeparator = String.fromCharCode(31);
 
-/// What a measuring pass recognises a text probe by, `TEXT_BOUNDS_TAG` on the
+/// What a measuring pass recognizes a text probe by, `TEXT_BOUNDS_TAG` on the
 /// Kotlin side, followed by the key the room is stored under.
 const String _hwTextBoundsTag = 'hw_text_bounds:';
 
