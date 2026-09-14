@@ -34,7 +34,10 @@ import androidx.glance.appwidget.compose
 import androidx.glance.text.TextAlign
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
@@ -68,6 +71,12 @@ object HomeWidgetFonts {
 
   /** How many measuring rounds a single widget size may take before the walk gives up. */
   private const val MAX_MEASURE_ROUNDS = 32
+
+  /**
+   * Glance runs one unmanaged composition per widget at a time, and the sizes of a resized widget
+   * ask to be measured together.
+   */
+  private val measureLock = Mutex()
 
   private const val DEFAULT_FONT_WEIGHT = 400
 
@@ -354,6 +363,12 @@ object HomeWidgetFonts {
      */
     fun isProbe(key: String, size: DpSize): Boolean = measuring && measured(size, key) == null
 
+    /** Whether [size] itself was measured, rather than served by the nearest size that was. */
+    fun covers(size: DpSize): Boolean = bounds.containsKey(size)
+
+    /** These bounds with [other]'s sizes added, [other] winning a size both measured. */
+    operator fun plus(other: TextBounds): TextBounds = TextBounds(bounds + other.bounds)
+
     /** What [key] measured at [size], or at the size closest to it that was measured. */
     private fun measured(size: DpSize, key: String): DpSize? {
       bounds[size]?.let {
@@ -417,20 +432,56 @@ object HomeWidgetFonts {
 
       val bounds = HashMap<DpSize, Map<String, DpSize>>(sizes.size)
       for (size in sizes) {
-        val known = LinkedHashMap<String, DpSize>()
-        for (round in 0 until MAX_MEASURE_ROUNDS) {
-          val partial = TextBounds(mapOf(size to known.toMap()), measuring = true)
-          val remoteViews = composeAt(widget(partial), context, id, size)
-          val (key, room) = measureNextProbe(context, remoteViews, size, known.keys) ?: break
-          known[key] = room
-        }
-        bounds[size] = known
+        bounds[size] = measureSize(context, id, size, widget)
       }
       return TextBounds(bounds)
+    } catch (e: CancellationException) {
+      throw e
     } catch (e: Exception) {
       Log.w(TAG, "Could not measure the text bounds of $id", e)
       return TextBounds.NONE
     }
+  }
+
+  /**
+   * Measures the room every custom font text of the widget [id] has at [size] alone, the way
+   * [measureTextBounds] does for every size the launcher reports.
+   *
+   * For a size the launcher hands a running widget later — a resize — which the bounds measured up
+   * front do not [TextBounds.covers]; add the result to them with [TextBounds.plus].
+   */
+  suspend fun measureTextBounds(
+      context: Context,
+      id: GlanceId,
+      size: DpSize,
+      widget: (TextBounds) -> GlanceAppWidget,
+  ): TextBounds {
+    try {
+      return TextBounds(mapOf(size to measureSize(context, id, size, widget)))
+    } catch (e: CancellationException) {
+      throw e
+    } catch (e: Exception) {
+      Log.w(TAG, "Could not measure the text bounds of $id at $size", e)
+      return TextBounds.NONE
+    }
+  }
+
+  private suspend fun measureSize(
+      context: Context,
+      id: GlanceId,
+      size: DpSize,
+      widget: (TextBounds) -> GlanceAppWidget,
+  ): Map<String, DpSize> {
+    val known = LinkedHashMap<String, DpSize>()
+    measureLock.withLock {
+      for (round in 0 until MAX_MEASURE_ROUNDS) {
+        val partial = TextBounds(mapOf(size to known.toMap()), measuring = true)
+        val remoteViews = composeAt(widget(partial), context, id, size)
+        val (key, room) = measureNextProbe(context, remoteViews, size, known.keys) ?: break
+        known[key] = room
+      }
+    }
+    return known
   }
 
   @OptIn(ExperimentalGlanceApi::class)

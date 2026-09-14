@@ -5,6 +5,11 @@ package es.antonborri.generator_basics
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,21 +52,30 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
   override val sizeMode: SizeMode = SizeMode.Exact
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
-    val textBounds =
-        HomeWidgetFonts.measureTextBounds(context, id) { bounds ->
-          object : GlanceAppWidget() {
-            override suspend fun provideGlance(context: Context, id: GlanceId) {
-              provideContent {
-                WidgetContent(
-                    context,
-                    HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
-                    textBounds = bounds,
-                )
-              }
-            }
+    val measuring: (HomeWidgetFonts.TextBounds) -> GlanceAppWidget = { bounds ->
+      object : GlanceAppWidget() {
+        override suspend fun provideGlance(context: Context, id: GlanceId) {
+          provideContent {
+            WidgetContent(
+                context,
+                HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+                textBounds = bounds,
+            )
           }
         }
-    provideContent { WidgetContent(context, currentState(), textBounds = textBounds) }
+      }
+    }
+    val measured = HomeWidgetFonts.measureTextBounds(context, id, measuring)
+    provideContent {
+      val size = LocalSize.current
+      var textBounds by remember { mutableStateOf(measured) }
+      LaunchedEffect(size) {
+        if (!textBounds.covers(size)) {
+          textBounds += HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
+        }
+      }
+      WidgetContent(context, currentState(), textBounds = textBounds)
+    }
   }
 
   override suspend fun providePreview(context: Context, widgetCategory: Int) {

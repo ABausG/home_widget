@@ -72,14 +72,24 @@ String androidGlanceWidgetTemplate({
   final provideGlance = measuresTextBounds
       ? '''
   override suspend fun provideGlance(context: Context, id: GlanceId) {
-    val textBounds = HomeWidgetFonts.measureTextBounds(context, id) { bounds ->
+    val measuring: (HomeWidgetFonts.TextBounds) -> GlanceAppWidget = { bounds ->
       object : GlanceAppWidget() {
         override suspend fun provideGlance(context: Context, id: GlanceId) {
           provideContent { WidgetContent(context, HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), textBounds = bounds) }
         }
       }
     }
-    provideContent { WidgetContent(context, currentState(), textBounds = textBounds) }
+    val measured = HomeWidgetFonts.measureTextBounds(context, id, measuring)
+    provideContent {
+      val size = LocalSize.current
+      var textBounds by remember { mutableStateOf(measured) }
+      LaunchedEffect(size) {
+        if (!textBounds.covers(size)) {
+          textBounds += HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
+        }
+      }
+      WidgetContent(context, currentState(), textBounds = textBounds)
+    }
   }
 '''
       : '''

@@ -310,6 +310,14 @@ class AndroidGenerator {
     if (rendersCustomFontText) {
       layoutImports.add('import androidx.glance.appwidget.SizeMode');
       layoutImports.add('import es.antonborri.home_widget.HomeWidgetFonts');
+      layoutImports.addAll([
+        'import androidx.compose.runtime.LaunchedEffect',
+        'import androidx.compose.runtime.getValue',
+        'import androidx.compose.runtime.mutableStateOf',
+        'import androidx.compose.runtime.remember',
+        'import androidx.compose.runtime.setValue',
+        'import androidx.glance.LocalSize',
+      ]);
     }
     if (bgColor != null) {
       layoutImports.addAll(bgColor.kotlinImports);

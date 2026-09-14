@@ -134,7 +134,10 @@ space a composable was handed. To have it measured instead, compose your content
 `HomeWidgetFonts.measureTextBounds(context, id) { bounds -> ... }` a lambda that wraps that
 composition in a `GlanceAppWidget` for the `bounds` it is given, call it from `provideGlance`, and
 compose the final content with what it returns. It measures one text per round, in the order they
-appear. That is what the generator does for you.
+appear. A running widget can be resized to a size that was not measured up front; check
+`bounds.covers(LocalSize.current)` in a `LaunchedEffect` keyed on the size, and add the result of
+the single-size `measureTextBounds(context, id, size, ...)` to the bounds with `+`. That is what the
+generator does for you.
 </Warning>
 
 <Warning>

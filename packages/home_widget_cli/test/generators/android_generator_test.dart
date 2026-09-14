@@ -1305,8 +1305,8 @@ void main() {
         contains(
           '  override suspend fun provideGlance(context: Context, id: GlanceId)'
           ' {\n'
-          '    val textBounds = HomeWidgetFonts.measureTextBounds(context, id) '
-          '{ bounds ->\n'
+          '    val measuring: (HomeWidgetFonts.TextBounds) -> GlanceAppWidget '
+          '= { bounds ->\n'
           '      object : GlanceAppWidget() {\n'
           '        override suspend fun provideGlance(context: Context, '
           'id: GlanceId) {\n'
@@ -1316,8 +1316,20 @@ void main() {
           '        }\n'
           '      }\n'
           '    }\n'
-          '    provideContent { WidgetContent(context, currentState(), '
-          'textBounds = textBounds) }\n'
+          '    val measured = HomeWidgetFonts.measureTextBounds(context, id, '
+          'measuring)\n'
+          '    provideContent {\n'
+          '      val size = LocalSize.current\n'
+          '      var textBounds by remember { mutableStateOf(measured) }\n'
+          '      LaunchedEffect(size) {\n'
+          '        if (!textBounds.covers(size)) {\n'
+          '          textBounds += HomeWidgetFonts.measureTextBounds(context, '
+          'id, size, measuring)\n'
+          '        }\n'
+          '      }\n'
+          '      WidgetContent(context, currentState(), '
+          'textBounds = textBounds)\n'
+          '    }\n'
           '  }\n',
         ),
       );
