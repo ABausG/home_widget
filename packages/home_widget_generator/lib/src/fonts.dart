@@ -116,8 +116,12 @@ class HWIconFont {
 
   /// The Android `res/font` resource name for this font in the widget
   /// namespaced by [fontResourcePrefix].
+  ///
+  /// Joined with `__` rather than `_` so one widget's prefix cannot collide
+  /// with the start of a differently-named widget's icon file (e.g. `Weather`
+  /// vs. `WeatherIcons`).
   String androidResourceName(String? fontResourcePrefix) =>
-      '${fontResourcePrefix ?? _fallbackFontResourcePrefix}_$resourceSuffix';
+      '${fontResourcePrefix ?? _fallbackFontResourcePrefix}__$resourceSuffix';
 
   /// The name of the file copied into the iOS widget extension, without its
   /// extension.

@@ -147,6 +147,26 @@ void main() {
 
       expect(swift, isNot(contains('func hwFont(')));
     });
+
+    test('the helpers iOS has no body for leave no empty bodies behind',
+        () async {
+      final swift = await generateSwift(
+        _spec(
+          widget: const HWText.fixed(
+            'plain',
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ),
+      );
+
+      for (final helper in HWNativeHelper.values) {
+        if (helper.swift != null) continue;
+        expect(swift, isNot(contains(helper.name)), reason: helper.name);
+      }
+      expect(swift, contains('func hwFont('));
+      // Three blank lines in a row is what a helper with an empty body leaves.
+      expect(swift, isNot(contains('\n\n\n\n')));
+    });
   });
 
   group('Kotlin typeface lookup', () {
@@ -178,6 +198,10 @@ void main() {
         ),
       );
 
+      for (final helper in HWNativeHelper.values) {
+        if (helper.kotlin != null) continue;
+        expect(kotlin, isNot(contains(helper.name)), reason: helper.name);
+      }
       expect(kotlin, isNot(contains('hwAssetFont')));
       expect(kotlin, isNot(contains('hwBundledFont')));
       expect(kotlin, isNot(contains('hwFont')));
@@ -194,7 +218,8 @@ void main() {
     // What the parser stamps onto an icon of the widget class `Mood`; a
     // hand-built tree has to spell it out to name the same resource the CLI
     // copies the font to.
-    const icon = HWIcon(_moodIcons, fontResourcePrefix: 'hw_font_mood');
+    const icon =
+        HWIcon.resolved(_moodIcons, fontResourcePrefix: 'hw_font_mood');
 
     test('travel through the Swift data struct as a codepoint', () async {
       final swift = await generateSwift(
@@ -241,13 +266,14 @@ void main() {
       );
       expect(
         kotlin,
-        contains('R.font.hw_font_mood_icons_brandicons_brand_icons'),
+        contains('R.font.hw_font_mood__icons_brandicons_brand_icons'),
       );
     });
 
     test('a JSON icon leaf reads its codepoint out of the group', () async {
       const field = HWJson('profile', _moodIcons);
-      const jsonIcon = HWIcon(field, fontResourcePrefix: 'hw_font_mood');
+      const jsonIcon =
+          HWIcon.resolved(field, fontResourcePrefix: 'hw_font_mood');
       final swift = await generateSwift(
         _spec(widget: jsonIcon, dataFields: const [field]),
       );
@@ -263,7 +289,8 @@ void main() {
 
     test('a time-based icon reads out of the active entry', () async {
       const field = HWTimedData(_moodIcons);
-      const timedIcon = HWIcon(field, fontResourcePrefix: 'hw_font_mood');
+      const timedIcon =
+          HWIcon.resolved(field, fontResourcePrefix: 'hw_font_mood');
       final swift = await generateSwift(
         _spec(widget: timedIcon, dataFields: const [field]),
       );
@@ -294,11 +321,66 @@ void main() {
           p.join(
             tempDir.path,
             'android/app/src/main/res/font/'
-            'hw_font_mood_icons_brandicons_brand_icons.otf',
+            'hw_font_mood__icons_brandicons_brand_icons.otf',
           ),
         ).existsSync(),
         isTrue,
       );
+    });
+  });
+
+  group('hwMirroredIcons', () {
+    const directional = HWIconData.resolved(
+      'mood',
+      entries: [
+        HWIconEntry('happy', 0xE88A),
+        HWIconEntry('back', 0xE5C4, matchTextDirection: true),
+        HWIconEntry('forward', 0xE5C8, matchTextDirection: true),
+      ],
+      iconFont: _brandIcons,
+    );
+    const icon =
+        HWIcon.resolved(directional, fontResourcePrefix: 'hw_font_mood');
+
+    test('holds every directional glyph the widget can draw', () async {
+      final spec = _spec(widget: icon, dataFields: const [directional]);
+
+      expect(
+        await generateKotlin(spec),
+        contains(
+          'private val hwMirroredIcons: Set<Int> = setOf(0xE5C4, 0xE5C8)',
+        ),
+      );
+      expect(
+        await generateSwift(spec),
+        contains('private let hwMirroredIcons: Set<Int> = [0xE5C4, 0xE5C8]'),
+      );
+    });
+
+    test('is empty where no glyph is directional', () async {
+      final spec = _spec(
+        widget: const HWIcon.resolved(
+          _moodIcons,
+          fontResourcePrefix: 'hw_font_mood',
+        ),
+        dataFields: const [_moodIcons],
+      );
+
+      expect(
+        await generateKotlin(spec),
+        contains('private val hwMirroredIcons: Set<Int> = setOf()'),
+      );
+      expect(
+        await generateSwift(spec),
+        contains('private let hwMirroredIcons: Set<Int> = []'),
+      );
+    });
+
+    test('is left out of a widget with no icon field', () async {
+      final spec = _spec(widget: const HWText.fixed('plain'));
+
+      expect(await generateKotlin(spec), isNot(contains('hwMirroredIcons')));
+      expect(await generateSwift(spec), isNot(contains('hwMirroredIcons')));
     });
   });
 }

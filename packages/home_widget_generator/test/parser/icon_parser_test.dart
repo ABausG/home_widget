@@ -4,7 +4,6 @@ import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:home_widget_generator/src/parser/widget_value_decoder.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:path/path.dart' as p;
@@ -125,6 +124,30 @@ class ForeignDefault {}
 class NotAnIconValue {}
 
 @HomeWidget(
+  name: 'NotAnIconDefault',
+  widget: HWIcon(
+    HWIconData('mood', icons: [Icons.cloud], defaultValue: 'Icons.cloud'),
+  ),
+)
+class NotAnIconDefault {}
+
+@HomeWidget(
+  name: 'NotAnIconPreview',
+  widget: HWIcon(
+    HWIconData('mood', icons: [Icons.cloud], previewValue: 0xe2bf),
+  ),
+)
+class NotAnIconPreview {}
+
+@HomeWidget(
+  name: 'NullDefault',
+  widget: HWIcon(
+    HWIconData('mood', icons: [Icons.cloud], defaultValue: null),
+  ),
+)
+class NullDefault {}
+
+@HomeWidget(
   name: 'IconlessData',
   widget: HWIcon(HWString('label')),
 )
@@ -220,7 +243,7 @@ void main() {
       });
       expect(
         icon.toKotlin(0, dataExpr: 'data'),
-        contains('R.font.hw_font_test_widget_icons_materialicons'),
+        contains('R.font.hw_font_test_widget__icons_materialicons'),
       );
       expect(
         icon.toSwift(0, dataExpr: 'data'),
@@ -248,7 +271,6 @@ void main() {
     test('reads matchTextDirection off the icon', () {
       final directional = widgetOf('DirectionalIcon') as HWIcon;
       expect(directional.matchTextDirection, isTrue);
-      expect(directional.mirroredCodePoints, {directional.codePoint});
       expect(
         directional.toSwift(0, dataExpr: 'data'),
         contains(
@@ -288,12 +310,12 @@ void main() {
         [true, false, true],
       );
       expect(
-        widget.mirroredCodePoints,
+        widget.iconData!.mirroredCodePoints,
         {entries[0].codePoint, entries[2].codePoint},
       );
       expect(
         widget.toKotlin(0, dataExpr: 'data'),
-        contains('matchTextDirection = codePoint in setOf('),
+        contains('matchTextDirection = codePoint in hwMirroredIcons'),
       );
     });
 
@@ -360,6 +382,26 @@ void main() {
       expect(
         errorOf('NotAnIconValue').message,
         contains('takes Flutter IconData values'),
+      );
+    });
+
+    test('rejects a default or preview that is not an icon', () {
+      expect(
+        errorOf('NotAnIconDefault').message,
+        contains('The defaultValue of HWIconData "mood" takes a Flutter '
+            'IconData'),
+      );
+      expect(
+        errorOf('NotAnIconPreview').message,
+        contains('The previewValue of HWIconData "mood" takes a Flutter '
+            'IconData'),
+      );
+    });
+
+    test('reads an explicit null default as no default', () {
+      expect(
+        (widgetOf('NullDefault') as HWIcon).iconData!.defaultValue,
+        isNull,
       );
     });
 

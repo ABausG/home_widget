@@ -68,17 +68,34 @@ struct FontAndIconsHomeWidgetEntryView: View {
               opacity: 1.0)
           )
           .accessibilityHidden(true)
-        Text("a fixed icon")
-          .font(.caption)
+        Text(String(UnicodeScalar(UInt32(0xF4B6))!))
+          .font(hwBundledFont("hw_font_icons_cupertinoicons_cupertino_icons", size: 24))
+          .foregroundColor(
+            Color(red: 0.984313725490196, green: 0.5490196078431373, blue: 0.0, opacity: 1.0)
+          )
+          .accessibilityHidden(true)
+        Text(String(UnicodeScalar(UInt32(0xF004))!))
+          .font(hwBundledFont("hw_font_icons_fontawesomesolid_font_awesome_flutter", size: 24))
+          .foregroundColor(
+            Color(
+              red: 0.5568627450980392, green: 0.1411764705882353, blue: 0.6666666666666666,
+              opacity: 1.0)
+          )
+          .accessibilityHidden(true)
         Spacer()
       }
-      if let codePoint = entry.data.mood, let scalar = UnicodeScalar(UInt32(codePoint)) {
+      Text("three icons, three fonts")
+        .font(.caption)
+      if let codePoint = entry.data.mood, let value = UInt32(exactly: codePoint),
+        let scalar = UnicodeScalar(value)
+      {
         Text(String(scalar))
           .font(hwBundledFont("hw_font_icons_materialicons", size: 40))
           .foregroundColor(Color.primary)
           .accessibilityLabel("Mood")
           .scaleEffect(
-            x: layoutDirection == .rightToLeft && [0xE09B].contains(codePoint) ? -1 : 1, y: 1)
+            x: layoutDirection == .rightToLeft && hwMirroredIcons.contains(codePoint) ? -1 : 1, y: 1
+          )
       }
       Spacer()
     }
@@ -130,34 +147,68 @@ struct FontAndIconsData {
   }
 }
 
+private let hwMirroredIcons: Set<Int> = [0xE09B]
+
+private final class HWFontCache: @unchecked Sendable {
+  static let shared = HWFontCache()
+
+  private let lock = NSRecursiveLock()
+  private var descriptors: [String: CTFontDescriptor?] = [:]
+  private var fonts: [String: Font?] = [:]
+
+  func font(_ key: String, _ size: CGFloat, _ build: () -> Font?) -> Font? {
+    lock.lock()
+    defer { lock.unlock() }
+    let cacheKey = "\(key)|\(size)"
+    if let cached = fonts[cacheKey] { return cached }
+    let font = build()
+    fonts[cacheKey] = font
+    return font
+  }
+
+  func descriptor(_ url: URL) -> CTFontDescriptor? {
+    lock.lock()
+    defer { lock.unlock() }
+    let path = url.path
+    if let known = descriptors[path] { return known }
+    let parsed =
+      (CTFontManagerCreateFontDescriptorsFromURL(url as CFURL)
+      as? [CTFontDescriptor])?.first
+    descriptors[path] = parsed
+    return parsed
+  }
+}
+
 func hwFontFromURL(_ url: URL, _ size: CGFloat) -> Font? {
-  guard
-    let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL)
-      as? [CTFontDescriptor],
-    let descriptor = descriptors.first
-  else { return nil }
-  return Font(CTFontCreateWithFontDescriptor(descriptor, size, nil))
+  return HWFontCache.shared.font(url.path, size) { () -> Font? in
+    guard let descriptor = HWFontCache.shared.descriptor(url) else { return nil }
+    return Font(CTFontCreateWithFontDescriptor(descriptor, size, nil))
+  }
 }
 
 func hwAssetFont(_ asset: String, _ size: CGFloat) -> Font {
-  let url = Bundle.main.bundleURL
-    .deletingLastPathComponent()
-    .deletingLastPathComponent()
-    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
-    .appendingPathComponent(asset)
-  guard FileManager.default.fileExists(atPath: url.path),
-    let font = hwFontFromURL(url, size)
-  else { return .system(size: size) }
-  return font
+  let font = HWFontCache.shared.font("asset:" + asset, size) { () -> Font? in
+    let url = Bundle.main.bundleURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+      .appendingPathComponent(asset)
+    guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+    return hwFontFromURL(url, size)
+  }
+  return font ?? .system(size: size)
 }
 
 func hwBundledFont(_ name: String, size: CGFloat) -> Font {
-  for ext in ["otf", "ttf", "ttc"] {
-    guard let url = Bundle.main.url(forResource: name, withExtension: ext)
-    else { continue }
-    if let font = hwFontFromURL(url, size) { return font }
+  let font = HWFontCache.shared.font("bundle:" + name, size) { () -> Font? in
+    for ext in ["otf", "ttf", "ttc"] {
+      guard let url = Bundle.main.url(forResource: name, withExtension: ext)
+      else { continue }
+      if let font = hwFontFromURL(url, size) { return font }
+    }
+    return nil
   }
-  return .system(size: size)
+  return font ?? .system(size: size)
 }
 
 private final class HWFontManifest: @unchecked Sendable {

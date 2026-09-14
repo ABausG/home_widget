@@ -4,7 +4,6 @@ import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:home_widget_generator/src/parser/widget_tree_parser.dart';
 import 'package:home_widget_generator/src/parser/widget_value_decoder.dart';
 import 'package:test/test.dart';

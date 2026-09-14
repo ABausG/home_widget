@@ -48,11 +48,23 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) {
     final spaces = '    ' * indent; // Use 4 spaces per indent level
     final cond = conditionKotlin(dataExpr: dataExpr);
-    final first = firstBranch.toKotlin(indent + 1, dataExpr: dataExpr);
-    final second = secondBranch.toKotlin(indent + 1, dataExpr: dataExpr);
+    final first = firstBranch.toKotlinIn(
+      indent + 1,
+      dataExpr: dataExpr,
+      constraints: constraints,
+    );
+    final second = secondBranch.toKotlinIn(
+      indent + 1,
+      dataExpr: dataExpr,
+      constraints: constraints,
+    );
 
     return '${spaces}if ($cond) {\n$first\n$spaces} else {\n$second\n$spaces}';
   }

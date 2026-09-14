@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_cli/src/util/naming.dart';

@@ -19,6 +19,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
@@ -42,6 +43,7 @@ import java.util.Locale
 
 class FontAndIconsHomeWidget : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
+  override val sizeMode: SizeMode = SizeMode.Exact
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
     provideContent { WidgetContent(context, currentState()) }
@@ -61,7 +63,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "b988a8bc",
+            "1af427a2",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -98,7 +100,8 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                           HomeWidgetFonts.typeface(context, "Chewy", 400, false),
                           "Chewy",
                           fontSizeSp = 24f,
-                          maxWidthDp = LocalSize.current.width.value,
+                          maxWidthDp = maxOf(0f, LocalSize.current.width.value - 32f),
+                          maxHeightDp = maxOf(0f, LocalSize.current.height.value - 32f),
                       )
                   ),
               contentDescription = "Chewy",
@@ -112,7 +115,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                     ImageProvider(
                         HomeWidgetFonts.iconBitmap(
                             context,
-                            R.font.hw_font_font_and_icons_icons_materialicons,
+                            R.font.hw_font_font_and_icons__icons_materialicons,
                             0xE25B,
                             24f,
                         )
@@ -123,17 +126,52 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                         ColorProvider(day = Color(0xFFE53935), night = Color(0xFFE53935))
                     ),
             )
-            Text(
-                text = "a fixed icon",
-                style =
-                    TextStyle(
-                        color = GlanceTheme.colors.onSurface,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
+            Image(
+                modifier = GlanceModifier.size(24.dp),
+                provider =
+                    ImageProvider(
+                        HomeWidgetFonts.iconBitmap(
+                            context,
+                            R.font.hw_font_font_and_icons__icons_cupertinoicons_cupertino_icons,
+                            0xF4B6,
+                            24f,
+                        )
+                    ),
+                contentDescription = null,
+                colorFilter =
+                    ColorFilter.tint(
+                        ColorProvider(day = Color(0xFFFB8C00), night = Color(0xFFFB8C00))
+                    ),
+            )
+            Image(
+                modifier = GlanceModifier.size(24.dp),
+                provider =
+                    ImageProvider(
+                        HomeWidgetFonts.iconBitmap(
+                            context,
+                            R.font
+                                .hw_font_font_and_icons__icons_fontawesomesolid_font_awesome_flutter,
+                            0xF004,
+                            24f,
+                        )
+                    ),
+                contentDescription = null,
+                colorFilter =
+                    ColorFilter.tint(
+                        ColorProvider(day = Color(0xFF8E24AA), night = Color(0xFF8E24AA))
                     ),
             )
             Spacer(modifier = GlanceModifier.defaultWeight())
           }
+          Text(
+              text = "three icons, three fonts",
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 12.sp,
+                      fontWeight = FontWeight.Normal,
+                  ),
+          )
           widgetData.mood?.let { codePoint ->
             Image(
                 modifier = GlanceModifier.size(40.dp),
@@ -141,10 +179,10 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                     ImageProvider(
                         HomeWidgetFonts.iconBitmap(
                             context,
-                            R.font.hw_font_font_and_icons_icons_materialicons,
+                            R.font.hw_font_font_and_icons__icons_materialicons,
                             codePoint,
                             40f,
-                            matchTextDirection = codePoint in setOf(0xE09B),
+                            matchTextDirection = codePoint in hwMirroredIcons,
                         )
                     ),
                 contentDescription = "Mood",
@@ -183,6 +221,8 @@ data class FontAndIconsData(
     }
   }
 }
+
+private val hwMirroredIcons: Set<Int> = setOf(0xE09B)
 
 private fun hwCurrentLocales(context: Context): List<String> {
   val configured = ConfigurationCompat.getLocales(context.resources.configuration)

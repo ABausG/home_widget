@@ -1,5 +1,4 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:test/test.dart';
 
 void main() {

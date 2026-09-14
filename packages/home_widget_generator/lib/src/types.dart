@@ -25,6 +25,33 @@ sealed class HWDataType<T> {
   /// The Dart type string.
   String get dartType;
 
+  /// The type the generated Dart API hands this value over as; defaults to
+  /// [dartType].
+  String dartApiType(String widgetClassName) => dartType;
+
+  /// The type the generated `getData` hands this value back as; defaults to
+  /// [dartApiType].
+  String dartGetDataType(String widgetClassName) =>
+      dartApiType(widgetClassName);
+
+  /// [expr], which reads this value in its stored form, mapped to
+  /// [dartApiType].
+  String dartDecode(String expr, String widgetClassName) => expr;
+
+  /// [expr], which holds this value as [dartApiType] and is only evaluated
+  /// when non-null, written back into its stored form; null when the two are
+  /// the same.
+  String? dartEncode(String expr, String widgetClassName) => null;
+
+  /// Dart literal representing [defaultValue] for generated Dart code, or null
+  /// when there is no default.
+  String? codegenDartDefaultLiteral() {
+    final value = defaultValue;
+    if (value == null) return null;
+    if (value is String) return "'${escapeDartStringLiteral(value)}'";
+    return '$value';
+  }
+
   /// The Kotlin type string.
   String get kotlinType;
 
@@ -1260,28 +1287,15 @@ class HWImageData extends HWDataType<String> {
   /// start with a digit are prefixed with `image` (`2x/logo.png` becomes
   /// `image2xLogoPng`) so the result is a valid Dart/Kotlin/Swift identifier.
   static String deriveKeyFromAssetPath(String assetPath) {
-    final segments = assetPath
-        .split(RegExp('[^A-Za-z0-9]+'))
-        .where((segment) => segment.isNotEmpty)
-        .toList();
+    final derived = joinIdentifierSegments(assetPath, lowerFirst: true);
 
-    if (segments.isEmpty) {
+    if (derived.isEmpty) {
       throw GeneratorError(
         'Cannot derive a data key from asset path "$assetPath": '
         'it contains no ASCII letters or digits.',
       );
     }
 
-    final buffer = StringBuffer();
-    for (var i = 0; i < segments.length; i++) {
-      final segment = segments[i];
-      buffer.write(
-        i == 0 ? segment[0].toLowerCase() : segment[0].toUpperCase(),
-      );
-      buffer.write(segment.substring(1));
-    }
-
-    final derived = buffer.toString();
     if (RegExp('^[0-9]').hasMatch(derived)) {
       return 'image${derived[0].toUpperCase()}${derived.substring(1)}';
     }
@@ -1298,6 +1312,16 @@ class HWImageData extends HWDataType<String> {
 
   @override
   String get dartType => 'String';
+
+  /// An image is handed over as the picture itself, while the value stored
+  /// under [key] is only the path it was written to.
+  @override
+  String dartApiType(String widgetClassName) => 'ImageProvider';
+
+  /// `getData` hands back the stored path instead, since the file it names
+  /// may be gone by then.
+  @override
+  String dartGetDataType(String widgetClassName) => dartType;
 
   @override
   String get kotlinType => 'String';
@@ -1541,8 +1565,7 @@ class HWIconData extends HWDataType<int> {
 
   /// The glyphs of [entries] that mirror in a right-to-left layout.
   ///
-  /// Empty for a field holding no directional icon, which is what lets the
-  /// emitters leave the mirroring out entirely.
+  /// Empty for a field holding no directional icon.
   Set<int> get mirroredCodePoints => {
         for (final entry in entries)
           if (entry.matchTextDirection) entry.codePoint,
@@ -1555,7 +1578,7 @@ class HWIconData extends HWDataType<int> {
   /// knows; [enumNameFor] composes it.
   ///
   /// Codegen-internal; see [HWIconData.resolved].
-  String get enumSuffix => '${_pascalCase(key)}Icon';
+  String get enumSuffix => '${joinIdentifierSegments(key)}Icon';
 
   /// The generated Dart enum for this field on the widget class
   /// [widgetClassName], e.g. `ForecastConditionIcon`.
@@ -1566,8 +1589,8 @@ class HWIconData extends HWDataType<int> {
   /// Throws a [GeneratorError] when this field cannot be generated for.
   ///
   /// Answers for a decoded instance: that it names at least one icon, that no
-  /// two of them ended up with the same enum value name, and that the default
-  /// and preview icons are among them.
+  /// two of them ended up with the same enum value name or the same glyph, and
+  /// that the default and preview icons are among them.
   void validate() {
     if (entries.isEmpty) {
       throw GeneratorError(
@@ -1576,6 +1599,7 @@ class HWIconData extends HWDataType<int> {
     }
 
     final seen = <String>{};
+    final byCodePoint = <int, String>{};
     for (final entry in entries) {
       if (!seen.add(entry.name)) {
         throw GeneratorError(
@@ -1584,6 +1608,16 @@ class HWIconData extends HWDataType<int> {
           'have to differ.',
         );
       }
+      final twin = byCodePoint[entry.codePoint];
+      if (twin != null) {
+        throw GeneratorError(
+          'The icons "$twin" and "${entry.name}" of HWIconData "$key" are the '
+          'same glyph (0x${entry.codePoint.toRadixString(16).toUpperCase()}). '
+          'Only the codepoint is stored, so the widget could never tell them '
+          'apart — name one of them and drop the other.',
+        );
+      }
+      byCodePoint[entry.codePoint] = entry.name;
     }
 
     final codePoints = this.codePoints;
@@ -1607,6 +1641,24 @@ class HWIconData extends HWDataType<int> {
   /// instead and writes `icon.codePoint` for it.
   @override
   String get dartType => 'int';
+
+  @override
+  String dartApiType(String widgetClassName) => enumNameFor(widgetClassName);
+
+  @override
+  String dartDecode(String expr, String widgetClassName) =>
+      '${enumNameFor(widgetClassName)}.fromCodePoint($expr)';
+
+  @override
+  String? dartEncode(String expr, String widgetClassName) => '$expr.codePoint';
+
+  /// A codepoint reads as the hexadecimal literal an icon is usually written
+  /// as, rather than as the decimal the storage type would print.
+  @override
+  String? codegenDartDefaultLiteral() {
+    final value = _defaultCodePoint;
+    return value == null ? null : '0x${value.toRadixString(16)}';
+  }
 
   @override
   String get kotlinType => 'Int';
@@ -1724,15 +1776,30 @@ class HWIconData extends HWDataType<int> {
       );
 }
 
-/// [value] with every run of characters outside `[A-Za-z0-9]` dropped and each
-/// remaining segment capitalized, e.g. `mood_of_day` becomes `MoodOfDay`.
-String _pascalCase(String value) {
+/// [value] with every run of characters outside `[A-Za-z0-9]` dropped and the
+/// remaining segments joined back up in camel case, e.g. `mood_of_day` becomes
+/// `MoodOfDay`, or `moodOfDay` with [lowerFirst] set.
+///
+/// Only the first character of a segment is re-cased, so `wbSunny` survives as
+/// itself. A [value] holding no ASCII letter or digit joins to the empty
+/// string; every caller decides for itself what to do with that.
+String joinIdentifierSegments(String value, {bool lowerFirst = false}) {
   final segments = value
       .split(RegExp('[^A-Za-z0-9]+'))
-      .where((segment) => segment.isNotEmpty);
-  return segments
-      .map((segment) => '${segment[0].toUpperCase()}${segment.substring(1)}')
-      .join();
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+
+  final buffer = StringBuffer();
+  for (var i = 0; i < segments.length; i++) {
+    final segment = segments[i];
+    buffer.write(
+      i == 0 && lowerFirst
+          ? segment[0].toLowerCase()
+          : segment[0].toUpperCase(),
+    );
+    buffer.write(segment.substring(1));
+  }
+  return buffer.toString();
 }
 
 /// Whether [a] and [b] hold equal elements in the same order.
@@ -2056,6 +2123,21 @@ class HWTimedData<T> extends HWDataType<T> {
 
   @override
   String get dartType => data.dartType;
+
+  @override
+  String dartApiType(String widgetClassName) =>
+      data.dartApiType(widgetClassName);
+
+  @override
+  String dartDecode(String expr, String widgetClassName) =>
+      data.dartDecode(expr, widgetClassName);
+
+  @override
+  String? dartEncode(String expr, String widgetClassName) =>
+      data.dartEncode(expr, widgetClassName);
+
+  @override
+  String? codegenDartDefaultLiteral() => data.codegenDartDefaultLiteral();
 
   @override
   String get kotlinType => data.kotlinType;

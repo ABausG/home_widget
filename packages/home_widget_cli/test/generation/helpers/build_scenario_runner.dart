@@ -250,12 +250,14 @@ Future<void> _writeScenarioAssets(
     await file.writeAsBytes(_onePixelPng);
   }
 
-  final fontSource = _bundledFontFile();
-  for (final fontPath in scenario.fontFamilies.values) {
-    final file =
-        File(p.join(project.root.path, p.joinAll(p.posix.split(fontPath))));
-    await file.parent.create(recursive: true);
-    await file.writeAsBytes(await fontSource.readAsBytes());
+  if (scenario.fontFamilies.isNotEmpty) {
+    final fontBytes = await _bundledFontFile().readAsBytes();
+    for (final fontPath in scenario.fontFamilies.values) {
+      final file =
+          File(p.join(project.root.path, p.joinAll(p.posix.split(fontPath))));
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes(fontBytes);
+    }
   }
 
   final pubspec = File(p.join(project.root.path, 'pubspec.yaml'));

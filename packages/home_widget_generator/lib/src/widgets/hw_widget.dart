@@ -1,4 +1,5 @@
 import 'package:analyzer/dart/constant/value.dart';
+import 'package:meta/meta.dart';
 import '../fonts.dart';
 import '../formats.dart';
 import '../generator_error.dart';
@@ -11,6 +12,7 @@ import '../utils/string_literals.dart';
 import 'hw_alignment.dart';
 import 'hw_color.dart';
 import 'hw_generatable.dart';
+import 'hw_kotlin_constraints.dart';
 import 'hw_text_style.dart';
 import 'hw_edge_insets.dart';
 
@@ -76,6 +78,13 @@ abstract interface class HWDataWidget {
   Set<HWDataType<dynamic>> get dataDependencies;
 }
 
+/// A widget that renders in a font file of its own.
+mixin HWFontWidget {
+  /// The font file this one widget renders with, or null when it renders in
+  /// the platform's own font.
+  HWFontVariant? get fontVariant;
+}
+
 /// Abstract base class for all DSL widgets used in widgetBuilder.
 /// Subclasses: HWText (v3), HWColumn, HWRow (v4).
 sealed class HWWidget implements HWGeneratable {
@@ -134,7 +143,7 @@ sealed class HWWidget implements HWGeneratable {
   /// for on Android.
   Set<HWFontVariant> get fontVariants {
     final variants = <HWFontVariant>{};
-    for (final widget in descendants.whereType<HWText>()) {
+    for (final widget in descendants.whereType<HWFontWidget>()) {
       if (widget.fontVariant case final variant?) variants.add(variant);
     }
     return variants;
@@ -181,16 +190,43 @@ sealed class HWWidget implements HWGeneratable {
     required String dataExpr,
   });
 
-  /// Generates the Kotlin code for this widget.
-  /// [indent] is the number of indentation levels (4 spaces each).
-  /// [dataExpr] is the Kotlin expression to access data fields.
-  /// [dataFields] maps field keys to their types.
+  /// Generates the Kotlin code for this widget as the root of its tree, which
+  /// has the whole widget to render in.
+  @nonVirtual
   @override
   String toKotlin(
     int indent, {
     required String dataExpr,
+  }) =>
+      toKotlinIn(
+        indent,
+        dataExpr: dataExpr,
+        constraints: HWKotlinConstraints.widget,
+      );
+
+  /// The Kotlin code for this widget in the space [constraints] leave it.
+  ///
+  /// Only text in a custom font reads them, to size the bitmap it renders
+  /// into; a container passes them on, a leaf ignores them.
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
   });
 }
+
+/// The width in dp [widget] always renders at, or null when it depends on what
+/// it renders.
+double? _fixedKotlinWidth(HWWidget widget) => switch (widget) {
+      HWIcon(:final size) => size,
+      HWImage(:final width) => width,
+      HWPadding(:final child, :final padding) => switch (
+            _fixedKotlinWidth(child)) {
+          final width? => width + padding.left + padding.right,
+          _ => null,
+        },
+      _ => null,
+    };
 
 void _emitChildrenWithMainAxisAlignment(
   List<HWWidget> children,

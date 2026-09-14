@@ -5,7 +5,6 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:xml/xml.dart';
 
-import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../models/extensions.dart';
 import '../util/android_package.dart';
@@ -55,7 +54,7 @@ class AndroidGenerator {
         (spec.hasPreviewValues &&
             [...jsonGroups, ...timedJsonGroups].any(_previewResolvesLocalized));
 
-    final nativeHelpers = spec.nativeHelpers;
+    final nativeHelpers = kotlinNativeHelpers(spec.nativeHelpers).toList();
 
     // Gallery strings do not count — the launcher resolves those on its own.
     // A formatted number or date is locale-dependent too, so a widget that only
@@ -184,23 +183,24 @@ class AndroidGenerator {
       dataClassContent = buffer.toString();
     }
 
+    // Whether a glyph mirrors in a right-to-left layout is a property of the
+    // icon itself, so one widget-wide set answers for every icon field.
+    //
     // File-scope helpers: the spec resolves every helper the tree renders
     // through and every one the declared fields are read back with to its
     // transitive closure, already ordered so each one is declared after what
-    // it calls.
-    final fileHelpers = <String>[
-      for (final helper in fileNativeHelpers)
-        // A helper whose Kotlin body is empty is one only iOS has — the font
-        // loaders, whose Android counterpart lives in the core plugin. Emitting
-        // its blank body would leave stray separators in the generated file.
-        if (helper.toKotlin(0, dataExpr: '').trim() case final body
-            when body.isNotEmpty)
-          body,
+    // it calls. The Swift-only ones were dropped where the list was read, and
+    // nothing carrying a Kotlin body depends on one.
+    final fileDeclarations = <String>[
+      if (spec.iconFields.isNotEmpty)
+        'private val hwMirroredIcons: Set<Int> = '
+            'setOf(${_hexList(spec.mirroredIconCodePoints)})',
+      for (final helper in fileNativeHelpers) helper.kotlin!.trim(),
     ];
-    if (fileHelpers.isNotEmpty) {
+    if (fileDeclarations.isNotEmpty) {
       dataClassContent = [
         if (dataClassContent != null) dataClassContent,
-        ...fileHelpers,
+        ...fileDeclarations,
       ].join('\n\n');
     }
     final bodyBuffer = StringBuffer();
@@ -226,6 +226,8 @@ class AndroidGenerator {
     }
 
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
+    // SizeMode.Exact is required for LocalSize to report the real size.
+    final rendersCustomFontText = spec.fontVariants.isNotEmpty;
     final bgColor = spec.data.android?.backgroundColor;
     final applyPadding = spec.data.android?.applyContentPadding ?? true;
     final fillContent = spec.data.android?.fillWidgetContent ?? true;
@@ -234,6 +236,7 @@ class AndroidGenerator {
       spec.effectiveWidgetTree,
       dataExpr: hasDataFields ? 'widgetData' : 'null',
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
+      constraints: spec.rootKotlinConstraints,
     );
 
     final widgetUrl = spec.androidWidgetUrl;
@@ -266,7 +269,7 @@ class AndroidGenerator {
       );
     }
     if (applyPadding) {
-      rootModifiers.add('padding(16.dp)');
+      rootModifiers.add('padding(${androidRootContentPadding.toInt()}.dp)');
     }
     if (fillContent) {
       rootModifiers.add('fillMaxSize()');
@@ -303,6 +306,9 @@ class AndroidGenerator {
     }
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
+    }
+    if (rendersCustomFontText) {
+      layoutImports.add('import androidx.glance.appwidget.SizeMode');
     }
     if (bgColor != null) {
       layoutImports.addAll(bgColor.kotlinImports);
@@ -384,6 +390,7 @@ class AndroidGenerator {
         previewPreferences: previewPreferences,
         previewParameter: spec.hasPreviewValues,
         previewFingerprint: previewFingerprint,
+        exactSize: rendersCustomFontText,
       ),
     );
     logger.detail('Generated: ${widgetFile.path}');
@@ -1092,6 +1099,12 @@ class AndroidGenerator {
         return type is HWLocalizedString && type.previewTranslations != null;
       });
 }
+
+/// [codePoints] as the uppercase hex literals an icon is usually written as,
+/// sorted so the same set always comes out the same way.
+String _hexList(Set<int> codePoints) => (codePoints.toList()..sort())
+    .map((codePoint) => '0x${codePoint.toRadixString(16).toUpperCase()}')
+    .join(', ');
 
 class _JsonPathNode {
   final Map<String, _JsonPathNode> children = {};

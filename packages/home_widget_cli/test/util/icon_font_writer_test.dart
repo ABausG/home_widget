@@ -80,7 +80,10 @@ void main() {
         fonts: fonts,
       );
 
-      expect(result.written, ['hw_font_mood_icons_brandicons_brand_icons.otf']);
+      expect(
+        result.written,
+        ['hw_font_mood__icons_brandicons_brand_icons.otf'],
+      );
       expect(
         File(p.join(androidFontDir().path, result.written.single)).existsSync(),
         isTrue,
@@ -100,7 +103,7 @@ void main() {
       final file = File(
         p.join(
           androidFontDir().path,
-          'hw_font_mood_icons_brandicons_brand_icons.otf',
+          'hw_font_mood__icons_brandicons_brand_icons.otf',
         ),
       );
       final before = file.statSync().modified;
@@ -117,14 +120,14 @@ void main() {
     test('prunes this widget\'s leftovers and nothing else', () async {
       final fontDir = androidFontDir()..createSync(recursive: true);
       final stale = File(
-        p.join(fontDir.path, 'hw_font_mood_icons_materialicons.otf'),
+        p.join(fontDir.path, 'hw_font_mood__icons_materialicons.otf'),
       )..writeAsBytesSync(const [9]);
       final otherWidget = File(
-        p.join(fontDir.path, 'hw_font_weather_icons_brandicons.otf'),
+        p.join(fontDir.path, 'hw_font_weather__icons_brandicons.otf'),
       )..writeAsBytesSync(const [9]);
       // A widget whose snake name starts with this one's is a different widget.
       final longerName = File(
-        p.join(fontDir.path, 'hw_font_mood_board_icons_brandicons.otf'),
+        p.join(fontDir.path, 'hw_font_mood_board__icons_brandicons.otf'),
       )..writeAsBytesSync(const [9]);
       final appOwned = File(p.join(fontDir.path, 'my_brand.ttf'))
         ..writeAsBytesSync(const [9]);
@@ -135,11 +138,50 @@ void main() {
         fonts: fonts,
       );
 
-      expect(result.removed, ['hw_font_mood_icons_materialicons.otf']);
+      expect(result.removed, ['hw_font_mood__icons_materialicons.otf']);
       expect(stale.existsSync(), isFalse);
       expect(otherWidget.existsSync(), isTrue);
       expect(longerName.existsSync(), isTrue);
       expect(appOwned.existsSync(), isTrue);
+    });
+
+    test(
+        'a widget whose snake name is this widget\'s plus "_icons" never '
+        'prunes this widget\'s font, and vice versa', () async {
+      final fontDir = androidFontDir()..createSync(recursive: true);
+
+      final weatherFont = File(
+        p.join(fontDir.path, 'hw_font_weather__icons_materialicons.otf'),
+      )..writeAsBytesSync(const [9]);
+      final weatherIconsFont = File(
+        p.join(
+          fontDir.path,
+          'hw_font_weather_icons__icons_materialicons.otf',
+        ),
+      )..writeAsBytesSync(const [9]);
+
+      await writeAndroidIconFonts(
+        spec: _spec(
+          className: 'Weather',
+          widget: const HWText.fixed('no icons'),
+        ),
+        projectRoot: tempDir,
+        fonts: fonts,
+      );
+      expect(weatherFont.existsSync(), isFalse);
+      expect(weatherIconsFont.existsSync(), isTrue);
+
+      weatherFont.writeAsBytesSync(const [9]);
+      await writeAndroidIconFonts(
+        spec: _spec(
+          className: 'WeatherIcons',
+          widget: const HWText.fixed('no icons'),
+        ),
+        projectRoot: tempDir,
+        fonts: fonts,
+      );
+      expect(weatherFont.existsSync(), isTrue);
+      expect(weatherIconsFont.existsSync(), isFalse);
     });
 
     test('a widget that stopped drawing icons loses its fonts', () async {
@@ -156,7 +198,10 @@ void main() {
       );
 
       expect(result.written, isEmpty);
-      expect(result.removed, ['hw_font_mood_icons_brandicons_brand_icons.otf']);
+      expect(
+        result.removed,
+        ['hw_font_mood__icons_brandicons_brand_icons.otf'],
+      );
       expect(androidFontDir().listSync(), isEmpty);
     });
 

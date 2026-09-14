@@ -37,9 +37,8 @@ import org.json.JSONArray
 object HomeWidgetFonts {
   private const val TAG = "HomeWidgetFonts"
 
+  /** The largest bitmap either renderer draws, in pixels per side — a guard against a runaway request. */
   private const val MAX_SIZE_PX = 2048
-
-  private const val MAX_TEXT_SIZE_PX = 4096
 
   private const val SYNTHETIC_ITALIC_SKEW = -0.25f
 
@@ -166,13 +165,16 @@ object HomeWidgetFonts {
   /**
    * Renders [text] in [typeface] as a white bitmap on a transparent background.
    *
-   * The text is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`. The text
-   * wraps at [maxWidthDp] density independent pixels and the bitmap is only as wide as the widest
-   * line, so [textAlign] aligns the lines relative to each other.
+   * The text is drawn in white so it can be recoloured with a Glance `ColorFilter.tint`. It wraps at
+   * [maxWidthDp] density independent pixels and stops at [maxHeightDp], the last line that fits
+   * ellipsized, as is the line at [maxLines].
+   *
+   * The bitmap is only as wide as the widest line, so [textAlign] aligns the lines relative to each
+   * other. Pass [fillWidth] to make it [maxWidthDp] wide instead, which is what gives a centred or
+   * end aligned line somewhere to sit.
    *
    * [typeface] falls back to [Typeface.DEFAULT] when it is `null`. [italic] is applied as a
-   * synthetic skew when [typeface] is not italic itself. Lines beyond [maxLines] are dropped and
-   * the last one is ellipsized.
+   * synthetic skew when [typeface] is not italic itself.
    *
    * Never throws: when the text cannot be drawn, a 1 × 1 transparent bitmap is returned.
    */
@@ -187,6 +189,8 @@ object HomeWidgetFonts {
       textAlign: TextAlign? = null,
       maxLines: Int = Int.MAX_VALUE,
       maxWidthDp: Float,
+      maxHeightDp: Float = Float.MAX_VALUE,
+      fillWidth: Boolean = false,
   ): Bitmap {
     try {
       val displayMetrics = context.resources.displayMetrics
@@ -208,17 +212,37 @@ object HomeWidgetFonts {
             }
           }
 
-      val wrapWidth = (maxWidthDp * displayMetrics.density).toInt().coerceIn(1, MAX_TEXT_SIZE_PX)
-      val wrapped = textLayout(text, paint, wrapWidth, textAlign, maxLines)
-      var widest = 0f
-      for (line in 0 until wrapped.lineCount) {
-        widest = maxOf(widest, wrapped.getLineWidth(line))
+      val wrapWidth = (maxWidthDp * displayMetrics.density).toInt().coerceIn(1, MAX_SIZE_PX)
+      val maxHeightPx = (maxHeightDp * displayMetrics.density).toInt().coerceIn(1, MAX_SIZE_PX)
+
+      var layout = textLayout(text, paint, wrapWidth, textAlign, maxLines)
+      var lines = maxLines
+      val fitting = linesWithin(layout, maxHeightPx)
+      if (fitting < layout.lineCount) {
+        lines = fitting
+        layout = textLayout(text, paint, wrapWidth, textAlign, lines)
       }
 
-      val width = ceil(widest).toInt().coerceIn(1, MAX_TEXT_SIZE_PX)
-      val layout = textLayout(text, paint, width, textAlign, maxLines)
-      val height = layout.height.coerceIn(1, MAX_TEXT_SIZE_PX)
+      var width = wrapWidth
+      if (!fillWidth) {
+        var widest = 0f
+        var leftToRight = true
+        for (line in 0 until layout.lineCount) {
+          widest = maxOf(widest, layout.getLineWidth(line))
+          leftToRight = leftToRight && layout.getParagraphDirection(line) == Layout.DIR_LEFT_TO_RIGHT
+        }
+        val tight = ceil(widest).toInt().coerceIn(1, width)
+        if (tight < width) {
+          // A left-to-right ALIGN_NORMAL line starts at x = 0 regardless of the width it was
+          // measured against; every other alignment shifts when the width narrows.
+          if (!leftToRight || alignmentOf(textAlign) != Layout.Alignment.ALIGN_NORMAL) {
+            layout = textLayout(text, paint, tight, textAlign, lines)
+          }
+          width = tight
+        }
+      }
 
+      val height = layout.height.coerceIn(1, maxHeightPx)
       val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
       layout.draw(Canvas(bitmap))
       return bitmap
@@ -291,6 +315,16 @@ object HomeWidgetFonts {
     val heavier = pool.filter { it.weight > weight }.sortedBy { it.weight }
     val ordered = if (weight <= DEFAULT_FONT_WEIGHT) lighter + heavier else heavier + lighter
     return ordered.firstOrNull()
+  }
+
+  /** How many of [layout]'s lines fit into [maxHeightPx], never fewer than one. */
+  private fun linesWithin(layout: StaticLayout, maxHeightPx: Int): Int {
+    if (layout.height <= maxHeightPx) return layout.lineCount
+    var lines = 0
+    while (lines < layout.lineCount && layout.getLineBottom(lines) <= maxHeightPx) {
+      lines++
+    }
+    return lines.coerceAtLeast(1)
   }
 
   private fun textLayout(

@@ -18,20 +18,30 @@ const String minimumFontHomeWidgetVersion = '0.10.0';
 /// is declared in a pubspec this project can see. Resolution runs here rather
 /// than in the generators so a typo fails the whole command instead of leaving
 /// one platform half-generated.
+///
+/// Whatever fails says which widget it failed for: the fonts of a project are
+/// validated one widget at a time, and none of the errors raised below the
+/// resolvers knows the widget it was reached from.
 void validateFonts(WidgetSpec spec, Directory projectRoot) {
-  _asCliError(spec, () {
-    for (final field in spec.iconFields) {
-      field.validate();
-    }
-  });
+  try {
+    _validateFonts(spec, projectRoot);
+  } on GeneratorError catch (error) {
+    throw GeneratorError('Widget "${spec.data.name}": ${error.message}');
+  }
+}
+
+void _validateFonts(WidgetSpec spec, Directory projectRoot) {
+  for (final field in spec.iconFields) {
+    field.validate();
+  }
 
   // Walking the tree for its icons is itself a check: an icon bound to
   // something that is not an [HWIconData] is rejected right here.
-  final variants = _asCliError(spec, () => spec.fontVariants);
-  final iconFonts = _asCliError(spec, () => spec.iconCodePoints.keys.toList());
+  final variants = spec.fontVariants;
+  final iconFonts = spec.iconCodePoints.keys.toList();
   if (variants.isEmpty && iconFonts.isEmpty) return;
 
-  _requireHomeWidgetFontSupport(spec, projectRoot);
+  _requireHomeWidgetFontSupport(projectRoot);
 
   final fonts = FontResolver(projectRoot);
   for (final variant in variants) {
@@ -42,32 +52,13 @@ void validateFonts(WidgetSpec spec, Directory projectRoot) {
   }
 }
 
-/// Runs [check], re-throwing what the generator package rejects as the error
-/// type the CLI reports cleanly.
-///
-/// `home_widget_generator` has a `GeneratorError` of its own, which it does not
-/// export — so the CLI cannot catch it by type and would print a stack trace
-/// where a one-line message belongs.
-T _asCliError<T>(WidgetSpec spec, T Function() check) {
-  const prefix = 'GeneratorError: ';
-  try {
-    return check();
-  } on Error catch (error) {
-    final text = error.toString();
-    if (!text.startsWith(prefix)) rethrow;
-    throw GeneratorError(
-      'Widget "${spec.data.name}": ${text.substring(prefix.length)}',
-    );
-  }
-}
-
 /// Fails when the app is pinned to a published `home_widget` that predates the
 /// font support the generated code calls into.
 ///
 /// Only a hosted dependency is checked: a path, git or workspace dependency is
 /// whatever the developer has checked out, and the version in `pubspec.lock`
 /// says nothing about it.
-void _requireHomeWidgetFontSupport(WidgetSpec spec, Directory projectRoot) {
+void _requireHomeWidgetFontSupport(Directory projectRoot) {
   final lockFile = File(p.join(projectRoot.path, 'pubspec.lock'));
   if (!lockFile.existsSync()) return;
 
@@ -91,8 +82,8 @@ void _requireHomeWidgetFontSupport(WidgetSpec spec, Directory projectRoot) {
   if (!_isBelow(version, minimumFontHomeWidgetVersion)) return;
 
   throw GeneratorError(
-    'Widget "${spec.data.name}" renders a custom font or an icon, which needs '
-    'home_widget $minimumFontHomeWidgetVersion or newer; pubspec.lock resolves '
+    'this widget renders a custom font or an icon, which needs home_widget '
+    '$minimumFontHomeWidgetVersion or newer; pubspec.lock resolves '
     'home_widget $version. Raise the home_widget constraint in pubspec.yaml '
     'and run `flutter pub get`.',
   );

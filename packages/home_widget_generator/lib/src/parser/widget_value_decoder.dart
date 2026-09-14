@@ -1,6 +1,5 @@
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 
 /// Decodes a [DartObject] representing a widget tree into an [HWWidget].
 ///
@@ -225,23 +224,8 @@ class WidgetValueDecoder {
     final declared = obj.variable?.name;
     if (declared == null) return _hexIconName(codePoint);
 
-    final segments = declared
-        .split(RegExp('[^A-Za-z0-9]+'))
-        .where((segment) => segment.isNotEmpty)
-        .toList();
-    if (segments.isEmpty) return _hexIconName(codePoint);
-
-    final buffer = StringBuffer();
-    for (var i = 0; i < segments.length; i++) {
-      final segment = segments[i];
-      buffer.write(
-        i == 0
-            ? '${segment[0].toLowerCase()}${segment.substring(1)}'
-            : '${segment[0].toUpperCase()}${segment.substring(1)}',
-      );
-    }
-
-    final name = buffer.toString();
+    final name = joinIdentifierSegments(declared, lowerFirst: true);
+    if (name.isEmpty) return _hexIconName(codePoint);
     if (RegExp('^[0-9]').hasMatch(name)) return _hexIconName(codePoint);
     return _takenEnumNames.contains(name) ? '${name}_' : name;
   }
@@ -311,11 +295,34 @@ class WidgetValueDecoder {
       key,
       entries: entries,
       iconFont: font,
-      defaultValue: decodeIconCodePoint(getField(obj, 'defaultIcon')),
-      previewValue: decodeIconCodePoint(getField(obj, 'previewIcon')),
+      defaultValue: _decodeNamedIcon(obj, 'defaultIcon', key: key),
+      previewValue: _decodeNamedIcon(obj, 'previewIcon', key: key),
     );
     icons.validate();
     return icons;
+  }
+
+  /// The codepoint of the `IconData` under [field], or null when the field is
+  /// absent or explicitly null.
+  ///
+  /// Throws a [GeneratorError] on a value that is present but carries no
+  /// codepoint.
+  static int? _decodeNamedIcon(
+    DartObject obj,
+    String field, {
+    required String key,
+  }) {
+    final value = getField(obj, field);
+    if (value == null || value.isNull) return null;
+    final codePoint = decodeIconCodePoint(value);
+    if (codePoint == null) {
+      throw GeneratorError(
+        'The ${field == 'defaultIcon' ? 'defaultValue' : 'previewValue'} of '
+        'HWIconData "$key" takes a Flutter IconData such as Icons.wb_sunny, '
+        'got: ${value.type?.element?.name}',
+      );
+    }
+    return codePoint;
   }
 
   static HWEdgeInsets? decodeEdgeInsets(DartObject? obj) {

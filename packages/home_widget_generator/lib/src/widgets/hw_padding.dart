@@ -50,10 +50,21 @@ class HWPadding extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) {
     final modifier =
         'padding(start = ${padding.left}.dp, top = ${padding.top}.dp, end = ${padding.right}.dp, bottom = ${padding.bottom}.dp)';
-    final childCode = child.toKotlin(indent, dataExpr: dataExpr);
+    final childCode = child.toKotlinIn(
+      indent,
+      dataExpr: dataExpr,
+      constraints: constraints.deflate(
+        horizontal: padding.left + padding.right,
+        vertical: padding.top + padding.bottom,
+      ),
+    );
     return injectGlanceModifier(childCode, modifier);
   }
 }

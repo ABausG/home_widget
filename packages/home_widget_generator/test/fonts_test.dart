@@ -92,7 +92,7 @@ void main() {
       expect(font.resourceSuffix, 'icons_materialicons');
       expect(
         font.androidResourceName(hwFontResourcePrefix('forecast')),
-        'hw_font_forecast_icons_materialicons',
+        'hw_font_forecast__icons_materialicons',
       );
       expect(font.iosResourceName, 'hw_font_icons_materialicons');
     });
@@ -107,7 +107,7 @@ void main() {
       );
       expect(
         font.androidResourceName(null),
-        'hw_font_home_widget_icons_cupertinoicons_cupertino_icons',
+        'hw_font_home_widget__icons_cupertinoicons_cupertino_icons',
       );
     });
 
@@ -120,6 +120,18 @@ void main() {
         isNot(const HWIconFont(family: 'MaterialIcons', package: 'pack')),
       );
       expect(font.toString(), contains('MaterialIcons'));
+    });
+
+    test(
+        'a widget whose snake name is a prefix of another\'s never claims '
+        'that widget\'s resource name', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      final weatherPrefix = hwFontResourcePrefix('weather');
+      final weatherIconsName =
+          font.androidResourceName(hwFontResourcePrefix('weather_icons'));
+
+      expect(weatherIconsName, 'hw_font_weather_icons__icons_materialicons');
+      expect(weatherIconsName.startsWith('${weatherPrefix}__'), isFalse);
     });
   });
 }

@@ -1190,38 +1190,12 @@ Future<void> ensureLocalizableCatalogInXcodeProject({
   final usesSynchronizedGroups = _widgetUsesSynchronizedGroup(text, ids);
 
   if (!usesSynchronizedGroups) {
-    final fileRefId = xcodeObjectId(
-      'fileref:Localizable.xcstrings:$widgetClassName',
-    );
-    final buildFileId = xcodeObjectId(
-      'buildfile:Localizable.xcstrings:$widgetClassName',
-    );
-
-    if (!updated.contains(fileRefId)) {
-      updated = _insertIntoSection(
-        updated,
-        section: 'PBXFileReference',
-        content:
-            '\t\t$fileRefId /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };',
-      );
-      updated = _insertIntoSection(
-        updated,
-        section: 'PBXBuildFile',
-        content:
-            '\t\t$buildFileId /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* Localizable.xcstrings */; };',
-      );
-    }
-
-    updated = _patchNativeTargetListAddId(
+    updated = _wireResourceFile(
       updated,
-      targetId: ids.resourcesPhaseId,
-      listKey: 'files',
-      idToAdd: '$buildFileId /* Localizable.xcstrings in Resources */',
-    );
-    updated = _patchGroupChildrenAddId(
-      updated,
-      groupId: ids.widgetGroupId,
-      idToAdd: '$fileRefId /* Localizable.xcstrings */',
+      ids: ids,
+      widgetClassName: widgetClassName,
+      name: 'Localizable.xcstrings',
+      lastKnownFileType: 'text.json.xcstrings',
     );
   }
 
@@ -1272,34 +1246,12 @@ Future<void> ensureWidgetResourceFilesInXcodeProject({
   }
 
   for (final name in resourceFileNames) {
-    final fileRefId = xcodeObjectId('fileref:$name:$widgetClassName');
-    final buildFileId = xcodeObjectId('buildfile:$name:$widgetClassName');
-
-    if (!updated.contains(fileRefId)) {
-      updated = _insertIntoSection(
-        updated,
-        section: 'PBXFileReference',
-        content:
-            '\t\t$fileRefId /* $name */ = {isa = PBXFileReference; lastKnownFileType = file; path = $name; sourceTree = "<group>"; };',
-      );
-      updated = _insertIntoSection(
-        updated,
-        section: 'PBXBuildFile',
-        content:
-            '\t\t$buildFileId /* $name in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* $name */; };',
-      );
-    }
-
-    updated = _patchNativeTargetListAddId(
+    updated = _wireResourceFile(
       updated,
-      targetId: ids.resourcesPhaseId,
-      listKey: 'files',
-      idToAdd: '$buildFileId /* $name in Resources */',
-    );
-    updated = _patchGroupChildrenAddId(
-      updated,
-      groupId: ids.widgetGroupId,
-      idToAdd: '$fileRefId /* $name */',
+      ids: ids,
+      widgetClassName: widgetClassName,
+      name: name,
+      lastKnownFileType: 'file',
     );
   }
 
@@ -1311,6 +1263,48 @@ Future<void> ensureWidgetResourceFilesInXcodeProject({
     'Wired ${resourceFileNames.length} resource file'
     '${resourceFileNames.length == 1 ? '' : 's'} of $widgetClassName into the '
     'extension target.',
+  );
+}
+
+/// Wires `<widgetClassName>/[name]` into the extension target's Resources
+/// build phase and its group; ids are derived from the file name, so a second
+/// run over the same project changes nothing.
+String _wireResourceFile(
+  String pbxproj, {
+  required _WidgetExtensionIds ids,
+  required String widgetClassName,
+  required String name,
+  required String lastKnownFileType,
+}) {
+  final fileRefId = xcodeObjectId('fileref:$name:$widgetClassName');
+  final buildFileId = xcodeObjectId('buildfile:$name:$widgetClassName');
+
+  var updated = pbxproj;
+  if (!updated.contains(fileRefId)) {
+    updated = _insertIntoSection(
+      updated,
+      section: 'PBXFileReference',
+      content:
+          '\t\t$fileRefId /* $name */ = {isa = PBXFileReference; lastKnownFileType = $lastKnownFileType; path = $name; sourceTree = "<group>"; };',
+    );
+    updated = _insertIntoSection(
+      updated,
+      section: 'PBXBuildFile',
+      content:
+          '\t\t$buildFileId /* $name in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* $name */; };',
+    );
+  }
+
+  updated = _patchNativeTargetListAddId(
+    updated,
+    targetId: ids.resourcesPhaseId,
+    listKey: 'files',
+    idToAdd: '$buildFileId /* $name in Resources */',
+  );
+  return _patchGroupChildrenAddId(
+    updated,
+    groupId: ids.widgetGroupId,
+    idToAdd: '$fileRefId /* $name */',
   );
 }
 

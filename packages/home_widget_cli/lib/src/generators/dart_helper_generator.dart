@@ -50,7 +50,7 @@ class DartHelperGenerator {
       if (hasTimedData) "import 'package:flutter/foundation.dart';",
       if (_usesAppGroupId && spec.hasFlavors)
         "import 'package:flutter/services.dart';",
-      if (spec.hasRuntimeImages || _iconEnums.isNotEmpty)
+      if (spec.hasRuntimeImages || spec.iconEnums.isNotEmpty)
         "import 'package:flutter/widgets.dart';",
       "import 'package:home_widget/home_widget.dart';",
     ];
@@ -107,7 +107,7 @@ class $className {
     );
     _appendSection(
       buffer,
-      _localizedFields.isNotEmpty ? _localizedReader() : null,
+      spec.keyedLocalizedStrings.isNotEmpty ? _localizedReader() : null,
     );
     _appendSection(
       buffer,
@@ -116,7 +116,7 @@ class $className {
 
     buffer.writeln('}');
 
-    for (final entry in _iconEnums.entries) {
+    for (final entry in spec.iconEnums.entries) {
       _appendSection(buffer, _iconEnum(entry.key, entry.value));
     }
 
@@ -164,20 +164,13 @@ class $className {
       ..write(section);
   }
 
-  /// Keyed localized strings, stored as one JSON blob of locale tag to text
-  /// under a preferences key of their own.
-  ///
-  /// Shared with the native generators so the Dart API cannot drift from the
-  /// keys they read.
-  List<HWLocalizedString> get _localizedFields => spec.keyedLocalizedStrings;
-
   /// Every localized string the generated Dart API hands out as a translations
   /// object, whether it is stored under its own key or inside a timed entry.
   ///
   /// Both flavours need the compiled defaults and the merger: the difference is
   /// only which reader supplies the stored map.
   List<HWLocalizedString> get _translationFields =>
-      [..._localizedFields, ...spec.timedLocalizedStrings];
+      [...spec.keyedLocalizedStrings, ...spec.timedLocalizedStrings];
 
   String get _helperClassName => '${spec.className}HomeWidget';
 
@@ -213,31 +206,6 @@ class $className {
         for (final image in spec.timedImageFields) image.key,
         for (final image in spec.timedJsonImageFields) image.storageKey,
       ];
-
-  /// The icon enums this file declares, by name, in declaration order.
-  ///
-  /// One per icon field, wherever it is declared: top level, at the leaf of a
-  /// JSON group or inside a timed entry. Fields sharing a key are already
-  /// folded together by the spec, so a name appearing twice describes the same
-  /// icon list and emits one enum.
-  Map<String, HWIconData> get _iconEnums {
-    final enums = <String, HWIconData>{};
-    for (final field in spec.dataFields) {
-      final icon = _iconOf(field);
-      if (icon == null) continue;
-      enums.putIfAbsent(_iconEnumName(icon), () => icon);
-    }
-    return enums;
-  }
-
-  /// The icon [field] describes once its entries are resolved, or null where
-  /// it describes none.
-  HWIconData? _iconOf(HWDataType<dynamic> field) {
-    final icon = iconLeafOf(field);
-    return icon == null || icon.entries.isEmpty ? null : icon;
-  }
-
-  String _iconEnumName(HWIconData icon) => icon.enumNameFor(spec.className);
 
   /// The enum the app picks one of [icon]'s glyphs out of.
   String _iconEnum(String enumName, HWIconData icon) {
@@ -296,27 +264,19 @@ class $className {
   String _dartStringLiteral(String? value) =>
       value == null ? 'null' : "'${escapeDartStringLiteral(value)}'";
 
-  /// The type the generated Dart shapes carry for one leaf value: the icon
-  /// enum where there is one, the type's own Dart spelling otherwise.
-  String _dartLeafType(HWDataType<dynamic> field) {
-    final icon = _iconOf(field);
-    return icon == null ? field.dartType : _iconEnumName(icon);
-  }
+  /// The type the generated Dart shapes carry for one leaf value.
+  String _dartLeafType(HWDataType<dynamic> field) =>
+      field.dartApiType(spec.className);
 
   /// [rawExpr] mapped to the Dart type [_dartLeafType] promises.
-  String _dartLeafDecode(HWDataType<dynamic> field, String rawExpr) {
-    final icon = _iconOf(field);
-    return icon == null
-        ? rawExpr
-        : '${_iconEnumName(icon)}.fromCodePoint($rawExpr)';
-  }
+  String _dartLeafDecode(HWDataType<dynamic> field, String rawExpr) =>
+      field.dartDecode(rawExpr, spec.className);
 
   /// The stored form of the leaf held in [key], for the JSON object it travels
   /// in.
   String _dartLeafEncode(HWDataType<dynamic> field, String key) {
     if (field is HWDateTime) return _dartIsoExpr('$key!');
-    if (_iconOf(field) != null) return '$key!.codePoint';
-    return key;
+    return field.dartEncode('$key!', spec.className) ?? key;
   }
 
   List<String> get _supportedLocales =>
@@ -419,8 +379,7 @@ class $className {
   }
 
   /// The type `saveData` takes for [field]: a translations object for a
-  /// localized string, an icon enum for an icon, the field's own Dart type
-  /// otherwise.
+  /// localized string, the field's own Dart API type otherwise.
   String _saveParameterType(HWDataType<dynamic> field) =>
       field is HWLocalizedString
           ? _translationsClassName
@@ -433,10 +392,7 @@ class $className {
 
     final parameters = <String>[
       for (final field in primitiveFields)
-        if (field is HWImageData)
-          '    ImageProvider? ${field.key},'
-        else
-          '    ${_saveParameterType(field)}? ${field.key},',
+        '    ${_saveParameterType(field)}? ${field.key},',
       for (final group in jsonGroups)
         '    ${_dartJsonClassName(group.key)}? ${group.key},',
       if (hasTimedData) '    Map<DateTime, $_timedDataClassName>? timedData,',
@@ -490,13 +446,10 @@ class $className {
       return '      if ($key != null) HomeWidget.saveWidgetData<String>('
           '$keyLiteral, ${_dartIsoExpr(key)}$_appGroupIdArg),';
     }
-    if (_iconOf(field) != null) {
-      return '      if ($key != null) HomeWidget.saveWidgetData<int>('
-          '$keyLiteral, $key.codePoint$_appGroupIdArg),';
-    }
+    final stored = field.dartEncode(key, spec.className) ?? key;
     return '      if ($key != null) '
         'HomeWidget.saveWidgetData<${field.dartType}>('
-        '$keyLiteral, $key$_appGroupIdArg),';
+        '$keyLiteral, $stored$_appGroupIdArg),';
   }
 
   /// A `Future.wait` entry running [body] inside an immediately invoked async
@@ -773,7 +726,7 @@ $indent}''';
       ...primitiveFields.map(
         (f) => f is HWLocalizedString
             ? '$_translationsClassName ${f.key}'
-            : '${_dartLeafType(f)}? ${f.key}',
+            : '${f.dartGetDataType(spec.className)}? ${f.key}',
       ),
       ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
       if (hasTimedData) 'Map<DateTime, $_timedDataClassName>? timedData',
@@ -833,7 +786,7 @@ $indent}''';
             'by [saveData]',
         '  /// is merged over the compiled defaults, so every locale always '
             'has text.',
-        if (_localizedFields.isNotEmpty) ...[
+        if (spec.keyedLocalizedStrings.isNotEmpty) ...[
           '  /// To read the raw stored blob instead — to tell an override '
               'apart from a',
           '  /// shipped default — use `HomeWidget.getWidgetData` on the '
@@ -918,25 +871,11 @@ $indent}''';
           'await HomeWidget.getWidgetData<String>('
           '${_paramKey(key)}$_appGroupIdArg)),';
     }
-    final defaultValue = field.defaultValue;
-    final icon = _iconOf(field);
-    if (icon != null) {
-      final fallback = defaultValue is int
-          ? ', defaultValue: ${_hexLiteral(defaultValue)}'
-          : '';
-      return '      $key: ${_iconEnumName(icon)}.fromCodePoint('
-          'await HomeWidget.getWidgetData<int>('
-          '${_paramKey(key)}$fallback$_appGroupIdArg)),';
-    }
-    var defaultLiteral = '';
-    if (defaultValue != null) {
-      defaultLiteral = defaultValue is String
-          ? ", defaultValue: '${escapeDartStringLiteral(defaultValue)}'"
-          : ', defaultValue: $defaultValue';
-    }
-    return '      $key: '
-        'await HomeWidget.getWidgetData<${field.dartType}>('
-        '${_paramKey(key)}$defaultLiteral$_appGroupIdArg),';
+    final literal = field.codegenDartDefaultLiteral();
+    final defaultLiteral = literal == null ? '' : ', defaultValue: $literal';
+    final read = 'await HomeWidget.getWidgetData<${field.dartType}>('
+        '${_paramKey(key)}$defaultLiteral$_appGroupIdArg)';
+    return '      $key: ${_dartLeafDecode(field, read)},';
   }
 
   /// Merges a stored translation blob over the compiled defaults.
@@ -1602,13 +1541,10 @@ $indent}''';
             key: field.key,
             // A localized value is a locale map, not a string: the member has
             // to be the translations class so `saveData` cannot be handed the
-            // text of a single unnamed locale. An image is handed over as an
-            // ImageProvider and only its saved path reaches the entry's JSON.
+            // text of a single unnamed locale.
             type: field is HWLocalizedString
                 ? _translationsClassName
-                : field is HWImageData
-                    ? 'ImageProvider'
-                    : _dartLeafType(field),
+                : _dartLeafType(field),
             jsonRoot: false,
             leafType: field,
           ),
@@ -1814,7 +1750,7 @@ Map<String, String>? _readTranslations(Object? value) {
     if (field is HWImageData) return '_readFileImage';
     // The stored value is a codepoint; the Dart API hands back the enum value
     // carrying it.
-    if (_iconOf(field) != null) return '_readInt';
+    if (field is HWIconData) return '_readInt';
     return '_readString';
   }
 
@@ -1836,15 +1772,8 @@ Map<String, String>? _readTranslations(Object? value) {
   }
 
   String _dartDefaultLiteral(HWDataType<dynamic> field) {
-    final defaultValue = field.defaultValue;
-    if (defaultValue == null) return '';
-    if (defaultValue is int && _iconOf(field) != null) {
-      return ' ?? ${_hexLiteral(defaultValue)}';
-    }
-    if (defaultValue is String) {
-      return " ?? '${escapeDartStringLiteral(defaultValue)}'";
-    }
-    return ' ?? $defaultValue';
+    final literal = field.codegenDartDefaultLiteral();
+    return literal == null ? '' : ' ?? $literal';
   }
 }
 

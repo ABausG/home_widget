@@ -1915,6 +1915,69 @@ void main() {
       expect('ForecastMoodIcon? mood,'.allMatches(output), hasLength(1));
     });
 
+    test('merges two fields that land on one enum name', () {
+      const morning = HWIconData.resolved(
+        'icon',
+        entries: [HWIconEntry('wbSunny', 0xe2bd), HWIconEntry('cloud', 0xe2bf)],
+        iconFont: _materialIcons,
+      );
+      const evening = HWIconData.resolved(
+        'icon',
+        entries: [HWIconEntry('rain', 0xe2c1), HWIconEntry('snow', 0xe2c3)],
+        iconFont: _materialIcons,
+      );
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [
+          HWJson('today', morning),
+          HWJson('tomorrow', evening),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect('enum ForecastIconIcon {'.allMatches(output), hasLength(1));
+      for (final name in ['wbSunny', 'cloud', 'rain', 'snow']) {
+        expect(output, contains('  $name(IconData(0x'));
+      }
+      expect(output, contains('final ForecastIconIcon? icon;'));
+      expect(
+        "icon: ForecastIconIcon.fromCodePoint(_readInt(json['icon'])),"
+            .allMatches(output),
+        hasLength(2),
+      );
+    });
+
+    test('rejects two fields whose shared enum disagrees', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Forecast'),
+        className: 'Forecast',
+        dataFields: const [
+          HWJson('today', _mood),
+          HWJson(
+            'tomorrow',
+            HWIconData.resolved(
+              'mood',
+              entries: [HWIconEntry('wbSunny', 0xe999)],
+              iconFont: _materialIcons,
+            ),
+          ),
+        ],
+      );
+
+      expect(
+        () => DartHelperGenerator(spec).generate(),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('"today.mood"'), contains('"tomorrow.mood"')),
+          ),
+        ),
+      );
+    });
+
     test('carries an icon through a JSON group as the enum', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'Forecast'),

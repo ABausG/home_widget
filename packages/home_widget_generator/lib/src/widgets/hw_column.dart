@@ -76,7 +76,11 @@ class HWColumn extends HWMultiChildWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
     final align = switch (crossAxisAlignment) {
@@ -98,7 +102,11 @@ class HWColumn extends HWMultiChildWidget {
       indent + 1,
       dataExpr,
       mainAxisAlignment,
-      (child, childIndent, data) => child.toKotlin(childIndent, dataExpr: data),
+      (child, childIndent, data) => child.toKotlinIn(
+        childIndent,
+        dataExpr: data,
+        constraints: constraints,
+      ),
       (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
     );
 

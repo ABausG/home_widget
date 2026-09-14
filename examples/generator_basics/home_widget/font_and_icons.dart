@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 /// Custom font and icon demo.
@@ -19,6 +21,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// - `Icons.arrow_forward` in that list declares `matchTextDirection`, so
 ///   picking it draws the arrow mirrored in a right-to-left layout, exactly as
 ///   Flutter's own `Icon` would.
+/// - `CupertinoIcons.sun_max` and `FontAwesomeIcons.solidHeart` come from
+///   packages; the CLI subsets those fonts the same way.
 @HomeWidget(
   name: 'Font & Icons',
   description: 'Text in a bundled font next to fixed and data-bound icons.',
@@ -44,11 +48,21 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             size: 24,
             color: HWFixedColor(0xFFE53935),
           ),
-          HWText.fixed(
-            'a fixed icon',
-            style: HWRoleTextStyle(role: HWTextStyleRole.caption),
+          HWIcon.fixed(
+            CupertinoIcons.sun_max,
+            size: 24,
+            color: HWFixedColor(0xFFFB8C00),
+          ),
+          HWIcon.fixed(
+            FontAwesomeIcons.solidHeart,
+            size: 24,
+            color: HWFixedColor(0xFF8E24AA),
           ),
         ],
+      ),
+      HWText.fixed(
+        'three icons, three fonts',
+        style: HWRoleTextStyle(role: HWTextStyleRole.caption),
       ),
       HWIcon(
         HWIconData(

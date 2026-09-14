@@ -4,7 +4,6 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
-import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../util/package_config.dart';
 
@@ -184,23 +183,8 @@ class _PubspecAssets {
     final files = <String>{};
     final directories = <String>{};
 
-    final pubspec = File(p.join(projectRoot.path, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) {
-      return _PubspecAssets(files: files, directories: directories);
-    }
-
-    final Object? doc;
-    try {
-      doc = loadYaml(pubspec.readAsStringSync());
-    } on YamlException {
-      return _PubspecAssets(files: files, directories: directories);
-    }
-    if (doc is! YamlMap) {
-      return _PubspecAssets(files: files, directories: directories);
-    }
-
-    final flutterSection = doc['flutter'];
-    if (flutterSection is! YamlMap) {
+    final flutterSection = readFlutterSection(projectRoot.path);
+    if (flutterSection == null) {
       return _PubspecAssets(files: files, directories: directories);
     }
 

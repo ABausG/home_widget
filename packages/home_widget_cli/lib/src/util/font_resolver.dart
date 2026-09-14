@@ -5,7 +5,6 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
-import '../generator_error.dart';
 import 'logger.dart';
 import 'package_config.dart';
 
@@ -47,19 +46,8 @@ class PubspecFonts {
   /// the caller turns that into an error naming the family it was looking for,
   /// which says more than "no fonts at all".
   factory PubspecFonts.read(String root) {
-    final pubspec = File(p.join(root, 'pubspec.yaml'));
-    if (!pubspec.existsSync()) return const PubspecFonts({});
-
-    final Object? doc;
-    try {
-      doc = loadYaml(pubspec.readAsStringSync());
-    } on YamlException {
-      return const PubspecFonts({});
-    }
-    if (doc is! YamlMap) return const PubspecFonts({});
-
-    final flutterSection = doc['flutter'];
-    if (flutterSection is! YamlMap) return const PubspecFonts({});
+    final flutterSection = readFlutterSection(root);
+    if (flutterSection == null) return const PubspecFonts({});
 
     final fonts = flutterSection['fonts'];
     if (fonts is! YamlList) return const PubspecFonts({});
@@ -117,13 +105,12 @@ final Map<String, List<int>> _subsetCache = {};
 /// Whether the missing-`font-subset` warning has already been logged.
 bool _warnedAboutMissingSubsetter = false;
 
-/// Resets the state [FontResolver] keeps for a whole run.
-///
-/// Only tests need this: within one CLI invocation the cache is what keeps the
-/// subsetter from running once per widget.
+/// Resets the state [FontResolver] keeps for a whole run; only tests need
+/// this.
 void resetFontResolverCaches() {
   _subsetCache.clear();
   _warnedAboutMissingSubsetter = false;
+  resetPackageConfigCache();
 }
 
 /// Resolves the font files a generated widget renders with.
@@ -140,6 +127,11 @@ class FontResolver {
 
   PubspecFonts? _appFonts;
   final Map<String, PubspecFonts?> _packageFonts = {};
+  final Map<String, ResolvedPackage?> _resolvedPackages = {};
+  bool _lookedUpSdkRoot = false;
+  String? _sdkRoot;
+  bool _lookedUpSubsetBinary = false;
+  String? _subsetBinary;
 
   /// The app's own `flutter: fonts:` declarations.
   PubspecFonts get appFonts =>
@@ -150,10 +142,15 @@ class FontResolver {
   PubspecFonts? packageFonts(String package) => _packageFonts.putIfAbsent(
         package,
         () {
-          final resolved = resolvePackage(projectRoot, package);
+          final resolved = _resolve(package);
           if (resolved == null) return null;
           return PubspecFonts.read(resolved.root);
         },
+      );
+
+  ResolvedPackage? _resolve(String package) => _resolvedPackages.putIfAbsent(
+        package,
+        () => resolvePackage(projectRoot, package),
       );
 
   /// The asset key Flutter registers the file [variant] resolves to under.
@@ -235,7 +232,7 @@ class FontResolver {
     }
 
     if (font.package == 'cupertino_icons' && font.family == 'CupertinoIcons') {
-      final resolved = resolvePackage(projectRoot, 'cupertino_icons');
+      final resolved = _resolve('cupertino_icons');
       if (resolved == null) {
         throw GeneratorError(
           'The widget uses Cupertino icons, but this project does not depend '
@@ -244,8 +241,11 @@ class FontResolver {
           '`flutter pub get`.',
         );
       }
-      final file =
-          File(p.join(resolved.libRoot, 'assets', 'CupertinoIcons.ttf'));
+      final declared =
+          packageFonts('cupertino_icons')?.families['CupertinoIcons']?.first;
+      final file = declared == null
+          ? File(p.join(resolved.root, 'assets', 'CupertinoIcons.ttf'))
+          : _assetFile('cupertino_icons', declared.asset);
       if (!file.existsSync()) {
         throw GeneratorError(
           'The Cupertino icon font is not where the "cupertino_icons" package '
@@ -274,8 +274,14 @@ class FontResolver {
     return IconFontSource(file);
   }
 
+  String? get _flutterSdkRoot {
+    if (_lookedUpSdkRoot) return _sdkRoot;
+    _lookedUpSdkRoot = true;
+    return _sdkRoot = resolveFlutterSdkRoot(projectRoot);
+  }
+
   String _requireFlutterSdkRoot(HWIconFont font) {
-    final sdk = resolveFlutterSdkRoot(projectRoot);
+    final sdk = _flutterSdkRoot;
     if (sdk == null) {
       throw GeneratorError(
         'Could not find the Flutter SDK the icon font "${font.family}" ships '
@@ -295,23 +301,27 @@ class FontResolver {
     return 'packages/$package/$asset';
   }
 
-  /// The file [asset] names, which for a package sits under its `lib/`.
+  /// The file [asset] names.
+  ///
+  /// A package declares its own fonts relative to its root, the way Flutter
+  /// reads them out of the package's `pubspec.yaml` — only the namespaced
+  /// `packages/<pkg>/<path>` spelling is relative to the package's `lib/`.
   File _assetFile(String? package, String asset) {
-    final relative = asset.startsWith('packages/')
-        ? asset.split('/').skip(2).join('/')
-        : asset;
+    final namespaced = asset.startsWith('packages/');
+    final relative = namespaced ? asset.split('/').skip(2).join('/') : asset;
     final segments = p.posix.split(relative);
     if (package == null) {
       return File(p.join(projectRoot.path, p.joinAll(segments)));
     }
-    final resolved = resolvePackage(projectRoot, package);
+    final resolved = _resolve(package);
     if (resolved == null) {
       throw GeneratorError(
         'Could not resolve the package "$package" that declares "$asset". Run '
         '`flutter pub get` and generate again.',
       );
     }
-    return File(p.join(resolved.libRoot, p.joinAll(segments)));
+    final base = namespaced ? resolved.libRoot : resolved.root;
+    return File(p.join(base, p.joinAll(segments)));
   }
 
   /// The one file of [candidates] that renders [weight] and [italic] best.
@@ -413,7 +423,13 @@ class FontResolver {
   /// precached — `darwin-x64` even on an arm64 Mac — so it is globbed rather
   /// than named.
   String? _fontSubsetBinary() {
-    final sdk = resolveFlutterSdkRoot(projectRoot);
+    if (_lookedUpSubsetBinary) return _subsetBinary;
+    _lookedUpSubsetBinary = true;
+    return _subsetBinary = _findFontSubsetBinary();
+  }
+
+  String? _findFontSubsetBinary() {
+    final sdk = _flutterSdkRoot;
     if (sdk == null) return null;
     final engineDir =
         Directory(p.join(sdk, 'bin', 'cache', 'artifacts', 'engine'));

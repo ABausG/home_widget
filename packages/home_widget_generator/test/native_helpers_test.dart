@@ -22,7 +22,7 @@ void main() {
           contains('func ${helper.name}('),
           reason: '${helper.name} Swift body',
         );
-        if (kotlinOf(helper).isEmpty) continue;
+        if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper),
           contains('private fun ${helper.name}('),
@@ -46,7 +46,7 @@ void main() {
           ),
           reason: '${helper.name} Swift body',
         );
-        if (kotlinOf(helper).isEmpty) continue;
+        if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper).trimLeft(),
           startsWith('private fun '),
@@ -55,10 +55,39 @@ void main() {
       }
     });
 
-    test('declares no Kotlin imports when it has no Kotlin body', () {
+    test('has a body for at least one platform', () {
       for (final helper in HWNativeHelper.values) {
-        if (kotlinOf(helper).isNotEmpty) continue;
-        expect(helper.kotlinImports, isEmpty, reason: helper.name);
+        expect(
+          helper.swift ?? helper.kotlin,
+          isNotNull,
+          reason: helper.name,
+        );
+      }
+    });
+
+    test('declares no imports for a platform it has no body for', () {
+      for (final helper in HWNativeHelper.values) {
+        if (helper.kotlin == null) {
+          expect(helper.kotlinImports, isEmpty, reason: helper.name);
+        }
+        if (helper.swift == null) {
+          expect(helper.swiftImports, isEmpty, reason: helper.name);
+        }
+      }
+    });
+
+    test('emits nothing where it declares no body', () {
+      for (final helper in HWNativeHelper.values) {
+        expect(
+          swiftOf(helper).isEmpty,
+          helper.swift == null,
+          reason: '${helper.name} Swift body',
+        );
+        expect(
+          kotlinOf(helper).isEmpty,
+          helper.kotlin == null,
+          reason: '${helper.name} Kotlin body',
+        );
       }
     });
 
@@ -81,6 +110,36 @@ void main() {
       for (final helper in HWNativeHelper.values) {
         expect(helper.swiftViewModifiers, isEmpty, reason: helper.name);
       }
+    });
+
+    test('kotlinNativeHelpers keeps exactly the ones with an Android body', () {
+      expect(
+        kotlinNativeHelpers(HWNativeHelper.values),
+        HWNativeHelper.values.where((helper) => helper.kotlin != null),
+      );
+      expect(
+        kotlinNativeHelpers(HWNativeHelper.values).map(kotlinOf),
+        everyElement(isNotEmpty),
+      );
+      expect(
+        kotlinNativeHelpers(HWNativeHelper.values),
+        isNot(contains(HWNativeHelper.hwFontFromURL)),
+      );
+    });
+
+    test('swiftNativeHelpers keeps exactly the ones with an iOS body', () {
+      expect(
+        swiftNativeHelpers(HWNativeHelper.values),
+        HWNativeHelper.values.where((helper) => helper.swift != null),
+      );
+      expect(
+        swiftNativeHelpers(HWNativeHelper.values).map(swiftOf),
+        everyElement(isNotEmpty),
+      );
+      expect(
+        swiftNativeHelpers(HWNativeHelper.values),
+        contains(HWNativeHelper.hwFontFromURL),
+      );
     });
 
     test('imports every Kotlin type its body names', () {
@@ -737,13 +796,36 @@ void main() {
       expect(swiftOf(helper), contains('-> Font?'));
     });
 
-    test('names CoreText, which a widget extension does not import', () {
-      expect(helper.swiftImports, {'import CoreText'});
+    test('keeps the descriptor per file and the font per file and size', () {
+      expect(
+        swiftOf(helper),
+        contains('private var descriptors: [String: CTFontDescriptor?] = [:]'),
+      );
+      expect(
+        swiftOf(helper),
+        contains('private var fonts: [String: Font?] = [:]'),
+      );
+      expect(swiftOf(helper), contains(r'let cacheKey = "\(key)|\(size)"'));
+      expect(
+        swiftOf(helper),
+        contains('HWFontCache.shared.font(url.path, size)'),
+      );
+    });
+
+    test('reaches the cache from any thread, and from itself', () {
+      expect(swiftOf(helper), contains('static let shared = HWFontCache()'));
+      expect(swiftOf(helper), contains('private let lock = NSRecursiveLock()'));
+      expect(swiftOf(helper), contains('@unchecked Sendable'));
     });
 
     test('has no Kotlin counterpart', () {
+      expect(helper.kotlin, isNull);
       expect(kotlinOf(helper), isEmpty);
       expect(helper.dependencies, isEmpty);
+    });
+
+    test('names CoreText, which a widget extension does not import', () {
+      expect(helper.swiftImports, {'import CoreText'});
     });
   });
 
@@ -763,11 +845,19 @@ void main() {
 
     test('falls back to the system font rather than rendering nothing', () {
       expect(swiftOf(helper), contains('-> Font {'));
-      expect(swiftOf(helper), contains('return .system(size: size)'));
+      expect(swiftOf(helper), contains('return font ?? .system(size: size)'));
+    });
+
+    test('resolves the file once per asset and size', () {
+      expect(
+        swiftOf(helper),
+        contains('HWFontCache.shared.font("asset:" + asset, size)'),
+      );
     });
 
     test('depends on the descriptor reader, and has no Kotlin body', () {
       expect(helper.dependencies, [HWNativeHelper.hwFontFromURL]);
+      expect(helper.kotlin, isNull);
       expect(kotlinOf(helper), isEmpty);
     });
   });
@@ -785,11 +875,19 @@ void main() {
 
     test('falls back to the system font rather than rendering nothing', () {
       expect(swiftOf(helper), contains('-> Font {'));
-      expect(swiftOf(helper), contains('return .system(size: size)'));
+      expect(swiftOf(helper), contains('return font ?? .system(size: size)'));
+    });
+
+    test('resolves the file once per name and size', () {
+      expect(
+        swiftOf(helper),
+        contains('HWFontCache.shared.font("bundle:" + name, size)'),
+      );
     });
 
     test('depends on the descriptor reader, and has no Kotlin body', () {
       expect(helper.dependencies, [HWNativeHelper.hwFontFromURL]);
+      expect(helper.kotlin, isNull);
       expect(kotlinOf(helper), isEmpty);
     });
   });
@@ -828,7 +926,8 @@ void main() {
       expect(
         swiftOf(helper),
         contains(
-            r'let matchingStyle = variants.filter { $0.italic == italic }'),
+          r'let matchingStyle = variants.filter { $0.italic == italic }',
+        ),
       );
       expect(
         swiftOf(helper),
@@ -847,7 +946,10 @@ void main() {
     test('loads through the asset font helper, and has no Kotlin body', () {
       expect(helper.dependencies, [HWNativeHelper.hwAssetFont]);
       expect(
-          swiftOf(helper), contains('return hwAssetFont(exact.asset, size)'));
+        swiftOf(helper),
+        contains('return hwAssetFont(exact.asset, size)'),
+      );
+      expect(helper.kotlin, isNull);
       expect(kotlinOf(helper), isEmpty);
     });
   });

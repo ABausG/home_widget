@@ -1,7 +1,9 @@
 import '../fonts.dart';
 import '../native_helpers.dart';
+import '../utils/string_literals.dart';
 import 'hw_color.dart';
 import 'hw_generatable.dart';
+import 'hw_kotlin_constraints.dart';
 
 enum HWTextAlign { start, end, center, justify }
 
@@ -161,31 +163,50 @@ class HWTextStyle implements HWGeneratable {
   /// Whether text in this style renders struck through.
   bool get effectiveLineThrough => _resolve().lineThrough == true;
 
-  @override
-  Set<String> get kotlinImports {
+  /// How Android renders text in this style.
+  ///
+  /// Glance cannot name a font family, so a style that does renders as a
+  /// bitmap the core plugin draws, and every other one as a Glance `Text`.
+  /// Both are built out of the style resolved here, so a text property is
+  /// added in one place.
+  HWKotlinTextRenderer kotlinRenderer({HWTextAlign? textAlign}) {
+    final variant = fontVariant;
+    if (variant == null) return _glanceRenderer(textAlign);
+
     final resolved = _resolve();
-    // A custom family renders as a bitmap, which takes the size, weight and
-    // decorations as plain values rather than as a Glance TextStyle.
-    if (resolved.fontFamily != null) {
-      return {
-        if (resolved.color != null) ...resolved.color!.kotlinImports,
-      };
-    }
-    return {
-      'import androidx.glance.text.TextStyle',
-      if (resolved.color != null)
-        ...resolved.color!.kotlinImports
-      else
-        ...hwDefaultContentColorKotlinImports,
-      if (resolved.fontSize != null || _getEffectiveRole() != null)
-        'import androidx.compose.ui.unit.sp',
-      if (resolved.fontWeight != null || _getEffectiveRole() != null)
-        'import androidx.glance.text.FontWeight',
-      if (resolved.italic == true) 'import androidx.glance.text.FontStyle',
-      if (resolved.underline == true || resolved.lineThrough == true)
-        'import androidx.glance.text.TextDecoration',
-    };
+    return HWBitmapTextRenderer(
+      variant: variant,
+      fontSize: effectiveFontSizeOrDefault,
+      color: resolved.color,
+      italic: resolved.italic == true,
+      underline: resolved.underline == true,
+      lineThrough: resolved.lineThrough == true,
+      textAlign: textAlign,
+    );
   }
+
+  HWGlanceTextRenderer _glanceRenderer(HWTextAlign? textAlign) {
+    final resolved = _resolve();
+    final role = _getEffectiveRole();
+    return HWGlanceTextRenderer(
+      color: resolved.color,
+      fontSize: resolved.fontSize ?? _androidRoleFontSize(role),
+      fontWeight: resolved.fontWeight ?? _androidRoleFontWeight(role),
+      italic: resolved.italic == true,
+      underline: resolved.underline == true,
+      lineThrough: resolved.lineThrough == true,
+      textAlign: textAlign,
+    );
+  }
+
+  /// The imports the `TextStyle(...)` of [toKotlin] needs.
+  ///
+  /// A custom family is not part of that style, so these are the Glance
+  /// renderer's imports whatever family the style names. Text in a custom
+  /// family is emitted through [kotlinRenderer] instead, and takes its imports
+  /// off the renderer that emitted it.
+  @override
+  Set<String> get kotlinImports => _glanceRenderer(null).kotlinImports;
 
   @override
   Set<String> get swiftViewModifiers {
@@ -206,8 +227,9 @@ class HWTextStyle implements HWGeneratable {
       // The weight and slant picked the file, so applying them again on top of
       // it would double up on what the font already is.
       final size = effectiveFontSizeOrDefault;
+      final family = escapeSwiftStringLiteral(variant.flutterFamilyKey);
       parts.add(
-        '.font(${HWNativeHelper.hwFont.name}("${variant.flutterFamilyKey}", '
+        '.font(${HWNativeHelper.hwFont.name}("$family", '
         '${variant.weight}, ${variant.italic}, ${hwSizeLiteral(size)}))',
       );
     } else if (resolved.fontSize != null && resolved.fontWeight != null) {
@@ -249,43 +271,202 @@ class HWTextStyle implements HWGeneratable {
   /// A style naming no color gets [hwDefaultContentColor], which Glance itself
   /// would render as opaque black.
   ///
-  /// A custom [fontFamily] is not part of it: Glance cannot name one, so
-  /// `HWText` renders such a style as a bitmap image and reads the individual
-  /// values off this style instead.
+  /// A custom [fontFamily] is not part of it: Glance cannot name one, so text
+  /// in such a style renders through [HWBitmapTextRenderer] instead, off the
+  /// same resolved values.
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    final resolved = _resolve();
-    final effectiveRole = _getEffectiveRole();
-    final args = <String>[];
+  String toKotlin(int indent, {required String dataExpr}) =>
+      _glanceRenderer(null).styleExpression(indent, dataExpr: dataExpr);
+}
 
-    final color = resolved.color ?? hwDefaultContentColor;
-    args.add('color = ${color.toKotlin(indent, dataExpr: dataExpr)}');
+/// How Android renders text in a style.
+///
+/// Glance renders text itself unless the style names a font family, in which
+/// case the core plugin draws it into a bitmap instead.
+sealed class HWKotlinTextRenderer {
+  const HWKotlinTextRenderer();
 
-    final size = resolved.fontSize ?? _androidRoleFontSize(effectiveRole);
-    if (size != null) {
-      args.add('fontSize = ${hwSizeLiteral(size)}.sp');
-    }
+  /// The Kotlin imports the code this emits needs.
+  Set<String> get kotlinImports;
 
-    final weight = resolved.fontWeight ?? _androidRoleFontWeight(effectiveRole);
-    if (weight != null) {
-      args.add('fontWeight = ${_kotlinFontWeight(weight)}');
-    }
+  /// The Kotlin rendering [text], the expression the bound value is read with,
+  /// in the space [constraints] leave it.
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    required String text,
+    required HWKotlinConstraints constraints,
+  });
+}
 
-    if (resolved.italic == true) {
-      args.add('fontStyle = FontStyle.Italic');
-    }
+/// Text Glance renders itself, in the platform's own font.
+class HWGlanceTextRenderer extends HWKotlinTextRenderer {
+  /// The color the text renders in, or null for [hwDefaultContentColor].
+  final HWColor? color;
 
-    if (resolved.underline == true && resolved.lineThrough == true) {
-      args.add(
-        'textDecoration = TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))',
-      );
-    } else if (resolved.underline == true) {
-      args.add('textDecoration = TextDecoration.Underline');
-    } else if (resolved.lineThrough == true) {
-      args.add('textDecoration = TextDecoration.LineThrough');
-    }
+  final double? fontSize;
+  final HWFontWeight? fontWeight;
+  final bool italic;
+  final bool underline;
+  final bool lineThrough;
+  final HWTextAlign? textAlign;
 
+  const HWGlanceTextRenderer({
+    this.color,
+    this.fontSize,
+    this.fontWeight,
+    this.italic = false,
+    this.underline = false,
+    this.lineThrough = false,
+    this.textAlign,
+  });
+
+  @override
+  Set<String> get kotlinImports => {
+        'import androidx.glance.text.Text',
+        'import androidx.glance.text.TextStyle',
+        ...(color?.kotlinImports ?? hwDefaultContentColorKotlinImports),
+        if (fontSize != null) 'import androidx.compose.ui.unit.sp',
+        if (fontWeight != null) 'import androidx.glance.text.FontWeight',
+        if (italic) 'import androidx.glance.text.FontStyle',
+        if (underline || lineThrough)
+          'import androidx.glance.text.TextDecoration',
+        if (textAlign != null) 'import androidx.glance.text.TextAlign',
+      };
+
+  /// The `TextStyle(...)` the Glance `Text` is styled with.
+  String styleExpression(int indent, {required String dataExpr}) {
+    final tint = color ?? hwDefaultContentColor;
+    final args = <String>[
+      'color = ${tint.toKotlin(indent, dataExpr: dataExpr)}',
+      if (fontSize case final size?) 'fontSize = ${hwSizeLiteral(size)}.sp',
+      if (fontWeight case final weight?)
+        'fontWeight = ${_kotlinFontWeight(weight)}',
+      if (italic) 'fontStyle = FontStyle.Italic',
+      if (underline && lineThrough)
+        'textDecoration = TextDecoration.combine(listOf(TextDecoration.Underline, TextDecoration.LineThrough))'
+      else if (underline)
+        'textDecoration = TextDecoration.Underline'
+      else if (lineThrough)
+        'textDecoration = TextDecoration.LineThrough',
+      if (textAlign case final align?) 'textAlign = ${_kotlinTextAlign(align)}',
+    ];
     return 'TextStyle(${args.join(', ')})';
+  }
+
+  @override
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    required String text,
+    required HWKotlinConstraints constraints,
+  }) {
+    final pad = '    ' * indent;
+    final style = styleExpression(indent, dataExpr: dataExpr);
+    return '${pad}Text(text = $text, style = $style)';
+  }
+}
+
+/// Text the core plugin draws into a bitmap, shown as a tinted `Image`.
+class HWBitmapTextRenderer extends HWKotlinTextRenderer {
+  /// The font file the glyphs are drawn out of.
+  final HWFontVariant variant;
+
+  /// The size the glyphs are drawn at, which a bitmap cannot leave open.
+  final double fontSize;
+
+  /// The color the mask is tinted in, or null for [hwDefaultContentColor]: an
+  /// untinted mask renders white on white.
+  final HWColor? color;
+
+  final bool italic;
+  final bool underline;
+  final bool lineThrough;
+  final HWTextAlign? textAlign;
+
+  const HWBitmapTextRenderer({
+    required this.variant,
+    required this.fontSize,
+    this.color,
+    this.italic = false,
+    this.underline = false,
+    this.lineThrough = false,
+    this.textAlign,
+  });
+
+  @override
+  Set<String> get kotlinImports => {
+        'import androidx.glance.ColorFilter',
+        'import androidx.glance.GlanceModifier',
+        'import androidx.glance.Image',
+        'import androidx.glance.ImageProvider',
+        'import androidx.glance.LocalSize',
+        'import es.antonborri.home_widget.HomeWidgetFonts',
+        if (textAlign != null) 'import androidx.glance.text.TextAlign',
+        ...(color?.kotlinImports ?? hwDefaultContentColorKotlinImports),
+      };
+
+  /// Whether the bitmap is as wide as the text has room for.
+  ///
+  /// It is otherwise cropped to the widest line, which leaves an alignment
+  /// nothing to move the text within.
+  bool get fillsWidth {
+    final align = textAlign;
+    return align != null && _kotlinTextAlign(align) != 'TextAlign.Start';
+  }
+
+  @override
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    required String text,
+    required HWKotlinConstraints constraints,
+  }) {
+    final pad = '    ' * indent;
+    final family = escapeKotlinStringLiteral(variant.flutterFamilyKey);
+    final typeface = 'HomeWidgetFonts.typeface(context, "$family", '
+        '${variant.weight}, ${variant.italic})';
+    final tint =
+        (color ?? hwDefaultContentColor).toKotlin(indent, dataExpr: dataExpr);
+
+    final buffer = StringBuffer();
+    buffer.writeln('${pad}Image(');
+    buffer.writeln('$pad    modifier = GlanceModifier,');
+    buffer.writeln('$pad    provider = ImageProvider(');
+    buffer.writeln('$pad        HomeWidgetFonts.textBitmap(');
+    buffer.writeln('$pad            context,');
+    buffer.writeln('$pad            $typeface,');
+    buffer.writeln('$pad            $text,');
+    buffer.writeln('$pad            fontSizeSp = ${hwSizeLiteral(fontSize)}f,');
+    if (italic) {
+      buffer.writeln('$pad            italic = true,');
+    }
+    if (underline) {
+      buffer.writeln('$pad            underline = true,');
+    }
+    if (lineThrough) {
+      buffer.writeln('$pad            lineThrough = true,');
+    }
+    if (textAlign case final align?) {
+      buffer.writeln(
+        '$pad            textAlign = ${_kotlinTextAlign(align)},',
+      );
+    }
+    buffer.writeln(
+      '$pad            maxWidthDp = ${constraints.kotlinMaxWidth},',
+    );
+    buffer.writeln(
+      '$pad            maxHeightDp = ${constraints.kotlinMaxHeight},',
+    );
+    if (fillsWidth) {
+      buffer.writeln('$pad            fillWidth = true,');
+    }
+    buffer.writeln('$pad        )');
+    buffer.writeln('$pad    ),');
+    buffer.writeln('$pad    contentDescription = $text,');
+    buffer.writeln('$pad    colorFilter = ColorFilter.tint($tint),');
+    buffer.write('$pad)');
+    return buffer.toString();
   }
 }
 
@@ -385,11 +566,6 @@ class HWRoleTextStyle extends HWTextStyle {
 /// size instead of on nothing.
 const double hwDefaultFontSize = 16.0;
 
-/// [size] as a literal both platforms read as a number, without the trailing
-/// `.0` a whole Dart double stringifies with.
-String hwSizeLiteral(double size) =>
-    size == size.toInt() ? size.toInt().toString() : size.toString();
-
 String _swiftFontWeight(HWFontWeight weight) {
   switch (weight) {
     case HWFontWeight.w100:
@@ -414,6 +590,19 @@ String _swiftFontWeight(HWFontWeight weight) {
       return '.regular';
     case HWFontWeight.bold:
       return '.bold';
+  }
+}
+
+String _kotlinTextAlign(HWTextAlign align) {
+  switch (align) {
+    case HWTextAlign.start:
+      return 'TextAlign.Start';
+    case HWTextAlign.end:
+      return 'TextAlign.End';
+    case HWTextAlign.center:
+      return 'TextAlign.Center';
+    case HWTextAlign.justify:
+      return 'TextAlign.Start'; // default fallback
   }
 }
 

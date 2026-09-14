@@ -78,4 +78,6 @@ picked per weight/style combination and how the text is rendered on each platfor
 ## Platform mapping
 
 - iOS — emitted as SwiftUI [`.font`](https://developer.apple.com/documentation/swiftui/view/font(_:)), [`.foregroundColor`](https://developer.apple.com/documentation/swiftui/view/foregroundcolor(_:)) and decoration modifiers.
-- Android — emitted as Glance [`TextStyle`](https://developer.android.com/reference/kotlin/androidx/glance/text/TextStyle) with `FontWeight`, `FontStyle`, and `TextDecoration`.
+- Android — emitted as Glance [`TextStyle`](https://developer.android.com/reference/kotlin/androidx/glance/text/TextStyle) with `FontWeight`, `FontStyle`, and `TextDecoration`. A style naming a
+  `fontFamily` is the exception: Glance cannot name one, so the text is drawn into a bitmap out of
+  the same values — see [Custom Fonts](/generator/custom-fonts).

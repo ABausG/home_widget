@@ -164,6 +164,7 @@ void main() {
         '            "Hello",\n'
         '            fontSizeSp = 16f,\n'
         '            maxWidthDp = LocalSize.current.width.value,\n'
+        '            maxHeightDp = LocalSize.current.height.value,\n'
         '        )\n'
         '    ),\n'
         '    contentDescription = "Hello",\n'
@@ -199,6 +200,8 @@ void main() {
         '            lineThrough = true,\n'
         '            textAlign = TextAlign.Center,\n'
         '            maxWidthDp = LocalSize.current.width.value,\n'
+        '            maxHeightDp = LocalSize.current.height.value,\n'
+        '            fillWidth = true,\n'
         '        )\n'
         '    ),\n'
         '    contentDescription = "Hello",\n'
@@ -262,6 +265,22 @@ void main() {
       );
     });
 
+    test('the style imports what its own TextStyle emits, not the bitmap', () {
+      expect(style.toKotlin(0, dataExpr: 'data'), startsWith('TextStyle('));
+      expect(
+        style.kotlinImports,
+        containsAll(<String>[
+          'import androidx.glance.text.Text',
+          'import androidx.glance.text.TextStyle',
+          'import androidx.compose.ui.unit.sp',
+        ]),
+      );
+      expect(
+        style.kotlinImports,
+        isNot(contains('import es.antonborri.home_widget.HomeWidgetFonts')),
+      );
+    });
+
     test('leaves out the text alignment import when nothing aligns', () {
       expect(
         const HWText.fixed('Hello', style: style).kotlinImports,
@@ -319,6 +338,215 @@ void main() {
         ]),
       );
       expect(plain.fontVariant, isNull);
+    });
+  });
+
+  group('the width a bitmap text is drawn for', () {
+    const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
+    const text = HWText.fixed('Hello', style: style);
+
+    test('is the whole widget for a text nothing encloses', () {
+      expect(
+        text.toKotlin(0, dataExpr: 'data'),
+        contains('maxWidthDp = LocalSize.current.width.value,'),
+      );
+    });
+
+    test('loses what the padding around it takes', () {
+      const padded = HWPadding(
+        child: text,
+        padding: HWEdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      );
+
+      final kotlin = padded.toKotlin(0, dataExpr: 'data');
+      expect(
+        kotlin,
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 24f),',
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 16f),',
+        ),
+      );
+    });
+
+    test('adds up the padding of every ancestor', () {
+      const nested = HWPadding(
+        padding: HWEdgeInsets.all(4),
+        child: HWColumn(
+          children: [
+            HWPadding(padding: HWEdgeInsets.all(6), child: text),
+          ],
+        ),
+      );
+
+      expect(
+        nested.toKotlin(0, dataExpr: 'data'),
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 20f),',
+        ),
+      );
+    });
+
+    test('loses what a fixed-size sibling of its row takes', () {
+      const row = HWRow(
+        children: [
+          HWIcon.glyph(0xE88A, font: HWIconFont(family: 'Material'), size: 24),
+          text,
+        ],
+      );
+
+      final kotlin = row.toKotlin(0, dataExpr: 'data');
+      expect(
+        kotlin,
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 24f),',
+        ),
+      );
+      expect(
+        kotlin,
+        contains('maxHeightDp = LocalSize.current.height.value,'),
+        reason: 'a row leaves its children its full height',
+      );
+    });
+
+    test('loses what a fixed-width image sibling of its row takes', () {
+      const row = HWRow(
+        children: [
+          HWImage.asset('assets/logo.png', width: 40),
+          text,
+        ],
+      );
+
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 40f),',
+        ),
+      );
+    });
+
+    test('keeps what an image of an unknown width takes, which is nothing', () {
+      const row = HWRow(
+        children: [
+          HWImage.asset('assets/logo.png'),
+          text,
+        ],
+      );
+
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        contains('maxWidthDp = LocalSize.current.width.value,'),
+      );
+    });
+
+    test('counts the padding around a fixed-size sibling', () {
+      const row = HWRow(
+        children: [
+          HWPadding(
+            padding: HWEdgeInsets.symmetric(horizontal: 5),
+            child: HWIcon.glyph(
+              0xE88A,
+              font: HWIconFont(family: 'Material'),
+              size: 20,
+            ),
+          ),
+          text,
+        ],
+      );
+
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 30f),',
+        ),
+      );
+    });
+
+    test('keeps what a text of its own row takes, which is unknown', () {
+      const row = HWRow(children: [HWText.fixed('other'), text]);
+
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        contains('maxWidthDp = LocalSize.current.width.value,'),
+      );
+    });
+
+    test('travels through a conditional, a fill and a decoration', () {
+      const tree = HWPadding(
+        padding: HWEdgeInsets.all(3),
+        child: HWFill(
+          child: HWDecoratedBox(
+            decoration: HWBoxDecoration(
+              border:
+                  HWBoxBorder(thickness: 2, color: HWFixedColor(0xFF000000)),
+            ),
+            child: HWDataExists(
+              data: HWString('title'),
+              whenPresent: text,
+              whenAbsent: HWText.fixed(''),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tree.toKotlin(0, dataExpr: 'data'),
+        contains(
+          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 10f),',
+        ),
+      );
+    });
+  });
+
+  group('the alignment of a bitmap text', () {
+    const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
+
+    test('fills the width it has so an end aligned line can move', () {
+      expect(
+        const HWText.fixed('Hello', style: style, textAlign: HWTextAlign.end)
+            .toKotlin(0, dataExpr: 'data'),
+        contains('fillWidth = true,'),
+      );
+    });
+
+    test('keeps the tight crop for a start aligned line', () {
+      for (final align in [HWTextAlign.start, HWTextAlign.justify]) {
+        expect(
+          HWText.fixed('Hello', style: style, textAlign: align)
+              .toKotlin(0, dataExpr: 'data'),
+          isNot(contains('fillWidth')),
+          reason: '$align',
+        );
+      }
+      expect(
+        const HWText.fixed('Hello', style: style).toKotlin(0, dataExpr: 'data'),
+        isNot(contains('fillWidth')),
+      );
+    });
+  });
+
+  group('a family with characters the target languages read', () {
+    const style = HWTextStyle(fontFamily: r'A "$weird" \name');
+
+    test('is escaped into the Kotlin literal', () {
+      expect(
+        const HWText.fixed('Hi', style: style).toKotlin(0, dataExpr: 'data'),
+        contains(
+          r'HomeWidgetFonts.typeface(context, "A \"\$weird\" \\name", 400, '
+          'false)',
+        ),
+      );
+    });
+
+    test('is escaped into the Swift literal', () {
+      expect(
+        const HWText.fixed('Hi', style: style).toSwift(0, dataExpr: 'data'),
+        contains(r'hwFont("A \"$weird\" \\name", 400, false, 16)'),
+      );
     });
   });
 
@@ -433,5 +661,32 @@ void main() {
         isEmpty,
       );
     });
+
+    test('reads the widgets carrying a font rather than the texts', () {
+      const text = HWText.fixed('a', style: HWTextStyle(fontFamily: 'Chewy'));
+      expect(text, isA<HWFontWidget>());
+      expect(
+        const HWIcon.glyph(0xE88A, font: HWIconFont(family: 'M')),
+        isNot(isA<HWFontWidget>()),
+      );
+
+      const fake = _FakeFontWidget(
+        HWFontVariant(family: 'Chewy', weight: 900, italic: true),
+      );
+      expect(
+        <Object>[fake, text]
+            .whereType<HWFontWidget>()
+            .map((w) => w.fontVariant),
+        [fake.fontVariant, text.fontVariant],
+      );
+    });
   });
+}
+
+/// A widget-shaped thing rendering in a font of its own.
+class _FakeFontWidget with HWFontWidget {
+  @override
+  final HWFontVariant? fontVariant;
+
+  const _FakeFontWidget(this.fontVariant);
 }

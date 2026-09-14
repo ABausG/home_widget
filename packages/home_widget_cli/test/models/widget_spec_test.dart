@@ -143,6 +143,210 @@ void main() {
       );
     });
 
+    test('default tree renders icon fields with HWIcon', () {
+      final spec = _spec(
+        name: 'MyWidget',
+        widgetTree: const HWDataOnly([mood]),
+        dataFields: const [mood],
+      );
+
+      final children = (spec.effectiveWidgetTree as HWColumn).children;
+      expect(children.length, 2);
+      expect(children[1], isA<HWIcon>());
+      expect(
+        (children[1] as HWIcon).fontResourcePrefix,
+        'hw_font_my_widget',
+      );
+      expect(spec.previewContentHash, isNotEmpty);
+    });
+
+    test('iconEnums merges the fields landing on one enum name', () {
+      const today = HWJson('today', mood);
+      const tomorrow = HWJson(
+        'tomorrow',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('rainy', 0xE798)],
+          iconFont: brandIcons,
+        ),
+      );
+
+      final enums = _spec(
+        name: 'MyWidget',
+        dataFields: const [today, tomorrow],
+      ).iconEnums;
+
+      expect(enums.keys, ['MyWidgetMoodIcon']);
+      expect(
+        enums['MyWidgetMoodIcon']!.entries.map((e) => e.name),
+        ['happy', 'sad', 'rainy'],
+      );
+    });
+
+    test('the merged enum carries no default or preview of its own', () {
+      const tomorrow = HWJson(
+        'tomorrow',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('rainy', 0xE798)],
+          iconFont: brandIcons,
+        ),
+      );
+      const today = HWJson(
+        'today',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('happy', 0xE88A)],
+          iconFont: brandIcons,
+          defaultValue: 0xE88A,
+          previewValue: 0xE88A,
+        ),
+      );
+
+      final merged =
+          _spec(dataFields: const [today, tomorrow]).iconEnums.values.single;
+
+      expect(merged.defaultValue, isNull);
+      expect(merged.previewValue, isNull);
+    });
+
+    test('mirroredIconCodePoints covers every field, not just the rendered one',
+        () {
+      const today = HWJson(
+        'today',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('happy', 0xE88A)],
+          iconFont: brandIcons,
+        ),
+      );
+      const tomorrow = HWJson(
+        'tomorrow',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('back', 0xE5C4, matchTextDirection: true)],
+          iconFont: brandIcons,
+        ),
+      );
+
+      final spec = _spec(
+        name: 'MyWidget',
+        dataFields: const [today, tomorrow],
+        widgetTree: const HWColumn(children: [HWIcon(today)]),
+      );
+
+      expect(spec.mirroredIconCodePoints, {0xE5C4});
+    });
+
+    test('mirroredIconCodePoints is empty without a directional glyph', () {
+      expect(
+        _spec(dataFields: const [mood]).mirroredIconCodePoints,
+        isEmpty,
+      );
+    });
+
+    test('iconEnums keeps one entry where two fields declare the same icon',
+        () {
+      final enums = _spec(
+        dataFields: const [HWJson('today', mood), HWJson('tomorrow', mood)],
+      ).iconEnums;
+
+      expect(
+        enums.values.single.entries.map((e) => e.name),
+        ['happy', 'sad'],
+      );
+    });
+
+    test('iconEnums rejects one name for two glyphs, naming both fields', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson('today', mood),
+            HWJson(
+              'tomorrow',
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('happy', 0xE111)],
+                iconFont: brandIcons,
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"tomorrow.mood"'),
+              contains('"happy"'),
+              contains('0xE88A'),
+              contains('0xE111'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('iconEnums rejects one glyph under two names, naming both fields', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson('today', mood),
+            HWTimedData(
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('cheerful', 0xE88A)],
+                iconFont: brandIcons,
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"mood"'),
+              contains('0xE88A'),
+              contains('"happy"'),
+              contains('"cheerful"'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('iconEnums rejects one enum name drawn out of two fonts', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson('today', mood),
+            HWJson(
+              'tomorrow',
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('rainy', 0xE798)],
+                iconFont: HWIconFont(family: 'MaterialIcons'),
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"tomorrow.mood"'),
+              contains('different fonts'),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('previewContentHash changes with the icons a field may hold', () {
       String hashOf(HWIconData field) => _spec(
             dataFields: [field],

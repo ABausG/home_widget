@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
@@ -1261,6 +1260,79 @@ void main() {
       ),
     );
     expect(content, contains('import androidx.glance.GlanceTheme'));
+  });
+
+  group('custom-font text', () {
+    Future<String> generate(
+      HWWidget tree, {
+      bool applyContentPadding = true,
+    }) async {
+      writeLauncherManifest(tempDir, package: 'com.fonts');
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'FontWidget',
+          android: HomeWidgetAndroidConfiguration(
+            packageName: 'com.fonts',
+            applyContentPadding: applyContentPadding,
+          ),
+        ),
+        className: 'FontWidget',
+        widgetTree: tree,
+      );
+
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(
+          tempDir.path,
+          'android/app/src/main/kotlin/com/fonts/FontWidgetHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    test('composes against the size the launcher actually gave', () async {
+      final content = await generate(
+        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+      );
+
+      expect(
+        content,
+        contains('  override val sizeMode: SizeMode = SizeMode.Exact'),
+      );
+      expect(content, contains('import androidx.glance.appwidget.SizeMode'));
+    });
+
+    test('sizes the bitmap against the room inside the root padding', () async {
+      final content = await generate(
+        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+      );
+
+      expect(
+        content,
+        contains('maxWidthDp = maxOf(0f, LocalSize.current.width.value - 32f)'),
+      );
+      expect(
+        content,
+        contains(
+          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 32f)',
+        ),
+      );
+    });
+
+    test('sizes it against the whole widget without that padding', () async {
+      final content = await generate(
+        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+        applyContentPadding: false,
+      );
+
+      expect(content, contains('maxWidthDp = LocalSize.current.width.value,'));
+    });
+
+    test('leaves the size mode alone for a widget without one', () async {
+      final content = await generate(const HWText.fixed('Hi'));
+
+      expect(content, isNot(contains('sizeMode')));
+      expect(content, isNot(contains('SizeMode')));
+    });
   });
 
   test('generates Kotlin widget with HWDataOnly as root widget', () async {

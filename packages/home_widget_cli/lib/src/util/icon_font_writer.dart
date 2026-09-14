@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/widget_spec.dart';
@@ -35,26 +36,13 @@ Future<WrittenIconFonts> writeAndroidIconFonts({
   );
   final prefix = spec.fontResourcePrefix;
 
-  final written = <String>[];
-  for (final entry in spec.iconCodePoints.entries) {
-    final source = fonts.resolveIconFont(entry.key);
-    final bytes = await fonts.subsetIconFont(source, entry.value);
-    final name = '${entry.key.androidResourceName(prefix)}.${source.extension}';
-    final file = File(p.join(fontDir.path, name));
-    if (await writeBytesIfChanged(file, bytes)) {
-      logger.detail('Generated: ${file.path}');
-    }
-    written.add(name);
-  }
-
-  // `_icons_` is part of the claim, not decoration: without it a widget named
-  // `Mood` would own — and delete — the fonts of one named `MoodBoard`.
-  final removed = await _prune(
+  return _writeIconFonts(
+    spec: spec,
     directory: fontDir,
-    keep: written.toSet(),
-    isOwned: (name) => name.startsWith('${prefix}_$_iconResourceInfix'),
+    fonts: fonts,
+    resourceName: (font) => font.androidResourceName(prefix),
+    isOwned: (name) => name.startsWith('${prefix}__'),
   );
-  return WrittenIconFonts(written: written, removed: removed);
 }
 
 /// Copies the subset icon fonts of [spec] into the widget's iOS extension
@@ -67,12 +55,35 @@ Future<WrittenIconFonts> writeIosIconFonts({
   required Directory extensionDir,
   required FontResolver fonts,
 }) async {
+  return _writeIconFonts(
+    spec: spec,
+    directory: extensionDir,
+    fonts: fonts,
+    resourceName: (font) => font.iosResourceName,
+    isOwned: (name) => name.startsWith('hw_font_$_iconResourceInfix'),
+  );
+}
+
+/// What every icon font resource name carries between the widget's namespace
+/// and the font itself, per `HWIconFont.resourceSuffix`.
+const String _iconResourceInfix = 'icons_';
+
+/// Copies the subset icon fonts of [spec] into [directory], naming each file
+/// with [resourceName], then prunes the files [isOwned] claims that this run
+/// did not just write.
+Future<WrittenIconFonts> _writeIconFonts({
+  required WidgetSpec spec,
+  required Directory directory,
+  required FontResolver fonts,
+  required String Function(HWIconFont font) resourceName,
+  required bool Function(String name) isOwned,
+}) async {
   final written = <String>[];
   for (final entry in spec.iconCodePoints.entries) {
     final source = fonts.resolveIconFont(entry.key);
     final bytes = await fonts.subsetIconFont(source, entry.value);
-    final name = '${entry.key.iosResourceName}.${source.extension}';
-    final file = File(p.join(extensionDir.path, name));
+    final name = '${resourceName(entry.key)}.${source.extension}';
+    final file = File(p.join(directory.path, name));
     if (await writeBytesIfChanged(file, bytes)) {
       logger.detail('Generated: ${file.path}');
     }
@@ -80,16 +91,12 @@ Future<WrittenIconFonts> writeIosIconFonts({
   }
 
   final removed = await _prune(
-    directory: extensionDir,
+    directory: directory,
     keep: written.toSet(),
-    isOwned: (name) => name.startsWith('hw_font_$_iconResourceInfix'),
+    isOwned: isOwned,
   );
   return WrittenIconFonts(written: written, removed: removed);
 }
-
-/// What every icon font resource name carries between the widget's namespace
-/// and the font itself, per `HWIconFont.resourceSuffix`.
-const String _iconResourceInfix = 'icons_';
 
 /// Deletes the files of [directory] that [isOwned] claims and [keep] does not
 /// list.

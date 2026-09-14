@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/util/font_resolver.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
@@ -243,16 +242,68 @@ void main() {
       );
     });
 
-    test('a package file resolves under the package\'s lib directory', () {
+    test('a package file resolves relative to the package root', () {
       final package = writeFontPackage(
         tempDir,
         'design_system',
         pubspecFonts: '''
     - family: Brand
       fonts:
-        - asset: fonts/Brand-Regular.ttf
+        - asset: assets/Brand-Regular.ttf
 ''',
-        assets: ['fonts/Brand-Regular.ttf'],
+        assets: ['assets/Brand-Regular.ttf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'design_system', root: package.path),
+        ],
+      );
+
+      final file = FontResolver(tempDir).resolveTextFontFile(
+        variant(family: 'Brand', package: 'design_system'),
+      );
+      expect(file.existsSync(), isTrue);
+      final expected = p.join(package.path, 'assets/Brand-Regular.ttf');
+      expect(p.equals(file.path, expected), isTrue, reason: file.path);
+    });
+
+    test('a package declaring a lib/ path resolves inside lib/', () {
+      final package = writeFontPackage(
+        tempDir,
+        'design_system',
+        pubspecFonts: '''
+    - family: Brand
+      fonts:
+        - asset: lib/fonts/Brand-Regular.ttf
+''',
+        assets: ['lib/fonts/Brand-Regular.ttf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'design_system', root: package.path),
+        ],
+      );
+
+      final file = FontResolver(tempDir).resolveTextFontFile(
+        variant(family: 'Brand', package: 'design_system'),
+      );
+      expect(file.existsSync(), isTrue);
+      final expected = p.join(package.path, 'lib/fonts/Brand-Regular.ttf');
+      expect(p.equals(file.path, expected), isTrue, reason: file.path);
+    });
+
+    test('a namespaced declaration resolves under the package\'s lib/', () {
+      final package = writeFontPackage(
+        tempDir,
+        'design_system',
+        pubspecFonts: '''
+    - family: Brand
+      fonts:
+        - asset: packages/design_system/fonts/Brand-Regular.ttf
+''',
+        assets: ['lib/fonts/Brand-Regular.ttf'],
       );
       writeFontFixture(
         tempDir,
@@ -373,11 +424,43 @@ void main() {
     });
 
     test('CupertinoIcons comes out of the cupertino_icons package', () {
+      final package = writeFontPackage(
+        tempDir,
+        'cupertino_icons',
+        pubspecFonts: '''
+    - family: CupertinoIcons
+      fonts:
+        - asset: assets/CupertinoIcons.ttf
+''',
+        assets: ['assets/CupertinoIcons.ttf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'cupertino_icons', root: package.path),
+        ],
+      );
+
+      final source = FontResolver(tempDir).resolveIconFont(
+        const HWIconFont(family: 'CupertinoIcons', package: 'cupertino_icons'),
+      );
+
+      expect(
+        p.equals(
+          source.file.path,
+          p.join(package.path, 'assets', 'CupertinoIcons.ttf'),
+        ),
+        isTrue,
+        reason: source.file.path,
+      );
+      expect(source.extension, 'ttf');
+    });
+
+    test('CupertinoIcons falls back to the layout the package always had', () {
       final package =
           Directory(p.join(tempDir.path, 'packages/cupertino_icons'))
             ..createSync(recursive: true);
-      final font =
-          File(p.join(package.path, 'lib', 'assets', 'CupertinoIcons.ttf'));
+      final font = File(p.join(package.path, 'assets', 'CupertinoIcons.ttf'));
       font.parent.createSync(recursive: true);
       font.writeAsBytesSync(const [0, 1]);
       writeFontFixture(
@@ -392,7 +475,6 @@ void main() {
       );
 
       expect(p.equals(source.file.path, font.path), isTrue);
-      expect(source.extension, 'ttf');
     });
 
     test('any other icon font resolves through its own fonts declaration', () {

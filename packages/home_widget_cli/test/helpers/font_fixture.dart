@@ -98,6 +98,9 @@ void writePackageConfig(
 }
 
 /// Writes a package with its own `flutter: fonts:` section under [root].
+///
+/// [assets] are written exactly where the declaration puts them, relative to
+/// the package root.
 Directory writeFontPackage(
   Directory root,
   String name, {
@@ -115,7 +118,7 @@ $pubspecFonts
 ''');
   for (final asset in assets) {
     final file =
-        File(p.join(packageRoot.path, 'lib', p.joinAll(p.posix.split(asset))));
+        File(p.join(packageRoot.path, p.joinAll(p.posix.split(asset))));
     file.parent.createSync(recursive: true);
     file.writeAsBytesSync(const [0, 1, 2, 3]);
   }

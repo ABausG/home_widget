@@ -79,6 +79,8 @@
 		9A1C94D47CA1A8FD3F0C9CAA /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15FA47A9C3CEFFBC5371A683 /* Widget.swift */; };
 		DBA414D4B3E0673DB51CBAA2 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9340DEE1414B341C4832426B /* WidgetBundle.swift */; };
 		E560C69CE8C261F7C4C0CA5A /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = 341812F39567A214D1FB36F5 /* hw_font_icons_materialicons.otf */; };
+		5337F7347C13CC150D133D26 /* hw_font_icons_cupertinoicons_cupertino_icons.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B69121894A0131EC375D4947 /* hw_font_icons_cupertinoicons_cupertino_icons.ttf */; };
+		10F6ADEB4C988010F270A8D1 /* hw_font_icons_fontawesomesolid_font_awesome_flutter.otf in Resources */ = {isa = PBXBuildFile; fileRef = 2C349E6C6F74A5D3C1F4CBA6 /* hw_font_icons_fontawesomesolid_font_awesome_flutter.otf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -431,6 +433,8 @@
 		9340DEE1414B341C4832426B /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
 		958C1CA017D74BF569B9F1A6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		341812F39567A214D1FB36F5 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
+		B69121894A0131EC375D4947 /* hw_font_icons_cupertinoicons_cupertino_icons.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_cupertinoicons_cupertino_icons.ttf; sourceTree = "<group>"; };
+		2C349E6C6F74A5D3C1F4CBA6 /* hw_font_icons_fontawesomesolid_font_awesome_flutter.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_fontawesomesolid_font_awesome_flutter.otf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -787,6 +791,8 @@
 				9340DEE1414B341C4832426B /* WidgetBundle.swift */,
 				958C1CA017D74BF569B9F1A6 /* Info.plist */,
 				341812F39567A214D1FB36F5 /* hw_font_icons_materialicons.otf */,
+				B69121894A0131EC375D4947 /* hw_font_icons_cupertinoicons_cupertino_icons.ttf */,
+				2C349E6C6F74A5D3C1F4CBA6 /* hw_font_icons_fontawesomesolid_font_awesome_flutter.otf */,
 			);
 			path = FontAndIconsHomeWidget;
 			sourceTree = "<group>";
@@ -1228,6 +1234,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				E560C69CE8C261F7C4C0CA5A /* hw_font_icons_materialicons.otf in Resources */,
+				5337F7347C13CC150D133D26 /* hw_font_icons_cupertinoicons_cupertino_icons.ttf in Resources */,
+				10F6ADEB4C988010F270A8D1 /* hw_font_icons_fontawesomesolid_font_awesome_flutter.otf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

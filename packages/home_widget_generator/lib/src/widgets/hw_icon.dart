@@ -68,12 +68,12 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.size = 24,
     this.color,
     this.semanticLabel,
-    this.fontResourcePrefix,
   })  : data = icon,
         icon = null,
         codePoint = null,
         font = null,
-        matchTextDirection = false;
+        matchTextDirection = false,
+        fontResourcePrefix = null;
 
   /// Renders the hardcoded Flutter [icon], e.g. `Icons.favorite`.
   const HWIcon.fixed(
@@ -81,11 +81,11 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.size = 24,
     this.color,
     this.semanticLabel,
-    this.fontResourcePrefix,
   })  : data = null,
         codePoint = null,
         font = null,
-        matchTextDirection = false;
+        matchTextDirection = false,
+        fontResourcePrefix = null;
 
   /// Renders [codePoint] out of [font].
   ///
@@ -97,7 +97,37 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.size = 24,
     this.color,
     this.semanticLabel,
-    this.fontResourcePrefix,
+    this.matchTextDirection = false,
+  })  : icon = null,
+        data = null,
+        fontResourcePrefix = null;
+
+  /// [HWIcon] rebuilt by the parser with [fontResourcePrefix] resolved.
+  ///
+  /// Codegen-internal: built by the decoder and by `home_widget_cli`, not by
+  /// app code.
+  const HWIcon.resolved(
+    HWDataType<dynamic> icon, {
+    required this.fontResourcePrefix,
+    this.size = 24,
+    this.color,
+    this.semanticLabel,
+  })  : data = icon,
+        icon = null,
+        codePoint = null,
+        font = null,
+        matchTextDirection = false;
+
+  /// [HWIcon.glyph] rebuilt by the parser with [fontResourcePrefix] resolved.
+  ///
+  /// Codegen-internal; see [HWIcon.resolved].
+  const HWIcon.resolvedGlyph(
+    int this.codePoint, {
+    required HWIconFont this.font,
+    required this.fontResourcePrefix,
+    this.size = 24,
+    this.color,
+    this.semanticLabel,
     this.matchTextDirection = false,
   })  : icon = null,
         data = null;
@@ -136,19 +166,6 @@ class HWIcon extends HWWidget implements HWDataWidget {
       'The font of this HWIcon is unknown. An icon has to be declared in a '
       '@HomeWidget annotation, or built with HWIcon.glyph.',
     );
-  }
-
-  /// Every glyph this icon may render that mirrors in a right-to-left layout.
-  ///
-  /// One codepoint at most for a constant icon, whatever entries of the
-  /// [HWIconData] are directional for the data form, and empty whenever
-  /// nothing this icon can draw is.
-  Set<int> get mirroredCodePoints {
-    final data = iconData;
-    if (data != null) return data.mirroredCodePoints;
-    final codePoint = this.codePoint;
-    if (codePoint == null || !matchTextDirection) return const {};
-    return {codePoint};
   }
 
   /// The color the glyph is tinted in: [color], or the platform's primary
@@ -191,7 +208,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
   @override
   Set<String> get swiftViewModifiers => {
         ...effectiveColor.swiftViewModifiers,
-        if (mirroredCodePoints.isNotEmpty)
+        if (_swiftMirrorCondition != null)
           '@Environment(\\.layoutDirection) var layoutDirection',
       };
 
@@ -215,7 +232,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
           'Icons.favorite, got: ${iconObj.type?.element?.name}',
         );
       }
-      return HWIcon.glyph(
+      return HWIcon.resolvedGlyph(
         codePoint,
         font: font,
         size: size,
@@ -234,7 +251,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
       resourcePrefix: decoder.resourcePrefix,
     );
     if (data != null && iconLeafOf(data) != null) {
-      return HWIcon(
+      return HWIcon.resolved(
         data,
         size: size,
         color: color,
@@ -267,18 +284,17 @@ class HWIcon extends HWWidget implements HWDataWidget {
     ];
   }
 
-  /// The Swift condition under which the glyph is drawn mirrored, or null when
-  /// nothing this icon can render is directional.
+  /// The Swift condition under which the glyph is drawn mirrored, or null for
+  /// a constant icon that is not directional.
   ///
   /// Reads `layoutDirection`, which [swiftViewModifiers] declares on the
-  /// generated view alongside it.
+  /// generated view alongside it, and — for the data form — the file-level
+  /// `hwMirroredIcons` the generator emits.
   String? get _swiftMirrorCondition {
-    final mirrored = mirroredCodePoints;
-    if (mirrored.isEmpty) return null;
     const rightToLeft = 'layoutDirection == .rightToLeft';
-    if (codePoint != null) return rightToLeft;
-    return '$rightToLeft && [${_codePointList(mirrored)}]'
-        '.contains(codePoint)';
+    if (matchTextDirection) return rightToLeft;
+    if (data == null) return null;
+    return '$rightToLeft && hwMirroredIcons.contains(codePoint)';
   }
 
   @override
@@ -292,7 +308,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
       final access = dataType!.swiftAccess(dataExpr);
       buffer.writeln(
         '${pad}if let codePoint = $access, '
-        'let scalar = UnicodeScalar(UInt32(codePoint)) {',
+        'let value = UInt32(exactly: codePoint), '
+        'let scalar = UnicodeScalar(value) {',
       );
       buffer.writeln('$pad    Text(String(scalar))');
       bodyPad = '$pad    ';
@@ -335,18 +352,22 @@ class HWIcon extends HWWidget implements HWDataWidget {
   }
 
   /// The `matchTextDirection` argument of the `iconBitmap` call, leading comma
-  /// included, or the empty string when nothing this icon can render is
-  /// directional and the argument is left to its default.
+  /// included, or the empty string when a constant icon is not directional and
+  /// the argument is left to its default.
+  ///
+  /// The data form asks the file-level `hwMirroredIcons` the generator emits.
   String get _kotlinMatchTextDirection {
-    final mirrored = mirroredCodePoints;
-    if (mirrored.isEmpty) return '';
-    if (codePoint != null) return ', matchTextDirection = true';
-    return ', matchTextDirection = codePoint in '
-        'setOf(${_codePointList(mirrored)})';
+    if (matchTextDirection) return ', matchTextDirection = true';
+    if (data == null) return '';
+    return ', matchTextDirection = codePoint in hwMirroredIcons';
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
 
     final codePoint = this.codePoint;
@@ -367,9 +388,4 @@ class HWIcon extends HWWidget implements HWDataWidget {
   /// which both platforms read the same way.
   static String _codePointLiteral(int codePoint) =>
       '0x${codePoint.toRadixString(16).toUpperCase()}';
-
-  /// [codePoints] as a comma separated list of literals, sorted so the same
-  /// set always comes out the same way.
-  static String _codePointList(Set<int> codePoints) =>
-      (codePoints.toList()..sort()).map(_codePointLiteral).join(', ');
 }

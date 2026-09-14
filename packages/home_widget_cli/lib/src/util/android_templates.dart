@@ -15,6 +15,10 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 /// [previewFingerprint]: Optional Kotlin body of `previewFingerprint`, which
 ///                describes what the preview currently renders. Omitting it
 ///                leaves the widget out of the automatic preview registration.
+/// [exactSize]: Whether the widget composes against the size it was actually
+///                given rather than the smallest one its provider declares.
+///                Costs a composition per size the launcher asks for, so it
+///                stays off by default.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceWidgetTemplate({
   required String packageName,
@@ -25,6 +29,7 @@ String androidGlanceWidgetTemplate({
   String previewPreferences = 'HomeWidgetPlugin.getData(context)',
   bool previewParameter = false,
   String? previewFingerprint,
+  bool exactSize = false,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -91,7 +96,9 @@ import es.antonborri.home_widget.HomeWidgetPlugin
 
 class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
-
+${exactSize ? '''
+  override val sizeMode: SizeMode = SizeMode.Exact
+''' : ''}
   override suspend fun provideGlance(context: Context, id: GlanceId) {
     provideContent { WidgetContent(context, currentState()) }
   }

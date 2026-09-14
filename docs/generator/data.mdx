@@ -90,14 +90,19 @@ HWIcon(
 - `key` — the storage key, like any other data type.
 - `icons` — required, non-empty list of `IconData` constants the field can ever hold. Every icon
   must come from the same icon font family (`Icons.*` and `CupertinoIcons.*` cannot be mixed in one
-  list) — a generation error names the field and the offending icon otherwise.
-- `defaultValue` / `previewValue` — optional, and must each be a member of `icons` when given.
+  list) — a generation error names the field and the offending icon otherwise. No two of them may be
+  the same glyph either: Flutter's aliases (`Icons.airplanemode_active` and
+  `Icons.airplanemode_on` are both `0xe06e`) store identically, so listing both is an error.
+- `defaultValue` / `previewValue` — optional `IconData` constants, and must each be a member of
+  `icons` when given.
 
 For each `HWIconData` field, the generated Dart helper emits an enum named
 `<WidgetClassName><FieldKeyPascal>Icon` with one value per listed icon, each exposing an `icon`
 getter that returns the original `IconData`. `saveData(...)` takes this enum rather than a raw
 `IconData`, so only an icon actually declared in `icons` can ever be saved — see
-[Icons](/generator/icons#runtime-icons) for the full generated shape and an example.
+[Icons](/generator/icons#runtime-icons) for the full generated shape and an example. The name is
+built from the field key alone, so two fields sharing a key — one `icon` under `HWJson('today', ...)`
+and another under `HWJson('tomorrow', ...)` — share one enum holding the union of both lists.
 
 Storage is the icon's Unicode code point, saved as a plain int (`getInt` on Android,
 `integer(forKey:)` on iOS) — the same representation an `HWInt` uses. `HWIconData` has no

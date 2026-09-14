@@ -47,7 +47,12 @@ HWIcon(
 
 `icons` is required and non-empty, and every icon in the list must come from the same icon font
 family — mixing `Icons.*` and `CupertinoIcons.*` in one list is a generation error. `defaultValue`
-and `previewValue`, when given, must also be members of `icons`.
+and `previewValue`, when given, must be `IconData` constants and members of `icons`.
+
+No two icons in one list may be the same glyph. Flutter ships aliases that share a codepoint —
+`Icons.airplanemode_active` and `Icons.airplanemode_on` are both `0xe06e` — and only the codepoint
+is stored, so a widget could never tell the two apart. Listing both is a generation error naming
+them.
 
 For each `HWIconData` field the generated Dart helper exposes an enum named
 `<WidgetClassName><FieldKeyPascal>Icon` — a field `mood` on a widget class `FontAndIcons` becomes
@@ -75,6 +80,13 @@ await FontAndIconsHomeWidget.updateWidget();
 
 `HWIconData` works nested inside [`HWJson`](/generator/data#nested-json) and
 [`HWTimedData`](/generator/timed-data), the same as any other data type.
+
+The enum is named after the field key alone, so two fields that share a key share the enum — an
+`icon` under `HWJson('today', ...)` and one under `HWJson('tomorrow', ...)` both read and write
+`<Widget>IconIcon`. The generated enum is then the **union** of both lists, and either field accepts
+any of its values. Where the two lists disagree — the same name for different glyphs, the same glyph
+under different names, or two different icon fonts — generation fails and names both fields; give one
+of them a key of its own.
 
 ## Directional icons
 
@@ -116,7 +128,7 @@ it into the native projects:
 
 The subset lands at:
 
-- Android — `android/app/src/main/res/font/hw_font_<widget>_icons_<family>.otf`
+- Android — `android/app/src/main/res/font/hw_font_<widget>__icons_<family>.otf`
 - iOS — `ios/<Widget>HomeWidget/hw_font_icons_<family>.otf`, wired into the widget extension
   target's Resources build phase automatically.
 

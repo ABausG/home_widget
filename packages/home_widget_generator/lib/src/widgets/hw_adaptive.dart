@@ -52,7 +52,14 @@ class HWAdaptive extends HWWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    return android.toKotlin(indent, dataExpr: dataExpr);
-  }
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) =>
+      android.toKotlinIn(
+        indent,
+        dataExpr: dataExpr,
+        constraints: constraints,
+      );
 }

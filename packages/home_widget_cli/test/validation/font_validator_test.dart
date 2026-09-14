@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/font_resolver.dart';
 import 'package:home_widget_cli/src/validation/font_validator.dart';
@@ -115,7 +114,7 @@ void main() {
         isA<GeneratorError>().having(
           (e) => e.message,
           'message',
-          contains('Missing'),
+          allOf(startsWith('Widget "Mood": '), contains('Missing')),
         ),
       ),
     );
@@ -199,6 +198,7 @@ void main() {
             (e) => e.message,
             'message',
             allOf(
+              startsWith('Widget "Mood": '),
               contains('0.9.2'),
               contains(minimumFontHomeWidgetVersion),
               contains('flutter pub get'),

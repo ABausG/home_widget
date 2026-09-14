@@ -35,8 +35,16 @@ class HWFill extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    final childCode = child.toKotlin(indent, dataExpr: dataExpr);
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) {
+    final childCode = child.toKotlinIn(
+      indent,
+      dataExpr: dataExpr,
+      constraints: constraints,
+    );
 
     // Uses a local regex helper to securely inject the fillMaxSize
     // modifier into the child's top-level Glance composable.

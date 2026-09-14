@@ -3,6 +3,10 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import '../util/fnv_hash.dart';
 import '../util/naming.dart';
 
+/// The dp of room the Android widget root takes around the tree when
+/// `android.applyContentPadding` is left on.
+const double androidRootContentPadding = 16;
+
 /// A JSON object field grouped by its root key for native codegen.
 class JsonDataGroup {
   /// The root JSON key (e.g. `profile` in `profile.user.name`).
@@ -181,6 +185,8 @@ class WidgetSpec {
         for (final field in [...primitiveDataFields, ...timedDataFields])
           if (imageLeafOf(field) != null)
             HWImage(field)
+          else if (iconLeafOf(field) != null)
+            HWIcon.resolved(field, fontResourcePrefix: fontResourcePrefix)
           else
             HWRow(
               children: [
@@ -395,6 +401,16 @@ class WidgetSpec {
             if (image.previewAsset != null) image,
       ];
 
+  /// The room the Android widget tree renders in: the whole widget, less the
+  /// root content padding wherever it is applied.
+  HWKotlinConstraints get rootKotlinConstraints =>
+      (data.android?.applyContentPadding ?? true)
+          ? HWKotlinConstraints.widget.deflate(
+              horizontal: androidRootContentPadding * 2,
+              vertical: androidRootContentPadding * 2,
+            )
+          : HWKotlinConstraints.widget;
+
   /// A stable hex digest of everything the generated preview renders from.
   ///
   /// The Android generator stamps it into the preview fingerprint, so that a
@@ -413,7 +429,11 @@ class WidgetSpec {
       'auto=$androidAutoUpdatePreview',
       // The emitted Glance source is the one serialization of the tree that
       // covers layout, styling and the values inlined into it.
-      effectiveWidgetTree.toKotlin(0, dataExpr: 'data'),
+      effectiveWidgetTree.toKotlinIn(
+        0,
+        dataExpr: 'data',
+        constraints: rootKotlinConstraints,
+      ),
       for (final field in dataFields) _fieldFingerprint(field),
     ];
     final digest = fnv1a32(parts.join(_hashSeparator));
@@ -539,6 +559,119 @@ class WidgetSpec {
         for (final field in dataFields)
           if (iconLeafOf(field) case final icon?) icon,
       ];
+
+  /// Every icon field paired with the dotted path saying where it is
+  /// declared; a field with no resolved entry is left out.
+  List<(String, HWIconData)> get _pathedIconFields => [
+        for (final field in dataFields)
+          if (iconLeafOf(field) case final icon?)
+            if (icon.entries.isNotEmpty) (_iconFieldPath(field), icon),
+      ];
+
+  static String _iconFieldPath(HWDataType<dynamic> field) {
+    final unwrapped = field.unwrapped;
+    if (unwrapped is HWJson<dynamic>) {
+      return [unwrapped.key, ...unwrapped.pathSegments].join('.');
+    }
+    return unwrapped.key;
+  }
+
+  /// The icon enums the generated Dart declares, by enum name, in first-seen
+  /// order: fields sharing a leaf key share one enum, merged from the union
+  /// of their entries.
+  Map<String, HWIconData> get iconEnums {
+    final merged = <String, HWIconData>{};
+    final owners = <String, String>{};
+    for (final (path, icon) in _pathedIconFields) {
+      final name = icon.enumNameFor(className);
+      final existing = merged[name];
+      if (existing == null) {
+        merged[name] = icon;
+        owners[name] = path;
+        continue;
+      }
+      merged[name] = _mergedIconEnum(
+        name: name,
+        into: existing,
+        intoPath: owners[name]!,
+        from: icon,
+        fromPath: path,
+      );
+    }
+    return merged;
+  }
+
+  /// Every glyph this widget may draw that mirrors in a right-to-left layout.
+  ///
+  /// Directionality is a property of the `IconData` constant rather than of
+  /// the field holding it, so one set covers the whole widget and no field has
+  /// to know which other fields share its enum.
+  Set<int> get mirroredIconCodePoints => {
+        for (final field in iconFields) ...field.mirroredCodePoints,
+      };
+
+  /// [into] carrying the entries of [from] as well, or a [GeneratorError] when
+  /// the two describe the same enum value differently.
+  static HWIconData _mergedIconEnum({
+    required String name,
+    required HWIconData into,
+    required String intoPath,
+    required HWIconData from,
+    required String fromPath,
+  }) {
+    final shared = 'The icon fields "$intoPath" and "$fromPath" both generate '
+        'the enum $name';
+    if (into.iconFont == null || from.iconFont == null) {
+      throw GeneratorError(
+        '$shared, but at least one of them was never resolved to an icon font. '
+        'Declare both of them in a @HomeWidget annotation.',
+      );
+    }
+    if (into.iconFont != from.iconFont) {
+      throw GeneratorError(
+        '$shared, but draw their glyphs out of different fonts '
+        '(${into.iconFont} and ${from.iconFont}). Give one of them a key of '
+        'its own.',
+      );
+    }
+
+    final entries = [...into.entries];
+    for (final entry in from.entries) {
+      final sameName = entries.indexWhere((e) => e.name == entry.name);
+      if (sameName != -1) {
+        if (entries[sameName].codePoint == entry.codePoint) continue;
+        throw GeneratorError(
+          '$shared, but name the icon "${entry.name}" after different glyphs '
+          '(${_glyphLiteral(entries[sameName].codePoint)} and '
+          '${_glyphLiteral(entry.codePoint)}). Give one of them a key of its '
+          'own.',
+        );
+      }
+      final sameGlyph =
+          entries.indexWhere((e) => e.codePoint == entry.codePoint);
+      if (sameGlyph != -1) {
+        throw GeneratorError(
+          '$shared, but give the glyph ${_glyphLiteral(entry.codePoint)} the '
+          'names "${entries[sameGlyph].name}" and "${entry.name}". Only the '
+          'codepoint is stored, so the widget could never tell them apart.',
+        );
+      }
+      entries.add(entry);
+    }
+
+    // The merged enum is the union of what several fields declare, so neither
+    // field's default nor its preview value belongs to it.
+    return HWIconData.resolved(
+      into.key,
+      entries: entries,
+      iconFont: into.iconFont!,
+      defaultValue: null,
+      previewValue: null,
+    );
+  }
+
+  static String _glyphLiteral(int codePoint) =>
+      '0x${codePoint.toRadixString(16).toUpperCase()}';
 
   /// Every icon glyph this widget can draw, per icon font.
   ///

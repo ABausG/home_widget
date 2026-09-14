@@ -1,5 +1,4 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:home_widget_generator/src/utils/apply_swift_modifier.dart';
 import 'package:home_widget_generator/src/utils/inject_glance_modifier.dart';
 import 'package:test/test.dart';

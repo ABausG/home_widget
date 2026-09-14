@@ -1,4 +1,3 @@
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/validation/widget_data_validator.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';

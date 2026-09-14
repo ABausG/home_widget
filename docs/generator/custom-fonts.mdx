@@ -97,6 +97,17 @@ text color as the tint, exactly like the core package's `HomeWidgetFonts.typefac
   the next time the widget updates.
 - TalkBack still reads it: the generated code sets the bitmap's content description to the same
   text.
+- A bitmap is drawn for a size rather than laid out into one, so the generated widget declares
+  `sizeMode = SizeMode.Exact` — it composes against the size the launcher actually gave it instead
+  of the smallest one the provider declares. Only a widget that renders custom-font text gets it.
+- The room the text has is worked out as the widget is generated: the widget's own size, less the
+  content padding, the `HWPadding` and border of every ancestor, and the width of any fixed-size
+  sibling of its `HWRow` — an `HWIcon`, or an `HWImage` given an explicit `width`. What a sibling
+  holding text takes is only known once it is measured and is not subtracted, so give a text
+  sharing a row with one an `HWFill` or a padding of its own rather than relying on the estimate.
+- `textAlign` works: text aligned anywhere but at the start is drawn into a bitmap as wide as the
+  room it has, so the alignment has somewhere to move it.
+- Text taller than the room it has is cut off at the last line that fits, which is ellipsized.
 
 This works on every Android version the plugin supports (API 23+) — there's no `minSdkVersion` to
 raise for it.

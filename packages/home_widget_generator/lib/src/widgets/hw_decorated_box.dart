@@ -135,12 +135,20 @@ class HWDecoratedBox extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlinIn(
+    int indent, {
+    required String dataExpr,
+    required HWKotlinConstraints constraints,
+  }) {
     final border = decoration.border;
     final color = decoration.color;
 
     if (border == null) {
-      final childCode = child.toKotlin(indent, dataExpr: dataExpr);
+      final childCode = child.toKotlinIn(
+        indent,
+        dataExpr: dataExpr,
+        constraints: constraints,
+      );
       if (color == null) return childCode;
 
       return injectGlanceModifier(
@@ -162,7 +170,14 @@ class HWDecoratedBox extends HWSingleChildWidget {
       'padding(${border.thickness}.dp)',
     ].join('.');
 
-    final childCode = child.toKotlin(indent + 2, dataExpr: dataExpr);
+    final childCode = child.toKotlinIn(
+      indent + 2,
+      dataExpr: dataExpr,
+      constraints: constraints.deflate(
+        horizontal: border.thickness * 2,
+        vertical: border.thickness * 2,
+      ),
+    );
 
     if (color == null) {
       return '${pad}Box(\n'

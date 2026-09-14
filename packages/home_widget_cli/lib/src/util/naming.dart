@@ -171,5 +171,9 @@ String toSnakeCase(String input) {
     }
     buffer.write(char.toLowerCase());
   }
-  return buffer.toString();
+  final collapsed = buffer
+      .toString()
+      .replaceAll(RegExp('_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+  return collapsed.isEmpty ? 'widget' : collapsed;
 }

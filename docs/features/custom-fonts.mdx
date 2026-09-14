@@ -102,6 +102,7 @@ Image(
             "Hello",
             fontSizeSp = 24f,
             maxWidthDp = LocalSize.current.width.value,
+            maxHeightDp = LocalSize.current.height.value,
         )
     ),
     contentDescription = "Hello",
@@ -109,11 +110,26 @@ Image(
 )
 ```
 
-`textBitmap` draws the text as a white mask on a transparent background, wrapping at `maxWidthDp`
-and ellipsizing past `maxLines`. It also takes `italic`, `underline`, `lineThrough`, and `textAlign`
-(default `fontSizeSp = 14f`, `maxLines = Int.MAX_VALUE`). Leaving the mask white and tinting it with
-`ColorFilter.tint(...)` is what lets themed colors — `GlanceTheme.colors.onSurface`, or a day/night
-`ColorProvider` — resolve correctly at inflate time, the same way any other tinted Glance icon does.
+`textBitmap` draws the text as a white mask on a transparent background, wrapping at `maxWidthDp`,
+cutting off at `maxHeightDp` and ellipsizing the last line that fits, as it does the line at
+`maxLines`. It also takes `italic`, `underline`, `lineThrough`, and `textAlign` (default
+`fontSizeSp = 14f`, `maxLines = Int.MAX_VALUE`, `maxHeightDp = Float.MAX_VALUE`); both dimensions
+are capped at 2048 px, so a bitmap never grows past what a widget can hold. Leaving the mask
+white and tinting it with `ColorFilter.tint(...)` is what lets themed colors —
+`GlanceTheme.colors.onSurface`, or a day/night `ColorProvider` — resolve correctly at inflate time,
+the same way any other tinted Glance icon does.
+
+The bitmap is only as wide as the widest line, so `textAlign` lines the rows up against each other
+rather than against the space around them. Pass `fillWidth = true` to make it `maxWidthDp` wide
+instead, which is what gives a centred or end-aligned line somewhere to sit.
+
+<Warning>
+`LocalSize.current` is the whole widget, and under Glance's default `SizeMode.Single` it is the
+smallest size the provider declares — not the one the launcher gave you. Override
+`sizeMode = SizeMode.Exact` on the `GlanceAppWidget` when you size a bitmap against it, and subtract
+whatever padding sits between the widget and the text yourself: nothing in Glance can report the
+space a composable was handed.
+</Warning>
 
 <Warning>
 The result is an image, not text: it doesn't reflow with the system's dynamic type setting, and

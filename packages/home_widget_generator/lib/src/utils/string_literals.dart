@@ -1,9 +1,14 @@
-/// Shared helpers for embedding arbitrary text in generated source literals.
+/// Shared helpers for embedding values in generated source literals.
 ///
 /// Translated copy routinely contains characters that are syntactically
 /// meaningful in the target language — quotes, backslashes, Kotlin's `$`
 /// interpolation marker, line breaks.
 library;
+
+/// [size] as a literal both platforms read as a number, without the trailing
+/// `.0` a whole Dart double stringifies with.
+String hwSizeLiteral(double size) =>
+    size == size.toInt() ? size.toInt().toString() : size.toString();
 
 /// Escapes [s] for embedding in a Kotlin double-quoted string literal.
 String escapeKotlinStringLiteral(String s) => s

@@ -38,6 +38,9 @@ dictionaryDefinitions:
   - name: names
     path: .cspell/names_dictionary.txt
 words:
+    - airplanemode
+    - ellipsized
+    - ellipsizing
     - antonborries
     - Borries
     - abausg

@@ -1,5 +1,4 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:test/test.dart';
 
 const _materialIcons = HWIconFont(family: 'MaterialIcons');
@@ -129,6 +128,26 @@ void main() {
           iconFont: _materialIcons,
         ).validate(),
         _throwsGeneratorError(contains('names the icon "cloud" twice')),
+      );
+    });
+
+    test('rejects two names for one glyph, as Flutter aliases are', () {
+      expect(
+        () => HWIconData.resolved(
+          'mood',
+          entries: const [
+            HWIconEntry('airplanemodeActive', 0xE06E),
+            HWIconEntry('airplanemodeOn', 0xE06E),
+          ],
+          iconFont: _materialIcons,
+        ).validate(),
+        _throwsGeneratorError(
+          allOf(
+            contains('"airplanemodeActive"'),
+            contains('"airplanemodeOn"'),
+            contains('0xE06E'),
+          ),
+        ),
       );
     });
 
