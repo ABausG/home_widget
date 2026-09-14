@@ -75,14 +75,8 @@ class HWRow extends HWMultiChildWidget {
     return buffer.toString();
   }
 
-  /// What a sibling holding text takes is not known before it is measured,
-  /// and is ignored.
   @override
-  String toKotlinIn(
-    int indent, {
-    required String dataExpr,
-    required HWKotlinConstraints constraints,
-  }) {
+  String toKotlin(int indent, {required String dataExpr}) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
     final align = switch (crossAxisAlignment) {
@@ -98,24 +92,13 @@ class HWRow extends HWMultiChildWidget {
       buffer.writeln('${pad}Row {');
     }
 
-    final taken = children.fold<double>(
-      0,
-      (sum, child) => sum + (_fixedKotlinWidth(child) ?? 0),
-    );
-
     _emitChildrenWithMainAxisAlignment(
       children,
       buffer,
       indent + 1,
       dataExpr,
       mainAxisAlignment,
-      (child, childIndent, data) => child.toKotlinIn(
-        childIndent,
-        dataExpr: data,
-        constraints: constraints.deflate(
-          horizontal: taken - (_fixedKotlinWidth(child) ?? 0),
-        ),
-      ),
+      (child, childIndent, data) => child.toKotlin(childIndent, dataExpr: data),
       (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
     );
 

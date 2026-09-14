@@ -63,19 +63,11 @@ class HWColoredBox extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlinIn(
-    int indent, {
-    required String dataExpr,
-    required HWKotlinConstraints constraints,
-  }) {
+  String toKotlin(int indent, {required String dataExpr}) {
     final modifier =
         'background(${color.toKotlin(indent, dataExpr: dataExpr)})';
 
-    final childCode = child.toKotlinIn(
-      indent,
-      dataExpr: dataExpr,
-      constraints: constraints,
-    );
+    final childCode = child.toKotlin(indent, dataExpr: dataExpr);
     return injectGlanceModifier(childCode, modifier);
   }
 }

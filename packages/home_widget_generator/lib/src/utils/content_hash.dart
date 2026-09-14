@@ -6,18 +6,7 @@
 /// prune the old one against.
 library;
 
-/// 32-bit FNV-1a hash.
-int _fnv1a32(String input) {
-  const int fnvOffsetBasis = 0x811C9DC5;
-  const int fnvPrime = 0x01000193;
-
-  var hash = fnvOffsetBasis;
-  for (final unit in input.codeUnits) {
-    hash ^= unit;
-    hash = (hash * fnvPrime) & 0xFFFFFFFF;
-  }
-  return hash;
-}
+import 'fnv_hash.dart';
 
 /// U+0000, spelled [String.fromCharCode] deliberately — a raw NUL byte makes
 /// tools treat this file as binary. Do not change the joiner: it is part of
@@ -31,5 +20,5 @@ final String _joiner = String.fromCharCode(0);
 String localizedContentHash(Map<String, String> values) {
   final entries = values.entries.map((e) => '${e.key}=${e.value}').toList()
     ..sort();
-  return _fnv1a32(entries.join(_joiner)).toRadixString(16).padLeft(8, '0');
+  return fnv1a32(entries.join(_joiner)).toRadixString(16).padLeft(8, '0');
 }

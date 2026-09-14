@@ -8,7 +8,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// - `HWTextStyle(fontFamily: 'Chewy')` renders text in a font declared under
 ///   `flutter: fonts:` in `pubspec.yaml`. The font file itself stays where it
 ///   is: both platforms read it out of `flutter_assets`, so nothing is copied
-///   next to the widget.
+///   next to the widget. The label and the line under it share the family:
+///   on Android each is measured in turn, so the paragraph wraps to the room
+///   the label leaves it.
 /// - `HWIcon.fixed(Icons.favorite)` renders one hardcoded Material icon. Icon
 ///   fonts are the exception to the above: Flutter tree-shakes them out of
 ///   `flutter_assets`, so the CLI copies the font next to the widget and
@@ -38,6 +40,11 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWText.fixed(
         'Chewy',
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 24),
+      ),
+      HWText.fixed(
+        'The same family again, wrapping to the room the label leaves it.',
+        textAlign: HWTextAlign.center,
+        style: HWTextStyle(fontFamily: 'Chewy', fontSize: 14),
       ),
       HWRow(
         mainAxisAlignment: HWMainAxisAlignment.center,

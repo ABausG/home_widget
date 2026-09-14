@@ -401,16 +401,6 @@ class WidgetSpec {
             if (image.previewAsset != null) image,
       ];
 
-  /// The room the Android widget tree renders in: the whole widget, less the
-  /// root content padding wherever it is applied.
-  HWKotlinConstraints get rootKotlinConstraints =>
-      (data.android?.applyContentPadding ?? true)
-          ? HWKotlinConstraints.widget.deflate(
-              horizontal: androidRootContentPadding * 2,
-              vertical: androidRootContentPadding * 2,
-            )
-          : HWKotlinConstraints.widget;
-
   /// A stable hex digest of everything the generated preview renders from.
   ///
   /// The Android generator stamps it into the preview fingerprint, so that a
@@ -429,11 +419,7 @@ class WidgetSpec {
       'auto=$androidAutoUpdatePreview',
       // The emitted Glance source is the one serialization of the tree that
       // covers layout, styling and the values inlined into it.
-      effectiveWidgetTree.toKotlinIn(
-        0,
-        dataExpr: 'data',
-        constraints: rootKotlinConstraints,
-      ),
+      effectiveWidgetTree.toKotlin(0, dataExpr: 'data'),
       for (final field in dataFields) _fieldFingerprint(field),
     ];
     final digest = fnv1a32(parts.join(_hashSeparator));

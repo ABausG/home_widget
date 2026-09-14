@@ -250,11 +250,7 @@ class HWImage extends HWWidget implements HWDataWidget {
   }
 
   @override
-  String toKotlinIn(
-    int indent, {
-    required String dataExpr,
-    required HWKotlinConstraints constraints,
-  }) {
+  String toKotlin(int indent, {required String dataExpr}) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final buffer = StringBuffer();
 

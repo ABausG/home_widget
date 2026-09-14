@@ -126,7 +126,15 @@ instead, which is what gives a centred or end-aligned line somewhere to sit.
 smallest size the provider declares — not the one the launcher gave you. Override
 `sizeMode = SizeMode.Exact` on the `GlanceAppWidget` when you size a bitmap against it, and subtract
 whatever padding sits between the widget and the text yourself: nothing in Glance can report the
-space a composable was handed.
+space a composable was handed. To have it measured instead, compose your content once with
+`HomeWidgetFonts.probeBitmap()` in the text's place and
+`contentDescription = HomeWidgetFonts.TEXT_BOUNDS_TAG + "title"` while
+`bounds.isProbe("title", LocalSize.current)` is true, and the real bitmap sized with
+`bounds.width("title", LocalSize.current)` and `bounds.height(...)` otherwise. Hand
+`HomeWidgetFonts.measureTextBounds(context, id) { bounds -> ... }` a lambda that wraps that
+composition in a `GlanceAppWidget` for the `bounds` it is given, call it from `provideGlance`, and
+compose the final content with what it returns. It measures one text per round, in the order they
+appear. That is what the generator does for you.
 </Warning>
 
 <Warning>

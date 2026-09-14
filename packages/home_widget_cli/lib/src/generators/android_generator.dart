@@ -226,7 +226,8 @@ class AndroidGenerator {
     }
 
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
-    // SizeMode.Exact is required for LocalSize to report the real size.
+    // The measured text bounds are keyed by the size composed against, and
+    // SizeMode.Exact is what makes LocalSize report the real one.
     final rendersCustomFontText = spec.fontVariants.isNotEmpty;
     final bgColor = spec.data.android?.backgroundColor;
     final applyPadding = spec.data.android?.applyContentPadding ?? true;
@@ -236,7 +237,6 @@ class AndroidGenerator {
       spec.effectiveWidgetTree,
       dataExpr: hasDataFields ? 'widgetData' : 'null',
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
-      constraints: spec.rootKotlinConstraints,
     );
 
     final widgetUrl = spec.androidWidgetUrl;
@@ -309,6 +309,7 @@ class AndroidGenerator {
     }
     if (rendersCustomFontText) {
       layoutImports.add('import androidx.glance.appwidget.SizeMode');
+      layoutImports.add('import es.antonborri.home_widget.HomeWidgetFonts');
     }
     if (bgColor != null) {
       layoutImports.addAll(bgColor.kotlinImports);
@@ -390,7 +391,7 @@ class AndroidGenerator {
         previewPreferences: previewPreferences,
         previewParameter: spec.hasPreviewValues,
         previewFingerprint: previewFingerprint,
-        exactSize: rendersCustomFontText,
+        measuresTextBounds: rendersCustomFontText,
       ),
     );
     logger.detail('Generated: ${widgetFile.path}');

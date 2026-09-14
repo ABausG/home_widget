@@ -90,12 +90,11 @@ there instead. Because of this:
 
 - Reach for a custom font on short runs — labels, headlines — rather than body copy.
 - TalkBack still reads it: the same text is carried over as the image's content description.
-- The room the text has is worked out while the widget is generated, from the widget's own size
-  less the padding and borders around the text and the size of any fixed-size sibling in its
-  `HWRow` or `HWColumn` — an `HWIcon`, or an `HWImage` given an explicit `width` or `height`. What
-  a sibling holding text takes is not known until it is measured and is not subtracted, so give a
-  text sharing a row or column with one an `HWFill` or a padding of its own rather than relying on
-  the estimate.
+- The room the text has is measured before it is drawn: the widget lays its content out once with
+  a placeholder where the text goes, reads back the space its siblings, padding and borders leave
+  it, and only then draws the text into exactly that room. Several custom-font texts are measured
+  one after another in the order they appear, each against the earlier ones drawn for real, so a
+  paragraph under a label gets the room the label leaves it.
 - `textAlign` works: text aligned anywhere but at the start is drawn across the full room it has,
   so the alignment has somewhere to move it.
 - Text taller than the room it has is cut off at the last line that fits, which is ellipsized.

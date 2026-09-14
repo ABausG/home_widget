@@ -1,5 +1,4 @@
 import 'package:analyzer/dart/constant/value.dart';
-import 'package:meta/meta.dart';
 import '../fonts.dart';
 import '../formats.dart';
 import '../generator_error.dart';
@@ -12,7 +11,6 @@ import '../utils/string_literals.dart';
 import 'hw_alignment.dart';
 import 'hw_color.dart';
 import 'hw_generatable.dart';
-import 'hw_kotlin_constraints.dart';
 import 'hw_text_style.dart';
 import 'hw_edge_insets.dart';
 
@@ -190,56 +188,16 @@ sealed class HWWidget implements HWGeneratable {
     required String dataExpr,
   });
 
-  /// Generates the Kotlin code for this widget as the root of its tree, which
-  /// has the whole widget to render in.
-  @nonVirtual
+  /// Generates the Kotlin code for this widget.
+  /// [indent] is the number of indentation levels (4 spaces each).
+  /// [dataExpr] is the Kotlin expression to access data fields.
+  /// [dataFields] maps field keys to their types.
   @override
   String toKotlin(
     int indent, {
     required String dataExpr,
-  }) =>
-      toKotlinIn(
-        indent,
-        dataExpr: dataExpr,
-        constraints: HWKotlinConstraints.widget,
-      );
-
-  /// The Kotlin code for this widget in the space [constraints] leave it.
-  ///
-  /// Only text in a custom font reads them, to size the bitmap it renders
-  /// into; a container passes them on, a leaf ignores them.
-  String toKotlinIn(
-    int indent, {
-    required String dataExpr,
-    required HWKotlinConstraints constraints,
   });
 }
-
-/// The width in dp [widget] always renders at, or null when it depends on what
-/// it renders.
-double? _fixedKotlinWidth(HWWidget widget) => switch (widget) {
-      HWIcon(:final size) => size,
-      HWImage(:final width) => width,
-      HWPadding(:final child, :final padding) => switch (
-            _fixedKotlinWidth(child)) {
-          final width? => width + padding.left + padding.right,
-          _ => null,
-        },
-      _ => null,
-    };
-
-/// The height in dp [widget] always renders at, or null when it depends on what
-/// it renders.
-double? _fixedKotlinHeight(HWWidget widget) => switch (widget) {
-      HWIcon(:final size) => size,
-      HWImage(:final height) => height,
-      HWPadding(:final child, :final padding) => switch (
-            _fixedKotlinHeight(child)) {
-          final height? => height + padding.top + padding.bottom,
-          _ => null,
-        },
-      _ => null,
-    };
 
 void _emitChildrenWithMainAxisAlignment(
   List<HWWidget> children,

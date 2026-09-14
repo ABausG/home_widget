@@ -1,5 +1,6 @@
 package es.antonborri.home_widget
 
+import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,18 +8,34 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.os.Build
+import android.os.Bundle
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Log
+import android.util.SizeF
 import android.util.TypedValue
 import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.RemoteViews
 import androidx.annotation.FontRes
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
+import androidx.glance.ExperimentalGlanceApi
+import androidx.glance.GlanceId
+import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.compose
 import androidx.glance.text.TextAlign
 import kotlin.math.ceil
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 
 /**
@@ -44,7 +61,13 @@ object HomeWidgetFonts {
    */
   private const val MAX_SIZE_PX = 2048
 
+  /** The prefix a measuring probe's `contentDescription` carries; the rest is the key. */
+  const val TEXT_BOUNDS_TAG = "hw_text_bounds:"
+
   private const val FONT_MANIFEST = "flutter_assets/FontManifest.json"
+
+  /** How many measuring rounds a single widget size may take before the walk gives up. */
+  private const val MAX_MEASURE_ROUNDS = 32
 
   private const val DEFAULT_FONT_WEIGHT = 400
 
@@ -53,6 +76,16 @@ object HomeWidgetFonts {
   private val manifestLock = Any()
 
   private var manifestCache: Map<String, List<FontDeclaration>>? = null
+
+  private val probeLock = Any()
+
+  private var probeCache: Bitmap? = null
+
+  /** Which axis a measurement runs along. */
+  private enum class Axis {
+    Horizontal,
+    Vertical,
+  }
 
   /** One font file of a family, as the Flutter asset manifest declares it. */
   private class FontDeclaration(val asset: String, val weight: Int, val italic: Boolean)
@@ -261,6 +294,280 @@ object HomeWidgetFonts {
       )
     }
   }
+
+  /**
+   * The 1 × 1 transparent bitmap a measuring composition shows in place of a custom font text.
+   *
+   * The probe stands in for the text while [measureTextBounds] lays the widget out: it draws
+   * nothing, takes the modifiers the text would have taken, and is found again by the
+   * [TEXT_BOUNDS_TAG] its `contentDescription` carries. One instance is created on first use and
+   * shared by every probe of every measurement.
+   */
+  fun probeBitmap(): Bitmap {
+    synchronized(probeLock) {
+      probeCache?.let {
+        return it
+      }
+      val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+      probeCache = bitmap
+      return bitmap
+    }
+  }
+
+  /**
+   * The room custom font texts were measured to have, per widget size, keyed the way the generated
+   * code names each text.
+   *
+   * The room of a text is what its ancestors leave it: the widget, less every padding down to it,
+   * less every sibling that was measured beside it. A lookup takes the size the widget is currently
+   * drawn at, `LocalSize.current`, and picks its entry, or that of the nearest measured size when
+   * none matches exactly. A key that was never measured, or that measured as nothing on the
+   * requested axis, falls back to the whole widget's width or height, so a text always has
+   * somewhere to go.
+   *
+   * [measureTextBounds] also hands an instance to each of its measuring rounds, holding the keys
+   * measured so far; those render for real while the next one is still a probe. A returned instance
+   * is never measuring, so it reports every text as drawn.
+   */
+  class TextBounds
+  internal constructor(
+      private val bounds: Map<DpSize, Map<String, DpSize>>,
+      private val measuring: Boolean = false,
+  ) {
+    /**
+     * The width [key] has to itself when the widget is laid out at [size], in density independent
+     * pixels. Pass `LocalSize.current`.
+     */
+    fun width(key: String, size: DpSize): Float =
+        measured(size, key)?.width?.value?.takeIf { it > 0f } ?: size.width.value
+
+    /**
+     * The height [key] has to itself when the widget is laid out at [size], in density independent
+     * pixels. Pass `LocalSize.current`.
+     */
+    fun height(key: String, size: DpSize): Float =
+        measured(size, key)?.height?.value?.takeIf { it > 0f } ?: size.height.value
+
+    /**
+     * Whether [key] still has to be drawn as a probe: only while measuring, and only until its room
+     * is known.
+     */
+    fun isProbe(key: String, size: DpSize): Boolean = measuring && measured(size, key) == null
+
+    /** What [key] measured at [size], or at the size closest to it that was measured. */
+    private fun measured(size: DpSize, key: String): DpSize? {
+      bounds[size]?.let {
+        return it[key]
+      }
+      return bounds
+          .minByOrNull { (measuredSize, _) -> squaredDistance(measuredSize, size) }
+          ?.value
+          ?.get(key)
+    }
+
+    private fun squaredDistance(one: DpSize, other: DpSize): Float {
+      val width = one.width.value - other.width.value
+      val height = one.height.value - other.height.value
+      return width * width + height * height
+    }
+
+    companion object {
+      /** Nothing was measured; every lookup falls back to the whole widget. */
+      val NONE = TextBounds(emptyMap())
+    }
+  }
+
+  /**
+   * Measures the room every custom font text of the widget [id] has, one text at a time, per size
+   * the launcher lays the widget out at.
+   *
+   * [widget] builds the widget's own layout — every sibling, spacer, padding and nesting of the
+   * final one — around the [TextBounds] it is handed: a text whose room is not known yet draws as
+   * an `Image` of [probeBitmap] carrying a `contentDescription` of [TEXT_BOUNDS_TAG] plus its key,
+   * and every text already measured draws its real bitmap. It is a plain lambda returning a widget
+   * rather than a composable so the plugin needs no Compose compiler of its own.
+   *
+   * A size is measured in rounds: each round composes to `RemoteViews`, inflates and lays them out
+   * here rather than on the launcher, and takes the first probe in document order — depth first,
+   * children in index order — as that text's room. The next round therefore measures against the
+   * earlier texts at their real size, and document order decides who claims a shared line first.
+   * That is one composition per custom font text plus one, per size, capped at
+   * [MAX_MEASURE_ROUNDS].
+   *
+   * A probe draws nothing, so its own laid out size says nothing about the text; what is reported
+   * is the room its ancestors leave it — the widget, less the padding and margins down to the
+   * probe, less every other sibling that was measured beside it along that axis. A weighted sibling
+   * such as an alignment spacer counts as taking nothing, since it only claims what is left over.
+   *
+   * Never throws: when a widget cannot be measured — a preview that no launcher holds, a
+   * composition that fails — [TextBounds.NONE] is returned and the widget renders against the whole
+   * widget's bounds instead.
+   */
+  suspend fun measureTextBounds(
+      context: Context,
+      id: GlanceId,
+      widget: (TextBounds) -> GlanceAppWidget,
+  ): TextBounds {
+    try {
+      val appWidgetManager = AppWidgetManager.getInstance(context) ?: return TextBounds.NONE
+      val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+      if (appWidgetManager.getAppWidgetInfo(appWidgetId) == null) return TextBounds.NONE
+      val sizes = widgetSizes(appWidgetManager.getAppWidgetOptions(appWidgetId))
+      if (sizes.isEmpty()) return TextBounds.NONE
+
+      val bounds = HashMap<DpSize, Map<String, DpSize>>(sizes.size)
+      for (size in sizes) {
+        val known = LinkedHashMap<String, DpSize>()
+        for (round in 0 until MAX_MEASURE_ROUNDS) {
+          val partial = TextBounds(mapOf(size to known.toMap()), measuring = true)
+          val remoteViews = composeAt(widget(partial), context, id, size)
+          val (key, room) = measureNextProbe(context, remoteViews, size, known.keys) ?: break
+          known[key] = room
+        }
+        bounds[size] = known
+      }
+      return TextBounds(bounds)
+    } catch (e: Exception) {
+      Log.w(TAG, "Could not measure the text bounds of $id", e)
+      return TextBounds.NONE
+    }
+  }
+
+  @OptIn(ExperimentalGlanceApi::class)
+  private suspend fun composeAt(
+      widget: GlanceAppWidget,
+      context: Context,
+      id: GlanceId,
+      size: DpSize,
+  ): RemoteViews = widget.compose(context, id, size = size)
+
+  /**
+   * The sizes the launcher lays a widget of [options] out at, the way Glance's `SizeMode.Exact`
+   * hands them to a composition as `LocalSize`.
+   */
+  @Suppress("DEPRECATION")
+  private fun widgetSizes(options: Bundle?): List<DpSize> {
+    if (options == null) return emptyList()
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      val exact = options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+      if (!exact.isNullOrEmpty()) return exact.map { DpSize(it.width.dp, it.height.dp) }
+    }
+    val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+    val maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
+    val minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0)
+    val maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+    if (minWidth <= 0 || maxWidth <= 0 || minHeight <= 0 || maxHeight <= 0) return emptyList()
+    val portrait = DpSize(minWidth.dp, maxHeight.dp)
+    val landscape = DpSize(maxWidth.dp, minHeight.dp)
+    return if (portrait == landscape) listOf(portrait) else listOf(portrait, landscape)
+  }
+
+  /**
+   * Inflates [remoteViews], lays it out at [size] and reads back the room of the first probe whose
+   * key is not in [known], or `null` when the composition holds no such probe.
+   */
+  private suspend fun measureNextProbe(
+      context: Context,
+      remoteViews: RemoteViews,
+      size: DpSize,
+      known: Set<String>,
+  ): Pair<String, DpSize>? =
+      withContext(Dispatchers.Main) {
+        val density = context.resources.displayMetrics.density
+        val widthPx = (size.width.value * density).roundToInt().coerceAtLeast(1)
+        val heightPx = (size.height.value * density).roundToInt().coerceAtLeast(1)
+        val host = FrameLayout(context)
+        val root = remoteViews.apply(context, host)
+        root.measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
+        )
+        root.layout(0, 0, widthPx, heightPx)
+        firstProbe(root, root, host, density, known)
+      }
+
+  /**
+   * The first probe in document order below [view] — [view] itself first, then its children in
+   * index order — whose key is not in [known], paired with the room it has.
+   *
+   * [root] is the view that was measured and laid out at the widget's size; [host] the group it was
+   * inflated against, which bounds the walk upwards.
+   */
+  private fun firstProbe(
+      view: View,
+      root: View,
+      host: ViewGroup,
+      density: Float,
+      known: Set<String>,
+  ): Pair<String, DpSize>? {
+    val tag = view.contentDescription?.toString()
+    if (tag != null && tag.startsWith(TEXT_BOUNDS_TAG)) {
+      val key = tag.substring(TEXT_BOUNDS_TAG.length)
+      if (key !in known) {
+        val widthPx =
+            (available(view, root, host, Axis.Horizontal) - padding(view, Axis.Horizontal))
+                .coerceAtLeast(0)
+        val heightPx =
+            (available(view, root, host, Axis.Vertical) - padding(view, Axis.Vertical))
+                .coerceAtLeast(0)
+        return key to DpSize((widthPx / density).dp, (heightPx / density).dp)
+      }
+    }
+    if (view is ViewGroup) {
+      for (child in 0 until view.childCount) {
+        firstProbe(view.getChildAt(child), root, host, density, known)?.let {
+          return it
+        }
+      }
+    }
+    return null
+  }
+
+  /**
+   * How much room [view] has on [axis], in pixels: what its parent has left after its own padding,
+   * after the siblings laid out beside [view] along that axis, and after [view]'s margins.
+   *
+   * Only a [LinearLayout] whose orientation runs along [axis] hands its children a share of one
+   * line; on its cross axis, and in any other group, every child sees the full inner room. A
+   * sibling that carries a layout weight is skipped: it takes what is left over rather than a size
+   * of its own. The walk stops at [root], the view laid out at the widget's size, and at [host],
+   * the group the tree was inflated against.
+   */
+  private fun available(view: View, root: View, host: ViewGroup, axis: Axis): Int {
+    if (view === root) return measuredSize(view, axis)
+    val parent = view.parent as? ViewGroup
+    if (parent == null || parent === host) return measuredSize(view, axis)
+    val inner = available(parent, root, host, axis) - padding(parent, axis)
+    var used = 0
+    if (parent is LinearLayout && parent.orientation == orientation(axis)) {
+      for (index in 0 until parent.childCount) {
+        val sibling = parent.getChildAt(index)
+        if (sibling === view || sibling.visibility == View.GONE) continue
+        if (weightOf(sibling) != 0f) continue
+        used += measuredSize(sibling, axis) + margins(sibling, axis)
+      }
+    }
+    return (inner - used - margins(view, axis)).coerceAtLeast(0)
+  }
+
+  private fun measuredSize(view: View, axis: Axis): Int =
+      if (axis == Axis.Horizontal) view.measuredWidth else view.measuredHeight
+
+  private fun padding(view: View, axis: Axis): Int =
+      if (axis == Axis.Horizontal) view.paddingLeft + view.paddingRight
+      else view.paddingTop + view.paddingBottom
+
+  private fun margins(view: View, axis: Axis): Int {
+    val params = view.layoutParams as? ViewGroup.MarginLayoutParams ?: return 0
+    return if (axis == Axis.Horizontal) params.leftMargin + params.rightMargin
+    else params.topMargin + params.bottomMargin
+  }
+
+  private fun weightOf(view: View): Float =
+      (view.layoutParams as? LinearLayout.LayoutParams)?.weight ?: 0f
+
+  private fun orientation(axis: Axis): Int =
+      if (axis == Axis.Horizontal) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
 
   /** The declared families, read from the asset manifest on first use and kept afterwards. */
   private fun fontManifest(context: Context): Map<String, List<FontDeclaration>> {

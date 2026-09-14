@@ -484,11 +484,7 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   }
 
   @override
-  String toKotlinIn(
-    int indent, {
-    required String dataExpr,
-    required HWKotlinConstraints constraints,
-  }) {
+  String toKotlin(int indent, {required String dataExpr}) {
     final textValue = _kotlinTextValue(dataExpr);
     if (textValue == null) return '';
 
@@ -496,7 +492,6 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
       indent,
       dataExpr: dataExpr,
       text: textValue,
-      constraints: constraints,
     );
   }
 

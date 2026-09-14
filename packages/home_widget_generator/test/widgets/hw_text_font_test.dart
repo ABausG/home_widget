@@ -184,16 +184,21 @@ void main() {
         'Image(\n'
         '    modifier = GlanceModifier,\n'
         '    provider = ImageProvider(\n'
-        '        HomeWidgetFonts.textBitmap(\n'
+        '        if (textBounds.isProbe("ccaec139", LocalSize.current)) '
+        'HomeWidgetFonts.probeBitmap()\n'
+        '        else HomeWidgetFonts.textBitmap(\n'
         '            context,\n'
         '            HomeWidgetFonts.typeface(context, "Chewy", 400, false),\n'
         '            "Hello",\n'
         '            fontSizeSp = 16f,\n'
-        '            maxWidthDp = LocalSize.current.width.value,\n'
-        '            maxHeightDp = LocalSize.current.height.value,\n'
+        '            maxWidthDp = '
+        'textBounds.width("ccaec139", LocalSize.current),\n'
+        '            maxHeightDp = '
+        'textBounds.height("ccaec139", LocalSize.current),\n'
         '        )\n'
         '    ),\n'
-        '    contentDescription = "Hello",\n'
+        '    contentDescription = if (textBounds.isProbe("ccaec139", '
+        'LocalSize.current)) "hw_text_bounds:ccaec139" else "Hello",\n'
         '    colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),\n'
         ')',
       );
@@ -216,7 +221,9 @@ void main() {
         'Image(\n'
         '    modifier = GlanceModifier,\n'
         '    provider = ImageProvider(\n'
-        '        HomeWidgetFonts.textBitmap(\n'
+        '        if (textBounds.isProbe("74c42a52", LocalSize.current)) '
+        'HomeWidgetFonts.probeBitmap()\n'
+        '        else HomeWidgetFonts.textBitmap(\n'
         '            context,\n'
         '            HomeWidgetFonts.typeface(context, "Chewy", 700, true),\n'
         '            "Hello",\n'
@@ -224,12 +231,15 @@ void main() {
         '            underline = true,\n'
         '            lineThrough = true,\n'
         '            textAlign = TextAlign.Center,\n'
-        '            maxWidthDp = LocalSize.current.width.value,\n'
-        '            maxHeightDp = LocalSize.current.height.value,\n'
+        '            maxWidthDp = '
+        'textBounds.width("74c42a52", LocalSize.current),\n'
+        '            maxHeightDp = '
+        'textBounds.height("74c42a52", LocalSize.current),\n'
         '            fillWidth = true,\n'
         '        )\n'
         '    ),\n'
-        '    contentDescription = "Hello",\n'
+        '    contentDescription = if (textBounds.isProbe("74c42a52", '
+        'LocalSize.current)) "hw_text_bounds:74c42a52" else "Hello",\n'
         '    colorFilter = ColorFilter.tint(ColorProvider(day = '
         'Color(0xFFFF0000), night = Color(0xFFFF0000))),\n'
         ')',
@@ -251,7 +261,13 @@ void main() {
       final kotlin = const HWText(HWString('title'), style: style)
           .toKotlin(0, dataExpr: 'data');
       expect(kotlin, contains('            data.title ?: "",\n'));
-      expect(kotlin, contains('contentDescription = data.title ?: "",'));
+      expect(
+        kotlin,
+        contains(
+          'contentDescription = if (textBounds.isProbe("b983ed84", '
+          'LocalSize.current)) "hw_text_bounds:b983ed84" else data.title ?: "",',
+        ),
+      );
     });
 
     test('Android keeps the indentation of its level', () {
@@ -366,18 +382,51 @@ void main() {
     });
   });
 
-  group('the width a bitmap text is drawn for', () {
+  group('the room a bitmap text is drawn in', () {
     const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
     const text = HWText.fixed('Hello', style: style);
 
-    test('is the whole widget for a text nothing encloses', () {
+    test('is looked up under one key against the size composed against', () {
+      final kotlin = text.toKotlin(0, dataExpr: 'data');
+      final key = RegExp(r'textBounds\.width\("([0-9a-f]{8})"')
+          .firstMatch(kotlin)
+          ?.group(1);
+
+      expect(key, isNotNull);
       expect(
-        text.toKotlin(0, dataExpr: 'data'),
-        contains('maxWidthDp = LocalSize.current.width.value,'),
+        kotlin,
+        contains('maxWidthDp = textBounds.width("$key", LocalSize.current),'),
+      );
+      expect(
+        kotlin,
+        contains('maxHeightDp = textBounds.height("$key", LocalSize.current),'),
       );
     });
 
-    test('loses what the padding around it takes', () {
+    test('is measured by a probe carrying the same key', () {
+      final kotlin = text.toKotlin(0, dataExpr: 'data');
+      final key = RegExp(r'textBounds\.width\("([0-9a-f]{8})"')
+          .firstMatch(kotlin)!
+          .group(1);
+
+      expect(
+        kotlin,
+        contains(
+          '        if (textBounds.isProbe("$key", LocalSize.current)) '
+          'HomeWidgetFonts.probeBitmap()\n'
+          '        else HomeWidgetFonts.textBitmap(',
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          'contentDescription = if (textBounds.isProbe("$key", '
+          'LocalSize.current)) "hw_text_bounds:$key" else "Hello",',
+        ),
+      );
+    });
+
+    test('is asked for by what the padding around it wraps', () {
       const padded = HWPadding(
         child: text,
         padding: HWEdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -386,279 +435,121 @@ void main() {
       final kotlin = padded.toKotlin(0, dataExpr: 'data');
       expect(
         kotlin,
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 24f),',
+        startsWith(
+          'Image(\n'
+          '    modifier = GlanceModifier.padding(start = 12.0.dp, top = 8.0.dp,'
+          ' end = 12.0.dp, bottom = 8.0.dp),\n',
         ),
       );
+      expect(kotlin, contains('textBounds.width('));
+      expect(kotlin, isNot(contains('LocalSize.current.width.value')));
+    });
+
+    test('is keyed apart from the room another text asks for', () {
+      const other = HWText.fixed('Goodbye', style: style);
+
       expect(
-        kotlin,
-        contains(
-          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 16f),',
-        ),
+        _boundsKeysIn(text.toKotlin(0, dataExpr: 'data')),
+        isNot(_boundsKeysIn(other.toKotlin(0, dataExpr: 'data'))),
       );
     });
 
-    test('adds up the padding of every ancestor', () {
-      const nested = HWPadding(
-        padding: HWEdgeInsets.all(4),
-        child: HWColumn(
-          children: [
-            HWPadding(padding: HWEdgeInsets.all(6), child: text),
-          ],
+    test('is shared by two texts drawn exactly alike', () {
+      const row = HWRow(children: [text, text]);
+      final keys = _boundsKeysIn(row.toKotlin(0, dataExpr: 'data'));
+
+      expect(keys, hasLength(1));
+      expect(keys, _boundsKeysIn(text.toKotlin(0, dataExpr: 'data')));
+    });
+
+    test('tells the size and the decorations of a text apart', () {
+      const keyed = <String, HWText>{
+        'plain': HWText.fixed('Hello', style: style),
+        'larger': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(fontFamily: 'Chewy', fontSize: 24),
         ),
-      );
-
-      expect(
-        nested.toKotlin(0, dataExpr: 'data'),
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 20f),',
+        'other family': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(fontFamily: 'Roboto Mono', fontSize: 16),
         ),
-      );
-    });
-
-    test('loses what a fixed-size sibling of its row takes', () {
-      const row = HWRow(
-        children: [
-          HWIcon.glyph(0xE88A, font: HWIconFont(family: 'Material'), size: 24),
-          text,
-        ],
-      );
-
-      final kotlin = row.toKotlin(0, dataExpr: 'data');
-      expect(
-        kotlin,
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 24f),',
-        ),
-      );
-      expect(
-        kotlin,
-        contains('maxHeightDp = LocalSize.current.height.value,'),
-        reason: 'a row leaves its children its full height',
-      );
-    });
-
-    test('loses what a fixed-width image sibling of its row takes', () {
-      const row = HWRow(
-        children: [
-          HWImage.asset('assets/logo.png', width: 40),
-          text,
-        ],
-      );
-
-      expect(
-        row.toKotlin(0, dataExpr: 'data'),
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 40f),',
-        ),
-      );
-    });
-
-    test('keeps what an image of an unknown width takes, which is nothing', () {
-      const row = HWRow(
-        children: [
-          HWImage.asset('assets/logo.png'),
-          text,
-        ],
-      );
-
-      expect(
-        row.toKotlin(0, dataExpr: 'data'),
-        contains('maxWidthDp = LocalSize.current.width.value,'),
-      );
-    });
-
-    test('counts the padding around a fixed-size sibling', () {
-      const row = HWRow(
-        children: [
-          HWPadding(
-            padding: HWEdgeInsets.symmetric(horizontal: 5),
-            child: HWIcon.glyph(
-              0xE88A,
-              font: HWIconFont(family: 'Material'),
-              size: 20,
-            ),
-          ),
-          text,
-        ],
-      );
-
-      expect(
-        row.toKotlin(0, dataExpr: 'data'),
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 30f),',
-        ),
-      );
-    });
-
-    test('keeps what a text of its own row takes, which is unknown', () {
-      const row = HWRow(children: [HWText.fixed('other'), text]);
-
-      expect(
-        row.toKotlin(0, dataExpr: 'data'),
-        contains('maxWidthDp = LocalSize.current.width.value,'),
-      );
-    });
-
-    test('travels through a conditional, a fill and a decoration', () {
-      const tree = HWPadding(
-        padding: HWEdgeInsets.all(3),
-        child: HWFill(
-          child: HWDecoratedBox(
-            decoration: HWBoxDecoration(
-              border:
-                  HWBoxBorder(thickness: 2, color: HWFixedColor(0xFF000000)),
-            ),
-            child: HWDataExists(
-              data: HWString('title'),
-              whenPresent: text,
-              whenAbsent: HWText.fixed(''),
-            ),
+        'packaged': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(
+            fontFamily: 'Chewy',
+            package: 'my_fonts',
+            fontSize: 16,
           ),
         ),
-      );
-
-      expect(
-        tree.toKotlin(0, dataExpr: 'data'),
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 10f),',
-        ),
-      );
-    });
-  });
-
-  group('the height a bitmap text is drawn for', () {
-    const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
-    const text = HWText.fixed('Hello', style: style);
-
-    test('loses what a fixed-size sibling of its column takes', () {
-      const column = HWColumn(
-        children: [
-          HWIcon.glyph(0xE88A, font: HWIconFont(family: 'Material'), size: 24),
-          text,
-        ],
-      );
-
-      final kotlin = column.toKotlin(0, dataExpr: 'data');
-      expect(
-        kotlin,
-        contains(
-          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 24f),',
-        ),
-      );
-      expect(
-        kotlin,
-        contains('maxWidthDp = LocalSize.current.width.value,'),
-        reason: 'a column leaves its children its full width',
-      );
-    });
-
-    test('counts the padding around a fixed-size sibling', () {
-      const column = HWColumn(
-        children: [
-          HWPadding(
-            padding: HWEdgeInsets.symmetric(vertical: 5),
-            child: HWIcon.glyph(
-              0xE88A,
-              font: HWIconFont(family: 'Material'),
-              size: 20,
-            ),
+        'bold': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(
+            fontFamily: 'Chewy',
+            fontSize: 16,
+            fontWeight: HWFontWeight.bold,
           ),
-          text,
-        ],
-      );
-
-      expect(
-        column.toKotlin(0, dataExpr: 'data'),
-        contains(
-          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 30f),',
         ),
-      );
+        'italic': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(
+            fontFamily: 'Chewy',
+            fontSize: 16,
+            italic: true,
+          ),
+        ),
+        'underlined': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(
+            fontFamily: 'Chewy',
+            fontSize: 16,
+            underline: true,
+          ),
+        ),
+        'struck through': HWText.fixed(
+          'Hello',
+          style: HWTextStyle(
+            fontFamily: 'Chewy',
+            fontSize: 16,
+            lineThrough: true,
+          ),
+        ),
+        'centered': HWText.fixed(
+          'Hello',
+          style: style,
+          textAlign: HWTextAlign.center,
+        ),
+      };
+
+      final keys = <String, String>{
+        for (final entry in keyed.entries)
+          entry.key:
+              _boundsKeysIn(entry.value.toKotlin(0, dataExpr: 'd')).single,
+      };
+
+      expect(keys.values.toSet(), hasLength(keys.length), reason: '$keys');
     });
 
-    test('loses what a fixed-height image sibling of its column takes', () {
-      const column = HWColumn(
-        children: [
-          HWImage.asset('assets/logo.png', height: 40),
-          text,
-        ],
-      );
-
-      expect(
-        column.toKotlin(0, dataExpr: 'data'),
-        contains(
-          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 40f),',
-        ),
-      );
-    });
-
-    test('keeps what an image of an unknown height takes, which is nothing',
+    test('is keyed by the expression the text is read out of, not its tint',
         () {
-      const column = HWColumn(
-        children: [
-          HWImage.asset('assets/logo.png', width: 40),
-          text,
-        ],
-      );
-
-      expect(
-        column.toKotlin(0, dataExpr: 'data'),
-        contains('maxHeightDp = LocalSize.current.height.value,'),
-      );
-    });
-
-    test('keeps what a text of its own column takes, which is unknown', () {
-      const column = HWColumn(children: [HWText.fixed('other'), text]);
-
-      expect(
-        column.toKotlin(0, dataExpr: 'data'),
-        contains('maxHeightDp = LocalSize.current.height.value,'),
-      );
-    });
-
-    test('loses both axes to a column nested in a row', () {
-      const row = HWRow(
-        children: [
-          HWIcon.glyph(0xE88A, font: HWIconFont(family: 'Material'), size: 24),
-          HWColumn(
-            children: [
-              HWIcon.glyph(
-                0xE88A,
-                font: HWIconFont(family: 'Material'),
-                size: 16,
-              ),
-              text,
-            ],
-          ),
-        ],
-      );
-
-      final kotlin = row.toKotlin(0, dataExpr: 'data');
-      expect(
-        kotlin,
-        contains(
-          'maxWidthDp = maxOf(0f, LocalSize.current.width.value - 24f),',
+      const tinted = HWText.fixed(
+        'Hello',
+        style: HWTextStyle(
+          fontFamily: 'Chewy',
+          fontSize: 16,
+          color: HWFixedColor(0xFFFF0000),
         ),
       );
+
       expect(
-        kotlin,
-        contains(
-          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 16f),',
+        _boundsKeysIn(tinted.toKotlin(0, dataExpr: 'data')),
+        _boundsKeysIn(text.toKotlin(0, dataExpr: 'data')),
+      );
+      expect(
+        _boundsKeysIn(
+          const HWText(HWString('title'), style: style)
+              .toKotlin(0, dataExpr: 'data'),
         ),
-      );
-    });
-
-    test('leaves the fixed-size sibling itself its own height', () {
-      const icon = HWIcon.glyph(
-        0xE88A,
-        font: HWIconFont(family: 'Material'),
-        size: 24,
-      );
-      const column = HWColumn(children: [icon, text]);
-
-      expect(
-        column.toKotlin(0, dataExpr: 'data'),
-        contains(icon.toKotlin(1, dataExpr: 'data')),
+        isNot(_boundsKeysIn(text.toKotlin(0, dataExpr: 'data'))),
       );
     });
   });
@@ -848,6 +739,11 @@ void main() {
     });
   });
 }
+
+/// Every key [kotlin] looks a measured text size up under.
+Set<String> _boundsKeysIn(String kotlin) => RegExp(
+      r'textBounds\.(?:width|height)\("([0-9a-f]{8})"',
+    ).allMatches(kotlin).map((match) => match.group(1)!).toSet();
 
 /// A widget-shaped thing rendering in a font of its own.
 class _FakeFontWidget with HWFontWidget {

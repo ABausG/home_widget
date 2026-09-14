@@ -1263,18 +1263,12 @@ void main() {
   });
 
   group('custom-font text', () {
-    Future<String> generate(
-      HWWidget tree, {
-      bool applyContentPadding = true,
-    }) async {
+    Future<String> generate(HWWidget tree) async {
       writeLauncherManifest(tempDir, package: 'com.fonts');
       final spec = WidgetSpec(
         data: HomeWidget(
           name: 'FontWidget',
-          android: HomeWidgetAndroidConfiguration(
-            packageName: 'com.fonts',
-            applyContentPadding: applyContentPadding,
-          ),
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.fonts'),
         ),
         className: 'FontWidget',
         widgetTree: tree,
@@ -1301,30 +1295,61 @@ void main() {
       expect(content, contains('import androidx.glance.appwidget.SizeMode'));
     });
 
-    test('sizes the bitmap against the room inside the root padding', () async {
+    test('measures the room its text takes before it renders', () async {
       final content = await generate(
         const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
       );
 
       expect(
         content,
-        contains('maxWidthDp = maxOf(0f, LocalSize.current.width.value - 32f)'),
+        contains(
+          '  override suspend fun provideGlance(context: Context, id: GlanceId)'
+          ' {\n'
+          '    val textBounds = HomeWidgetFonts.measureTextBounds(context, id) '
+          '{ bounds ->\n'
+          '      object : GlanceAppWidget() {\n'
+          '        override suspend fun provideGlance(context: Context, '
+          'id: GlanceId) {\n'
+          '          provideContent { WidgetContent(context, '
+          'HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), '
+          'textBounds = bounds) }\n'
+          '        }\n'
+          '      }\n'
+          '    }\n'
+          '    provideContent { WidgetContent(context, currentState(), '
+          'textBounds = textBounds) }\n'
+          '  }\n',
+        ),
       );
       expect(
         content,
         contains(
-          'maxHeightDp = maxOf(0f, LocalSize.current.height.value - 32f)',
+          '  private fun WidgetContent(context: Context, '
+          'currentState: HomeWidgetGlanceState, '
+          'textBounds: HomeWidgetFonts.TextBounds) {',
         ),
       );
+      expect(
+        content,
+        contains('import es.antonborri.home_widget.HomeWidgetFonts'),
+      );
+      expect(content, contains('textBounds.width('));
+      expect(content, isNot(contains('LocalSize.current.width.value')));
     });
 
-    test('sizes it against the whole widget without that padding', () async {
+    test('draws the gallery preview against no measured room', () async {
       final content = await generate(
         const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
-        applyContentPadding: false,
       );
 
-      expect(content, contains('maxWidthDp = LocalSize.current.width.value,'));
+      expect(
+        content,
+        contains(
+          '    provideContent { WidgetContent(context, HomeWidgetGlanceState('
+          'HomeWidgetPlugin.getData(context)), '
+          'textBounds = HomeWidgetFonts.TextBounds.NONE) }',
+        ),
+      );
     });
 
     test('leaves the size mode alone for a widget without one', () async {
@@ -1332,6 +1357,12 @@ void main() {
 
       expect(content, isNot(contains('sizeMode')));
       expect(content, isNot(contains('SizeMode')));
+      expect(content, isNot(contains('textBounds')));
+      expect(
+        content,
+        contains('    provideContent { WidgetContent(context, '
+            'currentState()) }'),
+      );
     });
   });
 

@@ -1,9 +1,9 @@
 import '../fonts.dart';
 import '../native_helpers.dart';
+import '../utils/fnv_hash.dart';
 import '../utils/string_literals.dart';
 import 'hw_color.dart';
 import 'hw_generatable.dart';
-import 'hw_kotlin_constraints.dart';
 
 enum HWTextAlign { start, end, center, justify }
 
@@ -291,13 +291,11 @@ sealed class HWKotlinTextRenderer {
   /// The Kotlin imports the code this emits needs.
   Set<String> get kotlinImports;
 
-  /// The Kotlin rendering [text], the expression the bound value is read with,
-  /// in the space [constraints] leave it.
+  /// The Kotlin rendering [text], the expression the bound value is read with.
   String toKotlin(
     int indent, {
     required String dataExpr,
     required String text,
-    required HWKotlinConstraints constraints,
   });
 }
 
@@ -361,7 +359,6 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     int indent, {
     required String dataExpr,
     required String text,
-    required HWKotlinConstraints constraints,
   }) {
     final pad = '    ' * indent;
     final style = styleExpression(indent, dataExpr: dataExpr);
@@ -370,6 +367,12 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
 }
 
 /// Text the core plugin draws into a bitmap, shown as a tinted `Image`.
+///
+/// A bitmap needs the room it may take before it is drawn, which Glance cannot
+/// answer for. The generated widget therefore composes twice: a measuring pass
+/// the core plugin runs with no bounds, in which every such text renders as a
+/// probe tagged with its [boundsKey], and the real one, in which each looks its
+/// measured room back up under that key.
 class HWBitmapTextRenderer extends HWKotlinTextRenderer {
   /// The font file the glyphs are drawn out of.
   final HWFontVariant variant;
@@ -417,12 +420,34 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     return align != null && _kotlinTextAlign(align) != 'TextAlign.Start';
   }
 
+  /// The key the room for [text] is measured and looked back up under.
+  ///
+  /// It covers everything deciding how much the glyphs take: the expression
+  /// they are read out of, the file they are drawn from, the size they are
+  /// drawn at, and the alignment and decorations drawn around them. Two texts
+  /// agreeing on all of that share a key, and with it the room the measuring
+  /// pass found.
+  String boundsKey(String text) {
+    final parts = <String>[
+      text,
+      variant.flutterFamilyKey,
+      '${variant.weight}',
+      '${variant.italic}',
+      hwSizeLiteral(fontSize),
+      textAlign?.name ?? '',
+      'underline=$underline',
+      'lineThrough=$lineThrough',
+    ];
+    return fnv1a32(parts.join(_boundsKeySeparator))
+        .toRadixString(16)
+        .padLeft(8, '0');
+  }
+
   @override
   String toKotlin(
     int indent, {
     required String dataExpr,
     required String text,
-    required HWKotlinConstraints constraints,
   }) {
     final pad = '    ' * indent;
     final family = escapeKotlinStringLiteral(variant.flutterFamilyKey);
@@ -430,12 +455,17 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
         '${variant.weight}, ${variant.italic})';
     final tint =
         (color ?? hwDefaultContentColor).toKotlin(indent, dataExpr: dataExpr);
+    final key = boundsKey(text);
 
     final buffer = StringBuffer();
     buffer.writeln('${pad}Image(');
     buffer.writeln('$pad    modifier = GlanceModifier,');
     buffer.writeln('$pad    provider = ImageProvider(');
-    buffer.writeln('$pad        HomeWidgetFonts.textBitmap(');
+    buffer.writeln(
+      '$pad        if (textBounds.isProbe("$key", LocalSize.current)) '
+      'HomeWidgetFonts.probeBitmap()',
+    );
+    buffer.writeln('$pad        else HomeWidgetFonts.textBitmap(');
     buffer.writeln('$pad            context,');
     buffer.writeln('$pad            $typeface,');
     buffer.writeln('$pad            $text,');
@@ -452,22 +482,37 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
       );
     }
     buffer.writeln(
-      '$pad            maxWidthDp = ${constraints.kotlinMaxWidth},',
+      '$pad            maxWidthDp = '
+      'textBounds.width("$key", LocalSize.current),',
     );
     buffer.writeln(
-      '$pad            maxHeightDp = ${constraints.kotlinMaxHeight},',
+      '$pad            maxHeightDp = '
+      'textBounds.height("$key", LocalSize.current),',
     );
     if (fillsWidth) {
       buffer.writeln('$pad            fillWidth = true,');
     }
     buffer.writeln('$pad        )');
     buffer.writeln('$pad    ),');
-    buffer.writeln('$pad    contentDescription = $text,');
+    buffer.writeln(
+      '$pad    contentDescription = '
+      'if (textBounds.isProbe("$key", LocalSize.current)) '
+      '"$_hwTextBoundsTag$key" else $text,',
+    );
     buffer.writeln('$pad    colorFilter = ColorFilter.tint($tint),');
     buffer.write('$pad)');
     return buffer.toString();
   }
 }
+
+/// U+001F, spelled [String.fromCharCode] rather than written out: it separates
+/// the parts [HWBitmapTextRenderer.boundsKey] digests, so that a text ending
+/// where the next part begins cannot collide with another one.
+final String _boundsKeySeparator = String.fromCharCode(31);
+
+/// What a measuring pass recognises a text probe by, `TEXT_BOUNDS_TAG` on the
+/// Kotlin side, followed by the key the room is stored under.
+const String _hwTextBoundsTag = 'hw_text_bounds:';
 
 class HWRoleTextStyle extends HWTextStyle {
   final HWTextStyleRole role;

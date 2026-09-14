@@ -34,6 +34,7 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetFonts
 import es.antonborri.home_widget.HomeWidgetGlanceState
@@ -46,7 +47,21 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
   override val sizeMode: SizeMode = SizeMode.Exact
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
-    provideContent { WidgetContent(context, currentState()) }
+    val textBounds =
+        HomeWidgetFonts.measureTextBounds(context, id) { bounds ->
+          object : GlanceAppWidget() {
+            override suspend fun provideGlance(context: Context, id: GlanceId) {
+              provideContent {
+                WidgetContent(
+                    context,
+                    HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
+                    textBounds = bounds,
+                )
+              }
+            }
+          }
+        }
+    provideContent { WidgetContent(context, currentState(), textBounds = textBounds) }
   }
 
   override suspend fun providePreview(context: Context, widgetCategory: Int) {
@@ -55,6 +70,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
           context,
           HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)),
           preview = true,
+          textBounds = HomeWidgetFonts.TextBounds.NONE,
       )
     }
   }
@@ -63,7 +79,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "afa95f88",
+            "2a6778db",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -75,6 +91,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
       context: Context,
       currentState: HomeWidgetGlanceState,
       preview: Boolean = false,
+      textBounds: HomeWidgetFonts.TextBounds,
   ) {
     val prefs = currentState.preferences
     val widgetData =
@@ -95,16 +112,44 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
               modifier = GlanceModifier,
               provider =
                   ImageProvider(
-                      HomeWidgetFonts.textBitmap(
-                          context,
-                          HomeWidgetFonts.typeface(context, "Chewy", 400, false),
-                          "Chewy",
-                          fontSizeSp = 24f,
-                          maxWidthDp = maxOf(0f, LocalSize.current.width.value - 32f),
-                          maxHeightDp = maxOf(0f, LocalSize.current.height.value - 72f),
-                      )
+                      if (textBounds.isProbe("b0f04704", LocalSize.current))
+                          HomeWidgetFonts.probeBitmap()
+                      else
+                          HomeWidgetFonts.textBitmap(
+                              context,
+                              HomeWidgetFonts.typeface(context, "Chewy", 400, false),
+                              "Chewy",
+                              fontSizeSp = 24f,
+                              maxWidthDp = textBounds.width("b0f04704", LocalSize.current),
+                              maxHeightDp = textBounds.height("b0f04704", LocalSize.current),
+                          )
                   ),
-              contentDescription = "Chewy",
+              contentDescription =
+                  if (textBounds.isProbe("b0f04704", LocalSize.current)) "hw_text_bounds:b0f04704"
+                  else "Chewy",
+              colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+          )
+          Image(
+              modifier = GlanceModifier,
+              provider =
+                  ImageProvider(
+                      if (textBounds.isProbe("41d76946", LocalSize.current))
+                          HomeWidgetFonts.probeBitmap()
+                      else
+                          HomeWidgetFonts.textBitmap(
+                              context,
+                              HomeWidgetFonts.typeface(context, "Chewy", 400, false),
+                              "The same family again, wrapping to the room the label leaves it.",
+                              fontSizeSp = 14f,
+                              textAlign = TextAlign.Center,
+                              maxWidthDp = textBounds.width("41d76946", LocalSize.current),
+                              maxHeightDp = textBounds.height("41d76946", LocalSize.current),
+                              fillWidth = true,
+                          )
+                  ),
+              contentDescription =
+                  if (textBounds.isProbe("41d76946", LocalSize.current)) "hw_text_bounds:41d76946"
+                  else "The same family again, wrapping to the room the label leaves it.",
               colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
           )
           Row(verticalAlignment = Alignment.CenterVertically) {
