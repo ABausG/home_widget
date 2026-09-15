@@ -36,6 +36,7 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWDateTime`| `HWDateTime(key, {previewValue})`          | `DateTime`            | A point in time, stored as an ISO-8601 UTC string. Rendered in the device's locale and time zone — see [Formatting](/generator/formatting). |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
 | `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
+| `HWIconData` | `HWIconData(key, {required icons, defaultValue, previewValue})` | generated icon enum | An icon chosen from a fixed set, rendered with [`HWIcon`](/generator/widgets/hw-icon). See [Icon data](#icon-data) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
@@ -49,9 +50,9 @@ When a `defaultValue` is provided it's used both in the generated Dart helper an
 
 `HWImageData` and `HWDateTime` are the exceptions: neither supports a `defaultValue`. A missing image simply renders nothing — see [`HWImage`](/generator/widgets/hw-image) for a placeholder pattern using `HWDataExists`. A missing date renders as empty text, and the same `HWDataExists` pattern gives it a placeholder.
 
-A missing **number** is the other special case: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as a formatted `0` rather than as nothing — see [Missing values](/generator/formatting#missing-values).
+A missing **number** follows the same rule: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as empty text rather than as a formatted `0` — see [Missing values](/generator/formatting#missing-values).
 
-`HWString`, `HWInt`, `HWDouble`, `HWBool` and `HWDateTime` also take a `previewValue` next to their default; `HWImageData` takes a `previewAsset` and `HWString.localized` takes `previewTranslations` instead. `HWJson` and `HWTimedData` declare none of their own — they preview through the type they wrap or the leaf they address. Each of these is a sample shown only in the widget gallery, never on the home screen. See [Previews](/generator/previews).
+`HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWDateTime` and `HWIconData` also take a `previewValue` next to their default; `HWImageData` takes a `previewAsset` and `HWString.localized` takes `previewTranslations` instead. `HWJson` and `HWTimedData` declare none of their own — they preview through the type they wrap or the leaf they address. Each of these is a sample shown only in the widget gallery, never on the home screen. See [Previews](/generator/previews).
 
 ## Image data
 
@@ -69,6 +70,43 @@ Asset paths are checked when you run `home_widget generate`: app assets must exi
 Binding an `HWImageData` to a text-only widget (e.g. `HWText(HWImageData('avatar'))`) is a generation error — an image is not display text. Use `HWImage` to render it.
 
 A runtime image can also be wrapped in `HWTimedData` to swap pictures on a schedule — `HWImage(HWTimedData(HWImageData('slide')))`, see [Time-based images](/generator/timed-data#images) — or sit at the leaf of an `HWJson` group so a picture travels with the rest of a record: `HWImage(HWJson('contact', HWImageData('avatar')))`, see [Images at a JSON leaf](#images-at-a-json-leaf). Only `HWImageData.asset` is rejected inside either wrapper: an asset ships with the app, so there is nothing to store and nothing to vary.
+
+## Icon data
+
+`HWIconData` describes an icon chosen from a fixed set, rendered with
+[`HWIcon`](/generator/widgets/hw-icon):
+
+```dart
+HWIcon(
+  HWIconData(
+    'mood',
+    icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+    defaultValue: Icons.wb_sunny,
+    previewValue: Icons.cloud,
+  ),
+)
+```
+
+- `key` — the storage key, like any other data type.
+- `icons` — required, non-empty list of `IconData` constants the field can ever hold. Every icon
+  must come from the same icon font family (`Icons.*` and `CupertinoIcons.*` cannot be mixed in one
+  list) — a generation error names the field and the offending icon otherwise. No two of them may be
+  the same glyph either: Flutter's aliases (`Icons.airplanemode_active` and
+  `Icons.airplanemode_on` are both `0xe06e`) store identically, so listing both is an error.
+- `defaultValue` / `previewValue` — optional `IconData` constants, and must each be a member of
+  `icons` when given.
+
+For each `HWIconData` field, the generated Dart helper emits an enum named
+`<WidgetClassName><FieldKeyPascal>Icon` with one value per listed icon, each exposing an `icon`
+getter that returns the original `IconData`. `saveData(...)` takes this enum rather than a raw
+`IconData`, so only an icon actually declared in `icons` can ever be saved — see
+[Icons](/generator/icons#runtime-icons) for the full generated shape and an example. The name is
+built from the field key alone, so two fields sharing a key — one `icon` under `HWJson('today', ...)`
+and another under `HWJson('tomorrow', ...)` — share one enum holding the union of both lists.
+
+An `HWIconData` value is stored as the icon's Unicode code point. A field with no stored value and
+no `defaultValue` renders nothing, exactly like a missing `HWImageData`. It works nested inside
+`HWJson` and `HWTimedData`, the same as any other data type.
 
 ## Nested JSON
 

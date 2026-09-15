@@ -1,15 +1,17 @@
 import 'dart:io';
 
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/fnv_hash.dart';
+import 'package:home_widget_cli/src/util/font_resolver.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+
+import '../helpers/font_fixture.dart';
 
 class MockLogger extends Mock implements Logger {}
 
@@ -109,8 +111,8 @@ void main() {
     expect(
       content,
       contains(
-        'Text(hwFormatDecimal(NSNumber(value: entry.data.count ?? 0), '
-        'minFraction: nil, maxFraction: nil, grouping: true))',
+        r'Text(entry.data.count.map { hwFormatDecimal(NSNumber(value: $0), '
+        r'minFraction: nil, maxFraction: nil, grouping: true) } ?? "")',
       ),
     );
     expect(content, contains('.applyContainerBackground()'));
@@ -119,6 +121,52 @@ void main() {
     expect(
       content,
       contains('containerBackground(.fill.tertiary, for: .widget)'),
+    );
+  });
+
+  test('renders a missing number as empty text, a default as itself', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NumbersWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+      ),
+      className: 'NumbersWidget',
+      dataFields: const [
+        HWInt('count'),
+        HWDouble('ratio'),
+        HWInt('score', defaultValue: 7),
+      ],
+      widgetTree: const HWColumn(
+        children: [
+          HWText(HWInt('count')),
+          HWText(HWDouble('ratio')),
+          HWText(HWInt('score', defaultValue: 7)),
+        ],
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/NumbersWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(content, contains('let count: Int?'));
+    expect(content, contains('let ratio: Double?'));
+    expect(
+      content,
+      contains(r'entry.data.count.map { hwFormatDecimal(NSNumber(value: $0), '
+          r'minFraction: nil, maxFraction: nil, grouping: true) } ?? ""'),
+    );
+    expect(
+      content,
+      contains(r'entry.data.ratio.map { hwFormatDecimal(NSNumber(value: $0), '
+          r'minFraction: nil, maxFraction: nil, grouping: true) } ?? ""'),
+    );
+    expect(
+      content,
+      contains('hwFormatDecimal(NSNumber(value: entry.data.score ?? 7), '
+          'minFraction: nil, maxFraction: nil, grouping: true)'),
     );
   });
 
@@ -537,8 +585,8 @@ void main() {
     expect(
       content,
       contains(
-        'Text(hwFormatDecimal(NSNumber(value: entry.data.value ?? 0), '
-        'minFraction: nil, maxFraction: nil, grouping: true))',
+        r'Text(entry.data.value.map { hwFormatDecimal(NSNumber(value: $0), '
+        r'minFraction: nil, maxFraction: nil, grouping: true) } ?? "")',
       ),
     );
   });
@@ -1255,8 +1303,8 @@ void main() {
     expect(
       content,
       contains(
-        'Text(hwFormatCurrency(NSNumber(value: entry.data.total ?? 0.0), '
-        'code: entry.data.currency ?? "", decimals: nil))',
+        r'Text(entry.data.total.map { hwFormatCurrency(NSNumber(value: $0), '
+        r'code: entry.data.currency ?? "", decimals: nil) } ?? "")',
       ),
     );
     expect(
@@ -1820,6 +1868,90 @@ void main() {
         File(p.join(tempDir.path, 'ios/Runner/Runner.entitlements'))
             .existsSync(),
         isFalse,
+      );
+    });
+  });
+
+  group('icon font resources', () {
+    const fontFileName = 'hw_font_icons_brandicons__brand_icons.otf';
+    const iconFont = HWIconFont(family: 'BrandIcons', package: 'brand_icons');
+    const moodIcons = HWIconData.resolved(
+      'mood',
+      entries: [HWIconEntry('happy', 0xE88A)],
+      iconFont: iconFont,
+      defaultValue: 0xE88A,
+    );
+    const icon = HWIcon.resolved(moodIcons, fontResourcePrefix: 'hw_font_mood');
+
+    setUp(() {
+      final package = writeFontPackage(
+        tempDir,
+        'brand_icons',
+        pubspecFonts: '''
+    - family: BrandIcons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+        assets: ['fonts/BrandIcons.otf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [FixturePackage(name: 'brand_icons', root: package.path)],
+      );
+      resetFontResolverCaches();
+      addTearDown(resetFontResolverCaches);
+    });
+
+    test('wires the copied font into the extension Resources build phase',
+        () async {
+      final pbxprojFile = File(
+        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
+      )..parent.createSync(recursive: true);
+      pbxprojFile.writeAsStringSync(_flavoredPbxproj(const []));
+
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'Greeting',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+          widget: icon,
+        ),
+        className: 'Greeting',
+        dataFields: const [moodIcons],
+        widgetTree: icon,
+      );
+
+      await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+      expect(
+        File(p.join(tempDir.path, 'ios/GreetingHomeWidget', fontFileName))
+            .existsSync(),
+        isTrue,
+      );
+
+      final text = pbxprojFile.readAsStringSync();
+      final fileRefId = xcodeObjectId(
+        'fileref:$fontFileName:GreetingHomeWidget',
+      );
+      final buildFileId = xcodeObjectId(
+        'buildfile:$fontFileName:GreetingHomeWidget',
+      );
+
+      expect(
+        text,
+        contains(
+          '$buildFileId /* $fontFileName in Resources */ = '
+          '{isa = PBXBuildFile; fileRef = $fileRefId /* $fontFileName */; };',
+        ),
+      );
+
+      final phaseId = xcodeObjectId('phase:resources:GreetingHomeWidget');
+      final phase = RegExp(
+        '$phaseId /\\* Resources \\*/ = \\{[\\s\\S]*?\\n\\t\\t\\};',
+      ).firstMatch(text);
+      expect(phase, isNotNull, reason: 'no extension Resources build phase');
+      expect(
+        phase!.group(0),
+        contains('$buildFileId /* $fontFileName in Resources */,'),
       );
     });
   });

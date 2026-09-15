@@ -437,7 +437,9 @@ void main() {
       );
       expectSameHash(HWNumberFormat.compact(), HWNumberFormat.compact());
       expectSameHash(
-          HWNumberFormat.pattern('#0'), HWNumberFormat.pattern('#0'));
+        HWNumberFormat.pattern('#0'),
+        HWNumberFormat.pattern('#0'),
+      );
       expectSameHash(HWDateFormat.pattern('dd'), HWDateFormat.pattern('dd'));
       expectSameHash(
         HWDateFormat.styled(date: HWFormatStyle.full),

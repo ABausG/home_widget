@@ -110,6 +110,18 @@ enum HWColorRole {
   defaultBackground,
 }
 
+/// The color content renders in when nothing names one.
+///
+/// SwiftUI hands an unstyled `Text` this color itself; a Glance one falls back
+/// to opaque black, so the Android output names it explicitly.
+const HWColor hwDefaultContentColor =
+    HWDefaultColor(HWColorRole.contentPrimary);
+
+/// The Kotlin imports naming [hwDefaultContentColor] needs.
+const Set<String> hwDefaultContentColorKotlinImports = {
+  'import androidx.glance.GlanceTheme',
+};
+
 /// A color that maps to default system semantic colors based on the given role.
 class HWDefaultColor extends HWColor {
   final HWColorRole role;

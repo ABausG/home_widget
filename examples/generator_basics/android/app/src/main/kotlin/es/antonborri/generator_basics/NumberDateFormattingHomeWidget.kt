@@ -61,7 +61,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         NumberDateFormattingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "f25b9238",
+            "28bf7387",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -91,7 +91,12 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
           Row {
             Text(
                 text = "Order #",
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
             Text(
                 text =
@@ -102,15 +107,33 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                         false,
                         hwFormatLocale(context),
                     ),
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
-            Text(text = " · ", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal))
+            Text(
+                text = " · ",
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
+            )
             Text(
                 text =
                     widgetData.placedAt?.let {
                       hwFormatDateSkeleton(it, "yMMMd", hwFormatLocale(context))
                     } ?: "",
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
           }
           Text(
@@ -121,7 +144,12 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                       null,
                       hwFormatLocale(context),
                   ),
-              style = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 22.sp,
+                      fontWeight = FontWeight.Bold,
+                  ),
           )
           Row {
             Text(
@@ -131,9 +159,10 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                         null,
                         null,
                         hwFormatLocale(context),
-                    )
+                    ),
+                style = TextStyle(color = GlanceTheme.colors.onSurface),
             )
-            Text(text = " off · ")
+            Text(text = " off · ", style = TextStyle(color = GlanceTheme.colors.onSurface))
             Text(
                 text =
                     hwFormatDecimal(
@@ -142,14 +171,20 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                         null,
                         true,
                         hwFormatLocale(context),
-                    )
+                    ),
+                style = TextStyle(color = GlanceTheme.colors.onSurface),
             )
-            Text(text = " items")
+            Text(text = " items", style = TextStyle(color = GlanceTheme.colors.onSurface))
           }
           Row {
             Text(
                 text = "Delivery ",
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
             Text(
                 text =
@@ -161,22 +196,50 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                           widgetData.deliveryZone,
                       )
                     } ?: "",
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
           }
           Row {
             Text(
                 text = hwFormatCompact((widgetData.points ?: 0L), hwFormatLocale(context)),
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
-            Text(text = " of ", style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal))
+            Text(
+                text = " of ",
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
+            )
             Text(
                 text = hwFormatDecimal(25000.0, null, null, true, hwFormatLocale(context)),
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
             Text(
                 text = " points",
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal),
+                style =
+                    TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Normal,
+                    ),
             )
           }
         }

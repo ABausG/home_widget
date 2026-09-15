@@ -1,6 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
-import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
 
@@ -55,6 +54,7 @@ void validateWidgetData(WidgetSpec spec) {
   _validateConditionalData(spec);
   _validateTimedDataKeys(spec);
   _validateTextFormats(spec);
+  _validateIconEnums(spec);
 
   for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
@@ -68,6 +68,14 @@ void validateWidgetData(WidgetSpec spec) {
       }
       root.insertField(group.key, path: field.path, field: field);
     }
+  }
+}
+
+/// Rejects icon fields that land on one generated enum while describing its
+/// values differently.
+void _validateIconEnums(WidgetSpec spec) {
+  for (final icons in spec.iconEnums.values) {
+    icons.validate();
   }
 }
 

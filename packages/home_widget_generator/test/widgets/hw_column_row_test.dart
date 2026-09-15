@@ -90,8 +90,8 @@ void main() {
       );
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
-      expect(result, contains('Text(text = "a")'));
-      expect(result, contains('Text(text = "b")'));
+      expect(result, contains('Text(text = "a",'));
+      expect(result, contains('Text(text = "b",'));
     });
 
     test('Row from HWRow', () {
@@ -102,7 +102,7 @@ void main() {
       );
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Row {'));
-      expect(result, contains('Text(text = "x")'));
+      expect(result, contains('Text(text = "x",'));
     });
 
     test('nested Column/Row', () {
@@ -115,8 +115,8 @@ void main() {
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Column {'));
       expect(result, contains('Row {'));
-      expect(result, contains('Text(text = "x")'));
-      expect(result, contains('Text(text = "y")'));
+      expect(result, contains('Text(text = "x",'));
+      expect(result, contains('Text(text = "y",'));
     });
 
     test('data in layout', () {
@@ -130,7 +130,7 @@ void main() {
         dataExpr: 'data',
       );
       expect(result, contains('Column {'));
-      expect(result, contains('Text(text = data.count ?: "")'));
+      expect(result, contains('Text(text = data.count ?: "",'));
     });
 
     test('empty Column', () {
@@ -149,7 +149,7 @@ void main() {
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, startsWith('Column {'));
       expect(result, contains('    Row {'));
-      expect(result, contains('        Text(text = "x")'));
+      expect(result, contains('        Text(text = "x",'));
     });
 
     test('Column with .center alignment', () {
@@ -197,7 +197,7 @@ void main() {
         result,
         contains('Spacer(modifier = GlanceModifier.defaultWeight())'),
       );
-      expect(result, contains('Text(text = "a")'));
+      expect(result, contains('Text(text = "a",'));
       expect(
         'Spacer(modifier = GlanceModifier.defaultWeight())'
             .allMatches(result)
@@ -216,12 +216,12 @@ void main() {
       );
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains('Row {'));
-      expect(result, contains('Text(text = "a")'));
+      expect(result, contains('Text(text = "a",'));
       expect(
         result,
         contains('Spacer(modifier = GlanceModifier.defaultWeight())'),
       );
-      expect(result, contains('Text(text = "b")'));
+      expect(result, contains('Text(text = "b",'));
       expect(
         'Spacer(modifier = GlanceModifier.defaultWeight())'
             .allMatches(result)

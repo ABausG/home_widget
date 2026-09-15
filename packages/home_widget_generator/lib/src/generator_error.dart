@@ -1,8 +1,8 @@
 /// Error thrown when widget generation fails.
-class GeneratorError extends Error {
+class GeneratorError implements Exception {
   final String message;
 
-  GeneratorError(this.message);
+  const GeneratorError(this.message);
 
   @override
   String toString() => 'GeneratorError: $message';

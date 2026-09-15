@@ -59,9 +59,9 @@ struct SimpleDataHomeWidgetEntryView: View {
       HStack {
         Text("value: ")
         Text(
-          hwFormatDecimal(
-            NSNumber(value: entry.data.value ?? 0), minFraction: nil, maxFraction: nil,
-            grouping: true))
+          entry.data.value.map {
+            hwFormatDecimal(NSNumber(value: $0), minFraction: nil, maxFraction: nil, grouping: true)
+          } ?? "")
       }
     }
     .applyContainerBackground()

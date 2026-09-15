@@ -51,7 +51,8 @@ void main() {
         final result = padding.toKotlin(0, dataExpr: 'data');
         expect(
           result,
-          'Text(modifier = GlanceModifier.padding(start = 1.0.dp, top = 2.0.dp, end = 3.0.dp, bottom = 4.0.dp), text = "Hi")',
+          'Text(modifier = GlanceModifier.padding(start = 1.0.dp, top = 2.0.dp, end = 3.0.dp, bottom = 4.0.dp), text = "Hi", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         );
         expect(result, contains('GlanceModifier.padding'));
       });

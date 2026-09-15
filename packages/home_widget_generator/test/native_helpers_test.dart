@@ -15,13 +15,16 @@ String importedName(String line) {
 
 void main() {
   group('every helper', () {
-    test('declares a function under its own name on both platforms', () {
+    test('declares a function under its own name on every platform it has', () {
       for (final helper in HWNativeHelper.values) {
-        expect(
-          swiftOf(helper),
-          contains('func ${helper.name}('),
-          reason: '${helper.name} Swift body',
-        );
+        if (helper.swift != null) {
+          expect(
+            swiftOf(helper),
+            contains('func ${helper.name}('),
+            reason: '${helper.name} Swift body',
+          );
+        }
+        if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper),
           contains('private fun ${helper.name}('),
@@ -34,12 +37,57 @@ void main() {
       for (final helper in HWNativeHelper.values) {
         expect(
           swiftOf(helper).trimLeft(),
-          startsWith('func '),
+          anyOf(
+            startsWith('func '),
+            // A helper keeping state of its own declares a private type for
+            // it first, and the function it is emitted as after that.
+            allOf(
+              startsWith('private final class '),
+              contains('\nfunc ${helper.name}('),
+            ),
+          ),
           reason: '${helper.name} Swift body',
         );
+        if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper).trimLeft(),
           startsWith('private fun '),
+          reason: '${helper.name} Kotlin body',
+        );
+      }
+    });
+
+    test('has a body for at least one platform', () {
+      for (final helper in HWNativeHelper.values) {
+        expect(
+          helper.swift ?? helper.kotlin,
+          isNotNull,
+          reason: helper.name,
+        );
+      }
+    });
+
+    test('declares no imports for a platform it has no body for', () {
+      for (final helper in HWNativeHelper.values) {
+        if (helper.kotlin == null) {
+          expect(helper.kotlinImports, isEmpty, reason: helper.name);
+        }
+        if (helper.swift == null) {
+          expect(helper.swiftImports, isEmpty, reason: helper.name);
+        }
+      }
+    });
+
+    test('emits nothing where it declares no body', () {
+      for (final helper in HWNativeHelper.values) {
+        expect(
+          swiftOf(helper).isEmpty,
+          helper.swift == null,
+          reason: '${helper.name} Swift body',
+        );
+        expect(
+          kotlinOf(helper).isEmpty,
+          helper.kotlin == null,
           reason: '${helper.name} Kotlin body',
         );
       }
@@ -64,6 +112,36 @@ void main() {
       for (final helper in HWNativeHelper.values) {
         expect(helper.swiftViewModifiers, isEmpty, reason: helper.name);
       }
+    });
+
+    test('kotlinNativeHelpers keeps exactly the ones with an Android body', () {
+      expect(
+        kotlinNativeHelpers(HWNativeHelper.values),
+        HWNativeHelper.values.where((helper) => helper.kotlin != null),
+      );
+      expect(
+        kotlinNativeHelpers(HWNativeHelper.values).map(kotlinOf),
+        everyElement(isNotEmpty),
+      );
+      expect(
+        kotlinNativeHelpers(HWNativeHelper.values),
+        isNot(contains(HWNativeHelper.hwFontFromURL)),
+      );
+    });
+
+    test('swiftNativeHelpers keeps exactly the ones with an iOS body', () {
+      expect(
+        swiftNativeHelpers(HWNativeHelper.values),
+        HWNativeHelper.values.where((helper) => helper.swift != null),
+      );
+      expect(
+        swiftNativeHelpers(HWNativeHelper.values).map(swiftOf),
+        everyElement(isNotEmpty),
+      );
+      expect(
+        swiftNativeHelpers(HWNativeHelper.values),
+        contains(HWNativeHelper.hwFontFromURL),
+      );
     });
 
     test('imports every Kotlin type its body names', () {
@@ -173,6 +251,10 @@ void main() {
         HWNativeHelper.hwDecodeLocalized,
         HWNativeHelper.hwDecodeImage,
         HWNativeHelper.hwImageExists,
+        HWNativeHelper.hwFontFromURL,
+        HWNativeHelper.hwAssetFont,
+        HWNativeHelper.hwBundledFont,
+        HWNativeHelper.hwFont,
       };
       for (final helper in HWNativeHelper.values) {
         expect(
@@ -694,6 +776,183 @@ void main() {
 
     test('depends on nothing', () {
       expect(helper.dependencies, isEmpty);
+    });
+  });
+
+  group('hwFontFromURL', () {
+    const helper = HWNativeHelper.hwFontFromURL;
+
+    test('creates the font from the file descriptor, unregistered', () {
+      expect(
+        swiftOf(helper),
+        contains('CTFontManagerCreateFontDescriptorsFromURL(url as CFURL)'),
+      );
+      expect(
+        swiftOf(helper),
+        contains('CTFontCreateWithFontDescriptor(descriptor, size, nil)'),
+      );
+      expect(
+        swiftOf(helper),
+        isNot(contains('CTFontManagerRegisterFontsForURL')),
+      );
+      expect(swiftOf(helper), contains('-> Font?'));
+    });
+
+    test('keeps the descriptor per file and the font per file and size', () {
+      expect(
+        swiftOf(helper),
+        contains('private var descriptors: [String: CTFontDescriptor?] = [:]'),
+      );
+      expect(
+        swiftOf(helper),
+        contains('private var fonts: [String: Font?] = [:]'),
+      );
+      expect(swiftOf(helper), contains(r'let cacheKey = "\(key)|\(size)"'));
+      expect(
+        swiftOf(helper),
+        contains('HWFontCache.shared.font(url.path, size)'),
+      );
+    });
+
+    test('reaches the cache from any thread, and from itself', () {
+      expect(swiftOf(helper), contains('static let shared = HWFontCache()'));
+      expect(swiftOf(helper), contains('private let lock = NSRecursiveLock()'));
+      expect(swiftOf(helper), contains('@unchecked Sendable'));
+    });
+
+    test('has no Kotlin counterpart', () {
+      expect(helper.kotlin, isNull);
+      expect(kotlinOf(helper), isEmpty);
+      expect(helper.dependencies, isEmpty);
+    });
+
+    test('names CoreText, which a widget extension does not import', () {
+      expect(helper.swiftImports, {'import CoreText', 'import SwiftUI'});
+    });
+  });
+
+  group('hwAssetFont', () {
+    const helper = HWNativeHelper.hwAssetFont;
+
+    test('reads the file in place out of the bundled Flutter assets', () {
+      expect(
+        swiftOf(helper),
+        contains('Frameworks/App.framework/flutter_assets'),
+      );
+      expect(
+        swiftOf(helper),
+        contains('FileManager.default.fileExists(atPath: url.path)'),
+      );
+    });
+
+    test('falls back to the system font rather than rendering nothing', () {
+      expect(swiftOf(helper), contains('-> Font {'));
+      expect(swiftOf(helper), contains('return font ?? .system(size: size)'));
+    });
+
+    test('resolves the file once per asset and size', () {
+      expect(
+        swiftOf(helper),
+        contains('HWFontCache.shared.font("asset:" + asset, size)'),
+      );
+    });
+
+    test('depends on the descriptor reader, and has no Kotlin body', () {
+      expect(helper.dependencies, [HWNativeHelper.hwFontFromURL]);
+      expect(helper.kotlin, isNull);
+      expect(kotlinOf(helper), isEmpty);
+    });
+  });
+
+  group('hwBundledFont', () {
+    const helper = HWNativeHelper.hwBundledFont;
+
+    test('tries the extensions a font file ships under', () {
+      expect(swiftOf(helper), contains('["otf", "ttf", "ttc"]'));
+      expect(
+        swiftOf(helper),
+        contains('Bundle.main.url(forResource: name, withExtension: ext)'),
+      );
+    });
+
+    test('falls back to the system font rather than rendering nothing', () {
+      expect(swiftOf(helper), contains('-> Font {'));
+      expect(swiftOf(helper), contains('return font ?? .system(size: size)'));
+    });
+
+    test('resolves the file once per name and size', () {
+      expect(
+        swiftOf(helper),
+        contains('HWFontCache.shared.font("bundle:" + name, size)'),
+      );
+    });
+
+    test('depends on the descriptor reader, and has no Kotlin body', () {
+      expect(helper.dependencies, [HWNativeHelper.hwFontFromURL]);
+      expect(helper.kotlin, isNull);
+      expect(kotlinOf(helper), isEmpty);
+    });
+  });
+
+  group('hwFont', () {
+    const helper = HWNativeHelper.hwFont;
+
+    test('resolves the file out of the shipped font manifest', () {
+      expect(
+        swiftOf(helper),
+        contains(
+          'appendingPathComponent("Frameworks/App.framework/flutter_assets")',
+        ),
+      );
+      expect(
+        swiftOf(helper),
+        contains('appendingPathComponent("FontManifest.json")'),
+      );
+      expect(swiftOf(helper), contains('JSONSerialization.jsonObject'));
+      expect(
+        swiftOf(helper),
+        contains(
+          'func hwFont(_ family: String, _ weight: Int, _ italic: Bool, '
+          '_ size: CGFloat) -> Font',
+        ),
+      );
+    });
+
+    test('reads the manifest once, behind a lock', () {
+      expect(swiftOf(helper), contains('static let shared = HWFontManifest()'));
+      expect(swiftOf(helper), contains('private let lock = NSLock()'));
+      expect(swiftOf(helper), contains('@unchecked Sendable'));
+    });
+
+    test('prefers the requested slant, then the nearest weight', () {
+      expect(
+        swiftOf(helper),
+        contains(
+          r'let matchingStyle = variants.filter { $0.italic == italic }',
+        ),
+      );
+      expect(
+        swiftOf(helper),
+        contains(r'pool.first(where: { $0.weight == weight })'),
+      );
+      expect(
+        swiftOf(helper),
+        contains('weight <= 400 ? lighter + heavier : heavier + lighter'),
+      );
+    });
+
+    test('falls back to the system font for an undeclared family', () {
+      expect(swiftOf(helper), contains('return .system(size: size)'));
+    });
+
+    test('loads through the asset font helper, and has no Kotlin body', () {
+      expect(helper.dependencies, [HWNativeHelper.hwAssetFont]);
+      expect(
+        swiftOf(helper),
+        contains('return hwAssetFont(exact.asset, size)'),
+      );
+      expect(helper.kotlin, isNull);
+      expect(kotlinOf(helper), isEmpty);
     });
   });
 }

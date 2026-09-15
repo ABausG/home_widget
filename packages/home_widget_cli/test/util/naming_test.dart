@@ -51,4 +51,18 @@ void main() {
       expect(androidStringNeedsFormattedFalse('done'), isFalse);
     });
   });
+
+  group('toSnakeCase', () {
+    test('converts PascalCase', () {
+      expect(toSnakeCase('WeatherIcons'), 'weather_icons');
+      expect(toSnakeCase('Widget2'), 'widget2');
+    });
+
+    test('never emits doubled, leading or trailing underscores', () {
+      expect(toSnakeCase('Weather_Icons'), 'weather_icons');
+      expect(toSnakeCase('_Private'), 'private');
+      expect(toSnakeCase('Widget_'), 'widget');
+      expect(toSnakeCase('___'), 'widget');
+    });
+  });
 }

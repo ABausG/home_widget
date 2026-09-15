@@ -42,13 +42,15 @@ void main() {
         expect(
           code,
           equals('if (widgetData.myKey != null) {\n'
-              '    Text(text = "Present")\n'
+              '    Text(text = "Present", '
+              'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
               '} else {\n'
-              '    Text(text = "Absent")\n'
+              '    Text(text = "Absent", '
+              'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
               '}'),
         );
         expect(code, contains('if ('));
-        expect(code, contains('Text(text = "Present")'));
+        expect(code, contains('Text(text = "Present",'));
       });
 
       test('kotlinImports merge both branches', () {

@@ -359,6 +359,39 @@ class BadKeys {}
     );
 
     test(
+      'returns software exit when a widget fails to decode',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'empty_icon.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Empty Icon',
+  widget: HWIcon(HWIconData('mood', icons: [])),
+)
+class EmptyIcon {}
+''');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(that: contains('needs at least one icon')),
+          ),
+        ).called(1);
+        verifyNever(
+          () => mockLogger.err(any(that: contains('Error parsing'))),
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
       'succeeds with no widgets when input directory is empty',
       () async {
         final project = await TestFlutterProject.create();

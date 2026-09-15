@@ -1,0 +1,120 @@
+---
+title: Custom Fonts
+description: Use a custom text font in a generated widget.
+---
+
+# Custom Fonts
+
+A generated widget can render text in a font your Flutter app bundles — without you touching Xcode
+or an Android `res/` folder. Declare the font the same way you would for a Flutter `TextStyle`;
+`home_widget_generator` and `home_widget_cli` do the rest at generation time.
+
+```dart
+HWText.fixed('Hello', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20))
+```
+
+<Info>
+This page covers a custom text font on a **generated** widget. Loading a font from a hand-written
+`RemoteViews`/Glance or SwiftUI widget uses the same underlying mechanism, documented on its own at
+[Custom Fonts](/features/custom-fonts).
+</Info>
+
+## Custom text fonts
+
+Declare the font under `flutter: fonts:` in `pubspec.yaml`, exactly as you would to use it inside
+your Flutter app:
+
+```yaml
+flutter:
+  fonts:
+    - family: Chewy
+      fonts:
+        - asset: assets/fonts/Chewy-Regular.ttf
+        - asset: assets/fonts/Chewy-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Chewy-Italic.ttf
+          style: italic
+```
+
+Then reference the family by name from `HWTextStyle`, mirroring Flutter's own
+`TextStyle(fontFamily:, package:)`:
+
+```dart
+HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
+```
+
+`fontFamily` (and `package`) are also available on every `HWRoleTextStyle` constructor, and resolve
+through [`baseStyle`](/generator/styling/hw-text-style#inheritance) like any other field — set the
+family once on a shared base style and every style built on top of it inherits it.
+
+Pass `package` for a font that ships inside a dependency rather than your app, the same as
+`Image.asset(..., package: ...)`:
+
+```dart
+HWTextStyle(fontFamily: 'Chewy', package: 'my_fonts')
+```
+
+### Always give it a size
+
+A custom family cannot fall through to the platform's own default text size the way a plain
+`HWTextStyle` does. A style that names a family but no `fontSize` and no role renders at a fixed
+**16**, so set `fontSize` (or a role) explicitly rather than relying on it.
+
+A role next to a family keeps the size and weight the role always gave you, but bakes that size in
+as a fixed one — on iOS too, where it otherwise tracks the system's text-size setting.
+
+### Which file gets used
+
+Declare every weight and slant you want the widget to use as part of the family, the same as you
+would for Flutter: `fontWeight: HWFontWeight.bold` or `italic: true` renders a bold or italic file
+only if the family ships one, and otherwise falls back to the closest file it does ship. Neither
+platform synthesizes a missing one.
+
+`home_widget_cli` checks at generation time that the family is declared somewhere it can see: an
+unknown family, or one with no matching pubspec entry at all, is a generation error naming the
+family and where to declare it.
+
+## How it renders
+
+Custom-font text renders at the fixed size the style resolved to, so it does not follow the
+system's text-size setting on either platform. A size change only shows up the next time the widget
+updates.
+
+There is nothing to add to the Xcode project or to `android/app/src/main/res/` for a text font:
+both platforms read the font your app already bundles, and it works before the Flutter app has ever
+launched.
+
+<Accordion title="Android">
+Android cannot put a font your app ships onto widget text, so custom-font text is drawn as an image
+there instead. Because of this:
+
+- Reach for a custom font on short runs — labels, headlines — rather than body copy.
+- TalkBack still reads it: the same text is carried over as the image's content description.
+- The room the text has is measured before it is drawn: the widget lays its content out once with
+  a placeholder where the text goes, reads back the space its siblings, padding and borders leave
+  it, and only then draws the text into exactly that room. Several custom-font texts are measured
+  one after another in the order they appear, each against the earlier ones drawn for real, so a
+  paragraph under a label gets the room the label leaves it. Resizing the widget measures the new
+  size the same way and redraws.
+- `textAlign` works: text aligned anywhere but at the start is drawn across the full room it has,
+  so the alignment has somewhere to move it.
+- Text taller than the room it has is cut off at the last line that fits, which is ellipsized.
+
+This works on every Android version the plugin supports (API 23+) — there's no `minSdkVersion` to
+raise for it.
+</Accordion>
+
+## Version requirement
+
+Custom fonts require `home_widget` **0.10.0 or newer**. `home_widget_cli` checks the resolved
+version in `pubspec.lock` and fails with a clear error if a schema uses `HWTextStyle.fontFamily`
+against an older one.
+
+## Limitations
+
+- `TextStyle.fontFamilyFallback` is not supported: a glyph the chosen font lacks falls back to the
+  platform's own font, not to a family you name.
+- Right-to-left text is supported: both platforms shape and order bidirectional text as usual, and
+  only the font family, weight and slant come from the custom font.
+- Custom-font text is drawn as an image on Android — see [How it renders](#how-it-renders) for what
+  that means for reflow and body copy.

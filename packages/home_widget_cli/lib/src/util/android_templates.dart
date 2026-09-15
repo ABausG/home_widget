@@ -15,6 +15,12 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 /// [previewFingerprint]: Optional Kotlin body of `previewFingerprint`, which
 ///                describes what the preview currently renders. Omitting it
 ///                leaves the widget out of the automatic preview registration.
+/// [measuresTextBounds]: Whether the body draws text into a bitmap, which needs
+///                the room it may take measured first. The widget then composes
+///                once with no bounds to measure them and once to render, and
+///                against the size it was actually given rather than the
+///                smallest one its provider declares, since the measurements
+///                are keyed by it.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceWidgetTemplate({
   required String packageName,
@@ -25,6 +31,7 @@ String androidGlanceWidgetTemplate({
   String previewPreferences = 'HomeWidgetPlugin.getData(context)',
   bool previewParameter = false,
   String? previewFingerprint,
+  bool measuresTextBounds = false,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -59,6 +66,43 @@ String androidGlanceWidgetTemplate({
     }
 ''';
 
+  // The measuring pass composes the same body with no bounds, which every
+  // bitmap text renders a tagged probe for; the gallery preview has no widget
+  // to measure in and draws against no room at all.
+  final provideGlance = measuresTextBounds
+      ? '''
+  override suspend fun provideGlance(context: Context, id: GlanceId) {
+    val measuring: (HomeWidgetFonts.TextBounds) -> GlanceAppWidget = { bounds ->
+      object : GlanceAppWidget() {
+        override suspend fun provideGlance(context: Context, id: GlanceId) {
+          provideContent { WidgetContent(context, HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), textBounds = bounds) }
+        }
+      }
+    }
+    val measured = HomeWidgetFonts.measureTextBounds(context, id, measuring)
+    provideContent {
+      val size = LocalSize.current
+      var textBounds by remember { mutableStateOf(measured) }
+      LaunchedEffect(size) {
+        if (!textBounds.covers(size)) {
+          textBounds += HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
+        }
+      }
+      WidgetContent(context, currentState(), textBounds = textBounds)
+    }
+  }
+'''
+      : '''
+  override suspend fun provideGlance(context: Context, id: GlanceId) {
+    provideContent { WidgetContent(context, currentState()) }
+  }
+''';
+  final previewTextBounds = measuresTextBounds
+      ? ', textBounds = HomeWidgetFonts.TextBounds.NONE'
+      : '';
+  final textBoundsParameter =
+      measuresTextBounds ? ', textBounds: HomeWidgetFonts.TextBounds' : '';
+
   final buffer = StringBuffer();
   buffer.write('''
 $head
@@ -91,13 +135,12 @@ import es.antonborri.home_widget.HomeWidgetPlugin
 
 class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
-
-  override suspend fun provideGlance(context: Context, id: GlanceId) {
-    provideContent { WidgetContent(context, currentState()) }
-  }
-
+${measuresTextBounds ? '''
+  override val sizeMode: SizeMode = SizeMode.Exact
+''' : ''}
+$provideGlance
   override suspend fun providePreview(context: Context, widgetCategory: Int) {
-    provideContent { WidgetContent(context, HomeWidgetGlanceState($previewPreferences)${previewParameter ? ', preview = true' : ''}) }
+    provideContent { WidgetContent(context, HomeWidgetGlanceState($previewPreferences)${previewParameter ? ', preview = true' : ''}$previewTextBounds) }
   }
 ''');
 
@@ -110,7 +153,7 @@ class $widgetClassName : GlanceAppWidget() {
   buffer.write('''
 
   @Composable
-  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState${previewParameter ? ', preview: Boolean = false' : ''}) {
+  private fun WidgetContent(context: Context, currentState: HomeWidgetGlanceState${previewParameter ? ', preview: Boolean = false' : ''}$textBoundsParameter) {
 $body
   }
 }

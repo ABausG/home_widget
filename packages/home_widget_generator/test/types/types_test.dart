@@ -1,5 +1,4 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -159,6 +158,30 @@ void main() {
         wrapped.iosReadValue(store: 'defaults', key: 'k'),
       );
       expect(
+        type.androidReadValue(store: 'prefs', key: 'k', preview: true),
+        wrapped.androidReadValue(store: 'prefs', key: 'k', preview: true),
+      );
+      expect(
+        type.iosReadValue(store: 'defaults', key: 'k', preview: true),
+        wrapped.iosReadValue(store: 'defaults', key: 'k', preview: true),
+      );
+      expect(
+        type.codegenKotlinFallbackLiteral(),
+        wrapped.codegenKotlinFallbackLiteral(),
+      );
+      expect(
+        type.codegenKotlinFallbackLiteral(preview: true),
+        wrapped.codegenKotlinFallbackLiteral(preview: true),
+      );
+      expect(
+        type.codegenSwiftFallbackLiteral(),
+        wrapped.codegenSwiftFallbackLiteral(),
+      );
+      expect(
+        type.codegenSwiftFallbackLiteral(preview: true),
+        wrapped.codegenSwiftFallbackLiteral(preview: true),
+      );
+      expect(
         type.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
         wrapped.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
       );
@@ -168,6 +191,22 @@ void main() {
       );
       expect(type.swiftAccess('entry.data'), 'entry.data.label');
       expect(type.kotlinAccess('widgetData'), 'widgetData.label');
+    });
+
+    test('HWTimedData hands back the getData type of the wrapped type', () {
+      const wrapped = HWImageData('avatar');
+      const type = HWTimedData(wrapped);
+
+      expect(type.dartApiType('Weather'), wrapped.dartApiType('Weather'));
+      expect(
+        type.dartGetDataType('Weather'),
+        wrapped.dartGetDataType('Weather'),
+      );
+      expect(type.dartGetDataType('Weather'), 'String');
+      expect(
+        type.dartGetDataType('Weather'),
+        isNot(type.dartApiType('Weather')),
+      );
     });
 
     test('HWTimedData delegates JSON accessors and read expressions', () {
@@ -386,13 +425,18 @@ void main() {
         (const HWString('k'), r'data.x ?: ""', r'data.x ?? ""'),
         (
           const HWInt('k'),
-          r'(data.x?.toString() ?: "0")',
-          r'data.x != nil ? "\(data.x)" : "0"'
+          r'(data.x?.toString() ?: "")',
+          r'data.x != nil ? "\(data.x)" : ""'
+        ),
+        (
+          const HWInt('k', defaultValue: 3),
+          r'(data.x?.toString() ?: "")',
+          r'data.x != nil ? "\(data.x)" : ""'
         ),
         (
           const HWDouble('k'),
-          r'(data.x?.toString() ?: "0.0")',
-          r'data.x != nil ? "\(data.x)" : "0.0"'
+          r'(data.x?.toString() ?: "")',
+          r'data.x != nil ? "\(data.x)" : ""'
         ),
         (
           const HWBool('k'),
@@ -515,11 +559,11 @@ void main() {
     test('stringification delegates to the leaf type', () {
       expect(
         json.androidToString(outerValue: 'v', innerValue: 'v'),
-        '(v?.toString() ?: "0")',
+        '(v?.toString() ?: "")',
       );
       expect(
         json.iosToString(outerValue: 'v', innerValue: 'v'),
-        r'v != nil ? "\(v)" : "0"',
+        r'v != nil ? "\(v)" : ""',
       );
     });
 
@@ -542,7 +586,15 @@ void main() {
       const noDefault = HWJson('payload', HWInt('count'));
       expect(
         noDefault.kotlinGlanceJsonTextInterpolation('widgetData'),
-        '(widgetData.payload?.count?.toString() ?: "0")',
+        '(widgetData.payload?.count?.toString() ?: "")',
+      );
+    });
+
+    test('swift glance text falls back when a number leaf has no default', () {
+      const noDefault = HWJson('payload', HWInt('count'));
+      expect(
+        noDefault.swiftGlanceJsonTextInterpolation('entry.data'),
+        r'(entry.data.payload?.count).map { String(describing: $0) } ?? ""',
       );
     });
 
@@ -626,6 +678,80 @@ void main() {
         localized.swiftReadExpr('entry.data'),
       );
       expect(localized.defaultValue, isNull);
+    });
+
+    test('kotlin glance text throws for an icon leaf with a default', () {
+      const iconJson = HWJson(
+        'payload',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('wbSunny', 0xE88A)],
+          iconFont: HWIconFont(family: 'MaterialIcons'),
+          defaultValue: 0xE88A,
+        ),
+      );
+      expect(
+        () => iconJson.kotlinGlanceJsonTextInterpolation('widgetData'),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('HWIconData cannot be rendered as text'),
+          ),
+        ),
+      );
+    });
+
+    test('swift glance text throws for an icon leaf, with or without a default',
+        () {
+      const withDefault = HWJson(
+        'payload',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('wbSunny', 0xE88A)],
+          iconFont: HWIconFont(family: 'MaterialIcons'),
+          defaultValue: 0xE88A,
+        ),
+      );
+      const withoutDefault = HWJson(
+        'payload',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('wbSunny', 0xE88A)],
+          iconFont: HWIconFont(family: 'MaterialIcons'),
+        ),
+      );
+      for (final json in [withDefault, withoutDefault]) {
+        expect(
+          () => json.swiftGlanceJsonTextInterpolation('entry.data'),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.toString(),
+              'message',
+              contains('HWIconData cannot be rendered as text'),
+            ),
+          ),
+        );
+      }
+    });
+
+    test('kotlin and swift glance text throw for an image leaf', () {
+      const imageJson = HWJson('payload', HWImageData('avatar'));
+      final throwsImageError = throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.toString(),
+          'message',
+          contains('HWImageData cannot be rendered as text'),
+        ),
+      );
+      expect(
+        () => imageJson.kotlinGlanceJsonTextInterpolation('widgetData'),
+        throwsImageError,
+      );
+      expect(
+        () => imageJson.swiftGlanceJsonTextInterpolation('entry.data'),
+        throwsImageError,
+      );
     });
 
     test('hashCode agrees with == for structurally equal instances', () {

@@ -1190,38 +1190,12 @@ Future<void> ensureLocalizableCatalogInXcodeProject({
   final usesSynchronizedGroups = _widgetUsesSynchronizedGroup(text, ids);
 
   if (!usesSynchronizedGroups) {
-    final fileRefId = xcodeObjectId(
-      'fileref:Localizable.xcstrings:$widgetClassName',
-    );
-    final buildFileId = xcodeObjectId(
-      'buildfile:Localizable.xcstrings:$widgetClassName',
-    );
-
-    if (!updated.contains(fileRefId)) {
-      updated = _insertIntoSection(
-        updated,
-        section: 'PBXFileReference',
-        content:
-            '\t\t$fileRefId /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };',
-      );
-      updated = _insertIntoSection(
-        updated,
-        section: 'PBXBuildFile',
-        content:
-            '\t\t$buildFileId /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* Localizable.xcstrings */; };',
-      );
-    }
-
-    updated = _patchNativeTargetListAddId(
+    updated = _wireResourceFile(
       updated,
-      targetId: ids.resourcesPhaseId,
-      listKey: 'files',
-      idToAdd: '$buildFileId /* Localizable.xcstrings in Resources */',
-    );
-    updated = _patchGroupChildrenAddId(
-      updated,
-      groupId: ids.widgetGroupId,
-      idToAdd: '$fileRefId /* Localizable.xcstrings */',
+      ids: ids,
+      widgetClassName: widgetClassName,
+      name: 'Localizable.xcstrings',
+      lastKnownFileType: 'text.json.xcstrings',
     );
   }
 
@@ -1234,6 +1208,122 @@ Future<void> ensureLocalizableCatalogInXcodeProject({
   logger.detail(
     'Wired $widgetClassName/Localizable.xcstrings into the extension target.',
   );
+}
+
+/// Wires the files in `<widgetClassName>/` named by [resourceFileNames] into the
+/// extension target's Resources build phase, and drops the references of
+/// [removedFileNames].
+///
+/// This is how a copied icon font reaches the widget's bundle in a project with
+/// explicit groups — the kind `flutter create` produced before Xcode 16. Each
+/// file needs three things: a `PBXFileReference`, a child entry in the widget's
+/// own group and a `PBXBuildFile` in the Resources phase. All three are keyed by
+/// ids derived from the file name, so a second run over the same project changes
+/// nothing, and a file that stops being generated takes its references with it.
+///
+/// Projects using file-system-synchronized groups build every file in the
+/// extension folder already, so nothing is patched there at all: an explicit
+/// reference on top of the synced folder would have Xcode copy the file twice
+/// and fail the build.
+Future<void> ensureWidgetResourceFilesInXcodeProject({
+  required File pbxprojFile,
+  required String widgetClassName,
+  required List<String> resourceFileNames,
+  List<String> removedFileNames = const [],
+}) async {
+  final text = await pbxprojFile.readAsString();
+
+  final ids = _WidgetExtensionIds(widgetClassName);
+  if (_widgetUsesSynchronizedGroup(text, ids)) return;
+
+  var updated = text;
+
+  for (final name in removedFileNames) {
+    updated = _removeIdLines(updated, {
+      xcodeObjectId('fileref:$name:$widgetClassName'),
+      xcodeObjectId('buildfile:$name:$widgetClassName'),
+    });
+  }
+
+  for (final name in resourceFileNames) {
+    updated = _wireResourceFile(
+      updated,
+      ids: ids,
+      widgetClassName: widgetClassName,
+      name: name,
+      lastKnownFileType: 'file',
+    );
+  }
+
+  if (updated == text) return;
+
+  await pbxprojFile.writeAsString(updated);
+  logger.detail('Updated Xcode project: ${pbxprojFile.path}');
+  logger.detail(
+    'Wired ${resourceFileNames.length} resource file'
+    '${resourceFileNames.length == 1 ? '' : 's'} of $widgetClassName into the '
+    'extension target.',
+  );
+}
+
+/// Wires `<widgetClassName>/[name]` into the extension target's Resources
+/// build phase and its group; ids are derived from the file name, so a second
+/// run over the same project changes nothing.
+String _wireResourceFile(
+  String pbxproj, {
+  required _WidgetExtensionIds ids,
+  required String widgetClassName,
+  required String name,
+  required String lastKnownFileType,
+}) {
+  final fileRefId = xcodeObjectId('fileref:$name:$widgetClassName');
+  final buildFileId = xcodeObjectId('buildfile:$name:$widgetClassName');
+
+  // Unchecking target membership in Xcode drops the build file and keeps the
+  // file reference, so each object is looked for on its own — and looked for as
+  // an object, since the id of either also appears where it is used.
+  var updated = pbxproj;
+  if (!updated.contains('$fileRefId /* $name */ = {')) {
+    updated = _insertIntoSection(
+      updated,
+      section: 'PBXFileReference',
+      content:
+          '\t\t$fileRefId /* $name */ = {isa = PBXFileReference; lastKnownFileType = $lastKnownFileType; path = $name; sourceTree = "<group>"; };',
+    );
+  }
+  if (!updated.contains('$buildFileId /* $name in Resources */ = {')) {
+    updated = _insertIntoSection(
+      updated,
+      section: 'PBXBuildFile',
+      content:
+          '\t\t$buildFileId /* $name in Resources */ = {isa = PBXBuildFile; fileRef = $fileRefId /* $name */; };',
+    );
+  }
+
+  updated = _patchNativeTargetListAddId(
+    updated,
+    targetId: ids.resourcesPhaseId,
+    listKey: 'files',
+    idToAdd: '$buildFileId /* $name in Resources */',
+  );
+  return _patchGroupChildrenAddId(
+    updated,
+    groupId: ids.widgetGroupId,
+    idToAdd: '$fileRefId /* $name */',
+  );
+}
+
+/// Drops every line mentioning one of [ids].
+///
+/// Every place a file reference or a build file is named — its own object, the
+/// group child, the Resources entry — is a line of its own, so removing the
+/// lines removes the file from the project entirely.
+String _removeIdLines(String pbxproj, Set<String> ids) {
+  if (!ids.any(pbxproj.contains)) return pbxproj;
+  return pbxproj
+      .split('\n')
+      .where((line) => !ids.any(line.contains))
+      .join('\n');
 }
 
 /// Whether the scaffolder would give a new extension a synchronized root group.

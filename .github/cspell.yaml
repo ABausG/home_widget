@@ -38,6 +38,9 @@ dictionaryDefinitions:
   - name: names
     path: .cspell/names_dictionary.txt
 words:
+    - airplanemode
+    - ellipsized
+    - ellipsizing
     - antonborries
     - Borries
     - abausg
@@ -97,6 +100,7 @@ words:
     - cfglist
     - codegen
     - crossinline
+    - cupertinoicons
     - deinit
     - fileprivate
     - fileref
@@ -118,12 +122,15 @@ words:
     - keyguard
     - KITKAT
     - LTRB
+    - materialicons
     - multiplatform
     - nofill
     - noinline
     - nopadding
     - notheme
     - notimed
+    - precache
+    - precached
     - RUNPATH
     - scaffolder
     - SDKROOT
@@ -133,6 +140,7 @@ words:
     - struct
     - structs
     - sublist
+    - subsetting
     - sysexits
     - tailrec
     - timedjson
@@ -169,6 +177,23 @@ words:
     # native format helpers (Swift API / SimpleDateFormat pattern)
     - uppercased
     - SSSZ
+    # custom fonts and icons
+    - codepoint
+    - codepoints
+    - ellipsize
+    - flavorizr
+    - fontawesomesolid
+    - glyphless
+    - parcelable
+    - pathed
+    - renderable
+    - roboto
+    - subsetter
+    - themable
+    - undecoded
+    - unmanaged
+    - untinted
+    - upsert
 ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)
     - Lokalisierte

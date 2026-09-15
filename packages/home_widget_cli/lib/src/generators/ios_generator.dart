@@ -4,12 +4,13 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:path/path.dart' as p;
 
-import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../models/extensions.dart';
 import '../util/logger.dart';
 import '../util/entitlements.dart';
+import '../util/font_resolver.dart';
 import '../util/fs.dart';
+import '../util/icon_font_writer.dart';
 import '../util/ios_templates.dart';
 import '../util/naming.dart';
 import '../util/string_catalog.dart';
@@ -102,6 +103,15 @@ class IosGenerator {
 
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
     await ensureDir(extensionDir);
+
+    // Icon fonts are copied into the extension bundle because Flutter
+    // tree-shakes them out of `flutter_assets`; text fonts stay where they are
+    // and the extension looks them up as it renders.
+    final iconFonts = await writeIosIconFonts(
+      spec: spec,
+      extensionDir: extensionDir,
+      fonts: FontResolver(projectRoot),
+    );
 
     final widgetSwift = File(p.join(extensionDir.path, 'Widget.swift'));
     final widgetBundleSwift = File(
@@ -286,14 +296,19 @@ struct ${widgetClassName}Entry: TimelineEntry {
     // through and every one the declared fields are read back with to its
     // transitive closure, already ordered so each one is declared after what
     // it calls.
-    final fileHelpers = <String>[
-      for (final helper in spec.nativeHelpers)
-        helper.toSwift(0, dataExpr: '').trim(),
+    final nativeHelpers = swiftNativeHelpers(spec.nativeHelpers).toList();
+    // Whether a glyph mirrors in a right-to-left layout is a property of the
+    // icon itself, so one widget-wide set answers for every icon field.
+    final fileDeclarations = <String>[
+      if (spec.iconFields.isNotEmpty)
+        'private let hwMirroredIcons: Set<Int> = '
+            '[${_hexList(spec.mirroredIconCodePoints)}]',
+      for (final helper in nativeHelpers) helper.swift!.trim(),
     ];
-    if (fileHelpers.isNotEmpty) {
+    if (fileDeclarations.isNotEmpty) {
       extraContent = [
         if (extraContent != null) extraContent,
-        ...fileHelpers,
+        ...fileDeclarations,
       ].join('\n\n');
     }
 
@@ -383,7 +398,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
         // imports — CGImageSource, say, lives in ImageIO, which SwiftUI does
         // not re-export.
         extraImports: <String>{
-          for (final helper in spec.nativeHelpers) ...helper.swiftImports,
+          for (final helper in nativeHelpers) ...helper.swiftImports,
         }.toList(),
         entryDefinition: entryDefinition,
         getSnapshotBody: getSnapshotBody,
@@ -472,6 +487,17 @@ struct ${widgetClassName}Entry: TimelineEntry {
           pbxprojFile: xcodeproj,
           widgetClassName: widgetClassName,
           locales: spec.supportedLocales,
+        );
+      }
+
+      // An icon font only ships if the extension target copies it, which a
+      // project with explicit groups does not do on its own.
+      if (iconFonts.written.isNotEmpty || iconFonts.removed.isNotEmpty) {
+        await ensureWidgetResourceFilesInXcodeProject(
+          pbxprojFile: xcodeproj,
+          widgetClassName: widgetClassName,
+          resourceFileNames: iconFonts.written,
+          removedFileNames: iconFonts.removed,
         );
       }
       logger.detail('Updated: ${xcodeproj.path}');
@@ -986,6 +1012,12 @@ struct ${widgetClassName}Entry: TimelineEntry {
     return buffer.toString();
   }
 }
+
+/// [codePoints] as the uppercase hex literals an icon is usually written as,
+/// sorted so the same set always comes out the same way.
+String _hexList(Set<int> codePoints) => (codePoints.toList()..sort())
+    .map((codePoint) => '0x${codePoint.toRadixString(16).toUpperCase()}')
+    .join(', ');
 
 class _SwiftJsonNode {
   final Map<String, _SwiftJsonNode> children = {};

@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 
+import 'fonts.dart';
 import 'formats.dart';
 import 'generator_error.dart';
 import 'native_helpers.dart';
@@ -23,6 +24,33 @@ sealed class HWDataType<T> {
 
   /// The Dart type string.
   String get dartType;
+
+  /// The type the generated Dart API hands this value over as; defaults to
+  /// [dartType].
+  String dartApiType(String widgetClassName) => dartType;
+
+  /// The type the generated `getData` hands this value back as; defaults to
+  /// [dartApiType].
+  String dartGetDataType(String widgetClassName) =>
+      dartApiType(widgetClassName);
+
+  /// [expr], which reads this value in its stored form, mapped to
+  /// [dartApiType].
+  String dartDecode(String expr, String widgetClassName) => expr;
+
+  /// [expr], which holds this value as [dartApiType] and is only evaluated
+  /// when non-null, written back into its stored form; null when the two are
+  /// the same.
+  String? dartEncode(String expr, String widgetClassName) => null;
+
+  /// Dart literal representing [defaultValue] for generated Dart code, or null
+  /// when there is no default.
+  String? codegenDartDefaultLiteral() {
+    final value = defaultValue;
+    if (value == null) return null;
+    if (value is String) return "'${escapeDartStringLiteral(value)}'";
+    return '$value';
+  }
 
   /// The Kotlin type string.
   String get kotlinType;
@@ -666,22 +694,58 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
   /// Swift expression rendering [outerValue] — the nullable access expression
   /// for this value — with [format].
   ///
-  /// A missing value formats this type's own default, so the text never goes
-  /// blank on a widget that has not been given data yet. [dataExpr] is the
-  /// expression the data class is reached through, which a data-bound currency
-  /// reads its code from.
+  /// A missing value formats this type's own [defaultValue], and renders as
+  /// empty text when there is none. [dataExpr] is the expression the data
+  /// class is reached through, which a data-bound currency reads its code
+  /// from.
   String iosFormattedValue(
     String outerValue,
     HWNumberFormat format, {
     required String dataExpr,
-  });
+  }) {
+    final fallback = codegenSwiftDefaultLiteral();
+    if (fallback != null) {
+      return format.swiftCall(
+        'NSNumber(value: $outerValue ?? $fallback)',
+        dataExpr: dataExpr,
+      );
+    }
+    final call = format.swiftCall(r'NSNumber(value: $0)', dataExpr: dataExpr);
+    return '$outerValue.map { $call } ?? ""';
+  }
 
   /// Kotlin counterpart of [iosFormattedValue].
   String androidFormattedValue(
     String outerValue,
     HWNumberFormat format, {
     required String dataExpr,
-  });
+  }) {
+    final fallback = codegenKotlinDefaultLiteral();
+    if (fallback != null) {
+      return format.kotlinCall(
+        '($outerValue ?: $fallback)',
+        dataExpr: dataExpr,
+      );
+    }
+    final call = format.kotlinCall('it', dataExpr: dataExpr);
+    return '$outerValue?.let { $call } ?: ""';
+  }
+
+  /// A missing number renders as empty text, the same as a missing string or
+  /// date; a [defaultValue] is already in place by the time a render site
+  /// reads the field.
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    return '($outerValue?.toString() ?: "")';
+  }
+
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    return '$outerValue != nil ? "\\($innerValue)" : ""';
+  }
 }
 
 class HWInt extends HWNumericDataType<int> {
@@ -728,41 +792,6 @@ class HWInt extends HWNumericDataType<int> {
     if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
-
-  @override
-  String androidToString({
-    required String outerValue,
-    required String innerValue,
-  }) {
-    return '($outerValue?.toString() ?: "0")';
-  }
-
-  @override
-  String iosToString({required String outerValue, required String innerValue}) {
-    return '$outerValue != nil ? "\\($innerValue)" : "0"';
-  }
-
-  @override
-  String iosFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.swiftCall(
-        'NSNumber(value: $outerValue ?? ${defaultValue ?? 0})',
-        dataExpr: dataExpr,
-      );
-
-  @override
-  String androidFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.kotlinCall(
-        '($outerValue ?: ${defaultValue ?? 0}L)',
-        dataExpr: dataExpr,
-      );
 
   @override
   String? codegenKotlinDefaultLiteral() =>
@@ -832,41 +861,6 @@ class HWDouble extends HWNumericDataType<double> {
     if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
-
-  @override
-  String androidToString({
-    required String outerValue,
-    required String innerValue,
-  }) {
-    return '($outerValue?.toString() ?: "0.0")';
-  }
-
-  @override
-  String iosToString({required String outerValue, required String innerValue}) {
-    return '$outerValue != nil ? "\\($innerValue)" : "0.0"';
-  }
-
-  @override
-  String iosFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.swiftCall(
-        'NSNumber(value: $outerValue ?? ${defaultValue ?? 0.0})',
-        dataExpr: dataExpr,
-      );
-
-  @override
-  String androidFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.kotlinCall(
-        '($outerValue ?: ${defaultValue ?? 0.0})',
-        dataExpr: dataExpr,
-      );
 
   @override
   String? codegenKotlinDefaultLiteral() => defaultValue?.toString();
@@ -1259,28 +1253,15 @@ class HWImageData extends HWDataType<String> {
   /// start with a digit are prefixed with `image` (`2x/logo.png` becomes
   /// `image2xLogoPng`) so the result is a valid Dart/Kotlin/Swift identifier.
   static String deriveKeyFromAssetPath(String assetPath) {
-    final segments = assetPath
-        .split(RegExp('[^A-Za-z0-9]+'))
-        .where((segment) => segment.isNotEmpty)
-        .toList();
+    final derived = joinIdentifierSegments(assetPath, lowerFirst: true);
 
-    if (segments.isEmpty) {
+    if (derived.isEmpty) {
       throw GeneratorError(
         'Cannot derive a data key from asset path "$assetPath": '
         'it contains no ASCII letters or digits.',
       );
     }
 
-    final buffer = StringBuffer();
-    for (var i = 0; i < segments.length; i++) {
-      final segment = segments[i];
-      buffer.write(
-        i == 0 ? segment[0].toLowerCase() : segment[0].toUpperCase(),
-      );
-      buffer.write(segment.substring(1));
-    }
-
-    final derived = buffer.toString();
     if (RegExp('^[0-9]').hasMatch(derived)) {
       return 'image${derived[0].toUpperCase()}${derived.substring(1)}';
     }
@@ -1297,6 +1278,16 @@ class HWImageData extends HWDataType<String> {
 
   @override
   String get dartType => 'String';
+
+  /// An image is handed over as the picture itself, while the value stored
+  /// under [key] is only the path it was written to.
+  @override
+  String dartApiType(String widgetClassName) => 'ImageProvider';
+
+  /// `getData` hands back the stored path instead, since the file it names
+  /// may be gone by then.
+  @override
+  String dartGetDataType(String widgetClassName) => dartType;
 
   @override
   String get kotlinType => 'String';
@@ -1410,6 +1401,391 @@ class HWImageData extends HWDataType<String> {
   /// Unlike [key] this never throws, so it is safe to use from [==] and
   /// [hashCode] on an instance whose asset spec is invalid.
   String get rawKey => super.key;
+}
+
+/// One icon of an [HWIconData], as the generated Dart enum spells it.
+///
+/// [name] is derived from the schema — `Icons.wb_sunny` becomes `wbSunny` — so
+/// the app picks an icon by the name it wrote rather than by a codepoint;
+/// [codePoint] is what actually travels to the widget.
+class HWIconEntry {
+  /// The lower camel case name of the generated enum value.
+  final String name;
+
+  /// The glyph this entry renders, as declared by `IconData.codePoint`.
+  final int codePoint;
+
+  /// Whether the glyph is mirrored in a right-to-left layout, as declared by
+  /// `IconData.matchTextDirection`.
+  ///
+  /// True for the directional icons Flutter marks as such — `Icons.arrow_back`,
+  /// `Icons.format_list_bulleted` — and false for everything else.
+  final bool matchTextDirection;
+
+  const HWIconEntry(
+    this.name,
+    this.codePoint, {
+    this.matchTextDirection = false,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWIconEntry &&
+          name == other.name &&
+          codePoint == other.codePoint &&
+          matchTextDirection == other.matchTextDirection;
+
+  @override
+  int get hashCode => Object.hash(name, codePoint, matchTextDirection);
+
+  @override
+  String toString() =>
+      'HWIconEntry($name, 0x${codePoint.toRadixString(16).toUpperCase()})';
+}
+
+/// One of a fixed set of icons, rendered by [HWIcon].
+///
+/// The app picks a value out of the generated enum — `saveData(mood:
+/// MoodWidgetMoodIcon.wbSunny)` — and the codepoint behind it is what is
+/// stored, on both platforms, as a plain int. A widget with nothing saved and
+/// no [defaultValue] renders no icon at all.
+///
+/// Every icon must come from the same font: the glyphs are subset out of that
+/// one file and copied next to the generated widget, so a list mixing
+/// `Icons.home` with a `CupertinoIcons` value is rejected.
+///
+/// Works inside [HWJson] and [HWTimedData] like the other value types.
+///
+/// The `icons` a schema writes are Flutter `IconData` constants. They are typed
+/// as [Object] because this package must keep resolving without the Flutter SDK
+/// — `home_widget_cli` is a plain Dart executable that depends on it — and the
+/// decoder reads their `codePoint`, `fontFamily` and `fontPackage` out of the
+/// analyzer constant instead, rejecting anything that carries none.
+class HWIconData extends HWDataType<int> {
+  /// The icons exactly as written in the annotation, in their declared order.
+  ///
+  /// Only ever set on the const instance living inside the annotation: the
+  /// decoder reads the codepoints and names off it and hands back an instance
+  /// carrying [entries] instead.
+  final List<Object> icons;
+
+  /// The icon the widget falls back to, as written in the annotation.
+  final Object? defaultIcon;
+
+  /// The icon the widget gallery shows, as written in the annotation.
+  final Object? previewIcon;
+
+  /// The icons this field may hold, name and codepoint resolved.
+  ///
+  /// Empty in annotation space, where [icons] is all there is.
+  final List<HWIconEntry> entries;
+
+  /// The font every one of [entries] is drawn out of, or null in annotation
+  /// space.
+  final HWIconFont? iconFont;
+
+  final int? _defaultCodePoint;
+
+  final int? _previewCodePoint;
+
+  /// An icon chosen at runtime out of [icons].
+  ///
+  /// [defaultValue] and [previewValue] must be members of [icons].
+  const HWIconData(
+    super.key, {
+    required this.icons,
+    Object? defaultValue,
+    Object? previewValue,
+  })  : defaultIcon = defaultValue,
+        previewIcon = previewValue,
+        entries = const [],
+        iconFont = null,
+        _defaultCodePoint = null,
+        _previewCodePoint = null;
+
+  /// Rebuilt by the parser with every icon resolved to its name, codepoint and
+  /// font.
+  ///
+  /// Codegen-internal: consumed by `home_widget_cli`, not by app code.
+  const HWIconData.resolved(
+    super.key, {
+    required this.entries,
+    required HWIconFont this.iconFont,
+    int? defaultValue,
+    int? previewValue,
+  })  : icons = const [],
+        defaultIcon = null,
+        previewIcon = null,
+        _defaultCodePoint = defaultValue,
+        _previewCodePoint = previewValue;
+
+  @override
+  int? get defaultValue => _defaultCodePoint;
+
+  @override
+  int? get previewValue => _previewCodePoint;
+
+  /// Every glyph this field may hold, which is what its font is subset to.
+  Set<int> get codePoints => {for (final entry in entries) entry.codePoint};
+
+  /// The glyphs of [entries] that mirror in a right-to-left layout.
+  ///
+  /// Empty for a field holding no directional icon.
+  Set<int> get mirroredCodePoints => {
+        for (final entry in entries)
+          if (entry.matchTextDirection) entry.codePoint,
+      };
+
+  /// What the generated Dart enum's name ends in, e.g. `ConditionIcon` for the
+  /// key `condition`.
+  ///
+  /// The full name is the widget's class name plus this, which only the caller
+  /// knows; [enumNameFor] composes it.
+  ///
+  /// Codegen-internal; see [HWIconData.resolved].
+  String get enumSuffix => '${joinIdentifierSegments(key)}Icon';
+
+  /// The generated Dart enum for this field on the widget class
+  /// [widgetClassName], e.g. `ForecastConditionIcon`.
+  ///
+  /// Codegen-internal; see [HWIconData.resolved].
+  String enumNameFor(String widgetClassName) => '$widgetClassName$enumSuffix';
+
+  /// Throws a [GeneratorError] when this field cannot be generated for.
+  ///
+  /// Answers for a decoded instance: that it names at least one icon, that no
+  /// two of them ended up with the same enum value name or the same glyph, and
+  /// that the default and preview icons are among them.
+  void validate() {
+    if (entries.isEmpty) {
+      throw GeneratorError(
+        'HWIconData "$key" needs at least one icon.',
+      );
+    }
+
+    final seen = <String>{};
+    final byCodePoint = <int, String>{};
+    for (final entry in entries) {
+      hwValidateCodePoint(
+        entry.codePoint,
+        'The icon "${entry.name}" of HWIconData "$key"',
+      );
+      if (!seen.add(entry.name)) {
+        throw GeneratorError(
+          'HWIconData "$key" names the icon "${entry.name}" twice. Every icon '
+          'in the list becomes one value of the generated enum, so their names '
+          'have to differ.',
+        );
+      }
+      final twin = byCodePoint[entry.codePoint];
+      if (twin != null) {
+        throw GeneratorError(
+          'The icons "$twin" and "${entry.name}" of HWIconData "$key" are the '
+          'same glyph (0x${entry.codePoint.toRadixString(16).toUpperCase()}). '
+          'Only the codepoint is stored, so the widget could never tell them '
+          'apart — name one of them and drop the other.',
+        );
+      }
+      byCodePoint[entry.codePoint] = entry.name;
+    }
+
+    final codePoints = this.codePoints;
+    final defaultCodePoint = _defaultCodePoint;
+    if (defaultCodePoint != null) {
+      hwValidateCodePoint(
+        defaultCodePoint,
+        'The defaultValue of HWIconData "$key"',
+      );
+      if (!codePoints.contains(defaultCodePoint)) {
+        throw GeneratorError(
+          'The defaultValue of HWIconData "$key" is not one of its icons.',
+        );
+      }
+    }
+    final previewCodePoint = _previewCodePoint;
+    if (previewCodePoint != null && !codePoints.contains(previewCodePoint)) {
+      throw GeneratorError(
+        'The previewValue of HWIconData "$key" is not one of its icons.',
+      );
+    }
+  }
+
+  /// The codepoint, which is what the value is stored as.
+  ///
+  /// The generated Dart API hands the app the enum named by [enumNameFor]
+  /// instead and writes `icon.codePoint` for it.
+  @override
+  String get dartType => 'int';
+
+  @override
+  String dartApiType(String widgetClassName) => enumNameFor(widgetClassName);
+
+  @override
+  String dartDecode(String expr, String widgetClassName) =>
+      '${enumNameFor(widgetClassName)}.fromCodePoint($expr)';
+
+  @override
+  String? dartEncode(String expr, String widgetClassName) => '$expr.codePoint';
+
+  /// A codepoint reads as the hexadecimal literal an icon is usually written
+  /// as, rather than as the decimal the storage type would print.
+  @override
+  String? codegenDartDefaultLiteral() {
+    final value = _defaultCodePoint;
+    return value == null ? null : '0x${value.toRadixString(16)}';
+  }
+
+  @override
+  String get kotlinType => 'Int';
+
+  @override
+  String get swiftType => 'Int';
+
+  @override
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
+    // A codepoint always fits 32 bits, so unlike HWInt this is only ever
+    // written to the store as an Int.
+    return 'if ($store.contains("$key")) $store.getInt("$key", 0) '
+        'else $fallback';
+  }
+
+  @override
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) {
+    final read = '$store?.object(forKey: "$key") as? Int';
+    final fallback = codegenSwiftFallbackLiteral(preview: preview);
+    if (fallback != null) return '($read ?? $fallback)';
+    return read;
+  }
+
+  @override
+  String? codegenKotlinDefaultLiteral() => _defaultCodePoint?.toString();
+
+  @override
+  String? codegenSwiftDefaultLiteral() => _defaultCodePoint?.toString();
+
+  @override
+  String? codegenKotlinPreviewLiteral() => _previewCodePoint?.toString();
+
+  @override
+  String? codegenSwiftPreviewLiteral() => _previewCodePoint?.toString();
+
+  /// Always throws: a codepoint is not meaningful display text.
+  ///
+  /// Reachable when an icon is bound to a text widget, e.g.
+  /// `HWText(HWIconData('mood', icons: [...]))`.
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    throw GeneratorError(
+      'HWIconData cannot be rendered as text. Use HWIcon to display the icon '
+      'stored under "$key".',
+    );
+  }
+
+  /// Always throws: a codepoint is not meaningful display text.
+  ///
+  /// Reachable when an icon is bound to a text widget, e.g.
+  /// `HWText(HWIconData('mood', icons: [...]))`.
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    throw GeneratorError(
+      'HWIconData cannot be rendered as text. Use HWIcon to display the icon '
+      'stored under "$key".',
+    );
+  }
+
+  /// Compatible with another declaration of the same key offering the same
+  /// icons out of the same font.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWIconData &&
+      key == other.key &&
+      iconFont == other.iconFont &&
+      _listEquals(entries, other.entries) &&
+      _listEquals(icons, other.icons) &&
+      _mergeable(_defaultCodePoint, other._defaultCodePoint) &&
+      _mergeable(_previewCodePoint, other._previewCodePoint);
+
+  @override
+  HWIconData _merged(HWDataType<dynamic> other) {
+    final icon = other as HWIconData;
+    return HWIconData.resolved(
+      key,
+      entries: entries,
+      iconFont: iconFont!,
+      defaultValue: _defaultCodePoint ?? icon._defaultCodePoint,
+      previewValue: _previewCodePoint ?? icon._previewCodePoint,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWIconData &&
+          key == other.key &&
+          iconFont == other.iconFont &&
+          _listEquals(entries, other.entries) &&
+          _listEquals(icons, other.icons) &&
+          _defaultCodePoint == other._defaultCodePoint &&
+          _previewCodePoint == other._previewCodePoint;
+
+  @override
+  int get hashCode => Object.hash(
+        key,
+        iconFont,
+        Object.hashAll(entries),
+        Object.hashAll(icons),
+        _defaultCodePoint,
+        _previewCodePoint,
+      );
+}
+
+/// [value] with every run of characters outside `[A-Za-z0-9]` dropped and the
+/// remaining segments joined back up in camel case, e.g. `mood_of_day` becomes
+/// `MoodOfDay`, or `moodOfDay` with [lowerFirst] set.
+///
+/// Only the first character of a segment is re-cased, so `wbSunny` survives as
+/// itself. A [value] holding no ASCII letter or digit joins to the empty
+/// string; every caller decides for itself what to do with that.
+String joinIdentifierSegments(String value, {bool lowerFirst = false}) {
+  final segments = value
+      .split(RegExp('[^A-Za-z0-9]+'))
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+
+  final buffer = StringBuffer();
+  for (var i = 0; i < segments.length; i++) {
+    final segment = segments[i];
+    buffer.write(
+      i == 0 && lowerFirst
+          ? segment[0].toLowerCase()
+          : segment[0].toUpperCase(),
+    );
+    buffer.write(segment.substring(1));
+  }
+  return buffer.toString();
+}
+
+/// Whether [a] and [b] hold equal elements in the same order.
+bool _listEquals(List<Object?> a, List<Object?> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }
 
 /// A value nested in a JSON group, typed by the leaf it ends at.
@@ -1569,6 +1945,9 @@ class HWJson<T> extends HWDataType<T> {
   String kotlinGlanceJsonTextInterpolation(String dataExpr) {
     final read = kotlinReadExpr(dataExpr);
     final leaf = leafType;
+    if (leaf is HWIconData || leaf is HWImageData) {
+      return leaf.androidToString(outerValue: read, innerValue: read);
+    }
     // Already non-null: an elvis on top of it makes Kotlin warn.
     if (leaf is HWLocalizedString) return read;
     if (leaf.codegenKotlinDefaultLiteral() != null) {
@@ -1582,6 +1961,10 @@ class HWJson<T> extends HWDataType<T> {
     final read = swiftReadExpr(dataExpr);
     final leaf = leafType;
 
+    if (leaf is HWIconData || leaf is HWImageData) {
+      return leaf.iosToString(outerValue: read, innerValue: read);
+    }
+
     if (leaf is HWLocalizedString) return read;
 
     // Keep string handling compatible with iosToString quoting rules.
@@ -1593,6 +1976,13 @@ class HWJson<T> extends HWDataType<T> {
         outerValue: read,
         innerValue: read,
       );
+    }
+
+    // A number without a default stays optional here, and renders as empty
+    // text rather than as the description of an `Optional`.
+    if (leaf is HWNumericDataType &&
+        leaf.codegenSwiftDefaultLiteral() == null) {
+      return '($read).map { String(describing: \$0) } ?? ""';
     }
 
     return 'String(describing: ($read))';
@@ -1640,6 +2030,21 @@ HWImageData? imageLeafOf(HWDataType<dynamic> type) {
   if (unwrapped is HWJson) {
     final leaf = unwrapped.leafType;
     if (leaf is HWImageData) return leaf;
+  }
+  return null;
+}
+
+/// The [HWIconData] a data field ultimately describes, or null when the field
+/// is not an icon.
+///
+/// Descends the same wrappers as [imageLeafOf], so a plain, time-based or
+/// JSON-nested icon all answer with the same [HWIconData].
+HWIconData? iconLeafOf(HWDataType<dynamic> type) {
+  final unwrapped = type.unwrapped;
+  if (unwrapped is HWIconData) return unwrapped;
+  if (unwrapped is HWJson) {
+    final leaf = unwrapped.leafType;
+    if (leaf is HWIconData) return leaf;
   }
   return null;
 }
@@ -1708,6 +2113,25 @@ class HWTimedData<T> extends HWDataType<T> {
 
   @override
   String get dartType => data.dartType;
+
+  @override
+  String dartApiType(String widgetClassName) =>
+      data.dartApiType(widgetClassName);
+
+  @override
+  String dartGetDataType(String widgetClassName) =>
+      data.dartGetDataType(widgetClassName);
+
+  @override
+  String dartDecode(String expr, String widgetClassName) =>
+      data.dartDecode(expr, widgetClassName);
+
+  @override
+  String? dartEncode(String expr, String widgetClassName) =>
+      data.dartEncode(expr, widgetClassName);
+
+  @override
+  String? codegenDartDefaultLiteral() => data.codegenDartDefaultLiteral();
 
   @override
   String get kotlinType => data.kotlinType;

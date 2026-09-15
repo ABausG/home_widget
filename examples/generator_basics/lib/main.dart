@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/adaptive_greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/basic_creation.home_widget.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
+import 'package:generator_basics/src/home_widget/font_and_icons.home_widget.dart';
 import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/image_showcase.home_widget.dart';
@@ -454,6 +455,71 @@ class _HomePageState extends State<_HomePage> {
               onTap: () async {
                 await ImageShowcaseHomeWidget.deleteData(contact: true);
                 await ImageShowcaseHomeWidget.updateWidget();
+              },
+            ),
+          ],
+        ),
+
+        // -------------------------------------------------------------------
+        // Font & Icons: text in a bundled font, a hardcoded icon, and an icon
+        // the app picks out of the generated FontAndIconsMoodIcon enum.
+        // -------------------------------------------------------------------
+        WidgetSection(
+          title: 'Font & Icons',
+          description:
+              'The headline renders in Chewy, a font declared under '
+              '"flutter: fonts:" and read in place out of flutter_assets. The '
+              'heart is hardcoded in the schema; the big icon below it is '
+              'whichever mood was saved last.',
+          isInstalled: FontAndIconsHomeWidget.isInstalled,
+          isRequestPinWidgetSupported:
+              FontAndIconsHomeWidget.isRequestPinWidgetSupported,
+          requestPinWidget: FontAndIconsHomeWidget.requestPinWidget,
+          children: [
+            FutureBuilder(
+              future: FontAndIconsHomeWidget.getData(),
+              builder: (context, snapshot) {
+                final data = snapshot.data;
+                if (data == null) {
+                  return const ListTile(title: Text('Loading…'));
+                }
+                final mood = data.mood;
+                return Column(
+                  children: [
+                    ListTile(
+                      title: Text('Mood: ${mood?.name ?? 'none'}'),
+                      subtitle: const Text(
+                        'saveData(mood: FontAndIconsMoodIcon...) + '
+                        'updateWidget(). The generated enum carries the '
+                        'IconData, so the app never handles a codepoint.',
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        children: [
+                          for (final value in FontAndIconsMoodIcon.values)
+                            IconButton(
+                              icon: Icon(value.icon),
+                              tooltip: value.name,
+                              isSelected: value == mood,
+                              color: value == mood
+                                  ? Theme.of(context).colorScheme.primary
+                                  : null,
+                              onPressed: () async {
+                                await FontAndIconsHomeWidget.saveData(
+                                  mood: value,
+                                );
+                                await FontAndIconsHomeWidget.updateWidget();
+                                if (mounted) setState(() {});
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
               },
             ),
           ],

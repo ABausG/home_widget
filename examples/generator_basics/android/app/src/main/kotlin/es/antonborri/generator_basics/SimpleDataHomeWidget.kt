@@ -23,6 +23,7 @@ import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
+import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -50,7 +51,7 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = SimpleDataData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "4a13e0d1",
+            "2748e7e7",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -77,22 +78,22 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         Column {
-          Text(text = "Simple Data")
+          Text(text = "Simple Data", style = TextStyle(color = GlanceTheme.colors.onSurface))
           Row {
-            Text(text = "label: ")
-            Text(text = widgetData.label ?: "")
+            Text(text = "label: ", style = TextStyle(color = GlanceTheme.colors.onSurface))
+            Text(
+                text = widgetData.label ?: "",
+                style = TextStyle(color = GlanceTheme.colors.onSurface),
+            )
           }
           Row {
-            Text(text = "value: ")
+            Text(text = "value: ", style = TextStyle(color = GlanceTheme.colors.onSurface))
             Text(
                 text =
-                    hwFormatDecimal(
-                        (widgetData.value ?: 0L),
-                        null,
-                        null,
-                        true,
-                        hwFormatLocale(context),
-                    )
+                    widgetData.value?.let {
+                      hwFormatDecimal(it, null, null, true, hwFormatLocale(context))
+                    } ?: "",
+                style = TextStyle(color = GlanceTheme.colors.onSurface),
             )
           }
         }

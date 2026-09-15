@@ -3,6 +3,10 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import '../util/fnv_hash.dart';
 import '../util/naming.dart';
 
+/// The dp of room the Android widget root takes around the tree when
+/// `android.applyContentPadding` is left on.
+const double androidRootContentPadding = 16;
+
 /// A JSON object field grouped by its root key for native codegen.
 class JsonDataGroup {
   /// The root JSON key (e.g. `profile` in `profile.user.name`).
@@ -181,6 +185,8 @@ class WidgetSpec {
         for (final field in [...primitiveDataFields, ...timedDataFields])
           if (imageLeafOf(field) != null)
             HWImage(field)
+          else if (iconLeafOf(field) != null)
+            HWIcon.resolved(field, fontResourcePrefix: fontResourcePrefix)
           else
             HWRow(
               children: [
@@ -465,6 +471,14 @@ class WidgetSpec {
             '${field.previewAsset})';
       case HWDateTime():
         return 'date(${field.key},${field.previewIso})';
+      case HWIconData():
+        final entries = [
+          for (final entry in field.entries)
+            '${entry.name}=${entry.codePoint}'
+                '${entry.matchTextDirection ? '>rtl' : ''}',
+        ];
+        return 'icon(${field.key},${field.iconFont},${entries.join(',')},'
+            '${field.defaultValue},${field.previewValue})';
       default:
         return '${field.runtimeType}(${field.key},${field.defaultValue},'
             '${field.previewValue})';
@@ -509,6 +523,172 @@ class WidgetSpec {
 
   /// Namespace for every platform resource this widget owns.
   String get resourcePrefix => widgetResourcePrefix(className);
+
+  /// Namespace for every font file this widget owns.
+  ///
+  /// Held apart from [resourcePrefix] because the decoder stamps it onto every
+  /// icon before a spec exists, so both have to be derived from the class name
+  /// the same way.
+  String get fontResourcePrefix => hwFontResourcePrefix(toSnakeCase(className));
+
+  /// Every custom font file the widget renders text with.
+  ///
+  /// One entry per family, weight and slant the tree actually uses, which is
+  /// what the generated per-widget font tables are built from.
+  Set<HWFontVariant> get fontVariants => effectiveWidgetTree.fontVariants;
+
+  /// The icon fields this widget stores, wherever they are declared.
+  ///
+  /// Time-based and JSON wrappers are descended, so a field reaches this list
+  /// however it is spelled.
+  List<HWIconData> get iconFields => [
+        for (final field in dataFields)
+          if (iconLeafOf(field) case final icon?) icon,
+      ];
+
+  /// Every icon field paired with the dotted path saying where it is
+  /// declared; a field with no resolved entry is left out.
+  List<(String, HWIconData)> get _pathedIconFields => [
+        for (final field in dataFields)
+          if (iconLeafOf(field) case final icon?)
+            if (icon.entries.isNotEmpty) (_iconFieldPath(field), icon),
+      ];
+
+  static String _iconFieldPath(HWDataType<dynamic> field) {
+    final unwrapped = field.unwrapped;
+    if (unwrapped is HWJson<dynamic>) {
+      return [unwrapped.key, ...unwrapped.pathSegments].join('.');
+    }
+    return unwrapped.key;
+  }
+
+  /// The icon enums the generated Dart declares, by enum name, in first-seen
+  /// order: fields sharing a leaf key share one enum, merged from the union
+  /// of their entries.
+  Map<String, HWIconData> get iconEnums {
+    final merged = <String, HWIconData>{};
+    final owners = <String, String>{};
+    for (final (path, icon) in _pathedIconFields) {
+      final name = icon.enumNameFor(className);
+      final existing = merged[name];
+      if (existing == null) {
+        merged[name] = icon;
+        owners[name] = path;
+        continue;
+      }
+      merged[name] = _mergedIconEnum(
+        name: name,
+        into: existing,
+        intoPath: owners[name]!,
+        from: icon,
+        fromPath: path,
+      );
+    }
+    return merged;
+  }
+
+  /// Every glyph this widget may draw that mirrors in a right-to-left layout.
+  ///
+  /// Directionality is a property of the `IconData` constant rather than of
+  /// the field holding it, so one set covers the whole widget and no field has
+  /// to know which other fields share its enum.
+  Set<int> get mirroredIconCodePoints => {
+        for (final field in iconFields) ...field.mirroredCodePoints,
+      };
+
+  /// [into] carrying the entries of [from] as well, or a [GeneratorError] when
+  /// the two describe the same enum value differently.
+  static HWIconData _mergedIconEnum({
+    required String name,
+    required HWIconData into,
+    required String intoPath,
+    required HWIconData from,
+    required String fromPath,
+  }) {
+    final shared = 'The icon fields "$intoPath" and "$fromPath" both generate '
+        'the enum $name';
+    if (into.iconFont == null || from.iconFont == null) {
+      throw GeneratorError(
+        '$shared, but at least one of them was never resolved to an icon font. '
+        'Declare both of them in a @HomeWidget annotation.',
+      );
+    }
+    if (into.iconFont != from.iconFont) {
+      throw GeneratorError(
+        '$shared, but draw their glyphs out of different fonts '
+        '(${into.iconFont} and ${from.iconFont}). Give one of them a key of '
+        'its own.',
+      );
+    }
+
+    final entries = [...into.entries];
+    for (final entry in from.entries) {
+      final sameName = entries.indexWhere((e) => e.name == entry.name);
+      if (sameName != -1) {
+        if (entries[sameName].codePoint != entry.codePoint) {
+          throw GeneratorError(
+            '$shared, but name the icon "${entry.name}" after different '
+            'glyphs (${_glyphLiteral(entries[sameName].codePoint)} and '
+            '${_glyphLiteral(entry.codePoint)}). Give one of them a key of '
+            'its own.',
+          );
+        }
+        if (entries[sameName].matchTextDirection != entry.matchTextDirection) {
+          final directionalPath =
+              entries[sameName].matchTextDirection ? intoPath : fromPath;
+          final steadyPath =
+              entries[sameName].matchTextDirection ? fromPath : intoPath;
+          throw GeneratorError(
+            '$shared, but the icon "${entry.name}" is directional in '
+            '"$directionalPath" and not in "$steadyPath". Give one of them '
+            'a key of its own.',
+          );
+        }
+        continue;
+      }
+      final sameGlyph =
+          entries.indexWhere((e) => e.codePoint == entry.codePoint);
+      if (sameGlyph != -1) {
+        throw GeneratorError(
+          '$shared, but give the glyph ${_glyphLiteral(entry.codePoint)} the '
+          'names "${entries[sameGlyph].name}" and "${entry.name}". Only the '
+          'codepoint is stored, so the widget could never tell them apart.',
+        );
+      }
+      entries.add(entry);
+    }
+
+    // The merged enum is the union of what several fields declare, so neither
+    // field's default nor its preview value belongs to it.
+    return HWIconData.resolved(
+      into.key,
+      entries: entries,
+      iconFont: into.iconFont!,
+      defaultValue: null,
+      previewValue: null,
+    );
+  }
+
+  static String _glyphLiteral(int codePoint) =>
+      '0x${codePoint.toRadixString(16).toUpperCase()}';
+
+  /// Every icon glyph this widget can draw, per icon font.
+  ///
+  /// The tree's own icons plus every glyph [iconFields] may hold — a field the
+  /// tree never renders still travels through `saveData`, and an icon font is
+  /// subset down to exactly this set.
+  Map<HWIconFont, Set<int>> get iconCodePoints {
+    final glyphs = <HWIconFont, Set<int>>{};
+    effectiveWidgetTree.iconCodePoints.forEach((font, codePoints) {
+      glyphs.putIfAbsent(font, () => <int>{}).addAll(codePoints);
+    });
+    for (final field in iconFields) {
+      final font = field.iconFont;
+      if (font == null) continue;
+      glyphs.putIfAbsent(font, () => <int>{}).addAll(field.codePoints);
+    }
+    return glyphs;
+  }
 
   /// Resource holding the gallery title.
   String get labelResourceName => '${resourcePrefix}_label';

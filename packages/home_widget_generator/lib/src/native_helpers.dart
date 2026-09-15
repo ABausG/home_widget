@@ -26,6 +26,11 @@ import 'widgets/hw_generatable.dart';
 /// names and name what that costs in [kotlinImports] / [swiftImports], which
 /// the generator merges into the file's import block alongside the widgets'
 /// own.
+///
+/// A helper only one platform reaches for declares no body for the other; a
+/// helper without a body for a platform is emitted nowhere on it, contributes
+/// none of its imports there and is dropped from that platform's dependency
+/// closure.
 enum HWNativeHelper implements HWGeneratable {
   /// The locale every formatter runs in: the device's own, region included.
   ///
@@ -934,30 +939,232 @@ private fun hwImageExists(context: Context, path: String?): Boolean {
       'import java.io.File',
     },
     localeDependent: false,
+  ),
+
+  /// Loads a font file into a SwiftUI `Font`, or null when it holds no font.
+  ///
+  /// Creating the font from the file's own descriptor needs no registration
+  /// with the process, and registering would be actively harmful: two widgets
+  /// subset the same icon font down to different glyphs, and the two files
+  /// share a PostScript name the process would refuse the second of.
+  ///
+  /// The descriptor and the built font are each cached by path (and size, for
+  /// the font) behind a recursive lock — recursive because resolving a font
+  /// re-enters it for the descriptor.
+  ///
+  /// Android has no counterpart — a typeface comes out of the core plugin's
+  /// `HomeWidgetFonts`, which caches there — so the helper declares no Kotlin
+  /// body and nothing is emitted for it there.
+  hwFontFromURL(
+    swift: r'''
+private final class HWFontCache: @unchecked Sendable {
+  static let shared = HWFontCache()
+
+  private let lock = NSRecursiveLock()
+  private var descriptors: [String: CTFontDescriptor?] = [:]
+  private var fonts: [String: Font?] = [:]
+
+  func font(_ key: String, _ size: CGFloat, _ build: () -> Font?) -> Font? {
+    lock.lock()
+    defer { lock.unlock() }
+    let cacheKey = "\(key)|\(size)"
+    if let cached = fonts[cacheKey] { return cached }
+    let font = build()
+    fonts[cacheKey] = font
+    return font
+  }
+
+  func descriptor(_ url: URL) -> CTFontDescriptor? {
+    lock.lock()
+    defer { lock.unlock() }
+    let path = url.path
+    if let known = descriptors[path] { return known }
+    let parsed = (CTFontManagerCreateFontDescriptorsFromURL(url as CFURL)
+      as? [CTFontDescriptor])?.first
+    descriptors[path] = parsed
+    return parsed
+  }
+}
+
+func hwFontFromURL(_ url: URL, _ size: CGFloat) -> Font? {
+  return HWFontCache.shared.font(url.path, size) { () -> Font? in
+    guard let descriptor = HWFontCache.shared.descriptor(url) else { return nil }
+    return Font(CTFontCreateWithFontDescriptor(descriptor, size, nil))
+  }
+}''',
+    swiftImports: {'import CoreText', 'import SwiftUI'},
+    localeDependent: false,
+  ),
+
+  /// Reads a text font in place out of the app's `flutter_assets`.
+  ///
+  /// The widget extension is installed at `Runner.app/PlugIns/<name>.appex`, so
+  /// the containing app bundle — and with it `flutter_assets` — is two levels
+  /// up from the extension's own bundle, exactly as it is for an asset image. A
+  /// missing or unreadable file falls back to the system font rather than
+  /// leaving the text unrendered.
+  ///
+  /// Swift only, for the reason [hwFontFromURL] gives.
+  hwAssetFont(
+    swift: '''
+func hwAssetFont(_ asset: String, _ size: CGFloat) -> Font {
+  let font = HWFontCache.shared.font("asset:" + asset, size) { () -> Font? in
+    let url = Bundle.main.bundleURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+      .appendingPathComponent(asset)
+    guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+    return hwFontFromURL(url, size)
+  }
+  return font ?? .system(size: size)
+}''',
+    swiftImports: {'import SwiftUI'},
+    dependencies: [HWNativeHelper.hwFontFromURL],
+    localeDependent: false,
+  ),
+
+  /// Reads a font copied into the widget extension itself, which is where the
+  /// subset icon fonts land.
+  ///
+  /// The extension owns the file, so its name is enough to find it; the
+  /// extensions are tried in the order a font file is usually shipped in and
+  /// fall back to the system font when none of them is there.
+  ///
+  /// Swift only, for the reason [hwFontFromURL] gives.
+  hwBundledFont(
+    swift: '''
+func hwBundledFont(_ name: String, size: CGFloat) -> Font {
+  let font = HWFontCache.shared.font("bundle:" + name, size) { () -> Font? in
+    for ext in ["otf", "ttf", "ttc"] {
+      guard let url = Bundle.main.url(forResource: name, withExtension: ext)
+      else { continue }
+      if let font = hwFontFromURL(url, size) { return font }
+    }
+    return nil
+  }
+  return font ?? .system(size: size)
+}''',
+    swiftImports: {'import SwiftUI'},
+    dependencies: [HWNativeHelper.hwFontFromURL],
+    localeDependent: false,
+  ),
+
+  /// Renders a text font family at a weight and slant, whichever file that is.
+  ///
+  /// Which file a family resolves to is not decided when the widget is
+  /// generated: the app's `FontManifest.json` ships next to the fonts in
+  /// `flutter_assets` and says which file carries which weight and slant, so
+  /// the lookup runs on device and follows a pubspec that changed since. The
+  /// manifest is parsed once per process and kept behind a lock, as a widget
+  /// renders on whichever thread WidgetKit hands it.
+  ///
+  /// The file is picked the way Flutter picks it: one of the requested slant
+  /// always beats one of the wrong slant, an exact weight beats every other
+  /// weight, and otherwise the nearest weight wins — looking down from a light
+  /// target and up from a heavy one. An undeclared family falls back to the
+  /// system font, though `home_widget_cli` rejects one at generation time.
+  ///
+  /// Android has the same lookup in the core plugin's
+  /// `HomeWidgetFonts.typeface`, so the helper declares no Kotlin body.
+  hwFont(
+    swift: '''
+private final class HWFontManifest: @unchecked Sendable {
+  struct Variant {
+    let asset: String
+    let weight: Int
+    let italic: Bool
+  }
+
+  static let shared = HWFontManifest()
+
+  private let lock = NSLock()
+  private var families: [String: [Variant]]?
+
+  func variants(of family: String) -> [Variant] {
+    lock.lock()
+    defer { lock.unlock() }
+    if families == nil { families = HWFontManifest.read() }
+    return families?[family] ?? []
+  }
+
+  private static func read() -> [String: [Variant]] {
+    let url = Bundle.main.bundleURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+      .appendingPathComponent("FontManifest.json")
+    guard let data = try? Data(contentsOf: url),
+      let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+    else { return [:] }
+
+    var families: [String: [Variant]] = [:]
+    for entry in entries {
+      guard let family = entry["family"] as? String,
+        let fonts = entry["fonts"] as? [[String: Any]]
+      else { continue }
+      let variants = fonts.compactMap { font -> Variant? in
+        guard let asset = font["asset"] as? String else { return nil }
+        return Variant(
+          asset: asset,
+          weight: font["weight"] as? Int ?? 400,
+          italic: font["style"] as? String == "italic")
+      }
+      if !variants.isEmpty { families[family] = variants }
+    }
+    return families
+  }
+}
+
+func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) -> Font {
+  let variants = HWFontManifest.shared.variants(of: family)
+  let matchingStyle = variants.filter { \$0.italic == italic }
+  let pool = matchingStyle.isEmpty ? variants : matchingStyle
+  if let exact = pool.first(where: { \$0.weight == weight }) {
+    return hwAssetFont(exact.asset, size)
+  }
+  let lighter = pool.filter { \$0.weight < weight }.sorted { \$0.weight > \$1.weight }
+  let heavier = pool.filter { \$0.weight > weight }.sorted { \$0.weight < \$1.weight }
+  guard let nearest = (weight <= 400 ? lighter + heavier : heavier + lighter).first
+  else { return .system(size: size) }
+  return hwAssetFont(nearest.asset, size)
+}''',
+    swiftImports: {'import SwiftUI'},
+    dependencies: [HWNativeHelper.hwAssetFont],
+    localeDependent: false,
   );
 
   const HWNativeHelper({
-    required String swift,
-    required String kotlin,
-    this.kotlinImports = const {},
-    this.swiftImports = const {},
+    this.swift,
+    this.kotlin,
+    Set<String>? kotlinImports,
+    Set<String>? swiftImports,
     this.dependencies = const [],
     this.localeDependent = true,
-  })  : _swift = swift,
-        _kotlin = kotlin;
+  })  : _kotlinImports = kotlinImports,
+        _swiftImports = swiftImports;
 
-  final String _swift;
+  /// The iOS body, or null when the helper has no iOS counterpart.
+  final String? swift;
 
-  final String _kotlin;
+  /// The Android body, or null when the helper has no Android counterpart.
+  final String? kotlin;
 
-  /// The imports the Kotlin body's short type names stand for.
+  final Set<String>? _kotlinImports;
+
+  final Set<String>? _swiftImports;
+
+  /// The imports the Kotlin body's short type names stand for, and none at all
+  /// for a helper Android does not have.
   @override
-  final Set<String> kotlinImports;
+  Set<String> get kotlinImports =>
+      kotlin == null ? const {} : _kotlinImports ?? const {};
 
   /// The frameworks the Swift body reaches beyond the ones a widget extension
   /// already imports (Foundation, SwiftUI and WidgetKit, and UIKit through
-  /// them).
-  final Set<String> swiftImports;
+  /// them), and none at all for a helper iOS does not have.
+  Set<String> get swiftImports =>
+      swift == null ? const {} : _swiftImports ?? const {};
 
   /// The helpers these bodies call, which have to be emitted alongside them.
   final List<HWNativeHelper> dependencies;
@@ -975,11 +1182,29 @@ private fun hwImageExists(context: Context, path: String?): Boolean {
   @override
   Set<String> get swiftViewModifiers => const {};
 
-  /// The Swift body, verbatim; both arguments are ignored.
+  /// The Swift body, verbatim, or empty for a helper iOS does not have; both
+  /// arguments are ignored.
   @override
-  String toSwift(int indent, {required String dataExpr}) => _swift;
+  String toSwift(int indent, {required String dataExpr}) => swift ?? '';
 
-  /// The Kotlin body, verbatim; both arguments are ignored.
+  /// The Kotlin body, verbatim, or empty for a helper Android does not have;
+  /// both arguments are ignored.
   @override
-  String toKotlin(int indent, {required String dataExpr}) => _kotlin;
+  String toKotlin(int indent, {required String dataExpr}) => kotlin ?? '';
 }
+
+/// The ones of [helpers] Android has a body for, in the order they come in.
+///
+/// What a generator reads its helper list through, so a helper only iOS
+/// reaches for never lands in a Kotlin file as an empty function.
+Iterable<HWNativeHelper> kotlinNativeHelpers(
+  Iterable<HWNativeHelper> helpers,
+) =>
+    helpers.where((helper) => helper.kotlin != null);
+
+/// The ones of [helpers] iOS has a body for, in the order they come in; the
+/// counterpart of [kotlinNativeHelpers].
+Iterable<HWNativeHelper> swiftNativeHelpers(
+  Iterable<HWNativeHelper> helpers,
+) =>
+    helpers.where((helper) => helper.swift != null);

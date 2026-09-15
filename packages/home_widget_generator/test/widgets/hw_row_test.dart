@@ -168,7 +168,7 @@ void main() {
         final node = HWRow(children: [HWText.fixed('x')]);
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains('Row {'));
-        expect(r, contains('Text(text = "x")'));
+        expect(r, contains('Text(text = "x",'));
       });
 
       test('crossAxis .start → Top', () {
@@ -199,8 +199,8 @@ void main() {
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains('Row {'));
-        expect(r, contains('Text(text = "a")'));
-        expect(r, contains('Text(text = "b")'));
+        expect(r, contains('Text(text = "a",'));
+        expect(r, contains('Text(text = "b",'));
         expect(
           r,
           contains('Spacer(modifier = GlanceModifier.defaultWeight())'),
@@ -225,8 +225,8 @@ void main() {
               .length,
           2,
         );
-        expect(r, contains('Text(text = "a")'));
-        expect(r, contains('Text(text = "b")'));
+        expect(r, contains('Text(text = "a",'));
+        expect(r, contains('Text(text = "b",'));
       });
 
       test('mainAxis .end leads with weighted Spacer', () {
@@ -241,7 +241,7 @@ void main() {
               .length,
           1,
         );
-        expect(r, contains('Text(text = "a")'));
+        expect(r, contains('Text(text = "a",'));
       });
 
       test('mainAxis .spaceEvenly with weighted Spacers', () {
@@ -256,8 +256,8 @@ void main() {
               .length,
           3,
         );
-        expect(r, contains('Text(text = "a")'));
-        expect(r, contains('Text(text = "b")'));
+        expect(r, contains('Text(text = "a",'));
+        expect(r, contains('Text(text = "b",'));
       });
     });
   });

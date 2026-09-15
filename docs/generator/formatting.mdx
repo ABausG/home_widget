@@ -450,17 +450,18 @@ store and display it in the same zone consistently, or keep it as plain text.
 
 ## Missing values
 
-Formatting never blanks out a layout unexpectedly, but numbers and dates differ:
+A formatted value that was never stored renders as an **empty string**, the same
+way a missing `HWString` or `HWImage` renders nothing:
 
-- A **number** with no stored value and no `defaultValue` is formatted as `0`,
-  so an `HWInt` that was never saved shows `0` rather than nothing. This matches
-  what generated widgets did before formatting existed. Give the field a
-  `defaultValue` to show something else.
-- A **date** with no stored value renders as an **empty string**. There is no
+- A **number** with no stored value and no `defaultValue` renders as nothing, so
+  an `HWInt` that was never saved leaves its text blank rather than showing a
+  formatted `0`. Give the field a `defaultValue` to show something instead — a
+  default is formatted exactly like a stored value.
+- A **date** with no stored value renders as an empty string too. There is no
   `defaultValue` for `HWDateTime`, and an unparseable stored value is treated
   the same way as a missing one.
 
-To show a placeholder instead of an empty date, guard it with
+To show a placeholder instead of empty text, guard the field with
 [`HWDataExists`](/generator/widgets/hw-conditional):
 
 ```dart

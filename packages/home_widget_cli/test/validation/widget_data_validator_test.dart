@@ -1,4 +1,3 @@
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/validation/widget_data_validator.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
@@ -27,6 +26,42 @@ void main() {
             ),
           ),
         ),
+      );
+    });
+
+    test('accepts an icon field whose enum is well formed', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWIconData.resolved(
+              'mood',
+              entries: [
+                HWIconEntry('happy', 0xE88A),
+                HWIconEntry('sad', 0xE25B),
+              ],
+              iconFont: HWIconFont(family: 'BrandIcons'),
+            ),
+          ]),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an icon field naming one icon twice', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWIconData.resolved(
+              'mood',
+              entries: [
+                HWIconEntry('happy', 0xE88A),
+                HWIconEntry('happy', 0xE25B),
+              ],
+              iconFont: HWIconFont(family: 'BrandIcons'),
+            ),
+          ]),
+        ),
+        _throwsMessage(allOf(contains('"mood"'), contains('"happy"'))),
       );
     });
 

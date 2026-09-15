@@ -8,18 +8,10 @@
 ///   idempotent and reviewable.
 library;
 
-/// 32-bit FNV-1a hash.
-int fnv1a32(String input) {
-  const int fnvOffsetBasis = 0x811C9DC5;
-  const int fnvPrime = 0x01000193;
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 
-  var hash = fnvOffsetBasis;
-  for (final unit in input.codeUnits) {
-    hash ^= unit;
-    hash = (hash * fnvPrime) & 0xFFFFFFFF;
-  }
-  return hash;
-}
+export 'package:home_widget_generator/home_widget_generator_cli.dart'
+    show fnv1a32;
 
 /// Generates a 24-hex-character Xcode object ID (uppercase).
 ///

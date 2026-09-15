@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
@@ -633,14 +632,67 @@ void main() {
     );
     expect(
       content,
-      contains('Text(text = "count: ")'),
+      contains(
+        'Text(text = "count: ", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
     );
     expect(
       content,
       contains(
-        'Text(text = hwFormatDecimal((widgetData.count ?: 0L), '
-        'null, null, true, hwFormatLocale(context)))',
+        'Text(text = widgetData.count?.let { hwFormatDecimal(it, '
+        'null, null, true, hwFormatLocale(context)) } ?: "", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
       ),
+    );
+  });
+
+  test('renders a missing number as empty text, a default as itself', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NumbersWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'NumbersWidget',
+      dataFields: const [
+        HWInt('count'),
+        HWDouble('ratio'),
+        HWInt('score', defaultValue: 7),
+      ],
+      widgetTree: const HWColumn(
+        children: [
+          HWText(HWInt('count')),
+          HWText(HWDouble('ratio')),
+          HWText(HWInt('score', defaultValue: 7)),
+        ],
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/example/NumbersWidgetHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(content, contains('val count: Long? = null,'));
+    expect(content, contains('val ratio: Double? = null,'));
+    expect(
+      content,
+      contains('widgetData.count?.let { hwFormatDecimal(it, null, null, true, '
+          'hwFormatLocale(context)) } ?: ""'),
+    );
+    expect(
+      content,
+      contains('widgetData.ratio?.let { hwFormatDecimal(it, null, null, true, '
+          'hwFormatLocale(context)) } ?: ""'),
+    );
+    expect(
+      content,
+      contains('hwFormatDecimal((widgetData.score ?: 7L), null, null, true, '
+          'hwFormatLocale(context))'),
     );
   });
 
@@ -846,7 +898,13 @@ void main() {
       content,
       contains('val widgetData = TimedWidgetData.fromPreferences(prefs)'),
     );
-    expect(content, contains('Text(text = widgetData.label ?: "")'));
+    expect(
+      content,
+      contains(
+        'Text(text = widgetData.label ?: "", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
+    );
   });
 
   test('generates Kotlin widget with timed JSON data classes', () async {
@@ -899,7 +957,10 @@ void main() {
     expect(content, isNot(contains('import java.io.File')));
     expect(
       content,
-      contains('Text(text = widgetData.weather?.wind?.direction ?: "")'),
+      contains(
+        'Text(text = widgetData.weather?.wind?.direction ?: "", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
     );
   });
 
@@ -1250,6 +1311,122 @@ void main() {
     expect(content, contains('import androidx.glance.GlanceTheme'));
   });
 
+  group('custom-font text', () {
+    Future<String> generate(HWWidget tree) async {
+      writeLauncherManifest(tempDir, package: 'com.fonts');
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'FontWidget',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.fonts'),
+        ),
+        className: 'FontWidget',
+        widgetTree: tree,
+      );
+
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(
+          tempDir.path,
+          'android/app/src/main/kotlin/com/fonts/FontWidgetHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    test('composes against the size the launcher actually gave', () async {
+      final content = await generate(
+        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+      );
+
+      expect(
+        content,
+        contains('  override val sizeMode: SizeMode = SizeMode.Exact'),
+      );
+      expect(content, contains('import androidx.glance.appwidget.SizeMode'));
+    });
+
+    test('measures the room its text takes before it renders', () async {
+      final content = await generate(
+        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+      );
+
+      expect(
+        content,
+        contains(
+          '  override suspend fun provideGlance(context: Context, id: GlanceId)'
+          ' {\n'
+          '    val measuring: (HomeWidgetFonts.TextBounds) -> GlanceAppWidget '
+          '= { bounds ->\n'
+          '      object : GlanceAppWidget() {\n'
+          '        override suspend fun provideGlance(context: Context, '
+          'id: GlanceId) {\n'
+          '          provideContent { WidgetContent(context, '
+          'HomeWidgetGlanceState(HomeWidgetPlugin.getData(context)), '
+          'textBounds = bounds) }\n'
+          '        }\n'
+          '      }\n'
+          '    }\n'
+          '    val measured = HomeWidgetFonts.measureTextBounds(context, id, '
+          'measuring)\n'
+          '    provideContent {\n'
+          '      val size = LocalSize.current\n'
+          '      var textBounds by remember { mutableStateOf(measured) }\n'
+          '      LaunchedEffect(size) {\n'
+          '        if (!textBounds.covers(size)) {\n'
+          '          textBounds += HomeWidgetFonts.measureTextBounds(context, '
+          'id, size, measuring)\n'
+          '        }\n'
+          '      }\n'
+          '      WidgetContent(context, currentState(), '
+          'textBounds = textBounds)\n'
+          '    }\n'
+          '  }\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '  private fun WidgetContent(context: Context, '
+          'currentState: HomeWidgetGlanceState, '
+          'textBounds: HomeWidgetFonts.TextBounds) {',
+        ),
+      );
+      expect(
+        content,
+        contains('import es.antonborri.home_widget.HomeWidgetFonts'),
+      );
+      expect(content, contains('textBounds.width('));
+      expect(content, isNot(contains('LocalSize.current.width.value')));
+    });
+
+    test('draws the gallery preview against no measured room', () async {
+      final content = await generate(
+        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+      );
+
+      expect(
+        content,
+        contains(
+          '    provideContent { WidgetContent(context, HomeWidgetGlanceState('
+          'HomeWidgetPlugin.getData(context)), '
+          'textBounds = HomeWidgetFonts.TextBounds.NONE) }',
+        ),
+      );
+    });
+
+    test('leaves the size mode alone for a widget without one', () async {
+      final content = await generate(const HWText.fixed('Hi'));
+
+      expect(content, isNot(contains('sizeMode')));
+      expect(content, isNot(contains('SizeMode')));
+      expect(content, isNot(contains('textBounds')));
+      expect(
+        content,
+        contains('    provideContent { WidgetContent(context, '
+            'currentState()) }'),
+      );
+    });
+  });
+
   test('generates Kotlin widget with HWDataOnly as root widget', () async {
     writeLauncherManifest(tempDir);
     final spec = WidgetSpec(
@@ -1293,7 +1470,13 @@ void main() {
       ),
     );
     expect(content, contains('GlanceTheme {'));
-    expect(content, contains('Text(text = "Simple Data")'));
+    expect(
+      content,
+      contains(
+        'Text(text = "Simple Data", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      ),
+    );
   });
 
   test(
@@ -1821,15 +2004,17 @@ void main() {
       expect(
         content,
         contains(
-          'Text(text = hwFormatCurrency((widgetData.total ?: 0.0), '
-          'widgetData.currency ?: "", null, hwFormatLocale(context)))',
+          'Text(text = widgetData.total?.let { hwFormatCurrency(it, '
+          'widgetData.currency ?: "", null, hwFormatLocale(context)) } ?: "", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );
       expect(
         content,
         contains(
           'Text(text = widgetData.placedAt?.let { hwFormatDateSkeleton(it, '
-          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "")',
+          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );
 

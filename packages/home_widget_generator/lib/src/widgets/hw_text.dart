@@ -12,7 +12,7 @@ part of 'hw_widget.dart';
 ///   same way
 /// - `HWText.dateTime(HWDateTime('key'), format: ...)` -- data-bound date,
 ///   formatted in the device's locale and time zone
-class HWText extends HWWidget implements HWDataWidget {
+class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   final String? fixedContent;
 
   final HWDataType<dynamic>? dataType;
@@ -94,7 +94,8 @@ class HWText extends HWWidget implements HWDataWidget {
   }
 
   /// The native functions rendering this text: the format's, the time zone's,
-  /// and whatever displaying the bound value itself goes through.
+  /// the custom font's, and whatever displaying the bound value itself goes
+  /// through.
   @override
   Set<HWNativeHelper> get renderHelpers => {
         if (effectiveNumberFormat case final format?) format.helper,
@@ -102,23 +103,22 @@ class HWText extends HWWidget implements HWDataWidget {
           format.helper,
           ...timeZone.helpers,
         ],
+        if (fontVariant != null) HWNativeHelper.hwFont,
         ...?dataType?.renderHelpers,
       };
 
+  /// The font file this text renders with, or null when it renders in the
+  /// platform's own font.
   @override
-  Set<String> get kotlinImports {
-    final imports = <String>{
-      'import androidx.glance.text.Text',
-      'import androidx.glance.text.TextStyle',
-    };
-    if (style != null) {
-      imports.addAll(style!.kotlinImports);
-    }
-    if (textAlign != null) {
-      imports.add('import androidx.glance.text.TextAlign');
-    }
-    return imports;
-  }
+  HWFontVariant? get fontVariant => style?.fontVariant;
+
+  /// How Android renders this text: as a Glance `Text`, or as the bitmap a
+  /// custom family takes, which is what its imports follow.
+  HWKotlinTextRenderer get _kotlinRenderer =>
+      (style ?? const HWTextStyle()).kotlinRenderer(textAlign: textAlign);
+
+  @override
+  Set<String> get kotlinImports => _kotlinRenderer.kotlinImports;
 
   @override
   Set<String> get swiftViewModifiers {
@@ -485,30 +485,14 @@ class HWText extends HWWidget implements HWDataWidget {
 
   @override
   String toKotlin(int indent, {required String dataExpr}) {
-    final pad = '    ' * indent; // Use 4 spaces per indent level
     final textValue = _kotlinTextValue(dataExpr);
+    if (textValue == null) return '';
 
-    var textArgs = textValue == null ? '' : 'text = $textValue';
-
-    if (textArgs.isNotEmpty) {
-      final styleCode = style?.toKotlin(indent, dataExpr: dataExpr) ?? '';
-
-      if (textAlign != null) {
-        final alignCode = 'textAlign = ${_kotlinTextAlign(textAlign!)}';
-        if (styleCode.isEmpty) {
-          textArgs += ', style = TextStyle($alignCode)';
-        } else {
-          final newStyleCode = styleCode.replaceFirst(')', ', $alignCode)');
-          textArgs += ', style = $newStyleCode';
-        }
-      } else if (styleCode.isNotEmpty) {
-        textArgs += ', style = $styleCode';
-      }
-
-      return '${pad}Text($textArgs)';
-    }
-
-    return '';
+    return _kotlinRenderer.toKotlin(
+      indent,
+      dataExpr: dataExpr,
+      text: textValue,
+    );
   }
 
   String _swiftTextAlign(HWTextAlign align) {
@@ -521,19 +505,6 @@ class HWText extends HWWidget implements HWDataWidget {
         return '.center';
       case HWTextAlign.justify:
         return '.leading'; // default LTR fallback
-    }
-  }
-
-  String _kotlinTextAlign(HWTextAlign align) {
-    switch (align) {
-      case HWTextAlign.start:
-        return 'TextAlign.Start';
-      case HWTextAlign.end:
-        return 'TextAlign.End';
-      case HWTextAlign.center:
-        return 'TextAlign.Center';
-      case HWTextAlign.justify:
-        return 'TextAlign.Start'; // default fallback
     }
   }
 }

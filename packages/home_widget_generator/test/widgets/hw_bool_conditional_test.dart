@@ -57,13 +57,15 @@ void main() {
         expect(
           code,
           equals('if (widgetData.myBool == true) {\n'
-              '    Text(text = "True")\n'
+              '    Text(text = "True", '
+              'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
               '} else {\n'
-              '    Text(text = "False")\n'
+              '    Text(text = "False", '
+              'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
               '}'),
         );
         expect(code, contains('if (widgetData.myBool == true)'));
-        expect(code, contains('Text(text = "True")'));
+        expect(code, contains('Text(text = "True",'));
       });
 
       test('supports JSON child bool conditions', () {
