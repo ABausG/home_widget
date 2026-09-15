@@ -1,6 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
-import '../generator_error.dart';
 import '../models/widget_spec.dart';
 import '../util/logger.dart';
 

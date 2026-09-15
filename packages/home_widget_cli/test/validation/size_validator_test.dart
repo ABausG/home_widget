@@ -1,4 +1,3 @@
-import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_cli/src/validation/size_validator.dart';

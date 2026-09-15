@@ -2542,7 +2542,7 @@ dependencies {
 
       expect(content, isNot(contains('SizeMode.Responsive')));
       expect(content, isNot(contains('when (LocalSize.current)')));
-      expect(content, contains('Text(text = "M")'));
+      expect(content, contains('Text(text = "M",'));
     });
 
     test('wraps the branching root in the full-size Box', () async {
@@ -2586,7 +2586,7 @@ dependencies {
           'Text(modifier = GlanceModifier'
           '.clickable(onClick = actionStartActivity<MainActivity>())'
           '.padding(16.dp).background(GlanceTheme.colors.widgetBackground), '
-          'text = "M")',
+          'text = "M",',
         ),
       );
       expect(
@@ -2595,9 +2595,28 @@ dependencies {
           'Text(modifier = GlanceModifier'
           '.clickable(onClick = actionStartActivity<MainActivity>())'
           '.padding(16.dp).background(GlanceTheme.colors.widgetBackground), '
-          'text = "S")',
+          'text = "S",',
         ),
       );
+    });
+
+    test('keeps sizeMode responsive when slots render custom-font text',
+        () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: const HWText.fixed(
+            'S',
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+          medium: const HWText.fixed(
+            'M',
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ),
+      );
+
+      expect(content, contains('override val sizeMode = SizeMode.Responsive('));
+      expect(content, isNot(contains('SizeMode.Exact')));
     });
   });
 }

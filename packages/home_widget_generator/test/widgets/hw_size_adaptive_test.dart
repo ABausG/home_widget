@@ -3,7 +3,6 @@ import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:home_widget_generator/src/generator_error.dart';
 import 'package:home_widget_generator/src/parser/widget_tree_parser.dart';
 import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
@@ -560,7 +559,10 @@ VStack {
     group('Android (Glance)', () {
       test('a single reachable widget collapses to no when', () {
         const adaptive = HWSizeAdaptive(small: _small);
-        expect(adaptive.toKotlin(0, dataExpr: 'd'), 'Text(text = "s")');
+        expect(
+          adaptive.toKotlin(0, dataExpr: 'd'),
+          'Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))',
+        );
       });
 
       test('branches compare against the declared sizes', () {
@@ -572,13 +574,13 @@ VStack {
         expect(adaptive.toKotlin(0, dataExpr: 'd'), '''
 when (LocalSize.current) {
     DpSize(250.dp, 110.dp) -> {
-        Text(text = "m")
+        Text(text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
     DpSize(250.dp, 250.dp) -> {
-        Text(text = "l")
+        Text(text = "l", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
     else -> {
-        Text(text = "s")
+        Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
 }''');
       });
@@ -600,10 +602,10 @@ when (LocalSize.current) {
           '''
 when (LocalSize.current) {
     DpSize(250.dp, 110.dp), DpSize(250.dp, 250.dp) -> {
-        Text(text = "m")
+        Text(text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
     else -> {
-        Text(text = "s")
+        Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
 }''',
         );
@@ -635,7 +637,10 @@ when (LocalSize.current) {
           accessoryCircular: _circular,
           accessoryInline: _inline,
         );
-        expect(adaptive.toKotlin(0, dataExpr: 'd'), 'Text(text = "c")');
+        expect(
+          adaptive.toKotlin(0, dataExpr: 'd'),
+          'Text(text = "c", style = TextStyle(color = GlanceTheme.colors.onSurface))',
+        );
       });
 
       test('androidSizes replaces the declared size of a family', () {
@@ -647,10 +652,10 @@ when (LocalSize.current) {
         expect(adaptive.toKotlin(0, dataExpr: 'd'), '''
 when (LocalSize.current) {
     DpSize(200.dp, 100.dp) -> {
-        Text(text = "m")
+        Text(text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
     else -> {
-        Text(text = "s")
+        Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
 }''');
       });
@@ -699,10 +704,10 @@ when (LocalSize.current) {
           '''
 when (LocalSize.current) {
     DpSize(300.dp, 112.5.dp) -> {
-        Text(text = "m")
+        Text(text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
     else -> {
-        Text(text = "s")
+        Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
     }
 }''',
         );
@@ -713,10 +718,10 @@ when (LocalSize.current) {
         expect(adaptive.toKotlin(1, dataExpr: 'd'), '''
     when (LocalSize.current) {
         DpSize(250.dp, 110.dp) -> {
-            Text(text = "m")
+            Text(text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))
         }
         else -> {
-            Text(text = "s")
+            Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
         }
     }''');
       });
@@ -739,7 +744,7 @@ when (LocalSize.current) {
           ),
           '''
 Column {
-    Text(text = "s")
+    Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
 }''',
         );
       });

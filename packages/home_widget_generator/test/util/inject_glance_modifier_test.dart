@@ -194,10 +194,10 @@ void main() {
         ),
         'when (LocalSize.current) {\n'
         '    DpSize(250.dp, 110.dp) -> {\n'
-        '        Text(modifier = GlanceModifier.fillMaxSize(), text = "m")\n'
+        '        Text(modifier = GlanceModifier.fillMaxSize(), text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
         '    }\n'
         '    else -> {\n'
-        '        Text(modifier = GlanceModifier.fillMaxSize(), text = "s")\n'
+        '        Text(modifier = GlanceModifier.fillMaxSize(), text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
         '    }\n'
         '}',
       );
