@@ -29,14 +29,24 @@ class HWFill extends HWSingleChildWidget {
   }
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
-    final childCode = child.toSwift(indent, dataExpr: dataExpr);
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    final childCode =
+        child.toSwift(indent, dataExpr: dataExpr, context: context);
     return applySwiftModifier(childCode, _swiftModifier, indent);
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    final childCode = child.toKotlin(indent, dataExpr: dataExpr);
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    final childCode =
+        child.toKotlin(indent, dataExpr: dataExpr, context: context);
 
     // Uses a local regex helper to securely inject the fillMaxSize
     // modifier into the child's top-level Glance composable.

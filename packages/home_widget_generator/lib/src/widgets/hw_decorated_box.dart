@@ -108,8 +108,12 @@ class HWDecoratedBox extends HWSingleChildWidget {
   }
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
-    var viewCall = child.toSwift(indent, dataExpr: dataExpr);
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    var viewCall = child.toSwift(indent, dataExpr: dataExpr, context: context);
     final border = decoration.border;
     final color = decoration.color;
 
@@ -135,12 +139,17 @@ class HWDecoratedBox extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final border = decoration.border;
     final color = decoration.color;
 
     if (border == null) {
-      final childCode = child.toKotlin(indent, dataExpr: dataExpr);
+      final childCode =
+          child.toKotlin(indent, dataExpr: dataExpr, context: context);
       if (color == null) return childCode;
 
       return injectGlanceModifier(
@@ -162,7 +171,8 @@ class HWDecoratedBox extends HWSingleChildWidget {
       'padding(${border.thickness}.dp)',
     ].join('.');
 
-    final childCode = child.toKotlin(indent + 2, dataExpr: dataExpr);
+    final childCode =
+        child.toKotlin(indent + 2, dataExpr: dataExpr, context: context);
 
     if (color == null) {
       return '${pad}Box(\n'

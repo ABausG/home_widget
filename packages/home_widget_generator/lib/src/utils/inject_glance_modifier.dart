@@ -29,6 +29,115 @@
   return null;
 }
 
+/// Matches the separator between two branches of an `if` chain, i.e. the
+/// `} else {` / `} else if (...) {` glue (the trailing `{` excluded).
+final _elseSeparator = RegExp(r'^\}\s*else\b[^{]*$', dotAll: true);
+
+/// Returns the index of the `}` matching the `{` at [openIndex], or `-1`.
+///
+/// Braces inside a Kotlin string or character literal are text, not structure,
+/// so a branch rendering `Text(text = "}")` still finds its own closing brace.
+int _matchingBrace(String code, int openIndex) {
+  var depth = 0;
+  for (var i = openIndex; i < code.length; i++) {
+    final char = code[i];
+    if (char == '"' || char == "'") {
+      i = _endOfLiteral(code, i);
+      continue;
+    }
+    if (char == '{') {
+      depth++;
+    } else if (char == '}') {
+      depth--;
+      if (depth == 0) return i;
+    }
+  }
+  return -1;
+}
+
+/// Returns the index of the quote closing the literal opened at [openIndex],
+/// or the last index of [code] when the literal is never closed.
+int _endOfLiteral(String code, int openIndex) {
+  final quote = code[openIndex];
+  for (var i = openIndex + 1; i < code.length; i++) {
+    if (code[i] == r'\') {
+      i++;
+      continue;
+    }
+    if (code[i] == quote) return i;
+  }
+  return code.length - 1;
+}
+
+/// Injects [modifier] into every branch block of an `if` / `else if` / `else`
+/// chain, recursing into nested branches.
+///
+/// Returns null when [code] holds no brace-delimited branch, so the caller can
+/// fall back to its other strategies.
+String? _injectIntoIfBranches(String code, String modifier) {
+  var cursor = 0;
+  final buffer = StringBuffer();
+
+  while (true) {
+    final open = code.indexOf('{', cursor);
+    if (open == -1) break;
+
+    final close = _matchingBrace(code, open);
+    if (close == -1) break;
+
+    buffer
+      ..write(code.substring(cursor, open + 1))
+      ..write(injectGlanceModifier(code.substring(open + 1, close), modifier));
+    cursor = close;
+
+    // Continue only while the blocks are chained by `else` / `else if`.
+    final nextOpen = code.indexOf('{', close);
+    if (nextOpen == -1) break;
+    if (!_elseSeparator.hasMatch(code.substring(close, nextOpen))) break;
+  }
+
+  if (buffer.isEmpty) return null;
+
+  buffer.write(code.substring(cursor));
+  return buffer.toString();
+}
+
+/// Injects [modifier] into the body of every `… -> { }` branch of a `when`
+/// statement, recursing into nested branches.
+///
+/// Returns null when [code] holds no such branch.
+String? _injectIntoWhenBranches(String code, String modifier) {
+  final bodyOpen = code.indexOf('{');
+  if (bodyOpen == -1) return null;
+
+  final bodyClose = _matchingBrace(code, bodyOpen);
+  if (bodyClose == -1) return null;
+
+  final buffer = StringBuffer();
+  var cursor = 0;
+
+  while (true) {
+    final arrow = code.indexOf('->', cursor);
+    if (arrow == -1 || arrow > bodyClose) break;
+
+    final open = code.indexOf('{', arrow);
+    if (open == -1 || open > bodyClose) break;
+
+    final close = _matchingBrace(code, open);
+    if (close == -1) break;
+
+    buffer
+      ..write(code.substring(cursor, open + 1))
+      ..write(injectGlanceModifier(code.substring(open + 1, close), modifier));
+    cursor = close;
+  }
+
+  if (buffer.isEmpty) return null;
+
+  buffer.write(code.substring(cursor));
+  return buffer.toString();
+}
+
 /// Helper to parse a typical Compose call (e.g. `Column {` or `Text(...)`)
 /// and inject a modifier string (e.g. `fillMaxSize()`).
 String injectGlanceModifier(String code, String modifier) {
@@ -40,62 +149,13 @@ String injectGlanceModifier(String code, String modifier) {
   final indent = indentMatch?.group(1) ?? '';
 
   if (trimmed.startsWith('if (')) {
-    final firstBraceIndex = code.indexOf('{');
-    if (firstBraceIndex != -1) {
-      int openBraces = 0;
-      int firstBraceEnd = -1;
-      for (int i = firstBraceIndex; i < code.length; i++) {
-        if (code[i] == '{') {
-          openBraces++;
-        } else if (code[i] == '}') {
-          openBraces--;
-          if (openBraces == 0) {
-            firstBraceEnd = i;
-            break;
-          }
-        }
-      }
+    final injected = _injectIntoIfBranches(code, modifier);
+    if (injected != null) return injected;
+  }
 
-      if (firstBraceEnd != -1) {
-        final firstBlockContent =
-            code.substring(firstBraceIndex + 1, firstBraceEnd);
-        final injectedFirst = injectGlanceModifier(firstBlockContent, modifier);
-
-        int secondBraceIndex = code.indexOf('{', firstBraceEnd + 1);
-        int secondBraceEnd = -1;
-        if (secondBraceIndex != -1) {
-          openBraces = 0;
-          for (int i = secondBraceIndex; i < code.length; i++) {
-            if (code[i] == '{') {
-              openBraces++;
-            } else if (code[i] == '}') {
-              openBraces--;
-              if (openBraces == 0) {
-                secondBraceEnd = i;
-                break;
-              }
-            }
-          }
-        }
-
-        if (secondBraceEnd != -1) {
-          final secondBlockContent =
-              code.substring(secondBraceIndex + 1, secondBraceEnd);
-          final injectedSecond =
-              injectGlanceModifier(secondBlockContent, modifier);
-
-          return code.substring(0, firstBraceIndex + 1) +
-              injectedFirst +
-              code.substring(firstBraceEnd, secondBraceIndex + 1) +
-              injectedSecond +
-              code.substring(secondBraceEnd);
-        } else {
-          return code.substring(0, firstBraceIndex + 1) +
-              injectedFirst +
-              code.substring(firstBraceEnd);
-        }
-      }
-    }
+  if (trimmed.startsWith('when (')) {
+    final injected = _injectIntoWhenBranches(code, modifier);
+    if (injected != null) return injected;
   }
 
   final compMatch = RegExp(r'^[A-Z][a-zA-Z0-9_]*').firstMatch(trimmed);

@@ -303,4 +303,67 @@ class FontAndIcons {}
     expectsScheduledUpdateWiring: true,
     fontFamilies: {'Chewy': 'assets/fonts/Chewy-Regular.ttf'},
   ),
+  BuildScenario(
+    description: 'renders size-adaptive content per family',
+    className: 'SizeAdaptive',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Size Adaptive',
+  android: HomeWidgetAndroidConfiguration(
+    targetCellWidth: 2,
+    targetCellHeight: 2,
+    resizeMode: HWAndroidResizeMode.horizontalAndVertical,
+  ),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.cliTest',
+    supportedFamilies: [
+      HWWidgetFamily.systemSmall,
+      HWWidgetFamily.systemMedium,
+      HWWidgetFamily.systemLarge,
+      HWWidgetFamily.systemExtraLarge,
+      HWWidgetFamily.systemExtraLargePortrait,
+      HWWidgetFamily.accessoryCircular,
+      HWWidgetFamily.accessoryRectangular,
+      HWWidgetFamily.accessoryInline,
+    ],
+  ),
+  widget: HWSizeAdaptive(
+    small: HWText(HWString('headline')),
+    medium: HWRow(
+      children: [
+        HWText(HWString('headline')),
+        HWText.fixed(' · '),
+        HWText(HWInt('streak')),
+      ],
+    ),
+    large: HWColumn(
+      children: [
+        HWText(HWString('headline')),
+        HWText(HWString('label')),
+        HWText(HWInt('streak')),
+      ],
+    ),
+    extraLargePortrait: HWColumn(
+      children: [
+        HWText(HWString('headline')),
+        HWText(HWString('label')),
+        HWText(HWInt('streak')),
+        HWText.fixed('portrait'),
+      ],
+    ),
+    accessoryCircular: HWText(HWInt('streak')),
+    accessoryRectangular: HWRow(
+      children: [
+        HWText(HWString('label')),
+        HWText(HWInt('streak')),
+      ],
+    ),
+    accessoryInline: HWText(HWString('headline')),
+  ),
+)
+class SizeAdaptive {}
+''',
+  ),
 ];

@@ -120,6 +120,7 @@
         { "title": "HWImage", "href": "/generator/widgets/hw-image" },
         { "title": "HWPadding", "href": "/generator/widgets/hw-padding" },
         { "title": "HWRow", "href": "/generator/widgets/hw-row" },
+        { "title": "HWSizeAdaptive", "href": "/generator/widgets/hw-size-adaptive" },
         { "title": "HWText", "href": "/generator/widgets/hw-text" }
       ]
     },

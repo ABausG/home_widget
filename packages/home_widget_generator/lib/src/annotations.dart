@@ -1,6 +1,7 @@
 import 'utils/content_hash.dart';
 import 'utils/map_equals.dart';
 import 'widgets/hw_color.dart';
+import 'widgets/hw_size.dart';
 import 'widgets/hw_widget.dart';
 
 /// The rules by which a widget can be resized.
@@ -241,6 +242,11 @@ enum HWWidgetFamily {
   /// An extra-large widget.
   systemExtraLarge,
 
+  /// An extra-large widget in portrait orientation.
+  ///
+  /// Available on iOS and iPadOS 27.
+  systemExtraLargePortrait,
+
   /// A circular accessory widget.
   accessoryCircular,
 
@@ -248,7 +254,92 @@ enum HWWidgetFamily {
   accessoryRectangular,
 
   /// An inline accessory widget.
-  accessoryInline,
+  accessoryInline;
+
+  /// Whether this is one of the Lock Screen accessory families.
+  bool get isAccessory =>
+      this == accessoryCircular ||
+      this == accessoryRectangular ||
+      this == accessoryInline;
+
+  /// The name of the [HWSizeAdaptive] slot carrying this family's content.
+  String get slotName => switch (this) {
+        HWWidgetFamily.systemSmall => 'small',
+        HWWidgetFamily.systemMedium => 'medium',
+        HWWidgetFamily.systemLarge => 'large',
+        HWWidgetFamily.systemExtraLarge => 'extraLarge',
+        HWWidgetFamily.systemExtraLargePortrait => 'extraLargePortrait',
+        HWWidgetFamily.accessoryCircular => 'accessoryCircular',
+        HWWidgetFamily.accessoryRectangular => 'accessoryRectangular',
+        HWWidgetFamily.accessoryInline => 'accessoryInline',
+      };
+
+  /// The Swift compiler version whose toolchain first knows the matching
+  /// `WidgetFamily` case, or null when every targeted toolchain has it.
+  ///
+  /// Naming a case an older toolchain lacks does not compile, so both the
+  /// generated `switch` case and the `supportedFamilies` append sit inside
+  /// `#if compiler(>=<this>)`.
+  String? get swiftCompilerGate =>
+      this == systemExtraLargePortrait ? '6.4' : null;
+
+  /// The families tried, in order, when this one has no content of its own.
+  ///
+  /// The chain only ever goes down: content designed for a smaller box is safe
+  /// in a bigger one, the reverse is not. The portrait extra-large skips the
+  /// landscape one, and the three accessory families are distinct shapes that
+  /// fall back to nothing.
+  List<HWWidgetFamily> get fallbackChain => switch (this) {
+        HWWidgetFamily.systemSmall => const [],
+        HWWidgetFamily.systemMedium => const [HWWidgetFamily.systemSmall],
+        HWWidgetFamily.systemLarge => const [
+            HWWidgetFamily.systemMedium,
+            HWWidgetFamily.systemSmall,
+          ],
+        HWWidgetFamily.systemExtraLarge ||
+        HWWidgetFamily.systemExtraLargePortrait =>
+          const [
+            HWWidgetFamily.systemLarge,
+            HWWidgetFamily.systemMedium,
+            HWWidgetFamily.systemSmall,
+          ],
+        HWWidgetFamily.accessoryCircular ||
+        HWWidgetFamily.accessoryRectangular ||
+        HWWidgetFamily.accessoryInline =>
+          const [],
+      };
+
+  /// The home-screen grid footprint on Android, or null for an accessory
+  /// family.
+  ({int columns, int rows})? get androidCells => switch (this) {
+        HWWidgetFamily.systemSmall => (columns: 2, rows: 2),
+        HWWidgetFamily.systemMedium => (columns: 4, rows: 2),
+        HWWidgetFamily.systemLarge => (columns: 4, rows: 4),
+        HWWidgetFamily.systemExtraLarge => (columns: 8, rows: 4),
+        HWWidgetFamily.systemExtraLargePortrait => (columns: 4, rows: 8),
+        HWWidgetFamily.accessoryCircular ||
+        HWWidgetFamily.accessoryRectangular ||
+        HWWidgetFamily.accessoryInline =>
+          null,
+      };
+
+  /// The dp size declared to Glance for [androidCells], or null for an
+  /// accessory family.
+  HWSize? get androidSize {
+    final cells = androidCells;
+    return cells == null ? null : HWSize.fromCells(cells.columns, cells.rows);
+  }
+
+  /// The [androidSize] of every system family, with [overrides] replacing
+  /// individual entries.
+  static Map<HWWidgetFamily, HWSize> androidSizeTable([
+    Map<HWWidgetFamily, HWSize>? overrides,
+  ]) =>
+      {
+        for (final family in values)
+          if (family.androidSize case final size?) family: size,
+        ...?overrides,
+      };
 }
 
 /// Configuration for the iOS widget.

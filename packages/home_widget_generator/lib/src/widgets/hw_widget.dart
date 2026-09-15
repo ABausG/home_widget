@@ -1,4 +1,5 @@
 import 'package:analyzer/dart/constant/value.dart';
+import '../annotations.dart';
 import '../fonts.dart';
 import '../formats.dart';
 import '../generator_error.dart';
@@ -7,10 +8,13 @@ import '../parser/widget_value_decoder.dart';
 import '../types.dart';
 import '../utils/apply_swift_modifier.dart';
 import '../utils/inject_glance_modifier.dart';
+import '../utils/map_equals.dart';
 import '../utils/string_literals.dart';
 import 'hw_alignment.dart';
 import 'hw_color.dart';
+import 'hw_emit_context.dart';
 import 'hw_generatable.dart';
+import 'hw_size.dart';
 import 'hw_text_style.dart';
 import 'hw_edge_insets.dart';
 
@@ -26,6 +30,7 @@ part 'hw_colored_box.dart';
 part 'hw_decorated_box.dart';
 part 'hw_padding.dart';
 part 'hw_conditional.dart';
+part 'hw_size_adaptive.dart';
 
 /// Base class for widgets that accept a single child (e.g. Expanded).
 sealed class HWSingleChildWidget extends HWWidget {
@@ -182,20 +187,26 @@ sealed class HWWidget implements HWGeneratable {
   /// [indent] is the number of indentation levels (4 spaces each).
   /// [dataExpr] is the Swift expression to access data fields (e.g. "entry.widgetData").
   /// [dataFields] maps field keys to their types (e.g. 'title' -> HWString()).
+  /// [context] carries what the platform decides rather than the tree, and is
+  /// forwarded unchanged to every child.
   @override
   String toSwift(
     int indent, {
     required String dataExpr,
+    HWEmitContext? context,
   });
 
   /// Generates the Kotlin code for this widget.
   /// [indent] is the number of indentation levels (4 spaces each).
   /// [dataExpr] is the Kotlin expression to access data fields.
   /// [dataFields] maps field keys to their types.
+  /// [context] carries what the platform decides rather than the tree, and is
+  /// forwarded unchanged to every child.
   @override
   String toKotlin(
     int indent, {
     required String dataExpr,
+    HWEmitContext? context,
   });
 }
 

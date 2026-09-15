@@ -38,21 +38,33 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
       };
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final spaces = '    ' * indent; // Use 4 spaces per indent level
     final cond = conditionSwift(dataExpr: dataExpr);
-    final first = firstBranch.toSwift(indent + 1, dataExpr: dataExpr);
-    final second = secondBranch.toSwift(indent + 1, dataExpr: dataExpr);
+    final first =
+        firstBranch.toSwift(indent + 1, dataExpr: dataExpr, context: context);
+    final second =
+        secondBranch.toSwift(indent + 1, dataExpr: dataExpr, context: context);
 
     return '${spaces}if $cond {\n$first\n$spaces} else {\n$second\n$spaces}';
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final spaces = '    ' * indent; // Use 4 spaces per indent level
     final cond = conditionKotlin(dataExpr: dataExpr);
-    final first = firstBranch.toKotlin(indent + 1, dataExpr: dataExpr);
-    final second = secondBranch.toKotlin(indent + 1, dataExpr: dataExpr);
+    final first =
+        firstBranch.toKotlin(indent + 1, dataExpr: dataExpr, context: context);
+    final second =
+        secondBranch.toKotlin(indent + 1, dataExpr: dataExpr, context: context);
 
     return '${spaces}if ($cond) {\n$first\n$spaces} else {\n$second\n$spaces}';
   }

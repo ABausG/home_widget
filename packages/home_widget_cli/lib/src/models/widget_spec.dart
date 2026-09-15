@@ -74,6 +74,28 @@ class JsonImageField {
   int get hashCode => Object.hash(rootKey, storageKey, image);
 }
 
+/// One place an [HWSizeAdaptive] sits in a widget tree, on one platform.
+///
+/// Nesting and [HWAdaptive] both narrow what a place can render, so the same
+/// instance can be a site with one family set on iOS and another on Android.
+class HWSizeAdaptiveSite {
+  /// The instance found at this place.
+  final HWSizeAdaptive adaptive;
+
+  /// The families that can render here.
+  final Set<HWWidgetFamily> visible;
+
+  /// The slot of the enclosing [HWSizeAdaptive], or null at the top level.
+  final HWWidgetFamily? enclosingSlot;
+
+  /// Creates an [HWSizeAdaptiveSite].
+  const HWSizeAdaptiveSite({
+    required this.adaptive,
+    required this.visible,
+    this.enclosingSlot,
+  });
+}
+
 /// Separator between the parts [WidgetSpec.previewContentHash] digests.
 ///
 /// Do not change it: the digest it produces is what decides whether a launcher
@@ -195,6 +217,238 @@ class WidgetSpec {
               ],
             ),
       ],
+    );
+  }
+
+  /// Every place an [HWSizeAdaptive] can be rendered on iOS, in document order.
+  List<HWSizeAdaptiveSite> get iosSizeAdaptiveSites =>
+      _sizeAdaptiveSites(android: false, visible: iosReachableFamilies);
+
+  /// Every place an [HWSizeAdaptive] can be rendered on Android, in document
+  /// order.
+  ///
+  /// Android has no accessory families, so no site ever sees one.
+  List<HWSizeAdaptiveSite> get androidSizeAdaptiveSites =>
+      _sizeAdaptiveSites(android: true, visible: androidReachableFamilies);
+
+  /// Every [HWSizeAdaptive] either platform reaches, in document order and
+  /// without repeating an instance both trees hold.
+  List<HWSizeAdaptive> get sizeAdaptives {
+    final adaptives = <HWSizeAdaptive>[];
+    for (final site in [...iosSizeAdaptiveSites, ...androidSizeAdaptiveSites]) {
+      if (adaptives.any((other) => identical(other, site.adaptive))) continue;
+      adaptives.add(site.adaptive);
+    }
+    return adaptives;
+  }
+
+  /// The [HWSizeAdaptive]s the tree reaches on one platform, each with the
+  /// families that can render it.
+  ///
+  /// An [HWAdaptive] contributes only the branch the platform emits, and a slot
+  /// of an [HWSizeAdaptive] only the families that resolve to it.
+  List<HWSizeAdaptiveSite> _sizeAdaptiveSites({
+    required bool android,
+    required Set<HWWidgetFamily> visible,
+  }) {
+    final sites = <HWSizeAdaptiveSite>[];
+
+    void walk(
+      HWWidget widget,
+      Set<HWWidgetFamily> visible,
+      HWWidgetFamily? enclosingSlot,
+    ) {
+      switch (widget) {
+        case HWAdaptive():
+          walk(android ? widget.android : widget.ios, visible, enclosingSlot);
+        case HWSizeAdaptive():
+          sites.add(
+            HWSizeAdaptiveSite(
+              adaptive: widget,
+              visible: visible,
+              enclosingSlot: enclosingSlot,
+            ),
+          );
+          final walked = <HWWidget>[];
+          for (final family in HWWidgetFamily.values) {
+            final slot = widget.slotFor(family);
+            if (slot == null) continue;
+            // One widget written into two slots is one place in the tree.
+            if (walked.any((other) => identical(other, slot))) continue;
+            walked.add(slot);
+            walk(slot, widget.familiesResolvingTo(slot, visible), family);
+          }
+        default:
+          for (final child in widget.childWidgets) {
+            walk(child, visible, enclosingSlot);
+          }
+      }
+    }
+
+    walk(effectiveWidgetTree, visible, null);
+    return sites;
+  }
+
+  /// The dp size declared for every system family on Android, with the
+  /// [HWSizeAdaptive.androidSizes] of every instance the Android tree reaches
+  /// applied.
+  ///
+  /// Two instances overriding one family differently is a `GeneratorError`, so
+  /// by the time a generator reads this the last-wins merge is unambiguous.
+  Map<HWWidgetFamily, HWSize> get androidSizeTable =>
+      HWWidgetFamily.androidSizeTable({
+        // Which instances the walk finds does not depend on the families
+        // they can see, so the table is available before reachability is.
+        for (final site in _sizeAdaptiveSites(android: true, visible: const {}))
+          ...?site.adaptive.androidSizes,
+      });
+
+  /// Whether any [HWSizeAdaptive] the Android tree reaches renders more than
+  /// one layout, and so needs the sizes declared to Glance.
+  bool get androidBranchesOnSize => androidSizeAdaptiveSites
+      .any((site) => site.adaptive.branchesFor(site.visible));
+
+  /// The size of every Android-reachable family, in family order.
+  List<HWSize> get androidDeclaredSizes {
+    final table = androidSizeTable;
+    final reachable = _androidReachableFamilies(table);
+    return [
+      for (final family in HWWidgetFamily.values)
+        if (reachable.contains(family)) table[family]!,
+    ];
+  }
+
+  /// The families the widget can be shown in on iOS.
+  ///
+  /// An omitted or empty `supportedFamilies` is WidgetKit's own default, which
+  /// is the three home-screen system families.
+  Set<HWWidgetFamily> get iosReachableFamilies {
+    final iOS = data.iOS;
+    if (iOS == null) return const {};
+
+    final declared = iOS.supportedFamilies;
+    if (declared == null || declared.isEmpty) {
+      return const {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      };
+    }
+    return declared.toSet();
+  }
+
+  /// The smallest size the launcher can render the widget at, in dp.
+  ({double width, double height}) get androidMinSize {
+    final range = _androidRanges;
+    return (width: range.width.min, height: range.height.min);
+  }
+
+  /// The largest size the launcher can render the widget at, in dp, with a
+  /// null axis for an unbounded one.
+  ({double? width, double? height}) get androidMaxSize {
+    final range = _androidRanges;
+    return (width: range.width.max, height: range.height.max);
+  }
+
+  /// The families the widget can be shown in on Android.
+  ///
+  /// Glance picks the declared size closest to what the launcher offers, so a
+  /// family is only ever rendered when it fits at the widget's maximum and no
+  /// family at least as large already fits at its minimum. Nothing fitting at
+  /// all leaves the smallest declared size, which Glance falls back to.
+  Set<HWWidgetFamily> get androidReachableFamilies =>
+      _androidReachableFamilies(androidSizeTable);
+
+  Set<HWWidgetFamily> _androidReachableFamilies(
+    Map<HWWidgetFamily, HWSize> table,
+  ) {
+    if (data.android == null) return const {};
+
+    final range = _androidRanges;
+    final maxWidth = range.width.max;
+    final maxHeight = range.height.max;
+
+    bool fitsMax(HWSize size) =>
+        (maxWidth == null || size.width <= maxWidth) &&
+        (maxHeight == null || size.height <= maxHeight);
+    bool fitsMin(HWSize size) =>
+        size.width <= range.width.min && size.height <= range.height.min;
+
+    final reachable = <HWWidgetFamily>{};
+    for (final entry in table.entries) {
+      if (!fitsMax(entry.value)) continue;
+      final covered = table.entries.any(
+        (other) =>
+            other.key != entry.key &&
+            other.value.width >= entry.value.width &&
+            other.value.height >= entry.value.height &&
+            fitsMin(other.value),
+      );
+      if (!covered) reachable.add(entry.key);
+    }
+
+    if (reachable.isNotEmpty) return reachable;
+    return {_smallestDeclared(table)};
+  }
+
+  /// The family Glance falls back to when nothing fits: the one covering the
+  /// least area, the earlier family in enum order winning a tie.
+  static HWWidgetFamily _smallestDeclared(Map<HWWidgetFamily, HWSize> table) {
+    var smallest = table.entries.first;
+    for (final entry in table.entries) {
+      final area = entry.value.width * entry.value.height;
+      if (area < smallest.value.width * smallest.value.height) smallest = entry;
+    }
+    return smallest.key;
+  }
+
+  /// What the widget can be resized to on both axes, in dp.
+  ({({double min, double? max}) width, ({double min, double? max}) height})
+      get _androidRanges => (
+            width: _androidRange(horizontal: true),
+            height: _androidRange(horizontal: false)
+          );
+
+  /// What the widget can be resized to along one axis, in dp.
+  ({double min, double? max}) _androidRange({required bool horizontal}) {
+    final android = data.android!;
+    final targetCells =
+        horizontal ? android.targetCellWidth : android.targetCellHeight;
+    final minimum = (horizontal ? android.minWidth : android.minHeight) ?? 80;
+    final defaultExtent = targetCells != null
+        ? HWSize.cellExtent(targetCells)
+        : minimum.toDouble();
+
+    final resizable = switch (android.resizeMode) {
+      null || HWAndroidResizeMode.horizontalAndVertical => true,
+      HWAndroidResizeMode.horizontal => horizontal,
+      HWAndroidResizeMode.vertical => !horizontal,
+      HWAndroidResizeMode.none => false,
+    };
+    if (!resizable) return (min: defaultExtent, max: defaultExtent);
+
+    final minResize =
+        horizontal ? android.minResizeWidth : android.minResizeHeight;
+    final maxResize =
+        horizontal ? android.maxResizeWidth : android.maxResizeHeight;
+    // `minResizeWidth` defaults to `minWidth`, which the provider info always
+    // carries, so a resizable widget never shrinks below it.
+    return (
+      min: minResize?.toDouble() ?? minimum.toDouble(),
+      max: maxResize?.toDouble(),
+    );
+  }
+
+  /// What the iOS emitters switch over.
+  HWEmitContext get iosEmitContext =>
+      HWEmitContext(reachableFamilies: iosReachableFamilies);
+
+  /// What the Android emitters switch over, and the sizes they compare against.
+  HWEmitContext get androidEmitContext {
+    final table = androidSizeTable;
+    return HWEmitContext(
+      reachableFamilies: _androidReachableFamilies(table),
+      androidSizeTable: table,
     );
   }
 
@@ -419,7 +673,11 @@ class WidgetSpec {
       'auto=$androidAutoUpdatePreview',
       // The emitted Glance source is the one serialization of the tree that
       // covers layout, styling and the values inlined into it.
-      effectiveWidgetTree.toKotlin(0, dataExpr: 'data'),
+      effectiveWidgetTree.toKotlin(
+        0,
+        dataExpr: 'data',
+        context: androidEmitContext,
+      ),
       for (final field in dataFields) _fieldFingerprint(field),
     ];
     final digest = fnv1a32(parts.join(_hashSeparator));

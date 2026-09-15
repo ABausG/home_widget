@@ -1,0 +1,154 @@
+---
+title: HWSizeAdaptive
+description: Render different widget content per widget family and size.
+---
+
+# HWSizeAdaptive
+
+`HWSizeAdaptive` picks a child based on the widget's rendered **family** — its iOS `WidgetFamily`, or the matching size on Android — rather than its platform. Use it to give a widget a meaningfully different layout as it grows from a Lock Screen accessory up to a full-page iPad layout. If you need to switch on platform instead, see [`HWAdaptive`](/generator/widgets/hw-adaptive).
+
+```dart
+HWSizeAdaptive(
+  small: HWText.fixed('42'),
+  medium: HWRow(
+    children: [HWText.fixed('42'), HWText.fixed('steps')],
+  ),
+  large: HWColumn(
+    children: [HWText.fixed('42'), HWText.fixed('steps today')],
+  ),
+  accessoryCircular: HWText.fixed('42'),
+  accessoryInline: HWText.fixed('42 steps'),
+)
+```
+
+## Constructor
+
+```dart
+const HWSizeAdaptive({
+  HWWidget? small,
+  HWWidget? medium,
+  HWWidget? large,
+  HWWidget? extraLarge,
+  HWWidget? extraLargePortrait,
+  HWWidget? accessoryCircular,
+  HWWidget? accessoryRectangular,
+  HWWidget? accessoryInline,
+  Map<HWWidgetFamily, HWSize>? androidSizes,
+})
+```
+
+Every slot is optional, but at least one must be given. There is no `fallback` slot: the widget's [`supportedFamilies`](/generator/annotation#homewidgetiosconfiguration) (iOS) and Android configuration already say which families it can be shown in, so those are the families it has to cover (see [Which families a widget must cover](#which-families-a-widget-must-cover)). Each provided slot contributes its own data fields, exactly like [`HWAdaptive`](/generator/widgets/hw-adaptive).
+
+## Parameters
+
+| Slot | `HWWidgetFamily` it fills | Description |
+| --- | --- | --- |
+| `small` | `systemSmall` | Home screen small size. |
+| `medium` | `systemMedium` | Home screen medium size. |
+| `large` | `systemLarge` | Home screen large size. |
+| `extraLarge` | `systemExtraLarge` | iPad extra-large size. |
+| `extraLargePortrait` | `systemExtraLargePortrait` | Portrait extra-large size (iOS / iPadOS 27). |
+| `accessoryCircular` | `accessoryCircular` | Lock Screen circular accessory. |
+| `accessoryRectangular` | `accessoryRectangular` | Lock Screen rectangular accessory. |
+| `accessoryInline` | `accessoryInline` | Lock Screen inline text/image accessory. |
+| `androidSizes` | — | Overrides the size at which one or more system families render on Android. See [Overriding the Android sizes](#overriding-the-android-sizes). |
+
+See [`HWWidgetFamily`](/generator/annotation#hwwidgetfamily) for the full family list and their minimum OS versions.
+
+## Fallback resolution
+
+A family with no slot of its own renders the nearest smaller **system** slot. Accessory families never fall back — each is a distinct shape, and `accessoryInline` in particular can only show text and/or an image.
+
+| Family | Falls back to (first match wins) |
+| --- | --- |
+| `systemSmall` | — |
+| `systemMedium` | `small` |
+| `systemLarge` | `medium`, `small` |
+| `systemExtraLarge` | `large`, `medium`, `small` |
+| `systemExtraLargePortrait` | `large`, `medium`, `small` |
+| `accessoryCircular` | — |
+| `accessoryRectangular` | — |
+| `accessoryInline` | — |
+
+The chain only ever walks **down**: content designed for a smaller box is safe in a bigger one, not the other way around. `extraLargePortrait` deliberately skips `extraLarge` rather than reusing a landscape layout in a portrait shape.
+
+## Which families a widget must cover
+
+`HWSizeAdaptive` needs a slot (or a fallback) for every family the widget can actually be shown in, and nothing more. That set comes from the annotation:
+
+- **iOS:** [`HomeWidgetIOSConfiguration.supportedFamilies`](/generator/annotation#homewidgetiosconfiguration). When omitted it is `systemSmall`, `systemMedium` and `systemLarge` — the iOS default. The accessory families and both extra-large families are never part of that default: list them explicitly, and only then do their slots have to be filled.
+- **Android:** every system family the widget can be resized to, derived from the size fields of [`HomeWidgetAndroidConfiguration`](/generator/annotation#homewidgetandroidconfiguration) (`minWidth`/`minHeight`, `targetCellWidth`/`targetCellHeight`, `minResizeWidth`/`minResizeHeight`, `maxResizeWidth`/`maxResizeHeight`, `resizeMode`). With the defaults — resizable in both directions, no maximum — every system family is reachable; a fixed-size widget only reaches the family matching its size. Accessory families never apply on Android.
+
+The generator checks this at generation time:
+
+- **A reachable family with no content is an error**, for example:
+
+  ```
+  HWSizeAdaptive has no content for systemExtraLargePortrait, which "MyWidget" supports on iOS. Add an `extraLargePortrait` slot or one of its fallbacks (`large`, `medium`, `small`).
+  ```
+
+- **A slot that no reachable family ever renders is a warning**, naming why per platform, for example:
+
+  ```
+  Warning: HWSizeAdaptive slot `extraLarge` in "MyWidget" is never rendered: iOS supports [systemSmall, systemMedium] and the Android configuration caps the widget at 250 × 110 dp.
+  ```
+
+Only the branch an [`HWAdaptive`](/generator/widgets/hw-adaptive) uses on a platform is checked for that platform, and an `HWSizeAdaptive` nested inside another one's slot is checked against the families that slot renders for. A widget tree without `HWSizeAdaptive` is not checked against families at all.
+
+## Shape warnings
+
+- **`accessoryInline`** must be an `HWText`, an `HWImage`, or an `HWRow` containing only those — the inline accessory shows a single line of text and image. Anything else is a warning.
+- **Nesting `HWSizeAdaptive` inside another's slot** is allowed but only ever narrows what the inner one can see, so it is warned about. Several **sibling** `HWSizeAdaptive`s in one tree — one per row of a layout, say — are the intended way to vary only part of a widget.
+
+## Platform mapping
+
+### iOS
+
+Each slot renders for the [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) named in the [Parameters](#parameters) table, on the home screen and the Lock Screen alike.
+
+`systemExtraLargePortrait` is new in iOS / iPadOS 27 and needs Xcode 27 to build. Projects built with an older Xcode still compile and simply never show that layout, so you can add the slot before switching toolchains.
+
+### Android
+
+Android has no widget families, so each system family maps to a home screen cell footprint and the widget switches layout as it is resized:
+
+| Family | Cells (w × h) | Size |
+| --- | --- | --- |
+| `systemSmall` | 2 × 2 | 110 × 110 dp |
+| `systemMedium` | 4 × 2 | 250 × 110 dp |
+| `systemLarge` | 4 × 4 | 250 × 250 dp |
+| `systemExtraLarge` | 8 × 4 | 530 × 250 dp |
+| `systemExtraLargePortrait` | 4 × 8 | 250 × 530 dp |
+
+The widget renders the largest family whose size fits the space the launcher gives it. Launcher cells are larger than the sizes above, so a 4 × 2 widget lands on `medium`, a 4 × 4 one on `large`, and so on; on launchers with tall cells a family can already be reached one row earlier.
+
+Accessory slots are not used on Android.
+
+## Overriding the Android sizes
+
+The table above is a mapping from iOS-style cell counts, not every widget's own idea of a size. `androidSizes` replaces the size for one or more system families:
+
+```dart
+HWSizeAdaptive(
+  medium: HWRow(children: [HWText.fixed('42'), HWText.fixed('steps')]),
+  large: HWColumn(children: [HWText.fixed('42'), HWText.fixed('steps today')]),
+  androidSizes: {
+    HWWidgetFamily.systemMedium: HWSize(200, 100),
+    HWWidgetFamily.systemLarge: HWSize(200, 200),
+  },
+)
+```
+
+`HWSize(width, height)` is a size in dp. Families left out keep the table above. The override changes nothing on iOS.
+
+Rules, checked at generation time:
+
+- A key must be a system family; Android has no accessory families.
+- `width` and `height` must both be greater than `0`.
+- Every `HWSizeAdaptive` in the same widget must agree: overriding the same family with two different sizes in two places is an error.
+- Two families sharing one size is an error, since the widget could not tell them apart.
+- A family made smaller than one of its fallbacks on either axis (`systemLarge` overridden to 200 × 100 while `systemMedium` stays 250 × 110, say) is a warning: content built for the bigger fallback would render in a smaller box.
+
+## HWSizeAdaptive vs HWAdaptive
+
+[`HWAdaptive`](/generator/widgets/hw-adaptive) picks a child per **platform** when the widget is generated. `HWSizeAdaptive` picks a child per **family** while the widget is running, so every provided slot ships in the widget and the right one shows as it is resized or placed on the Lock Screen. The two compose: nest an `HWSizeAdaptive` inside a branch of an `HWAdaptive`, or the other way around, to vary layout by both platform and size.

@@ -88,11 +88,26 @@ Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widget
 | Parameter | Type | Default | Description |
 | --- | --- | --- | --- |
 | `groupId` | `String` | required | App Group ID used to share data between the app and the widget extension. |
-| `supportedFamilies` | `List<HWWidgetFamily>?` | all families | Restricts which [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) values are supported. Maps to [`StaticConfiguration.supportedFamilies`](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:)). |
+| `supportedFamilies` | `List<HWWidgetFamily>?` | `systemSmall`, `systemMedium`, `systemLarge` (WidgetKit's default) | Restricts which [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) values are supported. Maps to [`StaticConfiguration.supportedFamilies`](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:)). Also the set of families [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) must cover on iOS. |
 | `backgroundColor` | `HWColor?` | `null` | Background color for the widget container. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |
 | `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on iOS. See [Widget Clicks](/generator/widget-url). |
 | `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on iOS. `null` inherits it. See [Previews](/generator/previews). |
+
+## `HWWidgetFamily`
+
+The values accepted by `supportedFamilies`, each mapping to a [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) case. `HWSizeAdaptive` uses the same enum to key its slots — see [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive).
+
+| `HWWidgetFamily` | `WidgetFamily` | Minimum OS |
+| --- | --- | --- |
+| `systemSmall` | `.systemSmall` | iOS 14 |
+| `systemMedium` | `.systemMedium` | iOS 14 |
+| `systemLarge` | `.systemLarge` | iOS 14 |
+| `systemExtraLarge` | `.systemExtraLarge` | iOS 15 (iPad) |
+| `systemExtraLargePortrait` | `.systemExtraLargePortrait` | iOS / iPadOS 27 |
+| `accessoryCircular` | `.accessoryCircular` | iOS 16 |
+| `accessoryRectangular` | `.accessoryRectangular` | iOS 16 |
+| `accessoryInline` | `.accessoryInline` | iOS 16 |
 
 ## `HomeWidgetFlavor`
 

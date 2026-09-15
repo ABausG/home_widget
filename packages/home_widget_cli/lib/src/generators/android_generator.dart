@@ -237,7 +237,12 @@ class AndroidGenerator {
       spec.effectiveWidgetTree,
       dataExpr: hasDataFields ? 'widgetData' : 'null',
       indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
+      context: spec.androidEmitContext,
     );
+
+    final sizeModeDeclaration = spec.androidBranchesOnSize
+        ? HWSizeAdaptive.kotlinSizeMode(spec.androidDeclaredSizes)
+        : null;
 
     final widgetUrl = spec.androidWidgetUrl;
     final launcherActivity = spec.androidOpensAppOnTap
@@ -335,6 +340,10 @@ class AndroidGenerator {
       layoutImports.add('import androidx.glance.layout.Box');
     }
 
+    if (sizeModeDeclaration != null) {
+      layoutImports.addAll(HWSizeAdaptive.kotlinSizeModeImports);
+    }
+
     if (clickAction != null) {
       layoutImports.add('import androidx.glance.action.clickable');
       if (widgetUrl == null) {
@@ -396,6 +405,7 @@ class AndroidGenerator {
         contentBody: contentBody,
         extraContent: dataClassContent,
         additionalImports: layoutImports.isNotEmpty ? layoutImports : null,
+        sizeModeDeclaration: sizeModeDeclaration,
         previewPreferences: previewPreferences,
         previewParameter: spec.hasPreviewValues,
         previewFingerprint: previewFingerprint,

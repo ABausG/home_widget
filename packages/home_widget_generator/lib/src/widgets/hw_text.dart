@@ -461,7 +461,11 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
       value is int ? '$value.0' : '$value';
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level to match tests
     final textValue = _swiftTextValue(dataExpr);
 
@@ -484,7 +488,11 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final textValue = _kotlinTextValue(dataExpr);
     if (textValue == null) return '';
 

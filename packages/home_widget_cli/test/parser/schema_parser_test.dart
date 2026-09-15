@@ -531,6 +531,27 @@ void main() {
       );
     });
 
+    test('resolves a supported family by the constant it names', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Accessory',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.f',
+            supportedFamilies: [HWWidgetFamily.accessoryCircular],
+          ),
+        )
+        class AccessoryWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(
+        spec!.data.iOS?.supportedFamilies,
+        [HWWidgetFamily.accessoryCircular],
+      );
+    });
+
     test('parses Android resizeMode and widgetCategory enums', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

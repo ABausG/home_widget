@@ -9,6 +9,10 @@ small and each one demonstrates a different feature of the generator:
 - `greeting.dart` – the README walkthrough widget (`HWColumn` + `HWString`).
 - `basic_creation.dart` – the smallest possible widget (no data, no UI).
 - `adaptive_greeting.dart` – platform-specific text via `HWAdaptive`.
+- `size_adaptive_dashboard.dart` – one tree with a layout per widget family via
+  `HWSizeAdaptive`: the four system sizes plus the three iOS Lock Screen
+  accessory families. `extraLarge` is deliberately left out and falls back to
+  the `large` column.
 - `simple_data.dart` – a data-only widget that exposes typed `saveData` /
   `getData` helpers on the Dart side.
 - `themed_counter.dart` – an inline UI that reads data, uses role-based colors

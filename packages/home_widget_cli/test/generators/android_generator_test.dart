@@ -2441,4 +2441,163 @@ dependencies {
       );
     });
   });
+
+  group('size-adaptive widgets', () {
+    Future<String> generate(
+      HWWidget tree, {
+      HomeWidgetAndroidConfiguration android =
+          const HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+    }) async {
+      writeLauncherManifest(tempDir);
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'Adaptive', android: android),
+        className: 'Adaptive',
+        widgetTree: tree,
+      );
+
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(
+          tempDir.path,
+          'android/app/src/main/kotlin/com/example/AdaptiveHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    test('declares the size of every reachable family', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '  override val sizeMode = SizeMode.Responsive(\n'
+          '      setOf(\n'
+          '          DpSize(110.dp, 110.dp),\n'
+          '          DpSize(250.dp, 110.dp),\n'
+          '          DpSize(250.dp, 250.dp),\n'
+          '          DpSize(530.dp, 250.dp),\n'
+          '          DpSize(250.dp, 530.dp),\n'
+          '      )\n'
+          '  )\n',
+        ),
+      );
+      expect(content, contains('import androidx.glance.appwidget.SizeMode'));
+      expect(content, contains('import androidx.compose.ui.unit.DpSize'));
+      expect(content, contains('import androidx.compose.ui.unit.dp'));
+    });
+
+    test('lists only the sizes the configuration can reach', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+          large: HWText.fixed('L'),
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          packageName: 'com.example',
+          minWidth: 250,
+          minHeight: 110,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      setOf(\n'
+          '          DpSize(250.dp, 110.dp),\n'
+          '          DpSize(250.dp, 250.dp),\n'
+          '      )\n',
+        ),
+      );
+      expect(content, contains('DpSize(250.dp, 250.dp) -> {'));
+    });
+
+    test('declares no sizeMode without an HWSizeAdaptive', () async {
+      final content = await generate(HWText.fixed('plain'));
+
+      expect(content, isNot(contains('sizeMode')));
+      expect(content, isNot(contains('SizeMode.Responsive')));
+    });
+
+    test('declares no sizeMode when the branches collapse', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          packageName: 'com.example',
+          targetCellWidth: 4,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.none,
+        ),
+      );
+
+      expect(content, isNot(contains('SizeMode.Responsive')));
+      expect(content, isNot(contains('when (LocalSize.current)')));
+      expect(content, contains('Text(text = "M")'));
+    });
+
+    test('wraps the branching root in the full-size Box', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          'Box(modifier = GlanceModifier.background(GlanceTheme.colors.widgetBackground)'
+          '.padding(16.dp).fillMaxSize().clickable(onClick = '
+          'actionStartActivity<MainActivity>()), '
+          'contentAlignment = Alignment.Center) {',
+        ),
+      );
+      expect(content, contains('when (LocalSize.current) {'));
+      expect(content, contains('import androidx.glance.LocalSize'));
+    });
+
+    test('injects the root modifiers into every branch when not filling',
+        () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          packageName: 'com.example',
+          fillWidgetContent: false,
+        ),
+      );
+
+      expect(content, contains('when (LocalSize.current) {'));
+      expect(
+        content,
+        contains(
+          'Text(modifier = GlanceModifier'
+          '.clickable(onClick = actionStartActivity<MainActivity>())'
+          '.padding(16.dp).background(GlanceTheme.colors.widgetBackground), '
+          'text = "M")',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'Text(modifier = GlanceModifier'
+          '.clickable(onClick = actionStartActivity<MainActivity>())'
+          '.padding(16.dp).background(GlanceTheme.colors.widgetBackground), '
+          'text = "S")',
+        ),
+      );
+    });
+  });
 }

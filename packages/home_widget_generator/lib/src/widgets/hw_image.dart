@@ -192,7 +192,11 @@ class HWImage extends HWWidget implements HWDataWidget {
   }
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final buffer = StringBuffer();
 
@@ -250,7 +254,11 @@ class HWImage extends HWWidget implements HWDataWidget {
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final buffer = StringBuffer();
 

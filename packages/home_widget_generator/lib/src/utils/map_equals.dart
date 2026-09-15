@@ -1,18 +1,10 @@
-/// Structural equality for the small `String`-keyed maps carried by
-/// annotations (translation maps, mostly).
-library;
+import 'package:collection/collection.dart';
 
-/// Compares [a] and [b] entry by entry, treating literal ordering as
-/// insignificant. Two nulls are equal; a null never equals a map.
+/// Structural equality for the small maps carried by annotations, in the shape
+/// of Flutter's `mapEquals`.
 ///
 /// Dart maps compare by identity, so without this two annotations spelling the
 /// same translations would never be equal, and localized strings would never
 /// dedupe in the `Set<HWDataType>` returned by `dataDependencies`.
-bool mapEquals<T>(Map<String, T>? a, Map<String, T>? b) {
-  if (a == null || b == null) return a == b;
-  if (a.length != b.length) return false;
-  for (final entry in a.entries) {
-    if (!b.containsKey(entry.key) || b[entry.key] != entry.value) return false;
-  }
-  return true;
-}
+bool mapEquals<K, V>(Map<K, V>? a, Map<K, V>? b) =>
+    const MapEquality<Object?, Object?>().equals(a, b);

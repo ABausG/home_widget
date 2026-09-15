@@ -11,6 +11,7 @@ import 'package:generator_basics/src/home_widget/image_showcase.home_widget.dart
 import 'package:generator_basics/src/home_widget/localized_greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/number_date_formatting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
+import 'package:generator_basics/src/home_widget/size_adaptive_dashboard.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
 import 'package:generator_basics/src/home_widget/widget_link.home_widget.dart';
 import 'package:generator_basics/src/widget_section.dart';
@@ -43,6 +44,8 @@ class _HomePage extends StatefulWidget {
 
 class _HomePageState extends State<_HomePage> {
   int _counter = 0;
+  int _score = 0;
+  int _streak = 0;
   String _currency = 'EUR';
   String _deliveryZone = '';
   Uri? _widgetLinkUri;
@@ -112,6 +115,61 @@ class _HomePageState extends State<_HomePage> {
               subtitle: const Text('updateWidget()'),
               trailing: const Icon(Icons.refresh),
               onTap: AdaptiveGreetingHomeWidget.updateWidget,
+            ),
+          ],
+        ),
+
+        // -------------------------------------------------------------------
+        // Size Adaptive Dashboard: HWSizeAdaptive picks a layout per family.
+        // -------------------------------------------------------------------
+        WidgetSection(
+          title: 'Size Adaptive Dashboard',
+          description:
+              'One tree, one layout per widget family: the small tile shows '
+              'the score alone, medium adds the label, large the streak, and '
+              'the portrait extra-large the motivation line. Resize the widget '
+              'on the home screen, or add it to the Lock Screen, to see the '
+              'circular, rectangular and inline slots.',
+          isInstalled: SizeAdaptiveDashboardHomeWidget.isInstalled,
+          isRequestPinWidgetSupported:
+              SizeAdaptiveDashboardHomeWidget.isRequestPinWidgetSupported,
+          requestPinWidget: SizeAdaptiveDashboardHomeWidget.requestPinWidget,
+          children: [
+            ListTile(
+              title: const Text('Bump score and streak'),
+              subtitle: Text('Score $_score, streak $_streak'),
+              trailing: const Icon(Icons.trending_up),
+              onTap: () async {
+                setState(() {
+                  _score += 25;
+                  _streak++;
+                });
+                await SizeAdaptiveDashboardHomeWidget.saveData(
+                  score: _score,
+                  scoreLabel: 'Points',
+                  streak: _streak,
+                  motivation: 'Keep it up!',
+                );
+                await SizeAdaptiveDashboardHomeWidget.updateWidget();
+              },
+            ),
+            ListTile(
+              title: const Text('Reset'),
+              subtitle: const Text('saveData(0, …) + updateWidget()'),
+              trailing: const Icon(Icons.restore),
+              onTap: () async {
+                setState(() {
+                  _score = 0;
+                  _streak = 0;
+                });
+                await SizeAdaptiveDashboardHomeWidget.saveData(
+                  score: 0,
+                  scoreLabel: 'Points',
+                  streak: 0,
+                  motivation: 'Keep it up!',
+                );
+                await SizeAdaptiveDashboardHomeWidget.updateWidget();
+              },
             ),
           ],
         ),

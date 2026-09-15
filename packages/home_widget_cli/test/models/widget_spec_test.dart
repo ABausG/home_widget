@@ -1652,4 +1652,425 @@ void main() {
       );
     });
   });
+
+  group('WidgetSpec.sizeAdaptives', () {
+    test('is empty for a tree without one', () {
+      expect(_spec(widgetTree: HWText.fixed('hi')).sizeAdaptives, isEmpty);
+    });
+
+    test('collects every instance in document order, nested ones included', () {
+      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final first = HWSizeAdaptive(small: HWText.fixed('first'));
+      final second = HWSizeAdaptive(small: inner);
+
+      final spec = _spec(
+        widgetTree: HWColumn(children: [first, second]),
+      );
+
+      expect(spec.sizeAdaptives, [first, second, inner]);
+    });
+
+    test('an HWAdaptive contributes only the branch its platform emits', () {
+      final onIos = HWSizeAdaptive(small: HWText.fixed('i'));
+      final onAndroid = HWSizeAdaptive(small: HWText.fixed('a'));
+      final spec = _adaptiveSpec(
+        adaptive: HWAdaptive(ios: onIos, android: onAndroid),
+      );
+
+      expect(
+        spec.iosSizeAdaptiveSites.map((site) => site.adaptive),
+        [onIos],
+      );
+      expect(
+        spec.androidSizeAdaptiveSites.map((site) => site.adaptive),
+        [onAndroid],
+      );
+      expect(spec.sizeAdaptives, [onIos, onAndroid]);
+    });
+
+    test('a nested site sees only what its enclosing slot renders', () {
+      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          large: inner,
+        ),
+      );
+
+      final site = spec.iosSizeAdaptiveSites.last;
+      expect(identical(site.adaptive, inner), isTrue);
+      expect(site.enclosingSlot, HWWidgetFamily.systemLarge);
+      expect(site.visible, {HWWidgetFamily.systemLarge});
+    });
+
+    test('an Android site never sees an accessory family', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          accessoryCircular: HWText.fixed('c'),
+        ),
+        iOS: const HomeWidgetIOSConfiguration(
+          groupId: 'group.test',
+          supportedFamilies: [
+            HWWidgetFamily.systemSmall,
+            HWWidgetFamily.accessoryCircular,
+          ],
+        ),
+      );
+
+      expect(
+        spec.androidSizeAdaptiveSites.single.visible,
+        isNot(contains(HWWidgetFamily.accessoryCircular)),
+      );
+      expect(
+        spec.iosSizeAdaptiveSites.single.visible,
+        contains(HWWidgetFamily.accessoryCircular),
+      );
+    });
+  });
+
+  group('WidgetSpec.androidBranchesOnSize', () {
+    test('is false when every reachable family renders one layout', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          accessoryCircular: HWText.fixed('c'),
+        ),
+      );
+
+      expect(spec.androidBranchesOnSize, isFalse);
+    });
+
+    test('is true once two reachable families render differently', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          large: HWText.fixed('l'),
+        ),
+      );
+
+      expect(spec.androidBranchesOnSize, isTrue);
+    });
+
+    test('ignores an instance only the iOS branch of an HWAdaptive holds', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWAdaptive(
+          ios: HWSizeAdaptive(
+            small: HWText.fixed('s'),
+            large: HWText.fixed('l'),
+          ),
+          android: HWText.fixed('a'),
+        ),
+      );
+
+      expect(spec.androidBranchesOnSize, isFalse);
+    });
+  });
+
+  group('WidgetSpec.androidSizeTable', () {
+    test('defaults to the cell footprint of every system family', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(small: HWText.fixed('s')),
+      );
+
+      expect(spec.androidSizeTable, {
+        HWWidgetFamily.systemSmall: const HWSize(110, 110),
+        HWWidgetFamily.systemMedium: const HWSize(250, 110),
+        HWWidgetFamily.systemLarge: const HWSize(250, 250),
+        HWWidgetFamily.systemExtraLarge: const HWSize(530, 250),
+        HWWidgetFamily.systemExtraLargePortrait: const HWSize(250, 530),
+      });
+    });
+
+    test('merges the overrides of every instance', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWColumn(
+          children: [
+            HWSizeAdaptive(
+              small: HWText.fixed('s'),
+              medium: HWText.fixed('m'),
+              androidSizes: const {
+                HWWidgetFamily.systemMedium: HWSize(200, 100),
+              },
+            ),
+            HWSizeAdaptive(
+              small: HWText.fixed('s2'),
+              large: HWText.fixed('l'),
+              androidSizes: const {
+                HWWidgetFamily.systemLarge: HWSize(200, 200),
+              },
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        spec.androidSizeTable[HWWidgetFamily.systemMedium],
+        const HWSize(200, 100),
+      );
+      expect(
+        spec.androidSizeTable[HWWidgetFamily.systemLarge],
+        const HWSize(200, 200),
+      );
+      expect(
+        spec.androidSizeTable[HWWidgetFamily.systemSmall],
+        const HWSize(110, 110),
+      );
+    });
+  });
+
+  group('WidgetSpec.iosReachableFamilies', () {
+    test('is empty without an iOS configuration', () {
+      expect(_adaptiveSpec(iOS: null).iosReachableFamilies, isEmpty);
+    });
+
+    test('defaults to the three home-screen families', () {
+      expect(_adaptiveSpec().iosReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('reads an empty supportedFamilies as the default too', () {
+      final spec = _adaptiveSpec(
+        iOS: const HomeWidgetIOSConfiguration(
+          groupId: 'group.test',
+          supportedFamilies: [],
+        ),
+      );
+
+      expect(spec.iosReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('is what supportedFamilies declares', () {
+      final spec = _adaptiveSpec(
+        iOS: const HomeWidgetIOSConfiguration(
+          groupId: 'group.test',
+          supportedFamilies: [
+            HWWidgetFamily.systemSmall,
+            HWWidgetFamily.accessoryInline,
+          ],
+        ),
+      );
+
+      expect(spec.iosReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.accessoryInline,
+      });
+    });
+  });
+
+  group('WidgetSpec.androidReachableFamilies', () {
+    test('is empty without an Android configuration', () {
+      expect(_adaptiveSpec(android: null).androidReachableFamilies, isEmpty);
+    });
+
+    test('reaches every system family with the default configuration', () {
+      expect(
+        _adaptiveSpec().androidReachableFamilies,
+        HWWidgetFamily.values.where((f) => !f.isAccessory).toSet(),
+      );
+    });
+
+    test('pins a non-resizable widget to the family of its target cells', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.none,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemMedium});
+      expect(spec.androidMinSize, (width: 250.0, height: 110.0));
+      expect(spec.androidMaxSize, (width: 250.0, height: 110.0));
+    });
+
+    test('keeps the height fixed when only the width resizes', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 2,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.horizontal,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+      });
+      expect(spec.androidMaxSize, (width: null, height: 110.0));
+    });
+
+    test('keeps the width fixed when only the height resizes', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 2,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.vertical,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemSmall});
+    });
+
+    test('drops a family a bigger one already covers at the minimum', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          minWidth: 250,
+          minHeight: 250,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemLarge});
+      expect(spec.androidMinSize, (width: 250.0, height: 250.0));
+    });
+
+    test('a resizable widget shrinks to minWidth, not to its target cells', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 4,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(spec.androidMinSize, (width: 80.0, height: 80.0));
+      expect(spec.androidReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('honours minResize over the target cells', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 4,
+          minResizeWidth: 110,
+          minResizeHeight: 110,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('falls back to the smallest family when nothing fits', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 100,
+          maxResizeHeight: 100,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemSmall});
+    });
+
+    test('the no-fit fallback is the smallest declared area, not small', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          medium: HWText.fixed('m'),
+          androidSizes: const {HWWidgetFamily.systemMedium: HWSize(60, 60)},
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 50,
+          maxResizeHeight: 50,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemMedium});
+    });
+
+    test('an override pulls a family into range', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          large: HWText.fixed('l'),
+          androidSizes: const {HWWidgetFamily.systemLarge: HWSize(90, 90)},
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 100,
+          maxResizeHeight: 100,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemLarge});
+    });
+
+    test('an override pushes a family out of range', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          medium: HWText.fixed('m'),
+          androidSizes: const {HWWidgetFamily.systemMedium: HWSize(600, 600)},
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 4,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(
+        spec.androidReachableFamilies,
+        isNot(contains(HWWidgetFamily.systemMedium)),
+      );
+    });
+  });
+
+  group('WidgetSpec emit contexts', () {
+    test('carry the reachable families of their platform', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.none,
+        ),
+      );
+
+      expect(spec.iosEmitContext.reachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+      expect(spec.iosEmitContext.androidSizeTable, isEmpty);
+      expect(spec.androidEmitContext.reachableFamilies, {
+        HWWidgetFamily.systemMedium,
+      });
+      expect(
+        spec.androidEmitContext.androidSizeTable[HWWidgetFamily.systemMedium],
+        const HWSize(250, 110),
+      );
+    });
+  });
 }
+
+WidgetSpec _adaptiveSpec({
+  HWWidget? adaptive,
+  HomeWidgetAndroidConfiguration? android =
+      const HomeWidgetAndroidConfiguration(),
+  HomeWidgetIOSConfiguration? iOS =
+      const HomeWidgetIOSConfiguration(groupId: 'group.test'),
+}) =>
+    WidgetSpec(
+      data: HomeWidget(name: 'Adaptive', android: android, iOS: iOS),
+      className: 'Adaptive',
+      widgetTree: adaptive ?? HWSizeAdaptive(small: HWText.fixed('s')),
+    );

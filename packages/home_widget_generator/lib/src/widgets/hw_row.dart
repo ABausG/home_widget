@@ -53,7 +53,11 @@ class HWRow extends HWMultiChildWidget {
   }
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
     final swiftAlign = switch (crossAxisAlignment) {
@@ -69,14 +73,18 @@ class HWRow extends HWMultiChildWidget {
       buffer.writeln('${pad}HStack {');
     }
 
-    _emitSwiftChildren(buffer, indent + 1, dataExpr);
+    _emitSwiftChildren(buffer, indent + 1, dataExpr, context);
 
     buffer.write('$pad}');
     return buffer.toString();
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
     final align = switch (crossAxisAlignment) {
@@ -98,7 +106,8 @@ class HWRow extends HWMultiChildWidget {
       indent + 1,
       dataExpr,
       mainAxisAlignment,
-      (child, childIndent, data) => child.toKotlin(childIndent, dataExpr: data),
+      (child, childIndent, data) =>
+          child.toKotlin(childIndent, dataExpr: data, context: context),
       (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
     );
 
@@ -106,14 +115,20 @@ class HWRow extends HWMultiChildWidget {
     return buffer.toString();
   }
 
-  void _emitSwiftChildren(StringBuffer buffer, int indent, String dataExpr) {
+  void _emitSwiftChildren(
+    StringBuffer buffer,
+    int indent,
+    String dataExpr,
+    HWEmitContext? context,
+  ) {
     _emitChildrenWithMainAxisAlignment(
       children,
       buffer,
       indent,
       dataExpr,
       mainAxisAlignment,
-      (child, childIndent, data) => child.toSwift(childIndent, dataExpr: data),
+      (child, childIndent, data) =>
+          child.toSwift(childIndent, dataExpr: data, context: context),
       (pad) => '${pad}Spacer()',
     );
   }
