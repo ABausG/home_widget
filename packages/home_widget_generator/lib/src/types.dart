@@ -1945,6 +1945,9 @@ class HWJson<T> extends HWDataType<T> {
   String kotlinGlanceJsonTextInterpolation(String dataExpr) {
     final read = kotlinReadExpr(dataExpr);
     final leaf = leafType;
+    if (leaf is HWIconData || leaf is HWImageData) {
+      return leaf.androidToString(outerValue: read, innerValue: read);
+    }
     // Already non-null: an elvis on top of it makes Kotlin warn.
     if (leaf is HWLocalizedString) return read;
     if (leaf.codegenKotlinDefaultLiteral() != null) {
@@ -1957,6 +1960,10 @@ class HWJson<T> extends HWDataType<T> {
   String swiftGlanceJsonTextInterpolation(String dataExpr) {
     final read = swiftReadExpr(dataExpr);
     final leaf = leafType;
+
+    if (leaf is HWIconData || leaf is HWImageData) {
+      return leaf.iosToString(outerValue: read, innerValue: read);
+    }
 
     if (leaf is HWLocalizedString) return read;
 

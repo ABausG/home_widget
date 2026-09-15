@@ -680,6 +680,80 @@ void main() {
       expect(localized.defaultValue, isNull);
     });
 
+    test('kotlin glance text throws for an icon leaf with a default', () {
+      const iconJson = HWJson(
+        'payload',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('wbSunny', 0xE88A)],
+          iconFont: HWIconFont(family: 'MaterialIcons'),
+          defaultValue: 0xE88A,
+        ),
+      );
+      expect(
+        () => iconJson.kotlinGlanceJsonTextInterpolation('widgetData'),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('HWIconData cannot be rendered as text'),
+          ),
+        ),
+      );
+    });
+
+    test('swift glance text throws for an icon leaf, with or without a default',
+        () {
+      const withDefault = HWJson(
+        'payload',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('wbSunny', 0xE88A)],
+          iconFont: HWIconFont(family: 'MaterialIcons'),
+          defaultValue: 0xE88A,
+        ),
+      );
+      const withoutDefault = HWJson(
+        'payload',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('wbSunny', 0xE88A)],
+          iconFont: HWIconFont(family: 'MaterialIcons'),
+        ),
+      );
+      for (final json in [withDefault, withoutDefault]) {
+        expect(
+          () => json.swiftGlanceJsonTextInterpolation('entry.data'),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.toString(),
+              'message',
+              contains('HWIconData cannot be rendered as text'),
+            ),
+          ),
+        );
+      }
+    });
+
+    test('kotlin and swift glance text throw for an image leaf', () {
+      const imageJson = HWJson('payload', HWImageData('avatar'));
+      final throwsImageError = throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.toString(),
+          'message',
+          contains('HWImageData cannot be rendered as text'),
+        ),
+      );
+      expect(
+        () => imageJson.kotlinGlanceJsonTextInterpolation('widgetData'),
+        throwsImageError,
+      );
+      expect(
+        () => imageJson.swiftGlanceJsonTextInterpolation('entry.data'),
+        throwsImageError,
+      );
+    });
+
     test('hashCode agrees with == for structurally equal instances', () {
       final a = HWJson('root', const HWString('a'));
       final b = HWJson('root', const HWString('a'));

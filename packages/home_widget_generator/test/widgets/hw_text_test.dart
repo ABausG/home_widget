@@ -87,6 +87,57 @@ void main() {
           );
         });
       });
+
+      group('with an icon or image leaf', () {
+        const icon = HWText(
+          HWJson(
+            'payload',
+            HWIconData.resolved(
+              'mood',
+              entries: [HWIconEntry('wbSunny', 0xE88A)],
+              iconFont: HWIconFont(family: 'MaterialIcons'),
+              defaultValue: 0xE88A,
+            ),
+          ),
+        );
+        const image = HWText(HWJson('payload', HWImageData('avatar')));
+
+        Matcher throwsFor(String type) => throwsA(
+              isA<GeneratorError>().having(
+                (e) => e.toString(),
+                'message',
+                contains('$type cannot be rendered as text'),
+              ),
+            );
+
+        test('Kotlin throws for an icon leaf even with a default', () {
+          expect(
+            () => icon.toKotlin(0, dataExpr: 'widgetData'),
+            throwsFor('HWIconData'),
+          );
+        });
+
+        test('Swift throws for an icon leaf', () {
+          expect(
+            () => icon.toSwift(0, dataExpr: 'entry.data'),
+            throwsFor('HWIconData'),
+          );
+        });
+
+        test('Kotlin throws for an image leaf', () {
+          expect(
+            () => image.toKotlin(0, dataExpr: 'widgetData'),
+            throwsFor('HWImageData'),
+          );
+        });
+
+        test('Swift throws for an image leaf', () {
+          expect(
+            () => image.toSwift(0, dataExpr: 'entry.data'),
+            throwsFor('HWImageData'),
+          );
+        });
+      });
     });
 
     group('iOS (SwiftUI)', () {
