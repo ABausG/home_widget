@@ -233,8 +233,18 @@ HomeWidgetIOSFlavor? _extractIosFlavor(DartObject? obj) {
   );
 }
 
+/// The constant [obj] names, matched against [values] by name.
+///
+/// The name survives a member being inserted into the annotation's enum ahead
+/// of the one written, which the declaration index does not.
 T? _decodeEnum<T>(DartObject? obj, List<T> values) {
   if (obj == null || obj.isNull) return null;
+
+  final name = obj.variable?.name;
+  for (final value in values) {
+    if (value is Enum && value.name == name) return value;
+  }
+
   final index = obj.getField('index')?.toIntValue();
   if (index != null && index >= 0 && index < values.length) {
     return values[index];

@@ -42,18 +42,28 @@ class HWPadding extends HWSingleChildWidget {
   }
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
-    final childCode = child.toSwift(indent, dataExpr: dataExpr);
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    final childCode =
+        child.toSwift(indent, dataExpr: dataExpr, context: context);
     final modifier =
         '.padding(EdgeInsets(top: ${padding.top}, leading: ${padding.left}, bottom: ${padding.bottom}, trailing: ${padding.right}))';
     return applySwiftModifier(childCode, modifier, indent);
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     final modifier =
         'padding(start = ${padding.left}.dp, top = ${padding.top}.dp, end = ${padding.right}.dp, bottom = ${padding.bottom}.dp)';
-    final childCode = child.toKotlin(indent, dataExpr: dataExpr);
+    final childCode =
+        child.toKotlin(indent, dataExpr: dataExpr, context: context);
     return injectGlanceModifier(childCode, modifier);
   }
 }

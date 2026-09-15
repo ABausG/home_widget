@@ -47,12 +47,20 @@ class HWAdaptive extends HWWidget {
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
-    return ios.toSwift(indent, dataExpr: dataExpr);
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    return ios.toSwift(indent, dataExpr: dataExpr, context: context);
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    return android.toKotlin(indent, dataExpr: dataExpr);
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    return android.toKotlin(indent, dataExpr: dataExpr, context: context);
   }
 }

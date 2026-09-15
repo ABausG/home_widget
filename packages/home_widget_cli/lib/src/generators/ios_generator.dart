@@ -330,6 +330,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
       spec.effectiveWidgetTree,
       dataExpr: dataExpr,
       indent: 2,
+      context: spec.iosEmitContext,
     );
 
     final customBgColor = spec.data.iOS?.backgroundColor;
@@ -362,17 +363,40 @@ struct ${widgetClassName}Entry: TimelineEntry {
         );
       }
     }
-    viewBuffer.writeln(treeCode);
-    viewBuffer.write('    $containerBackgroundModifier');
+    // A root `switch` or `if` is a statement, not a view expression, so the
+    // modifier has to land on a `Group { ... }` wrapper instead of dangling
+    // after the closing brace.
+    viewBuffer.write(
+      applySwiftModifier(treeCode, containerBackgroundModifier, 1),
+    );
     entryViewBody = viewBuffer.toString();
 
     String? supportedFamilies;
-    if (spec.data.iOS?.supportedFamilies != null &&
-        spec.data.iOS!.supportedFamilies!.isNotEmpty) {
-      final families = spec.data.iOS!.supportedFamilies!
+    String? supportedFamiliesProperty;
+    final declaredFamilies = spec.data.iOS?.supportedFamilies;
+    if (declaredFamilies != null && declaredFamilies.isNotEmpty) {
+      final baseFamilies = declaredFamilies
+          .where((f) => f.minimumIosVersion == null)
           .map((f) => f.toSwiftValue())
           .join(', ');
-      supportedFamilies = '[$families]';
+      final gatedFamilies = <String, List<HWWidgetFamily>>{};
+      for (final family in declaredFamilies) {
+        final version = family.minimumIosVersion;
+        if (version == null) continue;
+        gatedFamilies
+            .putIfAbsent(version, () => <HWWidgetFamily>[])
+            .add(family);
+      }
+
+      if (gatedFamilies.isEmpty) {
+        supportedFamilies = '[$baseFamilies]';
+      } else {
+        supportedFamilies = 'supportedFamilies';
+        supportedFamiliesProperty = _gatedSupportedFamiliesProperty(
+          baseFamilies,
+          gatedFamilies,
+        );
+      }
     }
 
     await widgetSwift.writeAsString(
@@ -417,6 +441,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
                 translations: spec.data.localization?.description,
               ),
         supportedFamilies: supportedFamilies,
+        supportedFamiliesProperty: supportedFamiliesProperty,
         swiftViewModifiers: {
           ...spec.effectiveWidgetTree.swiftViewModifiers,
           if (customBgColor != null) ...customBgColor.swiftViewModifiers,
@@ -633,6 +658,51 @@ struct ${widgetClassName}Entry: TimelineEntry {
         '${spec.data.name} is not generated for the Xcode flavor "$flavor".',
       );
     }
+  }
+
+  /// The `supportedFamilies` property a widget declaring a family newer than
+  /// the extension's deployment target (iOS 14) needs.
+  ///
+  /// [baseFamilies] is the comma-separated literal of families available on
+  /// every targeted version; [gatedFamilies] maps a minimum iOS version to the
+  /// families introduced with it. A family whose symbol is missing from older
+  /// toolchains gets a compiler gate on top of the availability check.
+  String _gatedSupportedFamiliesProperty(
+    String baseFamilies,
+    Map<String, List<HWWidgetFamily>> gatedFamilies,
+  ) {
+    final buffer = StringBuffer()..write('''
+  private var supportedFamilies: [WidgetFamily] {
+    var families: [WidgetFamily] = [$baseFamilies]
+''');
+
+    final versions = gatedFamilies.keys.toList()
+      ..sort((a, b) => double.parse(a).compareTo(double.parse(b)));
+
+    for (final version in versions) {
+      final families = gatedFamilies[version]!;
+      final values = families.map((f) => f.toSwiftValue()).toList();
+      final append = values.length == 1
+          ? 'families.append(${values.single})'
+          : 'families.append(contentsOf: [${values.join(', ')}])';
+      final gate = families
+          .map((f) => f.swiftCompilerGate)
+          .firstWhere((gate) => gate != null, orElse: () => null);
+      final pad = gate != null ? '      ' : '    ';
+
+      if (gate != null) buffer.writeln('    #if compiler(>=$gate)');
+      buffer.write('''
+${pad}if #available(iOSApplicationExtension $version, *) {
+$pad  $append
+$pad}
+''');
+      if (gate != null) buffer.writeln('    #endif');
+    }
+
+    buffer.write('''
+    return families
+  }''');
+    return buffer.toString();
   }
 
   /// Swift expression for a gallery string, or null when nothing was

@@ -73,6 +73,8 @@ class WidgetValueDecoder {
       return HWDataExists.fromDartObject(object!, this);
     } else if (typeName == 'HWBoolConditional') {
       return HWBoolConditional.fromDartObject(object!, this);
+    } else if (typeName == 'HWSizeAdaptive') {
+      return HWSizeAdaptive.fromDartObject(object!, this);
     }
 
     // coverage:ignore-start
@@ -89,15 +91,24 @@ class WidgetValueDecoder {
     ).decode();
   }
 
+  /// The constant [obj] names, matched against [values] by name.
+  ///
+  /// The name survives a member being inserted into the annotation's enum
+  /// ahead of the one written, which the declaration index does not.
   static T? decodeEnum<T>(DartObject? obj, List<T> values) {
     if (obj == null || obj.isNull) return null;
 
     final variable = obj.variable;
-    if (variable != null) {
-      final index = obj.getField('index')?.toIntValue();
-      if (index != null && index >= 0 && index < values.length) {
-        return values[index];
-      }
+    if (variable == null) return null;
+
+    final name = variable.name;
+    for (final value in values) {
+      if (value is Enum && value.name == name) return value;
+    }
+
+    final index = obj.getField('index')?.toIntValue();
+    if (index != null && index >= 0 && index < values.length) {
+      return values[index];
     }
     return null;
   }

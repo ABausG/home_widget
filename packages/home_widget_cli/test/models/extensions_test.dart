@@ -33,6 +33,10 @@ void main() {
         '.systemExtraLarge',
       );
       expect(
+        HWWidgetFamily.systemExtraLargePortrait.toSwiftValue(),
+        '.systemExtraLargePortrait',
+      );
+      expect(
         HWWidgetFamily.accessoryCircular.toSwiftValue(),
         '.accessoryCircular',
       );
@@ -44,6 +48,37 @@ void main() {
         HWWidgetFamily.accessoryInline.toSwiftValue(),
         '.accessoryInline',
       );
+    });
+  });
+
+  group('HWWidgetFamilyExtension.minimumIosVersion', () {
+    test('leaves the families of the deployment target ungated', () {
+      expect(HWWidgetFamily.systemSmall.minimumIosVersion, isNull);
+      expect(HWWidgetFamily.systemMedium.minimumIosVersion, isNull);
+      expect(HWWidgetFamily.systemLarge.minimumIosVersion, isNull);
+    });
+
+    test('names the version every newer family arrived with', () {
+      expect(HWWidgetFamily.systemExtraLarge.minimumIosVersion, '15.0');
+      expect(HWWidgetFamily.accessoryCircular.minimumIosVersion, '16.0');
+      expect(HWWidgetFamily.accessoryRectangular.minimumIosVersion, '16.0');
+      expect(HWWidgetFamily.accessoryInline.minimumIosVersion, '16.0');
+      expect(
+        HWWidgetFamily.systemExtraLargePortrait.minimumIosVersion,
+        '27.0',
+      );
+    });
+  });
+
+  group('HWWidgetFamilyExtension.needsCompilerGate', () {
+    test('only the portrait extra-large is missing from older toolchains', () {
+      for (final family in HWWidgetFamily.values) {
+        expect(
+          family.needsCompilerGate,
+          family == HWWidgetFamily.systemExtraLargePortrait,
+          reason: family.name,
+        );
+      }
     });
   });
 }

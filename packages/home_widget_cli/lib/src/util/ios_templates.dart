@@ -54,6 +54,9 @@ enum $enumName {
 ///               If null, a placeholder configuration is generated.
 /// [widgetUrl]: Optional URL opened when the widget is tapped, emitted as a
 ///              `.widgetURL(...)` modifier on the entry view's body.
+/// [supportedFamiliesProperty]: Optional property declaration emitted inside
+///              the `Widget` struct, which [supportedFamilies] then names
+///              instead of spelling an array literal.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String iosWidgetSwiftTemplate({
   required String widgetClassName,
@@ -72,6 +75,7 @@ String iosWidgetSwiftTemplate({
   String? displayNameExpression,
   String? descriptionExpression,
   String? supportedFamilies,
+  String? supportedFamiliesProperty,
   Set<String>? swiftViewModifiers,
   bool hasCustomContainerBackground = false,
   bool applyContentPadding = true,
@@ -195,6 +199,15 @@ $viewBody
 
 struct $widgetClassName: Widget {
   let kind: String = "$widgetClassName"
+''');
+
+  if (supportedFamiliesProperty != null) {
+    buffer
+      ..writeln()
+      ..writeln(supportedFamiliesProperty);
+  }
+
+  buffer.write('''
 
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: kind, provider: Provider()) { entry in

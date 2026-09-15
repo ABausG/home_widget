@@ -6,6 +6,8 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 /// [widgetClassName]: The class name of the widget (e.g., `ExampleWidgetHomeWidget`).
 /// [contentBody]: Optional body content for the `WidgetContent` composable.
 ///                If null, a placeholder text is generated.
+/// [sizeModeDeclaration]: Optional `override val sizeMode = ...` emitted inside
+///                the widget class. Only a size-adaptive tree declares one.
 /// [previewPreferences]: The `SharedPreferences` expression `providePreview`
 ///                composes the gallery preview from. Defaults to the data the
 ///                app itself saved, which is what the widget body reads.
@@ -20,7 +22,9 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 ///                once with no bounds to measure them and once to render, and
 ///                against the size it was actually given rather than the
 ///                smallest one its provider declares, since the measurements
-///                are keyed by it.
+///                are keyed by it. A [sizeModeDeclaration] takes precedence:
+///                the measurements are then keyed by the declared size the
+///                body is composed against.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceWidgetTemplate({
   required String packageName,
@@ -28,6 +32,7 @@ String androidGlanceWidgetTemplate({
   String? contentBody,
   String? extraContent,
   Set<String>? additionalImports,
+  String? sizeModeDeclaration,
   String previewPreferences = 'HomeWidgetPlugin.getData(context)',
   bool previewParameter = false,
   String? previewFingerprint,
@@ -135,9 +140,20 @@ import es.antonborri.home_widget.HomeWidgetPlugin
 
 class $widgetClassName : GlanceAppWidget() {
   override val stateDefinition = HomeWidgetGlanceStateDefinition()
-${measuresTextBounds ? '''
-  override val sizeMode: SizeMode = SizeMode.Exact
-''' : ''}
+''');
+
+  final sizeMode = sizeModeDeclaration ??
+      (measuresTextBounds
+          ? '  override val sizeMode: SizeMode = SizeMode.Exact'
+          : null);
+  if (sizeMode != null) {
+    buffer
+      ..writeln()
+      ..writeln(sizeMode);
+  }
+
+  buffer.write('''
+
 $provideGlance
   override suspend fun providePreview(context: Context, widgetCategory: Int) {
     provideContent { WidgetContent(context, HomeWidgetGlanceState($previewPreferences)${previewParameter ? ', preview = true' : ''}$previewTextBounds) }

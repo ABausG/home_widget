@@ -2,6 +2,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
+import 'size_validator.dart';
 
 part 'dart_keywords.dart';
 part 'kotlin_keywords.dart';
@@ -55,6 +56,7 @@ void validateWidgetData(WidgetSpec spec) {
   _validateTimedDataKeys(spec);
   _validateTextFormats(spec);
   _validateIconEnums(spec);
+  validateSizeAdaptive(spec);
 
   for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');

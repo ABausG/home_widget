@@ -90,6 +90,7 @@ words:
     - Charsets
     - savefile
     # home_widget_cli / home_widget_generator
+    - adaptives # plural of the HWSizeAdaptive widget
     - ARGB
     - associatedtype
     - buildable
@@ -110,7 +111,11 @@ words:
     - generatable
     - Generatable
     - homewidget
+    # docs.page anchor fragments (lowercased heading text)
+    - homewidgetiosconfiguration
+    - homewidgetandroidconfiguration
     - hwcolorrole
+    - hwwidgetfamily
     - idempotently
     - INFOPLIST
     - inout
@@ -145,6 +150,7 @@ words:
     - tailrec
     - timedjson
     - tisa
+    - unawaited
     - unparseable
     - untimed
     - vararg

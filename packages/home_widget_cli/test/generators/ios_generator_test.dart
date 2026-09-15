@@ -1955,6 +1955,146 @@ void main() {
       );
     });
   });
+
+  group('size-adaptive widgets', () {
+    Future<String> generate(
+      HWWidget tree, {
+      List<HWWidgetFamily>? families,
+    }) async {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Adaptive',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.adaptive',
+            supportedFamilies: families,
+          ),
+        ),
+        className: 'Adaptive',
+        widgetTree: tree,
+      );
+
+      await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(tempDir.path, 'ios/AdaptiveHomeWidget/Widget.swift'),
+      ).readAsStringSync();
+    }
+
+    test('appends every family newer than the deployment target', () async {
+      final content = await generate(
+        HWText.fixed('S'),
+        families: HWWidgetFamily.values,
+      );
+
+      expect(
+        content,
+        contains(
+          '  private var supportedFamilies: [WidgetFamily] {\n'
+          '    var families: [WidgetFamily] = '
+          '[.systemSmall, .systemMedium, .systemLarge]\n'
+          '    if #available(iOSApplicationExtension 15.0, *) {\n'
+          '      families.append(.systemExtraLarge)\n'
+          '    }\n'
+          '    if #available(iOSApplicationExtension 16.0, *) {\n'
+          '      families.append(contentsOf: '
+          '[.accessoryCircular, .accessoryRectangular, .accessoryInline])\n'
+          '    }\n'
+          '    #if compiler(>=6.4)\n'
+          '      if #available(iOSApplicationExtension 27.0, *) {\n'
+          '        families.append(.systemExtraLargePortrait)\n'
+          '      }\n'
+          '    #endif\n'
+          '    return families\n'
+          '  }\n',
+        ),
+      );
+      expect(content, contains('.supportedFamilies(supportedFamilies)'));
+    });
+
+    test('keeps a plain literal when no family needs a gate', () async {
+      final content = await generate(
+        HWText.fixed('S'),
+        families: const [
+          HWWidgetFamily.systemSmall,
+          HWWidgetFamily.systemLarge,
+        ],
+      );
+
+      expect(
+        content,
+        contains('.supportedFamilies([.systemSmall, .systemLarge])'),
+      );
+      expect(content, isNot(contains('private var supportedFamilies')));
+    });
+
+    test('wraps a root switch in a Group before the modifier', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '    Group {\n'
+          '            switch widgetFamily {\n'
+          '            case .systemMedium, .systemLarge:\n'
+          '                Text("M")\n'
+          '            default:\n'
+          '                Text("S")\n'
+          '            }\n'
+          '    }\n'
+          '    .applyContainerBackground()',
+        ),
+      );
+      expect(
+        content,
+        contains('@Environment(\\.widgetFamily) var widgetFamily'),
+      );
+    });
+
+    test('collapses to one layout when only one family is reachable', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+        families: const [HWWidgetFamily.systemSmall],
+      );
+
+      expect(content, isNot(contains('switch widgetFamily')));
+      expect(content, isNot(contains('Text("M")')));
+      expect(content, contains('        Text("S")\n    .applyContainer'));
+    });
+
+    test(
+        'defaults to the first accessory family when only those are '
+        'reachable', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          accessoryCircular: HWText.fixed('C'),
+          accessoryRectangular: HWText.fixed('R'),
+        ),
+        families: const [
+          HWWidgetFamily.accessoryCircular,
+          HWWidgetFamily.accessoryRectangular,
+        ],
+      );
+
+      expect(
+        content,
+        contains(
+          '            switch widgetFamily {\n'
+          '            case .accessoryRectangular:\n'
+          '                Text("R")\n'
+          '            default:\n'
+          '                Text("C")\n'
+          '            }',
+        ),
+      );
+    });
+  });
 }
 
 /// A native flavor, i.e. the trio of Runner build configurations Flutter

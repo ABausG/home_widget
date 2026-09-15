@@ -1223,6 +1223,50 @@ class C {}
       }
     });
 
+    test('decodeEnum falls back to the declaration index', () async {
+      final file = File(
+        p.join(
+          Directory.current.path,
+          'test',
+          'temp_wvd_enum_${DateTime.now().millisecondsSinceEpoch}.dart',
+        ),
+      );
+      await file.writeAsString('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+const align = HWTextAlign.center;
+''');
+      try {
+        final collection = AnalysisContextCollection(
+          includedPaths: [file.path],
+          resourceProvider: PhysicalResourceProvider.INSTANCE,
+        );
+        final context = collection.contextFor(file.path);
+        final result = await context.currentSession.getResolvedUnit(file.path);
+        if (result is! ResolvedUnitResult) {
+          throw StateError('Failed to resolve');
+        }
+        final align = result.unit.declaredFragment!.element.topLevelVariables
+            .firstWhere((v) => v.name == 'align')
+            .computeConstantValue()!;
+
+        expect(
+          WidgetValueDecoder.decodeEnum(align, HWTextAlign.values),
+          HWTextAlign.center,
+        );
+        expect(
+          WidgetValueDecoder.decodeEnum(align, HWFontWeight.values),
+          HWFontWeight.values[HWTextAlign.center.index],
+        );
+        expect(
+          WidgetValueDecoder.decodeEnum(align, [HWTextAlign.start]),
+          isNull,
+        );
+      } finally {
+        if (await file.exists()) await file.delete();
+      }
+    });
+
     group('format decoders reject objects of another format type', () {
       late DartObject numberFormat;
       late DartObject dateFormat;

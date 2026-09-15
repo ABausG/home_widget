@@ -33,12 +33,20 @@ class HWDataOnly extends HWWidget implements HWDataWidget {
   Set<String> get kotlinImports => {};
 
   @override
-  String toSwift(int indent, {required String dataExpr}) {
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     return '';
   }
 
   @override
-  String toKotlin(int indent, {required String dataExpr}) {
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
     return '';
   }
 }

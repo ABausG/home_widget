@@ -81,6 +81,11 @@
 		E560C69CE8C261F7C4C0CA5A /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = 341812F39567A214D1FB36F5 /* hw_font_icons_materialicons.otf */; };
 		E0F83EBB62951008D02F14CD /* hw_font_icons_cupertinoicons__cupertino_icons.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 49A73B3C84F157B3E425B412 /* hw_font_icons_cupertinoicons__cupertino_icons.ttf */; };
 		9F8DED2E447C8E6B56220E84 /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9C5559F73FBDCD36024ECFA1 /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf */; };
+		697F38136EF1D3FADC4AB121 /* SizeAdaptiveDashboardHomeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FB4960B6A60F6BC3501CF61C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BD39826723800AEEB932A299 /* WidgetKit.framework */; };
+		9944AC47575114861A01B8ED /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B9151DA846A760F02F70FBC /* SwiftUI.framework */; };
+		88F3FFFF8E038B14971A02B5 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65CC81C847A9EB0720271642 /* Widget.swift */; };
+		5C927FFF0BD223546040726D /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E894120CE1F25E77C30E4CA /* WidgetBundle.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -174,6 +179,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = EF67685C1BF69BB94B54BD0E;
 			remoteInfo = FontAndIconsHomeWidget;
+		};
+		8C1259F2EE7E9B271EC28BD0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 15BFE5275F1D3B1883CDA931;
+			remoteInfo = SizeAdaptiveDashboardHomeWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -320,6 +332,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A93764F82D6C64C774EDE512 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				697F38136EF1D3FADC4AB121 /* SizeAdaptiveDashboardHomeWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -435,6 +458,13 @@
 		341812F39567A214D1FB36F5 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
 		49A73B3C84F157B3E425B412 /* hw_font_icons_cupertinoicons__cupertino_icons.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_cupertinoicons__cupertino_icons.ttf; sourceTree = "<group>"; };
 		9C5559F73FBDCD36024ECFA1 /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_fontawesomesolid__font_awesome_flutter.otf; sourceTree = "<group>"; };
+		3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SizeAdaptiveDashboardHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BD39826723800AEEB932A299 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		5B9151DA846A760F02F70FBC /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		FD4F3F0DA504BB1ED9BDA2D3 /* SizeAdaptiveDashboardHomeWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SizeAdaptiveDashboardHomeWidget.entitlements; sourceTree = "<group>"; };
+		65CC81C847A9EB0720271642 /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		7E894120CE1F25E77C30E4CA /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
+		7DC195537041BEAC5511D5E9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -563,6 +593,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3811AB1C9393D75F54D03BCA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9944AC47575114861A01B8ED /* SwiftUI.framework in Frameworks */,
+				FB4960B6A60F6BC3501CF61C /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -652,6 +691,8 @@
 				11FE1C38BC08338F03B2DE02 /* NumberDateFormattingHomeWidget */,
 				FDD4A7C2041A7327C1473920 /* FontAndIconsHomeWidget.entitlements */,
 				4A024E5A560578D506BEC2F4 /* FontAndIconsHomeWidget */,
+				FD4F3F0DA504BB1ED9BDA2D3 /* SizeAdaptiveDashboardHomeWidget.entitlements */,
+				4587DE65D1FCC60C1B30E29F /* SizeAdaptiveDashboardHomeWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -664,6 +705,7 @@
 				3D54132DAC0B93E2C7D3D3EF /* WidgetLinkHomeWidget.appex */,
 				64BA7B9B3F5E4874294F88DD /* NumberDateFormattingHomeWidget.appex */,
 				A7C38631850A9F36A61743A3 /* FontAndIconsHomeWidget.appex */,
+				3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -797,6 +839,16 @@
 			path = FontAndIconsHomeWidget;
 			sourceTree = "<group>";
 		};
+		4587DE65D1FCC60C1B30E29F /* SizeAdaptiveDashboardHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				65CC81C847A9EB0720271642 /* Widget.swift */,
+				7E894120CE1F25E77C30E4CA /* WidgetBundle.swift */,
+				7DC195537041BEAC5511D5E9 /* Info.plist */,
+			);
+			path = SizeAdaptiveDashboardHomeWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -858,6 +910,7 @@
 				8B3AAD2511CAC418E8FC0B5F /* Embed Foundation Extensions */,
 				06CD63636844342AEA44F54D /* Embed Foundation Extensions */,
 				442A4419A9C6917C17F57913 /* Embed Foundation Extensions */,
+				A93764F82D6C64C774EDE512 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
@@ -875,6 +928,7 @@
 				2EAA2884E0FD9DCF2371FB62 /* PBXTargetDependency */,
 				1049273EF7BA03FDBA7CABF4 /* PBXTargetDependency */,
 				CCC853E07EC583431A5E12B6 /* PBXTargetDependency */,
+				0C87629392D876027D7FBAF9 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -1076,6 +1130,24 @@
 			productReference = A7C38631850A9F36A61743A3 /* FontAndIconsHomeWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		15BFE5275F1D3B1883CDA931 /* SizeAdaptiveDashboardHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8AE3F7A8DB9D25353F87C0D6 /* Build configuration list for PBXNativeTarget "SizeAdaptiveDashboardHomeWidget" */;
+			buildPhases = (
+				FAE617B5B0CB0C588D5A095F /* Sources */,
+				3811AB1C9393D75F54D03BCA /* Frameworks */,
+				0ED355724B37A093C3657770 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			
+			name = SizeAdaptiveDashboardHomeWidget;
+			productName = SizeAdaptiveDashboardHomeWidget;
+			productReference = 3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1128,6 +1200,7 @@
 				C19DC938F888A605B2C4382A /* WidgetLinkHomeWidget */,
 				D75B9C8AABF19C83AA46FF4C /* NumberDateFormattingHomeWidget */,
 				EF67685C1BF69BB94B54BD0E /* FontAndIconsHomeWidget */,
+				15BFE5275F1D3B1883CDA931 /* SizeAdaptiveDashboardHomeWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -1236,6 +1309,13 @@
 				E560C69CE8C261F7C4C0CA5A /* hw_font_icons_materialicons.otf in Resources */,
 				E0F83EBB62951008D02F14CD /* hw_font_icons_cupertinoicons__cupertino_icons.ttf in Resources */,
 				9F8DED2E447C8E6B56220E84 /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		0ED355724B37A093C3657770 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1445,6 +1525,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FAE617B5B0CB0C588D5A095F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				88F3FFFF8E038B14971A02B5 /* Widget.swift in Sources */,
+				5C927FFF0BD223546040726D /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1512,6 +1601,11 @@
 			isa = PBXTargetDependency;
 			target = EF67685C1BF69BB94B54BD0E /* FontAndIconsHomeWidget */;
 			targetProxy = EE6C7B73C1EB5A5C896050D1 /* PBXContainerItemProxy */;
+		};
+		0C87629392D876027D7FBAF9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 15BFE5275F1D3B1883CDA931 /* SizeAdaptiveDashboardHomeWidget */;
+			targetProxy = 8C1259F2EE7E9B271EC28BD0 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2763,6 +2857,84 @@
 			};
 			name = Profile;
 		};
+		BAF4C491E405D74C6D331017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SizeAdaptiveDashboardHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = SizeAdaptiveDashboardHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SizeAdaptiveDashboardHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SizeAdaptiveDashboardHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		E96564C3204965FECA04F659 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SizeAdaptiveDashboardHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = SizeAdaptiveDashboardHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SizeAdaptiveDashboardHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SizeAdaptiveDashboardHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		FFE3716FE4B78F8E2B936531 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SizeAdaptiveDashboardHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = SizeAdaptiveDashboardHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SizeAdaptiveDashboardHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SizeAdaptiveDashboardHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2912,6 +3084,16 @@
 				B9DF01EE9C76B915CB78CD8C /* Debug */,
 				63747890B361520765737316 /* Release */,
 				7B00078499FDC0570E87110E /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8AE3F7A8DB9D25353F87C0D6 /* Build configuration list for PBXNativeTarget "SizeAdaptiveDashboardHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BAF4C491E405D74C6D331017 /* Debug */,
+				E96564C3204965FECA04F659 /* Release */,
+				FFE3716FE4B78F8E2B936531 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
