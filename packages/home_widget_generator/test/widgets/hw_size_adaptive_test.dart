@@ -748,6 +748,32 @@ Column {
 }''',
         );
       });
+
+      test('kotlinSizeMode declares every size it is given', () {
+        expect(
+          HWSizeAdaptive.kotlinSizeMode(
+            const [HWSize(250, 110), HWSize(250, 250)],
+          ),
+          '''
+  override val sizeMode = SizeMode.Responsive(
+      setOf(
+          DpSize(250.dp, 110.dp),
+          DpSize(250.dp, 250.dp),
+      )
+  )''',
+        );
+      });
+
+      test('kotlinSizeMode with no size declares an empty set', () {
+        expect(
+          HWSizeAdaptive.kotlinSizeMode(const []),
+          '''
+  override val sizeMode = SizeMode.Responsive(
+      setOf(
+      )
+  )''',
+        );
+      });
     });
 
     group('equality', () {
@@ -909,6 +935,27 @@ Column {
               (e) => e.message,
               'message',
               contains('systemMedium a value that is not an HWSize'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects an androidSizes key that is not an HWWidgetFamily',
+          () async {
+        await expectLater(
+          parseWidget('''
+@HomeWidget(
+  name: 'SizeAdaptiveBadKeyWidget',
+  widget: HWSizeAdaptive(
+    small: HWText.fixed('small'),
+    androidSizes: {null: HWSize(200, 100)},
+  ),
+)'''),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('has a key that is not an HWWidgetFamily'),
             ),
           ),
         );

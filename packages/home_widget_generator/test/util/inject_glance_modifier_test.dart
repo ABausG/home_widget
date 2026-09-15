@@ -173,6 +173,19 @@ void main() {
       );
     });
 
+    test('wraps a when whose string literal is never closed in a Box', () {
+      expect(
+        injectGlanceModifier(
+          'when (x) {\n    A -> { Text("a) }',
+          'fillMaxSize',
+        ),
+        'Box(modifier = GlanceModifier.fillMaxSize) {\n'
+        '    when (x) {\n'
+        '        A -> { Text("a) }\n'
+        '}',
+      );
+    });
+
     test('wraps a when with no brace-delimited branch in a Box', () {
       expect(
         injectGlanceModifier('when (x) { A -> Text("a") }', 'fillMaxSize'),
