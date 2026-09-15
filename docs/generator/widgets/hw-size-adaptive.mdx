@@ -104,7 +104,7 @@ Only the branch an [`HWAdaptive`](/generator/widgets/hw-adaptive) uses on a plat
 
 ### iOS
 
-Each slot renders for the [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) named in the [Parameters](#parameters) table, on the home screen and the Lock Screen alike.
+Each slot renders for the [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) named in the [Parameters](#parameters) table. The `system*` families appear on the Home Screen and in Today View (`systemSmall` also on the iPad Lock Screen); the `accessory*` families appear on the Lock Screen.
 
 `systemExtraLargePortrait` is new in iOS / iPadOS 27 and needs Xcode 27 to build. Projects built with an older Xcode still compile and simply never show that layout, so you can add the slot before switching toolchains.
 

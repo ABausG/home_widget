@@ -150,6 +150,7 @@ words:
     - tailrec
     - timedjson
     - tisa
+    - unawaited
     - unparseable
     - untimed
     - vararg

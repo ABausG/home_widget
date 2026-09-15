@@ -60,6 +60,16 @@ class _HomePageState extends State<_HomePage> {
     _widgetLinkSubscription = WidgetLinkHomeWidget.launchedFromWidget().listen(
       (uri) => setState(() => _widgetLinkUri = uri),
     );
+    unawaited(_loadDashboard());
+  }
+
+  Future<void> _loadDashboard() async {
+    final data = await SizeAdaptiveDashboardHomeWidget.getData();
+    if (!mounted) return;
+    setState(() {
+      _score = data.score ?? 0;
+      _streak = data.streak ?? 0;
+    });
   }
 
   @override
