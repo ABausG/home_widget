@@ -156,15 +156,6 @@ class HWTextStyle implements HWGeneratable {
   /// The color text in this style renders in, or null for the platform default.
   HWColor? get effectiveColor => _resolve().color;
 
-  /// Whether text in this style renders slanted.
-  bool get effectiveItalic => _resolve().italic == true;
-
-  /// Whether text in this style renders underlined.
-  bool get effectiveUnderline => _resolve().underline == true;
-
-  /// Whether text in this style renders struck through.
-  bool get effectiveLineThrough => _resolve().lineThrough == true;
-
   /// How Android renders text in this style.
   ///
   /// Glance cannot name a font family, so a style that does renders as a

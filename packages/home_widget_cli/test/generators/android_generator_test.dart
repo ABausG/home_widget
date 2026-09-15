@@ -640,10 +640,59 @@ void main() {
     expect(
       content,
       contains(
-        'Text(text = hwFormatDecimal((widgetData.count ?: 0L), '
-        'null, null, true, hwFormatLocale(context)), '
+        'Text(text = widgetData.count?.let { hwFormatDecimal(it, '
+        'null, null, true, hwFormatLocale(context)) } ?: "", '
         'style = TextStyle(color = GlanceTheme.colors.onSurface))',
       ),
+    );
+  });
+
+  test('renders a missing number as empty text, a default as itself', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'NumbersWidget',
+        android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+      ),
+      className: 'NumbersWidget',
+      dataFields: const [
+        HWInt('count'),
+        HWDouble('ratio'),
+        HWInt('score', defaultValue: 7),
+      ],
+      widgetTree: const HWColumn(
+        children: [
+          HWText(HWInt('count')),
+          HWText(HWDouble('ratio')),
+          HWText(HWInt('score', defaultValue: 7)),
+        ],
+      ),
+    );
+
+    await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(
+        tempDir.path,
+        'android/app/src/main/kotlin/com/example/NumbersWidgetHomeWidget.kt',
+      ),
+    ).readAsStringSync();
+
+    expect(content, contains('val count: Long? = null,'));
+    expect(content, contains('val ratio: Double? = null,'));
+    expect(
+      content,
+      contains('widgetData.count?.let { hwFormatDecimal(it, null, null, true, '
+          'hwFormatLocale(context)) } ?: ""'),
+    );
+    expect(
+      content,
+      contains('widgetData.ratio?.let { hwFormatDecimal(it, null, null, true, '
+          'hwFormatLocale(context)) } ?: ""'),
+    );
+    expect(
+      content,
+      contains('hwFormatDecimal((widgetData.score ?: 7L), null, null, true, '
+          'hwFormatLocale(context))'),
     );
   });
 
@@ -1955,8 +2004,8 @@ void main() {
       expect(
         content,
         contains(
-          'Text(text = hwFormatCurrency((widgetData.total ?: 0.0), '
-          'widgetData.currency ?: "", null, hwFormatLocale(context)), '
+          'Text(text = widgetData.total?.let { hwFormatCurrency(it, '
+          'widgetData.currency ?: "", null, hwFormatLocale(context)) } ?: "", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );

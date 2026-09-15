@@ -113,8 +113,21 @@ void main() {
         );
         expect(
           result,
-          'Text(hwFormatDecimal(NSNumber(value: data.count ?? 0), minFraction: nil, '
-          'maxFraction: nil, grouping: true))',
+          r'Text(data.count.map { hwFormatDecimal(NSNumber(value: $0), '
+          r'minFraction: nil, maxFraction: nil, grouping: true) } ?? "")',
+        );
+      });
+
+      test('emits a missing int with a default in that default', () {
+        final node = HWText(HWInt('count', defaultValue: 5));
+        final result = node.toSwift(
+          0,
+          dataExpr: 'data',
+        );
+        expect(
+          result,
+          'Text(hwFormatDecimal(NSNumber(value: data.count ?? 5), '
+          'minFraction: nil, maxFraction: nil, grouping: true))',
         );
       });
 
@@ -135,8 +148,8 @@ void main() {
         );
         expect(
           result,
-          'Text(hwFormatDecimal(NSNumber(value: data.ratio ?? 0.0), minFraction: nil, '
-          'maxFraction: nil, grouping: true))',
+          r'Text(data.ratio.map { hwFormatDecimal(NSNumber(value: $0), '
+          r'minFraction: nil, maxFraction: nil, grouping: true) } ?? "")',
         );
       });
 
@@ -395,7 +408,21 @@ void main() {
         );
         expect(
           result,
-          'Text(text = hwFormatDecimal((data.count ?: 0L), '
+          'Text(text = data.count?.let { hwFormatDecimal(it, '
+          'null, null, true, hwFormatLocale(context)) } ?: "", '
+          '$defaultStyleArg)',
+        );
+      });
+
+      test('emits a missing int with a default in that default', () {
+        final node = HWText(HWInt('count', defaultValue: 5));
+        final result = node.toKotlin(
+          0,
+          dataExpr: 'data',
+        );
+        expect(
+          result,
+          'Text(text = hwFormatDecimal((data.count ?: 5L), '
           'null, null, true, hwFormatLocale(context)), $defaultStyleArg)',
         );
       });
@@ -420,8 +447,9 @@ void main() {
         );
         expect(
           result,
-          'Text(text = hwFormatDecimal((data.ratio ?: 0.0), '
-          'null, null, true, hwFormatLocale(context)), $defaultStyleArg)',
+          'Text(text = data.ratio?.let { hwFormatDecimal(it, '
+          'null, null, true, hwFormatLocale(context)) } ?: "", '
+          '$defaultStyleArg)',
         );
       });
 
@@ -567,13 +595,13 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatDecimal(NSNumber(value: entry.data.v ?? 0.0), minFraction: 1, '
-        'maxFraction: 2, grouping: false))',
+        r'Text(entry.data.v.map { hwFormatDecimal(NSNumber(value: $0), '
+        r'minFraction: 1, maxFraction: 2, grouping: false) } ?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatDecimal((widgetData.v ?: 0.0), 1, 2, false, '
-        'hwFormatLocale(context)), $defaultStyleArg)',
+        'Text(text = widgetData.v?.let { hwFormatDecimal(it, 1, 2, false, '
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -584,13 +612,13 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatPercent(NSNumber(value: entry.data.progress ?? 0.0), minFraction: nil, '
-        'maxFraction: 0))',
+        r'Text(entry.data.progress.map { hwFormatPercent(NSNumber(value: $0), '
+        r'minFraction: nil, maxFraction: 0) } ?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatPercent((widgetData.progress ?: 0.0), null, 0, '
-        'hwFormatLocale(context)), $defaultStyleArg)',
+        'Text(text = widgetData.progress?.let { hwFormatPercent(it, null, 0, '
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -601,11 +629,45 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCompact(NSNumber(value: entry.data.steps ?? 0)))',
+        r'Text(entry.data.steps.map { hwFormatCompact(NSNumber(value: $0)) } '
+        r'?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatCompact((widgetData.steps ?: 0L), '
+        'Text(text = widgetData.steps?.let { hwFormatCompact(it, '
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
+      );
+    });
+
+    test('a default is formatted in place of a missing value', () {
+      const text = HWText.number(
+        HWInt('steps', defaultValue: 7),
+        format: HWNumberFormat.compact(),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatCompact(NSNumber(value: entry.data.steps ?? 7)))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatCompact((widgetData.steps ?: 7L), '
+        'hwFormatLocale(context)), $defaultStyleArg)',
+      );
+    });
+
+    test('a double default is formatted in place of a missing value', () {
+      const text = HWText.number(
+        HWDouble('ratio', defaultValue: 1.5),
+        format: HWNumberFormat.percent(),
+      );
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(hwFormatPercent(NSNumber(value: entry.data.ratio ?? 1.5), '
+        'minFraction: nil, maxFraction: nil))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = hwFormatPercent((widgetData.ratio ?: 1.5), null, null, '
         'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
@@ -617,12 +679,13 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatNumberPattern(NSNumber(value: entry.data.v ?? 0.0), "#,##0.00"))',
+        r'Text(entry.data.v.map { hwFormatNumberPattern(NSNumber(value: $0), '
+        r'"#,##0.00") } ?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatNumberPattern((widgetData.v ?: 0.0), '
-        '"#,##0.00", hwFormatLocale(context)), $defaultStyleArg)',
+        'Text(text = widgetData.v?.let { hwFormatNumberPattern(it, '
+        '"#,##0.00", hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -637,13 +700,13 @@ void main() {
       expect(text.dataDependencies, {const HWDouble('price')});
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCurrency(NSNumber(value: entry.data.price ?? 0.0), code: "EUR", '
-        'decimals: 2))',
+        r'Text(entry.data.price.map { hwFormatCurrency(NSNumber(value: $0), '
+        r'code: "EUR", decimals: 2) } ?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatCurrency((widgetData.price ?: 0.0), "EUR", 2, '
-        'hwFormatLocale(context)), $defaultStyleArg)',
+        'Text(text = widgetData.price?.let { hwFormatCurrency(it, "EUR", 2, '
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -660,13 +723,13 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCurrency(NSNumber(value: entry.data.price ?? 0.0), '
-        'code: entry.data.cur ?? "", decimals: nil))',
+        r'Text(entry.data.price.map { hwFormatCurrency(NSNumber(value: $0), '
+        r'code: entry.data.cur ?? "", decimals: nil) } ?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatCurrency((widgetData.price ?: 0.0), '
-        'widgetData.cur ?: "", null, hwFormatLocale(context)), '
+        'Text(text = widgetData.price?.let { hwFormatCurrency(it, '
+        'widgetData.cur ?: "", null, hwFormatLocale(context)) } ?: "", '
         '$defaultStyleArg)',
       );
     });
@@ -684,8 +747,7 @@ void main() {
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        contains('hwFormatCurrency((widgetData.price ?: 0.0), '
-            'widgetData.cfg?.cur ?: "", null, '),
+        contains('hwFormatCurrency(it, widgetData.cfg?.cur ?: "", null, '),
       );
     });
 
@@ -695,15 +757,16 @@ void main() {
           HWTimedData(HWInt('steps')),
           format: HWNumberFormat.compact(),
         ).toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatCompact(NSNumber(value: entry.data.steps ?? 0)))',
+        r'Text(entry.data.steps.map { hwFormatCompact(NSNumber(value: $0)) } '
+        r'?? "")',
       );
       expect(
         const HWText.number(
           HWJson('payload', HWDouble('v')),
           format: HWNumberFormat.compact(),
         ).toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatCompact((widgetData.payload?.v ?: 0.0), '
-        'hwFormatLocale(context)), $defaultStyleArg)',
+        'Text(text = widgetData.payload?.v?.let { hwFormatCompact(it, '
+        'hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
       );
     });
 
@@ -975,11 +1038,11 @@ void main() {
       }
       expect(
         plain.toSwift(0, dataExpr: 'entry.data'),
-        contains('NSNumber(value: entry.data.steps ?? 0)'),
+        contains(r'entry.data.steps.map { hwFormatDecimal(NSNumber(value: $0)'),
       );
       expect(
         nested.toKotlin(0, dataExpr: 'widgetData'),
-        contains('(widgetData.stats?.steps ?: 0L)'),
+        contains('widgetData.stats?.steps?.let { hwFormatDecimal(it'),
       );
     });
 

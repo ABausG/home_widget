@@ -51,7 +51,7 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = SimpleDataData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "b30bcad3",
+            "2748e7e7",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -90,13 +90,9 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
             Text(text = "value: ", style = TextStyle(color = GlanceTheme.colors.onSurface))
             Text(
                 text =
-                    hwFormatDecimal(
-                        (widgetData.value ?: 0L),
-                        null,
-                        null,
-                        true,
-                        hwFormatLocale(context),
-                    ),
+                    widgetData.value?.let {
+                      hwFormatDecimal(it, null, null, true, hwFormatLocale(context))
+                    } ?: "",
                 style = TextStyle(color = GlanceTheme.colors.onSurface),
             )
           }

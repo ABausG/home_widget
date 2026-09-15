@@ -158,6 +158,30 @@ void main() {
         wrapped.iosReadValue(store: 'defaults', key: 'k'),
       );
       expect(
+        type.androidReadValue(store: 'prefs', key: 'k', preview: true),
+        wrapped.androidReadValue(store: 'prefs', key: 'k', preview: true),
+      );
+      expect(
+        type.iosReadValue(store: 'defaults', key: 'k', preview: true),
+        wrapped.iosReadValue(store: 'defaults', key: 'k', preview: true),
+      );
+      expect(
+        type.codegenKotlinFallbackLiteral(),
+        wrapped.codegenKotlinFallbackLiteral(),
+      );
+      expect(
+        type.codegenKotlinFallbackLiteral(preview: true),
+        wrapped.codegenKotlinFallbackLiteral(preview: true),
+      );
+      expect(
+        type.codegenSwiftFallbackLiteral(),
+        wrapped.codegenSwiftFallbackLiteral(),
+      );
+      expect(
+        type.codegenSwiftFallbackLiteral(preview: true),
+        wrapped.codegenSwiftFallbackLiteral(preview: true),
+      );
+      expect(
         type.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
         wrapped.androidToString(outerValue: 'data.x', innerValue: 'data.x'),
       );
@@ -401,13 +425,18 @@ void main() {
         (const HWString('k'), r'data.x ?: ""', r'data.x ?? ""'),
         (
           const HWInt('k'),
-          r'(data.x?.toString() ?: "0")',
-          r'data.x != nil ? "\(data.x)" : "0"'
+          r'(data.x?.toString() ?: "")',
+          r'data.x != nil ? "\(data.x)" : ""'
+        ),
+        (
+          const HWInt('k', defaultValue: 3),
+          r'(data.x?.toString() ?: "")',
+          r'data.x != nil ? "\(data.x)" : ""'
         ),
         (
           const HWDouble('k'),
-          r'(data.x?.toString() ?: "0.0")',
-          r'data.x != nil ? "\(data.x)" : "0.0"'
+          r'(data.x?.toString() ?: "")',
+          r'data.x != nil ? "\(data.x)" : ""'
         ),
         (
           const HWBool('k'),
@@ -530,11 +559,11 @@ void main() {
     test('stringification delegates to the leaf type', () {
       expect(
         json.androidToString(outerValue: 'v', innerValue: 'v'),
-        '(v?.toString() ?: "0")',
+        '(v?.toString() ?: "")',
       );
       expect(
         json.iosToString(outerValue: 'v', innerValue: 'v'),
-        r'v != nil ? "\(v)" : "0"',
+        r'v != nil ? "\(v)" : ""',
       );
     });
 
@@ -557,7 +586,15 @@ void main() {
       const noDefault = HWJson('payload', HWInt('count'));
       expect(
         noDefault.kotlinGlanceJsonTextInterpolation('widgetData'),
-        '(widgetData.payload?.count?.toString() ?: "0")',
+        '(widgetData.payload?.count?.toString() ?: "")',
+      );
+    });
+
+    test('swift glance text falls back when a number leaf has no default', () {
+      const noDefault = HWJson('payload', HWInt('count'));
+      expect(
+        noDefault.swiftGlanceJsonTextInterpolation('entry.data'),
+        r'(entry.data.payload?.count).map { String(describing: $0) } ?? ""',
       );
     });
 

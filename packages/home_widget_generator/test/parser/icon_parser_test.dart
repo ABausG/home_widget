@@ -22,6 +22,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 const _new = IconData(0xe001, fontFamily: 'MaterialIcons');
 const values = IconData(0xe002, fontFamily: 'MaterialIcons');
+const from_code_point = IconData(0xe003, fontFamily: 'MaterialIcons');
 
 @HomeWidget(
   name: 'FixedIcon',
@@ -61,6 +62,12 @@ class GlyphIcon {}
   ),
 )
 class PackageGlyphIcon {}
+
+@HomeWidget(
+  name: 'FamilylessGlyphFont',
+  widget: HWIcon.glyph(0xe800, font: HWIconFont(family: '')),
+)
+class FamilylessGlyphFont {}
 
 @HomeWidget(
   name: 'OutOfRangeGlyph',
@@ -114,7 +121,9 @@ class InlineIcon {}
 
 @HomeWidget(
   name: 'ReservedNames',
-  widget: HWIcon(HWIconData('mood', icons: [_new, values])),
+  widget: HWIcon(
+    HWIconData('mood', icons: [_new, values, from_code_point]),
+  ),
 )
 class ReservedNames {}
 
@@ -356,6 +365,13 @@ void main() {
       );
       expect(errorOf('SurrogateGlyph').message, contains('surrogate'));
     });
+
+    test('rejects a font that names no family', () {
+      expect(
+        errorOf('FamilylessGlyphFont').message,
+        contains('Could not decode HWIcon.glyph'),
+      );
+    });
   });
 
   group('HWIconData', () {
@@ -415,7 +431,7 @@ void main() {
             .iconData!
             .entries
             .map((entry) => entry.name),
-        ['new_', 'values_'],
+        ['new_', 'values_', 'fromCodePoint_'],
       );
     });
 

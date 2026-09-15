@@ -37,6 +37,47 @@ void main() {
         italic: italic,
       );
 
+  String writeFakeSubsetter(String script) {
+    final sdk = Directory(p.join(tempDir.path, 'fake_sdk'))
+      ..createSync(recursive: true);
+    final binary = File(
+      p.join(
+        sdk.path,
+        'bin',
+        'cache',
+        'artifacts',
+        'engine',
+        'darwin-x64',
+        'font-subset',
+      ),
+    );
+    binary.parent.createSync(recursive: true);
+    binary.writeAsStringSync(script);
+    Process.runSync('chmod', ['+x', binary.path]);
+    return sdk.path;
+  }
+
+  IconFontSource brandIconSource(FontResolver fonts) => fonts.resolveIconFont(
+        const HWIconFont(family: 'BrandIcons', package: 'brand_icons'),
+      );
+
+  group('FontFileDeclaration', () {
+    test('describes itself with its asset, weight and slant', () {
+      expect(
+        const FontFileDeclaration(asset: 'assets/Inter-Regular.ttf').toString(),
+        'FontFileDeclaration(assets/Inter-Regular.ttf, 400, normal)',
+      );
+      expect(
+        const FontFileDeclaration(
+          asset: 'assets/Inter-BoldItalic.ttf',
+          weight: 700,
+          italic: true,
+        ).toString(),
+        'FontFileDeclaration(assets/Inter-BoldItalic.ttf, 700, italic)',
+      );
+    });
+  });
+
   group('PubspecFonts', () {
     test('reads every family with its declared weights and styles', () {
       writeFontFixture(
@@ -451,6 +492,33 @@ void main() {
         ),
       );
     });
+
+    test('a namespaced asset of an unresolvable package points at pub get', () {
+      writeFontFixture(
+        tempDir,
+        pubspecFonts: '''
+    - family: Brand
+      fonts:
+        - asset: packages/design_system/fonts/Brand-Regular.ttf
+''',
+      );
+
+      expect(
+        () =>
+            FontResolver(tempDir).resolveTextFontFile(variant(family: 'Brand')),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('design_system'),
+              contains('packages/design_system/fonts/Brand-Regular.ttf'),
+              contains('flutter pub get'),
+            ),
+          ),
+        ),
+      );
+    });
   });
 
   group('FontResolver.resolveIconFont', () {
@@ -599,6 +667,146 @@ void main() {
       expect(source.extension, 'otf');
     });
 
+    test('MaterialIcons missing from the cache points at precache', () {
+      writeFontFixture(
+        tempDir,
+        flutterSdkRoot: p.join(tempDir.path, 'empty_sdk'),
+      );
+
+      expect(
+        () => FontResolver(tempDir)
+            .resolveIconFont(const HWIconFont(family: 'MaterialIcons')),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('MaterialIcons-Regular.otf'),
+              contains('flutter precache'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('CupertinoIcons without the package points at pub get', () {
+      writeFontFixture(tempDir);
+
+      expect(
+        () => FontResolver(tempDir).resolveIconFont(
+          const HWIconFont(
+            family: 'CupertinoIcons',
+            package: 'cupertino_icons',
+          ),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('cupertino_icons'), contains('flutter pub get')),
+          ),
+        ),
+      );
+    });
+
+    test('a declared Cupertino font file that is absent is rejected', () {
+      final package = writeFontPackage(
+        tempDir,
+        'cupertino_icons',
+        pubspecFonts: '''
+    - family: CupertinoIcons
+      fonts:
+        - asset: assets/CupertinoIcons.ttf
+''',
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'cupertino_icons', root: package.path),
+        ],
+      );
+
+      expect(
+        () => FontResolver(tempDir).resolveIconFont(
+          const HWIconFont(
+            family: 'CupertinoIcons',
+            package: 'cupertino_icons',
+          ),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('cupertino_icons'),
+              contains(p.join(package.path, 'assets', 'CupertinoIcons.ttf')),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('a missing Cupertino font at the default location is rejected', () {
+      final package =
+          Directory(p.join(tempDir.path, 'packages/cupertino_icons'))
+            ..createSync(recursive: true);
+      writeFontFixture(
+        tempDir,
+        packages: [
+          FixturePackage(name: 'cupertino_icons', root: package.path),
+        ],
+      );
+
+      expect(
+        () => FontResolver(tempDir).resolveIconFont(
+          const HWIconFont(
+            family: 'CupertinoIcons',
+            package: 'cupertino_icons',
+          ),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains(p.join(package.path, 'assets', 'CupertinoIcons.ttf')),
+          ),
+        ),
+      );
+    });
+
+    test('a declared icon font whose file is absent names the path', () {
+      final package = writeFontPackage(
+        tempDir,
+        'brand_icons',
+        pubspecFonts: '''
+    - family: BrandIcons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [FixturePackage(name: 'brand_icons', root: package.path)],
+      );
+
+      expect(
+        () => FontResolver(tempDir).resolveIconFont(
+          const HWIconFont(family: 'BrandIcons', package: 'brand_icons'),
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('BrandIcons'),
+              contains('fonts/BrandIcons.otf'),
+              contains(p.join(package.path, 'fonts', 'BrandIcons.otf')),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('an undeclared icon font is rejected', () {
       writeFontFixture(tempDir);
 
@@ -695,5 +903,89 @@ void main() {
         () => mockLogger.warn(any(that: contains('font-subset'))),
       ).called(1);
     });
+
+    test(
+      'a failing subsetter reports its exit code and what it wrote',
+      () async {
+        final package = writeFontPackage(
+          tempDir,
+          'brand_icons',
+          pubspecFonts: '''
+    - family: BrandIcons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+          assets: ['fonts/BrandIcons.otf'],
+        );
+        writeFontFixture(
+          tempDir,
+          packages: [FixturePackage(name: 'brand_icons', root: package.path)],
+          flutterSdkRoot: writeFakeSubsetter(
+            '#!/bin/sh\ncat > /dev/null\necho "unsupported font" >&2\nexit 3\n',
+          ),
+        );
+
+        final fonts = FontResolver(tempDir);
+        final source = brandIconSource(fonts);
+
+        await expectLater(
+          () => fonts.subsetIconFont(source, {0xE88A}),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('BrandIcons.otf'),
+                contains('exit code 3'),
+                contains('unsupported font'),
+              ),
+            ),
+          ),
+        );
+      },
+      skip: Platform.isWindows ? 'The fake subsetter is a shell script' : null,
+    );
+
+    test(
+      'a subsetter that writes no file is reported although it succeeded',
+      () async {
+        final package = writeFontPackage(
+          tempDir,
+          'brand_icons',
+          pubspecFonts: '''
+    - family: BrandIcons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+          assets: ['fonts/BrandIcons.otf'],
+        );
+        writeFontFixture(
+          tempDir,
+          packages: [FixturePackage(name: 'brand_icons', root: package.path)],
+          flutterSdkRoot: writeFakeSubsetter(
+            '#!/bin/sh\ncat > /dev/null\necho "nothing to do" >&2\nexit 0\n',
+          ),
+        );
+
+        final fonts = FontResolver(tempDir);
+        final source = brandIconSource(fonts);
+
+        await expectLater(
+          () => fonts.subsetIconFont(source, {0xE88A}),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('BrandIcons.otf'),
+                contains('produced no file'),
+                contains('It wrote: nothing to do'),
+              ),
+            ),
+          ),
+        );
+      },
+      skip: Platform.isWindows ? 'The fake subsetter is a shell script' : null,
+    );
   });
 }

@@ -298,6 +298,18 @@ void main() {
       );
     });
 
+    test('is silent when the lockfile does not parse', () {
+      writeCompleteProject();
+      File(p.join(tempDir.path, 'pubspec.lock')).writeAsStringSync(
+        'packages: [\n  home_widget:\n',
+      );
+
+      expect(
+        () => validateFonts(_spec(widget: fontWidget()), tempDir),
+        returnsNormally,
+      );
+    });
+
     test('is silent without a lockfile', () {
       writeCompleteProject();
 

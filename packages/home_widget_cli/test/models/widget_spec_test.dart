@@ -300,6 +300,46 @@ void main() {
       );
     });
 
+    test(
+        'iconEnums rejects one icon marked directional on one side but not '
+        'the other', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson(
+              'today',
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('back', 0xE5C4)],
+                iconFont: brandIcons,
+              ),
+            ),
+            HWJson(
+              'tomorrow',
+              HWIconData.resolved(
+                'mood',
+                entries: [
+                  HWIconEntry('back', 0xE5C4, matchTextDirection: true),
+                ],
+                iconFont: brandIcons,
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"tomorrow.mood"'),
+              contains('"back"'),
+            ),
+          ),
+        ),
+      );
+    });
+
     test('iconEnums rejects one enum name drawn out of two fonts', () {
       expect(
         () => _spec(

@@ -50,7 +50,7 @@ When a `defaultValue` is provided it's used both in the generated Dart helper an
 
 `HWImageData` and `HWDateTime` are the exceptions: neither supports a `defaultValue`. A missing image simply renders nothing — see [`HWImage`](/generator/widgets/hw-image) for a placeholder pattern using `HWDataExists`. A missing date renders as empty text, and the same `HWDataExists` pattern gives it a placeholder.
 
-A missing **number** is the other special case: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as a formatted `0` rather than as nothing — see [Missing values](/generator/formatting#missing-values).
+A missing **number** follows the same rule: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as empty text rather than as a formatted `0` — see [Missing values](/generator/formatting#missing-values).
 
 `HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWDateTime` and `HWIconData` also take a `previewValue` next to their default; `HWImageData` takes a `previewAsset` and `HWString.localized` takes `previewTranslations` instead. `HWJson` and `HWTimedData` declare none of their own — they preview through the type they wrap or the leaf they address. Each of these is a sample shown only in the widget gallery, never on the home screen. See [Previews](/generator/previews).
 

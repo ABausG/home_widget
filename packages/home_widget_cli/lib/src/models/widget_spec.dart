@@ -625,13 +625,26 @@ class WidgetSpec {
     for (final entry in from.entries) {
       final sameName = entries.indexWhere((e) => e.name == entry.name);
       if (sameName != -1) {
-        if (entries[sameName].codePoint == entry.codePoint) continue;
-        throw GeneratorError(
-          '$shared, but name the icon "${entry.name}" after different glyphs '
-          '(${_glyphLiteral(entries[sameName].codePoint)} and '
-          '${_glyphLiteral(entry.codePoint)}). Give one of them a key of its '
-          'own.',
-        );
+        if (entries[sameName].codePoint != entry.codePoint) {
+          throw GeneratorError(
+            '$shared, but name the icon "${entry.name}" after different '
+            'glyphs (${_glyphLiteral(entries[sameName].codePoint)} and '
+            '${_glyphLiteral(entry.codePoint)}). Give one of them a key of '
+            'its own.',
+          );
+        }
+        if (entries[sameName].matchTextDirection != entry.matchTextDirection) {
+          final directionalPath =
+              entries[sameName].matchTextDirection ? intoPath : fromPath;
+          final steadyPath =
+              entries[sameName].matchTextDirection ? fromPath : intoPath;
+          throw GeneratorError(
+            '$shared, but the icon "${entry.name}" is directional in '
+            '"$directionalPath" and not in "$steadyPath". Give one of them '
+            'a key of its own.',
+          );
+        }
+        continue;
       }
       final sameGlyph =
           entries.indexWhere((e) => e.codePoint == entry.codePoint);

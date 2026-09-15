@@ -29,6 +29,42 @@ void main() {
       );
     });
 
+    test('accepts an icon field whose enum is well formed', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWIconData.resolved(
+              'mood',
+              entries: [
+                HWIconEntry('happy', 0xE88A),
+                HWIconEntry('sad', 0xE25B),
+              ],
+              iconFont: HWIconFont(family: 'BrandIcons'),
+            ),
+          ]),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an icon field naming one icon twice', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWIconData.resolved(
+              'mood',
+              entries: [
+                HWIconEntry('happy', 0xE88A),
+                HWIconEntry('happy', 0xE25B),
+              ],
+              iconFont: HWIconFont(family: 'BrandIcons'),
+            ),
+          ]),
+        ),
+        _throwsMessage(allOf(contains('"mood"'), contains('"happy"'))),
+      );
+    });
+
     test('accepts a widget URL on every level', () {
       final spec = WidgetSpec(
         data: HomeWidget(

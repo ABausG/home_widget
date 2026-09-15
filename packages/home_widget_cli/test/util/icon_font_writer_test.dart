@@ -106,6 +106,9 @@ void main() {
           'hw_font_mood__icons_brandicons__brand_icons.otf',
         ),
       );
+      file.setLastModifiedSync(
+        DateTime.now().subtract(const Duration(days: 1)),
+      );
       final before = file.statSync().modified;
 
       await writeAndroidIconFonts(
@@ -317,6 +320,50 @@ void main() {
           (e) => e.message,
           'message',
           allOf(contains('Brand Icons'), contains('Brand-Icons')),
+        ),
+      ),
+    );
+  });
+
+  test('two app-declared icon fonts writing the same file name are rejected',
+      () async {
+    writeFontFixture(
+      tempDir,
+      pubspecFonts: '''
+    - family: App Icons
+      fonts:
+        - asset: fonts/AppIcons.otf
+    - family: App-Icons
+      fonts:
+        - asset: fonts/AppIcons.otf
+''',
+    );
+    File(p.join(tempDir.path, 'fonts', 'AppIcons.otf'))
+      ..parent.createSync(recursive: true)
+      ..writeAsBytesSync(const [0, 1, 2, 3]);
+
+    await expectLater(
+      writeAndroidIconFonts(
+        spec: _spec(
+          widget: const HWColumn(
+            children: [
+              HWIcon.glyph(0xE88A, font: HWIconFont(family: 'App Icons')),
+              HWIcon.glyph(0xE25B, font: HWIconFont(family: 'App-Icons')),
+            ],
+          ),
+        ),
+        projectRoot: tempDir,
+        fonts: FontResolver(tempDir),
+      ),
+      throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          allOf(
+            contains('"App Icons"'),
+            contains('"App-Icons"'),
+            isNot(contains('of package')),
+          ),
         ),
       ),
     );

@@ -258,6 +258,7 @@ class WidgetValueDecoder {
   static const Set<String> _takenEnumNames = {
     ...dartReservedWords,
     'codePoint',
+    'fromCodePoint',
     'hashCode',
     'icon',
     'index',

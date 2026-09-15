@@ -694,22 +694,58 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
   /// Swift expression rendering [outerValue] — the nullable access expression
   /// for this value — with [format].
   ///
-  /// A missing value formats this type's own default, so the text never goes
-  /// blank on a widget that has not been given data yet. [dataExpr] is the
-  /// expression the data class is reached through, which a data-bound currency
-  /// reads its code from.
+  /// A missing value formats this type's own [defaultValue], and renders as
+  /// empty text when there is none. [dataExpr] is the expression the data
+  /// class is reached through, which a data-bound currency reads its code
+  /// from.
   String iosFormattedValue(
     String outerValue,
     HWNumberFormat format, {
     required String dataExpr,
-  });
+  }) {
+    final fallback = codegenSwiftDefaultLiteral();
+    if (fallback != null) {
+      return format.swiftCall(
+        'NSNumber(value: $outerValue ?? $fallback)',
+        dataExpr: dataExpr,
+      );
+    }
+    final call = format.swiftCall(r'NSNumber(value: $0)', dataExpr: dataExpr);
+    return '$outerValue.map { $call } ?? ""';
+  }
 
   /// Kotlin counterpart of [iosFormattedValue].
   String androidFormattedValue(
     String outerValue,
     HWNumberFormat format, {
     required String dataExpr,
-  });
+  }) {
+    final fallback = codegenKotlinDefaultLiteral();
+    if (fallback != null) {
+      return format.kotlinCall(
+        '($outerValue ?: $fallback)',
+        dataExpr: dataExpr,
+      );
+    }
+    final call = format.kotlinCall('it', dataExpr: dataExpr);
+    return '$outerValue?.let { $call } ?: ""';
+  }
+
+  /// A missing number renders as empty text, the same as a missing string or
+  /// date; a [defaultValue] is already in place by the time a render site
+  /// reads the field.
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    return '($outerValue?.toString() ?: "")';
+  }
+
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    return '$outerValue != nil ? "\\($innerValue)" : ""';
+  }
 }
 
 class HWInt extends HWNumericDataType<int> {
@@ -756,41 +792,6 @@ class HWInt extends HWNumericDataType<int> {
     if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
-
-  @override
-  String androidToString({
-    required String outerValue,
-    required String innerValue,
-  }) {
-    return '($outerValue?.toString() ?: "0")';
-  }
-
-  @override
-  String iosToString({required String outerValue, required String innerValue}) {
-    return '$outerValue != nil ? "\\($innerValue)" : "0"';
-  }
-
-  @override
-  String iosFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.swiftCall(
-        'NSNumber(value: $outerValue ?? ${defaultValue ?? 0})',
-        dataExpr: dataExpr,
-      );
-
-  @override
-  String androidFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.kotlinCall(
-        '($outerValue ?: ${defaultValue ?? 0}L)',
-        dataExpr: dataExpr,
-      );
 
   @override
   String? codegenKotlinDefaultLiteral() =>
@@ -860,41 +861,6 @@ class HWDouble extends HWNumericDataType<double> {
     if (fallback != null) return '($read ?? $fallback)';
     return read;
   }
-
-  @override
-  String androidToString({
-    required String outerValue,
-    required String innerValue,
-  }) {
-    return '($outerValue?.toString() ?: "0.0")';
-  }
-
-  @override
-  String iosToString({required String outerValue, required String innerValue}) {
-    return '$outerValue != nil ? "\\($innerValue)" : "0.0"';
-  }
-
-  @override
-  String iosFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.swiftCall(
-        'NSNumber(value: $outerValue ?? ${defaultValue ?? 0.0})',
-        dataExpr: dataExpr,
-      );
-
-  @override
-  String androidFormattedValue(
-    String outerValue,
-    HWNumberFormat format, {
-    required String dataExpr,
-  }) =>
-      format.kotlinCall(
-        '($outerValue ?: ${defaultValue ?? 0.0})',
-        dataExpr: dataExpr,
-      );
 
   @override
   String? codegenKotlinDefaultLiteral() => defaultValue?.toString();
@@ -2003,6 +1969,13 @@ class HWJson<T> extends HWDataType<T> {
         outerValue: read,
         innerValue: read,
       );
+    }
+
+    // A number without a default stays optional here, and renders as empty
+    // text rather than as the description of an `Optional`.
+    if (leaf is HWNumericDataType &&
+        leaf.codegenSwiftDefaultLiteral() == null) {
+      return '($read).map { String(describing: \$0) } ?? ""';
     }
 
     return 'String(describing: ($read))';
