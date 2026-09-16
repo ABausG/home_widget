@@ -49,6 +49,10 @@ sealed class HWSingleChildWidget extends HWWidget {
 
   @override
   List<HWWidget> get childWidgets => [child];
+
+  @override
+  HWKotlinTextRenderer? get kotlinFirstTextRenderer =>
+      child.kotlinFirstTextRenderer;
 }
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
@@ -74,6 +78,14 @@ sealed class HWMultiChildWidget extends HWWidget {
 
   @override
   List<HWWidget> get childWidgets => children;
+
+  @override
+  HWKotlinTextRenderer? get kotlinFirstTextRenderer {
+    for (final child in children) {
+      if (child.kotlinFirstTextRenderer case final renderer?) return renderer;
+    }
+    return null;
+  }
 }
 
 /// Interface for widgets that hold data dependencies.
@@ -119,6 +131,15 @@ sealed class HWWidget implements HWGeneratable {
   /// correction off for a top- or bottom-aligned row. A widget that emits a
   /// `Box`, an `Image` or a `Spacer` has no baseline and answers false.
   bool get kotlinReportsBaseline => false;
+
+  /// The text a baseline-aligned [HWRow] lines this child up by: the first one
+  /// it renders, in document order, or null when it renders none.
+  ///
+  /// The row reads the ascent off it and pads the child down to the row's own
+  /// baseline, which is how a text Glance draws and one the core plugin draws
+  /// into a bitmap end up on the same line. A child answering null — an icon, a
+  /// picture, a spacer — is left at the top.
+  HWKotlinTextRenderer? get kotlinFirstTextRenderer => null;
 
   /// Every widget in this subtree, [this] first, in render order.
   ///

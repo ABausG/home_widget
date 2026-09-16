@@ -43,6 +43,12 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
   bool get kotlinReportsBaseline =>
       firstBranch.kotlinReportsBaseline || secondBranch.kotlinReportsBaseline;
 
+  /// The first branch's text: both branches are padded by the one number, and
+  /// which of them renders is only known at runtime.
+  @override
+  HWKotlinTextRenderer? get kotlinFirstTextRenderer =>
+      firstBranch.kotlinFirstTextRenderer;
+
   @override
   String toSwift(
     int indent, {

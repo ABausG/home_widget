@@ -32,6 +32,7 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import es.antonborri.home_widget.HomeWidgetFonts
 import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -66,7 +67,7 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = SizeAdaptiveDashboardData.fromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "40119d23",
+            "814e7522",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -88,41 +89,59 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
       ) {
         when (LocalSize.current) {
           DpSize(250.dp, 110.dp) -> {
-            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-              Spacer(modifier = GlanceModifier.defaultWeight())
-              Text(
-                  text =
-                      hwFormatDecimal(
-                          (widgetData.score ?: 0L),
-                          null,
-                          null,
-                          true,
-                          hwFormatLocale(context),
-                      ),
-                  style =
-                      TextStyle(
-                          color = GlanceTheme.colors.onSurface,
-                          fontSize = 22.sp,
-                          fontWeight = FontWeight.Bold,
-                      ),
-              )
-              Text(
-                  modifier =
-                      GlanceModifier.padding(
-                          start = 8.0.dp,
-                          top = 0.0.dp,
-                          end = 0.0.dp,
-                          bottom = 0.0.dp,
-                      ),
-                  text = widgetData.scoreLabel ?: "",
-                  style =
-                      TextStyle(
-                          color = GlanceTheme.colors.onSurfaceVariant,
-                          fontSize = 16.sp,
-                          fontWeight = FontWeight.Normal,
-                      ),
-              )
-              Spacer(modifier = GlanceModifier.defaultWeight())
+            run {
+              val hwAscent0 =
+                  HomeWidgetFonts.textAscentPx(context, null, 22f, weight = 700, italic = false)
+              val hwAscent1 =
+                  HomeWidgetFonts.textAscentPx(context, null, 16f, weight = 400, italic = false)
+              val hwRowBaseline = listOf(hwAscent0, hwAscent1).max()
+              val hwDensity = context.resources.displayMetrics.density
+              Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Spacer(modifier = GlanceModifier.defaultWeight())
+                Box(
+                    modifier =
+                        GlanceModifier.padding(top = ((hwRowBaseline - hwAscent0) / hwDensity).dp)
+                ) {
+                  Text(
+                      text =
+                          hwFormatDecimal(
+                              (widgetData.score ?: 0L),
+                              null,
+                              null,
+                              true,
+                              hwFormatLocale(context),
+                          ),
+                      style =
+                          TextStyle(
+                              color = GlanceTheme.colors.onSurface,
+                              fontSize = 22.sp,
+                              fontWeight = FontWeight.Bold,
+                          ),
+                  )
+                }
+                Box(
+                    modifier =
+                        GlanceModifier.padding(top = ((hwRowBaseline - hwAscent1) / hwDensity).dp)
+                ) {
+                  Text(
+                      modifier =
+                          GlanceModifier.padding(
+                              start = 8.0.dp,
+                              top = 0.0.dp,
+                              end = 0.0.dp,
+                              bottom = 0.0.dp,
+                          ),
+                      text = widgetData.scoreLabel ?: "",
+                      style =
+                          TextStyle(
+                              color = GlanceTheme.colors.onSurfaceVariant,
+                              fontSize = 16.sp,
+                              fontWeight = FontWeight.Normal,
+                          ),
+                  )
+                }
+                Spacer(modifier = GlanceModifier.defaultWeight())
+              }
             }
           }
           DpSize(250.dp, 250.dp),

@@ -288,6 +288,15 @@ sealed class HWKotlinTextRenderer {
     required String dataExpr,
     required String text,
   });
+
+  /// The Kotlin reading how far below the top of its line this text's baseline
+  /// sits, in pixels.
+  ///
+  /// [HWRow] pads a baseline-aligned child by the difference between the row's
+  /// ascent and this one, which is what lines the texts up where Glance cannot:
+  /// a bitmap text is an `Image` and carries no baseline for the layout to
+  /// correct. Needs `HomeWidgetFonts` imported and `context` in scope.
+  String kotlinAscentExpression();
 }
 
 /// Text Glance renders itself, in the platform's own font.
@@ -355,6 +364,14 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     final style = styleExpression(indent, dataExpr: dataExpr);
     return '${pad}Text(text = $text, style = $style)';
   }
+
+  @override
+  String kotlinAscentExpression() {
+    final size = hwSizeLiteral(fontSize ?? hwDefaultFontSize);
+    final weight = fontWeight?.value ?? HWFontWeight.normal.value;
+    return 'HomeWidgetFonts.textAscentPx(context, null, ${size}f, '
+        'weight = $weight, italic = $italic)';
+  }
 }
 
 /// Text the core plugin draws into a bitmap, shown as a tinted `Image`.
@@ -411,6 +428,18 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     return align != null && _kotlinTextAlign(align) != 'TextAlign.Start';
   }
 
+  /// The Kotlin loading the font file the glyphs are drawn out of.
+  String get _typefaceExpression {
+    final family = escapeKotlinStringLiteral(variant.flutterFamilyKey);
+    return 'HomeWidgetFonts.typeface(context, "$family", '
+        '${variant.weight}, ${variant.italic})';
+  }
+
+  @override
+  String kotlinAscentExpression() =>
+      'HomeWidgetFonts.textAscentPx(context, $_typefaceExpression, '
+      '${hwSizeLiteral(fontSize)}f)';
+
   /// The key the room for [text] is measured and looked back up under.
   ///
   /// It covers everything deciding how much the glyphs take: the expression
@@ -441,9 +470,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     required String text,
   }) {
     final pad = '    ' * indent;
-    final family = escapeKotlinStringLiteral(variant.flutterFamilyKey);
-    final typeface = 'HomeWidgetFonts.typeface(context, "$family", '
-        '${variant.weight}, ${variant.italic})';
+    final typeface = _typefaceExpression;
     final tint =
         (color ?? hwDefaultContentColor).toKotlin(indent, dataExpr: dataExpr);
     final key = boundsKey(text);

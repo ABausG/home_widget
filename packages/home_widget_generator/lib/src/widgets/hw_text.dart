@@ -126,6 +126,9 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   bool get kotlinReportsBaseline => _kotlinRenderer is HWGlanceTextRenderer;
 
   @override
+  HWKotlinTextRenderer? get kotlinFirstTextRenderer => _kotlinRenderer;
+
+  @override
   Set<String> get swiftViewModifiers {
     final modifiers = <String>{};
     if (style != null) {
