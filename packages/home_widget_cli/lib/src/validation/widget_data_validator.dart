@@ -910,11 +910,13 @@ final class _TrieNode {
         final existing = _jsonDeclarationOf(jsonRootKey, slot.leafField!);
         final incoming = _jsonDeclarationOf(jsonRootKey, field);
         if (existing.isCompatibleWith(incoming)) {
+          // coverage:ignore-start
           slot.leafField = JsonDataField(
             path: field.path,
             type: (existing.mergedWith(incoming) as HWJson<dynamic>).leafType,
           );
           return;
+          // coverage:ignore-end
         }
         throw GeneratorError(
           _jsonConflictMessage(

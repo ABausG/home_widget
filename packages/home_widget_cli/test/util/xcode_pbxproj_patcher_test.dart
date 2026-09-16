@@ -136,6 +136,43 @@ String _buildPbxprojWithForeignSynchronizedGroup() {
   );
 }
 
+/// An Xcode 16 shaped project the widget has never been scaffolded into: both
+/// synchronized-group sections are there, holding some other folder, and the
+/// widget has no group of either kind.
+///
+/// Nothing has decided which kind this widget gets, so the answer has to be the
+/// one the scaffolder would give it.
+String _buildPbxprojWithoutWidgetGroup() => '''
+// !\$*UTF8*\$!
+{
+	objects = {
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		CCCCCCCCCCCCCCCCCCCCCCCC /* SomeOtherFolder */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SomeOtherFolder;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXProject section */
+		97C146E61CF9000F007C117D /* Project object */ = {
+			isa = PBXProject;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 97C146E51CF9000F007C117D;
+		};
+/* End PBXProject section */
+
+	};
+}
+''';
+
 /// Minimal pbxproj snippet with Runner build configurations.
 ///
 /// Mirrors the structure produced by `flutter create`: each configuration
@@ -341,10 +378,15 @@ String _bareConfigObject({required String id, required String name}) => '''
 /// [infoPlistInProjectSettings] keeps the `INFOPLIST_FILE` marker out of those,
 /// so nothing but the Runner target's configuration list says which
 /// configurations are Runner's.
+///
+/// [synchronizedGroups] adds the two sections Xcode 16 writes, which is what
+/// makes the scaffolder give the extension a synchronized root group instead of
+/// a classic `PBXGroup`.
 String _buildFlavoredPbxproj({
   List<_RunnerFlavor> flavors = const [_dev, _prod],
   bool flavorSettingsInProject = false,
   bool infoPlistInProjectSettings = true,
+  bool synchronizedGroups = false,
   String? baseEntitlements,
 }) {
   final configObjects = <String>[];
@@ -407,6 +449,13 @@ String _buildFlavoredPbxproj({
 /* Begin PBXFileReference section */
 \t\t97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+${synchronizedGroups ? '''
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+/* End PBXFileSystemSynchronizedRootGroup section */''' : ''}
 
 /* Begin PBXFrameworksBuildPhase section */
 \t\t97C146EB1CF9000F007C117D /* Frameworks */ = {
@@ -554,6 +603,35 @@ String _addRunnerFlavor(String pbxproj, _RunnerFlavor flavor) {
   }
 
   var out = pbxproj.replaceFirst(
+    '/* End XCBuildConfiguration section */',
+    '${objects.join('\n')}\n/* End XCBuildConfiguration section */',
+  );
+
+  const listMarker =
+      '/* Build configuration list for PBXNativeTarget "Runner" */ = {';
+  final listStart = out.indexOf(listMarker);
+  final listEnd = out.indexOf('\t\t\t);', listStart);
+  return out.replaceRange(listEnd, listEnd, '${entries.join('\n')}\n');
+}
+
+/// Adds Runner configurations called [names] to an existing project, the way a
+/// project that renamed or added configurations outside Flutter's trio reads.
+String _addRunnerConfigurations(String pbxproj, List<String> names) {
+  final objects = <String>[];
+  final entries = <String>[];
+  for (var rank = 0; rank < names.length; rank++) {
+    final id = 'EE${'0' * 21}$rank';
+    objects.add(
+      _runnerConfigObject(
+        id: id,
+        name: names[rank],
+        bundleId: 'com.example.app',
+      ),
+    );
+    entries.add('\t\t\t\t$id /* ${names[rank]} */,');
+  }
+
+  final out = pbxproj.replaceFirst(
     '/* End XCBuildConfiguration section */',
     '${objects.join('\n')}\n/* End XCBuildConfiguration section */',
   );
@@ -939,6 +1017,21 @@ void main() {
       expect(regions, contains('"pt-BR",'));
     });
 
+    test('answers the way the scaffolder will when the widget has no group yet',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildPbxprojWithoutWidgetGroup());
+
+      final result = await wire();
+
+      // The scaffolder would give this project a synchronized root group, so
+      // an explicit reference would be the second copy of the catalog.
+      expect(result, isNot(contains('Localizable.xcstrings')));
+      final regions = RegExp(
+        r'knownRegions = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(regions, contains('de,'));
+    });
+
     test('wires the catalog when only another folder is synchronized',
         () async {
       pbxprojFile
@@ -1215,6 +1308,25 @@ void main() {
           '\t\t\t\tDEVELOPMENT_TEAM = TEAM123;\n'
           '\t\t\t\tGENERATE_INFOPLIST_FILE = YES;',
         ),
+      );
+    });
+
+    test('keeps the project order of two configurations it cannot rank',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _addRunnerConfigurations(
+          _buildFlavoredPbxproj(flavors: const []),
+          const ['Staging', 'QA'],
+        ),
+      );
+
+      final list = _extensionConfigList(await patch());
+
+      // Neither name says where it belongs among Debug/Release/Profile, so the
+      // only order left is the one the project lists them in.
+      expect(
+        list.indexOf('/* Staging */'),
+        lessThan(list.indexOf('/* QA */')),
       );
     });
 
@@ -1614,6 +1726,35 @@ void main() {
       );
     });
 
+    test('reads an xcconfig its file reference roots at the project directory',
+        () {
+      // The group carries a path of its own, which a `<group>` reference would
+      // be resolved against; a SOURCE_ROOT one spells the path from `ios/`.
+      pbxprojFile.writeAsStringSync(
+        _xcconfigFlavoredPbxproj()
+            .replaceFirst(
+              '\t\t\tname = Flutter;',
+              '\t\t\tname = Flutter;\n\t\t\tpath = Flutter;',
+            )
+            .replaceFirst(
+              'path = "Flutter/Debug-dev.xcconfig"; sourceTree = "<group>";',
+              'path = "Flutter/Debug-dev.xcconfig"; sourceTree = SOURCE_ROOT;',
+            ),
+      );
+      xcconfig.writeAsStringSync(
+        'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDev.entitlements\n',
+      );
+
+      expect(
+        runnerEntitlementsPathsForFlavor(
+          pbxprojFile.readAsStringSync(),
+          'dev',
+          projectDir: iosDir,
+        ),
+        ['Runner/RunnerDev.entitlements'],
+      );
+    });
+
     test('sees nothing without a project directory', () {
       xcconfig.writeAsStringSync(
         'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDev.entitlements\n',
@@ -1733,7 +1874,102 @@ void main() {
       );
     });
 
+    test('removes the list form a developer wrote', () async {
+      final first = await patch();
+      pbxprojFile.writeAsStringSync(
+        _withCompilationConditions(
+          first,
+          'Release',
+          '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = (\n'
+              '\t\t\t\t\t"\$(inherited)",\n'
+              '\t\t\t\t\tHW_FLAVOR_OLD,\n'
+              '\t\t\t\t);',
+        ),
+      );
+
+      final result = await patch();
+
+      expect(
+        _extensionConfig(result, 'Release'),
+        isNot(contains('SWIFT_ACTIVE_COMPILATION_CONDITIONS')),
+      );
+      // The line closing the list has to go with it, or the object no longer
+      // parses.
+      expect(_extensionConfig(result, 'Release'), isNot(contains('HW_FLAVOR')));
+    });
+
     test('changes nothing on a second run', () async {
+      final first = await patch();
+      final second = await patch();
+
+      expect(second, first);
+    });
+  });
+
+  group('synchronized groups', () {
+    Future<String> patch() async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+      return pbxprojFile.readAsStringSync();
+    }
+
+    setUp(() {
+      pbxprojFile.writeAsStringSync(
+        _buildFlavoredPbxproj(flavors: [_dev], synchronizedGroups: true),
+      );
+    });
+
+    test('scaffolds the extension folder as a synchronized root group',
+        () async {
+      final result = await patch();
+
+      final rootGroupId = xcodeObjectId('fsgroup:GreetingHomeWidget');
+      final exceptionId = xcodeObjectId('fsex:GreetingHomeWidget');
+      expect(
+        result,
+        contains('$rootGroupId /* GreetingHomeWidget */ = {'),
+      );
+      expect(result, contains('isa = PBXFileSystemSynchronizedRootGroup;'));
+      // Info.plist is the one file the folder must not build.
+      expect(
+        result,
+        contains('isa = PBXFileSystemSynchronizedBuildFileExceptionSet;'),
+      );
+      expect(result, contains('\t\t\t\tInfo.plist,\n'));
+      expect(result, contains('$exceptionId /* Exceptions for '));
+
+      // The target has to claim the folder, or nothing in it is compiled.
+      final target = RegExp(
+        r'isa = PBXNativeTarget;[\s\S]*?name = GreetingHomeWidget;',
+      ).firstMatch(result)!.group(0)!;
+      expect(target, contains('fileSystemSynchronizedGroups = ('));
+      expect(target, contains(rootGroupId));
+
+      // And the main group has to show it, or it is invisible in Xcode.
+      final mainGroup = RegExp(
+        r'97C146E51CF9000F007C117D = \{[\s\S]*?children = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(mainGroup, contains(rootGroupId));
+    });
+
+    test('leaves out the explicit file references a classic group needs',
+        () async {
+      final result = await patch();
+
+      // The synced folder already builds every file in it; listing them a
+      // second time would have Xcode compile each one twice.
+      expect(
+        result,
+        isNot(contains(xcodeObjectId('group:GreetingHomeWidget'))),
+      );
+      expect(result, isNot(contains('path = Widget.swift;')));
+      expect(result, isNot(contains('path = WidgetBundle.swift;')));
+      expect(result, isNot(contains('path = Info.plist;')));
+    });
+
+    test('is idempotent', () async {
       final first = await patch();
       final second = await patch();
 
@@ -1791,6 +2027,52 @@ void main() {
 
       verifyNever(() => mock.info(any()));
     });
+
+    test('warns and writes nothing when the project ids are not found',
+        () async {
+      const content = '''
+// !\$*UTF8*\$!
+{
+	objects = {
+	};
+}
+''';
+      pbxprojFile.writeAsStringSync(content);
+      final mock = useMockLogger();
+
+      await patch();
+
+      verify(
+        () => mock.warn(
+          any(that: contains('Skipping Widget Extension wiring.')),
+        ),
+      ).called(1);
+      expect(pbxprojFile.readAsStringSync(), content);
+    });
+
+    test('warns when no Runner configuration can take the entitlements',
+        () async {
+      const content = '''
+// !\$*UTF8*\$!
+{
+	objects = {
+/* Begin XCBuildConfiguration section */
+/* End XCBuildConfiguration section */
+	};
+}
+''';
+      pbxprojFile.writeAsStringSync(content);
+      final mock = useMockLogger();
+
+      await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
+
+      verify(
+        () => mock.warn(
+          any(that: contains('Runner/Runner.entitlements')),
+        ),
+      ).called(1);
+      expect(pbxprojFile.readAsStringSync(), content);
+    });
   });
 
   group('ensureWidgetExtensionDevelopmentTeamInXcodeProject', () {
@@ -1836,6 +2118,46 @@ void main() {
         'DEVELOPMENT_TEAM = TEAM123;'.allMatches(result).length,
         2,
       );
+    });
+
+    test('leaves the project alone when Runner names no team', () async {
+      // Xcode writes the empty string when signing is set to none, which is
+      // not a team to copy.
+      const content = '''
+// !\$*UTF8*\$!
+{
+	objects = {
+/* Begin XCBuildConfiguration section */
+		97C147061CF9000F007C117D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = Runner/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app;
+			};
+			name = Debug;
+		};
+		AABBCCDD11223344EEFF5566 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				INFOPLIST_FILE = MyWidgetHomeWidget/Info.plist;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+	};
+}
+''';
+      pbxprojFile.writeAsStringSync(content);
+
+      await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
+        pbxprojFile: pbxprojFile,
+      );
+
+      // Writing an empty DEVELOPMENT_TEAM is worse than writing none: Xcode
+      // reads it as "no team" and stops falling back to the account's own.
+      expect(pbxprojFile.readAsStringSync(), content);
     });
 
     test('does not modify Runner configs', () async {

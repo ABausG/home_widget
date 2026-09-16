@@ -273,6 +273,25 @@ void main() {
       expect(_strings(root, 'pt-rBR'), contains('name="$name">Ola'));
     });
 
+    test('marks a percent sign as unformatted so aapt accepts it', () async {
+      final root = await _project();
+      final constant = _localized(
+        isConstant: true,
+        values: const {'en': '100% done', 'de': 'Fertig', 'pt-BR': 'Pronto'},
+      );
+      final spec = _spec(widget: HWText(constant));
+
+      await AndroidGenerator(spec: spec, projectRoot: root).generate();
+
+      final name = constant.resourceName;
+      expect(
+        _strings(root),
+        contains('formatted="false">100% done</string>'),
+      );
+      expect(_strings(root), contains('name="$name"'));
+      expect(_strings(root, 'de'), contains('<string name="$name">Fertig'));
+    });
+
     test('prunes the entries of an edited constant', () async {
       final root = await _project();
       const userContent = '''
@@ -1571,6 +1590,23 @@ android {
         resolveBody.indexOf('sibling'),
         lessThan(resolveBody.indexOf('return en;')),
       );
+    });
+
+    test('resolve falls back to the first locale when the default is outside',
+        () {
+      final dart = generate(
+        _spec(
+          widget: HWText(_localized()),
+          localization: const HomeWidgetLocalization(
+            defaultLocale: 'fr',
+            supportedLocales: ['de', 'en', 'pt-BR'],
+          ),
+        ),
+      );
+
+      final resolveBody = dart.substring(dart.indexOf('String resolve('));
+      expect(resolveBody, contains('return de;'));
+      expect(resolveBody, isNot(contains('return fr;')));
     });
 
     test('the emitted resolve and merge behave as documented', () async {

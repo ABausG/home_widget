@@ -1956,6 +1956,81 @@ void main() {
     });
   });
 
+  group('string catalog resources', () {
+    test('wires the written catalog into the extension target', () async {
+      final pbxprojFile = File(
+        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
+      )..parent.createSync(recursive: true);
+      pbxprojFile.writeAsStringSync(_flavoredPbxproj(const []));
+
+      // ignore: invalid_use_of_internal_member
+      const greeting = HWLocalizedString.resolved(
+        '',
+        defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+        isConstant: true,
+        defaultLocale: 'en',
+        resourcePrefix: 'home_widget_greeting',
+      );
+      const tree = HWText(greeting);
+
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'Greeting',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+          widget: tree,
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+        ),
+        className: 'Greeting',
+        dataFields: tree.dataDependencies.toList(),
+        widgetTree: tree,
+      );
+
+      await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+      expect(
+        File(
+          p.join(tempDir.path, 'ios/GreetingHomeWidget/Localizable.xcstrings'),
+        ).existsSync(),
+        isTrue,
+      );
+
+      final text = pbxprojFile.readAsStringSync();
+      expect(
+        text,
+        contains('lastKnownFileType = text.json.xcstrings; '
+            'path = Localizable.xcstrings;'),
+      );
+      final regions =
+          RegExp(r'knownRegions = \(([\s\S]*?)\);').firstMatch(text)!.group(1)!;
+      expect(regions, contains('de,'));
+    });
+
+    test('leaves the project alone when no catalog is written', () async {
+      final pbxprojFile = File(
+        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
+      )..parent.createSync(recursive: true);
+      pbxprojFile.writeAsStringSync(_flavoredPbxproj(const []));
+
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'Greeting',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        className: 'Greeting',
+      );
+
+      await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+      expect(
+        pbxprojFile.readAsStringSync(),
+        isNot(contains('Localizable.xcstrings')),
+      );
+    });
+  });
+
   group('size-adaptive widgets', () {
     Future<String> generate(
       HWWidget tree, {

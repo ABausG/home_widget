@@ -52,6 +52,22 @@ void main() {
     });
   });
 
+  group('toPascalCase', () {
+    test('title-cases a segment that is written all uppercase', () {
+      expect(toPascalCase('MY WIDGET'), 'MyWidget');
+      expect(toPascalCase('HTTP'), 'Http');
+    });
+
+    test('keeps the inner casing of a segment that is not all uppercase', () {
+      expect(toPascalCase('myWidget name'), 'MyWidgetName');
+      expect(toPascalCase('42 widgets'), '42Widgets');
+    });
+
+    test('falls back to Widget when nothing usable is left', () {
+      expect(toPascalCase('---'), 'Widget');
+    });
+  });
+
   group('toSnakeCase', () {
     test('converts PascalCase', () {
       expect(toSnakeCase('WeatherIcons'), 'weather_icons');

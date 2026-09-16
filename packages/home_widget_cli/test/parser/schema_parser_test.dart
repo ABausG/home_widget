@@ -578,6 +578,24 @@ void main() {
       );
     });
 
+    test('decodes an enum named by a const variable rather than by its member',
+        () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        const _mode = HWAndroidResizeMode.vertical;
+
+        @HomeWidget(
+          name: 'Aliased Enum',
+          android: const HomeWidgetAndroidConfiguration(resizeMode: _mode),
+        )
+        class AliasedEnumWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.data.android?.resizeMode, HWAndroidResizeMode.vertical);
+    });
+
     test('a widget without flavors parses none', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

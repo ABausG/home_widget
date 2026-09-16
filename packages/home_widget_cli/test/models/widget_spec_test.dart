@@ -452,6 +452,42 @@ void main() {
       expect(spec.hasRuntimeImages, isTrue);
     });
 
+    test('JSON image leaves compare by root key, storage key and image', () {
+      const image = HWImageData('main');
+      const field = JsonImageField(
+        rootKey: 'contact',
+        path: ['photos', 'main'],
+        image: image,
+      );
+      const same = JsonImageField(
+        rootKey: 'contact',
+        path: ['photos', 'main'],
+        image: image,
+      );
+      const otherPath = JsonImageField(
+        rootKey: 'contact',
+        path: ['avatars', 'main'],
+        image: image,
+      );
+      const otherRoot = JsonImageField(
+        rootKey: 'account',
+        path: ['photos', 'main'],
+        image: image,
+      );
+      const otherImage = JsonImageField(
+        rootKey: 'contact',
+        path: ['photos', 'main'],
+        image: HWImageData('main', previewAsset: 'assets/sample.png'),
+      );
+
+      expect(field, same);
+      expect(field.hashCode, same.hashCode);
+      expect(field, isNot(otherPath));
+      expect(field, isNot(otherRoot));
+      expect(field, isNot(otherImage));
+      expect(field, isNot(Object()));
+    });
+
     test('default tree renders a timed image with HWImage', () {
       final spec = _spec(
         dataFields: const [HWTimedData(HWImageData('slide'))],

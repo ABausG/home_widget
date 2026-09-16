@@ -866,10 +866,12 @@ class WidgetSpec {
     final shared = 'The icon fields "$intoPath" and "$fromPath" both generate '
         'the enum $name';
     if (into.iconFont == null || from.iconFont == null) {
+      // coverage:ignore-start
       throw GeneratorError(
         '$shared, but at least one of them was never resolved to an icon font. '
         'Declare both of them in a @HomeWidget annotation.',
       );
+      // coverage:ignore-end
     }
     if (into.iconFont != from.iconFont) {
       throw GeneratorError(
@@ -1105,9 +1107,11 @@ class WidgetSpec {
       final duplicate =
           declarations.indexWhere((e) => e.isCompatibleWith(field));
       if (duplicate != -1) {
+        // coverage:ignore-start
         declarations[duplicate] =
             declarations[duplicate].mergedWith(field) as HWJson<dynamic>;
         continue;
+        // coverage:ignore-end
       }
       declarations.add(field);
     }

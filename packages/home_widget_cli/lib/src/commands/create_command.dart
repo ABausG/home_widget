@@ -153,7 +153,7 @@ String _resolveIosAppGroupId({required String? fromArgs}) {
   final trimmedArg = fromArgs?.trim();
   if (trimmedArg != null && trimmedArg.isNotEmpty) return trimmedArg;
 
-  if (!stdin.hasTerminal) {
+  if (!stdin.hasTerminal || !stdout.hasTerminal) {
     logger.warn(
       'Stdin is not interactive; using default iOS App Group ID: '
       '$defaultValue',

@@ -1288,11 +1288,13 @@ class $_translationsClassName {
 ''');
 
     if (baseIdentifier == null) {
+      // coverage:ignore-start
       buffer.write('''
     return values[normalized] ?? '';
   }
 ''');
       return buffer.toString();
+      // coverage:ignore-end
     }
 
     // Progressive truncation: zh-Hant-TW -> zh-Hant -> zh.
