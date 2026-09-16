@@ -5,6 +5,11 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// The three Lock Screen families get their own slots; `extraLarge` is left out
 /// on purpose, so the Android 8x4 size falls back to the `large` column (on iOS
 /// it is not listed in `supportedFamilies`, so the family is never offered).
+///
+/// The `medium` row puts the bold score next to a smaller label and lines the
+/// two up with `HWCrossAxisAlignment.baseline`; `center` or `end` would align
+/// the boxes the two texts sit in and leave their baselines apart by the
+/// difference in descent.
 @HomeWidget(
   name: 'Size Adaptive Dashboard',
   android: HomeWidgetAndroidConfiguration(
@@ -40,7 +45,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     ),
     medium: HWRow(
       mainAxisAlignment: HWMainAxisAlignment.center,
-      crossAxisAlignment: HWCrossAxisAlignment.center,
+      crossAxisAlignment: HWCrossAxisAlignment.baseline,
       children: [
         HWText(
           HWInt('score', defaultValue: 0),

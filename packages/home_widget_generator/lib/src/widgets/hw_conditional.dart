@@ -37,6 +37,12 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
         ...secondBranch.swiftViewModifiers,
       };
 
+  /// Either branch rendering a `Text` is enough, since the branch taken is only
+  /// known at runtime.
+  @override
+  bool get kotlinReportsBaseline =>
+      firstBranch.kotlinReportsBaseline || secondBranch.kotlinReportsBaseline;
+
   @override
   String toSwift(
     int indent, {

@@ -44,7 +44,7 @@ class BasicCreationHomeWidget : GlanceAppWidget() {
   fun previewFingerprint(context: Context): String {
     val hwLocales = hwCurrentLocales(context)
     return listOf(
-            "d4b17e74",
+            "6ff65134",
             hwLocales.joinToString(","),
         )
         .joinToString("|")
@@ -61,7 +61,7 @@ class BasicCreationHomeWidget : GlanceAppWidget() {
                   .clickable(onClick = actionStartActivity<MainActivity>()),
           contentAlignment = Alignment.Center,
       ) {
-        Column {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
           Text(text = "Basic Creation", style = TextStyle(color = GlanceTheme.colors.onSurface))
         }
       }

@@ -226,6 +226,12 @@ class HWSizeAdaptive extends HWWidget {
         ...providedSlots.expand((slot) => slot.kotlinImports),
       };
 
+  /// Any slot rendering a `Text` is enough, since the slot taken is only known
+  /// at runtime.
+  @override
+  bool get kotlinReportsBaseline =>
+      providedSlots.any((slot) => slot.kotlinReportsBaseline);
+
   @override
   Set<String> get swiftViewModifiers => {
         if (!_allIdentical(providedSlots))

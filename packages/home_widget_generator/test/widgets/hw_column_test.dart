@@ -64,6 +64,14 @@ void main() {
           contains('import androidx.glance.layout.Spacer'),
         );
       });
+
+      test('kotlinImports carry Alignment without a cross-axis alignment', () {
+        final w = HWColumn(children: [HWText.fixed('a')]);
+        expect(
+          w.kotlinImports,
+          contains('import androidx.glance.layout.Alignment'),
+        );
+      });
     });
 
     group('iOS (SwiftUI)', () {
@@ -72,7 +80,7 @@ void main() {
           children: [HWText.fixed('a'), HWText.fixed('b')],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack {'));
+        expect(r, contains('VStack(alignment: .center) {'));
         expect(r, contains('Text("a")'));
         expect(r, contains('Text("b")'));
       });
@@ -85,8 +93,8 @@ void main() {
           ],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack {'));
-        expect(r, contains('HStack {'));
+        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('HStack(alignment: .center) {'));
         expect(r, contains('Text("x")'));
         expect(r, contains('Text("y")'));
       });
@@ -94,13 +102,13 @@ void main() {
       test('data-bound text in column', () {
         final node = HWColumn(children: [HWText(HWString('countLabel'))]);
         final r = node.toSwift(0, dataExpr: 'entry.widgetData');
-        expect(r, contains('VStack {'));
+        expect(r, contains('VStack(alignment: .center) {'));
         expect(r, contains('Text(entry.widgetData.countLabel ?? "")'));
       });
 
       test('empty column', () {
         final r = HWColumn(children: []).toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack {'));
+        expect(r, contains('VStack(alignment: .center) {'));
         expect(r, contains('}'));
       });
 
@@ -111,8 +119,8 @@ void main() {
           ],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, startsWith('VStack {'));
-        expect(r, contains('    HStack {'));
+        expect(r, startsWith('VStack(alignment: .center) {'));
+        expect(r, contains('    HStack(alignment: .center) {'));
         expect(r, contains('        Text("x")'));
       });
 
@@ -134,11 +142,19 @@ void main() {
         expect(r, contains('VStack(alignment: .center) {'));
       });
 
-      test('bare VStack when no alignment', () {
+      test('no alignment defaults to center', () {
         final node = HWColumn(children: [HWText.fixed('a')]);
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack {'));
-        expect(r, isNot(contains('alignment:')));
+        expect(r, contains('VStack(alignment: .center) {'));
+      });
+
+      test('crossAxis .baseline falls back to center', () {
+        final node = HWColumn(
+          children: [HWText.fixed('a')],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        final r = node.toSwift(0, dataExpr: 'data');
+        expect(r, contains('VStack(alignment: .center) {'));
       });
 
       test('mainAxis .center uses Spacer', () {
@@ -147,7 +163,7 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack {'));
+        expect(r, contains('VStack(alignment: .center) {'));
         expect(r, contains('Spacer()'));
         expect(r, contains('Text("a")'));
         expect('Spacer()'.allMatches(r).length, 2);
@@ -204,6 +220,10 @@ void main() {
     });
 
     group('Android (Glance)', () {
+      const kotlinColumn =
+          'Column(horizontalAlignment = Alignment.CenterHorizontally) {';
+      const kotlinRow = 'Row(verticalAlignment = Alignment.CenterVertically) {';
+
       test('kotlinImports include Column', () {
         final w = HWColumn(children: [HWText.fixed('a')]);
         expect(
@@ -217,7 +237,7 @@ void main() {
           children: [HWText.fixed('a'), HWText.fixed('b')],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column {'));
+        expect(r, contains(kotlinColumn));
         expect(r, contains('Text(text = "a",'));
         expect(r, contains('Text(text = "b",'));
       });
@@ -230,8 +250,8 @@ void main() {
           ],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column {'));
-        expect(r, contains('Row {'));
+        expect(r, contains(kotlinColumn));
+        expect(r, contains(kotlinRow));
         expect(r, contains('Text(text = "x",'));
         expect(r, contains('Text(text = "y",'));
       });
@@ -239,13 +259,13 @@ void main() {
       test('data-bound child', () {
         final node = HWColumn(children: [HWText(HWString('count'))]);
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column {'));
+        expect(r, contains(kotlinColumn));
         expect(r, contains('Text(text = data.count ?: "",'));
       });
 
       test('empty column', () {
         final r = HWColumn(children: []).toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column {'));
+        expect(r, contains(kotlinColumn));
         expect(r, contains('}'));
       });
 
@@ -256,8 +276,8 @@ void main() {
           ],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, startsWith('Column {'));
-        expect(r, contains('    Row {'));
+        expect(r, startsWith(kotlinColumn));
+        expect(r, contains('    $kotlinRow'));
         expect(r, contains('        Text(text = "x",'));
       });
 
@@ -275,11 +295,19 @@ void main() {
         );
       });
 
-      test('no cross-axis alignment → bare Column', () {
+      test('no cross-axis alignment → CenterHorizontally', () {
         final node = HWColumn(children: [HWText.fixed('a')]);
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column {'));
-        expect(r, isNot(contains('horizontalAlignment')));
+        expect(r, contains(kotlinColumn));
+      });
+
+      test('crossAxis .baseline falls back to CenterHorizontally', () {
+        final node = HWColumn(
+          children: [HWText.fixed('a')],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect(r, contains(kotlinColumn));
       });
 
       test('mainAxis .center and Spacer', () {
@@ -288,7 +316,13 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column {'));
+        expect(
+          r,
+          contains(
+            'Column(modifier = GlanceModifier.fillMaxHeight(), '
+            'horizontalAlignment = Alignment.CenterHorizontally) {',
+          ),
+        );
         expect(
           r,
           contains('Spacer(modifier = GlanceModifier.defaultWeight())'),
@@ -378,6 +412,49 @@ void main() {
         );
         expect(r, contains('Text(text = "a",'));
         expect(r, contains('Text(text = "b",'));
+      });
+
+      for (final alignment in [
+        HWMainAxisAlignment.center,
+        HWMainAxisAlignment.end,
+        HWMainAxisAlignment.spaceBetween,
+        HWMainAxisAlignment.spaceEvenly,
+      ]) {
+        test('mainAxis .${alignment.name} fills the height', () {
+          final node = HWColumn(
+            children: [HWText.fixed('a'), HWText.fixed('b')],
+            mainAxisAlignment: alignment,
+          );
+          expect(
+            node.toKotlin(0, dataExpr: 'data'),
+            contains('Column(modifier = GlanceModifier.fillMaxHeight(), '),
+          );
+          expect(
+            node.kotlinImports,
+            contains('import androidx.glance.layout.fillMaxHeight'),
+          );
+        });
+      }
+
+      test('mainAxis .start does not fill the height', () {
+        final node = HWColumn(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.start,
+        );
+        expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('fillMax')));
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxHeight')),
+        );
+      });
+
+      test('no mainAxis alignment does not fill the height', () {
+        final node = HWColumn(children: [HWText.fixed('a')]);
+        expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('fillMax')));
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxHeight')),
+        );
       });
     });
   });

@@ -19,6 +19,11 @@ class HWPadding extends HWSingleChildWidget {
         'import androidx.glance.layout.Box',
       };
 
+  /// The padding is injected into the child's own composable, so a text child
+  /// stays a `Text`.
+  @override
+  bool get kotlinReportsBaseline => child.kotlinReportsBaseline;
+
   static HWPadding fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');
     final child = childField != null && !childField.isNull

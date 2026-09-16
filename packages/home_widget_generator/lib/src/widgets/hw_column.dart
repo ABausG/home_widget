@@ -13,14 +13,28 @@ class HWColumn extends HWMultiChildWidget {
     this.mainAxisAlignment,
   });
 
+  /// Whether the main axis is aligned with spacers, which only take room in a
+  /// `Column` that fills its height.
+  bool get _fillsMainAxis => switch (mainAxisAlignment) {
+        HWMainAxisAlignment.center ||
+        HWMainAxisAlignment.end ||
+        HWMainAxisAlignment.spaceBetween ||
+        HWMainAxisAlignment.spaceEvenly =>
+          true,
+        HWMainAxisAlignment.start || null => false,
+      };
+
   @override
   Set<String> get kotlinImports {
-    final imports = <String>{'import androidx.glance.layout.Column'};
-    if (crossAxisAlignment != null) {
-      imports.add('import androidx.glance.layout.Alignment');
-    }
+    final imports = <String>{
+      'import androidx.glance.layout.Column',
+      'import androidx.glance.layout.Alignment',
+    };
     if (mainAxisAlignment != null) {
       imports.add('import androidx.glance.layout.Spacer');
+    }
+    if (_fillsMainAxis) {
+      imports.add('import androidx.glance.layout.fillMaxHeight');
     }
     return imports.union(super.kotlinImports);
   }
@@ -39,12 +53,21 @@ class HWColumn extends HWMultiChildWidget {
     final crossAxisAlignmentField = obj.getField('crossAxisAlignment');
     final mainAxisAlignmentField = obj.getField('mainAxisAlignment');
 
+    final crossAxisAlignment = WidgetValueDecoder.decodeEnum(
+      crossAxisAlignmentField,
+      HWCrossAxisAlignment.values,
+    );
+    if (crossAxisAlignment == HWCrossAxisAlignment.baseline) {
+      throw GeneratorError(
+        'HWColumn cannot use HWCrossAxisAlignment.baseline. Baseline alignment '
+        'lines up the text baselines along a horizontal cross axis, so it only '
+        'applies to HWRow.',
+      );
+    }
+
     return HWColumn(
       children: children,
-      crossAxisAlignment: WidgetValueDecoder.decodeEnum(
-        crossAxisAlignmentField,
-        HWCrossAxisAlignment.values,
-      ),
+      crossAxisAlignment: crossAxisAlignment,
       mainAxisAlignment: WidgetValueDecoder.decodeEnum(
         mainAxisAlignmentField,
         HWMainAxisAlignment.values,
@@ -62,16 +85,14 @@ class HWColumn extends HWMultiChildWidget {
     final buffer = StringBuffer();
     final swiftAlign = switch (crossAxisAlignment) {
       HWCrossAxisAlignment.start => '.leading',
-      HWCrossAxisAlignment.center => '.center',
       HWCrossAxisAlignment.end => '.trailing',
-      null => null,
+      HWCrossAxisAlignment.center ||
+      HWCrossAxisAlignment.baseline ||
+      null =>
+        '.center',
     };
 
-    if (swiftAlign != null) {
-      buffer.writeln('${pad}VStack(alignment: $swiftAlign) {');
-    } else {
-      buffer.writeln('${pad}VStack {');
-    }
+    buffer.writeln('${pad}VStack(alignment: $swiftAlign) {');
 
     _emitSwiftChildren(buffer, indent + 1, dataExpr, context);
 
@@ -89,16 +110,18 @@ class HWColumn extends HWMultiChildWidget {
     final buffer = StringBuffer();
     final align = switch (crossAxisAlignment) {
       HWCrossAxisAlignment.start => 'Alignment.Start',
-      HWCrossAxisAlignment.center => 'Alignment.CenterHorizontally',
       HWCrossAxisAlignment.end => 'Alignment.End',
-      null => null,
+      HWCrossAxisAlignment.center ||
+      HWCrossAxisAlignment.baseline ||
+      null =>
+        'Alignment.CenterHorizontally',
     };
 
-    if (align != null) {
-      buffer.writeln('${pad}Column(horizontalAlignment = $align) {');
-    } else {
-      buffer.writeln('${pad}Column {');
-    }
+    final arguments = [
+      if (_fillsMainAxis) 'modifier = GlanceModifier.fillMaxHeight()',
+      'horizontalAlignment = $align',
+    ].join(', ');
+    buffer.writeln('${pad}Column($arguments) {');
 
     _emitChildrenWithMainAxisAlignment(
       children,

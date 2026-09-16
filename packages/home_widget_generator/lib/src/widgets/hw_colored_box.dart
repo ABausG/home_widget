@@ -24,6 +24,11 @@ class HWColoredBox extends HWSingleChildWidget {
     return imports.union(super.kotlinImports);
   }
 
+  /// The background is injected into the child's own composable, so a text
+  /// child stays a `Text`.
+  @override
+  bool get kotlinReportsBaseline => child.kotlinReportsBaseline;
+
   @override
   Set<String> get swiftViewModifiers {
     final modifiers = super.swiftViewModifiers;

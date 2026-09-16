@@ -549,7 +549,7 @@ default:
             ),
           ),
           '''
-VStack {
+VStack(alignment: .center) {
     Text("s")
 }''',
         );
@@ -743,7 +743,7 @@ when (LocalSize.current) {
             ),
           ),
           '''
-Column {
+Column(horizontalAlignment = Alignment.CenterHorizontally) {
     Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
 }''',
         );

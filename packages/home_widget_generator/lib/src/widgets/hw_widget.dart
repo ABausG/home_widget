@@ -111,6 +111,15 @@ sealed class HWWidget implements HWGeneratable {
   /// walks.
   List<HWWidget> get childWidgets => const [];
 
+  /// Whether this widget's Glance output is a `Text`, and so reports a text
+  /// baseline to the horizontal `LinearLayout` a Glance `Row` becomes.
+  ///
+  /// [HWRow] reads this to decide which children to wrap in a bare `Box`, whose
+  /// `getBaseline()` is -1, which is what turns `LinearLayout`'s baseline
+  /// correction off for a top- or bottom-aligned row. A widget that emits a
+  /// `Box`, an `Image` or a `Spacer` has no baseline and answers false.
+  bool get kotlinReportsBaseline => false;
+
   /// Every widget in this subtree, [this] first, in render order.
   ///
   /// Lets callers ask a question of a whole tree — which texts format a number,

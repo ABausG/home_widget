@@ -44,6 +44,9 @@ class HWAdaptive extends HWWidget {
   Set<String> get kotlinImports => android.kotlinImports;
 
   @override
+  bool get kotlinReportsBaseline => android.kotlinReportsBaseline;
+
+  @override
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;
 
   @override

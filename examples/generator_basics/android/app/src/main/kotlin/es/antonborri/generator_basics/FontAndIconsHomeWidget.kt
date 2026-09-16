@@ -34,7 +34,9 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.text.FontWeight
@@ -94,7 +96,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "2a6778db",
+            "633efad6",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -121,7 +123,10 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                   .clickable(onClick = actionStartActivity<MainActivity>()),
           contentAlignment = Alignment.Center,
       ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            modifier = GlanceModifier.fillMaxHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
           Spacer(modifier = GlanceModifier.defaultWeight())
           Image(
               modifier = GlanceModifier,
@@ -167,7 +172,10 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                   else "The same family again, wrapping to the room the label leaves it.",
               colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
           )
-          Row(verticalAlignment = Alignment.CenterVertically) {
+          Row(
+              modifier = GlanceModifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+          ) {
             Spacer(modifier = GlanceModifier.defaultWeight())
             Image(
                 modifier = GlanceModifier.size(24.dp),

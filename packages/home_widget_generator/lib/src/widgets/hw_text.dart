@@ -120,6 +120,11 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   @override
   Set<String> get kotlinImports => _kotlinRenderer.kotlinImports;
 
+  /// Text Glance renders itself is a `Text`; a custom family is drawn into a
+  /// bitmap and shown as an `Image`, which carries no baseline.
+  @override
+  bool get kotlinReportsBaseline => _kotlinRenderer is HWGlanceTextRenderer;
+
   @override
   Set<String> get swiftViewModifiers {
     final modifiers = <String>{};

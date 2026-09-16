@@ -16,14 +16,16 @@ HWFill(
 )
 ```
 
-`mainAxisAlignment` is implemented with `Spacer`s on both platforms.
+`mainAxisAlignment` is implemented with `Spacer`s on both platforms, so any value other than `start` stretches the row to the full width available to it.
+
+Children are centred vertically unless `crossAxisAlignment` says otherwise. A row is also the only place [`HWCrossAxisAlignment.baseline`](/generator/styling/hw-alignment) applies, which lines the children up on their first text baselines instead of on the boxes they sit in.
 
 ## Parameters
 
 | Name                  | Type                     | Default      | Description                              |
 | --------------------- | ------------------------ | ------------ | ---------------------------------------- |
 | `children`            | `List<HWWidget>`         | **required** | Widgets stacked left-to-right.           |
-| `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null`       | Vertical alignment of children.          |
+| `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null` (`center`) | Vertical alignment of children. `baseline` is allowed here. |
 | `mainAxisAlignment`   | `HWMainAxisAlignment?`   | `null`       | Horizontal distribution of children.     |
 
 See [HWAlignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.

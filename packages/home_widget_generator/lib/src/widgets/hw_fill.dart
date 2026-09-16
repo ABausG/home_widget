@@ -15,6 +15,10 @@ class HWFill extends HWSingleChildWidget {
         ...super.kotlinImports,
       };
 
+  /// Always false: a wrap-content `Box` would take back the room this asks for.
+  @override
+  bool get kotlinReportsBaseline => false;
+
   static HWFill fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');
     if (childField == null || childField.isNull) {

@@ -80,6 +80,12 @@ class HWDecoratedBox extends HWSingleChildWidget {
         ...decoration.swiftViewModifiers,
       };
 
+  /// A border is drawn as a surrounding `Box`, which has no baseline; without
+  /// one the decoration is injected into the child's own composable.
+  @override
+  bool get kotlinReportsBaseline =>
+      decoration.border == null && child.kotlinReportsBaseline;
+
   static HWDecoratedBox fromDartObject(
     DartObject obj,
     WidgetValueDecoder decoder,
