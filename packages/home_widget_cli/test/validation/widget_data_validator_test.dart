@@ -1728,6 +1728,162 @@ void main() {
         ),
       );
     });
+
+    test('accepts a compact number format', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWInt('steps'),
+              format: HWNumberFormat.compact(),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a currency code read from a field that is not text', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.number(
+              HWDouble('total'),
+              format: HWNumberFormat.currency(
+                currency: HWCurrency.data(HWImageData('logo')),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWCurrency.data needs an HWString'),
+            contains('"logo" is HWImageData'),
+            contains('An ISO 4217 code is stored as text'),
+          ),
+        ),
+      );
+    });
+
+    test('names the JSON leaf when a time zone reads a non-text path', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWText.dateTime(
+              HWDateTime('startsAt'),
+              format: HWDateFormat.skeleton('yMMMd'),
+              timeZone: HWTimeZone.data(HWJson('trip', HWImageData('zone'))),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWTimeZone.data needs an HWString'),
+            contains('"trip" is HWImageData at its JSON leaf'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects empty supportedLocales', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi'},
+              ),
+            ],
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: [],
+            ),
+          ),
+        ),
+        _throwsMessage(contains('supportedLocales must not be empty')),
+      );
+    });
+
+    test('rejects two locales mapping to one Dart identifier', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {
+                  'en': 'Hi',
+                  'pt-BR': 'Oi',
+                  'pt_BR': 'Oi',
+                },
+              ),
+            ],
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en', 'pt-BR', 'pt_BR'],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('locales "pt-BR" and "pt_BR"'),
+            contains('Dart identifier "ptBR"'),
+          ),
+        ),
+      );
+    });
+
+    test('names HWText.localized when a constant map misses a locale', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              // ignore: invalid_use_of_internal_member
+              const HWLocalizedString.resolved(
+                '',
+                defaultTranslations: {'en': 'Hi'},
+                isConstant: true,
+                defaultLocale: 'en',
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWText.localized in "T"'),
+            contains('de'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects a key declared both time-based and as a constant string', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              const HWTimedData(HWInt('steps')),
+              // ignore: invalid_use_of_internal_member
+              const HWLocalizedString.resolved(
+                'steps',
+                defaultTranslations: {'en': 'Hi', 'de': 'Hallo'},
+                isConstant: true,
+                defaultLocale: 'en',
+              ),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('Conflicting data name "steps"'),
+            contains('HWTimedData'),
+          ),
+        ),
+      );
+    });
   });
 
   group('merging duplicate declarations', () {
@@ -1921,6 +2077,58 @@ void main() {
           ]),
         ),
         _throwsMessage(contains('conflicting leaves')),
+      );
+    });
+
+    test('reports previewTranslations when a localized key clashes', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(
+            [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: const {'en': 'Sample', 'de': 'Beispiel'},
+              ),
+              const HWInt('title'),
+            ],
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWString.localized(previewTranslations: '),
+            contains('HWInt'),
+          ),
+        ),
+      );
+    });
+
+    test('reports a plain image field when its key clashes', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [HWImageData('logo'), HWInt('logo')]),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('the key "logo" is declared as HWImageData and HWInt'),
+            isNot(contains('previewAsset')),
+          ),
+        ),
+      );
+    });
+
+    test('reports a preview instant as its ISO text when a key clashes', () {
+      expect(
+        () => validateWidgetData(
+          _declaring(const [
+            HWDateTime('at', previewValue: '2024-03-08T09:41:00Z'),
+            HWInt('at'),
+          ]),
+        ),
+        _throwsMessage(
+          contains('HWDateTime(previewValue: "2024-03-08T09:41:00Z")'),
+        ),
       );
     });
   });

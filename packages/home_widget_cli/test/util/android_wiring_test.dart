@@ -1028,6 +1028,61 @@ dependencies {
     });
 
     test(
+        'gives a receiver without an intent-filter one, and the exported '
+        'attribute that then becomes mandatory', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:label="test">
+        <receiver android:name="$scheduledUpdateReceiverFqcn" />
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      final receiver = XmlDocument.parse(manifestFile.readAsStringSync())
+          .rootElement
+          .findAllElements('receiver')
+          .single;
+      expect(receiver.getAttribute('android:exported'), 'false');
+      expect(
+        receiver
+            .findAllElements('action')
+            .map((e) => e.getAttribute('android:name')),
+        ['android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED'],
+      );
+    });
+
+    test('keeps an explicit exported choice on a receiver it gives a filter',
+        () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <application android:label="test">
+        <receiver
+            android:name="$scheduledUpdateReceiverFqcn"
+            android:exported="true" />
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestScheduledUpdates(root);
+
+      final receiver = XmlDocument.parse(manifestFile.readAsStringSync())
+          .rootElement
+          .findAllElements('receiver')
+          .single;
+      expect(receiver.getAttribute('android:exported'), 'true');
+    });
+
+    test(
         'does not duplicate a hand-written receiver that already has the '
         'action', () async {
       manifestFile.writeAsStringSync(

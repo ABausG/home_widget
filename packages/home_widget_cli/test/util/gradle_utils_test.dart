@@ -145,6 +145,25 @@ android {
     expect(out, contains('kotlinCompilerExtensionVersion = "2.0.0"'));
   });
 
+  test('ensureComposeEnabled adds composeOptions to a Kotlin DSL build script',
+      () {
+    final input = '''
+android {
+    buildFeatures {
+    }
+}
+''';
+
+    final out = ensureComposeEnabled(
+      input,
+      dialect: GradleDialect.kts,
+      kotlinCompilerExtensionVersion: '1.5.2',
+    );
+
+    expect(out, contains('composeOptions'));
+    expect(out, contains('kotlinCompilerExtensionVersion = "1.5.2"'));
+  });
+
   group('ensureGlanceDependency version floor', () {
     late Logger previousLogger;
     late List<String> warnings;

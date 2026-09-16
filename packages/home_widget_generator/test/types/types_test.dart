@@ -47,6 +47,20 @@ void main() {
       expect(typeWithDefault.defaultValue, true);
     });
 
+    test('a plain type passes through the generated Dart API unchanged', () {
+      const type = HWString('label');
+      expect(type.dartApiType('Forecast'), 'String');
+      expect(type.dartGetDataType('Forecast'), 'String');
+      expect(type.dartDecode('raw', 'Forecast'), 'raw');
+      expect(type.dartEncode('value', 'Forecast'), isNull);
+
+      const number = HWInt('count');
+      expect(number.dartApiType('Forecast'), 'int');
+      expect(number.dartGetDataType('Forecast'), 'int');
+      expect(number.dartDecode('raw', 'Forecast'), 'raw');
+      expect(number.dartEncode('value', 'Forecast'), isNull);
+    });
+
     test('HWDateTime returns correct types and has no default value', () {
       const type = HWDateTime('when');
       expect(type.dartType, 'DateTime');
@@ -520,6 +534,32 @@ void main() {
         const HWBool('k', defaultValue: false).codegenSwiftDefaultLiteral(),
         'false',
       );
+    });
+
+    test('the Dart literal quotes a string and prints everything else', () {
+      expect(const HWString('k').codegenDartDefaultLiteral(), isNull);
+      expect(
+        const HWString('k', defaultValue: 'hi').codegenDartDefaultLiteral(),
+        "'hi'",
+      );
+      expect(
+        const HWInt('k', defaultValue: 42).codegenDartDefaultLiteral(),
+        '42',
+      );
+      expect(
+        const HWDouble('k', defaultValue: 1.5).codegenDartDefaultLiteral(),
+        '1.5',
+      );
+      // False is a real default, not an absent one.
+      expect(
+        const HWBool('k', defaultValue: false).codegenDartDefaultLiteral(),
+        'false',
+      );
+    });
+
+    test('the Dart literal escapes what Dart reads as syntax', () {
+      const tricky = HWString('k', defaultValue: r"a'b$c");
+      expect(tricky.codegenDartDefaultLiteral(), r"'a\'b\$c'");
     });
 
     test('HWJson reports the literal of its leaf, however deeply nested', () {

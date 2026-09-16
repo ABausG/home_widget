@@ -244,6 +244,58 @@ void main() {
   );
 
   test(
+    'create --ios takes the App Group ID from the option instead of prompting',
+    () async {
+      final project = await TestFlutterProject.create(includeAndroid: false);
+
+      final code = await runCliWithProjectRoot(
+        project.root,
+        [
+          'create',
+          '--ios',
+          '--ios-app-group-id',
+          '  group.example.custom  ',
+          'Example',
+        ],
+      );
+      expect(code, 0);
+
+      final entitlements = File(
+        p.join(project.root.path, 'ios', 'ExampleHomeWidget.entitlements'),
+      );
+      expect(entitlements.existsSync(), isTrue);
+      expect(
+        entitlements.readAsStringSync(),
+        contains('<string>group.example.custom</string>'),
+      );
+      expect(
+        File(
+          p.join(
+            project.root.path,
+            'ios',
+            'ExampleHomeWidget',
+            'Widget.swift',
+          ),
+        ).readAsStringSync(),
+        contains('group.example.custom'),
+      );
+
+      // The option short-circuits both the prompt and the default.
+      verifyNever(
+        () => mockLogger.prompt(
+          any(),
+          defaultValue: any(named: 'defaultValue'),
+        ),
+      );
+      expect(
+        entitlements.readAsStringSync(),
+        isNot(contains('YOUR_APP_GROUP_ID')),
+      );
+    },
+    timeout: const Timeout(Duration(minutes: 5)),
+  );
+
+  test(
     'create with no android/ios folders and no flags does nothing',
     () async {
       final project = await TestFlutterProject.create(

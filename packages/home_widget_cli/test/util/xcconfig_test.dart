@@ -73,6 +73,15 @@ void main() {
     );
   });
 
+  test('treats a file it cannot decode as empty', () {
+    // Xcode writes UTF-8, but a file saved in another encoding still parses as
+    // a project — reading it must not take the whole command down.
+    final file = File('${tempDir.path}/Latin1.xcconfig')
+      ..writeAsBytesSync([0xC3, 0x28, 0xFF, 0xFE]);
+
+    expect(readXcconfigSettings(file), isEmpty);
+  });
+
   test('skips conditional assignments', () {
     final file = write(
       'Debug.xcconfig',

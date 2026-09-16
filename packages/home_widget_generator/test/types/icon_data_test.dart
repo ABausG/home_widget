@@ -267,6 +267,42 @@ void main() {
             .iosReadValue(store: 'defaults', key: 'mood'),
         '(defaults?.object(forKey: "mood") as? Int ?? 59530)',
       );
+      expect(
+        _mood(previewValue: 0xE42D)
+            .iosReadValue(store: 'defaults', key: 'mood', preview: true),
+        '(defaults?.object(forKey: "mood") as? Int ?? 58413)',
+      );
+    });
+
+    test('the Dart API hands the app the generated enum', () {
+      final icons = _mood();
+      expect(icons.dartApiType('Forecast'), 'ForecastMoodIcon');
+      expect(icons.dartGetDataType('Forecast'), 'ForecastMoodIcon');
+      expect(
+        icons.dartDecode('raw', 'Forecast'),
+        'ForecastMoodIcon.fromCodePoint(raw)',
+      );
+      expect(icons.dartEncode('icon', 'Forecast'), 'icon.codePoint');
+    });
+
+    test('the Dart default reads as the hexadecimal an icon is written as', () {
+      expect(_mood().codegenDartDefaultLiteral(), isNull);
+      expect(_mood(defaultValue: 0xE88A).codegenDartDefaultLiteral(), '0xe88a');
+    });
+
+    test('a timed icon keeps the Dart API of the icon it wraps', () {
+      final icons = _mood(defaultValue: 0xE88A);
+      final timed = HWTimedData(icons);
+      expect(timed.dartApiType('Forecast'), 'ForecastMoodIcon');
+      expect(
+        timed.dartDecode('raw', 'Forecast'),
+        icons.dartDecode('raw', 'Forecast'),
+      );
+      expect(
+        timed.dartEncode('icon', 'Forecast'),
+        icons.dartEncode('icon', 'Forecast'),
+      );
+      expect(timed.codegenDartDefaultLiteral(), '0xe88a');
     });
 
     test('cannot be rendered as text', () {

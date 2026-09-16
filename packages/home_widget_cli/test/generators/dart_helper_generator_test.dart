@@ -120,6 +120,30 @@ void main() {
       expect(output, contains("enabled: _readBool(json['enabled']) ?? false,"));
     });
 
+    test('emits the double reader for a numeric JSON leaf', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(name: 'ExampleWidget'),
+        className: 'ExampleWidget',
+        dataFields: const [
+          HWJson('stats', HWDouble('progress', defaultValue: 0.5)),
+        ],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'double? _readDouble(Object? value) => '
+          'value is num ? value.toDouble() : null;',
+        ),
+      );
+      expect(
+        output,
+        contains("progress: _readDouble(json['progress']) ?? 0.5,"),
+      );
+    });
+
     test('generates nested JSON data classes', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'ExampleWidget'),
