@@ -353,6 +353,40 @@ void main() {
           isNot(contains('import androidx.glance.layout.fillMaxWidth')),
         );
       });
+
+      test('a row in a row takes a weight rather than the width', () {
+        const inner = HWRow(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWRow(children: [inner, HWText.fixed('b')]);
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect(
+          r,
+          contains('Row(modifier = GlanceModifier.defaultWeight(), '),
+        );
+        expect(r, isNot(contains('fillMaxWidth')));
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxWidth')),
+        );
+      });
+
+      test('a row in a column still fills the width', () {
+        const inner = HWRow(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWColumn(children: [inner]);
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          contains('Row(modifier = GlanceModifier.fillMaxWidth(), '),
+        );
+        expect(
+          node.kotlinImports,
+          contains('import androidx.glance.layout.fillMaxWidth'),
+        );
+      });
     });
 
     group('Android baseline defeat', () {
@@ -518,10 +552,44 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
         );
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('Box {')));
       });
+
+      test('a wrapped child is laid out by the Box, not by the row', () {
+        const node = HWRow(
+          children: [
+            HWSizeAdaptive(
+              small: HWText.fixed('a'),
+              large: HWRow(
+                children: [HWText.fixed('b')],
+                mainAxisAlignment: HWMainAxisAlignment.center,
+              ),
+            ),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.start,
+        );
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect(r, contains('Box {'));
+        expect(r, contains('Row(modifier = GlanceModifier.fillMaxWidth(), '));
+        expect(
+          node.kotlinImports,
+          contains('import androidx.glance.layout.fillMaxWidth'),
+        );
+      });
+
+      test('crossAxis .baseline leaves the baselines alone', () {
+        final node = HWRow(
+          children: [HWText.fixed('a'), HWText.fixed('b')],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('Box')));
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.Box')),
+        );
+      });
     });
 
     group('Android baseline alignment', () {
-      test('two plain texts are padded down to the row baseline', () {
+      test('two plain texts are left to the layout', () {
         final node = HWRow(
           children: [
             HWText.fixed('50', style: HWTextStyle(fontSize: 28)),
@@ -532,20 +600,80 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           '''
-run {
-    val hwAscent0 = HomeWidgetFonts.textAscentPx(context, null, 28f, weight = 400, italic = false)
-    val hwAscent1 = HomeWidgetFonts.textAscentPx(context, null, 16f, weight = 400, italic = false)
-    val hwRowBaseline = listOf(hwAscent0, hwAscent1).max()
-    val hwDensity = context.resources.displayMetrics.density
-    Row(verticalAlignment = Alignment.Top) {
-        Box(modifier = GlanceModifier.padding(top = ((hwRowBaseline - hwAscent0) / hwDensity).dp)) {
-            Text(text = "50", style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 28.sp))
-        }
-        Box(modifier = GlanceModifier.padding(top = ((hwRowBaseline - hwAscent1) / hwDensity).dp)) {
-            Text(text = "Points", style = TextStyle(color = GlanceTheme.colors.onSurface))
-        }
-    }
+Row(verticalAlignment = Alignment.Top) {
+    Text(text = "50", style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 28.sp))
+    Text(text = "Points", style = TextStyle(color = GlanceTheme.colors.onSurface))
 }''',
+        );
+        expect(
+          node.kotlinImports,
+          isNot(contains('import es.antonborri.home_widget.HomeWidgetFonts')),
+        );
+      });
+
+      test('a bitmap text beside a plain one is padded to the baseline', () {
+        final node = HWRow(
+          children: [
+            HWText.fixed(
+              '50',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
+            ),
+            HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect(r, startsWith('Row(verticalAlignment = Alignment.Top) {'));
+        const ascents =
+            'listOf(HomeWidgetFonts.textAscentPx(context, HomeWidgetFonts'
+            '.typeface(context, "Chewy", 400, false), 28f), HomeWidgetFonts'
+            '.textAscentPx(context, null, 14f, weight = 400, italic = false))';
+        expect(
+          r,
+          contains(
+            'Box(modifier = GlanceModifier.padding(top = HomeWidgetFonts'
+            '.baselinePadding(context, $ascents, 0))) {',
+          ),
+        );
+        expect(
+          r,
+          contains(
+            'Box(modifier = GlanceModifier.padding(top = HomeWidgetFonts'
+            '.baselinePadding(context, $ascents, 1))) {',
+          ),
+        );
+      });
+
+      test('two bitmap texts are both padded', () {
+        const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 28);
+        final node = HWRow(
+          children: [
+            HWText.fixed('50', style: style),
+            HWText.fixed('Points', style: style),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect('HomeWidgetFonts.baselinePadding('.allMatches(r).length, 2);
+      });
+
+      test('a plain text with no size of its own is measured open', () {
+        final node = HWRow(
+          children: [
+            HWText.fixed('a'),
+            HWText.fixed(
+              'b',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
+            ),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          contains(
+            'HomeWidgetFonts.textAscentPx(context, null, null, '
+            'weight = 400, italic = false)',
+          ),
         );
       });
 
@@ -560,50 +688,43 @@ run {
                 italic: true,
               ),
             ),
-            HWText.fixed('b'),
+            HWText.fixed(
+              'b',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains(
-            'val hwAscent0 = HomeWidgetFonts.textAscentPx(context, null, '
+            'HomeWidgetFonts.textAscentPx(context, null, '
             '13.5f, weight = 700, italic = true)',
           ),
         );
       });
 
-      test('a custom font text is measured in its own typeface', () {
+      test('a medium weight is measured at the weight Glance draws', () {
         final node = HWRow(
           children: [
             HWText.fixed(
-              '50',
-              style: HWTextStyle(fontSize: 28, fontFamily: 'Chewy'),
+              'a',
+              style: HWTextStyle(fontSize: 12, fontWeight: HWFontWeight.w600),
             ),
-            HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+            HWText.fixed(
+              'b',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
+        expect(r, contains('fontWeight = FontWeight.Medium'));
         expect(
           r,
           contains(
-            'val hwAscent0 = HomeWidgetFonts.textAscentPx(context, '
-            'HomeWidgetFonts.typeface(context, "Chewy", 400, false), 28f)',
-          ),
-        );
-        expect(
-          r,
-          contains(
-            'val hwAscent1 = HomeWidgetFonts.textAscentPx(context, null, '
-            '14f, weight = 400, italic = false)',
-          ),
-        );
-        expect(
-          r,
-          contains(
-            'Box(modifier = GlanceModifier.padding(top = '
-            '((hwRowBaseline - hwAscent0) / hwDensity).dp)) {',
+            'HomeWidgetFonts.textAscentPx(context, null, 12f, '
+            'weight = 500, italic = false)',
           ),
         );
       });
@@ -611,21 +732,26 @@ run {
       test('one text beside a picture lines nothing up', () {
         final node = HWRow(
           children: [
-            HWText.fixed('a'),
+            HWText.fixed(
+              'a',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
             HWImage(HWImageData('avatar'), width: 8),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, isNot(contains('run {')));
-        expect(r, isNot(contains('GlanceModifier.padding(top =')));
+        expect(r, isNot(contains('baselinePadding')));
         expect(r, contains('Row(verticalAlignment = Alignment.Top) {'));
       });
 
       test('a child rendering no text is left at the top', () {
         final node = HWRow(
           children: [
-            HWText.fixed('a'),
+            HWText.fixed(
+              'a',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
             HWIcon.resolvedGlyph(
               0xe800,
               font: HWIconFont(family: 'Fonts'),
@@ -636,17 +762,18 @@ run {
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('val hwAscent0 = '));
-        expect(r, contains('val hwAscent2 = '));
-        expect(r, isNot(contains('val hwAscent1 = ')));
-        expect(r, contains('val hwRowBaseline = listOf(hwAscent0, hwAscent2)'));
-        expect('GlanceModifier.padding(top ='.allMatches(r).length, 2);
+        expect('HomeWidgetFonts.baselinePadding('.allMatches(r).length, 2);
+        expect(r, contains('baselinePadding(context, listOf('));
+        expect(r, isNot(contains('), 2)))')));
       });
 
       test('a text kept by a wrapper is what the row goes by', () {
         final node = HWRow(
           children: [
-            HWText.fixed('50', style: HWTextStyle(fontSize: 28)),
+            HWText.fixed(
+              '50',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
+            ),
             HWPadding(
               padding: HWEdgeInsets.only(left: 6),
               child: HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
@@ -657,15 +784,41 @@ run {
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains(
-            'val hwAscent1 = HomeWidgetFonts.textAscentPx(context, null, '
+            'HomeWidgetFonts.textAscentPx(context, null, '
             '14f, weight = 400, italic = false)',
           ),
         );
       });
 
+      test('room above a text keeps the row from lining it up', () {
+        final node = HWRow(
+          children: [
+            HWText.fixed(
+              '50',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
+            ),
+            HWPadding(
+              padding: HWEdgeInsets.only(top: 6),
+              child: HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+            ),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          isNot(contains('baselinePadding')),
+        );
+      });
+
       test('the spacers of a main-axis alignment keep their place', () {
         final node = HWRow(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [
+            HWText.fixed(
+              'a',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
+            HWText.fixed('b'),
+          ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
@@ -683,96 +836,214 @@ run {
               .length,
           2,
         );
-        expect(r, contains('hwAscent0'));
-        expect(r, contains('hwAscent1'));
+        expect('HomeWidgetFonts.baselinePadding('.allMatches(r).length, 2);
       });
 
       test('imports what the padded boxes need', () {
         final node = HWRow(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [
+            HWText.fixed(
+              'a',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
+            HWText.fixed('b'),
+          ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         expect(
           node.kotlinImports,
           containsAll(<String>[
-            'import androidx.compose.ui.unit.dp',
-            'import androidx.glance.GlanceModifier',
             'import androidx.glance.layout.Box',
             'import androidx.glance.layout.padding',
             'import es.antonborri.home_widget.HomeWidgetFonts',
           ]),
         );
       });
+
+      test('a padded row still takes the modifiers put on it', () {
+        const row = HWRow(
+          children: [
+            HWText.fixed(
+              'a',
+              style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
+            ),
+            HWText.fixed('b'),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        );
+        expect(
+          const HWFill(child: row).toKotlin(0, dataExpr: 'data'),
+          startsWith(
+            'Row(modifier = GlanceModifier.fillMaxSize(), '
+            'verticalAlignment = Alignment.Top) {',
+          ),
+        );
+        expect(
+          HWPadding(padding: HWEdgeInsets.all(4), child: row)
+              .toKotlin(0, dataExpr: 'data'),
+          startsWith(
+            'Row(modifier = GlanceModifier.padding(start = 4.0.dp, '
+            'top = 4.0.dp, end = 4.0.dp, bottom = 4.0.dp), '
+            'verticalAlignment = Alignment.Top) {',
+          ),
+        );
+      });
     });
 
-    group('kotlinFirstTextRenderer', () {
-      test('a plain text answers with its Glance renderer', () {
-        const text = HWText.fixed('a');
-        expect(text.kotlinFirstTextRenderer, isA<HWGlanceTextRenderer>());
+    group('kotlinBaselineText', () {
+      test('a plain text answers with the size it renders at', () {
+        const text = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
+        final baseline = text.kotlinBaselineText!;
+        expect(baseline.isBitmap, isFalse);
+        expect(baseline.ascent('data'), contains('21f'));
       });
 
-      test('a custom font text answers with its bitmap renderer', () {
+      test('a custom font text answers with its own typeface', () {
         const text = HWText.fixed(
           'a',
           style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
         );
-        expect(text.kotlinFirstTextRenderer, isA<HWBitmapTextRenderer>());
+        final baseline = text.kotlinBaselineText!;
+        expect(baseline.isBitmap, isTrue);
+        expect(
+          baseline.ascent('data'),
+          contains('HomeWidgetFonts.typeface(context, "Chewy", 400, false)'),
+        );
       });
 
-      test('a single-child wrapper delegates to its child', () {
+      test('a wrapper keeping the text answers with it', () {
+        const padded = HWPadding(
+          padding: HWEdgeInsets.only(left: 4),
+          child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+        );
+        expect(padded.kotlinBaselineText?.ascent('data'), contains('21f'));
+        const colored = HWColoredBox(
+          color: HWFixedColor(0xFF00FF00),
+          child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+        );
+        expect(colored.kotlinBaselineText?.ascent('data'), contains('21f'));
+        const decorated = HWDecoratedBox(
+          decoration: HWBoxDecoration(color: HWFixedColor(0xFF00FF00)),
+          child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+        );
+        expect(decorated.kotlinBaselineText?.ascent('data'), contains('21f'));
+      });
+
+      test('a wrapper putting room above the text answers null', () {
         const padded = HWPadding(
           padding: HWEdgeInsets.all(4),
           child: HWText.fixed('a'),
         );
-        expect(padded.kotlinFirstTextRenderer, isA<HWGlanceTextRenderer>());
-        const filled = HWFill(child: HWImage(HWImageData('avatar'), width: 8));
-        expect(filled.kotlinFirstTextRenderer, isNull);
+        expect(padded.kotlinBaselineText, isNull);
+        const bordered = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            border: HWBoxBorder(thickness: 1, color: HWFixedColor(0)),
+          ),
+          child: HWText.fixed('a'),
+        );
+        expect(bordered.kotlinBaselineText, isNull);
+        const filled = HWFill(child: HWText.fixed('a'));
+        expect(filled.kotlinBaselineText, isNull);
       });
 
-      test('a multi-child widget answers with its first text', () {
+      test('a layout of several children answers null', () {
         const column = HWColumn(
           children: [
             HWImage(HWImageData('avatar'), width: 8),
             HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
-            HWText.fixed('b'),
           ],
         );
-        final renderer = column.kotlinFirstTextRenderer;
-        expect(renderer, isA<HWGlanceTextRenderer>());
-        expect(
-          renderer!.kotlinAscentExpression(),
-          contains('21f'),
-        );
+        expect(column.kotlinBaselineText, isNull);
+        const row = HWRow(children: [HWText.fixed('a')]);
+        expect(row.kotlinBaselineText, isNull);
       });
 
-      test('a multi-child widget rendering no text answers null', () {
-        const column = HWColumn(
-          children: [HWImage(HWImageData('avatar'), width: 8)],
+      test('an adaptive answers with its Android side', () {
+        const adaptive = HWAdaptive(
+          ios: HWText.fixed('a', style: HWTextStyle(fontSize: 11)),
+          android: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
         );
-        expect(column.kotlinFirstTextRenderer, isNull);
+        expect(adaptive.kotlinBaselineText?.ascent('data'), contains('21f'));
+        const textless = HWAdaptive(
+          ios: HWText.fixed('a'),
+          android: HWImage(HWImageData('avatar'), width: 8),
+        );
+        expect(textless.kotlinBaselineText, isNull);
       });
 
-      test('a conditional answers with its first branch', () {
+      test('a conditional answers with both of its branches', () {
         const conditional = HWDataExists(
           data: HWString('maybe'),
           whenPresent: HWText.fixed('a', style: HWTextStyle(fontSize: 19)),
-          whenAbsent: HWText.fixed('b', style: HWTextStyle(fontSize: 11)),
+          whenAbsent: HWText.fixed(
+            'b',
+            style: HWTextStyle(fontFamily: 'Chewy', fontSize: 11),
+          ),
         );
+        final baseline = conditional.kotlinBaselineText!;
+        expect(baseline.isBitmap, isTrue);
         expect(
-          conditional.kotlinFirstTextRenderer!.kotlinAscentExpression(),
-          contains('19f'),
+          baseline.ascent('data'),
+          startsWith('if (data.maybe != null) HomeWidgetFonts.textAscentPx('),
         );
+        expect(baseline.ascent('data'), contains('19f'));
+        expect(baseline.ascent('data'), contains('11f'));
+      });
+
+      test('a conditional with a branch rendering no text answers null', () {
         const textless = HWDataExists(
           data: HWString('maybe'),
           whenPresent: HWImage(HWImageData('avatar'), width: 8),
           whenAbsent: HWText.fixed('b'),
         );
-        expect(textless.kotlinFirstTextRenderer, isNull);
+        expect(textless.kotlinBaselineText, isNull);
+      });
+
+      test('a size-adaptive answers when every slot agrees', () {
+        const adaptive = HWSizeAdaptive(
+          small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+          large: HWText.fixed('b', style: HWTextStyle(fontSize: 21)),
+        );
+        expect(adaptive.kotlinBaselineText?.ascent('data'), contains('21f'));
+      });
+
+      test('a size-adaptive rendering no text at all answers null', () {
+        const adaptive = HWSizeAdaptive(
+          small: HWImage(HWImageData('avatar'), width: 8),
+          accessoryInline: HWText.fixed('a'),
+        );
+        expect(adaptive.kotlinBaselineText, isNull);
+      });
+
+      test('a size-adaptive whose slots differ is rejected', () {
+        const adaptive = HWSizeAdaptive(
+          small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+          large: HWText.fixed('b', style: HWTextStyle(fontSize: 11)),
+        );
+        expect(
+          () => adaptive.kotlinBaselineText,
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('HWCrossAxisAlignment.baseline'),
+                contains('HWSizeAdaptive'),
+              ),
+            ),
+          ),
+        );
+        const partial = HWSizeAdaptive(
+          small: HWText.fixed('a'),
+          large: HWImage(HWImageData('avatar'), width: 8),
+        );
+        expect(
+            () => partial.kotlinBaselineText, throwsA(isA<GeneratorError>()));
       });
 
       test('a widget rendering no text of its own answers null', () {
         const image = HWImage(HWImageData('avatar'), width: 8);
-        expect(image.kotlinFirstTextRenderer, isNull);
+        expect(image.kotlinBaselineText, isNull);
       });
     });
   });

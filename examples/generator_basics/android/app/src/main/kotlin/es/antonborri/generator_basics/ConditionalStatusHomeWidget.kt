@@ -23,7 +23,6 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
@@ -56,7 +55,7 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         ConditionalStatusData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "2e3f5523",
+            "1937fc62",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -85,7 +84,7 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
         if (widgetData.hasData != null) {
           if (widgetData.enabled == true) {
             Column(
-                modifier = GlanceModifier.fillMaxSize().fillMaxHeight(),
+                modifier = GlanceModifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
               Spacer(modifier = GlanceModifier.defaultWeight())
@@ -102,7 +101,7 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
             }
           } else {
             Column(
-                modifier = GlanceModifier.fillMaxSize().fillMaxHeight(),
+                modifier = GlanceModifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
               Spacer(modifier = GlanceModifier.defaultWeight())
@@ -120,7 +119,7 @@ class ConditionalStatusHomeWidget : GlanceAppWidget() {
           }
         } else {
           Column(
-              modifier = GlanceModifier.fillMaxSize().fillMaxHeight(),
+              modifier = GlanceModifier.fillMaxSize(),
               horizontalAlignment = Alignment.CenterHorizontally,
           ) {
             Spacer(modifier = GlanceModifier.defaultWeight())

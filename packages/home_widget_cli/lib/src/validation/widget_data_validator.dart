@@ -2,6 +2,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
+import 'baseline_validator.dart';
 import 'size_validator.dart';
 
 part 'dart_keywords.dart';
@@ -57,6 +58,7 @@ void validateWidgetData(WidgetSpec spec) {
   _validateTextFormats(spec);
   _validateIconEnums(spec);
   validateSizeAdaptive(spec);
+  validateBaselineRows(spec);
 
   for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');

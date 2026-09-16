@@ -12,22 +12,23 @@ class HWColoredBox extends HWSingleChildWidget {
   });
 
   @override
-  Set<String> get kotlinImports {
-    final imports = <String>{
-      'import androidx.glance.layout.Box',
-      'import androidx.compose.ui.graphics.Color',
-      'import androidx.glance.background',
-    };
-    if (color is HWThemedColor) {
-      imports.add('import androidx.glance.color.ColorProvider');
-    }
-    return imports.union(super.kotlinImports);
-  }
+  Set<String> get kotlinImports => kotlinImportsIn(null);
 
-  /// The background is injected into the child's own composable, so a text
-  /// child stays a `Text`.
+  /// The background is injected into the child's own composable, so the child
+  /// is still what the enclosing layout lays out.
   @override
-  bool get kotlinReportsBaseline => child.kotlinReportsBaseline;
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
+        'import androidx.glance.layout.Box',
+        'import androidx.compose.ui.graphics.Color',
+        'import androidx.glance.background',
+        if (color is HWThemedColor)
+          'import androidx.glance.color.ColorProvider',
+        ...child.kotlinImportsIn(enclosingLinearAxis),
+      };
+
+  /// The child's: a text child stays a `Text` with a background.
+  @override
+  HWKotlinBaselineText? get kotlinBaselineText => child.kotlinBaselineText;
 
   @override
   Set<String> get swiftViewModifiers {

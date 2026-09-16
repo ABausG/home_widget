@@ -50,9 +50,10 @@ sealed class HWSingleChildWidget extends HWWidget {
   @override
   List<HWWidget> get childWidgets => [child];
 
+  /// The child's, for the wrappers that inject their modifier into the child's
+  /// own composable; one emitting a `Box` of its own answers false instead.
   @override
-  HWKotlinTextRenderer? get kotlinFirstTextRenderer =>
-      child.kotlinFirstTextRenderer;
+  bool get kotlinReportsBaseline => child.kotlinReportsBaseline;
 }
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
@@ -60,11 +61,6 @@ sealed class HWMultiChildWidget extends HWWidget {
   final List<HWWidget> children;
 
   const HWMultiChildWidget({required this.children});
-
-  @override
-  Set<String> get kotlinImports {
-    return children.expand((child) => child.kotlinImports).toSet();
-  }
 
   @override
   Set<String> get swiftViewModifiers {
@@ -78,14 +74,6 @@ sealed class HWMultiChildWidget extends HWWidget {
 
   @override
   List<HWWidget> get childWidgets => children;
-
-  @override
-  HWKotlinTextRenderer? get kotlinFirstTextRenderer {
-    for (final child in children) {
-      if (child.kotlinFirstTextRenderer case final renderer?) return renderer;
-    }
-    return null;
-  }
 }
 
 /// Interface for widgets that hold data dependencies.
@@ -132,14 +120,23 @@ sealed class HWWidget implements HWGeneratable {
   /// `Box`, an `Image` or a `Spacer` has no baseline and answers false.
   bool get kotlinReportsBaseline => false;
 
-  /// The text a baseline-aligned [HWRow] lines this child up by: the first one
-  /// it renders, in document order, or null when it renders none.
+  /// The text a baseline-aligned [HWRow] lines this child up by, or null when
+  /// the emitted view is not one it can place.
   ///
-  /// The row reads the ascent off it and pads the child down to the row's own
-  /// baseline, which is how a text Glance draws and one the core plugin draws
-  /// into a bitmap end up on the same line. A child answering null — an icon, a
-  /// picture, a spacer — is left at the top.
-  HWKotlinTextRenderer? get kotlinFirstTextRenderer => null;
+  /// Only a widget whose Glance output *is* the text answers with one: the row
+  /// pads the child from the top of the box it sits in, so anything drawn above
+  /// the glyphs would carry the baseline with it. A child answering null — an
+  /// icon, a picture, a column of several texts — is left at the top.
+  HWKotlinBaselineText? get kotlinBaselineText => null;
+
+  /// [kotlinImports], for a widget emitted directly inside a Glance `Column` or
+  /// `Row` running along [enclosingLinearAxis].
+  ///
+  /// A layout asking for its whole main axis takes a weight instead of a fill
+  /// there, and the two need different imports; every widget that passes its
+  /// own composable's modifier down forwards the axis, and one emitting a `Box`
+  /// of its own clears it.
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => kotlinImports;
 
   /// Every widget in this subtree, [this] first, in render order.
   ///

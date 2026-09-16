@@ -28,6 +28,31 @@ void main() {
       );
     });
 
+    test('drops a fill one axis when both axes are injected', () {
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.fillMaxHeight(), '
+              'horizontalAlignment = Alignment.Start) {',
+          'fillMaxSize()',
+        ),
+        'Column(modifier = GlanceModifier.fillMaxSize(), '
+        'horizontalAlignment = Alignment.Start) {',
+      );
+      expect(
+        injectGlanceModifier(
+          'Row(GlanceModifier.padding(4.dp).fillMaxWidth()) {',
+          'fillMaxSize()',
+        ),
+        'Row(GlanceModifier.fillMaxSize().padding(4.dp)) {',
+      );
+    });
+
+    test('leaves a chain that already fills both axes alone', () {
+      const code = 'Column(modifier = GlanceModifier.fillMaxSize()) {';
+      expect(injectGlanceModifier(code, 'fillMaxHeight()'), code);
+      expect(injectGlanceModifier(code, 'fillMaxWidth()'), code);
+    });
+
     test('rewrites bare GlanceModifier token in args', () {
       expect(
         injectGlanceModifier('Column(GlanceModifier) {', 'fillMaxSize'),

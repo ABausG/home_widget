@@ -138,6 +138,24 @@ String? _injectIntoWhenBranches(String code, String modifier) {
   return buffer.toString();
 }
 
+/// The fill modifiers `fillMaxSize()` already asks for both of.
+const _fillAxisModifiers = ['fillMaxWidth()', 'fillMaxHeight()'];
+
+const _fillBothAxes = 'fillMaxSize()';
+
+/// [args] without the fill modifiers [modifier] makes redundant.
+///
+/// Both axes at once say everything one of them does, so a chain keeps the one
+/// that asks for more rather than carrying both.
+String _withoutRedundantFills(String args, String modifier) {
+  if (modifier != _fillBothAxes) return args;
+  var kept = args;
+  for (final axis in _fillAxisModifiers) {
+    kept = kept.replaceAll('.$axis', '');
+  }
+  return kept;
+}
+
 /// Helper to parse a typical Compose call (e.g. `Column {` or `Text(...)`)
 /// and inject a modifier string (e.g. `fillMaxSize()`).
 String injectGlanceModifier(String code, String modifier) {
@@ -162,14 +180,21 @@ String injectGlanceModifier(String code, String modifier) {
   if (compMatch != null) {
     final compName = compMatch.group(0);
     final argRange = _argumentRange(trimmed, compMatch.end);
-    final args =
+    final declared =
         argRange == null ? null : trimmed.substring(argRange.$1, argRange.$2);
     final callEnd = argRange == null ? compMatch.end : argRange.$2 + 1;
+
+    // One axis of a chain already filling both says nothing more.
+    if (_fillAxisModifiers.contains(modifier) &&
+        (declared?.contains(_fillBothAxes) ?? false)) {
+      return code;
+    }
+    final args = _withoutRedundantFills(declared ?? '', modifier);
 
     final hasBrace = trimmed.substring(callEnd).trimLeft().startsWith('{');
 
     String newArgs = '';
-    if (args != null && args.isNotEmpty) {
+    if (args.isNotEmpty) {
       if (args.contains('GlanceModifier.')) {
         newArgs =
             args.replaceFirst('GlanceModifier.', 'GlanceModifier.$modifier.');

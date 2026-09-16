@@ -13,31 +13,27 @@ class HWColumn extends HWMultiChildWidget {
     this.mainAxisAlignment,
   });
 
-  /// Whether the main axis is aligned with spacers, which only take room in a
-  /// `Column` that fills its height.
-  bool get _fillsMainAxis => switch (mainAxisAlignment) {
-        HWMainAxisAlignment.center ||
-        HWMainAxisAlignment.end ||
-        HWMainAxisAlignment.spaceBetween ||
-        HWMainAxisAlignment.spaceEvenly =>
-          true,
-        HWMainAxisAlignment.start || null => false,
-      };
+  /// The alignment this column renders with, always emitted so that neither
+  /// platform falls back to its own default.
+  ///
+  /// `baseline` lines up along a horizontal cross axis, which a column has no
+  /// baseline on; [fromDartObject] rejects it, and both emitters centre on it.
+  HWCrossAxisAlignment get effectiveCrossAxisAlignment =>
+      crossAxisAlignment ?? HWCrossAxisAlignment.center;
 
   @override
-  Set<String> get kotlinImports {
-    final imports = <String>{
-      'import androidx.glance.layout.Column',
-      'import androidx.glance.layout.Alignment',
-    };
-    if (mainAxisAlignment != null) {
-      imports.add('import androidx.glance.layout.Spacer');
-    }
-    if (_fillsMainAxis) {
-      imports.add('import androidx.glance.layout.fillMaxHeight');
-    }
-    return imports.union(super.kotlinImports);
-  }
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
+        'import androidx.glance.layout.Column',
+        'import androidx.glance.layout.Alignment',
+        if (mainAxisAlignment != null) 'import androidx.glance.layout.Spacer',
+        if (mainAxisAlignment.fillsMainAxis &&
+            enclosingLinearAxis != HWAxis.vertical)
+          'import androidx.glance.layout.fillMaxHeight',
+        for (final child in children) ...child.kotlinImportsIn(HWAxis.vertical),
+      };
 
   static HWColumn fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childrenField = WidgetValueDecoder.getField(obj, 'children');
@@ -83,13 +79,10 @@ class HWColumn extends HWMultiChildWidget {
   }) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
-    final swiftAlign = switch (crossAxisAlignment) {
+    final swiftAlign = switch (effectiveCrossAxisAlignment) {
       HWCrossAxisAlignment.start => '.leading',
       HWCrossAxisAlignment.end => '.trailing',
-      HWCrossAxisAlignment.center ||
-      HWCrossAxisAlignment.baseline ||
-      null =>
-        '.center',
+      HWCrossAxisAlignment.center || HWCrossAxisAlignment.baseline => '.center',
     };
 
     buffer.writeln('${pad}VStack(alignment: $swiftAlign) {');
@@ -108,21 +101,27 @@ class HWColumn extends HWMultiChildWidget {
   }) {
     final pad = '    ' * indent;
     final buffer = StringBuffer();
-    final align = switch (crossAxisAlignment) {
+    final align = switch (effectiveCrossAxisAlignment) {
       HWCrossAxisAlignment.start => 'Alignment.Start',
       HWCrossAxisAlignment.end => 'Alignment.End',
       HWCrossAxisAlignment.center ||
-      HWCrossAxisAlignment.baseline ||
-      null =>
+      HWCrossAxisAlignment.baseline =>
         'Alignment.CenterHorizontally',
     };
 
+    // A column filling the height of the column it sits in would leave its
+    // siblings nothing, so along that axis it asks for the room by weight.
+    final fill = context?.enclosingLinearAxis == HWAxis.vertical
+        ? 'defaultWeight()'
+        : 'fillMaxHeight()';
     final arguments = [
-      if (_fillsMainAxis) 'modifier = GlanceModifier.fillMaxHeight()',
+      if (mainAxisAlignment.fillsMainAxis) 'modifier = GlanceModifier.$fill',
       'horizontalAlignment = $align',
     ].join(', ');
     buffer.writeln('${pad}Column($arguments) {');
 
+    final childContext =
+        (context ?? const HWEmitContext()).inLinear(HWAxis.vertical);
     _emitChildrenWithMainAxisAlignment(
       children,
       buffer,
@@ -130,7 +129,7 @@ class HWColumn extends HWMultiChildWidget {
       dataExpr,
       mainAxisAlignment,
       (child, childIndent, data) =>
-          child.toKotlin(childIndent, dataExpr: data, context: context),
+          child.toKotlin(childIndent, dataExpr: data, context: childContext),
       (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
     );
 

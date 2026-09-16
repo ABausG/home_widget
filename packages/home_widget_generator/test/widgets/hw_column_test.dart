@@ -456,6 +456,99 @@ void main() {
           isNot(contains('import androidx.glance.layout.fillMaxHeight')),
         );
       });
+
+      test('a column in a column takes a weight rather than the height', () {
+        const inner = HWColumn(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWColumn(children: [inner, HWText.fixed('b')]);
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect(
+          r,
+          contains('Column(modifier = GlanceModifier.defaultWeight(), '),
+        );
+        expect(r, isNot(contains('fillMaxHeight')));
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxHeight')),
+        );
+      });
+
+      test('a column in a row still fills the height', () {
+        const inner = HWColumn(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWRow(children: [inner]);
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          contains('Column(modifier = GlanceModifier.fillMaxHeight(), '),
+        );
+        expect(
+          node.kotlinImports,
+          contains('import androidx.glance.layout.fillMaxHeight'),
+        );
+      });
+
+      test('a wrapper keeping the column passes the axis through', () {
+        const inner = HWColumn(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWColumn(
+          children: [
+            HWPadding(padding: HWEdgeInsets.all(4), child: inner),
+            HWText.fixed('b'),
+          ],
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          contains('.defaultWeight(),'),
+        );
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxHeight')),
+        );
+      });
+
+      test('an adaptive passes the axis on to its Android side', () {
+        const inner = HWColumn(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWColumn(
+          children: [
+            HWAdaptive(ios: HWText.fixed('a'), android: inner),
+            HWText.fixed('b'),
+          ],
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'data'),
+          contains('Column(modifier = GlanceModifier.defaultWeight(), '),
+        );
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxHeight')),
+        );
+      });
+
+      test('a Box in between gives the column its height back', () {
+        const inner = HWColumn(
+          children: [HWText.fixed('a')],
+          mainAxisAlignment: HWMainAxisAlignment.center,
+        );
+        const node = HWColumn(
+          children: [HWFill(child: inner), HWText.fixed('b')],
+        );
+        final r = node.toKotlin(0, dataExpr: 'data');
+        expect(r, contains('Column(modifier = GlanceModifier.fillMaxSize(), '));
+        expect(r, isNot(contains('fillMaxSize().fillMaxHeight()')));
+        expect(
+          node.kotlinImports,
+          contains('import androidx.glance.layout.fillMaxHeight'),
+        );
+      });
     });
   });
 }

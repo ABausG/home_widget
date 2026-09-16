@@ -23,7 +23,6 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
@@ -52,7 +51,7 @@ class ThemedCounterHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ThemedCounterData.fromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "0760763f",
+            "7b21a8fe",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -75,7 +74,7 @@ class ThemedCounterHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         Column(
-            modifier = GlanceModifier.fillMaxSize().fillMaxHeight(),
+            modifier = GlanceModifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
           Spacer(modifier = GlanceModifier.defaultWeight())

@@ -289,14 +289,27 @@ sealed class HWKotlinTextRenderer {
     required String text,
   });
 
-  /// The Kotlin reading how far below the top of its line this text's baseline
-  /// sits, in pixels.
+  /// What a baseline-aligned [HWRow] lines this text up by.
+  HWKotlinBaselineText get kotlinBaselineText;
+}
+
+/// The text a baseline-aligned [HWRow] lines one of its children up by.
+///
+/// A row only places its children itself where the layout cannot: a Glance
+/// `Text` is a `TextView` and reports a baseline the `LinearLayout` corrects
+/// by, while a bitmap text is an `Image` and reports none.
+class HWKotlinBaselineText {
+  /// The Kotlin reading how far below the top of its line the baseline sits,
+  /// in pixels, out of the expression the widget's data is read from.
   ///
-  /// [HWRow] pads a baseline-aligned child by the difference between the row's
-  /// ascent and this one, which is what lines the texts up where Glance cannot:
-  /// a bitmap text is an `Image` and carries no baseline for the layout to
-  /// correct. Needs `HomeWidgetFonts` imported and `context` in scope.
-  String kotlinAscentExpression();
+  /// Needs `HomeWidgetFonts` imported and `context` in scope.
+  final String Function(String dataExpr) ascent;
+
+  /// Whether the text is drawn into a bitmap, and so carries no baseline of
+  /// its own for the layout to correct.
+  final bool isBitmap;
+
+  const HWKotlinBaselineText({required this.ascent, required this.isBitmap});
 }
 
 /// Text Glance renders itself, in the platform's own font.
@@ -365,13 +378,19 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     return '${pad}Text(text = $text, style = $style)';
   }
 
+  /// A style naming no size renders at the app theme's own, which only the
+  /// device can answer for, so the size is left open rather than guessed at.
   @override
-  String kotlinAscentExpression() {
-    final size = hwSizeLiteral(fontSize ?? hwDefaultFontSize);
-    final weight = fontWeight?.value ?? HWFontWeight.normal.value;
-    return 'HomeWidgetFonts.textAscentPx(context, null, ${size}f, '
-        'weight = $weight, italic = $italic)';
-  }
+  HWKotlinBaselineText get kotlinBaselineText => HWKotlinBaselineText(
+        ascent: (dataExpr) {
+          final size =
+              fontSize == null ? 'null' : '${hwSizeLiteral(fontSize!)}f';
+          final weight = _kotlinGlanceFontWeight(fontWeight).value;
+          return 'HomeWidgetFonts.textAscentPx(context, null, $size, '
+              'weight = $weight, italic = $italic)';
+        },
+        isBitmap: false,
+      );
 }
 
 /// Text the core plugin draws into a bitmap, shown as a tinted `Image`.
@@ -436,9 +455,12 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
   }
 
   @override
-  String kotlinAscentExpression() =>
-      'HomeWidgetFonts.textAscentPx(context, $_typefaceExpression, '
-      '${hwSizeLiteral(fontSize)}f)';
+  HWKotlinBaselineText get kotlinBaselineText => HWKotlinBaselineText(
+        ascent: (dataExpr) =>
+            'HomeWidgetFonts.textAscentPx(context, $_typefaceExpression, '
+            '${hwSizeLiteral(fontSize)}f)',
+        isBitmap: true,
+      );
 
   /// The key the room for [text] is measured and looked back up under.
   ///
@@ -668,24 +690,50 @@ String _kotlinTextAlign(HWTextAlign align) {
   }
 }
 
-String _kotlinFontWeight(HWFontWeight weight) {
+/// The Glance weight bucket text of [weight] renders in.
+///
+/// Glance has three, and the one a text lands in decides both the `FontWeight`
+/// the style names and the weight the platform's own font is drawn at, so the
+/// generated style and the ascent the row measures follow the one mapping. A
+/// style naming no weight renders in Glance's own default, [HWFontWeight.w400].
+_HWGlanceFontWeight _kotlinGlanceFontWeight(HWFontWeight? weight) {
   switch (weight) {
     case HWFontWeight.w100:
     case HWFontWeight.w200:
     case HWFontWeight.w300:
     case HWFontWeight.w400:
     case HWFontWeight.normal:
-      return 'FontWeight.Normal';
+    case null:
+      return _HWGlanceFontWeight.normal;
     case HWFontWeight.w500:
     case HWFontWeight.w600:
-      return 'FontWeight.Medium';
+      return _HWGlanceFontWeight.medium;
     case HWFontWeight.w700:
     case HWFontWeight.w800:
     case HWFontWeight.w900:
     case HWFontWeight.bold:
-      return 'FontWeight.Bold';
+      return _HWGlanceFontWeight.bold;
   }
 }
+
+/// One of the three weights a Glance `TextStyle` can name.
+enum _HWGlanceFontWeight {
+  normal('FontWeight.Normal', 400),
+  medium('FontWeight.Medium', 500),
+  bold('FontWeight.Bold', 700);
+
+  const _HWGlanceFontWeight(this.kotlin, this.value);
+
+  /// The `FontWeight` constant the generated style names.
+  final String kotlin;
+
+  /// The weight on the 100..900 scale Glance's own `TextAppearance` draws this
+  /// bucket at, which is what the platform's own font is measured in.
+  final int value;
+}
+
+String _kotlinFontWeight(HWFontWeight weight) =>
+    _kotlinGlanceFontWeight(weight).kotlin;
 
 String _swiftRole(HWTextStyleRole role) {
   switch (role) {

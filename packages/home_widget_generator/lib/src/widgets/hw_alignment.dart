@@ -27,3 +27,17 @@ enum HWMainAxisAlignment {
   spaceBetween,
   spaceEvenly,
 }
+
+/// Whether aligning on a value needs more room than the children take.
+extension HWMainAxisAlignmentFill on HWMainAxisAlignment? {
+  /// Whether the alignment is carried by spacers, which only take room in a
+  /// layout that fills its main axis.
+  bool get fillsMainAxis => switch (this) {
+        HWMainAxisAlignment.center ||
+        HWMainAxisAlignment.end ||
+        HWMainAxisAlignment.spaceBetween ||
+        HWMainAxisAlignment.spaceEvenly =>
+          true,
+        HWMainAxisAlignment.start || null => false,
+      };
+}

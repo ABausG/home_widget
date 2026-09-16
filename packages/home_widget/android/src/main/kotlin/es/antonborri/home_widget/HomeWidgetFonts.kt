@@ -21,7 +21,9 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RemoteViews
+import android.widget.TextView
 import androidx.annotation.FontRes
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
@@ -79,9 +81,6 @@ object HomeWidgetFonts {
   private val measureLock = Mutex()
 
   private const val DEFAULT_FONT_WEIGHT = 400
-
-  /** The weight from which the platform's own font is drawn in its bold style. */
-  private const val BOLD_FONT_WEIGHT = 600
 
   private val typefaceCache = HashMap<String, Typeface?>()
 
@@ -315,7 +314,8 @@ object HomeWidgetFonts {
    * which includes the font's own padding.
    *
    * [fontSizeSp] is converted the way the device scales text, so the number follows a font scale
-   * the viewer set rather than only the default one.
+   * the viewer set rather than only the default one. A `null` size is the one a `TextView` of the
+   * app's own theme renders at, which is what a Glance `Text` naming no size becomes.
    *
    * [typeface] falls back to the platform's own font, in the style [weight] and [italic] name, when
    * it is `null`.
@@ -323,21 +323,46 @@ object HomeWidgetFonts {
   fun textAscentPx(
       context: Context,
       typeface: Typeface?,
-      fontSizeSp: Float,
+      fontSizeSp: Float?,
       weight: Int = DEFAULT_FONT_WEIGHT,
       italic: Boolean = false,
   ): Int {
     val paint =
         TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
           this.typeface = typeface ?: defaultTypeface(weight, italic)
-          textSize = TypedValueCompat.spToPx(fontSizeSp, context.resources.displayMetrics)
+          textSize =
+              if (fontSizeSp == null) TextView(context).textSize
+              else TypedValueCompat.spToPx(fontSizeSp, context.resources.displayMetrics)
         }
     return -paint.fontMetricsInt.top
   }
 
-  /** The platform's own font in the one of [Typeface]'s four styles [weight] and [italic] name. */
+  /**
+   * How far a `Row` lining its children up by their baselines pushes the [index]th of them down,
+   * given the ascent of each of them in [ascentsPx].
+   *
+   * The deepest ascent is the row's own baseline, and every child is padded down to it. A Glance
+   * `Row` is a `LinearLayout` that corrects its own `TextView`s by their baselines, so the row only
+   * pads when one of the children is a bitmap text, which reports none.
+   */
+  fun baselinePadding(context: Context, ascentsPx: List<Int>, index: Int): Dp {
+    val baseline = ascentsPx.maxOrNull() ?: 0
+    val ascent = ascentsPx.getOrElse(index) { baseline }
+    return ((baseline - ascent) / context.resources.displayMetrics.density).dp
+  }
+
+  /**
+   * The platform's own font at [weight], slanted when [italic].
+   *
+   * Mirrors what Glance's own `TextAppearance` renders a weight as: a numeric weight where the
+   * platform takes one, and the bold style below that, which is what the pre-Android P styles of
+   * both `Medium` and `Bold` name.
+   */
   private fun defaultTypeface(weight: Int, italic: Boolean): Typeface {
-    val bold = weight >= BOLD_FONT_WEIGHT
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      return Typeface.create(Typeface.DEFAULT, weight, italic)
+    }
+    val bold = weight > DEFAULT_FONT_WEIGHT
     val style =
         when {
           bold && italic -> Typeface.BOLD_ITALIC
