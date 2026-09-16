@@ -155,7 +155,7 @@ String _resolveIosAppGroupId({required String? fromArgs}) {
 
   if (!stdin.hasTerminal || !stdout.hasTerminal) {
     logger.warn(
-      'Stdin is not interactive; using default iOS App Group ID: '
+      'No interactive terminal available; using default iOS App Group ID: '
       '$defaultValue',
     );
     return defaultValue;
