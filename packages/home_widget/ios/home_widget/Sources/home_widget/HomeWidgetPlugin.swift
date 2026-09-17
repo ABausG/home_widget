@@ -107,7 +107,8 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
         let data = myArgs["data"]
       {
         let preferences = UserDefaults.init(suiteName: resolvedGroupId)
-        if data != nil {
+        // Dart null values in method-channel arguments arrive as NSNull.
+        if data != nil && !(data is NSNull) {
           if let binaryData = data as? FlutterStandardTypedData {
             preferences?.setValue(Data(binaryData.data), forKey: id)
           } else {
