@@ -36,13 +36,15 @@ class HWRow extends HWMultiChildWidget {
   /// baseline, and would stay at the top while its siblings moved. Two texts
   /// are the least there is to line up, and a child rendering none — an icon, a
   /// picture — stays at the top either way.
-  Map<int, HWKotlinBaselineText>? get _kotlinBaselineChildren {
+  Map<int, HWKotlinBaselineText>? _kotlinBaselineChildren(
+    HWEmitContext? context,
+  ) {
     if (effectiveCrossAxisAlignment != HWCrossAxisAlignment.baseline) {
       return null;
     }
     final texts = <int, HWKotlinBaselineText>{};
     for (var index = 0; index < children.length; index++) {
-      if (children[index].kotlinBaselineText case final text?) {
+      if (children[index].kotlinBaselineText(context) case final text?) {
         texts[index] = text;
       }
     }
@@ -62,7 +64,7 @@ class HWRow extends HWMultiChildWidget {
 
   @override
   Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
-    final texts = _kotlinBaselineChildren;
+    final texts = _kotlinBaselineChildren(null);
     return {
       'import androidx.glance.layout.Row',
       'import androidx.glance.layout.Alignment',
@@ -143,7 +145,10 @@ class HWRow extends HWMultiChildWidget {
     required String dataExpr,
     HWEmitContext? context,
   }) {
-    final texts = _kotlinBaselineChildren;
+    final texts = _kotlinBaselineChildren(context);
+    for (final text in texts?.values ?? const <HWKotlinBaselineText>[]) {
+      if (text.conflict case final conflict?) throw GeneratorError(conflict);
+    }
     final pad = '    ' * indent;
     final buffer = StringBuffer();
 
@@ -178,7 +183,13 @@ class HWRow extends HWMultiChildWidget {
       dataExpr,
       mainAxisAlignment,
       (child, childIndent, data) => _emitKotlinChild(
-          child, childIndent, data, childContext, texts, index++),
+        child,
+        childIndent,
+        data,
+        childContext,
+        texts,
+        index++,
+      ),
       (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
     );
 

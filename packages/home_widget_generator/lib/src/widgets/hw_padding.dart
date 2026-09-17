@@ -27,8 +27,8 @@ class HWPadding extends HWSingleChildWidget {
   /// The child's, unless the padding puts room above it: the row pads from the
   /// top of the box the child sits in, and that room would come along.
   @override
-  HWKotlinBaselineText? get kotlinBaselineText =>
-      padding.top == 0 ? child.kotlinBaselineText : null;
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
+      padding.top == 0 ? child.kotlinBaselineText(context) : null;
 
   static HWPadding fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');

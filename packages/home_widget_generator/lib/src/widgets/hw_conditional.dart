@@ -52,14 +52,15 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
   /// emitted `if` goes by; a branch rendering no text of its own leaves the
   /// whole conditional with nothing to line up.
   @override
-  HWKotlinBaselineText? get kotlinBaselineText {
-    final first = firstBranch.kotlinBaselineText;
-    final second = secondBranch.kotlinBaselineText;
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) {
+    final first = firstBranch.kotlinBaselineText(context);
+    final second = secondBranch.kotlinBaselineText(context);
     if (first == null || second == null) return null;
     return HWKotlinBaselineText(
       ascent: (dataExpr) => 'if (${conditionKotlin(dataExpr: dataExpr)}) '
           '${first.ascent(dataExpr)} else ${second.ascent(dataExpr)}',
       isBitmap: first.isBitmap || second.isBitmap,
+      conflict: first.conflict ?? second.conflict,
     );
   }
 

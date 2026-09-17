@@ -47,6 +47,46 @@ void main() {
       );
     });
 
+    test('reads the fills of the modifier chain only', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.fillMaxHeight(), '
+              'text = "a.fillMaxWidth()")',
+          'fillMaxSize()',
+        ),
+        'Text(modifier = GlanceModifier.fillMaxSize(), '
+        'text = "a.fillMaxWidth()")',
+      );
+    });
+
+    test('injects beside a text literal naming a fill', () {
+      expect(
+        injectGlanceModifier('Text(text = "fillMaxSize()")', 'fillMaxWidth()'),
+        'Text(modifier = GlanceModifier.fillMaxWidth(), '
+        'text = "fillMaxSize()")',
+      );
+      expect(
+        injectGlanceModifier(
+          'Text(text = "GlanceModifier.fillMaxSize()")',
+          'fillMaxWidth()',
+        ),
+        'Text(modifier = GlanceModifier.fillMaxWidth(), '
+        'text = "GlanceModifier.fillMaxSize()")',
+      );
+    });
+
+    test('keeps the arguments after a chain holding brackets', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.padding(start = 8.dp, top = 4.dp), '
+              'text = "a")',
+          'fillMaxWidth()',
+        ),
+        'Text(modifier = GlanceModifier.fillMaxWidth()'
+        '.padding(start = 8.dp, top = 4.dp), text = "a")',
+      );
+    });
+
     test('leaves a chain that already fills both axes alone', () {
       const code = 'Column(modifier = GlanceModifier.fillMaxSize()) {';
       expect(injectGlanceModifier(code, 'fillMaxHeight()'), code);

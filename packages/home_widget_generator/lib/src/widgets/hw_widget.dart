@@ -127,7 +127,11 @@ sealed class HWWidget implements HWGeneratable {
   /// pads the child from the top of the box it sits in, so anything drawn above
   /// the glyphs would carry the baseline with it. A child answering null — an
   /// icon, a picture, a column of several texts — is left at the top.
-  HWKotlinBaselineText? get kotlinBaselineText => null;
+  ///
+  /// [context] names the families the widget can be shown in, which is what
+  /// decides the slots of an [HWSizeAdaptive] the row has to line up; without
+  /// one every slot written counts.
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) => null;
 
   /// [kotlinImports], for a widget emitted directly inside a Glance `Column` or
   /// `Row` running along [enclosingLinearAxis].

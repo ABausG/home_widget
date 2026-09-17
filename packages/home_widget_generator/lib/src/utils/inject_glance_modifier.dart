@@ -143,17 +143,53 @@ const _fillAxisModifiers = ['fillMaxWidth()', 'fillMaxHeight()'];
 
 const _fillBothAxes = 'fillMaxSize()';
 
-/// [args] without the fill modifiers [modifier] makes redundant.
+/// The token a modifier chain opens with.
+const _modifierToken = 'GlanceModifier';
+
+/// [chain] without the fill modifiers [modifier] makes redundant.
 ///
 /// Both axes at once say everything one of them does, so a chain keeps the one
 /// that asks for more rather than carrying both.
-String _withoutRedundantFills(String args, String modifier) {
-  if (modifier != _fillBothAxes) return args;
-  var kept = args;
+String _withoutRedundantFills(String chain, String modifier) {
+  if (modifier != _fillBothAxes) return chain;
+  var kept = chain;
   for (final axis in _fillAxisModifiers) {
     kept = kept.replaceAll('.$axis', '');
   }
   return kept;
+}
+
+/// The start and end index of the `GlanceModifier` chain in [args], or null
+/// when no argument is one.
+///
+/// The chain runs to the end of the argument holding it, so the text an
+/// argument beside it carries — `text = "a.fillMaxWidth()"` — is neither read
+/// as a modifier nor rewritten. String literals are skipped, and a `,` only
+/// ends the argument outside the brackets of a call in the chain.
+(int, int)? _modifierChainRange(String args) {
+  var start = -1;
+  var depth = 0;
+
+  for (var index = 0; index < args.length; index++) {
+    final char = args[index];
+    if (char == '"') {
+      index = _endOfLiteral(args, index);
+      continue;
+    }
+    if (start == -1) {
+      if (args.startsWith(_modifierToken, index)) start = index;
+      continue;
+    }
+    if (char == '(') {
+      depth++;
+    } else if (char == ')') {
+      depth--;
+    } else if (char == ',' && depth == 0) {
+      return (start, index);
+    }
+  }
+
+  return start == -1 ? null : (start, args.length);
 }
 
 /// Helper to parse a typical Compose call (e.g. `Column {` or `Text(...)`)
@@ -184,28 +220,35 @@ String injectGlanceModifier(String code, String modifier) {
         argRange == null ? null : trimmed.substring(argRange.$1, argRange.$2);
     final callEnd = argRange == null ? compMatch.end : argRange.$2 + 1;
 
+    final chainRange = declared == null ? null : _modifierChainRange(declared);
+    final chain = chainRange == null
+        ? null
+        : declared!.substring(chainRange.$1, chainRange.$2);
+
     // One axis of a chain already filling both says nothing more.
     if (_fillAxisModifiers.contains(modifier) &&
-        (declared?.contains(_fillBothAxes) ?? false)) {
+        (chain?.contains(_fillBothAxes) ?? false)) {
       return code;
     }
-    final args = _withoutRedundantFills(declared ?? '', modifier);
+    final args = chainRange == null
+        ? declared ?? ''
+        : declared!.replaceRange(
+            chainRange.$1,
+            chainRange.$2,
+            _withoutRedundantFills(chain!, modifier),
+          );
 
     final hasBrace = trimmed.substring(callEnd).trimLeft().startsWith('{');
 
     String newArgs = '';
-    if (args.isNotEmpty) {
-      if (args.contains('GlanceModifier.')) {
-        newArgs =
-            args.replaceFirst('GlanceModifier.', 'GlanceModifier.$modifier.');
-      } else if (args.contains('GlanceModifier')) {
-        newArgs =
-            args.replaceFirst('GlanceModifier', 'GlanceModifier.$modifier');
-      } else {
-        newArgs = 'modifier = GlanceModifier.$modifier, $args';
-      }
-    } else {
+    if (args.isEmpty) {
       newArgs = 'modifier = GlanceModifier.$modifier';
+    } else if (chainRange != null) {
+      final head = args.substring(0, chainRange.$1);
+      final tail = args.substring(chainRange.$1 + _modifierToken.length);
+      newArgs = '$head$_modifierToken.$modifier$tail';
+    } else {
+      newArgs = 'modifier = GlanceModifier.$modifier, $args';
     }
 
     final rest = trimmed.substring(

@@ -309,7 +309,18 @@ class HWKotlinBaselineText {
   /// its own for the layout to correct.
   final bool isBitmap;
 
-  const HWKotlinBaselineText({required this.ascent, required this.isBitmap});
+  /// Why a row cannot pad this child, or null when it can.
+  ///
+  /// Reported rather than thrown, so that the context-free import pass, which
+  /// asks the same question of every widget, does not fail over a tree only
+  /// the emit rejects.
+  final String? conflict;
+
+  const HWKotlinBaselineText({
+    required this.ascent,
+    required this.isBitmap,
+    this.conflict,
+  });
 }
 
 /// Text Glance renders itself, in the platform's own font.

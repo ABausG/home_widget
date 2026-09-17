@@ -893,7 +893,7 @@ Row(verticalAlignment = Alignment.Top) {
     group('kotlinBaselineText', () {
       test('a plain text answers with the size it renders at', () {
         const text = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
-        final baseline = text.kotlinBaselineText!;
+        final baseline = text.kotlinBaselineText()!;
         expect(baseline.isBitmap, isFalse);
         expect(baseline.ascent('data'), contains('21f'));
       });
@@ -903,7 +903,7 @@ Row(verticalAlignment = Alignment.Top) {
           'a',
           style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
         );
-        final baseline = text.kotlinBaselineText!;
+        final baseline = text.kotlinBaselineText()!;
         expect(baseline.isBitmap, isTrue);
         expect(
           baseline.ascent('data'),
@@ -916,17 +916,17 @@ Row(verticalAlignment = Alignment.Top) {
           padding: HWEdgeInsets.only(left: 4),
           child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
         );
-        expect(padded.kotlinBaselineText?.ascent('data'), contains('21f'));
+        expect(padded.kotlinBaselineText()?.ascent('data'), contains('21f'));
         const colored = HWColoredBox(
           color: HWFixedColor(0xFF00FF00),
           child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
         );
-        expect(colored.kotlinBaselineText?.ascent('data'), contains('21f'));
+        expect(colored.kotlinBaselineText()?.ascent('data'), contains('21f'));
         const decorated = HWDecoratedBox(
           decoration: HWBoxDecoration(color: HWFixedColor(0xFF00FF00)),
           child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
         );
-        expect(decorated.kotlinBaselineText?.ascent('data'), contains('21f'));
+        expect(decorated.kotlinBaselineText()?.ascent('data'), contains('21f'));
       });
 
       test('a wrapper putting room above the text answers null', () {
@@ -934,16 +934,16 @@ Row(verticalAlignment = Alignment.Top) {
           padding: HWEdgeInsets.all(4),
           child: HWText.fixed('a'),
         );
-        expect(padded.kotlinBaselineText, isNull);
+        expect(padded.kotlinBaselineText(), isNull);
         const bordered = HWDecoratedBox(
           decoration: HWBoxDecoration(
             border: HWBoxBorder(thickness: 1, color: HWFixedColor(0)),
           ),
           child: HWText.fixed('a'),
         );
-        expect(bordered.kotlinBaselineText, isNull);
+        expect(bordered.kotlinBaselineText(), isNull);
         const filled = HWFill(child: HWText.fixed('a'));
-        expect(filled.kotlinBaselineText, isNull);
+        expect(filled.kotlinBaselineText(), isNull);
       });
 
       test('a layout of several children answers null', () {
@@ -953,9 +953,9 @@ Row(verticalAlignment = Alignment.Top) {
             HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
           ],
         );
-        expect(column.kotlinBaselineText, isNull);
+        expect(column.kotlinBaselineText(), isNull);
         const row = HWRow(children: [HWText.fixed('a')]);
-        expect(row.kotlinBaselineText, isNull);
+        expect(row.kotlinBaselineText(), isNull);
       });
 
       test('an adaptive answers with its Android side', () {
@@ -963,12 +963,12 @@ Row(verticalAlignment = Alignment.Top) {
           ios: HWText.fixed('a', style: HWTextStyle(fontSize: 11)),
           android: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
         );
-        expect(adaptive.kotlinBaselineText?.ascent('data'), contains('21f'));
+        expect(adaptive.kotlinBaselineText()?.ascent('data'), contains('21f'));
         const textless = HWAdaptive(
           ios: HWText.fixed('a'),
           android: HWImage(HWImageData('avatar'), width: 8),
         );
-        expect(textless.kotlinBaselineText, isNull);
+        expect(textless.kotlinBaselineText(), isNull);
       });
 
       test('a conditional answers with both of its branches', () {
@@ -980,7 +980,7 @@ Row(verticalAlignment = Alignment.Top) {
             style: HWTextStyle(fontFamily: 'Chewy', fontSize: 11),
           ),
         );
-        final baseline = conditional.kotlinBaselineText!;
+        final baseline = conditional.kotlinBaselineText()!;
         expect(baseline.isBitmap, isTrue);
         expect(
           baseline.ascent('data'),
@@ -996,7 +996,7 @@ Row(verticalAlignment = Alignment.Top) {
           whenPresent: HWImage(HWImageData('avatar'), width: 8),
           whenAbsent: HWText.fixed('b'),
         );
-        expect(textless.kotlinBaselineText, isNull);
+        expect(textless.kotlinBaselineText(), isNull);
       });
 
       test('a size-adaptive answers when every slot agrees', () {
@@ -1004,7 +1004,7 @@ Row(verticalAlignment = Alignment.Top) {
           small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
           large: HWText.fixed('b', style: HWTextStyle(fontSize: 21)),
         );
-        expect(adaptive.kotlinBaselineText?.ascent('data'), contains('21f'));
+        expect(adaptive.kotlinBaselineText()?.ascent('data'), contains('21f'));
       });
 
       test('a size-adaptive rendering no text at all answers null', () {
@@ -1012,16 +1012,12 @@ Row(verticalAlignment = Alignment.Top) {
           small: HWImage(HWImageData('avatar'), width: 8),
           accessoryInline: HWText.fixed('a'),
         );
-        expect(adaptive.kotlinBaselineText, isNull);
+        expect(adaptive.kotlinBaselineText(), isNull);
       });
 
       test('a size-adaptive whose slots differ is rejected', () {
-        const adaptive = HWSizeAdaptive(
-          small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
-          large: HWText.fixed('b', style: HWTextStyle(fontSize: 11)),
-        );
         expect(
-          () => adaptive.kotlinBaselineText,
+          () => _baselineRow(_differingSlots).toKotlin(0, dataExpr: 'data'),
           throwsA(
             isA<GeneratorError>().having(
               (e) => e.message,
@@ -1038,13 +1034,62 @@ Row(verticalAlignment = Alignment.Top) {
           large: HWImage(HWImageData('avatar'), width: 8),
         );
         expect(
-            () => partial.kotlinBaselineText, throwsA(isA<GeneratorError>()));
+          () => _baselineRow(partial).toKotlin(0, dataExpr: 'data'),
+          throwsA(isA<GeneratorError>()),
+        );
+      });
+
+      test('a slot no family reaches is left out of the comparison', () {
+        const context = HWEmitContext(
+          reachableFamilies: {
+            HWWidgetFamily.systemSmall,
+            HWWidgetFamily.systemMedium,
+          },
+        );
+        final baseline = _differingSlots.kotlinBaselineText(context)!;
+        expect(baseline.conflict, isNull);
+        expect(baseline.ascent('data'), contains('21f'));
+        expect(
+          _baselineRow(_differingSlots)
+              .toKotlin(0, dataExpr: 'data', context: context),
+          contains('21f'),
+        );
+      });
+
+      test('without a context every slot written is compared', () {
+        expect(
+          _differingSlots.kotlinBaselineText()?.conflict,
+          contains('HWSizeAdaptive'),
+        );
+        expect(
+          _baselineRow(_differingSlots).kotlinImports,
+          contains('import es.antonborri.home_widget.HomeWidgetFonts'),
+        );
       });
 
       test('a widget rendering no text of its own answers null', () {
         const image = HWImage(HWImageData('avatar'), width: 8);
-        expect(image.kotlinBaselineText, isNull);
+        expect(image.kotlinBaselineText(), isNull);
       });
     });
   });
 }
+
+/// A size-adaptive whose two slots render text of a different size.
+const _differingSlots = HWSizeAdaptive(
+  small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+  large: HWText.fixed('b', style: HWTextStyle(fontSize: 11)),
+);
+
+/// A baseline row of [child] beside a bitmap text, which is what makes the row
+/// place its children itself.
+HWRow _baselineRow(HWWidget child) => HWRow(
+      crossAxisAlignment: HWCrossAxisAlignment.baseline,
+      children: [
+        child,
+        const HWText.fixed(
+          'c',
+          style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
+        ),
+      ],
+    );

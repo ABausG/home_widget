@@ -51,7 +51,8 @@ class HWAdaptive extends HWWidget {
   bool get kotlinReportsBaseline => android.kotlinReportsBaseline;
 
   @override
-  HWKotlinBaselineText? get kotlinBaselineText => android.kotlinBaselineText;
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
+      android.kotlinBaselineText(context);
 
   @override
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;

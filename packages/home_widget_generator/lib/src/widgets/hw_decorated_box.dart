@@ -97,8 +97,8 @@ class HWDecoratedBox extends HWSingleChildWidget {
   /// The child's, unless a border puts a `Box` around it: the row pads from the
   /// top of the box the child sits in, and the border would come along.
   @override
-  HWKotlinBaselineText? get kotlinBaselineText =>
-      decoration.border == null ? child.kotlinBaselineText : null;
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
+      decoration.border == null ? child.kotlinBaselineText(context) : null;
 
   static HWDecoratedBox fromDartObject(
     DartObject obj,

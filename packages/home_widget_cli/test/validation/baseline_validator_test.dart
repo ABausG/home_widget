@@ -23,6 +23,15 @@ WidgetSpec _spec(
       widgetTree: tree,
     );
 
+/// A baseline row Android cannot line up: one text beside a picture.
+const _lonelyBaselineRow = HWRow(
+  crossAxisAlignment: HWCrossAxisAlignment.baseline,
+  children: [
+    HWText.fixed('34'),
+    HWImage(HWImageData('avatar'), width: 8),
+  ],
+);
+
 void main() {
   late MockLogger mockLogger;
 
@@ -106,6 +115,43 @@ void main() {
       ),
     );
     verifyNever(() => mockLogger.warn(any()));
+  });
+
+  test('stays quiet for a baseline row only iOS renders', () {
+    validateBaselineRows(
+      _spec(
+        const HWAdaptive(ios: _lonelyBaselineRow, android: HWText.fixed('34')),
+      ),
+    );
+    verifyNever(() => mockLogger.warn(any()));
+  });
+
+  test('warns about a baseline row on the Android side of an adaptive', () {
+    validateBaselineRows(
+      _spec(
+        const HWAdaptive(ios: HWText.fixed('34'), android: _lonelyBaselineRow),
+      ),
+    );
+    verify(() => mockLogger.warn(captureAny())).captured.single;
+  });
+
+  test('stays quiet for a baseline row in an accessory-only slot', () {
+    validateBaselineRows(
+      _spec(
+        const HWSizeAdaptive(
+          small: HWText.fixed('34'),
+          accessoryInline: _lonelyBaselineRow,
+        ),
+      ),
+    );
+    verifyNever(() => mockLogger.warn(any()));
+  });
+
+  test('warns once about a baseline row in a reachable system slot', () {
+    validateBaselineRows(
+      _spec(const HWSizeAdaptive(small: _lonelyBaselineRow)),
+    );
+    verify(() => mockLogger.warn(captureAny())).captured.single;
   });
 
   test('stays quiet without an Android widget', () {

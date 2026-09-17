@@ -28,7 +28,8 @@ class HWColoredBox extends HWSingleChildWidget {
 
   /// The child's: a text child stays a `Text` with a background.
   @override
-  HWKotlinBaselineText? get kotlinBaselineText => child.kotlinBaselineText;
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
+      child.kotlinBaselineText(context);
 
   @override
   Set<String> get swiftViewModifiers {

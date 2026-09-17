@@ -242,11 +242,11 @@ class HWSizeAdaptive extends HWWidget {
   /// on: the row pads a child once, and the slot taken is only known at
   /// runtime.
   @override
-  HWKotlinBaselineText? get kotlinBaselineText {
-    final slots = _providedSystemSlots;
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) {
+    final slots = _kotlinRenderedSlots(context);
     final texts = [
       for (final slot in slots)
-        if (slot.kotlinBaselineText case final text?) text,
+        if (slot.kotlinBaselineText(context) case final text?) text,
     ];
     if (texts.isEmpty) return null;
 
@@ -257,16 +257,31 @@ class HWSizeAdaptive extends HWWidget {
               text.isBitmap == first.isBitmap &&
               text.ascent(_ascentProbe) == first.ascent(_ascentProbe),
         );
-    if (!agree) {
-      throw GeneratorError(
-        'An HWRow with HWCrossAxisAlignment.baseline cannot line up an '
-        'HWSizeAdaptive whose slots render text differently. The row pads its '
-        'children once, and which slot renders is only known at runtime, so '
-        'either give every slot text of the same style or move the row inside '
-        'the slots.',
-      );
+    if (agree) return first;
+
+    return HWKotlinBaselineText(
+      ascent: first.ascent,
+      isBitmap: first.isBitmap,
+      conflict: 'An HWRow with HWCrossAxisAlignment.baseline cannot line up an '
+          'HWSizeAdaptive whose slots render text differently. The row pads '
+          'its children once, and which slot renders is only known at '
+          'runtime, so either give every slot text of the same style or move '
+          'the row inside the slots.',
+    );
+  }
+
+  /// The distinct widgets Android renders, the way [toKotlin] resolves them.
+  List<HWWidget> _kotlinRenderedSlots(HWEmitContext? context) {
+    final resolved = _resolveAll({
+      for (final family in context?.reachableFamilies ?? providedFamilies)
+        if (!family.isAccessory) family,
+    });
+    final slots = <HWWidget>[];
+    for (final widget in resolved.values) {
+      if (slots.any((slot) => identical(slot, widget))) continue;
+      slots.add(widget);
     }
-    return first;
+    return slots;
   }
 
   @override
