@@ -19,7 +19,12 @@ definitions:
         includes:
           - 'packages/home_widget/lib/**'
           - 'packages/home_widget/ios/**'
+          - 'packages/home_widget/pubspec.yaml'
+          - 'packages/home_widget/example/lib/**'
+          - 'packages/home_widget/example/ios/**'
+          - 'packages/home_widget/example/pubspec.yaml'
           - 'packages/home_widget/example/integration_test/ios_test.dart'
+          - 'codemagic.yaml'
   scripts:
     - &boot_simulator
       name: Boot iOS Simulator
