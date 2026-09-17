@@ -261,7 +261,7 @@ class HWSizeAdaptive extends HWWidget {
 
     return HWKotlinBaselineText(
       ascent: first.ascent,
-      isBitmap: first.isBitmap,
+      isBitmap: texts.any((text) => text.isBitmap),
       conflict: 'An HWRow with HWCrossAxisAlignment.baseline cannot line up an '
           'HWSizeAdaptive whose slots render text differently. The row pads '
           'its children once, and which slot renders is only known at '

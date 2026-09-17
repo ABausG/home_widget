@@ -1067,6 +1067,37 @@ Row(verticalAlignment = Alignment.Top) {
         );
       });
 
+      test('a bitmap slot behind a plain one still brings the row imports', () {
+        const row = HWRow(
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          children: [
+            HWSizeAdaptive(
+              small: HWText.fixed('a'),
+              large: HWText.fixed(
+                'b',
+                style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
+              ),
+            ),
+            HWText.fixed('c'),
+          ],
+        );
+        const context = HWEmitContext(
+          reachableFamilies: {HWWidgetFamily.systemLarge},
+        );
+        expect(
+          row.toKotlin(0, dataExpr: 'data', context: context),
+          contains('HomeWidgetFonts.baselinePadding'),
+        );
+        expect(
+          row.kotlinImports,
+          containsAll([
+            'import androidx.glance.layout.Box',
+            'import androidx.glance.layout.padding',
+            'import es.antonborri.home_widget.HomeWidgetFonts',
+          ]),
+        );
+      });
+
       test('a widget rendering no text of its own answers null', () {
         const image = HWImage(HWImageData('avatar'), width: 8);
         expect(image.kotlinBaselineText(), isNull);
