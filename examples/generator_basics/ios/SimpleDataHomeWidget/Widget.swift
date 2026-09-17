@@ -50,13 +50,13 @@ struct SimpleDataHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack {
+    VStack(alignment: .center) {
       Text("Simple Data")
-      HStack {
+      HStack(alignment: .center) {
         Text("label: ")
         Text(entry.data.label ?? "")
       }
-      HStack {
+      HStack(alignment: .center) {
         Text("value: ")
         Text(
           entry.data.value.map {

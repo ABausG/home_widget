@@ -15,6 +15,10 @@ class HWFill extends HWSingleChildWidget {
         ...super.kotlinImports,
       };
 
+  /// Always false: a wrap-content `Box` would take back the room this asks for.
+  @override
+  bool get kotlinReportsBaseline => false;
+
   static HWFill fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');
     if (childField == null || childField.isNull) {
@@ -45,8 +49,13 @@ class HWFill extends HWSingleChildWidget {
     required String dataExpr,
     HWEmitContext? context,
   }) {
-    final childCode =
-        child.toKotlin(indent, dataExpr: dataExpr, context: context);
+    // The room this asks for is the whole box, so a child asking for its own
+    // main axis has no siblings left to starve.
+    final childCode = child.toKotlin(
+      indent,
+      dataExpr: dataExpr,
+      context: context?.inLinear(null),
+    );
 
     // Uses a local regex helper to securely inject the fillMaxSize
     // modifier into the child's top-level Glance composable.

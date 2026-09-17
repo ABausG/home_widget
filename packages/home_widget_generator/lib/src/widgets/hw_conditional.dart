@@ -26,9 +26,14 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
   List<HWWidget> get childWidgets => [firstBranch, secondBranch];
 
   @override
-  Set<String> get kotlinImports => {
-        ...firstBranch.kotlinImports,
-        ...secondBranch.kotlinImports,
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// Whichever branch renders is emitted where the conditional sits, so both
+  /// are laid out by the enclosing layout.
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
+        ...firstBranch.kotlinImportsIn(enclosingLinearAxis),
+        ...secondBranch.kotlinImportsIn(enclosingLinearAxis),
       };
 
   @override
@@ -36,6 +41,28 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
         ...firstBranch.swiftViewModifiers,
         ...secondBranch.swiftViewModifiers,
       };
+
+  /// Either branch rendering a `Text` is enough, since the branch taken is only
+  /// known at runtime.
+  @override
+  bool get kotlinReportsBaseline =>
+      firstBranch.kotlinReportsBaseline || secondBranch.kotlinReportsBaseline;
+
+  /// The text of whichever branch renders, read through the same condition the
+  /// emitted `if` goes by; a branch rendering no text of its own leaves the
+  /// whole conditional with nothing to line up.
+  @override
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) {
+    final first = firstBranch.kotlinBaselineText(context);
+    final second = secondBranch.kotlinBaselineText(context);
+    if (first == null || second == null) return null;
+    return HWKotlinBaselineText(
+      ascent: (dataExpr) => 'if (${conditionKotlin(dataExpr: dataExpr)}) '
+          '${first.ascent(dataExpr)} else ${second.ascent(dataExpr)}',
+      isBitmap: first.isBitmap || second.isBitmap,
+      conflict: first.conflict ?? second.conflict,
+    );
+  }
 
   @override
   String toSwift(

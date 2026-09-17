@@ -81,6 +81,10 @@ void main() {
   });
 
   group('Column and Row · Kotlin (Glance)', () {
+    const kotlinColumn =
+        'Column(horizontalAlignment = Alignment.CenterHorizontally) {';
+    const kotlinRow = 'Row(verticalAlignment = Alignment.CenterVertically) {';
+
     test('Column from HWColumn', () {
       final node = HWColumn(
         children: [
@@ -89,7 +93,7 @@ void main() {
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Column {'));
+      expect(result, contains(kotlinColumn));
       expect(result, contains('Text(text = "a",'));
       expect(result, contains('Text(text = "b",'));
     });
@@ -101,7 +105,7 @@ void main() {
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Row {'));
+      expect(result, contains(kotlinRow));
       expect(result, contains('Text(text = "x",'));
     });
 
@@ -113,8 +117,8 @@ void main() {
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Column {'));
-      expect(result, contains('Row {'));
+      expect(result, contains(kotlinColumn));
+      expect(result, contains(kotlinRow));
       expect(result, contains('Text(text = "x",'));
       expect(result, contains('Text(text = "y",'));
     });
@@ -129,14 +133,14 @@ void main() {
         0,
         dataExpr: 'data',
       );
-      expect(result, contains('Column {'));
+      expect(result, contains(kotlinColumn));
       expect(result, contains('Text(text = data.count ?: "",'));
     });
 
     test('empty Column', () {
       final node = HWColumn(children: []);
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Column {'));
+      expect(result, contains(kotlinColumn));
       expect(result, contains('}'));
     });
 
@@ -147,8 +151,8 @@ void main() {
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, startsWith('Column {'));
-      expect(result, contains('    Row {'));
+      expect(result, startsWith(kotlinColumn));
+      expect(result, contains('    $kotlinRow'));
       expect(result, contains('        Text(text = "x",'));
     });
 
@@ -175,13 +179,12 @@ void main() {
       expect(result, contains('Row(verticalAlignment = Alignment.Top) {'));
     });
 
-    test('no alignment emits bare layout', () {
+    test('no alignment centers on the cross axis', () {
       final node = HWColumn(
         children: [HWText.fixed('a')],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Column {'));
-      expect(result, isNot(contains('horizontalAlignment')));
+      expect(result, contains(kotlinColumn));
     });
 
     test(
@@ -192,7 +195,10 @@ void main() {
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Column {'));
+      expect(
+        result,
+        contains('Column(modifier = GlanceModifier.fillMaxHeight(), '),
+      );
       expect(
         result,
         contains('Spacer(modifier = GlanceModifier.defaultWeight())'),
@@ -215,7 +221,10 @@ void main() {
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
       final result = node.toKotlin(0, dataExpr: 'data');
-      expect(result, contains('Row {'));
+      expect(
+        result,
+        contains('Row(modifier = GlanceModifier.fillMaxWidth(), '),
+      );
       expect(result, contains('Text(text = "a",'));
       expect(
         result,
@@ -255,6 +264,9 @@ void main() {
   });
 
   group('Column and Row · Swift (SwiftUI)', () {
+    const swiftColumn = 'VStack(alignment: .center) {';
+    const swiftRow = 'HStack(alignment: .center) {';
+
     test('VStack from HWColumn', () {
       final node = HWColumn(
         children: [
@@ -263,7 +275,7 @@ void main() {
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('VStack {'));
+      expect(result, contains(swiftColumn));
       expect(result, contains('Text("a")'));
       expect(result, contains('Text("b")'));
     });
@@ -275,7 +287,7 @@ void main() {
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('HStack {'));
+      expect(result, contains(swiftRow));
       expect(result, contains('Text("x")'));
     });
 
@@ -287,8 +299,8 @@ void main() {
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('VStack {'));
-      expect(result, contains('HStack {'));
+      expect(result, contains(swiftColumn));
+      expect(result, contains(swiftRow));
       expect(result, contains('Text("x")'));
       expect(result, contains('Text("y")'));
     });
@@ -303,14 +315,14 @@ void main() {
         0,
         dataExpr: 'entry.widgetData',
       );
-      expect(result, contains('VStack {'));
+      expect(result, contains(swiftColumn));
       expect(result, contains('Text(entry.widgetData.countLabel ?? "")'));
     });
 
     test('empty Column', () {
       final node = HWColumn(children: []);
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('VStack {'));
+      expect(result, contains(swiftColumn));
       expect(result, contains('}'));
     });
 
@@ -321,8 +333,8 @@ void main() {
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, startsWith('VStack {'));
-      expect(result, contains('    HStack {'));
+      expect(result, startsWith(swiftColumn));
+      expect(result, contains('    $swiftRow'));
       expect(result, contains('        Text("x")'));
     });
 
@@ -353,13 +365,12 @@ void main() {
       expect(result, contains('VStack(alignment: .center) {'));
     });
 
-    test('no alignment emits bare stack', () {
+    test('no alignment centers on the cross axis', () {
       final node = HWColumn(
         children: [HWText.fixed('a')],
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('VStack {'));
-      expect(result, isNot(contains('alignment:')));
+      expect(result, contains(swiftColumn));
     });
 
     test(
@@ -370,7 +381,7 @@ void main() {
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('VStack {'));
+      expect(result, contains(swiftColumn));
       expect(result, contains('Spacer()'));
       expect(result, contains('Text("a")'));
       expect('Spacer()'.allMatches(result).length, 2);
@@ -396,7 +407,7 @@ void main() {
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
       final result = node.toSwift(0, dataExpr: 'data');
-      expect(result, contains('HStack {'));
+      expect(result, contains(swiftRow));
       expect(result, contains('Text("a")'));
       expect(result, contains('Spacer()'));
       expect(result, contains('Text("b")'));

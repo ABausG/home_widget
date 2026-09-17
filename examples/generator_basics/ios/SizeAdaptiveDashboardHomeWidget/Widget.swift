@@ -52,7 +52,7 @@ struct SizeAdaptiveDashboardHomeWidgetEntryView: View {
     Group {
       switch widgetFamily {
       case .systemMedium:
-        HStack(alignment: .center) {
+        HStack(alignment: .firstTextBaseline) {
           Spacer()
           Text(
             hwFormatDecimal(

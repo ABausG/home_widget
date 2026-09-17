@@ -12,12 +12,23 @@ class HWPadding extends HWSingleChildWidget {
   });
 
   @override
-  Set<String> get kotlinImports => {
-        ...super.kotlinImports,
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// The padding is injected into the child's own composable, so the child is
+  /// still what the enclosing layout lays out.
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
+        ...child.kotlinImportsIn(enclosingLinearAxis),
         'import androidx.compose.ui.unit.dp',
         'import androidx.glance.layout.padding',
         'import androidx.glance.layout.Box',
       };
+
+  /// The child's, unless the padding puts room above it: the row pads from the
+  /// top of the box the child sits in, and that room would come along.
+  @override
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
+      padding.top == 0 ? child.kotlinBaselineText(context) : null;
 
   static HWPadding fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');

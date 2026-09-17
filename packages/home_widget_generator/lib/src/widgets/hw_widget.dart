@@ -49,6 +49,11 @@ sealed class HWSingleChildWidget extends HWWidget {
 
   @override
   List<HWWidget> get childWidgets => [child];
+
+  /// The child's, for the wrappers that inject their modifier into the child's
+  /// own composable; one emitting a `Box` of its own answers false instead.
+  @override
+  bool get kotlinReportsBaseline => child.kotlinReportsBaseline;
 }
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
@@ -56,11 +61,6 @@ sealed class HWMultiChildWidget extends HWWidget {
   final List<HWWidget> children;
 
   const HWMultiChildWidget({required this.children});
-
-  @override
-  Set<String> get kotlinImports {
-    return children.expand((child) => child.kotlinImports).toSet();
-  }
 
   @override
   Set<String> get swiftViewModifiers {
@@ -110,6 +110,37 @@ sealed class HWWidget implements HWGeneratable {
   /// and both sides of an [HWAdaptive] included, and is what [descendants]
   /// walks.
   List<HWWidget> get childWidgets => const [];
+
+  /// Whether this widget's Glance output is a `Text`, and so reports a text
+  /// baseline to the horizontal `LinearLayout` a Glance `Row` becomes.
+  ///
+  /// [HWRow] reads this to decide which children to wrap in a bare `Box`, whose
+  /// `getBaseline()` is -1, which is what turns `LinearLayout`'s baseline
+  /// correction off for a top- or bottom-aligned row. A widget that emits a
+  /// `Box`, an `Image` or a `Spacer` has no baseline and answers false.
+  bool get kotlinReportsBaseline => false;
+
+  /// The text a baseline-aligned [HWRow] lines this child up by, or null when
+  /// the emitted view is not one it can place.
+  ///
+  /// Only a widget whose Glance output *is* the text answers with one: the row
+  /// pads the child from the top of the box it sits in, so anything drawn above
+  /// the glyphs would carry the baseline with it. A child answering null — an
+  /// icon, a picture, a column of several texts — is left at the top.
+  ///
+  /// [context] names the families the widget can be shown in, which is what
+  /// decides the slots of an [HWSizeAdaptive] the row has to line up; without
+  /// one every slot written counts.
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) => null;
+
+  /// [kotlinImports], for a widget emitted directly inside a Glance `Column` or
+  /// `Row` running along [enclosingLinearAxis].
+  ///
+  /// A layout asking for its whole main axis takes a weight instead of a fill
+  /// there, and the two need different imports; every widget that passes its
+  /// own composable's modifier down forwards the axis, and one emitting a `Box`
+  /// of its own clears it.
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => kotlinImports;
 
   /// Every widget in this subtree, [this] first, in render order.
   ///

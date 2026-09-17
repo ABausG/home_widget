@@ -16,16 +16,18 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Log
 import android.util.SizeF
-import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.RemoteViews
+import android.widget.TextView
 import androidx.annotation.FontRes
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.util.TypedValueCompat
 import androidx.glance.ExperimentalGlanceApi
 import androidx.glance.GlanceId
 import androidx.glance.appwidget.GlanceAppWidget
@@ -247,12 +249,7 @@ object HomeWidgetFonts {
       val paint =
           TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             this.typeface = resolvedTypeface
-            textSize =
-                TypedValue.applyDimension(
-                    TypedValue.COMPLEX_UNIT_SP,
-                    fontSizeSp,
-                    displayMetrics,
-                )
+            textSize = TypedValueCompat.spToPx(fontSizeSp, displayMetrics)
             color = Color.WHITE
             isUnderlineText = underline
             isStrikeThruText = lineThrough
@@ -302,6 +299,78 @@ object HomeWidgetFonts {
           Bitmap.Config.ARGB_8888,
       )
     }
+  }
+
+  /**
+   * How far below the top of a line the baseline of [fontSizeSp] text in [typeface] sits, in
+   * pixels.
+   *
+   * A row aligning its children by their baselines pads each of them by this rather than leaving
+   * the alignment to the `LinearLayout` a Glance `Row` becomes: a custom font text is an `Image`,
+   * an `ImageView` reports no baseline, and the layout leaves what it cannot correct at the top.
+   *
+   * The same number places both kinds of text. A Glance `Text` is a `TextView`, which puts its
+   * first baseline at `-fontMetricsInt.top`, and so does the [StaticLayout] [textBitmap] draws,
+   * which includes the font's own padding.
+   *
+   * [fontSizeSp] is converted the way the device scales text, so the number follows a font scale
+   * the viewer set rather than only the default one. A `null` size is the one a `TextView` of the
+   * app's own theme renders at, which is what a Glance `Text` naming no size becomes.
+   *
+   * [typeface] falls back to the platform's own font, in the style [weight] and [italic] name, when
+   * it is `null`.
+   */
+  fun textAscentPx(
+      context: Context,
+      typeface: Typeface?,
+      fontSizeSp: Float?,
+      weight: Int = DEFAULT_FONT_WEIGHT,
+      italic: Boolean = false,
+  ): Int {
+    val paint =
+        TextPaint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+          this.typeface = typeface ?: defaultTypeface(weight, italic)
+          textSize =
+              if (fontSizeSp == null) TextView(context).textSize
+              else TypedValueCompat.spToPx(fontSizeSp, context.resources.displayMetrics)
+        }
+    return -paint.fontMetricsInt.top
+  }
+
+  /**
+   * How far a `Row` lining its children up by their baselines pushes the [index]th of them down,
+   * given the ascent of each of them in [ascentsPx].
+   *
+   * The deepest ascent is the row's own baseline, and every child is padded down to it. A Glance
+   * `Row` is a `LinearLayout` that corrects its own `TextView`s by their baselines, so the row only
+   * pads when one of the children is a bitmap text, which reports none.
+   */
+  fun baselinePadding(context: Context, ascentsPx: List<Int>, index: Int): Dp {
+    val baseline = ascentsPx.maxOrNull() ?: 0
+    val ascent = ascentsPx.getOrElse(index) { baseline }
+    return ((baseline - ascent) / context.resources.displayMetrics.density).dp
+  }
+
+  /**
+   * The platform's own font at [weight], slanted when [italic].
+   *
+   * Mirrors what Glance's own `TextAppearance` renders a weight as: a numeric weight where the
+   * platform takes one, and the bold style below that, which is what the pre-Android P styles of
+   * both `Medium` and `Bold` name.
+   */
+  private fun defaultTypeface(weight: Int, italic: Boolean): Typeface {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      return Typeface.create(Typeface.DEFAULT, weight, italic)
+    }
+    val bold = weight > DEFAULT_FONT_WEIGHT
+    val style =
+        when {
+          bold && italic -> Typeface.BOLD_ITALIC
+          bold -> Typeface.BOLD
+          italic -> Typeface.ITALIC
+          else -> Typeface.NORMAL
+        }
+    return Typeface.create(Typeface.DEFAULT, style)
   }
 
   /**
@@ -705,7 +774,7 @@ object HomeWidgetFonts {
     val builder =
         StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
             .setAlignment(alignmentOf(textAlign))
-            .setIncludePad(false)
+            .setIncludePad(true)
             .setMaxLines(maxLines)
     if (maxLines != Int.MAX_VALUE) {
       builder.setEllipsize(TextUtils.TruncateAt.END)

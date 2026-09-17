@@ -24,14 +24,16 @@ HWFill(
 )
 ```
 
-`mainAxisAlignment` is implemented with `Spacer`s on both platforms, so non-`start` values force children to take only their intrinsic size.
+`mainAxisAlignment` is implemented with `Spacer`s on both platforms, so non-`start` values force children to take only their intrinsic size and stretch the column to the full height available to it.
+
+Children are centred horizontally unless `crossAxisAlignment` says otherwise. [`HWCrossAxisAlignment.baseline`](/generator/styling/hw-alignment) is not one of the values a column accepts — a column's cross axis is horizontal and has no baseline, so asking for it fails generation. Use it on an [`HWRow`](/generator/widgets/hw-row) instead.
 
 ## Parameters
 
 | Name                  | Type                     | Default      | Description                              |
 | --------------------- | ------------------------ | ------------ | ---------------------------------------- |
 | `children`            | `List<HWWidget>`         | **required** | Widgets stacked top-to-bottom.           |
-| `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null`       | Horizontal alignment of children.        |
+| `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null` (`center`) | Horizontal alignment of children. `baseline` is rejected. |
 | `mainAxisAlignment`   | `HWMainAxisAlignment?`   | `null`       | Vertical distribution of children.       |
 
 See [HWAlignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.

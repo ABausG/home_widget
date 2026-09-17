@@ -34,6 +34,51 @@ class ConstReuse {}
 ''',
   ),
   BuildScenario(
+    description: 'aligns rows and columns on both axes',
+    className: 'AlignedTree',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Aligned Tree',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    children: [
+      HWRow(
+        crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        children: [
+          HWText(HWInt('streak'), style: HWTextStyle(fontSize: 34)),
+          HWText.fixed('days', style: HWTextStyle(fontSize: 12)),
+        ],
+      ),
+      HWRow(
+        crossAxisAlignment: HWCrossAxisAlignment.end,
+        mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
+        children: [
+          HWPadding(
+            padding: .all(2),
+            child: HWText(HWString('label')),
+          ),
+          HWText.fixed('·'),
+          HWImage.asset('assets/logo.png', width: 16, height: 16),
+        ],
+      ),
+      HWRow(
+        crossAxisAlignment: HWCrossAxisAlignment.start,
+        mainAxisAlignment: HWMainAxisAlignment.center,
+        children: [HWText.fixed('top')],
+      ),
+    ],
+  ),
+)
+class AlignedTree {}
+''',
+    assetPaths: ['assets/logo.png'],
+  ),
+  BuildScenario(
     description: 'builds time-based content with primitive and json values',
     className: 'TimedContent',
     widgetSource: '''

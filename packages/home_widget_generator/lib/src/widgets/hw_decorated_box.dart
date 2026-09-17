@@ -54,9 +54,17 @@ class HWDecoratedBox extends HWSingleChildWidget {
   });
 
   @override
-  Set<String> get kotlinImports {
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// Without a border the decoration is injected into the child's own
+  /// composable, so the child is still what the enclosing layout lays out; a
+  /// border puts a `Box` of its own in between.
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
     final imports = <String>{
-      ...super.kotlinImports,
+      ...child.kotlinImportsIn(
+        decoration.border == null ? enclosingLinearAxis : null,
+      ),
       ...decoration.kotlinImports,
     };
 
@@ -79,6 +87,18 @@ class HWDecoratedBox extends HWSingleChildWidget {
         ...super.swiftViewModifiers,
         ...decoration.swiftViewModifiers,
       };
+
+  /// A border is drawn as a surrounding `Box`, which has no baseline; without
+  /// one the decoration is injected into the child's own composable.
+  @override
+  bool get kotlinReportsBaseline =>
+      decoration.border == null && child.kotlinReportsBaseline;
+
+  /// The child's, unless a border puts a `Box` around it: the row pads from the
+  /// top of the box the child sits in, and the border would come along.
+  @override
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
+      decoration.border == null ? child.kotlinBaselineText(context) : null;
 
   static HWDecoratedBox fromDartObject(
     DartObject obj,
@@ -171,8 +191,12 @@ class HWDecoratedBox extends HWSingleChildWidget {
       'padding(${border.thickness}.dp)',
     ].join('.');
 
-    final childCode =
-        child.toKotlin(indent + 2, dataExpr: dataExpr, context: context);
+    // The border's `Box` is what the enclosing layout lays out now.
+    final childCode = child.toKotlin(
+      indent + 2,
+      dataExpr: dataExpr,
+      context: context?.inLinear(null),
+    );
 
     if (color == null) {
       return '${pad}Box(\n'

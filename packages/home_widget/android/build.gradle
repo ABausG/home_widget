@@ -61,6 +61,9 @@ android {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     api "androidx.glance:glance-appwidget:1.2.0"
+    // TypedValueCompat.spToPx, which follows the non-linear font scaling of
+    // Android 14 and newer the way a TextView does.
+    implementation "androidx.core:core:1.13.1"
     implementation "androidx.work:work-runtime-ktx:2.11.2"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2"
 }

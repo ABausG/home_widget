@@ -153,6 +153,47 @@ class TestRowWidget {}
       expect(out, contains('Spacer()'));
     });
 
+    test('parses HWRow with a baseline cross-axis alignment', () async {
+      final code = '''
+@HomeWidget(
+  name: 'BaselineRow',
+  widget: HWRow(
+    children: [HWText.fixed('34'), HWText.fixed('kg')],
+    crossAxisAlignment: HWCrossAxisAlignment.baseline,
+  ),
+)
+class BaselineRowWidget {}
+''';
+      final widget = await parseCode(code);
+      final row = widget as HWRow;
+      expect(row.crossAxisAlignment, HWCrossAxisAlignment.baseline);
+      expect(
+        row.toSwift(0, dataExpr: 'd'),
+        contains('HStack(alignment: .firstTextBaseline)'),
+      );
+      expect(
+        row.toKotlin(0, dataExpr: 'd'),
+        contains('Row(verticalAlignment = Alignment.Top)'),
+      );
+    });
+
+    test('rejects a baseline cross-axis alignment on HWColumn', () async {
+      final code = '''
+@HomeWidget(
+  name: 'BaselineColumn',
+  widget: HWColumn(
+    children: [HWText.fixed('a')],
+    crossAxisAlignment: HWCrossAxisAlignment.baseline,
+  ),
+)
+class BaselineColumnWidget {}
+''';
+      final error = await expectParseError(code);
+      expect(error.message, contains('HWColumn'));
+      expect(error.message, contains('HWCrossAxisAlignment.baseline'));
+      expect(error.message, contains('only applies to HWRow'));
+    });
+
     test('parses HWText with data', () async {
       final code = '''
 @HomeWidget(

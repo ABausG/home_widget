@@ -28,6 +28,7 @@ import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
@@ -61,7 +62,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "bfe506b4",
+            "52a07baf",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
             listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
@@ -128,7 +129,10 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                     ),
             )
           }
-          Row(verticalAlignment = Alignment.CenterVertically) {
+          Row(
+              modifier = GlanceModifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+          ) {
             Spacer(modifier = GlanceModifier.defaultWeight())
             widgetData.slide
                 ?.let { path -> hwDecodeImage(context, path, 28.0, 28.0) }

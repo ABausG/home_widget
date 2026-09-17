@@ -549,7 +549,7 @@ default:
             ),
           ),
           '''
-VStack {
+VStack(alignment: .center) {
     Text("s")
 }''',
         );
@@ -675,9 +675,31 @@ when (LocalSize.current) {
                 HWWidgetFamily.systemSmall,
                 HWWidgetFamily.systemMedium,
               },
+              androidSizeTable: {},
             ),
           ),
           contains('DpSize(250.dp, 110.dp) -> {'),
+        );
+      });
+
+      test('a context without a table leaves androidSizes alone', () {
+        const adaptive = HWSizeAdaptive(
+          small: _small,
+          medium: _medium,
+          androidSizes: {HWWidgetFamily.systemMedium: HWSize(200, 100)},
+        );
+        expect(
+          adaptive.toKotlin(
+            0,
+            dataExpr: 'd',
+            context: const HWEmitContext(
+              reachableFamilies: {
+                HWWidgetFamily.systemSmall,
+                HWWidgetFamily.systemMedium,
+              },
+            ),
+          ),
+          contains('DpSize(200.dp, 100.dp) -> {'),
         );
       });
 
@@ -743,7 +765,7 @@ when (LocalSize.current) {
             ),
           ),
           '''
-Column {
+Column(horizontalAlignment = Alignment.CenterHorizontally) {
     Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
 }''',
         );

@@ -217,14 +217,72 @@ class HWSizeAdaptive extends HWWidget {
   List<HWWidget> get childWidgets => providedSlots;
 
   @override
-  Set<String> get kotlinImports => {
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// Whichever slot renders is emitted where the adaptive sits, so every one of
+  /// them is laid out by the enclosing layout.
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
         if (!_allIdentical(_providedSystemSlots)) ...{
           'import androidx.glance.LocalSize',
           'import androidx.compose.ui.unit.DpSize',
           'import androidx.compose.ui.unit.dp',
         },
-        ...providedSlots.expand((slot) => slot.kotlinImports),
+        ...providedSlots
+            .expand((slot) => slot.kotlinImportsIn(enclosingLinearAxis)),
       };
+
+  /// Any slot rendering a `Text` is enough, since the slot taken is only known
+  /// at runtime.
+  @override
+  bool get kotlinReportsBaseline =>
+      providedSlots.any((slot) => slot.kotlinReportsBaseline);
+
+  /// The text every slot Android renders lines up by, which they have to agree
+  /// on: the row pads a child once, and the slot taken is only known at
+  /// runtime.
+  @override
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) {
+    final slots = _kotlinRenderedSlots(context);
+    final texts = [
+      for (final slot in slots)
+        if (slot.kotlinBaselineText(context) case final text?) text,
+    ];
+    if (texts.isEmpty) return null;
+
+    final first = texts.first;
+    final agree = texts.length == slots.length &&
+        texts.every(
+          (text) =>
+              text.isBitmap == first.isBitmap &&
+              text.ascent(_ascentProbe) == first.ascent(_ascentProbe),
+        );
+    if (agree) return first;
+
+    return HWKotlinBaselineText(
+      ascent: first.ascent,
+      isBitmap: texts.any((text) => text.isBitmap),
+      conflict: 'An HWRow with HWCrossAxisAlignment.baseline cannot line up an '
+          'HWSizeAdaptive whose slots render text differently. The row pads '
+          'its children once, and which slot renders is only known at '
+          'runtime, so either give every slot text of the same style or move '
+          'the row inside the slots.',
+    );
+  }
+
+  /// The distinct widgets Android renders, the way [toKotlin] resolves them.
+  List<HWWidget> _kotlinRenderedSlots(HWEmitContext? context) {
+    final resolved = _resolveAll({
+      for (final family in context?.reachableFamilies ?? providedFamilies)
+        if (!family.isAccessory) family,
+    });
+    final slots = <HWWidget>[];
+    for (final widget in resolved.values) {
+      if (slots.any((slot) => identical(slot, widget))) continue;
+      slots.add(widget);
+    }
+    return slots;
+  }
 
   @override
   Set<String> get swiftViewModifiers => {
@@ -430,6 +488,10 @@ $pad}''');
             Object.hash(entry.key, entry.value),
         ]);
 }
+
+/// The data expression two slots' ascents are compared as, which only has to
+/// be the same for both of them.
+const String _ascentProbe = 'widgetData';
 
 /// The families of one emitted branch and the widget they share.
 class _FamilyGroup {

@@ -50,6 +50,34 @@ void main() {
       final imports = node.kotlinImports;
       expect(imports, contains('import androidx.glance.layout.Alignment'));
     });
+
+    test('alignment import even without an alignment', () {
+      final node = HWRow(children: [HWText.fixed('a')]);
+      final imports = node.kotlinImports;
+      expect(imports, contains('import androidx.glance.layout.Alignment'));
+    });
+
+    test('fillMaxWidth import when the row distributes its children', () {
+      final node = HWRow(
+        children: [HWText.fixed('a'), HWText.fixed('b')],
+        mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+      );
+      expect(
+        node.kotlinImports,
+        contains('import androidx.glance.layout.fillMaxWidth'),
+      );
+    });
+
+    test('Box import when a row defeats the baselines of its texts', () {
+      final node = HWRow(
+        children: [HWText.fixed('a')],
+        crossAxisAlignment: HWCrossAxisAlignment.end,
+      );
+      expect(
+        node.kotlinImports,
+        contains('import androidx.glance.layout.Box'),
+      );
+    });
     test('Spacer import collected when mainAxisAlignment set', () {
       final node = HWColumn(
         children: [HWText.fixed('a')],

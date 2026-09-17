@@ -61,7 +61,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         NumberDateFormattingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "28bf7387",
+            "49472f57",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -88,7 +88,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         Column(horizontalAlignment = Alignment.Start) {
-          Row {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Order #",
                 style =
@@ -151,7 +151,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                       fontWeight = FontWeight.Bold,
                   ),
           )
-          Row {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text =
                     hwFormatPercent(
@@ -176,7 +176,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
             )
             Text(text = " items", style = TextStyle(color = GlanceTheme.colors.onSurface))
           }
-          Row {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = "Delivery ",
                 style =
@@ -204,7 +204,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                     ),
             )
           }
-          Row {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = hwFormatCompact((widgetData.points ?: 0L), hwFormatLocale(context)),
                 style =

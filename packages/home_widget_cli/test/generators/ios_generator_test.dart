@@ -533,7 +533,7 @@ void main() {
     // Should use the emitter output
     expect(content, contains('Text(entry.data.title ?? "")'));
     // Should NOT contain placeholder VStack
-    expect(content, isNot(contains('VStack {')));
+    expect(content, isNot(contains('VStack')));
     expect(content, isNot(contains('Color.clear')));
   });
 
@@ -573,7 +573,7 @@ void main() {
     expect(content, contains('let value: Int?'));
 
     // Should produce the debug VStack view body
-    expect(content, contains('VStack {'));
+    expect(content, contains('VStack(alignment: .center) {'));
     expect(content, contains('Text("Simple Data")'));
     // Default tree uses separate Text views in HStack
     expect(content, contains('Text("label: ")'));

@@ -51,7 +51,7 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = SimpleDataData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "2748e7e7",
+            "38a94087",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -77,16 +77,16 @@ class SimpleDataHomeWidget : GlanceAppWidget() {
                   .clickable(onClick = actionStartActivity<MainActivity>()),
           contentAlignment = Alignment.Center,
       ) {
-        Column {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
           Text(text = "Simple Data", style = TextStyle(color = GlanceTheme.colors.onSurface))
-          Row {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = "label: ", style = TextStyle(color = GlanceTheme.colors.onSurface))
             Text(
                 text = widgetData.label ?: "",
                 style = TextStyle(color = GlanceTheme.colors.onSurface),
             )
           }
-          Row {
+          Row(verticalAlignment = Alignment.CenterVertically) {
             Text(text = "value: ", style = TextStyle(color = GlanceTheme.colors.onSurface))
             Text(
                 text =

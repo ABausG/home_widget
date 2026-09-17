@@ -14,11 +14,30 @@ The cross-axis is the axis perpendicular to the layout direction:
 
 ## HWCrossAxisAlignment
 
-| Value    | Description                          |
-| -------- | ------------------------------------ |
-| `start`  | Align children to the cross-axis start. |
-| `center` | Center children along the cross-axis.   |
-| `end`    | Align children to the cross-axis end.   |
+| Value      | Description                          |
+| ---------- | ------------------------------------ |
+| `start`    | Align children to the cross-axis start. |
+| `center`   | Center children along the cross-axis.   |
+| `end`      | Align children to the cross-axis end.   |
+| `baseline` | Line the children up on their first text baselines. **`HWRow` only.** |
+
+Leaving `crossAxisAlignment` unset is the same as `center` on both platforms.
+
+`baseline` is what a large display number next to a small caption usually wants: `end` aligns the boxes the two texts sit in, which leaves their baselines apart by the difference in descent. A column's cross axis is horizontal and has no baseline, so an `HWColumn` asking for `baseline` fails generation.
+
+On Android it lines up the children that render text of their own, and only those. A child rendering none — a picture, an icon, a column of several texts — has no baseline to go by and stays at the top of the row, which is where a row with fewer than two texts leaves all of them; generation warns when that is what a row asks for. iOS has no such limit: SwiftUI's `.firstTextBaseline` puts the bottom edge of a child rendering no text on the baseline of the one that does.
+
+A row holding a text in a [custom font](/generator/custom-fonts) is lined up by the plugin when the widget updates, since such a text is drawn into a bitmap that carries no baseline for the layout to read.
+
+```dart
+HWRow(
+  crossAxisAlignment: HWCrossAxisAlignment.baseline,
+  children: [
+    HWText(HWInt('streak'), style: HWTextStyle(fontSize: 34)),
+    HWText.fixed('days', style: HWTextStyle(fontSize: 12)),
+  ],
+)
+```
 
 ## HWMainAxisAlignment
 
@@ -30,7 +49,9 @@ The cross-axis is the axis perpendicular to the layout direction:
 | `spaceBetween` | Distribute children with equal space between them.                |
 | `spaceEvenly`  | Distribute children with equal space between, before, and after.  |
 
+Any value other than `start` stretches the `HWColumn` / `HWRow` along its main axis, since there has to be room to distribute. `start` and leaving it unset keep it hugging its children.
+
 ## Platform mapping
 
-- **iOS:** maps to SwiftUI [`HorizontalAlignment`](https://developer.apple.com/documentation/swiftui/horizontalalignment) / [`VerticalAlignment`](https://developer.apple.com/documentation/swiftui/verticalalignment) on the stack, with `Spacer`s inserted to model the `spaceBetween` / `spaceEvenly` values.
+- **iOS:** maps to SwiftUI [`HorizontalAlignment`](https://developer.apple.com/documentation/swiftui/horizontalalignment) / [`VerticalAlignment`](https://developer.apple.com/documentation/swiftui/verticalalignment) on the stack, with `Spacer`s inserted to model the `spaceBetween` / `spaceEvenly` values. `baseline` becomes `.firstTextBaseline`.
 - **Android:** maps to Glance [`Alignment.Horizontal`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Horizontal) / [`Alignment.Vertical`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Vertical) on the `Column` / `Row`, with `Spacer`s for the space-distribution values.

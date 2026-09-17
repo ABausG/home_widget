@@ -98,6 +98,9 @@ there instead. Because of this:
   size the same way and redraws.
 - `textAlign` works: text aligned anywhere but at the start is drawn across the full room it has,
   so the alignment has somewhere to move it.
+- The image carries the font's own padding above and below the glyphs, so it takes the same room a
+  Glance `Text` of that size would and sits on the same line as one in an
+  [`HWCrossAxisAlignment.baseline`](/generator/styling/hw-alignment) row.
 - Text taller than the room it has is cut off at the last line that fits, which is ellipsized.
 
 This works on every Android version the plugin supports (API 23+) — there's no `minSdkVersion` to

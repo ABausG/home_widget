@@ -25,7 +25,9 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
@@ -64,7 +66,7 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = SizeAdaptiveDashboardData.fromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "d4bd29ad",
+            "40119d23",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -86,7 +88,7 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
       ) {
         when (LocalSize.current) {
           DpSize(250.dp, 110.dp) -> {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
               Spacer(modifier = GlanceModifier.defaultWeight())
               Text(
                   text =
@@ -177,7 +179,10 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
             }
           }
           DpSize(250.dp, 530.dp) -> {
-            Column(horizontalAlignment = Alignment.Start) {
+            Column(
+                modifier = GlanceModifier.fillMaxHeight(),
+                horizontalAlignment = Alignment.Start,
+            ) {
               Text(
                   text = "Dashboard",
                   style =
@@ -244,7 +249,10 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
             }
           }
           else -> {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                modifier = GlanceModifier.fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
               Spacer(modifier = GlanceModifier.defaultWeight())
               Text(
                   text =

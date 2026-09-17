@@ -2086,12 +2086,12 @@ void main() {
         HWWidgetFamily.systemMedium,
         HWWidgetFamily.systemLarge,
       });
-      expect(spec.iosEmitContext.androidSizeTable, isEmpty);
+      expect(spec.iosEmitContext.androidSizeTable, isNull);
       expect(spec.androidEmitContext.reachableFamilies, {
         HWWidgetFamily.systemMedium,
       });
       expect(
-        spec.androidEmitContext.androidSizeTable[HWWidgetFamily.systemMedium],
+        spec.androidEmitContext.androidSizeTable?[HWWidgetFamily.systemMedium],
         const HWSize(250, 110),
       );
     });
