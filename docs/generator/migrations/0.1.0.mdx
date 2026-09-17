@@ -1,0 +1,53 @@
+---
+title: Migration to 0.1.0
+description: Breaking changes and migration guide for home_widget_generator 0.1.0
+---
+
+# Migration to 0.1.0
+
+Regenerate your widgets, then check the changes below.
+
+## Text Color (Android)
+
+Text without a color now follows the theme instead of always being black. To keep black text:
+
+```dart
+HWTextStyle(color: HWFixedColor(0xFF000000))
+```
+
+## Row and Column Alignment (Android)
+
+`crossAxisAlignment` now defaults to `center`, like on iOS. To keep the old layout:
+
+```dart
+HWColumn(
+  crossAxisAlignment: HWCrossAxisAlignment.start, // [!code ++]
+  children: [...],
+)
+```
+
+## Number Formatting
+
+`HWText(HWInt(...))` and `HWText(HWDouble(...))` are now locale formatted (`1234` → `1,234`). To keep raw digits:
+
+```dart
+HWText(HWInt('count')) // [!code --]
+HWText.number(HWInt('count'), format: HWNumberFormat.decimal(useGrouping: false)) // [!code ++]
+```
+
+A number that was never saved now renders empty. Add a `defaultValue` to show one.
+
+## Widget Previews
+
+Previews now show live data, and Android registers them automatically. To opt out:
+
+```dart
+@HomeWidget(
+  useLiveDataInPreview: false,
+  android: HomeWidgetAndroidConfiguration(autoUpdatePreview: false),
+)
+```
+
+## Native Code
+
+Hand-written Kotlin reading generated data classes: `HWInt` fields are now `Long` instead of `Int`.

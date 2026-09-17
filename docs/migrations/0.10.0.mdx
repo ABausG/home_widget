@@ -1,0 +1,25 @@
+---
+title: Migration to 0.10.0
+description: Breaking changes and migration guide for home_widget 0.10.0
+---
+
+# Migration to 0.10.0
+
+## Android Requirements
+
+`home_widget` now uses Jetpack Glance 1.2.0, which requires:
+
+- `minSdk` **23** (can't raise it? see [Minimum SDK](/features/widget-previews#minimum-sdk))
+- `compileSdk` **35**
+- Android Gradle Plugin **8.6.0**
+
+<Info>
+Using Flutter's defaults (`minSdk = flutter.minSdkVersion`, `compileSdk = flutter.compileSdkVersion`) already meets these requirements.
+</Info>
+
+If your app declares Glance itself, bump it:
+
+```groovy
+implementation 'androidx.glance:glance-appwidget:1.1.1' // [!code --]
+implementation 'androidx.glance:glance-appwidget:1.2.0' // [!code ++]
+```
