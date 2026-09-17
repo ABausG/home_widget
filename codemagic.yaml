@@ -42,7 +42,6 @@ definitions:
           | first
           | .udid')
         xcrun simctl boot "$TEST_DEVICE"
-        xcrun simctl bootstatus "$TEST_DEVICE"
         echo "TEST_DEVICE=$TEST_DEVICE" >> $CM_ENV
     - &get_packages
       name: Get Flutter packages
@@ -50,9 +49,8 @@ definitions:
     - &run_integration_tests
       name: Run iOS Integration Tests
       script: |
-        set -eo pipefail
         mkdir -p test-results
-        flutter test integration_test/ios_test.dart -d "$TEST_DEVICE" --machine | tee test-results/flutter.json
+        flutter test integration_test/ios_test.dart -d "$TEST_DEVICE" --machine > test-results/flutter.json
       test_report: test-results/flutter.json
 
 workflows:
