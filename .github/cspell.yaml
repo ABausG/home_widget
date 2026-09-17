@@ -85,6 +85,13 @@ words:
     - pbxproj
     - xcworkspace
     - Codemagic
+    - xcrun
+    - simctl
+    - bootstatus
+    - pipefail
+    - udid
+    - startswith # jq
+    - tonumber # jq
     - lockscreen
     - codesign
     - Charsets
