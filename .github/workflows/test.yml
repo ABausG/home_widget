@@ -18,6 +18,7 @@ concurrency:
 jobs:
   changes:
     name: Detect changes
+    if: ${{ !startsWith(github.head_ref, 'release-') }}
     runs-on: ubuntu-latest
     outputs:
       home_widget: ${{ steps.filter.outputs.home_widget }}
