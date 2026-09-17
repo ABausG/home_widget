@@ -3,6 +3,53 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-09-17
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`home_widget` - `v0.10.0`](#home_widget---v0100)
+ - [`home_widget_cli` - `v0.1.0`](#home_widget_cli---v010)
+ - [`home_widget_generator` - `v0.1.0`](#home_widget_generator---v010)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `home_widget` - `v0.10.0`
+
+ - **FIX**: Handle Dart null values in method-channel arguments (iOS) ([#450](https://github.com/abausg/home_widget/issues/450)). ([31c93d62](https://github.com/abausg/home_widget/commit/31c93d622d69e6964cdc2a3896755ea6b13ce4b5))
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
+#### `home_widget_cli` - `v0.1.0`
+
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **FEAT**: Add new HWAdaptiveSize builder ([#453](https://github.com/abausg/home_widget/issues/453)). ([7ca46499](https://github.com/abausg/home_widget/commit/7ca464994844e30352621f8b02d44ffb2a43dd9c))
+ - **FEAT**: Request Pin and Get Install Status ([#447](https://github.com/abausg/home_widget/issues/447)). ([99fbf5dd](https://github.com/abausg/home_widget/commit/99fbf5dd8fffd84d1795492335cf0fd3b86b4f74))
+ - **FEAT**: Add support for Flavor aware Generation ([#446](https://github.com/abausg/home_widget/issues/446)). ([66560cb5](https://github.com/abausg/home_widget/commit/66560cb54bd9151483dbda87ab9474a582ff9cb4))
+ - **FEAT**: Support for Number, Currency and Date formatting ([#445](https://github.com/abausg/home_widget/issues/445)). ([60d996e9](https://github.com/abausg/home_widget/commit/60d996e9f24bca4c3ebb2cd09357d38cd744a2c2))
+ - **BREAKING** **REFACTOR**: Simplify writing of helpers ([#451](https://github.com/abausg/home_widget/issues/451)). ([ef6428fc](https://github.com/abausg/home_widget/commit/ef6428fc899510172efcba9947b36e2c7dc1176c))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
+#### `home_widget_generator` - `v0.1.0`
+
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **FEAT**: Add new HWAdaptiveSize builder ([#453](https://github.com/abausg/home_widget/issues/453)). ([7ca46499](https://github.com/abausg/home_widget/commit/7ca464994844e30352621f8b02d44ffb2a43dd9c))
+ - **FEAT**: Add support for Flavor aware Generation ([#446](https://github.com/abausg/home_widget/issues/446)). ([66560cb5](https://github.com/abausg/home_widget/commit/66560cb54bd9151483dbda87ab9474a582ff9cb4))
+ - **FEAT**: Support for Number, Currency and Date formatting ([#445](https://github.com/abausg/home_widget/issues/445)). ([60d996e9](https://github.com/abausg/home_widget/commit/60d996e9f24bca4c3ebb2cd09357d38cd744a2c2))
+ - **BREAKING** **REFACTOR**: Simplify writing of helpers ([#451](https://github.com/abausg/home_widget/issues/451)). ([ef6428fc](https://github.com/abausg/home_widget/commit/ef6428fc899510172efcba9947b36e2c7dc1176c))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
+
 ## 2026-09-03
 
 ### Changes
