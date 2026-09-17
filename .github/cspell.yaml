@@ -85,6 +85,11 @@ words:
     - pbxproj
     - xcworkspace
     - Codemagic
+    - xcrun
+    - simctl
+    - udid
+    - startswith # jq
+    - tonumber # jq
     - lockscreen
     - codesign
     - Charsets

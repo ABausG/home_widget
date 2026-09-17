@@ -1,0 +1,72 @@
+definitions:
+  ios_integration: &ios_integration
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: packages/home_widget/example
+    triggering:
+      events:
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: false
+        - pattern: dev
+          include: true
+          source: false
+      cancel_previous_builds: true
+    when:
+      changeset:
+        includes:
+          - 'packages/home_widget/lib/**'
+          - 'packages/home_widget/ios/**'
+          - 'packages/home_widget/example/integration_test/ios_test.dart'
+  scripts:
+    - &boot_simulator
+      name: Boot iOS Simulator
+      script: |
+        xcrun simctl shutdown all
+        TEST_DEVICE=$(xcrun simctl list devices available -j | jq -r '
+          .devices
+          | to_entries
+          | map(select(.key | contains("SimRuntime.iOS")))
+          | map(.value |= map(select(.name | startswith("iPhone"))))
+          | map(select(.value | length > 0))
+          | sort_by(.key | capture("iOS-(?<major>[0-9]+)-(?<minor>[0-9]+)") | [(.major | tonumber), (.minor | tonumber)])
+          | last
+          | .value
+          | first
+          | .udid')
+        xcrun simctl boot "$TEST_DEVICE"
+        echo "TEST_DEVICE=$TEST_DEVICE" >> $CM_ENV
+    - &get_packages
+      name: Get Flutter packages
+      script: flutter pub get
+    - &run_integration_tests
+      name: Run iOS Integration Tests
+      script: |
+        mkdir -p test-results
+        flutter test integration_test/ios_test.dart -d "$TEST_DEVICE" --machine > test-results/flutter.json
+      test_report: test-results/flutter.json
+
+workflows:
+  ios-integration-xcode-latest:
+    name: iOS Integration Tests (Xcode latest)
+    <<: *ios_integration
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - *boot_simulator
+      - *get_packages
+      - *run_integration_tests
+
+  ios-integration-xcode-edge:
+    name: iOS Integration Tests (Xcode edge)
+    <<: *ios_integration
+    environment:
+      flutter: stable
+      xcode: edge
+    scripts:
+      - *boot_simulator
+      - *get_packages
+      - *run_integration_tests
