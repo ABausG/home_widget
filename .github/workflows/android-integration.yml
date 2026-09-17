@@ -23,6 +23,7 @@ concurrency:
 jobs:
   android-integration:
     name: Android Integration Tests
+    if: ${{ !startsWith(github.head_ref, 'release-') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

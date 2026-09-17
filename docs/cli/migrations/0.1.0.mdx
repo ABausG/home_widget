@@ -1,0 +1,36 @@
+---
+title: Migration to 0.1.0
+description: Breaking changes and migration guide for home_widget_cli 0.1.0
+---
+
+# Migration to 0.1.0
+
+<Steps>
+  <Step title="Update dependencies">
+    ```yaml
+    dependencies:
+      home_widget: ^0.9.4 # [!code --]
+      home_widget: ^0.10.0 # [!code ++]
+
+    dev_dependencies:
+      home_widget_generator: ^0.0.2 # [!code --]
+      home_widget_generator: ^0.1.0 # [!code ++]
+      home_widget_cli: ^0.0.2 # [!code --]
+      home_widget_cli: ^0.1.0 # [!code ++]
+    ```
+  </Step>
+
+  <Step title="Update Glance">
+    If Glance is declared through a variable or version catalog, raise it to 1.2.0 manually.
+  </Step>
+
+  <Step title="Back up Xcode changes">
+    `generate` now resets the bundle identifier, entitlements file and development team of widget extensions to match Runner. Note any manual changes to reapply them.
+  </Step>
+
+  <Step title="Regenerate">
+    ```bash
+    dart run home_widget_cli generate
+    ```
+  </Step>
+</Steps>

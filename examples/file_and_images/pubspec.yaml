@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  home_widget: ^0.9.4
+  home_widget: ^0.10.0
 
 dev_dependencies:
   flutter_test:

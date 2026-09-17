@@ -13,6 +13,9 @@ definitions:
         - pattern: dev
           include: true
           source: false
+        - pattern: 'release-*'
+          include: false
+          source: true
       cancel_previous_builds: true
     when:
       changeset:

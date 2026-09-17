@@ -1,3 +1,12 @@
+## 0.10.0
+
+> Note: This release has breaking changes.
+
+ - **FIX**: Handle Dart null values in method-channel arguments (iOS) ([#450](https://github.com/abausg/home_widget/issues/450)). ([31c93d62](https://github.com/abausg/home_widget/commit/31c93d622d69e6964cdc2a3896755ea6b13ce4b5))
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
 ## 0.9.4
 
  - **FEAT**: Add support for opening Widgets on Click from Generated Widgets ([#442](https://github.com/abausg/home_widget/issues/442)). ([7e9e2102](https://github.com/abausg/home_widget/commit/7e9e21026b4b7c49b7eda617ee871f8faeb681ff))

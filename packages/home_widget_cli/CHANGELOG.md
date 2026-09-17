@@ -1,3 +1,16 @@
+## 0.1.0
+
+> Note: This release has breaking changes.
+
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **FEAT**: Add new HWAdaptiveSize builder ([#453](https://github.com/abausg/home_widget/issues/453)). ([7ca46499](https://github.com/abausg/home_widget/commit/7ca464994844e30352621f8b02d44ffb2a43dd9c))
+ - **FEAT**: Request Pin and Get Install Status ([#447](https://github.com/abausg/home_widget/issues/447)). ([99fbf5dd](https://github.com/abausg/home_widget/commit/99fbf5dd8fffd84d1795492335cf0fd3b86b4f74))
+ - **FEAT**: Add support for Flavor aware Generation ([#446](https://github.com/abausg/home_widget/issues/446)). ([66560cb5](https://github.com/abausg/home_widget/commit/66560cb54bd9151483dbda87ab9474a582ff9cb4))
+ - **FEAT**: Support for Number, Currency and Date formatting ([#445](https://github.com/abausg/home_widget/issues/445)). ([60d996e9](https://github.com/abausg/home_widget/commit/60d996e9f24bca4c3ebb2cd09357d38cd744a2c2))
+ - **BREAKING** **REFACTOR**: Simplify writing of helpers ([#451](https://github.com/abausg/home_widget/issues/451)). ([ef6428fc](https://github.com/abausg/home_widget/commit/ef6428fc899510172efcba9947b36e2c7dc1176c))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
 ## 0.0.2
 
  - **FEAT**: Add support for opening Widgets on Click from Generated Widgets ([#442](https://github.com/abausg/home_widget/issues/442)). ([7e9e2102](https://github.com/abausg/home_widget/commit/7e9e21026b4b7c49b7eda617ee871f8faeb681ff))
