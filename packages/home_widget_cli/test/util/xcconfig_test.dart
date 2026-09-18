@@ -66,6 +66,22 @@ void main() {
     });
   });
 
+  test('unquotes a value that is one quoted string', () {
+    final file = write(
+      'Debug.xcconfig',
+      r'CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/Runner/Runner.entitlements"'
+          '\n'
+          'OTHER_SWIFT_FLAGS = "-D" "FOO"\n'
+          'PRODUCT_NAME = ""\n',
+    );
+
+    expect(readXcconfigSettings(file), {
+      'CODE_SIGN_ENTITLEMENTS': r'$(SRCROOT)/Runner/Runner.entitlements',
+      'OTHER_SWIFT_FLAGS': '"-D" "FOO"',
+      'PRODUCT_NAME': '',
+    });
+  });
+
   test('treats a missing file as empty', () {
     expect(
       readXcconfigSettings(File('${tempDir.path}/nope.xcconfig')),

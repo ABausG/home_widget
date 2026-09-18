@@ -4,12 +4,11 @@ import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 /// Writes a manifest declaring a launcher activity, which is what makes the
 /// generator emit a clickable widget root.

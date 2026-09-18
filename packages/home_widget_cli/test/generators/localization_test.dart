@@ -5,16 +5,15 @@ import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
-import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_cli/src/util/naming.dart';
 import 'package:home_widget_cli/src/validation/widget_data_validator.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-class _MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
+import '../helpers/xcode_project.dart';
 
 const _localization = HomeWidgetLocalization(
   defaultLocale: 'en',
@@ -81,7 +80,7 @@ Future<Directory> _project() async {
   await Directory(
     p.join(dir.path, 'android', 'app', 'src', 'main'),
   ).create(recursive: true);
-  await Directory(p.join(dir.path, 'ios')).create(recursive: true);
+  writeRunnerXcodeProject(dir);
   addTearDown(() {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
   });
@@ -938,16 +937,10 @@ void main() {
   });
 
   group('Android R import', () {
-    late _MockLogger mockLogger;
+    late MockLogger mockLogger;
 
     setUp(() {
-      final saved = logger;
-      mockLogger = _MockLogger();
-      logger = mockLogger;
-      when(() => mockLogger.detail(any())).thenReturn(null);
-      when(() => mockLogger.info(any())).thenReturn(null);
-      when(() => mockLogger.warn(any())).thenReturn(null);
-      addTearDown(() => logger = saved);
+      mockLogger = useMockLogger();
     });
 
     Future<void> writeGradle(Directory root, String content) async {

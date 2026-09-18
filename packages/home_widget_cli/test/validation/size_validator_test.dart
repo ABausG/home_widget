@@ -6,7 +6,7 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 const _iosDefault = HomeWidgetIOSConfiguration(groupId: 'group.test');
 const _androidDefault = HomeWidgetAndroidConfiguration();

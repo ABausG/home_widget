@@ -6,11 +6,10 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../helpers/fake_progress.dart';
+import '../helpers/mock_logger.dart';
 import '../helpers/recording_logger.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
-
-class MockLogger extends Mock implements Logger {}
 
 void main() {
   late MockLogger mockLogger;

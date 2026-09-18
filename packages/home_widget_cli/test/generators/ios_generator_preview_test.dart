@@ -6,12 +6,14 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/xcode_project.dart';
+
 void main() {
   late Directory tempDir;
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('ios_preview_test');
-    Directory(p.join(tempDir.path, 'ios')).createSync(recursive: true);
+    writeRunnerXcodeProject(tempDir);
   });
 
   tearDown(() {

@@ -15,10 +15,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   changes:
     name: Detect changes
     if: ${{ !startsWith(github.head_ref, 'release-') }}
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     outputs:
       home_widget: ${{ steps.filter.outputs.home_widget }}
@@ -137,6 +143,57 @@ jobs:
           flags: home_widget_cli
           disable_search: true
 
+  test-home-widget-cli-integration-ios:
+    name: home_widget_cli (iOS integration)
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      needs.changes.outputs.home_widget_cli == 'true' ||
+      needs.changes.outputs.home_widget_generator == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: bluefireteam/melos-action@v3
+      - name: Test
+        run: melos run test:cli:integration:ios --no-select
+        env:
+          MELOS_PACKAGES: home_widget_cli
+
+  test-home-widget-cli-integration-android:
+    name: home_widget_cli (Android integration)
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      needs.changes.outputs.home_widget_cli == 'true' ||
+      needs.changes.outputs.home_widget_generator == 'true' ||
+      needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: bluefireteam/melos-action@v3
+      - name: Test
+        run: melos run test:cli:integration:android --no-select
+        env:
+          MELOS_PACKAGES: home_widget_cli
+
   test-success:
     name: Test Success
     runs-on: ubuntu-latest
@@ -145,6 +202,8 @@ jobs:
       - test-home-widget
       - test-home-widget-generator
       - test-home-widget-cli
+      - test-home-widget-cli-integration-ios
+      - test-home-widget-cli-integration-android
     if: always()
     steps:
       - name: Require passing test results
@@ -154,7 +213,9 @@ jobs:
             "${{ needs.changes.result }}" \
             "${{ needs.test-home-widget.result }}" \
             "${{ needs.test-home-widget-generator.result }}" \
-            "${{ needs.test-home-widget-cli.result }}"
+            "${{ needs.test-home-widget-cli.result }}" \
+            "${{ needs.test-home-widget-cli-integration-ios.result }}" \
+            "${{ needs.test-home-widget-cli-integration-android.result }}"
           do
             if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
               echo "Job result: $result"

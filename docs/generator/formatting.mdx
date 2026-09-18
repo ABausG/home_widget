@@ -507,10 +507,10 @@ The display zone defaults to `TimeZone.current`. `HWTimeZone.named` and
 `.current` when the id is empty or not a `TimeZone` identifier iOS recognizes.
 
 `HWNumberFormat.compact()` uses `.formatted(.number.notation(.compactName))`,
-which is **iOS 15+**. A generated extension target starts at a deployment target
-of 14.0, so on iOS 14 the widget falls back to a plain decimal format and
-`1200000` renders as `1,200,000` rather than `1.2M`. Every other format works on
-all supported versions.
+which is **iOS 15+**. A generated extension target starts at your app's
+deployment target, 14.0 at the least, so where that is 14.0 the widget falls
+back to a plain decimal format on iOS 14 and `1200000` renders as `1,200,000`
+rather than `1.2M`. Every other format works on all supported versions.
 </Accordion>
 
 <Accordion title="Android">

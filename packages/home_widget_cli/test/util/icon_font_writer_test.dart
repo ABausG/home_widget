@@ -11,8 +11,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/font_fixture.dart';
-
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 /// The icon font the fixture ships, declared the way an icon package declares
 /// one so nothing outside the temp project has to exist.

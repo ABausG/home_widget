@@ -1,17 +1,21 @@
 import 'dart:io';
 
 import 'package:home_widget_cli/src/util/android_package.dart';
+import 'package:home_widget_cli/src/util/exit_codes.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
+import 'package:home_widget_cli/src/util/pbxproj/pbxproj_document.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/fake_progress.dart';
+import '../helpers/mock_logger.dart';
+import '../helpers/package_root.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
 
-class MockLogger extends Mock implements Logger {}
+class MockProgress extends Mock implements Progress {}
 
 void main() {
   late MockLogger mockLogger;
@@ -459,6 +463,199 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 5)),
   );
+
+  late String withoutAppTarget;
+  late String spmMigrated;
+
+  setUpAll(() async {
+    final fixtures = await pbxprojFixturesDirectory();
+    withoutAppTarget =
+        File(p.join(fixtures.path, 'no_dependency_sections.pbxproj'))
+            .readAsStringSync()
+            .replaceFirst('\t\t\tname = Runner;\n', '\t\t\tname = App;\n')
+            .replaceFirst(
+              'productType = "com.apple.product-type.application";',
+              'productType = "com.apple.product-type.framework";',
+            );
+    spmMigrated =
+        File(p.join(fixtures.path, 'spm_migrated.pbxproj')).readAsStringSync();
+  });
+
+  for (final (description, content, error) in [
+    (
+      'it cannot read',
+      () => 'not a property list',
+      startsWith('Could not read the Xcode project '),
+    ),
+    (
+      'without an app target',
+      () => withoutAppTarget,
+      contains('is missing an app target (a PBXNativeTarget named "Runner"'),
+    ),
+  ]) {
+    test(
+        'create fails on an Xcode project $description before any platform '
+        'writes', () async {
+      final root = Directory.systemTemp.createTempSync('hw_cli_create_');
+      addTearDown(() => root.deleteSync(recursive: true));
+      final pbxproj = content();
+      final pbxprojFile = File(
+        p.join(root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'),
+      )
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(pbxproj);
+      // Enough for the Android scaffold to write its files, were it to run.
+      Directory(p.join(root.path, 'android', 'app'))
+          .createSync(recursive: true);
+      final progress = MockProgress();
+      when(() => mockLogger.progress(any())).thenReturn(progress);
+
+      final code = await runCliWithProjectRoot(
+        root,
+        [
+          'create',
+          '--android',
+          '--ios',
+          '--ios-app-group-id',
+          'group.example',
+          'Example',
+        ],
+      );
+
+      expect(code, ExitCodes.software);
+      verify(() => progress.fail('Failed to scaffold Example home_widget'))
+          .called(1);
+      verifyNever(() => progress.complete(any()));
+      verify(
+        () => mockLogger.err(
+          any(
+            that: allOf(
+              error,
+              contains(p.join('ios', 'Runner.xcodeproj', 'project.pbxproj')),
+            ),
+          ),
+        ),
+      ).called(1);
+      verifyNever(
+        () => mockLogger.err(any(that: contains('Unexpected error'))),
+      );
+      verifyNever(
+        () => mockLogger.warn(any(that: contains('pubspec.yaml not found'))),
+      );
+      expect(pbxprojFile.readAsStringSync(), pbxproj);
+      expect(
+        [
+          for (final entity in root.listSync(recursive: true))
+            if (entity is File) p.relative(entity.path, from: root.path),
+        ],
+        [p.join('ios', 'Runner.xcodeproj', 'project.pbxproj')],
+      );
+    });
+  }
+
+  test('create fails without an Xcode project before any platform writes',
+      () async {
+    final root = Directory.systemTemp.createTempSync('hw_cli_create_');
+    addTearDown(() => root.deleteSync(recursive: true));
+    Directory(p.join(root.path, 'ios')).createSync();
+    Directory(p.join(root.path, 'android', 'app')).createSync(recursive: true);
+    final progress = MockProgress();
+    when(() => mockLogger.progress(any())).thenReturn(progress);
+
+    final code = await runCliWithProjectRoot(
+      root,
+      [
+        'create',
+        '--android',
+        '--ios',
+        '--ios-app-group-id',
+        'group.example',
+        'Example',
+      ],
+    );
+
+    expect(code, ExitCodes.software);
+    verify(() => progress.fail('Failed to scaffold Example home_widget'))
+        .called(1);
+    verify(
+      () => mockLogger.err(
+        any(
+          that: allOf(
+            startsWith('No Xcode project found in '),
+            contains('ios/Runner.xcodeproj in a project made by'),
+          ),
+        ),
+      ),
+    ).called(1);
+    verifyNever(() => mockLogger.warn(any()));
+    expect(
+      [
+        for (final entity in root.listSync(recursive: true))
+          p.relative(entity.path, from: root.path),
+      ]..sort(),
+      ['android', p.join('android', 'app'), 'ios'],
+    );
+  });
+
+  test('create scaffolds into a renamed Xcode project and app target',
+      () async {
+    final root = Directory.systemTemp.createTempSync('hw_cli_create_');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final pbxprojFile = File(
+      p.join(root.path, 'ios', 'MyApp.xcodeproj', 'project.pbxproj'),
+    )
+      ..parent.createSync(recursive: true)
+      ..writeAsStringSync(
+        spmMigrated
+            .replaceFirst('\t\t\tname = Runner;\n', '\t\t\tname = MyApp;\n')
+            .replaceAll(
+              '\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;\n',
+              '',
+            )
+            .replaceAll('Runner/Info.plist', 'MyApp/Info.plist'),
+      );
+
+    final code = await runCliWithProjectRoot(
+      root,
+      ['create', '--ios', '--ios-app-group-id', 'group.example', 'Example'],
+    );
+
+    expect(code, ExitCodes.success);
+    expect(
+      File(p.join(root.path, 'ios', 'ExampleHomeWidget', 'Widget.swift'))
+          .existsSync(),
+      isTrue,
+    );
+    expect(
+      File(p.join(root.path, 'ios', 'MyApp', 'MyApp.entitlements'))
+          .readAsStringSync(),
+      contains('<string>group.example</string>'),
+    );
+    expect(Directory(p.join(root.path, 'ios', 'Runner')).existsSync(), isFalse);
+
+    final pbxproj = Pbxproj.parse(pbxprojFile.readAsStringSync());
+    final extension = pbxproj.nativeTargetNamed('ExampleHomeWidget')!;
+    expect(
+      [
+        for (final id
+            in pbxproj.nativeTargetNamed('MyApp')!.strings('dependencies'))
+          pbxproj.object(id)?.string('target'),
+      ],
+      contains(extension.id),
+    );
+    for (final config in pbxproj.buildConfigurationsOf(extension)) {
+      expect(
+        ownBuildSettings(config)['IPHONEOS_DEPLOYMENT_TARGET'],
+        '15.0',
+        reason: config.string('name'),
+      );
+    }
+    expect(
+      'CODE_SIGN_ENTITLEMENTS = MyApp/MyApp.entitlements;'
+          .allMatches(pbxproj.text),
+      hasLength(3),
+    );
+  });
 
   group('stderr warnings for misconfigured projects', () {
     test(

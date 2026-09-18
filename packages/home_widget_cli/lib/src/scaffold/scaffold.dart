@@ -27,6 +27,13 @@ final class WidgetScaffold {
     await scaffold.run();
   }
 
+  /// Fails when `ios/` holds no Xcode project or one that cannot take the iOS
+  /// widget extension, before any platform has written a file.
+  Future<void> checkIos() => IosWidgetScaffold(
+        projectRoot: projectRoot,
+        widgetClassName: widgetClassName,
+      ).check();
+
   /// Create iOS widget-extension placeholders.
   Future<void> createIos({required String appGroupId}) async {
     final scaffold = IosWidgetScaffold(

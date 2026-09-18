@@ -3,16 +3,14 @@ import 'dart:io';
 import 'package:home_widget_cli/src/cli.dart';
 import 'package:home_widget_cli/src/util/exit_codes.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/fake_progress.dart';
+import '../helpers/mock_logger.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
-
-class MockLogger extends Mock implements Logger {}
 
 void main() {
   late MockLogger mockLogger;
@@ -180,15 +178,27 @@ class TestWidget {}
       timeout: const Timeout(Duration(minutes: 2)),
     );
 
-    test(
-      'generate produces a buildable app for Android and iOS',
-      () async {
-        final project = await TestFlutterProject.create();
-        // Write the SimpleData schema file into the default input directory.
-        final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
-        widgetDir.createSync(recursive: true);
-        final schemaFile = File(p.join(widgetDir.path, 'simple_data.dart'));
-        schemaFile.writeAsStringSync('''
+    for (final platform in [
+      (
+        name: 'Android',
+        build: ['build', 'apk'],
+        tag: 'integration_android',
+      ),
+      (
+        name: 'iOS',
+        build: ['build', 'ios', '--no-codesign'],
+        tag: 'integration_ios',
+      ),
+    ]) {
+      test(
+        'generate produces a buildable ${platform.name} app',
+        () async {
+          final project = await TestFlutterProject.create();
+          // Write the SimpleData schema file into the default input directory.
+          final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
+          widgetDir.createSync(recursive: true);
+          final schemaFile = File(p.join(widgetDir.path, 'simple_data.dart'));
+          schemaFile.writeAsStringSync('''
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 @HomeWidget(
@@ -202,45 +212,31 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class SimpleData {}
 ''');
 
-        // Run the generate command.
-        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
-        final code = await runCliWithProjectRoot(
-          project.root,
-          ['generate', '--dart-out', dartOut],
-        );
-        expect(code, 0);
+          final dartOut =
+              p.join(project.root.path, 'lib', 'src', 'home_widget');
+          final code = await runCliWithProjectRoot(
+            project.root,
+            ['generate', '--dart-out', dartOut],
+          );
+          expect(code, 0);
 
-        // Build Android.
-        final androidBuild = await Process.run(
-          'flutter',
-          ['build', 'apk'],
-          workingDirectory: project.root.path,
-          runInShell: true,
-        );
-        expect(
-          androidBuild.exitCode,
-          0,
-          reason:
-              'flutter build apk failed.\nSTDOUT:\n${androidBuild.stdout}\n\nSTDERR:\n${androidBuild.stderr}',
-        );
-
-        // Build iOS.
-        final iosBuild = await Process.run(
-          'flutter',
-          ['build', 'ios', '--no-codesign'],
-          workingDirectory: project.root.path,
-          runInShell: true,
-        );
-        expect(
-          iosBuild.exitCode,
-          0,
-          reason:
-              'flutter build ios failed.\nSTDOUT:\n${iosBuild.stdout}\n\nSTDERR:\n${iosBuild.stderr}',
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 25)),
-      tags: ['integration', 'integration_android', 'integration_ios'],
-    );
+          final build = await Process.run(
+            'flutter',
+            platform.build,
+            workingDirectory: project.root.path,
+            runInShell: true,
+          );
+          expect(
+            build.exitCode,
+            0,
+            reason:
+                'flutter ${platform.build.join(' ')} failed.\nSTDOUT:\n${build.stdout}\n\nSTDERR:\n${build.stderr}',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 25)),
+        tags: ['integration', platform.tag],
+      );
+    }
     test(
       'warns when single input file has no HomeWidget annotation',
       () async {
@@ -328,6 +324,117 @@ class Flavored {}
           ),
         ).called(1);
         verifyNever(() => mockLogger.err(any(that: contains('Unexpected'))));
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'fails on an Xcode project it cannot read before any platform writes',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'both_platforms.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Both Platforms',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+  widget: HWText.fixed('Both'),
+)
+class BothPlatforms {}
+''');
+        File(
+          p.join(
+            project.root.path,
+            'ios',
+            'Runner.xcodeproj',
+            'project.pbxproj',
+          ),
+        ).writeAsStringSync('not a property list');
+        Map<String, List<int>> files(String directory) => {
+              for (final entity
+                  in Directory(p.join(project.root.path, directory))
+                      .listSync(recursive: true))
+                if (entity is File) entity.path: entity.readAsBytesSync(),
+            };
+        final android = files('android');
+        final ios = files('ios');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(that: startsWith('Could not read the Xcode project ')),
+          ),
+        ).called(1);
+        expect(files('android'), android);
+        expect(files('ios'), ios);
+        expect(
+          Directory(p.join(project.root.path, 'lib', 'src', 'home_widget'))
+              .existsSync(),
+          isFalse,
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'fails without an Xcode project before any platform writes',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'both_platforms.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Both Platforms',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+  widget: HWText.fixed('Both'),
+)
+class BothPlatforms {}
+''');
+        Directory(p.join(project.root.path, 'ios', 'Runner.xcodeproj'))
+            .deleteSync(recursive: true);
+        Map<String, List<int>> files(String directory) => {
+              for (final entity
+                  in Directory(p.join(project.root.path, directory))
+                      .listSync(recursive: true))
+                if (entity is File) entity.path: entity.readAsBytesSync(),
+            };
+        final android = files('android');
+        final ios = files('ios');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(
+              that: allOf(
+                startsWith('No Xcode project found in '),
+                contains('ios/Runner.xcodeproj in a project made by'),
+              ),
+            ),
+          ),
+        ).called(1);
+        expect(files('android'), android);
+        expect(files('ios'), ios);
+        expect(
+          Directory(p.join(project.root.path, 'lib', 'src', 'home_widget'))
+              .existsSync(),
+          isFalse,
+        );
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );

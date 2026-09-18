@@ -118,11 +118,15 @@ class GenerateCommand extends Command<int> {
 
     // Asset images are resolved against the project on disk, so this can only
     // run once the whole project root is known (unlike validateWidgetData,
-    // which runs inside the parser).
+    // which runs inside the parser). The Xcode project is checked here as well,
+    // so a project that cannot take the widget fails before any platform writes
+    // a file.
     try {
       for (final item in specs) {
         validateAssets(item.spec, Directory.current);
         validateFonts(item.spec, Directory.current);
+        await IosGenerator(spec: item.spec, projectRoot: Directory.current)
+            .checkXcodeProject();
       }
     } on GeneratorError catch (e) {
       logger.err(e.message);

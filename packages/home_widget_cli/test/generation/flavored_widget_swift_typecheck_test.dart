@@ -9,6 +9,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/xcode_project.dart';
+
 /// The compilation conditions a flavored build can be compiled with.
 ///
 /// `xcode_pbxproj_patcher.dart` defines one per flavored configuration and none
@@ -40,7 +42,21 @@ void main() {
 
       setUp(() async {
         temp = Directory.systemTemp.createTempSync('hw_swift_flavors');
-        Directory(p.join(temp.path, 'ios')).createSync(recursive: true);
+        writeRunnerXcodeProject(
+          temp,
+          flavors: const [
+            RunnerFlavor(
+              name: 'dev',
+              idPrefix: 'AA',
+              bundleId: 'com.example.app.dev',
+            ),
+            RunnerFlavor(
+              name: 'prod',
+              idPrefix: 'BB',
+              bundleId: 'com.example.app',
+            ),
+          ],
+        );
 
         final spec = WidgetSpec(
           data: HomeWidget(

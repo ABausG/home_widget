@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:args/command_runner.dart';
 
+import '../generator_error.dart';
 import '../scaffold/scaffold.dart';
 import '../util/cli_thanks.dart';
 import '../util/dependencies.dart';
@@ -104,6 +105,7 @@ class CreateCommand extends Command<int> {
       widgetClassName: widgetClassName,
     );
 
+    final scaffoldIos = shouldIos && iosDir.existsSync();
     final steps = <({String label, Future<void> Function() run})>[];
     if (shouldAndroid && androidDir.existsSync()) {
       steps.add(
@@ -113,7 +115,7 @@ class CreateCommand extends Command<int> {
         ),
       );
     }
-    if (shouldIos && iosDir.existsSync()) {
+    if (scaffoldIos) {
       steps.add(
         (
           label: 'Scaffolding iOS widget',
@@ -136,9 +138,16 @@ class CreateCommand extends Command<int> {
     final total = steps.length;
     final base = 'Scaffolding $widgetBaseName home_widget';
     final progress = logger.progress(base);
-    for (var i = 0; i < steps.length; i++) {
-      progress.update('$base · ${i + 1}/$total ${steps[i].label}');
-      await steps[i].run();
+    try {
+      if (scaffoldIos) await scaffold.checkIos();
+      for (var i = 0; i < steps.length; i++) {
+        progress.update('$base · ${i + 1}/$total ${steps[i].label}');
+        await steps[i].run();
+      }
+    } on GeneratorError catch (e) {
+      progress.fail('Failed to scaffold $widgetBaseName home_widget');
+      logger.err(e.message);
+      return ExitCodes.software;
     }
     progress.complete('Scaffolded $widgetBaseName home_widget');
 

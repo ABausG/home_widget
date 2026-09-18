@@ -9,6 +9,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/xcode_project.dart';
+
 /// Whether the preview reads the widget's own stored data, which decides
 /// whether the generated preview branch passes live defaults or `nil` — and,
 /// with it, whether the entry has to carry which read it was built with.
@@ -66,7 +68,7 @@ void main() {
             final temp =
                 Directory.systemTemp.createTempSync('hw_swift_preview');
             addTearDown(() => temp.deleteSync(recursive: true));
-            Directory(p.join(temp.path, 'ios')).createSync(recursive: true);
+            writeRunnerXcodeProject(temp);
 
             await IosGenerator(
               spec: _spec(useLiveDataInPreview: live),

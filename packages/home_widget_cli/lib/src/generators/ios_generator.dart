@@ -15,6 +15,7 @@ import '../util/ios_templates.dart';
 import '../util/naming.dart';
 import '../util/string_catalog.dart';
 import '../util/xcode_pbxproj_patcher.dart';
+import '../util/xcode_project.dart';
 import 'swift_widget_emitter.dart';
 
 /// Generates iOS WidgetKit extension files from a [WidgetSpec].
@@ -51,26 +52,12 @@ class IosGenerator {
       return;
     }
 
-    final xcodeproj = File(
-      p.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'),
-    );
-    if (!xcodeproj.existsSync()) {
-      logger.warn(
-        'Warning: ios/Runner.xcodeproj/project.pbxproj not found. '
-        'Skipping iOS Widget Extension target wiring.',
-      );
-    }
-
     if (spec.data.iOS == null) {
       return;
     }
 
-    // Before anything is written: a flavor the Xcode project does not have
-    // compiles the widget out of every build, so there is nothing worth
-    // generating until the configurations exist.
-    if (xcodeproj.existsSync()) {
-      _requireXcodeFlavors(await xcodeproj.readAsString(), iosDir);
-    }
+    final xcodeproj = findXcodeProject(iosDir);
+    await _checkXcodeProject(xcodeproj);
 
     final widgetClassName = '${spec.className}HomeWidget';
     final groupId = spec.iosGroupIdFor(null);
@@ -495,49 +482,68 @@ struct ${widgetClassName}Entry: TimelineEntry {
       flavorEntitlements[flavor] = name;
     }
 
-    if (xcodeproj.existsSync()) {
-      await ensureWidgetExtensionTargetInXcodeProject(
+    await ensureWidgetExtensionTargetInXcodeProject(
+      pbxprojFile: xcodeproj,
+      widgetClassName: widgetClassName,
+      flavorEntitlements: flavorEntitlements,
+    );
+    await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
+
+    // Never wire a catalog we did not write: a stale reference to a missing
+    // file fails the build.
+    if (catalogEntries.isNotEmpty) {
+      await ensureLocalizableCatalogInXcodeProject(
         pbxprojFile: xcodeproj,
         widgetClassName: widgetClassName,
-        flavorEntitlements: flavorEntitlements,
+        locales: spec.supportedLocales,
       );
-
-      await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
-      await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
-
-      // Never wire a catalog we did not write: a stale reference to a missing
-      // file fails the build.
-      if (catalogEntries.isNotEmpty) {
-        await ensureLocalizableCatalogInXcodeProject(
-          pbxprojFile: xcodeproj,
-          widgetClassName: widgetClassName,
-          locales: spec.supportedLocales,
-        );
-      }
-
-      // An icon font only ships if the extension target copies it, which a
-      // project with explicit groups does not do on its own.
-      if (iconFonts.written.isNotEmpty || iconFonts.removed.isNotEmpty) {
-        await ensureWidgetResourceFilesInXcodeProject(
-          pbxprojFile: xcodeproj,
-          widgetClassName: widgetClassName,
-          resourceFileNames: iconFonts.written,
-          removedFileNames: iconFonts.removed,
-        );
-      }
-      logger.detail('Updated: ${xcodeproj.path}');
     }
+
+    // An icon font only ships if the extension target copies it, which a
+    // project with explicit groups does not do on its own.
+    if (iconFonts.written.isNotEmpty || iconFonts.removed.isNotEmpty) {
+      await ensureWidgetResourceFilesInXcodeProject(
+        pbxprojFile: xcodeproj,
+        widgetClassName: widgetClassName,
+        resourceFileNames: iconFonts.written,
+        removedFileNames: iconFonts.removed,
+      );
+    }
+    logger.detail('Updated: ${xcodeproj.path}');
 
     // Read back only now: the Runner configurations this looks at are the ones
     // the patchers above just settled.
-    final pbxproj =
-        xcodeproj.existsSync() ? await xcodeproj.readAsString() : null;
-    if (pbxproj != null) _reportFlavorMismatches(pbxproj, iosDir);
+    final project = await readXcodeProject(xcodeproj);
+    _reportFlavorMismatches(project, xcodeproj);
     await _updateRunnerEntitlements(
-      iosDir: iosDir,
-      pbxproj: pbxproj,
+      xcodeproj: xcodeproj,
+      project: project,
       groupId: groupId,
       flavorAppGroupIds: flavorAppGroupIds,
+    );
+  }
+
+  /// Throws a [GeneratorError] when the Xcode project cannot take this widget,
+  /// so that a caller can fail before anything is written: a project the
+  /// extension cannot be wired into would fail halfway, and a flavor the Xcode
+  /// project does not have compiles the widget out of every build. A project
+  /// with an `ios/` folder but no Xcode project in it fails as well.
+  ///
+  /// Does nothing for a widget without an iOS configuration or a project
+  /// without `ios/`.
+  Future<void> checkXcodeProject() async {
+    final iosDir = Directory(p.join(projectRoot.path, 'ios'));
+    if (spec.data.iOS == null || !iosDir.existsSync()) return;
+    await _checkXcodeProject(findXcodeProject(iosDir));
+  }
+
+  Future<void> _checkXcodeProject(File xcodeproj) async {
+    _requireXcodeFlavors(
+      await checkWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: xcodeproj,
+        widgetClassName: '${spec.className}HomeWidget',
+      ),
+      xcodeproj,
     );
   }
 
@@ -547,9 +553,13 @@ struct ${widgetClassName}Entry: TimelineEntry {
   /// declares, and those only exist on configurations mirroring a Runner
   /// `Debug-<flavor>`: without them the guard is never satisfied and the widget
   /// silently disappears from every build.
-  void _requireXcodeFlavors(String pbxproj, Directory iosDir) {
+  void _requireXcodeFlavors(Pbxproj project, File xcodeproj) {
     if (!spec.hasFlavors) return;
-    final detected = detectXcodeFlavors(pbxproj, projectDir: iosDir);
+    final detected = detectXcodeFlavors(
+      project,
+      projectDir: xcodeproj.parent.parent,
+      projectName: xcodeProjectName(xcodeproj),
+    );
     final missing = spec.declaredFlavors
         .where((flavor) => !detected.contains(flavor))
         .toList(growable: false);
@@ -565,7 +575,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
       '${spec.data.name} declares the flavor'
       '${missing.length == 1 ? '' : 's'} '
       '${missing.map((flavor) => '"$flavor"').join(', ')}, which '
-      'Runner.xcodeproj does not have: $wanted. '
+      '${p.basename(xcodeproj.parent.path)} does not have: $wanted. '
       '${detected.isEmpty ? 'It defines no flavored build configurations at all.' : 'It defines ${detected.map((flavor) => '"$flavor"').join(', ')}.'} '
       'Add the build configurations, then generate again.',
     );
@@ -585,12 +595,18 @@ struct ${widgetClassName}Entry: TimelineEntry {
   /// resolve is left to the user: writing to a guessed path would create a
   /// second entitlements file that nothing signs with.
   Future<void> _updateRunnerEntitlements({
-    required Directory iosDir,
-    required String? pbxproj,
+    required File xcodeproj,
+    required Pbxproj project,
     required String groupId,
     required Map<String, String> flavorAppGroupIds,
   }) async {
-    const defaultPath = 'Runner/Runner.entitlements';
+    final iosDir = xcodeproj.parent.parent;
+    final projectName = xcodeProjectName(xcodeproj);
+    final defaultPath = defaultRunnerEntitlementsPath(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
     final groupsByPath = <String, Set<String>>{};
 
     for (final entry in <String?, String>{
@@ -598,13 +614,12 @@ struct ${widgetClassName}Entry: TimelineEntry {
       ...flavorAppGroupIds,
     }.entries) {
       final flavor = entry.key;
-      final settings = pbxproj == null
-          ? const <String>[]
-          : runnerEntitlementsSettingsForFlavor(
-              pbxproj,
-              flavor,
-              projectDir: iosDir,
-            );
+      final settings = runnerEntitlementsSettingsForFlavor(
+        project,
+        flavor,
+        projectDir: iosDir,
+        projectName: projectName,
+      );
       if (settings.isEmpty) {
         groupsByPath
             .putIfAbsent(defaultPath, () => <String>{})
@@ -648,9 +663,13 @@ struct ${widgetClassName}Entry: TimelineEntry {
   }
 
   /// Notes the Xcode flavors the widget leaves out.
-  void _reportFlavorMismatches(String pbxproj, Directory iosDir) {
+  void _reportFlavorMismatches(Pbxproj project, File xcodeproj) {
     if (!spec.hasFlavors) return;
-    final detected = detectXcodeFlavors(pbxproj, projectDir: iosDir);
+    final detected = detectXcodeFlavors(
+      project,
+      projectDir: xcodeproj.parent.parent,
+      projectName: xcodeProjectName(xcodeproj),
+    );
 
     for (final flavor in detected) {
       if (spec.declaredFlavors.contains(flavor)) continue;
@@ -661,7 +680,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
   }
 
   /// The `supportedFamilies` property a widget declaring a family newer than
-  /// the extension's deployment target (iOS 14) needs.
+  /// the oldest deployment target an extension can have (iOS 14) needs.
   ///
   /// [baseFamilies] is the comma-separated literal of families available on
   /// every targeted version; [gatedFamilies] maps a minimum iOS version to the

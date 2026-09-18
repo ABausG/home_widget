@@ -7,6 +7,7 @@ import '../util/entitlements.dart';
 import '../util/fs.dart';
 import '../util/ios_templates.dart';
 import '../util/xcode_pbxproj_patcher.dart';
+import '../util/xcode_project.dart';
 
 /// Scaffolds a placeholder iOS WidgetKit extension and wires it into the
 /// Xcode project.
@@ -20,23 +21,35 @@ final class IosWidgetScaffold {
   /// The Swift class name for the generated widget extension.
   final String widgetClassName;
 
+  Directory get _iosDir => Directory(p.join(projectRoot.path, 'ios'));
+
+  /// Throws a [GeneratorError] when the Xcode project cannot take the
+  /// extension, or when `ios/` holds no Xcode project, so that a caller can
+  /// fail before anything is written.
+  Future<void> check() async {
+    if (!_iosDir.existsSync()) return;
+    await checkWidgetExtensionTargetInXcodeProject(
+      pbxprojFile: findXcodeProject(_iosDir),
+      widgetClassName: widgetClassName,
+    );
+  }
+
   /// Create iOS widget-extension placeholders.
+  ///
+  /// Does not [check] the Xcode project first.
   Future<void> run({required String appGroupId}) async {
-    final iosDir = Directory(p.join(projectRoot.path, 'ios'));
+    final iosDir = _iosDir;
     if (!iosDir.existsSync()) {
       logger.warn('Warning: ios/ not found. Skipping iOS scaffolding.');
       return;
     }
 
-    final xcodeproj = File(
-      p.join(iosDir.path, 'Runner.xcodeproj', 'project.pbxproj'),
+    final xcodeproj = findXcodeProject(iosDir);
+    final runnerEntitlementsPath = defaultRunnerEntitlementsPath(
+      await readXcodeProject(xcodeproj),
+      projectDir: iosDir,
+      projectName: xcodeProjectName(xcodeproj),
     );
-    if (!xcodeproj.existsSync()) {
-      logger.warn(
-        'Warning: ios/Runner.xcodeproj/project.pbxproj not found. '
-        'Skipping iOS Widget Extension target wiring.',
-      );
-    }
 
     // Create the Widget Extension folder and files.
     final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
@@ -85,7 +98,7 @@ final class IosWidgetScaffold {
     );
 
     final runnerEntitlements = File(
-      p.join(iosDir.path, 'Runner', 'Runner.entitlements'),
+      p.join(iosDir.path, runnerEntitlementsPath),
     );
     // Flutter templates usually have this file; if not, we still create it.
     await ensureAppGroupEntitlement(
@@ -94,17 +107,12 @@ final class IosWidgetScaffold {
     );
 
     // Patch the Xcode project so the extension can actually be built.
-    if (xcodeproj.existsSync()) {
-      await ensureWidgetExtensionTargetInXcodeProject(
-        pbxprojFile: xcodeproj,
-        widgetClassName: widgetClassName,
-      );
+    await ensureWidgetExtensionTargetInXcodeProject(
+      pbxprojFile: xcodeproj,
+      widgetClassName: widgetClassName,
+    );
 
-      // Ensure Runner is signed with Runner/Runner.entitlements (App Groups apply).
-      await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: xcodeproj);
-
-      // Ensure Runner's deployment target is at least 14.0 (required by home_widget).
-      await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
-    }
+    // Ensure Runner's deployment target is at least 14.0 (required by home_widget).
+    await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
   }
 }
