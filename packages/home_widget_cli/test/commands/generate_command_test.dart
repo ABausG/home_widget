@@ -178,15 +178,27 @@ class TestWidget {}
       timeout: const Timeout(Duration(minutes: 2)),
     );
 
-    test(
-      'generate produces a buildable app for Android and iOS',
-      () async {
-        final project = await TestFlutterProject.create();
-        // Write the SimpleData schema file into the default input directory.
-        final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
-        widgetDir.createSync(recursive: true);
-        final schemaFile = File(p.join(widgetDir.path, 'simple_data.dart'));
-        schemaFile.writeAsStringSync('''
+    for (final platform in [
+      (
+        name: 'Android',
+        build: ['build', 'apk'],
+        tag: 'integration_android',
+      ),
+      (
+        name: 'iOS',
+        build: ['build', 'ios', '--no-codesign'],
+        tag: 'integration_ios',
+      ),
+    ]) {
+      test(
+        'generate produces a buildable ${platform.name} app',
+        () async {
+          final project = await TestFlutterProject.create();
+          // Write the SimpleData schema file into the default input directory.
+          final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
+          widgetDir.createSync(recursive: true);
+          final schemaFile = File(p.join(widgetDir.path, 'simple_data.dart'));
+          schemaFile.writeAsStringSync('''
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 @HomeWidget(
@@ -200,45 +212,31 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class SimpleData {}
 ''');
 
-        // Run the generate command.
-        final dartOut = p.join(project.root.path, 'lib', 'src', 'home_widget');
-        final code = await runCliWithProjectRoot(
-          project.root,
-          ['generate', '--dart-out', dartOut],
-        );
-        expect(code, 0);
+          final dartOut =
+              p.join(project.root.path, 'lib', 'src', 'home_widget');
+          final code = await runCliWithProjectRoot(
+            project.root,
+            ['generate', '--dart-out', dartOut],
+          );
+          expect(code, 0);
 
-        // Build Android.
-        final androidBuild = await Process.run(
-          'flutter',
-          ['build', 'apk'],
-          workingDirectory: project.root.path,
-          runInShell: true,
-        );
-        expect(
-          androidBuild.exitCode,
-          0,
-          reason:
-              'flutter build apk failed.\nSTDOUT:\n${androidBuild.stdout}\n\nSTDERR:\n${androidBuild.stderr}',
-        );
-
-        // Build iOS.
-        final iosBuild = await Process.run(
-          'flutter',
-          ['build', 'ios', '--no-codesign'],
-          workingDirectory: project.root.path,
-          runInShell: true,
-        );
-        expect(
-          iosBuild.exitCode,
-          0,
-          reason:
-              'flutter build ios failed.\nSTDOUT:\n${iosBuild.stdout}\n\nSTDERR:\n${iosBuild.stderr}',
-        );
-      },
-      timeout: const Timeout(Duration(minutes: 25)),
-      tags: ['integration', 'integration_android', 'integration_ios'],
-    );
+          final build = await Process.run(
+            'flutter',
+            platform.build,
+            workingDirectory: project.root.path,
+            runInShell: true,
+          );
+          expect(
+            build.exitCode,
+            0,
+            reason:
+                'flutter ${platform.build.join(' ')} failed.\nSTDOUT:\n${build.stdout}\n\nSTDERR:\n${build.stderr}',
+          );
+        },
+        timeout: const Timeout(Duration(minutes: 25)),
+        tags: ['integration', platform.tag],
+      );
+    }
     test(
       'warns when single input file has no HomeWidget annotation',
       () async {
