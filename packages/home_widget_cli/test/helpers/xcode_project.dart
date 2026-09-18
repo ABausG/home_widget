@@ -204,6 +204,19 @@ String flavoredPbxproj(
 \t\t};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+\t\t3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
+\t\t\tisa = PBXShellScriptBuildPhase;
+\t\t\tbuildActionMask = 2147483647;
+\t\t\tfiles = (
+\t\t\t);
+\t\t\tname = "Thin Binary";
+\t\t\trunOnlyForDeploymentPostprocessing = 0;
+\t\t\tshellPath = /bin/sh;
+\t\t\tshellScript = "/bin/sh \\"\$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\\" embed_and_thin";
+\t\t};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 \t\t97C146EA1CF9000F007C117D /* Sources */ = {
 \t\t\tisa = PBXSourcesBuildPhase;

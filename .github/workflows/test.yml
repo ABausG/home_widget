@@ -15,10 +15,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   changes:
     name: Detect changes
     if: ${{ !startsWith(github.head_ref, 'release-') }}
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     outputs:
       home_widget: ${{ steps.filter.outputs.home_widget }}
