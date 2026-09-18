@@ -1,13 +1,13 @@
 import 'dart:io';
 
+import 'package:home_widget_cli/src/generator_error.dart';
 import 'package:home_widget_cli/src/util/fnv_hash.dart';
-import 'package:home_widget_cli/src/util/logger.dart';
+import 'package:home_widget_cli/src/util/pbxproj/pbxproj_editor.dart';
 import 'package:home_widget_cli/src/util/xcode_pbxproj_patcher.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 /// Project shaped like one the generator has already added an extension to:
 /// an empty Resources phase, a group for the extension folder, and the
@@ -135,6 +135,29 @@ String _buildPbxprojWithForeignSynchronizedGroup() {
 /* Begin PBXGroup section */''',
   );
 }
+
+/// [_buildPbxprojWithExtension] with the extension folder's group created in
+/// Xcode: its own id, named after the widget, at [path] in the main group.
+String _buildPbxprojWithForeignWidgetGroup({required String path}) =>
+    _buildPbxprojWithExtension()
+        .replaceAll(
+          xcodeObjectId('group:GreetingHomeWidget'),
+          'C0FFEE000000000000000002',
+        )
+        .replaceFirst(
+          '\t\t\tpath = GreetingHomeWidget;\n',
+          '\t\t\tname = GreetingHomeWidget;\n\t\t\tpath = $path;\n',
+        )
+        .replaceFirst('/* Begin PBXGroup section */\n', '''
+/* Begin PBXGroup section */
+\t\t97C146E51CF9000F007C117D = {
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+\t\t\t\tC0FFEE000000000000000002 /* GreetingHomeWidget */,
+\t\t\t);
+\t\t\tsourceTree = "<group>";
+\t\t};
+''');
 
 /// An Xcode 16 shaped project the widget has never been scaffolded into: both
 /// synchronized-group sections are there, holding some other folder, and the
@@ -325,6 +348,10 @@ const _releaseOnlyDev = _RunnerFlavor(
 
 const _baseConfigNames = ['Debug', 'Release', 'Profile'];
 
+/// The id of the unflavored Runner configuration at [rank] in
+/// [_baseConfigNames].
+String _baseConfigId(int rank) => '97C1470${rank}1CF9000F007C117D';
+
 String _flavorConfigId(String prefix, int rank) => '$prefix${'0' * 21}$rank';
 
 String _runnerConfigObject({
@@ -395,7 +422,7 @@ String _buildFlavoredPbxproj({
 
   for (var rank = 0; rank < _baseConfigNames.length; rank++) {
     final name = _baseConfigNames[rank];
-    final id = '97C1470${rank}1CF9000F007C117D';
+    final id = _baseConfigId(rank);
     configObjects.add(
       _runnerConfigObject(
         id: id,
@@ -679,7 +706,7 @@ String _xcconfigFlavoredPbxproj() {
 
   for (var rank = 0; rank < _baseConfigNames.length; rank++) {
     final name = _baseConfigNames[rank];
-    final id = '97C1470${rank}1CF9000F007C117D';
+    final id = _baseConfigId(rank);
     configObjects.add(
       _runnerConfigObject(id: id, name: name, bundleId: 'com.example.app'),
     );
@@ -910,6 +937,44 @@ void main() {
       expect(result, contains('IPHONEOS_DEPLOYMENT_TARGET = 17.0;'));
     });
 
+    test('reads \$(inherited) as what the project level sets', () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_buildFlavoredPbxproj(flavors: const []))
+              ..setBuildSetting(
+                '97C147031CF9000F007C117D',
+                'IPHONEOS_DEPLOYMENT_TARGET',
+                '16.0',
+              )
+              ..setBuildSetting(
+                _baseConfigId(0),
+                'IPHONEOS_DEPLOYMENT_TARGET',
+                r'$(inherited)',
+              )
+              ..setBuildSetting(
+                _baseConfigId(1),
+                'IPHONEOS_DEPLOYMENT_TARGET',
+                r'${inherited}',
+              ))
+            .text,
+      );
+
+      await ensureMinimumDeploymentTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+      );
+
+      final result = pbxprojFile.readAsStringSync();
+      // Debug inherits 16.0 from the project level; there is no project-level
+      // Release for Release to inherit anything from.
+      expect(
+        _configObjectWithId(result, _baseConfigId(0)),
+        contains(r'IPHONEOS_DEPLOYMENT_TARGET = "$(inherited)";'),
+      );
+      expect(
+        _configObjectWithId(result, _baseConfigId(1)),
+        contains('IPHONEOS_DEPLOYMENT_TARGET = 14.0;'),
+      );
+    });
+
     test('does not modify non-Runner configs', () async {
       // A config that does NOT have INFOPLIST_FILE = Runner/Info.plist
       const content = '''
@@ -991,6 +1056,30 @@ void main() {
       // Existing entries are kept, and `en` is not duplicated.
       expect(regions, contains('Base,'));
       expect('en'.allMatches(regions).length, 1);
+    });
+
+    test('starts a missing knownRegions list the way Xcode does', () async {
+      pbxprojFile.writeAsStringSync(
+        _buildPbxprojWithExtension().replaceFirst(
+          '\t\t\tknownRegions = (\n\t\t\t\ten,\n\t\t\t\tBase,\n\t\t\t);\n',
+          '\t\t\tdevelopmentRegion = fr;\n',
+        ),
+      );
+
+      final result = await wire();
+
+      expect(
+        result,
+        contains(
+          '\t\t\tknownRegions = (\n'
+          '\t\t\t\tfr,\n'
+          '\t\t\t\tBase,\n'
+          '\t\t\t\ten,\n'
+          '\t\t\t\tde,\n'
+          '\t\t\t\t"pt-BR",\n'
+          '\t\t\t);\n',
+        ),
+      );
     });
 
     test('is idempotent', () async {
@@ -1185,6 +1274,45 @@ void main() {
       expect(result, _buildPbxprojWithSynchronizedGroup());
     });
 
+    test('wires the font into the group the project made for the folder',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _buildPbxprojWithForeignWidgetGroup(path: 'GreetingHomeWidget'),
+      );
+
+      final result = await wire();
+
+      final group = RegExp(
+        r'C0FFEE000000000000000002 /\* GreetingHomeWidget \*/ = \{[\s\S]*?'
+        r'children = \(([\s\S]*?)\);',
+      ).firstMatch(result)!.group(1)!;
+      expect(group, contains('/* hw_font_icons_materialicons.otf */'));
+    });
+
+    test('warns instead of wiring a file into no group', () async {
+      // A group Xcode shows under the widget's name can hold another folder.
+      final content = _buildPbxprojWithForeignWidgetGroup(path: 'Greeting');
+      pbxprojFile.writeAsStringSync(content);
+      final mock = useMockLogger();
+
+      final result = await wire();
+
+      expect(result, content);
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('hw_font_icons_materialicons.otf could not be wired'),
+              contains(
+                'Add ios/GreetingHomeWidget/hw_font_icons_materialicons.otf '
+                'to the GreetingHomeWidget target in Xcode.',
+              ),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
     test('wires the font when only another folder is synchronized', () async {
       pbxprojFile
           .writeAsStringSync(_buildPbxprojWithForeignSynchronizedGroup());
@@ -1213,41 +1341,44 @@ void main() {
 
     test('detectXcodeFlavors lists the flavors in first-seen order', () {
       expect(
-        detectXcodeFlavors(_buildFlavoredPbxproj()),
+        detectXcodeFlavors(Pbxproj.parse(_buildFlavoredPbxproj())),
         ['dev', 'prod'],
       );
     });
 
     test('detectXcodeFlavors is empty without flavored configurations', () {
       expect(
-        detectXcodeFlavors(_buildPbxproj(deploymentTarget: '14.0')),
+        detectXcodeFlavors(
+          Pbxproj.parse(_buildPbxproj(deploymentTarget: '14.0')),
+        ),
         isEmpty,
       );
-      expect(detectXcodeFlavors(_buildFlavoredPbxproj(flavors: [])), isEmpty);
+      expect(
+        detectXcodeFlavors(Pbxproj.parse(_buildFlavoredPbxproj(flavors: []))),
+        isEmpty,
+      );
     });
 
-    test('runnerEntitlementsPathsForFlavor reads the per-flavor file', () {
-      final pbxproj = _buildFlavoredPbxproj();
+    test('runnerEntitlementsSettingsForFlavor reads the per-flavor file', () {
+      final pbxproj = Pbxproj.parse(_buildFlavoredPbxproj());
 
       // All three of dev's configurations name the same file.
       expect(
-        runnerEntitlementsPathsForFlavor(pbxproj, 'dev'),
+        runnerEntitlementsSettingsForFlavor(pbxproj, 'dev'),
         ['Runner/RunnerDev.entitlements'],
       );
       // prod and the base configurations do not set it at all.
-      expect(runnerEntitlementsPathsForFlavor(pbxproj, 'prod'), isEmpty);
-      expect(runnerEntitlementsPathsForFlavor(pbxproj, null), isEmpty);
-      expect(runnerEntitlementsPathsForFlavor(pbxproj, 'missing'), isEmpty);
+      expect(runnerEntitlementsSettingsForFlavor(pbxproj, 'prod'), isEmpty);
+      expect(runnerEntitlementsSettingsForFlavor(pbxproj, null), isEmpty);
+      expect(runnerEntitlementsSettingsForFlavor(pbxproj, 'missing'), isEmpty);
     });
 
     test('lists every file a flavor signs with, in configuration order', () {
-      final pbxproj = _buildFlavoredPbxproj(flavors: const [_splitDev]);
+      final pbxproj = Pbxproj.parse(
+        _buildFlavoredPbxproj(flavors: const [_splitDev]),
+      );
 
       // Release and Profile share one file, so it is listed once.
-      expect(runnerEntitlementsPathsForFlavor(pbxproj, 'dev'), [
-        'Runner/RunnerDevDebug.entitlements',
-        'Runner/RunnerDevRelease.entitlements',
-      ]);
       expect(runnerEntitlementsSettingsForFlavor(pbxproj, 'dev'), [
         'Runner/RunnerDevDebug.entitlements',
         'Runner/RunnerDevRelease.entitlements',
@@ -1255,22 +1386,26 @@ void main() {
     });
 
     test('leaves out the configurations that name no file', () {
-      final pbxproj = _buildFlavoredPbxproj(flavors: const [_releaseOnlyDev]);
+      final pbxproj = Pbxproj.parse(
+        _buildFlavoredPbxproj(flavors: const [_releaseOnlyDev]),
+      );
 
       expect(
-        runnerEntitlementsPathsForFlavor(pbxproj, 'dev'),
+        runnerEntitlementsSettingsForFlavor(pbxproj, 'dev'),
         ['Runner/RunnerDevRelease.entitlements'],
       );
     });
 
     test('lists the file the unflavored trio shares once', () {
-      final pbxproj = _buildFlavoredPbxproj(
-        flavors: const [],
-        baseEntitlements: 'Runner/Runner.entitlements',
+      final pbxproj = Pbxproj.parse(
+        _buildFlavoredPbxproj(
+          flavors: const [],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        ),
       );
 
       expect(
-        runnerEntitlementsPathsForFlavor(pbxproj, null),
+        runnerEntitlementsSettingsForFlavor(pbxproj, null),
         ['Runner/Runner.entitlements'],
       );
     });
@@ -1339,7 +1474,7 @@ void main() {
 
       final result = await patch();
 
-      expect(detectXcodeFlavors(result), ['dev', 'prod']);
+      expect(detectXcodeFlavors(Pbxproj.parse(result)), ['dev', 'prod']);
       expect(
         _extensionConfig(result, 'Debug-dev'),
         contains('/* Debug-dev */'),
@@ -1357,9 +1492,9 @@ void main() {
       final fixture = _buildFlavoredPbxproj(flavorSettingsInProject: true);
       pbxprojFile.writeAsStringSync(fixture);
 
-      expect(detectXcodeFlavors(fixture), ['dev', 'prod']);
+      expect(detectXcodeFlavors(Pbxproj.parse(fixture)), ['dev', 'prod']);
       expect(
-        runnerEntitlementsPathsForFlavor(fixture, 'dev'),
+        runnerEntitlementsSettingsForFlavor(Pbxproj.parse(fixture), 'dev'),
         ['Runner/RunnerDev.entitlements'],
       );
 
@@ -1435,6 +1570,148 @@ void main() {
         contains(
           'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.GreetingHomeWidget;',
         ),
+      );
+    });
+
+    test('falls back to the bundle id of an unflavored configuration',
+        () async {
+      // Profile moves behind the flavor's configurations, so the only
+      // unflavored bundle id comes after the flavored ones in the file.
+      var pbxproj = _buildFlavoredPbxproj(flavors: const [_dev]);
+      final profile = _configObjectWithId(pbxproj, _baseConfigId(2));
+      pbxproj = pbxproj.replaceFirst('\t\t$profile\n', '').replaceFirst(
+            '/* End XCBuildConfiguration section */',
+            '\t\t$profile\n/* End XCBuildConfiguration section */',
+          );
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(pbxproj)
+              ..removeBuildSetting(
+                _baseConfigId(0),
+                'PRODUCT_BUNDLE_IDENTIFIER',
+              )
+              ..removeBuildSetting(
+                _baseConfigId(1),
+                'PRODUCT_BUNDLE_IDENTIFIER',
+              )
+              ..setBuildSetting(
+                _baseConfigId(2),
+                'PRODUCT_BUNDLE_IDENTIFIER',
+                'com.example.profile',
+              )
+              ..removeBuildSetting(
+                _flavorConfigId('AA', 1),
+                'PRODUCT_BUNDLE_IDENTIFIER',
+              ))
+            .text,
+      );
+
+      final result = await patch();
+
+      for (final name in ['Debug', 'Release', 'Debug-dev']) {
+        expect(
+          _extensionConfig(result, name),
+          contains(
+            'PRODUCT_BUNDLE_IDENTIFIER = '
+            'com.example.profile.GreetingHomeWidget;',
+          ),
+          reason: name,
+        );
+      }
+      expect(
+        _extensionConfig(result, 'Release-dev'),
+        contains(
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev.GreetingHomeWidget;',
+        ),
+      );
+    });
+
+    test('falls back to a flavored bundle id when no unflavored one is set',
+        () async {
+      final editor =
+          PbxprojEditor(_buildFlavoredPbxproj(flavors: const [_dev]));
+      for (var rank = 0; rank < _baseConfigNames.length; rank++) {
+        editor.removeBuildSetting(
+          _baseConfigId(rank),
+          'PRODUCT_BUNDLE_IDENTIFIER',
+        );
+      }
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final result = await patch();
+
+      expect(
+        _extensionConfig(result, 'Debug'),
+        contains(
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev.GreetingHomeWidget;',
+        ),
+      );
+    });
+
+    test('signs with the team of the same configuration or an unflavored one',
+        () async {
+      final editor = PbxprojEditor(_buildFlavoredPbxproj())
+        ..setBuildSetting(_baseConfigId(0), 'DEVELOPMENT_TEAM', 'BASE7EAM')
+        ..removeBuildSetting(_baseConfigId(1), 'DEVELOPMENT_TEAM')
+        ..setBuildSetting(_baseConfigId(2), 'DEVELOPMENT_TEAM', '')
+        ..setBuildSetting(
+          _flavorConfigId('AA', 1),
+          'DEVELOPMENT_TEAM',
+          'DEV7EAM',
+        )
+        ..removeBuildSetting(_flavorConfigId('AA', 2), 'DEVELOPMENT_TEAM')
+        ..setBuildSetting(_flavorConfigId('AA', 3), 'DEVELOPMENT_TEAM', '');
+      for (var rank = 1; rank <= _baseConfigNames.length; rank++) {
+        editor.removeBuildSetting(
+          _flavorConfigId('BB', rank),
+          'DEVELOPMENT_TEAM',
+        );
+      }
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final result = await patch();
+
+      String? team(String name) => RegExp(r'DEVELOPMENT_TEAM = (\w+);')
+          .firstMatch(_extensionConfig(result, name))
+          ?.group(1);
+      // An empty team is signing turned off, which no fallback overrides.
+      expect(
+        {
+          for (final flavor in ['', '-dev', '-prod'])
+            for (final base in _baseConfigNames)
+              '$base$flavor': team('$base$flavor'),
+        },
+        {
+          'Debug': 'BASE7EAM',
+          'Release': 'BASE7EAM',
+          'Profile': null,
+          'Debug-dev': 'DEV7EAM',
+          'Release-dev': 'BASE7EAM',
+          'Profile-dev': null,
+          'Debug-prod': 'BASE7EAM',
+          'Release-prod': 'BASE7EAM',
+          'Profile-prod': 'BASE7EAM',
+        },
+      );
+    });
+
+    test('never signs with the team of a flavor for another configuration',
+        () async {
+      final editor =
+          PbxprojEditor(_buildFlavoredPbxproj(flavors: const [_dev]));
+      for (var rank = 0; rank < _baseConfigNames.length; rank++) {
+        editor.removeBuildSetting(_baseConfigId(rank), 'DEVELOPMENT_TEAM');
+      }
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final result = await patch();
+
+      expect(
+        _extensionConfig(result, 'Debug'),
+        isNot(contains('DEVELOPMENT_TEAM')),
+      );
+      expect(
+        _extensionConfig(result, 'Release-dev'),
+        contains('DEVELOPMENT_TEAM = TEAM123;'),
       );
     });
 
@@ -1559,18 +1836,19 @@ void main() {
 
       await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
       final result = pbxprojFile.readAsStringSync();
+      final project = Pbxproj.parse(result);
 
       expect(
-        runnerEntitlementsPathsForFlavor(result, 'dev'),
+        runnerEntitlementsSettingsForFlavor(project, 'dev'),
         ['Runner/RunnerDev.entitlements'],
       );
       // Configurations without one get the default.
       expect(
-        runnerEntitlementsPathsForFlavor(result, null),
+        runnerEntitlementsSettingsForFlavor(project, null),
         ['Runner/Runner.entitlements'],
       );
       expect(
-        runnerEntitlementsPathsForFlavor(result, 'prod'),
+        runnerEntitlementsSettingsForFlavor(project, 'prod'),
         ['Runner/Runner.entitlements'],
       );
       expect(
@@ -1626,32 +1904,78 @@ void main() {
     });
 
     test('resolves an entitlements path written with build variables', () {
-      final pbxproj = _buildFlavoredPbxproj(flavors: const [_quotedDev]);
-
-      expect(
-        runnerEntitlementsPathsForFlavor(pbxproj, 'dev'),
-        ['Runner/RunnerDev.entitlements'],
+      final pbxproj = Pbxproj.parse(
+        _buildFlavoredPbxproj(flavors: const [_quotedDev]),
       );
+
+      final settings = runnerEntitlementsSettingsForFlavor(pbxproj, 'dev');
+
+      expect(settings, [r'$(SRCROOT)/Runner/RunnerDev.entitlements']);
       expect(
-        runnerEntitlementsSettingsForFlavor(pbxproj, 'dev'),
-        [r'$(SRCROOT)/Runner/RunnerDev.entitlements'],
+        resolveProjectRelativePath(settings.single),
+        'Runner/RunnerDev.entitlements',
       );
     });
 
     test('has no path for an entitlements file only Xcode can locate', () {
-      final pbxproj = _buildFlavoredPbxproj(flavors: const [_customPathDev]);
-
-      expect(runnerEntitlementsPathsForFlavor(pbxproj, 'dev'), isEmpty);
-      expect(
-        runnerEntitlementsSettingsForFlavor(pbxproj, 'dev'),
-        [r'$(CUSTOM)/RunnerDev.entitlements'],
+      final pbxproj = Pbxproj.parse(
+        _buildFlavoredPbxproj(flavors: const [_customPathDev]),
       );
+
+      final settings = runnerEntitlementsSettingsForFlavor(pbxproj, 'dev');
+
+      expect(settings, [r'$(CUSTOM)/RunnerDev.entitlements']);
+      expect(resolveProjectRelativePath(settings.single), isNull);
+    });
+  });
+
+  group('resolveProjectRelativePath', () {
+    test('keeps a path relative to the project directory', () {
+      expect(
+        resolveProjectRelativePath(' Runner/Runner.entitlements '),
+        'Runner/Runner.entitlements',
+      );
+    });
+
+    test('strips the variables naming the project directory', () {
+      for (final variable in const [
+        r'$(SRCROOT)',
+        r'${SRCROOT}',
+        r'$(PROJECT_DIR)',
+        r'${PROJECT_DIR}',
+      ]) {
+        expect(
+          resolveProjectRelativePath('$variable/Runner/Runner.entitlements'),
+          'Runner/Runner.entitlements',
+          reason: variable,
+        );
+      }
+    });
+
+    test('has no path for any other variable or an empty value', () {
+      expect(
+        resolveProjectRelativePath(r'Runner/$(CONFIGURATION).entitlements'),
+        isNull,
+      );
+      expect(
+        resolveProjectRelativePath(r'${CUSTOM}/Runner.entitlements'),
+        isNull,
+      );
+      expect(resolveProjectRelativePath(r'$(SRCROOT)/'), isNull);
+      expect(resolveProjectRelativePath(''), isNull);
     });
   });
 
   group('xcconfig', () {
     late Directory iosDir;
     late File xcconfig;
+
+    List<String> devEntitlements({bool withProjectDir = true}) =>
+        runnerEntitlementsSettingsForFlavor(
+          Pbxproj.parse(pbxprojFile.readAsStringSync()),
+          'dev',
+          projectDir: withProjectDir ? iosDir : null,
+        );
 
     setUp(() {
       iosDir = Directory('${tempDir.path}/ios')..createSync();
@@ -1670,7 +1994,10 @@ void main() {
         'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev // the flavor\n',
       );
 
-      expect(detectXcodeFlavors(pbxprojFile.readAsStringSync()), ['dev']);
+      expect(
+        detectXcodeFlavors(Pbxproj.parse(pbxprojFile.readAsStringSync())),
+        ['dev'],
+      );
 
       await ensureWidgetExtensionTargetInXcodeProject(
         pbxprojFile: pbxprojFile,
@@ -1699,30 +2026,26 @@ void main() {
         'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDev.entitlements\n',
       );
 
-      expect(
-        runnerEntitlementsPathsForFlavor(
-          pbxprojFile.readAsStringSync(),
-          'dev',
-          projectDir: iosDir,
-        ),
-        ['Runner/RunnerDev.entitlements'],
-      );
+      expect(devEntitlements(), ['Runner/RunnerDev.entitlements']);
     });
 
-    test('resolves a bundle id assembled from other settings', () {
+    test('resolves a bundle id assembled from other settings', () async {
       xcconfig.writeAsStringSync(
         'APP_ID = com.example.app\n'
         r'PRODUCT_BUNDLE_IDENTIFIER = $(APP_ID).dev'
         '\n',
       );
 
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+
       expect(
-        runnerEntitlementsPathsForFlavor(
-          pbxprojFile.readAsStringSync(),
-          'dev',
-          projectDir: iosDir,
+        _extensionConfig(pbxprojFile.readAsStringSync(), 'Debug-dev'),
+        contains(
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev.GreetingHomeWidget;',
         ),
-        isEmpty,
       );
     });
 
@@ -1745,13 +2068,21 @@ void main() {
         'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDev.entitlements\n',
       );
 
+      expect(devEntitlements(), ['Runner/RunnerDev.entitlements']);
+    });
+
+    test('unquotes an entitlements path a flavor keeps in its xcconfig', () {
+      xcconfig.writeAsStringSync(
+        r'CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/Runner/RunnerDev.entitlements"'
+        '\n',
+      );
+
+      final settings = devEntitlements();
+
+      expect(settings, [r'$(SRCROOT)/Runner/RunnerDev.entitlements']);
       expect(
-        runnerEntitlementsPathsForFlavor(
-          pbxprojFile.readAsStringSync(),
-          'dev',
-          projectDir: iosDir,
-        ),
-        ['Runner/RunnerDev.entitlements'],
+        resolveProjectRelativePath(settings.single),
+        'Runner/RunnerDev.entitlements',
       );
     });
 
@@ -1760,10 +2091,7 @@ void main() {
         'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDev.entitlements\n',
       );
 
-      expect(
-        runnerEntitlementsPathsForFlavor(pbxprojFile.readAsStringSync(), 'dev'),
-        isEmpty,
-      );
+      expect(devEntitlements(withProjectDir: false), isEmpty);
     });
   });
 
@@ -1831,6 +2159,28 @@ void main() {
           '"\$(inherited) MY_FLAG HW_FLAVOR_DEV";',
         ),
       );
+    });
+
+    test('leaves a setting holding the flavor condition the way it is written',
+        () async {
+      final first = await patch();
+      final edited = _withCompilationConditions(
+        _withCompilationConditions(
+          first,
+          'Debug-dev',
+          '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = (\n'
+              '\t\t\t\t\t"\$(inherited)",\n'
+              '\t\t\t\t\tHW_FLAVOR_DEV,\n'
+              '\t\t\t\t\tMY_FLAG,\n'
+              '\t\t\t\t);',
+        ),
+        'Release-dev',
+        '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = '
+            '"HW_FLAVOR_DEV  \$(inherited)";',
+      );
+      pbxprojFile.writeAsStringSync(edited);
+
+      expect(await patch(), edited);
     });
 
     test('drops a stale flavor condition and keeps the rest', () async {
@@ -1977,18 +2327,98 @@ void main() {
     });
   });
 
-  group('reporting', () {
-    MockLogger useMockLogger() {
-      final saved = logger;
-      final mock = MockLogger();
-      when(() => mock.detail(any())).thenReturn(null);
-      when(() => mock.info(any())).thenReturn(null);
-      when(() => mock.warn(any())).thenReturn(null);
-      logger = mock;
-      addTearDown(() => logger = saved);
-      return mock;
+  group('Runner build phases', () {
+    const runnerPhases = '\t\t\tbuildPhases = (\n'
+        '\t\t\t\t97C146EA1CF9000F007C117D /* Sources */,\n'
+        '\t\t\t\t97C146EB1CF9000F007C117D /* Frameworks */,\n'
+        '\t\t\t\t97C146EC1CF9000F007C117D /* Resources */,\n'
+        '\t\t\t\t3B06AD1E1E4923F5004D2608 /* Thin Binary */,\n'
+        '\t\t\t);\n';
+    final embedPhase =
+        '${xcodeObjectId('phase:copy:GreetingHomeWidget')} /* Embed Foundation Extensions */';
+
+    Future<String> patch() async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+      return pbxprojFile.readAsStringSync();
     }
 
+    String runnerBuildPhases(String pbxproj) => RegExp(
+          r'97C146ED1CF9000F007C117D /\* Runner \*/ = \{[\s\S]*?'
+          r'(\t\t\tbuildPhases = \([\s\S]*?\n\t\t\t\);\n)',
+        ).firstMatch(pbxproj)!.group(1)!;
+
+    test('moves an embed phase Runner still lists ahead of the script phases',
+        () async {
+      // A target removed by hand can leave its embed phase behind in Runner.
+      pbxprojFile.writeAsStringSync(
+        _buildFlavoredPbxproj(flavors: const [])
+            .replaceFirst(
+              runnerPhases,
+              '\t\t\tbuildPhases = (\n'
+              '\t\t\t\t97C146EA1CF9000F007C117D /* Sources */,\n'
+              '\t\t\t\t97C146EB1CF9000F007C117D /* Frameworks */,\n'
+              '\t\t\t\t97C146EC1CF9000F007C117D /* Resources */,\n'
+              '\t\t\t\tC0DE00000000000000000001 /* [CP] Embed Pods Frameworks */,\n'
+              '\t\t\t\t3B06AD1E1E4923F5004D2608 /* Thin Binary */,\n'
+              '\t\t\t\t$embedPhase,\n'
+              '\t\t\t);\n',
+            )
+            .replaceFirst(
+              '/* Begin PBXSourcesBuildPhase section */',
+              '/* Begin PBXShellScriptBuildPhase section */\n'
+                  '\t\tC0DE00000000000000000001 /* [CP] Embed Pods Frameworks */ = {\n'
+                  '\t\t\tisa = PBXShellScriptBuildPhase;\n'
+                  '\t\t\tname = "[CP] Embed Pods Frameworks";\n'
+                  '\t\t};\n'
+                  '\t\t3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {\n'
+                  '\t\t\tisa = PBXShellScriptBuildPhase;\n'
+                  '\t\t\tname = "Thin Binary";\n'
+                  '\t\t};\n'
+                  '/* End PBXShellScriptBuildPhase section */\n'
+                  '\n'
+                  '/* Begin PBXSourcesBuildPhase section */',
+            ),
+      );
+
+      final result = await patch();
+
+      expect(
+        runnerBuildPhases(result),
+        '\t\t\tbuildPhases = (\n'
+        '\t\t\t\t97C146EA1CF9000F007C117D /* Sources */,\n'
+        '\t\t\t\t97C146EB1CF9000F007C117D /* Frameworks */,\n'
+        '\t\t\t\t97C146EC1CF9000F007C117D /* Resources */,\n'
+        '\t\t\t\t$embedPhase,\n'
+        '\t\t\t\tC0DE00000000000000000001 /* [CP] Embed Pods Frameworks */,\n'
+        '\t\t\t\t3B06AD1E1E4923F5004D2608 /* Thin Binary */,\n'
+        '\t\t\t);\n',
+      );
+    });
+
+    test('creates the build phases of a Runner that has none', () async {
+      pbxprojFile.writeAsStringSync(
+        _buildFlavoredPbxproj(flavors: const []).replaceFirst(runnerPhases, ''),
+      );
+
+      final result = await patch();
+
+      expect(
+        result,
+        contains(
+          '\t\t\tbuildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;\n'
+          '\t\t\tbuildPhases = (\n'
+          '\t\t\t\t$embedPhase,\n'
+          '\t\t\t);\n'
+          '\t\t\tbuildRules = (\n',
+        ),
+      );
+    });
+  });
+
+  group('reporting', () {
     Future<String> patch({Map<String, String> flavorEntitlements = const {}}) =>
         ensureWidgetExtensionTargetInXcodeProject(
           pbxprojFile: pbxprojFile,
@@ -2018,6 +2448,44 @@ void main() {
       ).called(1);
     });
 
+    test('warns when a sync resets a setting of a target it did not create',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
+      final created = await patch();
+      final foreign = created
+          .replaceAll(
+            xcodeObjectId('target:GreetingHomeWidget'),
+            'AB00000000000000000000FF',
+          )
+          .replaceFirst(
+            'CODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;',
+            'CODE_SIGN_ENTITLEMENTS = Chosen.entitlements;',
+          );
+      pbxprojFile.writeAsStringSync(foreign);
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('Reset CODE_SIGN_ENTITLEMENTS on the "Debug"'),
+              contains('home_widget did not create this target'),
+            ),
+          ),
+        ),
+      ).called(1);
+      verifyNever(() => mock.info(any()));
+      expect(
+        result,
+        foreign.replaceFirst(
+          'CODE_SIGN_ENTITLEMENTS = Chosen.entitlements;',
+          'CODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;',
+        ),
+      );
+    });
+
     test('stays quiet when a re-run changes nothing', () async {
       pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
       await patch();
@@ -2028,7 +2496,7 @@ void main() {
       verifyNever(() => mock.info(any()));
     });
 
-    test('warns and writes nothing when the project ids are not found',
+    test('fails and writes nothing when the project ids are not found',
         () async {
       const content = '''
 // !\$*UTF8*\$!
@@ -2038,15 +2506,82 @@ void main() {
 }
 ''';
       pbxprojFile.writeAsStringSync(content);
-      final mock = useMockLogger();
+      useMockLogger();
 
-      await patch();
-
-      verify(
-        () => mock.warn(
-          any(that: contains('Skipping Widget Extension wiring.')),
+      await expectLater(
+        patch(),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains(pbxprojFile.path),
+              contains('root PBXProject'),
+              contains('PBXNativeTarget named "Runner"'),
+              endsWith('project structure that `flutter create` generates.'),
+            ),
+          ),
         ),
-      ).called(1);
+      );
+      expect(pbxprojFile.readAsStringSync(), content);
+    });
+
+    test('fails and writes nothing when its edits leave the project unparsable',
+        () async {
+      // The extension's configuration is titled with the Runner one's name,
+      // and a title holding `*/` ends its comment early.
+      final content = _addRunnerConfigurations(
+        _buildFlavoredPbxproj(flavors: const []),
+        const ['Beta'],
+      ).replaceFirst('name = Beta;', 'name = "Beta */ QA";');
+      pbxprojFile.writeAsStringSync(content);
+      useMockLogger();
+
+      await expectLater(
+        patch(),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              startsWith(
+                'home_widget produced an invalid Xcode project while updating '
+                '${pbxprojFile.path} and left the file unchanged: ',
+              ),
+              contains('line'),
+            ),
+          ),
+        ),
+      );
+      expect(pbxprojFile.readAsStringSync(), content);
+    });
+
+    test('fails and writes nothing when the project has no groups to attach to',
+        () async {
+      final content = _buildFlavoredPbxproj(flavors: const [])
+          .replaceFirst('\t\t\tmainGroup = 97C146E51CF9000F007C117D;\n', '')
+          .replaceFirst(
+            '\t\t\tproductRefGroup = 97C146EF1CF9000F007C117D /* Products */;\n',
+            '',
+          );
+      pbxprojFile.writeAsStringSync(content);
+      useMockLogger();
+
+      await expectLater(
+        patch(),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('the mainGroup of its PBXProject'),
+              contains('the productRefGroup of its PBXProject'),
+              isNot(contains('root PBXProject')),
+              isNot(contains('PBXNativeTarget named "Runner"')),
+            ),
+          ),
+        ),
+      );
       expect(pbxprojFile.readAsStringSync(), content);
     });
 
@@ -2192,6 +2727,338 @@ void main() {
             .length,
         1,
       );
+    });
+  });
+
+  group('app target', () {
+    final dependency = xcodeObjectId('dep:GreetingHomeWidget');
+    final embedPhase = xcodeObjectId('phase:copy:GreetingHomeWidget');
+
+    String renamed(String pbxproj, String name) =>
+        pbxproj.replaceFirst('\t\t\tname = Runner;\n', '\t\t\tname = $name;\n');
+
+    /// [pbxproj] with a second application target, Other, next to its own.
+    String withOtherApplication(String pbxproj) =>
+        (PbxprojEditor(pbxproj)..insertObjects('PBXNativeTarget', '''
+\t\tC0DE00000000000000000002 /* Other */ = {
+\t\t\tisa = PBXNativeTarget;
+\t\t\tdependencies = (
+\t\t\t);
+\t\t\tname = Other;
+\t\t\tproductType = "com.apple.product-type.application";
+\t\t};
+''')).text;
+
+    File inXcodeProject(String name, String content) =>
+        File('${tempDir.path}/ios/$name.xcodeproj/project.pbxproj')
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync(content);
+
+    Future<Pbxproj> patch(File file) async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: file,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+      return Pbxproj.parse(file.readAsStringSync());
+    }
+
+    test('is the only application target when none is named Runner', () async {
+      pbxprojFile.writeAsStringSync(renamed(_buildFlavoredPbxproj(), 'App'));
+
+      final project = await patch(pbxprojFile);
+
+      final app = project.nativeTargetNamed('App')!;
+      expect(app.strings('dependencies'), [dependency]);
+      expect(app.strings('buildPhases'), contains(embedPhase));
+      expect(detectXcodeFlavors(project), ['dev', 'prod']);
+      expect(
+        _extensionConfig(project.text, 'Debug-dev'),
+        contains(
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev.GreetingHomeWidget;',
+        ),
+      );
+    });
+
+    test('is the one named after the project among several', () async {
+      final file = inXcodeProject(
+        'App',
+        withOtherApplication(
+          renamed(_buildFlavoredPbxproj(), 'App')
+              .replaceAll('Runner/Info.plist', 'App/Info.plist'),
+        ),
+      );
+
+      final project = await patch(file);
+
+      expect(
+        project.nativeTargetNamed('App')!.strings('dependencies'),
+        [dependency],
+      );
+      expect(
+        project.nativeTargetNamed('Other')!.strings('dependencies'),
+        isEmpty,
+      );
+      expect(detectXcodeFlavors(project, projectName: 'App'), ['dev', 'prod']);
+      expect(detectXcodeFlavors(project), isEmpty);
+    });
+
+    test('is Runner whatever the project is called', () async {
+      final file = inXcodeProject(
+        'Other',
+        withOtherApplication(_buildFlavoredPbxproj(flavors: const [])),
+      );
+
+      final project = await patch(file);
+
+      expect(
+        project.nativeTargetNamed('Runner')!.strings('dependencies'),
+        [dependency],
+      );
+      expect(
+        project.nativeTargetNamed('Other')!.strings('dependencies'),
+        isEmpty,
+      );
+    });
+
+    test('fails naming the targets it looked for when none can be the app',
+        () async {
+      final content = withOtherApplication(
+        renamed(_buildFlavoredPbxproj(flavors: const []), 'App'),
+      );
+      final file = inXcodeProject('MyApp', content);
+
+      await expectLater(
+        checkWidgetExtensionTargetInXcodeProject(
+          pbxprojFile: file,
+          widgetClassName: 'GreetingHomeWidget',
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains(
+                'the project is missing an app target (a PBXNativeTarget '
+                'named "Runner" or "MyApp", or the only one of productType '
+                '"com.apple.product-type.application").',
+              ),
+              endsWith(
+                'home_widget needs the app target and project structure that '
+                '`flutter create` generates.',
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(file.readAsStringSync(), content);
+    });
+
+    test('is what the patchers name in their reports', () async {
+      pbxprojFile.writeAsStringSync(
+        renamed(_buildFlavoredPbxproj(flavors: const []), 'App')
+            .replaceAll('Runner/Info.plist', 'App/Info.plist'),
+      );
+      final mock = useMockLogger();
+
+      await patch(pbxprojFile);
+      await ensureMinimumDeploymentTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        minimumVersion: 15.0,
+      );
+      pbxprojFile.writeAsStringSync(
+        pbxprojFile
+            .readAsStringSync()
+            .replaceAll('com.example.app;', 'com.example.renamed;'),
+      );
+      await patch(pbxprojFile);
+
+      verify(() => mock.detail('Ensured App uses App/App.entitlements.'))
+          .called(1);
+      verify(
+        () => mock.detail('Ensured App IPHONEOS_DEPLOYMENT_TARGET >= 15.0.'),
+      ).called(1);
+      verify(
+        () => mock.detail(
+          'Synced the Widget Extension target "GreetingHomeWidget" with App.',
+        ),
+      ).called(1);
+      verify(
+        () => mock.info(
+          'Reset PRODUCT_BUNDLE_IDENTIFIER on the "Debug" configuration of '
+          'GreetingHomeWidget to match App.',
+        ),
+      ).called(1);
+    });
+  });
+
+  group('defaultRunnerEntitlementsPath', () {
+    String withInfoPlist(String infoPlist) =>
+        _buildFlavoredPbxproj(flavors: const []).replaceAll(
+          'INFOPLIST_FILE = Runner/Info.plist;',
+          'INFOPLIST_FILE = $infoPlist;',
+        );
+
+    for (final (infoPlist, path) in const [
+      ('Runner/Info.plist', 'Runner/Runner.entitlements'),
+      ('App/Info.plist', 'App/App.entitlements'),
+      (r'"$(SRCROOT)/App/Info.plist"', 'App/App.entitlements'),
+      ('./App/Info.plist', 'App/App.entitlements'),
+      ('Sources/App/Info.plist', 'Sources/App/App.entitlements'),
+      ('Info.plist', 'Runner/Runner.entitlements'),
+      ('../Shared/Info.plist', 'Runner/Runner.entitlements'),
+      ('/Shared/Info.plist', 'Runner/Runner.entitlements'),
+      (r'"$(CUSTOM)/App/Info.plist"', 'Runner/Runner.entitlements'),
+    ]) {
+      test('is $path for an Info.plist at $infoPlist', () {
+        expect(
+          defaultRunnerEntitlementsPath(
+            Pbxproj.parse(withInfoPlist(infoPlist)),
+          ),
+          path,
+        );
+      });
+    }
+
+    test('is Runner/Runner.entitlements without an app target', () {
+      expect(
+        defaultRunnerEntitlementsPath(
+          Pbxproj.parse('{\n\tobjects = {\n\t};\n}\n'),
+        ),
+        'Runner/Runner.entitlements',
+      );
+    });
+
+    test('is what a configuration naming no file is signed with', () async {
+      pbxprojFile.writeAsStringSync(withInfoPlist('App/Info.plist'));
+
+      await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
+
+      expect(
+        'CODE_SIGN_ENTITLEMENTS = App/App.entitlements;'
+            .allMatches(pbxprojFile.readAsStringSync()),
+        hasLength(3),
+      );
+    });
+  });
+
+  group('deployment target of a new extension configuration', () {
+    const debugId = '97C147031CF9000F007C117D';
+
+    String withRunnerDeploymentTarget(String pbxproj, String value) =>
+        pbxproj.replaceAll(
+          'IPHONEOS_DEPLOYMENT_TARGET = 14.0;',
+          'IPHONEOS_DEPLOYMENT_TARGET = $value;',
+        );
+
+    Future<String> patch() async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+      return pbxprojFile.readAsStringSync();
+    }
+
+    String deploymentTarget(String pbxproj, String name) =>
+        RegExp(r'IPHONEOS_DEPLOYMENT_TARGET = ([^;]*);')
+            .firstMatch(_extensionConfig(pbxproj, name))!
+            .group(1)!;
+
+    for (final (runner, extension) in const [
+      ('16.0', '16.0'),
+      ('15', '15'),
+      ('14.0', '14.0'),
+      ('12.0', '14.0'),
+      (r'"$(RECOMMENDED_IPHONEOS_DEPLOYMENT_TARGET)"', '14.0'),
+      ('latest', '14.0'),
+    ]) {
+      test('is $extension where Runner resolves to $runner', () async {
+        pbxprojFile.writeAsStringSync(
+          withRunnerDeploymentTarget(
+            _buildFlavoredPbxproj(flavors: const []),
+            runner,
+          ),
+        );
+
+        final result = await patch();
+
+        for (final name in _baseConfigNames) {
+          expect(deploymentTarget(result, name), extension, reason: name);
+        }
+      });
+    }
+
+    test('is what the project level sets, and 14.0 where nothing is set',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(
+          _buildFlavoredPbxproj(flavors: const [])
+              .replaceAll('\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;\n', ''),
+        )
+              ..setBuildSetting(debugId, 'IPHONEOS_DEPLOYMENT_TARGET', '15.0')
+              ..setBuildSetting(
+                _baseConfigId(0),
+                'IPHONEOS_DEPLOYMENT_TARGET',
+                r'$(inherited)',
+              ))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(deploymentTarget(result, 'Debug'), '15.0');
+      expect(deploymentTarget(result, 'Release'), '14.0');
+      expect(deploymentTarget(result, 'Profile'), '14.0');
+    });
+
+    test('follows the configuration of the same name', () async {
+      final editor = PbxprojEditor(_buildFlavoredPbxproj(flavors: [_dev]));
+      for (var rank = 1; rank <= 3; rank++) {
+        editor.setBuildSetting(
+          _flavorConfigId(_dev.idPrefix, rank),
+          'IPHONEOS_DEPLOYMENT_TARGET',
+          '16.0',
+        );
+      }
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final result = await patch();
+
+      expect(deploymentTarget(result, 'Debug'), '14.0');
+      expect(deploymentTarget(result, 'Release-dev'), '16.0');
+    });
+
+    test('is set for a flavor introduced later, and kept everywhere else',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: const []));
+      final before = await patch();
+      final raised = PbxprojEditor(_addRunnerFlavor(before, _stg))
+        ..setBuildSetting(
+          xcodeObjectId('cfg:Debug:GreetingHomeWidget'),
+          'IPHONEOS_DEPLOYMENT_TARGET',
+          '16.0',
+        );
+      for (var rank = 0; rank < 3; rank++) {
+        raised.setBuildSetting(
+          _baseConfigId(rank),
+          'IPHONEOS_DEPLOYMENT_TARGET',
+          '15.0',
+        );
+      }
+      for (var rank = 1; rank <= 3; rank++) {
+        raised.setBuildSetting(
+          _flavorConfigId(_stg.idPrefix, rank),
+          'IPHONEOS_DEPLOYMENT_TARGET',
+          '17.0',
+        );
+      }
+      pbxprojFile.writeAsStringSync(raised.text);
+
+      final after = await patch();
+
+      expect(deploymentTarget(after, 'Debug-stg'), '17.0');
+      expect(deploymentTarget(after, 'Profile-stg'), '17.0');
+      expect(deploymentTarget(after, 'Debug'), '16.0');
+      expect(deploymentTarget(after, 'Release'), '14.0');
     });
   });
 }

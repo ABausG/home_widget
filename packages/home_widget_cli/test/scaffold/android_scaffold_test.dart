@@ -2,12 +2,11 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/scaffold/android_scaffold.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 void main() {
   late MockLogger mockLogger;

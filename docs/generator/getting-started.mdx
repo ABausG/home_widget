@@ -113,5 +113,7 @@ This page walks through setting up `home_widget_generator`, writing your first w
 
   <Step title="Native setup">
     **No manual native setup is needed**: the CLI registers the widget receiver in `AndroidManifest.xml`, adds the iOS widget extension to the Xcode project, writes the entitlements file, and bumps the deployment target as required. You only need an App Group ID configured for iOS — provide it via the `iOS: HomeWidgetIOSConfiguration(groupId: ...)` field on the annotation.
+
+    The Xcode project is the `.xcodeproj` in `ios/` — `Runner.xcodeproj` unless you renamed it — and the widget is attached to its app target. If `ios/` holds no Xcode project, the CLI stops before writing anything.
   </Step>
 </Steps>

@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:home_widget_cli/src/util/xcode_pbxproj_patcher.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+
+import 'package_root.dart';
 
 /// A temporary Flutter project created via `flutter create --empty --no-pub`
 /// with only the requested `--platforms` (android / ios / web), then path deps
@@ -151,15 +152,7 @@ dependencies {
 ''';
 
 Future<void> _ensureHomeWidgetDependencyPresent(Directory projectRoot) async {
-  final packageUri = await Isolate.resolvePackageUri(
-    Uri.parse('package:home_widget_cli/src/cli.dart'),
-  );
-  if (packageUri == null) {
-    throw StateError('Could not resolve package:home_widget_cli');
-  }
-
-  final cliPackageRoot = File(packageUri.toFilePath()).parent.parent.parent;
-  final packagesDir = cliPackageRoot.parent;
+  final packagesDir = (await cliPackageRoot()).parent;
   final homeWidgetPath = p.join(packagesDir.path, 'home_widget');
   final generatorPath = p.join(packagesDir.path, 'home_widget_generator');
 

@@ -4,23 +4,21 @@ import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/fnv_hash.dart';
 import 'package:home_widget_cli/src/util/font_resolver.dart';
-import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/font_fixture.dart';
-
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
+import '../helpers/xcode_project.dart';
 
 void main() {
   late Directory tempDir;
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('ios_gen_test');
-    Directory(p.join(tempDir.path, 'ios')).createSync(recursive: true);
+    writeRunnerXcodeProject(tempDir);
   });
 
   tearDown(() {
@@ -740,11 +738,7 @@ void main() {
   });
 
   test('warns and skips wiring when ios/ is missing', () async {
-    final saved = logger;
-    final mockLogger = MockLogger();
-    logger = mockLogger;
-    when(() => mockLogger.warn(any())).thenReturn(null);
-    addTearDown(() => logger = saved);
+    final mockLogger = useMockLogger();
 
     final root = Directory.systemTemp.createTempSync('ios_gen_no_ios');
     addTearDown(() => root.deleteSync(recursive: true));
@@ -762,6 +756,34 @@ void main() {
     verify(
       () => mockLogger.warn(any(that: contains('ios/ not found'))),
     ).called(1);
+  });
+
+  test('fails without an Xcode project in ios/ and writes nothing', () async {
+    final iosDir = Directory(p.join(tempDir.path, 'ios'));
+    Directory(p.join(iosDir.path, 'Runner.xcodeproj'))
+        .deleteSync(recursive: true);
+    final generator = IosGenerator(
+      spec: WidgetSpec(
+        data: HomeWidget(
+          name: 'X',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'g'),
+        ),
+        className: 'X',
+      ),
+      projectRoot: tempDir,
+    );
+    final noProject = throwsA(
+      isA<GeneratorError>().having(
+        (e) => e.message,
+        'message',
+        startsWith('No Xcode project found in ${iosDir.path}.'),
+      ),
+    );
+
+    await expectLater(generator.checkXcodeProject(), noProject);
+    await expectLater(generator.generate(), noProject);
+
+    expect(iosDir.listSync(), isEmpty);
   });
 
   test('applies custom background and disables content padding', () async {
@@ -1436,33 +1458,21 @@ void main() {
         );
 
     File writePbxproj(
-      List<_RunnerFlavor> flavors, {
+      List<RunnerFlavor> flavors, {
       String? baseEntitlements,
-    }) {
-      final file = File(
-        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
-      )..parent.createSync(recursive: true);
-      file.writeAsStringSync(
-        _flavoredPbxproj(flavors, baseEntitlements: baseEntitlements),
-      );
-      return file;
-    }
+    }) =>
+        writeRunnerXcodeProject(
+          tempDir,
+          flavors: flavors,
+          baseEntitlements: baseEntitlements,
+        );
 
     String readIos(String relative) =>
         File(p.join(tempDir.path, 'ios', relative)).readAsStringSync();
 
-    MockLogger useMockLogger() {
-      final saved = logger;
-      final mock = MockLogger();
-      when(() => mock.detail(any())).thenReturn(null);
-      when(() => mock.info(any())).thenReturn(null);
-      when(() => mock.warn(any())).thenReturn(null);
-      logger = mock;
-      addTearDown(() => logger = saved);
-      return mock;
-    }
-
     test('emits the flavor enum and guards the bundle', () async {
+      writePbxproj(const [_devNoEntitlements, _prodFlavor]);
+
       await IosGenerator(
         spec: specFor({
           'dev': const HomeWidgetFlavor(
@@ -1502,6 +1512,8 @@ void main() {
 
     test('writes one entitlements file per flavor next to the base one',
         () async {
+      writePbxproj(const [_devNoEntitlements, _prodFlavor]);
+
       await IosGenerator(
         spec: specFor({
           'dev': const HomeWidgetFlavor(
@@ -1762,6 +1774,51 @@ void main() {
       );
     });
 
+    for (final (description, flavors) in [
+      ('a flavored', {'dev': const HomeWidgetFlavor()}),
+      ('an unflavored', const <String, HomeWidgetFlavor>{}),
+    ]) {
+      test('fails $description widget on an Xcode project it cannot read',
+          () async {
+        final pbxproj = File(
+          p.join(tempDir.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'),
+        )..parent.createSync(recursive: true);
+        pbxproj.writeAsStringSync('not a property list');
+
+        await expectLater(
+          IosGenerator(spec: specFor(flavors), projectRoot: tempDir).generate(),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                startsWith(
+                  'Could not read the Xcode project ${pbxproj.path}: ',
+                ),
+                contains('line 1'),
+              ),
+            ),
+          ),
+        );
+        expect(
+          Directory(p.join(tempDir.path, 'ios/GreetingHomeWidget'))
+              .existsSync(),
+          isFalse,
+        );
+        expect(
+          File(p.join(tempDir.path, 'ios/GreetingHomeWidget.entitlements'))
+              .existsSync(),
+          isFalse,
+        );
+        expect(
+          File(p.join(tempDir.path, 'ios/Runner/Runner.entitlements'))
+              .existsSync(),
+          isFalse,
+        );
+        expect(pbxproj.readAsStringSync(), 'not a property list');
+      });
+    }
+
     test('stays quiet about flavors it declares and the project has', () async {
       writePbxproj(const [_devFlavor]);
       final mock = useMockLogger();
@@ -1850,6 +1907,42 @@ void main() {
       );
     });
 
+    test('writes the base group next to the app without unflavored ones',
+        () async {
+      final pbxproj = writePbxproj(const [_devNoEntitlements]);
+      pbxproj.writeAsStringSync(
+        pbxproj
+            .readAsStringSync()
+            .replaceAll(
+              RegExp(r'\t\t\t\t97C1470[0-2]1CF9000F007C117D /\* \w+ \*/,\n'),
+              '',
+            )
+            .replaceAll('Runner/Info.plist', 'App/Info.plist'),
+      );
+
+      await IosGenerator(
+        spec: specFor({
+          'dev': const HomeWidgetFlavor(
+            iOS: HomeWidgetIOSFlavor(groupId: 'group.example.dev'),
+          ),
+        }),
+        projectRoot: tempDir,
+      ).generate();
+
+      expect(
+        readIos('App/App.entitlements'),
+        allOf(
+          contains('<string>group.example</string>'),
+          contains('<string>group.example.dev</string>'),
+        ),
+      );
+      expect(
+        File(p.join(tempDir.path, 'ios/Runner/Runner.entitlements'))
+            .existsSync(),
+        isFalse,
+      );
+    });
+
     test('writes the base group into the file Runner actually signs with',
         () async {
       writePbxproj(
@@ -1904,10 +1997,7 @@ void main() {
 
     test('wires the copied font into the extension Resources build phase',
         () async {
-      final pbxprojFile = File(
-        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
-      )..parent.createSync(recursive: true);
-      pbxprojFile.writeAsStringSync(_flavoredPbxproj(const []));
+      final pbxprojFile = writeRunnerXcodeProject(tempDir);
 
       final spec = WidgetSpec(
         data: const HomeWidget(
@@ -1958,10 +2048,7 @@ void main() {
 
   group('string catalog resources', () {
     test('wires the written catalog into the extension target', () async {
-      final pbxprojFile = File(
-        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
-      )..parent.createSync(recursive: true);
-      pbxprojFile.writeAsStringSync(_flavoredPbxproj(const []));
+      final pbxprojFile = writeRunnerXcodeProject(tempDir);
 
       // ignore: invalid_use_of_internal_member
       const greeting = HWLocalizedString.resolved(
@@ -2009,10 +2096,7 @@ void main() {
     });
 
     test('leaves the project alone when no catalog is written', () async {
-      final pbxprojFile = File(
-        p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
-      )..parent.createSync(recursive: true);
-      pbxprojFile.writeAsStringSync(_flavoredPbxproj(const []));
+      final pbxprojFile = writeRunnerXcodeProject(tempDir);
 
       final spec = WidgetSpec(
         data: const HomeWidget(
@@ -2172,44 +2256,18 @@ void main() {
   });
 }
 
-/// A native flavor, i.e. the trio of Runner build configurations Flutter
-/// creates for `--flavor <name>`.
-final class _RunnerFlavor {
-  const _RunnerFlavor({
-    required this.name,
-    required this.idPrefix,
-    required this.bundleId,
-    this.entitlements,
-    this.entitlementsByConfiguration = const {},
-  });
-
-  final String name;
-  final String idPrefix;
-  final String bundleId;
-  final String? entitlements;
-
-  /// What each of the three configurations signs with, keyed by base name; a
-  /// base name it does not list falls back to [entitlements].
-  final Map<String, String?> entitlementsByConfiguration;
-
-  String? entitlementsFor(String baseName) =>
-      entitlementsByConfiguration.containsKey(baseName)
-          ? entitlementsByConfiguration[baseName]
-          : entitlements;
-}
-
-const _devFlavor = _RunnerFlavor(
+const _devFlavor = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
   entitlements: 'Runner/RunnerDev.entitlements',
 );
-const _devNoEntitlements = _RunnerFlavor(
+const _devNoEntitlements = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
 );
-const _prodFlavor = _RunnerFlavor(
+const _prodFlavor = RunnerFlavor(
   name: 'prod',
   idPrefix: 'BB',
   bundleId: 'com.example.app',
@@ -2217,7 +2275,7 @@ const _prodFlavor = _RunnerFlavor(
 
 /// A flavor whose entitlements path is written the way Xcode writes it once it
 /// has touched the setting: quoted, and rooted at the project directory.
-const _srcRootDevFlavor = _RunnerFlavor(
+const _srcRootDevFlavor = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
@@ -2225,7 +2283,7 @@ const _srcRootDevFlavor = _RunnerFlavor(
 );
 
 /// A flavor signing with a file only Xcode can locate.
-const _customPathDevFlavor = _RunnerFlavor(
+const _customPathDevFlavor = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
@@ -2234,7 +2292,7 @@ const _customPathDevFlavor = _RunnerFlavor(
 
 /// A flavor whose Debug configuration signs with a different file than its
 /// Release and Profile ones.
-const _splitDevFlavor = _RunnerFlavor(
+const _splitDevFlavor = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
@@ -2243,7 +2301,7 @@ const _splitDevFlavor = _RunnerFlavor(
 );
 
 /// A flavor only its Release configuration gives an entitlements file.
-const _releaseOnlyDevFlavor = _RunnerFlavor(
+const _releaseOnlyDevFlavor = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
@@ -2254,7 +2312,7 @@ const _releaseOnlyDevFlavor = _RunnerFlavor(
 
 /// A flavor whose Release configuration alone names a file only Xcode can
 /// locate.
-const _partlyCustomDevFlavor = _RunnerFlavor(
+const _partlyCustomDevFlavor = RunnerFlavor(
   name: 'dev',
   idPrefix: 'AA',
   bundleId: 'com.example.app.dev',
@@ -2264,8 +2322,6 @@ const _partlyCustomDevFlavor = _RunnerFlavor(
     'Profile': 'Runner/RunnerDevProfile.entitlements',
   },
 );
-
-const _baseConfigNames = ['Debug', 'Release', 'Profile'];
 
 /// The extension's build configuration object named [name], as written text.
 String _extensionConfig(String pbxproj, String name) {
@@ -2279,204 +2335,4 @@ String _extensionConfig(String pbxproj, String name) {
     reason: 'no extension build configuration named "$name"',
   );
   return match!.group(0)!;
-}
-
-String _runnerConfigObject({
-  required String id,
-  required String name,
-  required String bundleId,
-  String? entitlements,
-}) {
-  final entitlementsLine = entitlements == null
-      ? ''
-      : '\t\t\t\tCODE_SIGN_ENTITLEMENTS = $entitlements;\n';
-  return '''
-\t\t$id /* $name */ = {
-\t\t\tisa = XCBuildConfiguration;
-\t\t\tbuildSettings = {
-$entitlementsLine\t\t\t\tDEVELOPMENT_TEAM = TEAM123;
-\t\t\t\tINFOPLIST_FILE = Runner/Info.plist;
-\t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 14.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = $bundleId;
-\t\t\t};
-\t\t\tname = ${_configName(name)};
-\t\t};''';
-}
-
-/// A configuration name the way Xcode stores it: quoted unless it is a bare
-/// identifier, so a flavored one reads `name = "Debug-dev";`.
-String _configName(String name) =>
-    RegExp(r'^[A-Za-z0-9_$./]+$').hasMatch(name) ? name : '"$name"';
-
-/// A `flutter create` shaped project with Runner configurations for [flavors].
-String _flavoredPbxproj(
-  List<_RunnerFlavor> flavors, {
-  String? baseEntitlements,
-}) {
-  final configObjects = <String>[];
-  final configListEntries = <String>[];
-
-  for (var rank = 0; rank < _baseConfigNames.length; rank++) {
-    final name = _baseConfigNames[rank];
-    final id = '97C1470${rank}1CF9000F007C117D';
-    configObjects.add(
-      _runnerConfigObject(
-        id: id,
-        name: name,
-        bundleId: 'com.example.app',
-        entitlements: baseEntitlements,
-      ),
-    );
-    configListEntries.add('\t\t\t\t$id /* $name */,');
-  }
-  for (final flavor in flavors) {
-    for (var rank = 0; rank < _baseConfigNames.length; rank++) {
-      final name = '${_baseConfigNames[rank]}-${flavor.name}';
-      final id = '${flavor.idPrefix}${'0' * 21}${rank + 1}';
-      configObjects.add(
-        _runnerConfigObject(
-          id: id,
-          name: name,
-          bundleId: flavor.bundleId,
-          entitlements: flavor.entitlementsFor(_baseConfigNames[rank]),
-        ),
-      );
-      configListEntries.add('\t\t\t\t$id /* $name */,');
-    }
-  }
-
-  return '''
-// !\$*UTF8*\$!
-{
-\tarchiveVersion = 1;
-\tobjectVersion = 54;
-\tobjects = {
-
-/* Begin PBXBuildFile section */
-/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-/* End PBXCopyFilesBuildPhase section */
-
-/* Begin PBXFileReference section */
-\t\t97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-\t\t97C146EB1CF9000F007C117D /* Frameworks */ = {
-\t\t\tisa = PBXFrameworksBuildPhase;
-\t\t\tbuildActionMask = 2147483647;
-\t\t\tfiles = (
-\t\t\t);
-\t\t\trunOnlyForDeploymentPostprocessing = 0;
-\t\t};
-/* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXGroup section */
-\t\t97C146E51CF9000F007C117D = {
-\t\t\tisa = PBXGroup;
-\t\t\tchildren = (
-\t\t\t\t97C146EF1CF9000F007C117D /* Products */,
-\t\t\t);
-\t\t\tsourceTree = "<group>";
-\t\t};
-\t\t97C146EF1CF9000F007C117D /* Products */ = {
-\t\t\tisa = PBXGroup;
-\t\t\tchildren = (
-\t\t\t\t97C146EE1CF9000F007C117D /* Runner.app */,
-\t\t\t);
-\t\t\tname = Products;
-\t\t\tsourceTree = "<group>";
-\t\t};
-/* End PBXGroup section */
-
-/* Begin PBXNativeTarget section */
-\t\t97C146ED1CF9000F007C117D /* Runner */ = {
-\t\t\tisa = PBXNativeTarget;
-\t\t\tbuildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
-\t\t\tbuildPhases = (
-\t\t\t\t97C146EA1CF9000F007C117D /* Sources */,
-\t\t\t\t97C146EB1CF9000F007C117D /* Frameworks */,
-\t\t\t\t97C146EC1CF9000F007C117D /* Resources */,
-\t\t\t\t3B06AD1E1E4923F5004D2608 /* Thin Binary */,
-\t\t\t);
-\t\t\tbuildRules = (
-\t\t\t);
-\t\t\tdependencies = (
-\t\t\t);
-\t\t\tname = Runner;
-\t\t\tproductName = Runner;
-\t\t\tproductReference = 97C146EE1CF9000F007C117D /* Runner.app */;
-\t\t\tproductType = "com.apple.product-type.application";
-\t\t};
-/* End PBXNativeTarget section */
-
-/* Begin PBXProject section */
-\t\t97C146E61CF9000F007C117D /* Project object */ = {
-\t\t\tisa = PBXProject;
-\t\t\tbuildConfigurationList = 97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */;
-\t\t\tknownRegions = (
-\t\t\t\ten,
-\t\t\t\tBase,
-\t\t\t);
-\t\t\tmainGroup = 97C146E51CF9000F007C117D;
-\t\t\tproductRefGroup = 97C146EF1CF9000F007C117D /* Products */;
-\t\t\ttargets = (
-\t\t\t\t97C146ED1CF9000F007C117D /* Runner */,
-\t\t\t);
-\t\t};
-/* End PBXProject section */
-
-/* Begin PBXResourcesBuildPhase section */
-\t\t97C146EC1CF9000F007C117D /* Resources */ = {
-\t\t\tisa = PBXResourcesBuildPhase;
-\t\t\tbuildActionMask = 2147483647;
-\t\t\tfiles = (
-\t\t\t);
-\t\t\trunOnlyForDeploymentPostprocessing = 0;
-\t\t};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-\t\t97C146EA1CF9000F007C117D /* Sources */ = {
-\t\t\tisa = PBXSourcesBuildPhase;
-\t\t\tbuildActionMask = 2147483647;
-\t\t\tfiles = (
-\t\t\t);
-\t\t\trunOnlyForDeploymentPostprocessing = 0;
-\t\t};
-/* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-/* End PBXTargetDependency section */
-
-/* Begin XCBuildConfiguration section */
-${configObjects.join('\n')}
-/* End XCBuildConfiguration section */
-
-/* Begin XCConfigurationList section */
-\t\t97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {
-\t\t\tisa = XCConfigurationList;
-\t\t\tbuildConfigurations = (
-\t\t\t);
-\t\t\tdefaultConfigurationIsVisible = 0;
-\t\t\tdefaultConfigurationName = Release;
-\t\t};
-\t\t97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */ = {
-\t\t\tisa = XCConfigurationList;
-\t\t\tbuildConfigurations = (
-${configListEntries.join('\n')}
-\t\t\t);
-\t\t\tdefaultConfigurationIsVisible = 0;
-\t\t\tdefaultConfigurationName = Release;
-\t\t};
-/* End XCConfigurationList section */
-
-\t};
-\trootObject = 97C146E61CF9000F007C117D /* Project object */;
-}
-''';
 }

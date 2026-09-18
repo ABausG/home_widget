@@ -8,10 +8,10 @@ import 'package:test/test.dart';
 
 /// The deployment targets a generated widget extension can be built against.
 ///
-/// `xcode_pbxproj_patcher.dart` writes 14.0 into a new extension target, so a
-/// helper body that reaches for a newer API without an `#available` guard would
-/// only fail once someone opened Xcode. 15.0 is the next step up, where the
-/// guarded branch is the one that compiles.
+/// `xcode_pbxproj_patcher.dart` can start a new extension target as low as
+/// 14.0, so a helper body that reaches for a newer API without an `#available`
+/// guard would only fail once someone opened Xcode. 15.0 is the next step up,
+/// where the guarded branch is the one that compiles.
 const _targets = [
   'arm64-apple-ios14.0-simulator',
   'arm64-apple-ios15.0-simulator',

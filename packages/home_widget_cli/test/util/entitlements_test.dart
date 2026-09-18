@@ -2,20 +2,19 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/util/entitlements.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
-class _MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 void main() {
   late Directory tempDir;
-  late _MockLogger mockLogger;
+  late MockLogger mockLogger;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('hw_entitlements_');
-    mockLogger = _MockLogger();
+    mockLogger = MockLogger();
     logger = mockLogger;
     when(() => mockLogger.detail(any())).thenReturn(null);
     when(() => mockLogger.info(any())).thenReturn(null);

@@ -3,16 +3,14 @@ import 'dart:io';
 import 'package:home_widget_cli/src/cli.dart';
 import 'package:home_widget_cli/src/util/exit_codes.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
-import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/fake_progress.dart';
+import '../helpers/mock_logger.dart';
 import '../helpers/run_cli_in_project.dart';
 import '../helpers/test_flutter_project.dart';
-
-class MockLogger extends Mock implements Logger {}
 
 void main() {
   late MockLogger mockLogger;
@@ -328,6 +326,117 @@ class Flavored {}
           ),
         ).called(1);
         verifyNever(() => mockLogger.err(any(that: contains('Unexpected'))));
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'fails on an Xcode project it cannot read before any platform writes',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'both_platforms.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Both Platforms',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+  widget: HWText.fixed('Both'),
+)
+class BothPlatforms {}
+''');
+        File(
+          p.join(
+            project.root.path,
+            'ios',
+            'Runner.xcodeproj',
+            'project.pbxproj',
+          ),
+        ).writeAsStringSync('not a property list');
+        Map<String, List<int>> files(String directory) => {
+              for (final entity
+                  in Directory(p.join(project.root.path, directory))
+                      .listSync(recursive: true))
+                if (entity is File) entity.path: entity.readAsBytesSync(),
+            };
+        final android = files('android');
+        final ios = files('ios');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(that: startsWith('Could not read the Xcode project ')),
+          ),
+        ).called(1);
+        expect(files('android'), android);
+        expect(files('ios'), ios);
+        expect(
+          Directory(p.join(project.root.path, 'lib', 'src', 'home_widget'))
+              .existsSync(),
+          isFalse,
+        );
+      },
+      timeout: const Timeout(Duration(minutes: 2)),
+    );
+
+    test(
+      'fails without an Xcode project before any platform writes',
+      () async {
+        final project = await TestFlutterProject.create();
+        final widgetFile =
+            File(p.join(project.root.path, 'lib', 'both_platforms.dart'));
+        widgetFile.writeAsStringSync('''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Both Platforms',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+  widget: HWText.fixed('Both'),
+)
+class BothPlatforms {}
+''');
+        Directory(p.join(project.root.path, 'ios', 'Runner.xcodeproj'))
+            .deleteSync(recursive: true);
+        Map<String, List<int>> files(String directory) => {
+              for (final entity
+                  in Directory(p.join(project.root.path, directory))
+                      .listSync(recursive: true))
+                if (entity is File) entity.path: entity.readAsBytesSync(),
+            };
+        final android = files('android');
+        final ios = files('ios');
+
+        final code = await runCliWithProjectRoot(
+          project.root,
+          ['generate', '--input', widgetFile.path],
+        );
+
+        expect(code, ExitCodes.software);
+        verify(
+          () => mockLogger.err(
+            any(
+              that: allOf(
+                startsWith('No Xcode project found in '),
+                contains('ios/Runner.xcodeproj in a project made by'),
+              ),
+            ),
+          ),
+        ).called(1);
+        expect(files('android'), android);
+        expect(files('ios'), ios);
+        expect(
+          Directory(p.join(project.root.path, 'lib', 'src', 'home_widget'))
+              .existsSync(),
+          isFalse,
+        );
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );

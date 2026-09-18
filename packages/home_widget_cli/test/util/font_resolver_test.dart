@@ -9,8 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 import '../helpers/font_fixture.dart';
-
-class MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 void main() {
   late Directory tempDir;

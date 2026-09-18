@@ -4,16 +4,16 @@ import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-class _MockLogger extends Mock implements Logger {}
+import '../helpers/mock_logger.dart';
 
 void main() {
   group('CLI thanks note', () {
-    late _MockLogger mockLogger;
+    late MockLogger mockLogger;
     late List<String> infos;
 
     setUp(() {
       final saved = logger;
-      mockLogger = _MockLogger();
+      mockLogger = MockLogger();
       infos = [];
       when(() => mockLogger.info(any())).thenAnswer((invocation) {
         infos.add(invocation.positionalArguments.first as String);
