@@ -200,6 +200,19 @@ void main() {
           ).toSwift(0, dataExpr: 'data'),
           endsWith('alignment: .top)'),
         );
+        expect(
+          const HWSizedBox(
+            width: 8,
+            child: HWSizedBox(
+              child: HWColumn(
+                children: [HWText.fixed('a')],
+                crossAxisAlignment: HWCrossAxisAlignment.center,
+              ),
+            ),
+          ).toSwift(0, dataExpr: 'data'),
+          endsWith('.frame(width: 8.0, alignment: .top)'),
+        );
+        expect(const HWSizedBox().swiftFrameAlignment, '.topLeading');
       });
 
       test('branches that disagree leave the child at the top start', () {

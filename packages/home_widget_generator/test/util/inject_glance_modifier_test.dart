@@ -107,6 +107,22 @@ void main() {
       );
     });
 
+    test('reads a chain broken over several lines', () {
+      expect(
+        injectGlanceModifier(
+          'Column(\n'
+              '    modifier = GlanceModifier.fillMaxWidth()\n'
+              '        .padding(4.dp)\n'
+              ') {',
+          'width(8.0.dp)',
+        ),
+        'Column(\n'
+        '    modifier = GlanceModifier.width(8.0.dp)\n'
+        '        .padding(4.dp)\n'
+        ') {',
+      );
+    });
+
     test('a size() does not keep an injected fill out', () {
       expect(
         injectGlanceModifier(

@@ -28,6 +28,18 @@ void main() {
     });
 
     group('iOS (SwiftUI)', () {
+      test('swiftFrameAlignment is the one of the ios branch', () {
+        const adaptive = HWAdaptive(
+          ios: HWColumn(
+            children: [HWText.fixed('ios only')],
+            crossAxisAlignment: HWCrossAxisAlignment.center,
+          ),
+          android: HWText.fixed('android only'),
+        );
+        expect(adaptive.swiftFrameAlignment, '.top');
+        expect(simpleAdaptive.swiftFrameAlignment, '.topLeading');
+      });
+
       test('toSwift uses only ios subtree', () {
         final swift = simpleAdaptive.toSwift(0, dataExpr: 'd');
         expect(swift, contains('Text("ios only")'));

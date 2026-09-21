@@ -77,6 +77,23 @@ void main() {
         expect(HWSizeAdaptive.new, throwsA(isA<AssertionError>()));
       });
 
+      test('swiftFrameAlignment is the one every slot agrees on', () {
+        const centered = HWColumn(
+          children: [_small],
+          crossAxisAlignment: HWCrossAxisAlignment.center,
+        );
+        expect(
+          const HWSizeAdaptive(small: centered, large: centered)
+              .swiftFrameAlignment,
+          '.top',
+        );
+        expect(
+          const HWSizeAdaptive(small: centered, large: _large)
+              .swiftFrameAlignment,
+          '.topLeading',
+        );
+      });
+
       test('branchesFor is false while the reachable families agree', () {
         const adaptive = HWSizeAdaptive(small: _small, large: _large);
         expect(

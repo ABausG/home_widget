@@ -106,9 +106,11 @@ class HWSizedBox extends HWWidget {
 
     final value = field.toDoubleValue() ?? field.toIntValue()?.toDouble();
     if (value == null) {
+      // coverage:ignore-start
       throw GeneratorError(
         'HWSizedBox: $name has to be a constant number or double.infinity.',
       );
+      // coverage:ignore-end
     }
     if (value.isNaN || value < 0) {
       throw GeneratorError(

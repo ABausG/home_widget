@@ -39,9 +39,6 @@ sealed class HWSingleChildWidget extends HWWidget {
   const HWSingleChildWidget({required this.child});
 
   @override
-  Set<String> get kotlinImports => child.kotlinImports;
-
-  @override
   Set<String> get swiftViewModifiers => child.swiftViewModifiers;
 
   @override
