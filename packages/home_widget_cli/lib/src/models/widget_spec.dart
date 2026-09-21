@@ -283,12 +283,9 @@ class ListPreviewAsset {
   });
 }
 
-/// Whether Android draws [widget] as text in a custom font, which the room of
+/// Whether Android draws [widget] as text into a bitmap, which the room of
 /// has to be measured before it is drawn.
-bool androidMeasuresText(HWWidget widget) => switch (widget) {
-      HWFontWidget(fontVariant: _?) => true,
-      _ => false,
-    };
+bool androidMeasuresText(HWWidget widget) => widget.kotlinRendersBitmapText;
 
 /// Separator between the parts [WidgetSpec.previewContentHash] digests.
 ///
@@ -1065,6 +1062,11 @@ class WidgetSpec {
   /// One entry per family, weight and slant the tree actually uses, which is
   /// what the generated per-widget font tables are built from.
   Set<HWFontVariant> get fontVariants => effectiveWidgetTree.fontVariants;
+
+  /// Whether any text in the widget is drawn into a bitmap on Android, which
+  /// is what the generated measuring pass is there for.
+  bool get rendersAndroidBitmapText =>
+      effectiveWidgetTree.rendersAndroidBitmapText;
 
   /// The icon fields this widget stores, wherever they are declared.
   ///

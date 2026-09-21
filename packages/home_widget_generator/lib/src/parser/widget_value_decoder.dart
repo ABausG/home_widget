@@ -177,6 +177,7 @@ class WidgetValueDecoder {
     final lineThrough = getField(obj, 'lineThrough')?.toBoolValue();
     final fontFamily = getField(obj, 'fontFamily')?.toStringValue();
     final package = getField(obj, 'package')?.toStringValue();
+    final androidFont = decodeAndroidFont(getField(obj, 'androidFont'));
     final baseStyle = decodeTextStyle(getField(obj, 'baseStyle'));
 
     if (typeName == 'HWRoleTextStyle') {
@@ -191,6 +192,7 @@ class WidgetValueDecoder {
         lineThrough: lineThrough,
         fontFamily: fontFamily,
         package: package,
+        androidFont: androidFont,
         baseStyle: baseStyle,
       );
     }
@@ -204,8 +206,19 @@ class WidgetValueDecoder {
       lineThrough: lineThrough,
       fontFamily: fontFamily,
       package: package,
+      androidFont: androidFont,
       baseStyle: baseStyle,
     );
+  }
+
+  /// Decodes an [HWAndroidFont], or null when [obj] is absent.
+  static HWAndroidFont? decodeAndroidFont(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+    if (getField(obj, 'isCustom')?.toBoolValue() ?? false) {
+      return HWAndroidFont.custom;
+    }
+    final family = getField(obj, 'family')?.toStringValue();
+    return family == null ? HWAndroidFont.system : HWAndroidFont.family(family);
   }
 
   /// The codepoint of a Flutter `IconData` constant, or null when [obj] is not

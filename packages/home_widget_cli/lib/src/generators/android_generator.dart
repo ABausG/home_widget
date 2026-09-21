@@ -238,7 +238,7 @@ class AndroidGenerator {
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
     // The measured text bounds are keyed by the size composed against, and
     // SizeMode.Exact is what makes LocalSize report the real one.
-    final rendersCustomFontText = spec.fontVariants.isNotEmpty;
+    final rendersBitmapText = spec.rendersAndroidBitmapText;
     final bgColor = spec.data.android?.backgroundColor;
     final applyPadding = spec.data.android?.applyContentPadding ?? true;
     final fillContent = spec.data.android?.fillWidgetContent ?? true;
@@ -322,7 +322,7 @@ class AndroidGenerator {
     if (useTheme) {
       layoutImports.add('import androidx.glance.GlanceTheme');
     }
-    if (rendersCustomFontText) {
+    if (rendersBitmapText) {
       layoutImports.add('import androidx.glance.appwidget.SizeMode');
       layoutImports.add('import es.antonborri.home_widget.HomeWidgetFonts');
       layoutImports.addAll([
@@ -421,14 +421,13 @@ class AndroidGenerator {
         previewPreferences: previewPreferences,
         previewParameter: spec.hasPreviewValues,
         previewFingerprint: previewFingerprint,
-        measuresTextBounds: rendersCustomFontText,
-        measuredItemCounts:
-            rendersCustomFontText && measuredItemBuilders.isNotEmpty
-                ? _measuredItemCountsFunction(
-                    builders: measuredItemBuilders,
-                    needsLocaleArg: needsLocaleArg,
-                  )
-                : null,
+        measuresTextBounds: rendersBitmapText,
+        measuredItemCounts: rendersBitmapText && measuredItemBuilders.isNotEmpty
+            ? _measuredItemCountsFunction(
+                builders: measuredItemBuilders,
+                needsLocaleArg: needsLocaleArg,
+              )
+            : null,
       ),
     );
     logger.detail('Generated: ${widgetFile.path}');

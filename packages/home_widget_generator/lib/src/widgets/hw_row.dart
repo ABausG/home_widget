@@ -169,6 +169,8 @@ class HWRow extends HWMultiChildWidget {
       if (texts != null || itemText != null) ...{
         'import androidx.glance.layout.padding',
         'import es.antonborri.home_widget.HomeWidgetFonts',
+        for (final text in [...?texts?.values, if (itemText != null) itemText])
+          ...text.kotlinImports,
       },
       ..._kotlinChildImports(
         placement: (index) => _kotlinPlacement(index, texts, _ascentProbe),

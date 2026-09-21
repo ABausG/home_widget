@@ -81,6 +81,7 @@ $pad}''';
       isBitmap: first.isBitmap || second.isBitmap,
       readsItem:
           data.unwrapped is HWItemData || first.readsItem || second.readsItem,
+      kotlinImports: {...first.kotlinImports, ...second.kotlinImports},
       conflict: first.conflict ?? second.conflict,
     );
   }

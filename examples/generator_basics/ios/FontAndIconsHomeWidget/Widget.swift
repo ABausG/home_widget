@@ -62,6 +62,15 @@ struct FontAndIconsHomeWidgetEntryView: View {
         .font(hwFont("Chewy", 400, false, 14))
         .multilineTextAlignment(.center)
         .padding(.top, 4.0)
+      HStack(alignment: .firstTextBaseline, spacing: 0) {
+        Spacer(minLength: 0)
+        Text("Chewy")
+          .font(hwFont("Chewy", 400, false, 20))
+        Text("serif on Android")
+          .font(hwFont("Chewy", 400, false, 11))
+        Spacer(minLength: 0)
+      }
+      .padding(.top, 4.0)
       HStack(alignment: .center, spacing: 0) {
         Spacer(minLength: 0)
         Text(String(UnicodeScalar(UInt32(0xE25B))!))

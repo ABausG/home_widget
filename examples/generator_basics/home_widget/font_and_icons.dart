@@ -11,6 +11,13 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///   next to the widget. The label and the line under it share the family:
 ///   on Android each is measured in turn, so the paragraph wraps to the room
 ///   the label leaves it.
+/// - `androidFont: HWAndroidFont.serif` on the smaller of the two texts in the
+///   baseline row keeps the custom family on iOS but asks Android for a Glance
+///   `Text` in the device's serif family instead of a bitmap, so that text
+///   follows the theme and needs no measuring pass. `HWAndroidFont.system`
+///   would give it the platform's own font the same way. The row lines the two
+///   up on their shared baseline, which on Android means measuring the bitmap
+///   and the serif typeface against each other.
 /// - `HWIcon.fixed(Icons.favorite)` renders one hardcoded Material icon. Icon
 ///   fonts are the exception to the above: Flutter tree-shakes them out of
 ///   `flutter_assets`, so the CLI copies the font next to the widget and
@@ -46,6 +53,24 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         'The same family again, wrapping to the room the label leaves it.',
         textAlign: HWTextAlign.center,
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 14),
+      ),
+      HWRow(
+        mainAxisAlignment: HWMainAxisAlignment.center,
+        crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        children: [
+          HWText.fixed(
+            'Chewy',
+            style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20),
+          ),
+          HWText.fixed(
+            'serif on Android',
+            style: HWTextStyle(
+              fontFamily: 'Chewy',
+              fontSize: 11,
+              androidFont: HWAndroidFont.serif,
+            ),
+          ),
+        ],
       ),
       HWRow(
         mainAxisAlignment: HWMainAxisAlignment.center,

@@ -276,7 +276,7 @@ sealed class HWMultiChildWidget extends HWWidget {
       _kotlinItemGap != null ||
               mainAxisAlignment.hasSpacerBetween ||
               places ||
-              (item?.kotlinRendersBitmapText(context) ?? false)
+              (item?.kotlinRendersBitmapTextIn(context) ?? false)
           ? HWListLoop.index
           : '_';
 
@@ -613,6 +613,12 @@ sealed class HWWidget implements HWGeneratable {
   /// walks.
   List<HWWidget> get childWidgets => const [];
 
+  /// The widgets this one renders on Android.
+  ///
+  /// [childWidgets] for everything but an [HWAdaptive], which renders its
+  /// Android branch alone there, and is what [androidDescendants] walks.
+  List<HWWidget> get androidChildWidgets => childWidgets;
+
   /// Whether this widget's Glance output is a `Text`, and so reports a text
   /// baseline to the horizontal `LinearLayout` a Glance `Row` becomes.
   ///
@@ -625,6 +631,14 @@ sealed class HWWidget implements HWGeneratable {
   /// widget whose Glance output is picked where it sits — a conditional, an
   /// [HWSizeAdaptive]: a stack asks each widget it can land on instead.
   bool get kotlinReportsBaseline => false;
+
+  /// Whether this widget's Glance output is a bitmap the core plugin draws the
+  /// text into, rather than something Glance renders itself.
+  ///
+  /// A bitmap needs the room it may take measured before it is composed, which
+  /// is what [HWBitmapTextRenderer] describes; only a widget emitting one
+  /// answers true.
+  bool get kotlinRendersBitmapText => false;
 
   /// The text a baseline-aligned [HWRow] lines this child up by, or null when
   /// the emitted view is not one it can place.
@@ -648,12 +662,13 @@ sealed class HWWidget implements HWGeneratable {
   /// Follows what Android renders the way [kotlinBaselineText] does: an
   /// [HWAdaptive]'s Android side, and the slots of an [HWSizeAdaptive] the
   /// [context] can show, which is what [_kotlinChoices] answers.
-  bool kotlinRendersBitmapText([HWEmitContext? context]) {
+  bool kotlinRendersBitmapTextIn(HWEmitContext? context) {
     if (_kotlinChoices(context) case final choices?) {
-      return choices.any((choice) => choice.kotlinRendersBitmapText(context));
+      return choices.any((choice) => choice.kotlinRendersBitmapTextIn(context));
     }
-    if (kotlinBaselineText(context)?.isBitmap ?? false) return true;
-    return childWidgets.any((child) => child.kotlinRendersBitmapText(context));
+    if (kotlinRendersBitmapText) return true;
+    return childWidgets
+        .any((child) => child.kotlinRendersBitmapTextIn(context));
   }
 
   /// [kotlinImports], for a widget emitted directly inside a Glance `Column` or
@@ -794,6 +809,19 @@ sealed class HWWidget implements HWGeneratable {
     }
   }
 
+  /// Every widget Android renders in this subtree, [this] first, in render
+  /// order.
+  ///
+  /// [descendants] walked through [androidChildWidgets], for the questions only
+  /// the Glance output answers; the branch of an [HWAdaptive] only iOS renders
+  /// is not one of them.
+  Iterable<HWWidget> get androidDescendants sync* {
+    yield this;
+    for (final child in androidChildWidgets) {
+      yield* child.androidDescendants;
+    }
+  }
+
   /// The native functions displaying this one widget, before their own
   /// dependencies are resolved.
   ///
@@ -823,6 +851,14 @@ sealed class HWWidget implements HWGeneratable {
     }
     return variants;
   }
+
+  /// Whether anything in this subtree draws its text into a bitmap on Android.
+  ///
+  /// Held apart from [fontVariants]: a style can name a family for iOS and
+  /// still ask Glance to render the Android text itself, in which case the file
+  /// is bundled but no measuring pass is needed.
+  bool get rendersAndroidBitmapText =>
+      androidDescendants.any((widget) => widget.kotlinRendersBitmapText);
 
   /// Every icon glyph this subtree can render, per icon font.
   ///
