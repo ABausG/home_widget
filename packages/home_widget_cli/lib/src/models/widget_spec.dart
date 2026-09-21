@@ -795,6 +795,11 @@ class WidgetSpec {
   /// what the generated per-widget font tables are built from.
   Set<HWFontVariant> get fontVariants => effectiveWidgetTree.fontVariants;
 
+  /// Whether any text in the widget is drawn into a bitmap on Android, which
+  /// is what the generated measuring pass is there for.
+  bool get rendersAndroidBitmapText =>
+      effectiveWidgetTree.rendersAndroidBitmapText;
+
   /// The icon fields this widget stores, wherever they are declared.
   ///
   /// Time-based and JSON wrappers are descended, so a field reaches this list

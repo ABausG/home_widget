@@ -1424,6 +1424,28 @@ void main() {
             'currentState()) }'),
       );
     });
+
+    test('measures nothing when the text opts out of the bitmap', () async {
+      final content = await generate(
+        const HWText.fixed(
+          'Hi',
+          style: HWTextStyle(
+            fontFamily: 'Chewy',
+            androidFont: HWAndroidFont.serif,
+          ),
+        ),
+      );
+
+      expect(content, isNot(contains('sizeMode')));
+      expect(content, isNot(contains('SizeMode')));
+      expect(content, isNot(contains('textBounds')));
+      expect(
+        content,
+        isNot(contains('import es.antonborri.home_widget.HomeWidgetFonts')),
+      );
+      expect(content, contains('fontFamily = FontFamily("serif")'));
+      expect(content, contains('import androidx.glance.text.FontFamily'));
+    });
   });
 
   test('generates Kotlin widget with HWDataOnly as root widget', () async {

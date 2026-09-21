@@ -30,6 +30,74 @@ enum HWFontWeight {
 
 enum HWTextStyleRole { title, headline, body, callout, caption, captionSmall }
 
+/// How Android renders the text of an [HWTextStyle].
+///
+/// Android-only: iOS renders the style's [HWTextStyle.fontFamily] whatever this
+/// says. A style naming a family renders on Android as a bitmap of that file by
+/// default, which is the only way its glyphs reach a widget; this is how a
+/// style asks for a Glance `Text` instead, either in the platform's own font
+/// ([system]) or in one of the system families Glance can name.
+///
+/// Glance text is real text: it follows the theme, reports a baseline a row can
+/// line up by, and needs no measuring pass. What it gives up is the family
+/// itself and the weight, which Glance renders as bold or regular only.
+class HWAndroidFont {
+  /// The Android system font family Glance names, or null.
+  final String? family;
+
+  /// Whether text renders in the bitmap of the style's [HWTextStyle.fontFamily].
+  final bool isCustom;
+
+  const HWAndroidFont._({this.family, required this.isCustom});
+
+  /// Text in the bitmap of the style's [HWTextStyle.fontFamily].
+  ///
+  /// The default; a style naming no family renders as a plain Glance `Text`.
+  static const custom = HWAndroidFont._(isCustom: true);
+
+  /// A plain Glance `Text` in the platform's default font, whatever
+  /// [HWTextStyle.fontFamily] says.
+  static const system = HWAndroidFont._(isCustom: false);
+
+  /// A Glance `Text` in the device's serif family.
+  static const serif = HWAndroidFont.family('serif');
+
+  /// A Glance `Text` in the device's sans-serif family.
+  static const sansSerif = HWAndroidFont.family('sans-serif');
+
+  /// A Glance `Text` in the device's monospace family.
+  static const monospace = HWAndroidFont.family('monospace');
+
+  /// A Glance `Text` in the device's cursive family.
+  static const cursive = HWAndroidFont.family('cursive');
+
+  /// A Glance `Text` in any Android system family, e.g. `sans-serif-condensed`.
+  ///
+  /// The name is handed to Android as it is written; one the device does not
+  /// know falls back to its default sans-serif.
+  const HWAndroidFont.family(String family)
+      : this._(family: family, isCustom: false);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWAndroidFont &&
+          family == other.family &&
+          isCustom == other.isCustom;
+
+  @override
+  int get hashCode => Object.hash(family, isCustom);
+
+  @override
+  String toString() {
+    if (isCustom) return 'HWAndroidFont.custom';
+    final family = this.family;
+    return family == null
+        ? 'HWAndroidFont.system'
+        : 'HWAndroidFont.family($family)';
+  }
+}
+
 /// A class representing text styling options for `HWText`.
 class HWTextStyle implements HWGeneratable {
   final double? fontSize;
@@ -52,6 +120,12 @@ class HWTextStyle implements HWGeneratable {
   /// Mirrors Flutter's `TextStyle.package`.
   final String? package;
 
+  /// How Android renders this text, or null for [HWAndroidFont.custom].
+  ///
+  /// Android-only, and it does not change what iOS renders or which font file
+  /// the app bundles: [fontFamily] still decides both.
+  final HWAndroidFont? androidFont;
+
   final HWTextStyle? baseStyle;
 
   const HWTextStyle({
@@ -63,6 +137,7 @@ class HWTextStyle implements HWGeneratable {
     this.lineThrough,
     this.fontFamily,
     this.package,
+    this.androidFont,
     this.baseStyle,
   });
 
@@ -83,6 +158,7 @@ class HWTextStyle implements HWGeneratable {
           lineThrough: current.lineThrough,
           fontFamily: current.fontFamily,
           package: current.package,
+          androidFont: current.androidFont,
         );
       }
       return current;
@@ -90,9 +166,10 @@ class HWTextStyle implements HWGeneratable {
 
     final baseResolved = _resolveRecursive(current.baseStyle!);
 
-    // A family and the package declaring it resolve together: overriding the
-    // family alone must not keep the base style's package, which would name a
-    // family that package does not declare.
+    // A family, the package declaring it and how Android renders it resolve
+    // together: overriding the family alone must not keep the base style's
+    // package, which would name a family that package does not declare, nor
+    // its Android choice, which was made about a family this style replaced.
     final overridesFamily = current.fontFamily != null;
 
     return HWTextStyle(
@@ -106,6 +183,9 @@ class HWTextStyle implements HWGeneratable {
       package: overridesFamily
           ? current.package
           : (current.package ?? baseResolved.package),
+      androidFont: overridesFamily
+          ? current.androidFont
+          : (current.androidFont ?? baseResolved.androidFont),
     );
   }
 
@@ -156,15 +236,19 @@ class HWTextStyle implements HWGeneratable {
   /// The color text in this style renders in, or null for the platform default.
   HWColor? get effectiveColor => _resolve().color;
 
-  /// How Android renders text in this style.
+  /// How Android renders text in this style, as [HWAndroidFont] resolves it.
   ///
-  /// Glance cannot name a font family, so a style that does renders as a
-  /// bitmap the core plugin draws, and every other one as a Glance `Text`.
-  /// Both are built out of the style resolved here, so a text property is
-  /// added in one place.
+  /// Glance cannot name a custom font family, so a style naming one renders by
+  /// default as a bitmap the core plugin draws. Everything else — a style with
+  /// no family, and one whose [androidFont] asks for the platform font or a
+  /// system family — renders as a Glance `Text`. Both are built out of the
+  /// style resolved here, so a text property is added in one place.
   HWKotlinTextRenderer kotlinRenderer({HWTextAlign? textAlign}) {
+    final androidFont = _effectiveAndroidFont;
     final variant = fontVariant;
-    if (variant == null) return _glanceRenderer(textAlign);
+    if (!androidFont.isCustom || variant == null) {
+      return _glanceRenderer(textAlign, fontFamily: androidFont.family);
+    }
 
     final resolved = _resolve();
     return HWBitmapTextRenderer(
@@ -178,7 +262,14 @@ class HWTextStyle implements HWGeneratable {
     );
   }
 
-  HWGlanceTextRenderer _glanceRenderer(HWTextAlign? textAlign) {
+  /// How Android renders this text once the `baseStyle` chain is resolved.
+  HWAndroidFont get _effectiveAndroidFont =>
+      _resolve().androidFont ?? HWAndroidFont.custom;
+
+  HWGlanceTextRenderer _glanceRenderer(
+    HWTextAlign? textAlign, {
+    String? fontFamily,
+  }) {
     final resolved = _resolve();
     final role = _getEffectiveRole();
     return HWGlanceTextRenderer(
@@ -189,6 +280,7 @@ class HWTextStyle implements HWGeneratable {
       underline: resolved.underline == true,
       lineThrough: resolved.lineThrough == true,
       textAlign: textAlign,
+      fontFamily: fontFamily,
     );
   }
 
@@ -199,7 +291,9 @@ class HWTextStyle implements HWGeneratable {
   /// family is emitted through [kotlinRenderer] instead, and takes its imports
   /// off the renderer that emitted it.
   @override
-  Set<String> get kotlinImports => _glanceRenderer(null).kotlinImports;
+  Set<String> get kotlinImports =>
+      _glanceRenderer(null, fontFamily: _effectiveAndroidFont.family)
+          .kotlinImports;
 
   @override
   Set<String> get swiftViewModifiers {
@@ -266,10 +360,12 @@ class HWTextStyle implements HWGeneratable {
   ///
   /// A custom [fontFamily] is not part of it: Glance cannot name one, so text
   /// in such a style renders through [HWBitmapTextRenderer] instead, off the
-  /// same resolved values.
+  /// same resolved values. The system family an [androidFont] asks for is
+  /// something Glance can name, and is part of it.
   @override
   String toKotlin(int indent, {required String dataExpr}) =>
-      _glanceRenderer(null).styleExpression(indent, dataExpr: dataExpr);
+      _glanceRenderer(null, fontFamily: _effectiveAndroidFont.family)
+          .styleExpression(indent, dataExpr: dataExpr);
 }
 
 /// How Android renders text in a style.
@@ -309,6 +405,10 @@ class HWKotlinBaselineText {
   /// its own for the layout to correct.
   final bool isBitmap;
 
+  /// The Kotlin imports [ascent] needs, which only the row emitting it pulls
+  /// in: nothing else in the generated file names them.
+  final Set<String> kotlinImports;
+
   /// Why a row cannot pad this child, or null when it can.
   ///
   /// Reported rather than thrown, so that the context-free import pass, which
@@ -319,11 +419,13 @@ class HWKotlinBaselineText {
   const HWKotlinBaselineText({
     required this.ascent,
     required this.isBitmap,
+    this.kotlinImports = const {},
     this.conflict,
   });
 }
 
-/// Text Glance renders itself, in the platform's own font.
+/// Text Glance renders itself, in the platform's own font or in a system
+/// family it names.
 class HWGlanceTextRenderer extends HWKotlinTextRenderer {
   /// The color the text renders in, or null for [hwDefaultContentColor].
   final HWColor? color;
@@ -335,6 +437,13 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
   final bool lineThrough;
   final HWTextAlign? textAlign;
 
+  /// The Android system font family the text renders in, or null for the
+  /// platform's own font.
+  ///
+  /// Glance hands it to Android as a `TypefaceSpan`, so an unknown name falls
+  /// back to the device's default sans-serif rather than failing.
+  final String? fontFamily;
+
   const HWGlanceTextRenderer({
     this.color,
     this.fontSize,
@@ -343,6 +452,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     this.underline = false,
     this.lineThrough = false,
     this.textAlign,
+    this.fontFamily,
   });
 
   @override
@@ -356,6 +466,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
         if (underline || lineThrough)
           'import androidx.glance.text.TextDecoration',
         if (textAlign != null) 'import androidx.glance.text.TextAlign',
+        if (fontFamily != null) 'import androidx.glance.text.FontFamily',
       };
 
   /// The `TextStyle(...)` the Glance `Text` is styled with.
@@ -374,6 +485,8 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
       else if (lineThrough)
         'textDecoration = TextDecoration.LineThrough',
       if (textAlign case final align?) 'textAlign = ${_kotlinTextAlign(align)}',
+      if (fontFamily case final family?)
+        'fontFamily = FontFamily("${escapeKotlinStringLiteral(family)}")',
     ];
     return 'TextStyle(${args.join(', ')})';
   }
@@ -389,6 +502,24 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     return '${pad}Text(text = $text, style = $style)';
   }
 
+  /// The typeface the ascent is measured in: the one Glance itself renders
+  /// with, built out of the same family and weight bucket the style names.
+  ///
+  /// Null for the platform's own font, which the measuring helper resolves.
+  String get _typefaceExpression {
+    final family = fontFamily;
+    if (family == null) return 'null';
+    final bold =
+        _kotlinGlanceFontWeight(fontWeight) != _HWGlanceFontWeight.normal;
+    final style = switch ((bold, italic)) {
+      (true, true) => 'Typeface.BOLD_ITALIC',
+      (true, false) => 'Typeface.BOLD',
+      (false, true) => 'Typeface.ITALIC',
+      (false, false) => 'Typeface.NORMAL',
+    };
+    return 'Typeface.create("${escapeKotlinStringLiteral(family)}", $style)';
+  }
+
   /// A style naming no size renders at the app theme's own, which only the
   /// device can answer for, so the size is left open rather than guessed at.
   @override
@@ -397,10 +528,14 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
           final size =
               fontSize == null ? 'null' : '${hwSizeLiteral(fontSize!)}f';
           final weight = _kotlinGlanceFontWeight(fontWeight).value;
-          return 'HomeWidgetFonts.textAscentPx(context, null, $size, '
+          return 'HomeWidgetFonts.textAscentPx(context, '
+              '$_typefaceExpression, $size, '
               'weight = $weight, italic = $italic)';
         },
         isBitmap: false,
+        kotlinImports: fontFamily == null
+            ? const {}
+            : const {'import android.graphics.Typeface'},
       );
 }
 
@@ -578,6 +713,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   });
 
@@ -590,6 +726,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   }) : role = HWTextStyleRole.title;
 
@@ -602,6 +739,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   }) : role = HWTextStyleRole.headline;
 
@@ -614,6 +752,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   }) : role = HWTextStyleRole.body;
 
@@ -626,6 +765,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   }) : role = HWTextStyleRole.callout;
 
@@ -638,6 +778,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   }) : role = HWTextStyleRole.caption;
 
@@ -650,6 +791,7 @@ class HWRoleTextStyle extends HWTextStyle {
     super.lineThrough,
     super.fontFamily,
     super.package,
+    super.androidFont,
     super.baseStyle,
   }) : role = HWTextStyleRole.captionSmall;
 }
