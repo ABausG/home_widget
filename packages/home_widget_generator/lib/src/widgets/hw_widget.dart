@@ -120,6 +120,14 @@ sealed class HWWidget implements HWGeneratable {
   /// `Box`, an `Image` or a `Spacer` has no baseline and answers false.
   bool get kotlinReportsBaseline => false;
 
+  /// Whether this widget's Glance output is a bitmap the core plugin draws the
+  /// text into, rather than something Glance renders itself.
+  ///
+  /// A bitmap needs the room it may take measured before it is composed, which
+  /// is what [HWBitmapTextRenderer] describes; only a widget emitting one
+  /// answers true.
+  bool get kotlinRendersBitmapText => false;
+
   /// The text a baseline-aligned [HWRow] lines this child up by, or null when
   /// the emitted view is not one it can place.
   ///
@@ -182,6 +190,14 @@ sealed class HWWidget implements HWGeneratable {
     }
     return variants;
   }
+
+  /// Whether anything in this subtree draws its text into a bitmap on Android.
+  ///
+  /// Held apart from [fontVariants]: a style can name a family for iOS and
+  /// still ask Glance to render the Android text itself, in which case the file
+  /// is bundled but no measuring pass is needed.
+  bool get rendersAndroidBitmapText =>
+      descendants.any((widget) => widget.kotlinRendersBitmapText);
 
   /// Every icon glyph this subtree can render, per icon font.
   ///

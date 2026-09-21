@@ -39,6 +39,7 @@ import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
+import androidx.glance.text.FontFamily
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
@@ -96,7 +97,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "633efad6",
+            "9c8e4c60",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -171,6 +172,15 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                   if (textBounds.isProbe("41d76946", LocalSize.current)) "hw_text_bounds:41d76946"
                   else "The same family again, wrapping to the room the label leaves it.",
               colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+          )
+          Text(
+              text = "serif on Android",
+              style =
+                  TextStyle(
+                      color = GlanceTheme.colors.onSurface,
+                      fontSize = 11.sp,
+                      fontFamily = FontFamily("serif"),
+                  ),
           )
           Row(
               modifier = GlanceModifier.fillMaxWidth(),

@@ -103,6 +103,12 @@ there instead. Because of this:
   [`HWCrossAxisAlignment.baseline`](/generator/styling/hw-alignment) row.
 - Text taller than the room it has is cut off at the last line that fits, which is ellipsized.
 
+A style can also opt out of the bitmap on Android and keep the custom font on iOS: set
+`androidFont: HWAndroidFont.system` for the platform's own font, or a system family such as
+`HWAndroidFont.serif`, and that text renders as a real Glance `Text` — theme colors, a baseline a
+row can line up by, no measuring pass. See
+[Android font](/generator/styling/hw-text-style#android-font).
+
 This works on every Android version the plugin supports (API 23+) — there's no `minSdkVersion` to
 raise for it.
 </Accordion>

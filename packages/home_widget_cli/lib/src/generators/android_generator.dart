@@ -228,7 +228,7 @@ class AndroidGenerator {
     final useTheme = spec.data.android?.useGlanceTheme ?? true;
     // The measured text bounds are keyed by the size composed against, and
     // SizeMode.Exact is what makes LocalSize report the real one.
-    final rendersCustomFontText = spec.fontVariants.isNotEmpty;
+    final rendersCustomFontText = spec.rendersAndroidBitmapText;
     final bgColor = spec.data.android?.backgroundColor;
     final applyPadding = spec.data.android?.applyContentPadding ?? true;
     final fillContent = spec.data.android?.fillWidgetContent ?? true;

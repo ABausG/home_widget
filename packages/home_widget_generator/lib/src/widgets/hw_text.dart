@@ -125,6 +125,11 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   @override
   bool get kotlinReportsBaseline => _kotlinRenderer is HWGlanceTextRenderer;
 
+  /// Whether Android draws this text into a bitmap rather than letting Glance
+  /// render it, which is what the measuring pass is generated for.
+  @override
+  bool get kotlinRendersBitmapText => _kotlinRenderer is HWBitmapTextRenderer;
+
   @override
   HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
       _kotlinRenderer.kotlinBaselineText;
