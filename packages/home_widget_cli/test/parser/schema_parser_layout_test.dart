@@ -78,5 +78,112 @@ void main() {
       final row = column.children[1] as HWRow;
       expect(row.children, hasLength(2));
     });
+
+    test('parses a builder into a list of its own', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Weather',
+          android: HomeWidgetAndroidConfiguration(),
+          widget: HWColumn(
+            children: [
+              HWText(HWString('city')),
+              HWRow.builder(
+                'forecast',
+                maxItems: 5,
+                mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+                item: HWColumn(
+                  children: [
+                    HWText.dateTime(
+                      HWItemData(
+                        HWDateTime('day'),
+                        previewValues: [
+                          '2026-09-21T12:00:00Z',
+                          '2026-09-22T12:00:00Z',
+                        ],
+                      ),
+                      format: HWDateFormat.skeleton('E'),
+                    ),
+                    HWText.number(
+                      HWItemData(
+                        HWInt('temperature', defaultValue: 0),
+                        previewValues: [21, 17],
+                      ),
+                    ),
+                    HWText(HWString('unit', defaultValue: 'C')),
+                  ],
+                ),
+                whenEmpty: HWText.fixed('No forecast yet'),
+              ),
+            ],
+          ),
+        )
+        class Weather {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.dataFields.map((f) => f.key), ['city', 'unit']);
+
+      final group = spec.listDataGroups.single;
+      expect(group.itemClassName(spec.className), 'WeatherForecastItem');
+      expect(group.fields.map((f) => f.key), ['day', 'temperature']);
+      expect(group.sampleItemCount, 2);
+      expect(group.sampleValue(group.fields.last, 1), 17);
+    });
+
+    test('rejects an item field read outside a builder', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Stray',
+          widget: HWText(HWItemData(HWString('label'))),
+        )
+        class Stray {}
+      ''';
+
+      await expectLater(
+        parseSourceInTempFile(source),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('reads the item a builder is rendering'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects an item bool without a default in HWBoolConditional',
+        () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Tasks',
+          widget: HWColumn.builder(
+            'tasks',
+            item: HWBoolConditional(
+              data: HWItemData(HWBool('done')),
+              whenTrue: HWText.fixed('done'),
+              whenFalse: HWText.fixed('open'),
+            ),
+          ),
+        )
+        class Tasks {}
+      ''';
+
+      await expectLater(
+        parseSourceInTempFile(source),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('non-null defaultValue'),
+          ),
+        ),
+      );
+    });
   });
 }

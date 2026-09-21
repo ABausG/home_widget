@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_week_forecast_label">Week Forecast</string>
+    <string name="home_widget_week_forecast_description">A five-day forecast, one column per day the app saves.</string>
+</resources>

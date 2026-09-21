@@ -709,6 +709,95 @@ void main() {
       );
     });
 
+    test('covers the mtime of the images of every stored item', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn(
+            children: [
+              HWImage(HWImageData('picture')),
+              HWRow.builder(
+                'contacts',
+                maxItems: 3,
+                item: HWRow(
+                  children: [
+                    HWImage(HWItemData(HWImageData('avatar'))),
+                    HWImage(HWItemData(HWImageData('badge'))),
+                  ],
+                ),
+              ),
+              HWRow.builder(
+                'slides',
+                maxItems: 3,
+                item: HWImage(HWItemData(HWImageData('cover'))),
+              ),
+              HWRow.builder(
+                'tags',
+                maxItems: 3,
+                item: HWText(HWItemData(HWString('label'))),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      (listOf(hwPreviewData.picture) + '
+          'hwPreviewData.contacts.orEmpty().flatMap '
+          '{ listOf(it.avatar, it.badge) } + '
+          'hwPreviewData.slides.orEmpty().map { it.cover }).joinToString(",") '
+          '{ hwPath -> hwPath?.let { java.io.File(it).lastModified().toString() }'
+          ' ?: "" },\n',
+        ),
+      );
+    });
+
+    test('covers the mtime of the images of every time-based item', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWRow.builder(
+            'slides',
+            maxItems: 3,
+            item: HWImage(HWTimedData(HWItemData(HWImageData('cover')))),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      hwPreviewData.slides.orEmpty().map { it.cover }'
+          '.joinToString(",") '
+          '{ hwPath -> hwPath?.let { java.io.File(it).lastModified().toString() }'
+          ' ?: "" },\n',
+        ),
+      );
+    });
+
+    test('covers item images alone when nothing else is a runtime image',
+        () async {
+      final content = await generate(
+        _spec(
+          widget: const HWRow.builder(
+            'slides',
+            maxItems: 3,
+            item: HWImage(HWItemData(HWImageData('cover'))),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      hwPreviewData.slides.orEmpty().map { it.cover }'
+          '.joinToString(",") '
+          '{ hwPath -> hwPath?.let { java.io.File(it).lastModified().toString() }'
+          ' ?: "" },\n',
+        ),
+      );
+    });
+
     test('an asset-only widget keeps the fingerprint file-free', () async {
       final content = await generate(
         _spec(
@@ -823,6 +912,320 @@ void main() {
       // The preview itself is still provided; only the automatic
       // re-registration is opted out of.
       expect(content, contains('override suspend fun providePreview('));
+    });
+  });
+
+  group('sample items', () {
+    const storedRead = r'forecast = PreviewForecastItem.fromPath('
+        r'prefs.getString("${PREFERENCES_PREFIX}.forecast", null))';
+
+    test('spells out varied items behind the stored list', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWRow.builder(
+            'forecast',
+            maxItems: 5,
+            item: HWColumn(
+              children: [
+                HWText.dateTime(
+                  HWItemData(
+                    HWDateTime('day'),
+                    previewValues: [
+                      '2026-09-21T12:00:00Z',
+                      '2026-09-22T12:00:00Z',
+                      '2026-09-23T12:00:00Z',
+                    ],
+                  ),
+                ),
+                HWText.number(
+                  HWItemData(
+                    HWInt('temperature', defaultValue: 0),
+                    previewValues: [21, 17],
+                  ),
+                ),
+                HWText.number(HWItemData(HWDouble('rain', previewValue: 1))),
+                HWBoolConditional(
+                  data: HWItemData(HWBool('windy', defaultValue: false)),
+                  whenTrue: HWText.fixed('windy'),
+                  whenFalse: HWText.fixed('calm'),
+                ),
+                HWText(
+                  HWItemData(
+                    HWString.localized(
+                      'label',
+                      defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+                      previewTranslations: {
+                        'en': 'Someday',
+                        'de': 'Irgendwann',
+                      },
+                    ),
+                    previewValues: [r'Mon "$1"'],
+                  ),
+                ),
+                HWText(HWItemData(HWString('note'))),
+              ],
+            ),
+          ),
+          localization: _localization,
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+        fun previewFromPreferences(prefs: android.content.SharedPreferences, locales: List<String>): PreviewData {
+            return PreviewData(
+                $storedRead
+                    ?: listOf(
+                        PreviewForecastItem(day = hwParseIsoDate("2026-09-21T12:00:00Z"), temperature = 21L, rain = 1.0, windy = false, label = "Mon \\"\\\$1\\""),
+                        PreviewForecastItem(day = hwParseIsoDate("2026-09-22T12:00:00Z"), temperature = 17L, rain = 1.0, windy = false, label = hwResolveLocalized(locales, mapOf("en" to "Someday", "de" to "Irgendwann"), "en")),
+                        PreviewForecastItem(day = hwParseIsoDate("2026-09-23T12:00:00Z"), temperature = 0L, rain = 1.0, windy = false, label = hwResolveLocalized(locales, mapOf("en" to "Someday", "de" to "Irgendwann"), "en")),
+                    ),
+            )
+        }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          '        if (preview) PreviewData.previewFromPreferences(prefs, '
+          'hwLocales)\n'
+          '        else PreviewData.fromPreferences(prefs)\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '        PreviewData.previewFromPreferences('
+          'HomeWidgetPlugin.getData(context), hwLocales)\n',
+        ),
+      );
+      expect(content, contains('      hwPreviewData.toString(),\n'));
+    });
+
+    test('repeats one item as often as the largest maxItems', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWSizeAdaptive(
+            small: HWRow.builder(
+              'forecast',
+              maxItems: 2,
+              item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+            ),
+            large: HWColumn.builder(
+              'forecast',
+              maxItems: 4,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '        fun previewFromPreferences('
+          'prefs: android.content.SharedPreferences): PreviewData {\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '                $storedRead\n'
+          '                    ?: List(4) { PreviewForecastItem(label = "Day") },\n',
+        ),
+      );
+    });
+
+    test('previews a time-based list through its samples behind the entry',
+        () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn.builder(
+            'hourly',
+            maxItems: 3,
+            item: HWText(
+              HWTimedData(
+                HWItemData(
+                  HWString.localized(
+                    'label',
+                    defaultTranslations: {'en': 'Hour', 'de': 'Stunde'},
+                    previewTranslations: {'en': 'Now', 'de': 'Jetzt'},
+                  ),
+                  previewValues: ['9:00'],
+                ),
+              ),
+            ),
+          ),
+          localization: _localization,
+        ),
+      );
+
+      expect(
+        content,
+        contains(r'''
+        fun previewFromPreferences(prefs: android.content.SharedPreferences, now: Long = System.currentTimeMillis()): PreviewData {
+            val timedValues = resolveTimedValues(prefs, now)
+            return PreviewData(
+                hourly = PreviewHourlyItem.fromJsonArray(timedValues.optJSONArray("hourly"))
+                    ?: listOf(
+                        PreviewHourlyItem(label = "9:00"),
+                    ),
+            )
+        }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          '                hourly = PreviewHourlyItem.fromJsonArray('
+          'timedValues.optJSONArray("hourly")),\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '        if (preview) PreviewData.previewFromPreferences(prefs)\n'
+          '        else PreviewData.fromPreferences(prefs)\n',
+        ),
+      );
+    });
+
+    test('resolves the translations a time-based sample item holds', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn.builder(
+            'hourly',
+            maxItems: 2,
+            item: HWText(
+              HWTimedData(
+                HWItemData(
+                  HWString.localized(
+                    'label',
+                    defaultTranslations: {'en': 'Hour', 'de': 'Stunde'},
+                    previewTranslations: {'en': 'Now', 'de': 'Jetzt'},
+                  ),
+                ),
+              ),
+            ),
+          ),
+          localization: _localization,
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '                    ?: List(2) { PreviewHourlyItem(label = '
+          'hwResolveLocalized(locales, mapOf("en" to "Now", "de" to "Jetzt"), '
+          '"en")) },\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '        fun previewFromPreferences(prefs: '
+          'android.content.SharedPreferences, locales: List<String>, '
+          'now: Long = System.currentTimeMillis()): PreviewData {\n',
+        ),
+      );
+    });
+
+    test('shows the stored list alone when no field has a sample', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWColumn(
+            children: [
+              HWText(HWString('city', previewValue: 'Berlin')),
+              HWRow.builder(
+                'forecast',
+                maxItems: 5,
+                item: HWText(HWItemData(HWString('label'))),
+                whenEmpty: HWText.fixed('Nothing yet'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        '                $storedRead,\n'.allMatches(content),
+        hasLength(2),
+      );
+      expect(content, isNot(contains('?: listOf(')));
+    });
+
+    test('keeps stored items out of a preview that must not read them',
+        () async {
+      final content = await generate(
+        _spec(
+          widget: const HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+          ),
+          useLiveDataInPreview: false,
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          'WidgetContent(context, '
+          'HomeWidgetGlanceState(HomeWidgetPreviews.emptyPreferences), '
+          'preview = true)',
+        ),
+      );
+      expect(content, contains('?: List(3) { PreviewForecastItem('));
+      expect(content, isNot(contains('hwPreviewData')));
+    });
+
+    test('previews an item image through its asset key', () async {
+      final content = await generate(
+        _spec(
+          widget: const HWRow.builder(
+            'contacts',
+            maxItems: 3,
+            item: HWRow(
+              children: [
+                HWImage(
+                  HWItemData(
+                    HWImageData('avatar', previewAsset: 'assets/a.png'),
+                    previewValues: ['assets/b.png', 'packages/brand/c.png'],
+                  ),
+                ),
+                HWImage(HWItemData(HWImageData('badge'))),
+                HWText(
+                  HWItemData(
+                    HWString('name'),
+                    previewValues: ['Ada', 'Bob', 'Cy'],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(r'''
+                contacts = PreviewContactsItem.fromPath(prefs.getString("${PREFERENCES_PREFIX}.contacts", null))
+                    ?: listOf(
+                        PreviewContactsItem(avatar = "assets/b.png", name = "Ada"),
+                        PreviewContactsItem(avatar = "packages/brand/c.png", name = "Bob"),
+                        PreviewContactsItem(avatar = "assets/a.png", name = "Cy"),
+                    ),
+'''),
+      );
+      expect(
+        content,
+        contains(
+          'hwItem.avatar?.let { path -> '
+          'hwDecodeImage(context, path, null, null) }',
+        ),
+      );
+      expect(content, contains(r'context.assets.open("flutter_assets/$path")'));
     });
   });
 }

@@ -2096,7 +2096,556 @@ void main() {
       );
     });
   });
+
+  group('WidgetSpec lists', () {
+    test('declaredLists finds every builder in document order', () {
+      const forecast = HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        item: HWText(HWItemData(HWString('label'))),
+      );
+      const events = HWColumn.builder(
+        'events',
+        item: HWText(HWItemData(HWString('title'))),
+      );
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            forecast,
+            HWAdaptive(ios: events, android: HWText.fixed('none')),
+          ],
+        ),
+      );
+
+      final declarations = spec.declaredLists;
+      expect(declarations.map((d) => d.key), ['forecast', 'events']);
+      expect(
+        declarations.map((d) => d.spelling),
+        ["HWRow.builder('forecast')", "HWColumn.builder('events')"],
+      );
+      expect(identical(declarations.first.builder, forecast), isTrue);
+      expect(declarations.first.reads, const [HWItemData(HWString('label'))]);
+    });
+
+    test('declares a builder written into two slots once', () {
+      const forecast = HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        item: HWText(HWItemData(HWString('label'))),
+      );
+      final spec = _listSpec(
+        const HWSizeAdaptive(small: forecast, medium: forecast),
+      );
+
+      expect(spec.declaredLists, hasLength(1));
+    });
+
+    test('folds the reads of every builder over one list into one group', () {
+      final spec = _listSpec(
+        const HWSizeAdaptive(
+          small: HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWColumn(
+              children: [
+                HWText.number(
+                  HWItemData(HWInt('temperature', defaultValue: 0)),
+                ),
+                HWText(HWString('unit')),
+              ],
+            ),
+          ),
+          large: HWColumn.builder(
+            'forecast',
+            maxItems: 6,
+            item: HWColumn(
+              children: [
+                HWText(HWItemData(HWString('label'))),
+                HWText.number(
+                  HWItemData(HWInt('temperature'), previewValues: [21, 17]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final group = spec.listDataGroups.single;
+      expect(group.key, 'forecast');
+      expect(group.timed, isFalse);
+      expect(group.declarations, hasLength(2));
+      expect(group.fields, const [
+        HWItemData(
+          HWInt('temperature', defaultValue: 0),
+          previewValues: [21, 17],
+        ),
+        HWItemData(HWString('label')),
+      ]);
+      expect(spec.untimedListGroups.single.key, 'forecast');
+      expect(spec.timedListGroups, isEmpty);
+      expect(spec.dataFields, const [HWString('unit')]);
+    });
+
+    test('keeps reads that disagree apart for the validator', () {
+      final spec = _listSpec(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 3,
+          item: HWColumn(
+            children: [
+              HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+              HWText.number(HWItemData(HWInt('temperature', defaultValue: 1))),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        spec.listDataGroups.single.fields.map((f) => f.defaultValue),
+        [0, 1],
+      );
+    });
+
+    test('a list read through HWTimedData is time-based as a whole', () {
+      final spec = _listSpec(
+        const HWColumn.builder(
+          'hourly',
+          maxItems: 4,
+          item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+        ),
+      );
+
+      final group = spec.listDataGroups.single;
+      expect(group.timed, isTrue);
+      expect(group.fields, const [HWItemData(HWInt('temperature'))]);
+      expect(spec.timedListGroups.single.key, 'hourly');
+      expect(spec.untimedListGroups, isEmpty);
+      expect(spec.hasTimedData, isTrue);
+      expect(spec.timedDataFields, isEmpty);
+    });
+
+    test('a builder whose item reads no item field makes an untimed list', () {
+      final spec = _listSpec(
+        const HWRow.builder('dots', maxItems: 4, item: HWText.fixed('dot')),
+      );
+
+      final group = spec.listDataGroups.single;
+      expect(group.fields, isEmpty);
+      expect(group.timed, isFalse);
+      expect(group.itemClassName(spec.className), 'WeatherDotsItem');
+      expect(group.sampleItemCount, 0);
+      expect(spec.hasTimedData, isFalse);
+    });
+
+    test('hasTimedData also answers for a time-based field', () {
+      expect(
+        _spec(dataFields: const [HWTimedData(HWInt('score'))]).hasTimedData,
+        isTrue,
+      );
+      expect(_spec(dataFields: const [HWInt('score')]).hasTimedData, isFalse);
+    });
+
+    test('itemClassName puts the list key between class name and Item', () {
+      const group = ListDataGroup(
+        key: 'hourlyForecast',
+        timed: false,
+        fields: [],
+        declarations: [],
+      );
+      expect(group.itemClassName('Weather'), 'WeatherHourlyForecastItem');
+    });
+
+    test('an item field left among the data fields is no plain or timed one',
+        () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('city'),
+          HWItemData(HWString('label')),
+          HWTimedData(HWInt('score')),
+          HWTimedData(HWItemData(HWInt('temperature'))),
+        ],
+      );
+
+      expect(spec.primitiveDataFields, const [HWString('city')]);
+      expect(spec.timedDataFields, const [HWTimedData(HWInt('score'))]);
+      expect(spec.timedPrimitiveDataFields, const [HWInt('score')]);
+    });
+
+    group('sample items', () {
+      ListDataGroup groupOf(List<HWItemData<dynamic>> fields) => ListDataGroup(
+            key: 'forecast',
+            timed: false,
+            fields: fields,
+            declarations: const [],
+          );
+
+      test('vary as far as the longest previewValues reach', () {
+        const label = HWItemData(
+          HWString('label'),
+          previewValues: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        );
+        const high = HWItemData(
+          HWInt('high', defaultValue: 0, previewValue: 25),
+          previewValues: [21, 17, 19],
+        );
+        const low = HWItemData(
+          HWInt('low', defaultValue: 0),
+          previewValues: [12],
+        );
+        const note = HWItemData(HWString('note'));
+        final group = groupOf(const [label, high, low, note]);
+
+        expect(group.sampleItemCount, 5);
+        expect(group.variesSampleItems, isTrue);
+        List<Object?> column(HWItemData<dynamic> field) => [
+              for (var index = 0; index < 5; index++)
+                group.sampleValue(field, index),
+            ];
+        expect(column(label), ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+        expect(column(high), [21, 17, 19, 25, 25]);
+        expect(column(low), [12, 0, 0, 0, 0]);
+        expect(column(note), [null, null, null, null, null]);
+      });
+
+      test('repeat as often as the largest maxItems of the builders', () {
+        final spec = _listSpec(
+          const HWSizeAdaptive(
+            small: HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+            ),
+            medium: HWRow.builder(
+              'forecast',
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+            large: HWColumn.builder(
+              'forecast',
+              maxItems: 6,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+          ),
+        );
+
+        final group = spec.listDataGroups.single;
+        expect(group.sampleItemCount, 6);
+        expect(group.variesSampleItems, isFalse);
+        expect(group.sampleValue(group.fields.single, 5), 'Day');
+      });
+
+      test('repeat three times when no builder sets maxItems', () {
+        final spec = _listSpec(
+          const HWRow.builder(
+            'forecast',
+            item: HWText.number(HWItemData(HWInt('high', previewValue: 25))),
+          ),
+        );
+
+        expect(spec.listDataGroups.single.sampleItemCount, 3);
+      });
+
+      test('are none while no field sets a preview value', () {
+        final group = groupOf(const [
+          HWItemData(HWInt('high', defaultValue: 0)),
+          HWItemData(
+            HWString.localized('label', defaultTranslations: {'en': 'Day'}),
+          ),
+        ]);
+
+        expect(group.sampleItemCount, 0);
+      });
+
+      test('spell every kind of field the way previewValues do', () {
+        const localized = HWItemData(
+          HWString.localized(
+            'label',
+            defaultTranslations: {'en': 'Day'},
+            previewTranslations: {'en': 'Monday'},
+          ),
+        );
+        const plainLocalized = HWItemData(
+          HWString.localized('note', defaultTranslations: {'en': 'Note'}),
+        );
+        const day = HWItemData(
+          HWDateTime('day', previewValue: '2026-09-21T12:00:00Z'),
+        );
+        const avatar = HWItemData(
+          HWImageData('avatar', previewAsset: 'assets/avatar.png'),
+        );
+        const condition = HWItemData(
+          HWIconData.resolved(
+            'condition',
+            entries: [HWIconEntry('cloud', 0xE2BD)],
+            iconFont: HWIconFont(family: 'MaterialIcons'),
+            defaultValue: 0xE2BD,
+          ),
+        );
+        const ratio = HWItemData(HWDouble('ratio', previewValue: 0.5));
+        const done = HWItemData(HWBool('done', defaultValue: false));
+        final group = groupOf(
+          const [
+            localized,
+            plainLocalized,
+            day,
+            avatar,
+            condition,
+            ratio,
+            done,
+          ],
+        );
+
+        expect(group.sampleValue(localized, 0), {'en': 'Monday'});
+        expect(group.sampleValue(plainLocalized, 0), isNull);
+        expect(group.sampleValue(day, 0), '2026-09-21T12:00:00Z');
+        expect(group.sampleValue(avatar, 0), 'assets/avatar.png');
+        expect(group.sampleValue(condition, 0), 0xE2BD);
+        expect(group.sampleValue(ratio, 0), 0.5);
+        expect(group.sampleValue(done, 0), false);
+      });
+    });
+
+    test('item icons join the icon fields and share the enum of their key', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      const root = HWIconData.resolved(
+        'condition',
+        entries: [HWIconEntry('wbSunny', 0xE430), HWIconEntry('cloud', 0xE2BD)],
+        iconFont: font,
+      );
+      const item = HWIconData.resolved(
+        'condition',
+        entries: [
+          HWIconEntry('cloud', 0xE2BD),
+          HWIconEntry('arrowBack', 0xE5C4, matchTextDirection: true),
+        ],
+        iconFont: font,
+      );
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            HWIcon(root),
+            HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWIcon(HWItemData(item)),
+            ),
+          ],
+        ),
+      );
+
+      expect(spec.iconFields, const [root, item]);
+      final enums = spec.iconEnums;
+      expect(enums.keys, ['WeatherConditionIcon']);
+      expect(
+        enums['WeatherConditionIcon']!.entries.map((e) => e.name),
+        ['wbSunny', 'cloud', 'arrowBack'],
+      );
+      expect(spec.mirroredIconCodePoints, {0xE5C4});
+      expect(spec.iconCodePoints, {
+        font: {0xE430, 0xE2BD, 0xE5C4},
+      });
+    });
+
+    test('an item icon is named by its list in an enum conflict', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            HWIcon(
+              HWIconData.resolved(
+                'condition',
+                entries: [HWIconEntry('sun', 0xE430)],
+                iconFont: font,
+              ),
+            ),
+            HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWIcon(
+                HWItemData(
+                  HWIconData.resolved(
+                    'condition',
+                    entries: [HWIconEntry('sun', 0xE2BD)],
+                    iconFont: font,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        () => spec.iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('"condition" and "forecast[].condition"'),
+          ),
+        ),
+      );
+    });
+
+    test('item images reach the image getters with their preview assets', () {
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            HWRow.builder(
+              'contacts',
+              maxItems: 3,
+              item: HWImage(
+                HWItemData(
+                  HWImageData('avatar', previewAsset: 'assets/a.png'),
+                  previewValues: [
+                    'assets/b.png',
+                    'assets/a.png',
+                    'assets/c.png',
+                  ],
+                ),
+              ),
+            ),
+            HWRow.builder(
+              'slides',
+              maxItems: 3,
+              item: HWImage(HWTimedData(HWItemData(HWImageData('cover')))),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        spec.listImageFields.map((f) => (f.listKey, f.timed, f.image.key)),
+        [('contacts', false, 'avatar'), ('slides', true, 'cover')],
+      );
+      expect(spec.runtimeImageFields, isEmpty);
+      expect(spec.hasRuntimeImages, isTrue);
+      expect(
+        spec.listPreviewAssets.map(
+          (preview) =>
+              (preview.listKey, preview.fieldKey, preview.index, preview.asset),
+        ),
+        [
+          ('contacts', 'avatar', null, 'assets/a.png'),
+          ('contacts', 'avatar', 0, 'assets/b.png'),
+          ('contacts', 'avatar', 2, 'assets/c.png'),
+        ],
+      );
+    });
+
+    test('item localized strings count wherever a JSON leaf one does', () {
+      const label = HWLocalizedString(
+        'label',
+        defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+      );
+      final spec = _listSpec(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 3,
+          item: HWText(HWItemData(label)),
+        ),
+      );
+
+      expect(spec.listLocalizedStrings, const [label]);
+      expect(spec.allLocalizedStrings, const [label]);
+      expect(spec.localizedStrings, isEmpty);
+      expect(spec.keyedLocalizedStrings, isEmpty);
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.rendersLocalizedContent, isTrue);
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      });
+    });
+
+    test('a time-based item localized string is no timed string', () {
+      const label = HWLocalizedString(
+        'label',
+        defaultTranslations: {'en': 'Day'},
+      );
+      final spec = _listSpec(
+        const HWRow.builder(
+          'hourly',
+          maxItems: 3,
+          item: HWText(HWTimedData(HWItemData(label))),
+        ),
+      );
+
+      expect(spec.allLocalizedStrings, const [label]);
+      expect(spec.timedLocalizedStrings, isEmpty);
+      expect(spec.needsTimedLocalizedRead, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isFalse);
+    });
+
+    test('an item date nothing renders still pulls in the parser', () {
+      final spec = _listSpec(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 3,
+          item: HWDataOnly([HWItemData(HWDateTime('day'))]),
+        ),
+      );
+
+      expect(spec.nativeHelpers, contains(HWNativeHelper.hwParseIsoDate));
+    });
+
+    test('hasPreviewValues counts a list with sample items', () {
+      bool previews(HWDataType<num> read) => _listSpec(
+            HWRow.builder('forecast', maxItems: 3, item: HWText.number(read)),
+          ).hasPreviewValues;
+
+      expect(
+        previews(const HWItemData(HWInt('high'), previewValues: [21])),
+        isTrue,
+      );
+      expect(
+        previews(const HWItemData(HWInt('high', previewValue: 25))),
+        isTrue,
+      );
+      expect(
+        previews(const HWItemData(HWInt('high', defaultValue: 0))),
+        isFalse,
+      );
+    });
+
+    test('previewContentHash covers every value a list previews with', () {
+      String hashOf(HWDataType<num> read) => _listSpec(
+            HWRow.builder('forecast', maxItems: 3, item: HWText.number(read)),
+          ).previewContentHash;
+
+      final base = hashOf(const HWItemData(HWInt('high'), previewValues: [1]));
+      expect(
+        hashOf(const HWItemData(HWInt('high'), previewValues: [1])),
+        base,
+      );
+
+      final variants = <String, String>{
+        'previewValues': hashOf(
+          const HWItemData(HWInt('high'), previewValues: [2]),
+        ),
+        'previewValue': hashOf(
+          const HWItemData(HWInt('high', previewValue: 5), previewValues: [1]),
+        ),
+        'no previewValues': hashOf(const HWItemData(HWInt('high'))),
+        'time-based': hashOf(
+          const HWTimedData(HWItemData(HWInt('high'), previewValues: [1])),
+        ),
+      };
+      for (final entry in variants.entries) {
+        expect(entry.value, isNot(base), reason: entry.key);
+      }
+    });
+  });
 }
+
+/// A spec named Weather whose data fields are exactly what [tree] binds, the
+/// way the parser builds one.
+WidgetSpec _listSpec(HWWidget tree) => WidgetSpec(
+      data: HomeWidget(name: 'Weather'),
+      className: 'Weather',
+      dataFields: tree.dataDependencies.toList(),
+      widgetTree: tree,
+    );
 
 WidgetSpec _adaptiveSpec({
   HWWidget? adaptive,

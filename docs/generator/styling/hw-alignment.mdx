@@ -27,7 +27,7 @@ Leaving `crossAxisAlignment` unset is the same as `center` on both platforms.
 
 On Android it lines up the children that render text of their own, and only those. A child rendering none — a picture, an icon, a column of several texts — has no baseline to go by and stays at the top of the row, which is where a row with fewer than two texts leaves all of them; generation warns when that is what a row asks for. iOS has no such limit: SwiftUI's `.firstTextBaseline` puts the bottom edge of a child rendering no text on the baseline of the one that does.
 
-A row holding a text in a [custom font](/generator/custom-fonts) is lined up by the plugin when the widget updates, since such a text is drawn into a bitmap that carries no baseline for the layout to read.
+A row holding a text in a [custom font](/generator/custom-fonts) is lined up by the plugin when the widget updates, since such a text is drawn into a bitmap that carries no baseline for the layout to read. The same goes for a row whose `spacing` puts a text with a background or a border in a `Box` of its own, which reports no baseline either.
 
 ```dart
 HWRow(
@@ -51,7 +51,23 @@ HWRow(
 
 Any value other than `start` stretches the `HWColumn` / `HWRow` along its main axis, since there has to be room to distribute. `start` and leaving it unset keep it hugging its children.
 
+The alignment only distributes the room left over. The spacers it inserts shrink to nothing when there is none, so they never keep two children apart on their own; `spacing` is what guarantees a gap, and the alignment adds its share on top of it.
+
+### Spacers and the Android child limit
+
+Glance lays out at most 10 children in one `Column` or `Row`, and each spacer an alignment inserts counts as a child. For a stack of `n` children:
+
+| Value           | Spacers | Children + spacers | Most children |
+| --------------- | ------- | ------------------ | ------------- |
+| `start` / unset | 0       | n                  | 10            |
+| `end`           | 1       | n + 1              | 9             |
+| `center`        | 2       | n + 2              | 8             |
+| `spaceBetween`  | n − 1   | 2n − 1             | 5             |
+| `spaceEvenly`   | n + 1   | 2n + 1             | 4             |
+
+`spacing` adds nothing to the count. A stack Android would render with more than 10 fails generation; see [`HWColumn`](/generator/widgets/hw-column#android-at-most-10-children). For an `HWColumn.builder` or `HWRow.builder`, `n` is its `maxItems`, so the last column is the largest `maxItems` it can have; see [Lists](/generator/lists#android-limits).
+
 ## Platform mapping
 
-- **iOS:** maps to SwiftUI [`HorizontalAlignment`](https://developer.apple.com/documentation/swiftui/horizontalalignment) / [`VerticalAlignment`](https://developer.apple.com/documentation/swiftui/verticalalignment) on the stack, with `Spacer`s inserted to model the `spaceBetween` / `spaceEvenly` values. `baseline` becomes `.firstTextBaseline`.
-- **Android:** maps to Glance [`Alignment.Horizontal`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Horizontal) / [`Alignment.Vertical`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Vertical) on the `Column` / `Row`, with `Spacer`s for the space-distribution values.
+- **iOS:** maps to SwiftUI [`HorizontalAlignment`](https://developer.apple.com/documentation/swiftui/horizontalalignment) / [`VerticalAlignment`](https://developer.apple.com/documentation/swiftui/verticalalignment) on the stack, with `Spacer(minLength: 0)`s inserted to model the `center`, `end`, `spaceBetween` and `spaceEvenly` values. Where those spacers might not stretch the stack — `spaceBetween` with a single child, or a builder, whose items are only known at runtime — a `.frame` with an infinite maximum stretches it and keeps the children at the start. `baseline` becomes `.firstTextBaseline`.
+- **Android:** maps to Glance [`Alignment.Horizontal`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Horizontal) / [`Alignment.Vertical`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Vertical) on the `Column` / `Row`, with weighted `Spacer`s for the `center`, `end`, `spaceBetween` and `spaceEvenly` values.

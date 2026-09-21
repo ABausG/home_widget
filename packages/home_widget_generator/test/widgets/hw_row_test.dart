@@ -73,7 +73,7 @@ void main() {
       test('HStack with children defaults to center', () {
         final node = HWRow(children: [HWText.fixed('x')]);
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('HStack(alignment: .center) {'));
+        expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Text("x")'));
       });
 
@@ -83,7 +83,7 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('HStack(alignment: .top) {'));
+        expect(r, contains('HStack(alignment: .top, spacing: 0) {'));
       });
 
       test('crossAxis .center → center', () {
@@ -92,7 +92,7 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('HStack(alignment: .center) {'));
+        expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
       });
 
       test('crossAxis .end → bottom', () {
@@ -101,7 +101,7 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('HStack(alignment: .bottom) {'));
+        expect(r, contains('HStack(alignment: .bottom, spacing: 0) {'));
       });
 
       test('crossAxis .baseline → firstTextBaseline', () {
@@ -110,7 +110,10 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('HStack(alignment: .firstTextBaseline) {'));
+        expect(
+          r,
+          contains('HStack(alignment: .firstTextBaseline, spacing: 0) {'),
+        );
       });
 
       test('mainAxis .spaceBetween and Spacer', () {
@@ -119,11 +122,11 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('HStack(alignment: .center) {'));
+        expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Text("a")'));
-        expect(r, contains('Spacer()'));
+        expect(r, contains('Spacer(minLength: 0)'));
         expect(r, contains('Text("b")'));
-        expect('Spacer()'.allMatches(r).length, 1);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
       });
 
       test('mainAxis .center wraps with Spacer', () {
@@ -132,7 +135,7 @@ void main() {
           children: [HWText.fixed('a'), HWText.fixed('b')],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect('Spacer()'.allMatches(r).length, 2);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 2);
         expect(r, contains('Text("a")'));
         expect(r, contains('Text("b")'));
       });
@@ -143,7 +146,7 @@ void main() {
           children: [HWText.fixed('a')],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect('Spacer()'.allMatches(r).length, 1);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
         expect(r, contains('Text("a")'));
       });
 
@@ -153,7 +156,7 @@ void main() {
           children: [HWText.fixed('a'), HWText.fixed('b')],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect('Spacer()'.allMatches(r).length, 3);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 3);
         expect(r, contains('Text("a")'));
         expect(r, contains('Text("b")'));
       });
@@ -521,7 +524,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
         expect('Box {'.allMatches(r).length, 1);
       });
 
-      test('a size-adaptive child is wrapped when any slot is text', () {
+      test('a size-adaptive child wraps each slot that is text', () {
         const textSlot = HWSizeAdaptive(
           small: HWText.fixed('a'),
           large: HWText.fixed('b'),
@@ -530,14 +533,53 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
           small: HWImage(HWImageData('avatar'), width: 8),
           large: HWImage(HWImageData('avatar'), width: 8),
         );
-        expect(textSlot.kotlinReportsBaseline, isTrue);
-        expect(imageSlot.kotlinReportsBaseline, isFalse);
         final node = HWRow(
           children: [textSlot, imageSlot],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect('Box {'.allMatches(r).length, 1);
+        expect('Box {'.allMatches(r).length, 2);
+        expect(
+          r,
+          contains(
+            '            Box {\n'
+            '                Text(text = "b", ',
+          ),
+        );
+      });
+
+      test('a conditional child wraps only the branch that is text', () {
+        const node = HWRow(
+          crossAxisAlignment: HWCrossAxisAlignment.start,
+          children: [
+            HWDataExists(
+              data: HWString('title'),
+              whenPresent: HWRow(
+                mainAxisAlignment: HWMainAxisAlignment.center,
+                children: [HWText(HWString('title'))],
+              ),
+              whenAbsent: HWText.fixed('none'),
+            ),
+          ],
+        );
+        expect(node.toKotlin(0, dataExpr: 'data'), '''
+Row(verticalAlignment = Alignment.Top) {
+    if (data.title != null) {
+        Row(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(modifier = GlanceModifier.defaultWeight())
+            Text(text = data.title ?: "", style = TextStyle(color = GlanceTheme.colors.onSurface))
+            Spacer(modifier = GlanceModifier.defaultWeight())
+        }
+    } else {
+        Box {
+            Text(text = "none", style = TextStyle(color = GlanceTheme.colors.onSurface))
+        }
+    }
+}''');
+        expect(
+          node.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxWidth')),
+        );
       });
 
       test('a bitmap text carries no baseline', () {
@@ -553,9 +595,25 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('Box {')));
       });
 
-      test('a wrapped child is laid out by the Box, not by the row', () {
+      test('a wrapped child is laid out by the Box, which takes its weight',
+          () {
         const node = HWRow(
           children: [
+            HWText.fixed('a'),
+            HWColoredBox(
+              color: HWColor.fixed(0xFF00FF00),
+              child: HWRow(
+                children: [HWText.fixed('b')],
+                mainAxisAlignment: HWMainAxisAlignment.center,
+              ),
+            ),
+          ],
+          crossAxisAlignment: HWCrossAxisAlignment.start,
+          spacing: 4,
+        );
+        const slots = HWRow(
+          children: [
+            HWText.fixed('a'),
             HWSizeAdaptive(
               small: HWText.fixed('a'),
               large: HWRow(
@@ -565,10 +623,34 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
             ),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.start,
+          spacing: 4,
         );
-        final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Box {'));
-        expect(r, contains('Row(modifier = GlanceModifier.fillMaxWidth(), '));
+        final r = slots.toKotlin(0, dataExpr: 'data');
+        expect(
+          r,
+          contains(
+            'Row(modifier = GlanceModifier.padding(start = 4.0.dp)'
+            '.defaultWeight(), ',
+          ),
+        );
+        expect(
+          r,
+          contains('Box(modifier = GlanceModifier.padding(start = 4.0.dp)) {'),
+        );
+        expect(
+          slots.kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxWidth')),
+        );
+
+        final wrapped = node.toKotlin(0, dataExpr: 'data');
+        expect(
+          wrapped,
+          contains(
+            'Box(modifier = GlanceModifier.defaultWeight()'
+            '.padding(start = 4.0.dp)) {',
+          ),
+        );
+        expect(wrapped, contains('.fillMaxWidth(), verticalAlignment'));
         expect(
           node.kotlinImports,
           contains('import androidx.glance.layout.fillMaxWidth'),
@@ -888,6 +970,329 @@ Row(verticalAlignment = Alignment.Top) {
           ),
         );
       });
+
+      group('with a text boxed for its gap', () {
+        const large = 'HomeWidgetFonts.textAscentPx(context, null, 32f, '
+            'weight = 400, italic = false)';
+        const small = 'HomeWidgetFonts.textAscentPx(context, null, 12f, '
+            'weight = 400, italic = false)';
+        const red = HWFixedColor(0xFFFF0000);
+        const degrees = HWText.fixed('42', style: HWTextStyle(fontSize: 32));
+        const unit = HWText.fixed('°C', style: HWTextStyle(fontSize: 12));
+
+        test('places every text, as it has no baseline in the Box', () {
+          const node = HWRow(
+            spacing: 8,
+            crossAxisAlignment: HWCrossAxisAlignment.baseline,
+            children: [degrees, HWColoredBox(color: red, child: unit)],
+          );
+          expect(node.toKotlin(0, dataExpr: 'data'), '''
+Row(verticalAlignment = Alignment.Top) {
+    Box(modifier = GlanceModifier.padding(top = HomeWidgetFonts.baselinePadding(context, listOf($large, $small), 0))) {
+        Text(text = "42", style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 32.sp))
+    }
+    Box(modifier = GlanceModifier.padding(top = HomeWidgetFonts.baselinePadding(context, listOf($large, $small), 1)).padding(start = 8.0.dp)) {
+        Text(modifier = GlanceModifier.background(ColorProvider(day = Color(0xFFFF0000), night = Color(0xFFFF0000))), text = "°C", style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 12.sp))
+    }
+}''');
+          expect(
+            node.kotlinImports,
+            containsAll([
+              'import androidx.glance.layout.Box',
+              'import androidx.glance.layout.padding',
+              'import es.antonborri.home_widget.HomeWidgetFonts',
+            ]),
+          );
+        });
+
+        test('places every text when one branch is boxed', () {
+          const node = HWRow(
+            spacing: 8,
+            crossAxisAlignment: HWCrossAxisAlignment.baseline,
+            children: [
+              degrees,
+              HWBoolConditional(
+                data: HWBool('fahrenheit', defaultValue: false),
+                whenTrue: HWColoredBox(color: red, child: unit),
+                whenFalse: unit,
+              ),
+            ],
+          );
+          final r = node.toKotlin(0, dataExpr: 'data');
+          expect('HomeWidgetFonts.baselinePadding('.allMatches(r).length, 3);
+          expect(
+            r,
+            contains(
+              '    if (data.fahrenheit == true) {\n'
+              '        Box(modifier = GlanceModifier.padding(top = '
+              'HomeWidgetFonts.baselinePadding(',
+            ),
+          );
+        });
+
+        test('leaves texts taking the gap themselves to the layout', () {
+          const node = HWRow(
+            spacing: 8,
+            crossAxisAlignment: HWCrossAxisAlignment.baseline,
+            children: [
+              degrees,
+              unit,
+              HWColoredBox(
+                color: red,
+                child: HWIcon.glyph(0xe800, font: HWIconFont(family: 'Icons')),
+              ),
+            ],
+          );
+          final r = node.toKotlin(0, dataExpr: 'data');
+          expect(r, isNot(contains('baselinePadding')));
+          expect(
+            r,
+            contains(
+              'Text(modifier = GlanceModifier.padding(start = 8.0.dp), '
+              'text = "°C", ',
+            ),
+          );
+          expect(
+            r,
+            contains(
+              'Box(modifier = GlanceModifier.padding(start = 8.0.dp)) {\n'
+              '        Image(',
+            ),
+          );
+        });
+
+        test('leaves a row without spacing to the layout', () {
+          const node = HWRow(
+            crossAxisAlignment: HWCrossAxisAlignment.baseline,
+            children: [degrees, HWColoredBox(color: red, child: unit)],
+          );
+          expect(
+            node.toKotlin(0, dataExpr: 'data'),
+            isNot(contains('Box')),
+          );
+        });
+      });
+    });
+
+    group('Android baseline alignment of list items', () {
+      const bitmapLabel = HWText(
+        HWItemData(HWString('label')),
+        style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
+      );
+      const plainLabel = HWText(
+        HWItemData(HWString('label')),
+        style: HWTextStyle(fontSize: 14),
+      );
+      const score = HWBoolConditional(
+        data: HWItemData(HWBool('big', defaultValue: false)),
+        whenTrue: bitmapLabel,
+        whenFalse: plainLabel,
+      );
+      const bitmapAscent = 'HomeWidgetFonts.textAscentPx(context, '
+          'HomeWidgetFonts.typeface(context, "Chewy", 400, false), 28f)';
+      const plainAscent = 'HomeWidgetFonts.textAscentPx(context, null, 14f, '
+          'weight = 400, italic = false)';
+
+      List<String> lines(String code) =>
+          code.split('\n').map((line) => line.trim()).toList();
+
+      test('pads items whose ascent reads their item to the deepest one', () {
+        const row = HWRow.builder(
+          'scores',
+          maxItems: 3,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: score,
+        );
+
+        const placed = 'Box(modifier = GlanceModifier.padding(top = '
+            'HomeWidgetFonts.baselinePadding(context, hwAscents, hwIndex))) {';
+        final kotlin = lines(row.toKotlin(0, dataExpr: 'data'));
+        expect(kotlin.take(6), [
+          'Row(verticalAlignment = Alignment.Top) {',
+          'val hwItems = data.scores.orEmpty().take(3)',
+          'val hwAscents = hwItems.map { hwItem -> if (hwItem.big == true) '
+              '$bitmapAscent else $plainAscent }',
+          'hwItems.forEachIndexed { hwIndex, hwItem ->',
+          'if (hwItem.big == true) {',
+          placed,
+        ]);
+        expect(kotlin.where((line) => line == placed), hasLength(2));
+        expect(
+          row.kotlinImports,
+          containsAll([
+            'import androidx.glance.layout.Box',
+            'import androidx.glance.layout.padding',
+            'import es.antonborri.home_widget.HomeWidgetFonts',
+          ]),
+        );
+        expect(
+          row.toSwift(0, dataExpr: 'data'),
+          startsWith(
+            'HStack(alignment: .firstTextBaseline, spacing: 0) {\n'
+            r'    ForEach(Array((data.scores ?? []).prefix(3).enumerated()), '
+            r'id: \.offset) { hwIndex, hwItem in',
+          ),
+        );
+      });
+
+      test('measures every item without maxItems', () {
+        const row = HWRow.builder(
+          'scores',
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: score,
+        );
+
+        expect(
+          row.toKotlin(0, dataExpr: 'data'),
+          contains(
+            'val hwItems = data.scores.orEmpty()\n'
+            '    val hwAscents = hwItems.map { hwItem -> ',
+          ),
+        );
+      });
+
+      test('leaves items alone whose ascent reads nothing of their item', () {
+        const row = HWRow.builder(
+          'scores',
+          maxItems: 3,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: bitmapLabel,
+        );
+        final kotlin = row.toKotlin(0, dataExpr: 'data');
+
+        expect(kotlin, isNot(contains('hwAscents')));
+        expect(kotlin, isNot(contains('Box')));
+        expect(
+          row.kotlinImports,
+          isNot(contains('import androidx.glance.layout.padding')),
+        );
+      });
+
+      test('leaves items alone whose condition reads the widget data', () {
+        const row = HWRow.builder(
+          'scores',
+          maxItems: 3,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWBoolConditional(
+            data: HWBool('big', defaultValue: false),
+            whenTrue: bitmapLabel,
+            whenFalse: plainLabel,
+          ),
+        );
+        final kotlin = row.toKotlin(0, dataExpr: 'data');
+
+        expect(kotlin, isNot(contains('hwAscents')));
+        expect(kotlin, isNot(contains('baselinePadding')));
+      });
+
+      test('leaves items of plain text to the layout', () {
+        const row = HWRow.builder(
+          'scores',
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWBoolConditional(
+            data: HWItemData(HWBool('big', defaultValue: false)),
+            whenTrue: HWText(HWItemData(HWString('label'))),
+            whenFalse: plainLabel,
+          ),
+        );
+
+        expect(row.toKotlin(0, dataExpr: 'data'), isNot(contains('Box')));
+      });
+
+      test('leaves an item rendering no text at the top', () {
+        const row = HWRow.builder(
+          'scores',
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWImage(HWItemData(HWImageData('avatar'))),
+        );
+
+        expect(
+          row.toKotlin(0, dataExpr: 'data'),
+          isNot(contains('baselinePadding')),
+        );
+      });
+
+      test('pads items boxed for their gap whose ascent reads their item', () {
+        const row = HWRow.builder(
+          'scores',
+          maxItems: 3,
+          spacing: 6,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWColoredBox(
+            color: HWFixedColor(0xFFFF0000),
+            child: HWBoolConditional(
+              data: HWItemData(HWBool('big', defaultValue: false)),
+              whenTrue: HWText(
+                HWItemData(HWString('label')),
+                style: HWTextStyle(fontSize: 28),
+              ),
+              whenFalse: plainLabel,
+            ),
+          ),
+        );
+        const placed = 'Box(modifier = GlanceModifier.padding(top = '
+            'HomeWidgetFonts.baselinePadding(context, hwAscents, hwIndex))'
+            '.padding(start = if (hwIndex > 0) 6.0.dp else 0.dp)) {';
+
+        final kotlin = lines(row.toKotlin(0, dataExpr: 'data'));
+        expect(kotlin.take(6), [
+          'Row(verticalAlignment = Alignment.Top) {',
+          'val hwItems = data.scores.orEmpty().take(3)',
+          'val hwAscents = hwItems.map { hwItem -> if (hwItem.big == true) '
+              'HomeWidgetFonts.textAscentPx(context, null, 28f, weight = 400, '
+              'italic = false) else $plainAscent }',
+          'hwItems.forEachIndexed { hwIndex, hwItem ->',
+          'if (hwItem.big == true) {',
+          placed,
+        ]);
+        expect(kotlin.where((line) => line == placed), hasLength(2));
+        expect(
+          row.kotlinImports,
+          contains('import es.antonborri.home_widget.HomeWidgetFonts'),
+        );
+      });
+
+      test('leaves boxed items of one ascent at the top of their Box', () {
+        const row = HWRow.builder(
+          'scores',
+          maxItems: 3,
+          spacing: 6,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWColoredBox(
+            color: HWFixedColor(0xFFFF0000),
+            child: plainLabel,
+          ),
+        );
+        final kotlin = row.toKotlin(0, dataExpr: 'data');
+
+        expect(kotlin, isNot(contains('hwAscents')));
+        expect(
+          kotlin,
+          contains(
+            'Box(modifier = GlanceModifier.padding(start = if (hwIndex > 0) '
+            '6.0.dp else 0.dp)) {',
+          ),
+        );
+      });
+
+      test('rejects an item whose slots render text differently', () {
+        const row = HWRow.builder(
+          'scores',
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWSizeAdaptive(small: score, large: plainLabel),
+        );
+
+        expect(
+          () => row.toKotlin(0, dataExpr: 'data'),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('HWSizeAdaptive whose slots render text differently'),
+            ),
+          ),
+        );
+      });
     });
 
     group('kotlinBaselineText', () {
@@ -988,6 +1393,40 @@ Row(verticalAlignment = Alignment.Top) {
         );
         expect(baseline.ascent('data'), contains('19f'));
         expect(baseline.ascent('data'), contains('11f'));
+      });
+
+      test('a conditional reads the item only where an item is read', () {
+        const plain = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
+        const other = HWText.fixed('b', style: HWTextStyle(fontSize: 11));
+        expect(plain.kotlinBaselineText()?.readsItem, isFalse);
+
+        const onItem = HWBoolConditional(
+          data: HWItemData(HWBool('big', defaultValue: false)),
+          whenTrue: plain,
+          whenFalse: other,
+        );
+        expect(onItem.kotlinBaselineText()?.readsItem, isTrue);
+
+        const onTimedItem = HWBoolConditional(
+          data: HWTimedData(HWItemData(HWBool('big', defaultValue: false))),
+          whenTrue: plain,
+          whenFalse: other,
+        );
+        expect(onTimedItem.kotlinBaselineText()?.readsItem, isTrue);
+
+        const onWidgetData = HWDataExists(
+          data: HWString('maybe'),
+          whenPresent: plain,
+          whenAbsent: other,
+        );
+        expect(onWidgetData.kotlinBaselineText()?.readsItem, isFalse);
+
+        const nested = HWDataExists(
+          data: HWString('maybe'),
+          whenPresent: onItem,
+          whenAbsent: other,
+        );
+        expect(nested.kotlinBaselineText()?.readsItem, isTrue);
       });
 
       test('a conditional with a branch rendering no text answers null', () {

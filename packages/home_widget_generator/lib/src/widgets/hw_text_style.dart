@@ -1,5 +1,6 @@
 import '../fonts.dart';
 import '../native_helpers.dart';
+import '../types.dart';
 import '../utils/fnv_hash.dart';
 import '../utils/string_literals.dart';
 import 'hw_color.dart';
@@ -379,10 +380,14 @@ sealed class HWKotlinTextRenderer {
   Set<String> get kotlinImports;
 
   /// The Kotlin rendering [text], the expression the bound value is read with.
+  ///
+  /// [itemList] is the key of the list whose item the text renders in, or null
+  /// outside every item.
   String toKotlin(
     int indent, {
     required String dataExpr,
     required String text,
+    String? itemList,
   });
 
   /// What a baseline-aligned [HWRow] lines this text up by.
@@ -405,6 +410,10 @@ class HWKotlinBaselineText {
   /// its own for the layout to correct.
   final bool isBitmap;
 
+  /// Whether [ascent] reads the list item a builder renders, and so can differ
+  /// from item to item.
+  final bool readsItem;
+
   /// The Kotlin imports [ascent] needs, which only the row emitting it pulls
   /// in: nothing else in the generated file names them.
   final Set<String> kotlinImports;
@@ -419,6 +428,7 @@ class HWKotlinBaselineText {
   const HWKotlinBaselineText({
     required this.ascent,
     required this.isBitmap,
+    required this.readsItem,
     this.kotlinImports = const {},
     this.conflict,
   });
@@ -496,6 +506,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     int indent, {
     required String dataExpr,
     required String text,
+    String? itemList,
   }) {
     final pad = '    ' * indent;
     final style = styleExpression(indent, dataExpr: dataExpr);
@@ -533,6 +544,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
               'weight = $weight, italic = $italic)';
         },
         isBitmap: false,
+        readsItem: false,
         kotlinImports: fontFamily == null
             ? const {}
             : const {'import android.graphics.Typeface'},
@@ -606,6 +618,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
             'HomeWidgetFonts.textAscentPx(context, $_typefaceExpression, '
             '${hwSizeLiteral(fontSize)}f)',
         isBitmap: true,
+        readsItem: false,
       );
 
   /// The key the room for [text] is measured and looked back up under.
@@ -615,7 +628,11 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
   /// drawn at, and the alignment and decorations drawn around them. Two texts
   /// agreeing on all of that share a key, and with it the room the measuring
   /// pass found.
-  String boundsKey(String text) {
+  ///
+  /// Inside the item of the builder over [itemList] the expression is the same
+  /// for every item, so the list takes part too, and [toKotlin] appends each
+  /// item's index to the key.
+  String boundsKey(String text, {String? itemList}) {
     final parts = <String>[
       text,
       variant.flutterFamilyKey,
@@ -625,6 +642,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
       textAlign?.name ?? '',
       'underline=$underline',
       'lineThrough=$lineThrough',
+      if (itemList != null) 'itemList=$itemList',
     ];
     return fnv1a32(parts.join(_boundsKeySeparator))
         .toRadixString(16)
@@ -636,12 +654,14 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     int indent, {
     required String dataExpr,
     required String text,
+    String? itemList,
   }) {
     final pad = '    ' * indent;
     final typeface = _typefaceExpression;
     final tint =
         (color ?? hwDefaultContentColor).toKotlin(indent, dataExpr: dataExpr);
-    final key = boundsKey(text);
+    final hash = boundsKey(text, itemList: itemList);
+    final key = itemList == null ? hash : '$hash-\$${HWListLoop.index}';
 
     final buffer = StringBuffer();
     buffer.writeln('${pad}Image(');

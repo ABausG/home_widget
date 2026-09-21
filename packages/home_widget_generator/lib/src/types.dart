@@ -137,8 +137,17 @@ sealed class HWDataType<T> {
   /// Returns `this` for every variant except [HWTimedData], which returns the
   /// type it wraps. Use this wherever code needs to branch on the concrete
   /// data variant (for example `is HWJson`) regardless of whether the field is
-  /// time-based.
+  /// time-based. An [HWItemData] stays itself, since it reads from a list item
+  /// rather than from the widget's data.
   HWDataType<dynamic> get unwrapped => this;
+
+  /// The value type this field ultimately describes.
+  ///
+  /// Strips an [HWTimedData] or [HWItemData] wrapper and descends an [HWJson]
+  /// to its leaf, so a plain, time-based, JSON-nested or item field answers
+  /// with the same [HWInt], [HWImageData] or [HWBool]; `this` for every plain
+  /// type.
+  HWDataType<dynamic> get leaf => this;
 
   /// The native functions reading a stored value of this type back out of its
   /// own preferences key.
@@ -580,6 +589,20 @@ class HWLocalizedString extends HWString {
     return 'hwReadTimedLocalized($valuesExpr, "$key", $map, '
         'baseLocale: "$base")';
   }
+
+  /// Kotlin reading [value], a nullable text stored without its translations,
+  /// with [defaultTranslations] resolved against the device's locales in its
+  /// place when it is null.
+  String _kotlinFallbackRead(String value) =>
+      '($value ?: hwResolveLocalized(hwLocales, $kotlinMapLiteral, '
+      '"${escapeKotlinStringLiteral(baseLocaleTag)}") '
+      '?: "${escapeKotlinStringLiteral(baseValue)}")';
+
+  /// Swift counterpart of [_kotlinFallbackRead].
+  String _swiftFallbackRead(String value) =>
+      '(($value) ?? hwResolveLocalized(hwCurrentLocales(), $swiftMapLiteral, '
+      'baseLocale: "${escapeSwiftStringLiteral(baseLocaleTag)}") '
+      '?? "${escapeSwiftStringLiteral(baseValue)}")';
 
   /// Constants read from `res/values[-<locale>]/strings.xml`.
   @override
@@ -1814,6 +1837,9 @@ class HWJson<T> extends HWDataType<T> {
   }
 
   @override
+  HWDataType<dynamic> get leaf => leafType;
+
+  @override
   T? get defaultValue => leafType.defaultValue as T?;
 
   @override
@@ -1894,11 +1920,7 @@ class HWJson<T> extends HWDataType<T> {
   String kotlinReadExpr(String dataExpr) {
     final base = kotlinAccess(dataExpr);
     final leaf = leafType;
-    if (leaf is HWLocalizedString) {
-      return '($base ?: hwResolveLocalized(hwLocales, ${leaf.kotlinMapLiteral}, '
-          '"${escapeKotlinStringLiteral(leaf.baseLocaleTag)}") '
-          '?: "${escapeKotlinStringLiteral(leaf.baseValue)}")';
-    }
+    if (leaf is HWLocalizedString) return leaf._kotlinFallbackRead(base);
     final literal = leaf.codegenKotlinDefaultLiteral();
     if (literal == null) return base;
     return '($base ?: $literal)';
@@ -1908,12 +1930,7 @@ class HWJson<T> extends HWDataType<T> {
   String swiftReadExpr(String dataExpr) {
     final base = swiftAccess(dataExpr);
     final leaf = leafType;
-    if (leaf is HWLocalizedString) {
-      return '(($base) ?? hwResolveLocalized(hwCurrentLocales(), '
-          '${leaf.swiftMapLiteral}, '
-          'baseLocale: "${escapeSwiftStringLiteral(leaf.baseLocaleTag)}") '
-          '?? "${escapeSwiftStringLiteral(leaf.baseValue)}")';
-    }
+    if (leaf is HWLocalizedString) return leaf._swiftFallbackRead(base);
     final literal = leaf.codegenSwiftDefaultLiteral();
     if (literal == null) return base;
     return '((($base) ?? ($literal)))';
@@ -2021,48 +2038,30 @@ class HWJson<T> extends HWDataType<T> {
 /// The [HWImageData] a data field ultimately describes, or null when the field
 /// is not an image.
 ///
-/// Strips an [HWTimedData] wrapper and descends an [HWJson] to its leaf, so
-/// every spelling of an image — plain, time-based, inside a JSON group, or both
-/// — answers with the same [HWImageData].
+/// Goes by [HWDataType.leaf], so every spelling of an image — plain,
+/// time-based, inside a JSON group or a list item — answers with the same
+/// [HWImageData].
 HWImageData? imageLeafOf(HWDataType<dynamic> type) {
-  final unwrapped = type.unwrapped;
-  if (unwrapped is HWImageData) return unwrapped;
-  if (unwrapped is HWJson) {
-    final leaf = unwrapped.leafType;
-    if (leaf is HWImageData) return leaf;
-  }
-  return null;
+  final leaf = type.leaf;
+  return leaf is HWImageData ? leaf : null;
 }
 
 /// The [HWIconData] a data field ultimately describes, or null when the field
 /// is not an icon.
 ///
-/// Descends the same wrappers as [imageLeafOf], so a plain, time-based or
-/// JSON-nested icon all answer with the same [HWIconData].
+/// Descends the same wrappers as [imageLeafOf].
 HWIconData? iconLeafOf(HWDataType<dynamic> type) {
-  final unwrapped = type.unwrapped;
-  if (unwrapped is HWIconData) return unwrapped;
-  if (unwrapped is HWJson) {
-    final leaf = unwrapped.leafType;
-    if (leaf is HWIconData) return leaf;
-  }
-  return null;
+  final leaf = type.leaf;
+  return leaf is HWIconData ? leaf : null;
 }
 
 /// The [HWNumericDataType] a data field ultimately describes, or null when the
 /// field is not a number.
 ///
-/// Strips an [HWTimedData] wrapper and descends an [HWJson] to its leaf, the
-/// same way [imageLeafOf] does, so every spelling of a number answers with the
-/// same [HWInt] or [HWDouble].
+/// Descends the same wrappers as [imageLeafOf].
 HWNumericDataType<num>? numberLeafOf(HWDataType<dynamic> type) {
-  final unwrapped = type.unwrapped;
-  if (unwrapped is HWNumericDataType<num>) return unwrapped;
-  if (unwrapped is HWJson) {
-    final leaf = unwrapped.leafType;
-    if (leaf is HWNumericDataType<num>) return leaf;
-  }
-  return null;
+  final leaf = type.leaf;
+  return leaf is HWNumericDataType<num> ? leaf : null;
 }
 
 /// The [HWDateTime] a data field ultimately describes, or null when the field
@@ -2070,13 +2069,8 @@ HWNumericDataType<num>? numberLeafOf(HWDataType<dynamic> type) {
 ///
 /// Descends the same wrappers as [imageLeafOf].
 HWDateTime? dateTimeLeafOf(HWDataType<dynamic> type) {
-  final unwrapped = type.unwrapped;
-  if (unwrapped is HWDateTime) return unwrapped;
-  if (unwrapped is HWJson) {
-    final leaf = unwrapped.leafType;
-    if (leaf is HWDateTime) return leaf;
-  }
-  return null;
+  final leaf = type.leaf;
+  return leaf is HWDateTime ? leaf : null;
 }
 
 /// Marks a data field as time-based.
@@ -2202,6 +2196,9 @@ class HWTimedData<T> extends HWDataType<T> {
   @override
   HWDataType<dynamic> get unwrapped => data;
 
+  @override
+  HWDataType<dynamic> get leaf => data.leaf;
+
   /// Stable stand-in for the class identity in [hashCode].
   ///
   /// [operator ==] compares with `is HWTimedData` (ignoring the type argument),
@@ -2227,3 +2224,216 @@ class HWTimedData<T> extends HWDataType<T> {
   @override
   int get hashCode => Object.hash(_hashTag, data);
 }
+
+/// The names the loop of an `HWColumn.builder` or `HWRow.builder` declares in
+/// the generated Swift and Kotlin.
+///
+/// No other generated code declares them, so nothing a builder's item reads is
+/// shadowed.
+abstract final class HWListLoop {
+  /// The item being rendered, which an [HWItemData] reads its field off.
+  static const String item = 'hwItem';
+
+  /// The position of [item] among the rendered items, counted from 0.
+  static const String index = 'hwIndex';
+
+  /// The items rendered, at most `maxItems` of them. Kotlin only.
+  static const String items = 'hwItems';
+
+  /// The baseline ascent of each of [items], which a baseline-aligned
+  /// `HWRow.builder` pads its items down by. Kotlin only.
+  static const String ascents = 'hwAscents';
+}
+
+/// A field of the item an `HWColumn.builder` or `HWRow.builder` renders.
+///
+/// `HWItemData(HWInt('temperature'))` reads `temperature` off each item of the
+/// builder's list, where a plain `HWInt('temperature')` reads the widget's own
+/// data, also inside an item. Only valid in the `item` of a builder.
+///
+/// Typed like the field it wraps, so it is accepted wherever that field is:
+/// the key, the types, `defaultValue` and `previewValue` are the wrapped
+/// field's, the default filling in for an item that lacks the field. Wraps an
+/// [HWString] (plain or localized), [HWInt], [HWDouble], [HWBool],
+/// [HWDateTime], [HWIconData] or a runtime [HWImageData]. A time-based list is
+/// read through `HWTimedData(HWItemData(...))`.
+class HWItemData<T> extends HWDataType<T> {
+  /// The item field to read.
+  final HWDataType<T> data;
+
+  /// This field's value in each sample item the widget gallery shows, item `i`
+  /// taking entry `i`, each spelled the way [data]'s own `previewValue` is.
+  ///
+  /// Decoded, an entry is a `String` for text, for a date's ISO 8601 text and
+  /// for an image's Flutter asset path, an `int` or a `double` for a number, a
+  /// `bool`, or an icon's codepoint.
+  final List<Object>? previewValues;
+
+  const HWItemData(this.data, {this.previewValues}) : super('');
+
+  @override
+  String get key => data.key;
+
+  @override
+  T? get defaultValue => data.defaultValue;
+
+  @override
+  T? get previewValue => data.previewValue;
+
+  @override
+  String get dartType => data.dartType;
+
+  @override
+  String dartApiType(String widgetClassName) =>
+      data.dartApiType(widgetClassName);
+
+  @override
+  String dartGetDataType(String widgetClassName) =>
+      data.dartGetDataType(widgetClassName);
+
+  @override
+  String dartDecode(String expr, String widgetClassName) =>
+      data.dartDecode(expr, widgetClassName);
+
+  @override
+  String? dartEncode(String expr, String widgetClassName) =>
+      data.dartEncode(expr, widgetClassName);
+
+  @override
+  String? codegenDartDefaultLiteral() => data.codegenDartDefaultLiteral();
+
+  @override
+  String get kotlinType => data.kotlinType;
+
+  @override
+  String get swiftType => data.swiftType;
+
+  @override
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) =>
+      data.androidReadValue(store: store, key: key, preview: preview);
+
+  @override
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) =>
+      data.iosReadValue(store: store, key: key, preview: preview);
+
+  @override
+  String? codegenKotlinDefaultLiteral() => data.codegenKotlinDefaultLiteral();
+
+  @override
+  String? codegenSwiftDefaultLiteral() => data.codegenSwiftDefaultLiteral();
+
+  @override
+  String? codegenKotlinPreviewLiteral() => data.codegenKotlinPreviewLiteral();
+
+  @override
+  String? codegenSwiftPreviewLiteral() => data.codegenSwiftPreviewLiteral();
+
+  @override
+  String? codegenKotlinFallbackLiteral({bool preview = false}) =>
+      data.codegenKotlinFallbackLiteral(preview: preview);
+
+  @override
+  String? codegenSwiftFallbackLiteral({bool preview = false}) =>
+      data.codegenSwiftFallbackLiteral(preview: preview);
+
+  /// [data]'s, except that a localized field an item stores no text for falls
+  /// back to its translations, resolved against the device's locales.
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) {
+    final HWDataType<dynamic> field = data;
+    if (field is HWLocalizedString) {
+      return field._kotlinFallbackRead(outerValue);
+    }
+    return field.androidToString(
+      outerValue: outerValue,
+      innerValue: innerValue,
+    );
+  }
+
+  /// Swift counterpart of [androidToString].
+  @override
+  String iosToString({required String outerValue, required String innerValue}) {
+    final HWDataType<dynamic> field = data;
+    if (field is HWLocalizedString) return field._swiftFallbackRead(outerValue);
+    return field.iosToString(outerValue: outerValue, innerValue: innerValue);
+  }
+
+  /// The field off [HWListLoop.item], whatever [dataExpr] is: it stays the
+  /// widget's own data for every root field read beside this one.
+  @override
+  String swiftAccess(String dataExpr) => '${HWListLoop.item}.$key';
+
+  @override
+  String kotlinAccess(String dataExpr) => '${HWListLoop.item}.$key';
+
+  /// An item is read out of the decoded list the way a JSON leaf is.
+  @override
+  List<HWNativeHelper> get nativeHelpers => data.jsonNativeHelpers;
+
+  @override
+  List<HWNativeHelper> get timedNativeHelpers => data.jsonNativeHelpers;
+
+  @override
+  Set<HWNativeHelper> get renderHelpers => data.jsonRenderHelpers;
+
+  @override
+  HWDataType<dynamic> get leaf => data.leaf;
+
+  /// Stable stand-in for the class identity in [hashCode], for the reason
+  /// [HWTimedData] has one.
+  static const String _hashTag = 'HWItemData';
+
+  /// Compatible with another read of a compatible field whose [previewValues]
+  /// agree, or are set on one side only.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWItemData &&
+      data.isCompatibleWith(other.data) &&
+      _listsMergeable(previewValues, other.previewValues);
+
+  @override
+  HWItemData<T> _merged(HWDataType<dynamic> other) {
+    final item = other as HWItemData<dynamic>;
+    return HWItemData<T>(
+      data.mergedWith(item.data),
+      previewValues: previewValues ?? item.previewValues,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWItemData &&
+          data == other.data &&
+          _optionalListEquals(previewValues, other.previewValues);
+
+  @override
+  int get hashCode {
+    final values = previewValues;
+    return Object.hash(
+      _hashTag,
+      data,
+      values == null ? null : Object.hashAll(values),
+    );
+  }
+}
+
+/// Whether two declarations of the same optional list can be merged: they hold
+/// equal elements, or only one of them sets it.
+bool _listsMergeable(List<Object?>? a, List<Object?>? b) =>
+    a == null || b == null || _listEquals(a, b);
+
+/// Whether [a] and [b] are both null or hold equal elements in the same order.
+bool _optionalListEquals(List<Object?>? a, List<Object?>? b) =>
+    a == null || b == null ? a == b : _listEquals(a, b);

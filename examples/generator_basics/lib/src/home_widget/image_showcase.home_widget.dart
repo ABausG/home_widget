@@ -15,18 +15,30 @@ class ImageShowcaseHomeWidget {
 
   static const String _$paramPrefix = 'home_widget.ImageShowcase';
 
+  /// Writes every value handed to it, and leaves out what it was not given.
+  ///
+  /// A picture this widget itself wrote, handed back by [getData] and since
+  /// removed from disk, is saved as no picture rather than failing the call:
+  /// a nested, timed or per-item one is cleared, a top-level one keeps the
+  /// path it had.
   static Future<void> saveData({
     ImageProvider? picture,
     ContactJsonData? contact,
     Map<DateTime, ImageShowcaseTimedData>? timedData,
-  }) {
-    return Future.wait([
-      if (picture != null) HomeWidget.saveImage('${_$paramPrefix}.picture', picture, appGroupId: _$appGroupId),
+  }) async {
+    final _rootImage_picture = await _$readImage(picture);
+    final _jsonImage_contact_avatar = await _$readImage(contact?.avatar);
+    final _timedImages_slide = {
+      if (timedData != null)
+        for (final MapEntry(key: _time, value: _entry) in timedData.entries)
+          _time: await _$readImage(_entry.slide),
+    };
+    await Future.wait([
+      if (_rootImage_picture != null) _$saveImage('${_$paramPrefix}.picture', _rootImage_picture),
       if (contact != null) () async {
         final _contactJson = contact.toJson();
-        final _jsonImage_contact_avatar = contact.avatar;
         if (_jsonImage_contact_avatar != null) {
-          _contactJson['avatar'] = await HomeWidget.saveImage('${_$paramPrefix}.contact.avatar', _jsonImage_contact_avatar, appGroupId: _$appGroupId);
+          _contactJson['avatar'] = await _$saveImage('${_$paramPrefix}.contact.avatar', _jsonImage_contact_avatar);
         } else {
           await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contact.avatar', null, appGroupId: _$appGroupId);
         }
@@ -58,9 +70,9 @@ class ImageShowcaseHomeWidget {
           final _millis = _time.toUtc().millisecondsSinceEpoch;
           final _entry = timedData[_time]!;
           final _values = _entry.toJson();
-          final _timedImage_slide = _entry.slide;
+          final _timedImage_slide = _timedImages_slide[_time];
           if (_timedImage_slide != null) {
-            _values['slide'] = await HomeWidget.saveImage('${_$paramPrefix}.timedData.slide.$_millis', _timedImage_slide, appGroupId: _$appGroupId);
+            _values['slide'] = await _$saveImage('${_$paramPrefix}.timedData.slide.$_millis', _timedImage_slide);
           } else if (_storedTimes.contains(_millis)) {
             await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.timedData.slide.$_millis', null, appGroupId: _$appGroupId);
           }
@@ -230,6 +242,26 @@ class ImageShowcaseHomeWidget {
       return androidClassName.endsWith('.ImageShowcaseHomeWidgetReceiver');
     }
     return info.iOSKind == 'ImageShowcaseHomeWidget';
+  }
+
+  static Future<ImageProvider?> _$readImage(ImageProvider? image) async {
+    if (image is! FileImage) return image;
+    final path = image.file.path;
+    final name = path.substring(path.lastIndexOf('/') + 1);
+    if (!name.startsWith('${_$paramPrefix}.') || !name.endsWith('.png')) {
+      return image;
+    }
+    try {
+      return MemoryImage(await image.file.readAsBytes());
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  static Future<String> _$saveImage(String key, ImageProvider image) async {
+    final path = await HomeWidget.saveImage(key, image, appGroupId: _$appGroupId);
+    await FileImage(File(path)).evict();
+    return path;
   }
 
   static Future<List<int>> _$storedTimedKeys() async {

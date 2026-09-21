@@ -86,6 +86,12 @@
 		9944AC47575114861A01B8ED /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5B9151DA846A760F02F70FBC /* SwiftUI.framework */; };
 		88F3FFFF8E038B14971A02B5 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65CC81C847A9EB0720271642 /* Widget.swift */; };
 		5C927FFF0BD223546040726D /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E894120CE1F25E77C30E4CA /* WidgetBundle.swift */; };
+		D0C7B9A9D1E97C9A3C7BCB8B /* WeekForecastHomeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 59900B64CDDE11E3C5C1FD02 /* WeekForecastHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		92D17CE66EDD801906771520 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A89A79DBD74FC1E682F4643 /* WidgetKit.framework */; };
+		609E29BD9B86E8B6ED6533F7 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 39D124BAE27FC005D66F0A00 /* SwiftUI.framework */; };
+		D1FF2A35979661D8E84EC2FF /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7B84DC9020A47DCEEC93A2 /* Widget.swift */; };
+		1386AA35AF380A18A19DF477 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA84B14C3AA561D0CACF26A /* WidgetBundle.swift */; };
+		67BFE89D06FB7F5E4A7C1C2F /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = 48E482D2C90E8D752FBD2A30 /* hw_font_icons_materialicons.otf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -186,6 +192,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 15BFE5275F1D3B1883CDA931;
 			remoteInfo = SizeAdaptiveDashboardHomeWidget;
+		};
+		0338EB522A75C15DA60FC1C4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 57F1CF5D65F5A06CF2DDA75B;
+			remoteInfo = WeekForecastHomeWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -343,6 +356,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BA9A0C8CA931AF3D0795F6B2 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D0C7B9A9D1E97C9A3C7BCB8B /* WeekForecastHomeWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -465,6 +489,14 @@
 		65CC81C847A9EB0720271642 /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
 		7E894120CE1F25E77C30E4CA /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
 		7DC195537041BEAC5511D5E9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		59900B64CDDE11E3C5C1FD02 /* WeekForecastHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WeekForecastHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		4A89A79DBD74FC1E682F4643 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		39D124BAE27FC005D66F0A00 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		C5984D5721A5E08ECA0A8C69 /* WeekForecastHomeWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = WeekForecastHomeWidget.entitlements; sourceTree = "<group>"; };
+		BC7B84DC9020A47DCEEC93A2 /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		FBA84B14C3AA561D0CACF26A /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
+		9E4F6FE975993F30472D7BD3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		48E482D2C90E8D752FBD2A30 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -602,6 +634,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7214CC20A8C94ED5874DFF6A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				609E29BD9B86E8B6ED6533F7 /* SwiftUI.framework in Frameworks */,
+				92D17CE66EDD801906771520 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -693,6 +734,8 @@
 				4A024E5A560578D506BEC2F4 /* FontAndIconsHomeWidget */,
 				FD4F3F0DA504BB1ED9BDA2D3 /* SizeAdaptiveDashboardHomeWidget.entitlements */,
 				4587DE65D1FCC60C1B30E29F /* SizeAdaptiveDashboardHomeWidget */,
+				C5984D5721A5E08ECA0A8C69 /* WeekForecastHomeWidget.entitlements */,
+				CFBDA02F737EA0D0462F3215 /* WeekForecastHomeWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -706,6 +749,7 @@
 				64BA7B9B3F5E4874294F88DD /* NumberDateFormattingHomeWidget.appex */,
 				A7C38631850A9F36A61743A3 /* FontAndIconsHomeWidget.appex */,
 				3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */,
+				59900B64CDDE11E3C5C1FD02 /* WeekForecastHomeWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -849,6 +893,17 @@
 			path = SizeAdaptiveDashboardHomeWidget;
 			sourceTree = "<group>";
 		};
+		CFBDA02F737EA0D0462F3215 /* WeekForecastHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				BC7B84DC9020A47DCEEC93A2 /* Widget.swift */,
+				FBA84B14C3AA561D0CACF26A /* WidgetBundle.swift */,
+				9E4F6FE975993F30472D7BD3 /* Info.plist */,
+				48E482D2C90E8D752FBD2A30 /* hw_font_icons_materialicons.otf */,
+			);
+			path = WeekForecastHomeWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -911,6 +966,7 @@
 				06CD63636844342AEA44F54D /* Embed Foundation Extensions */,
 				442A4419A9C6917C17F57913 /* Embed Foundation Extensions */,
 				A93764F82D6C64C774EDE512 /* Embed Foundation Extensions */,
+				BA9A0C8CA931AF3D0795F6B2 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
@@ -929,6 +985,7 @@
 				1049273EF7BA03FDBA7CABF4 /* PBXTargetDependency */,
 				CCC853E07EC583431A5E12B6 /* PBXTargetDependency */,
 				0C87629392D876027D7FBAF9 /* PBXTargetDependency */,
+				1E458529E7B5546263318563 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -1148,6 +1205,23 @@
 			productReference = 3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		57F1CF5D65F5A06CF2DDA75B /* WeekForecastHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0D2EDCFCF263B67F71BDC2C6 /* Build configuration list for PBXNativeTarget "WeekForecastHomeWidget" */;
+			buildPhases = (
+				E78F99FF376B16ACCAA6D4D5 /* Sources */,
+				7214CC20A8C94ED5874DFF6A /* Frameworks */,
+				6026E1D23633CF29BFE5F2A4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WeekForecastHomeWidget;
+			productName = WeekForecastHomeWidget;
+			productReference = 59900B64CDDE11E3C5C1FD02 /* WeekForecastHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1201,6 +1275,7 @@
 				D75B9C8AABF19C83AA46FF4C /* NumberDateFormattingHomeWidget */,
 				EF67685C1BF69BB94B54BD0E /* FontAndIconsHomeWidget */,
 				15BFE5275F1D3B1883CDA931 /* SizeAdaptiveDashboardHomeWidget */,
+				57F1CF5D65F5A06CF2DDA75B /* WeekForecastHomeWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -1316,6 +1391,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6026E1D23633CF29BFE5F2A4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				67BFE89D06FB7F5E4A7C1C2F /* hw_font_icons_materialicons.otf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1534,6 +1617,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E78F99FF376B16ACCAA6D4D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1FF2A35979661D8E84EC2FF /* Widget.swift in Sources */,
+				1386AA35AF380A18A19DF477 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1606,6 +1698,11 @@
 			isa = PBXTargetDependency;
 			target = 15BFE5275F1D3B1883CDA931 /* SizeAdaptiveDashboardHomeWidget */;
 			targetProxy = 8C1259F2EE7E9B271EC28BD0 /* PBXContainerItemProxy */;
+		};
+		1E458529E7B5546263318563 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 57F1CF5D65F5A06CF2DDA75B /* WeekForecastHomeWidget */;
+			targetProxy = 0338EB522A75C15DA60FC1C4 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -2935,6 +3032,84 @@
 			};
 			name = Profile;
 		};
+		D431EC7BFF007110D0A6A08D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = WeekForecastHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = WeekForecastHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WeekForecastHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WeekForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3945E319B7FDE2AEB7144203 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = WeekForecastHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = WeekForecastHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WeekForecastHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WeekForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		DCAE2E250CCE70FEB60FFB5B /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = WeekForecastHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = WeekForecastHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = WeekForecastHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WeekForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -3094,6 +3269,16 @@
 				BAF4C491E405D74C6D331017 /* Debug */,
 				E96564C3204965FECA04F659 /* Release */,
 				FFE3716FE4B78F8E2B936531 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0D2EDCFCF263B67F71BDC2C6 /* Build configuration list for PBXNativeTarget "WeekForecastHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D431EC7BFF007110D0A6A08D /* Debug */,
+				3945E319B7FDE2AEB7144203 /* Release */,
+				DCAE2E250CCE70FEB60FFB5B /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

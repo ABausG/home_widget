@@ -54,8 +54,34 @@ class HWAdaptive extends HWWidget {
   bool get kotlinReportsBaseline => android.kotlinReportsBaseline;
 
   @override
+  bool get kotlinPaddingAddsRoom => android.kotlinPaddingAddsRoom;
+
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) =>
+      android.kotlinRoomIn(enclosingLinearAxis);
+
+  @override
+  bool get swiftRendersNothing => ios.swiftRendersNothing;
+
+  @override
+  bool get kotlinRendersNothing => android.kotlinRendersNothing;
+
+  @override
   HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
       android.kotlinBaselineText(context);
+
+  /// A stack lays out the Android side, and whatever it picks from in turn.
+  @override
+  List<HWWidget> _kotlinChoices(HWEmitContext? context) => [android];
+
+  @override
+  String _kotlinChoice(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext? context,
+    required String Function(HWWidget widget, int indent) emit,
+  }) =>
+      emit(android, indent);
 
   @override
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;

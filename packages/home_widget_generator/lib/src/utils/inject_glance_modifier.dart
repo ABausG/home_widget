@@ -248,7 +248,9 @@ String injectGlanceModifier(String code, String modifier) {
       final tail = args.substring(chainRange.$1 + _modifierToken.length);
       newArgs = '$head$_modifierToken.$modifier$tail';
     } else {
-      newArgs = 'modifier = GlanceModifier.$modifier, $args';
+      // Arguments spread over lines stay on theirs.
+      final separator = args.startsWith('\n') ? ',' : ', ';
+      newArgs = 'modifier = GlanceModifier.$modifier$separator$args';
     }
 
     final rest = trimmed.substring(

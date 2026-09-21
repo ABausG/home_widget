@@ -695,4 +695,277 @@ void main() {
       );
     });
   });
+
+  group('sample items', () {
+    WidgetSpec listSpecOf(HWWidget tree, {bool useLiveDataInPreview = true}) =>
+        specOf(
+          dataFields: tree.dataDependencies.toList(),
+          widget: tree,
+          useLiveDataInPreview: useLiveDataInPreview,
+        );
+
+    test('spells out varied items and prefers the stored list', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWRow.builder(
+            'forecast',
+            maxItems: 5,
+            item: HWColumn(
+              children: [
+                HWText.dateTime(
+                  HWItemData(
+                    HWDateTime('day'),
+                    previewValues: [
+                      '2026-09-21T12:00:00Z',
+                      '2026-09-22T12:00:00Z',
+                      '2026-09-23T12:00:00Z',
+                    ],
+                  ),
+                ),
+                HWText.number(
+                  HWItemData(
+                    HWInt('temperature', defaultValue: 0),
+                    previewValues: [21, 17],
+                  ),
+                ),
+                HWText.number(HWItemData(HWDouble('rain', previewValue: 1))),
+                HWBoolConditional(
+                  data: HWItemData(HWBool('windy', defaultValue: false)),
+                  whenTrue: HWText.fixed('windy'),
+                  whenFalse: HWText.fixed('calm'),
+                ),
+                HWText(
+                  HWItemData(
+                    HWString.localized(
+                      'label',
+                      defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+                      previewTranslations: {
+                        'en': 'Someday',
+                        'de': 'Irgendwann',
+                      },
+                    ),
+                    previewValues: ['Mon "1"'],
+                  ),
+                ),
+                HWText(HWItemData(HWString('note'))),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static let previewItems: [ExampleWidgetForecastItem] = [
+    ExampleWidgetForecastItem(day: hwParseIsoDate("2026-09-21T12:00:00Z"), temperature: 21, rain: 1.0, windy: false, label: "Mon \\"1\\"", note: nil),
+    ExampleWidgetForecastItem(day: hwParseIsoDate("2026-09-22T12:00:00Z"), temperature: 17, rain: 1.0, windy: false, label: hwResolveLocalized(hwCurrentLocales(), ["en": "Someday", "de": "Irgendwann"], baseLocale: "en"), note: nil),
+    ExampleWidgetForecastItem(day: hwParseIsoDate("2026-09-23T12:00:00Z"), temperature: 0, rain: 1.0, windy: false, label: hwResolveLocalized(hwCurrentLocales(), ["en": "Someday", "de": "Irgendwann"], baseLocale: "en"), note: nil),
+  ]
+
+  static func fromPath('''),
+      );
+      expect(
+        content,
+        contains(
+          '      forecast: ExampleWidgetForecastItem.fromPath(defaults?.string('
+          'forKey: "\\(paramPrefix).forecast")) ?? '
+          'ExampleWidgetForecastItem.previewItems,\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      forecast: ExampleWidgetForecastItem.fromPath(defaults?.string('
+          'forKey: "\\(paramPrefix).forecast")),\n',
+        ),
+      );
+    });
+
+    test('repeats one item as often as the largest maxItems', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWSizeAdaptive(
+            small: HWRow.builder(
+              'forecast',
+              maxItems: 2,
+              item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+            ),
+            large: HWColumn.builder(
+              'forecast',
+              maxItems: 4,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '  static let previewItems: [ExampleWidgetForecastItem] = '
+          'Array(repeating: ExampleWidgetForecastItem(label: "Day"), '
+          'count: 4)\n',
+        ),
+      );
+    });
+
+    test('shows the stored list alone when no field has a sample', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWColumn(
+            children: [
+              HWText(HWString('city', previewValue: 'Berlin')),
+              HWRow.builder(
+                'forecast',
+                maxItems: 5,
+                item: HWText(HWItemData(HWString('label'))),
+                whenEmpty: HWText.fixed('Nothing yet'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(content, isNot(contains('previewItems')));
+      expect(
+        'forecast: ExampleWidgetForecastItem.fromPath(defaults?.string('
+                'forKey: "\\(paramPrefix).forecast")),'
+            .allMatches(content),
+        hasLength(2),
+      );
+    });
+
+    test('previews a time-based list through its samples behind the entry',
+        () async {
+      final content = await generate(
+        listSpecOf(
+          const HWColumn.builder(
+            'hourly',
+            maxItems: 3,
+            item: HWText.number(
+              HWTimedData(
+                HWItemData(
+                  HWInt('temperature', defaultValue: 0),
+                  previewValues: [12, 13],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static let previewItems: [ExampleWidgetHourlyItem] = [
+    ExampleWidgetHourlyItem(temperature: 12),
+    ExampleWidgetHourlyItem(temperature: 13),
+  ]
+'''),
+      );
+      expect(
+        content,
+        contains('''
+  static func previewFromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ExampleWidgetData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return ExampleWidgetData(
+      hourly: ExampleWidgetHourlyItem.fromJsonArray(timedValues["hourly"]) ?? ExampleWidgetHourlyItem.previewItems,
+    )
+  }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          '      hourly: ExampleWidgetHourlyItem.fromJsonArray('
+          'timedValues["hourly"]),\n',
+        ),
+      );
+    });
+
+    test('previews a list that is the only data through its samples', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+          ),
+          useLiveDataInPreview: false,
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          'ExampleWidgetHomeWidgetEntry(date: Date(), data: '
+          'ExampleWidgetData.previewFromUserDefaults(nil))',
+        ),
+      );
+      expect(content, contains('      let prefs: UserDefaults? = nil\n'));
+      expect(
+        content,
+        contains(
+          '      let data = ExampleWidgetData.previewFromUserDefaults(prefs)\n',
+        ),
+      );
+    });
+
+    test('previews an item image through its asset key', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWRow.builder(
+            'contacts',
+            maxItems: 3,
+            item: HWRow(
+              children: [
+                HWImage(
+                  HWItemData(
+                    HWImageData('avatar', previewAsset: 'assets/a.png'),
+                    previewValues: ['assets/b.png', 'packages/brand/c.png'],
+                  ),
+                ),
+                HWImage(HWItemData(HWImageData('badge'))),
+                HWText(
+                  HWItemData(
+                    HWString('name'),
+                    previewValues: ['Ada', 'Bob', 'Cy'],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static let previewItems: [ExampleWidgetContactsItem] = [
+    ExampleWidgetContactsItem(avatar: "assets/b.png", badge: nil, name: "Ada"),
+    ExampleWidgetContactsItem(avatar: "packages/brand/c.png", badge: nil, name: "Bob"),
+    ExampleWidgetContactsItem(avatar: "assets/a.png", badge: nil, name: "Cy"),
+  ]
+'''),
+      );
+      expect(
+        content,
+        contains(
+          'if let path = hwItem.avatar, '
+          'let uiImage = hwDecodeImage(path, nil, nil) {',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '.appendingPathComponent("Frameworks/App.framework/flutter_assets")',
+        ),
+      );
+    });
+  });
 }

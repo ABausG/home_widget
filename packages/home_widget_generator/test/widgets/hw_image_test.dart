@@ -12,6 +12,30 @@ void main() {
         expect(image.imageData.isAsset, isFalse);
       });
 
+      test('reads an item field off the item a builder renders', () {
+        const image = HWImage(HWItemData(HWImageData('avatar')));
+
+        expect(image.imageData, const HWImageData('avatar'));
+        expect(
+          image.dataDependencies,
+          {const HWItemData(HWImageData('avatar'))},
+        );
+        expect(
+          image.toSwift(0, dataExpr: 'entry.data'),
+          startsWith(
+            'if let path = hwItem.avatar, '
+            'let uiImage = hwDecodeImage(path, nil, nil) {',
+          ),
+        );
+        expect(
+          image.toKotlin(0, dataExpr: 'widgetData'),
+          startsWith(
+            'hwItem.avatar?.let { path -> '
+            'hwDecodeImage(context, path, null, null) }',
+          ),
+        );
+      });
+
       test('asset constructor derives the key', () {
         const image = HWImage.asset('assets/images/logo.png');
         expect(image.imageData.key, 'assetsImagesLogoPng');

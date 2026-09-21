@@ -1125,4 +1125,243 @@ void main() {
       expect(deps, hasLength(1));
     });
   });
+
+  group('HWItemData', () {
+    const localized = HWLocalizedString.resolved(
+      'title',
+      defaultTranslations: {'en': 'Event', 'de': 'Termin'},
+      isConstant: false,
+      defaultLocale: 'en',
+    );
+    const icon = HWIconData.resolved(
+      'condition',
+      entries: [HWIconEntry('wbSunny', 0xE430)],
+      iconFont: HWIconFont(family: 'MaterialIcons'),
+    );
+
+    test('delegates to the wrapped data type', () {
+      const wrapped =
+          HWString('label', defaultValue: 'Sunny', previewValue: 'Rain');
+      const type = HWItemData(wrapped);
+
+      expect(type.key, 'label');
+      expect(type.defaultValue, 'Sunny');
+      expect(type.previewValue, 'Rain');
+      expect(type.dartType, 'String');
+      expect(type.kotlinType, 'String');
+      expect(type.swiftType, 'String');
+      expect(type.codegenDartDefaultLiteral(), "'Sunny'");
+      expect(type.codegenKotlinDefaultLiteral(), '"Sunny"');
+      expect(type.codegenSwiftDefaultLiteral(), '"Sunny"');
+      expect(type.codegenKotlinPreviewLiteral(), '"Rain"');
+      expect(type.codegenSwiftPreviewLiteral(), '"Rain"');
+      for (final preview in [false, true]) {
+        expect(
+          type.androidReadValue(store: 'prefs', key: 'k', preview: preview),
+          wrapped.androidReadValue(store: 'prefs', key: 'k', preview: preview),
+        );
+        expect(
+          type.iosReadValue(store: 'defaults', key: 'k', preview: preview),
+          wrapped.iosReadValue(store: 'defaults', key: 'k', preview: preview),
+        );
+        expect(
+          type.codegenKotlinFallbackLiteral(preview: preview),
+          wrapped.codegenKotlinFallbackLiteral(preview: preview),
+        );
+        expect(
+          type.codegenSwiftFallbackLiteral(preview: preview),
+          wrapped.codegenSwiftFallbackLiteral(preview: preview),
+        );
+      }
+      expect(
+        type.androidToString(outerValue: 'hwItem.label', innerValue: 'x'),
+        'hwItem.label ?: ""',
+      );
+      expect(
+        type.iosToString(outerValue: 'hwItem.label', innerValue: 'x'),
+        'hwItem.label ?? ""',
+      );
+    });
+
+    test('hands the generated Dart API the types of the wrapped field', () {
+      const type = HWItemData(icon);
+
+      expect(type.dartApiType('Weather'), 'WeatherConditionIcon');
+      expect(type.dartGetDataType('Weather'), 'WeatherConditionIcon');
+      expect(
+        type.dartDecode('raw', 'Weather'),
+        'WeatherConditionIcon.fromCodePoint(raw)',
+      );
+      expect(type.dartEncode('value', 'Weather'), 'value.codePoint');
+    });
+
+    test('reads its field off the item, whatever the data expression', () {
+      const type = HWItemData(HWInt('temperature'));
+
+      expect(type.swiftAccess('entry.data'), 'hwItem.temperature');
+      expect(type.kotlinAccess('widgetData'), 'hwItem.temperature');
+      expect(type.swiftReadExpr('entry.data'), 'hwItem.temperature');
+      expect(type.kotlinReadExpr('widgetData'), 'hwItem.temperature');
+      expect(
+        const HWTimedData(type).kotlinAccess('widgetData'),
+        'hwItem.temperature',
+      );
+    });
+
+    test('names the variables of the loop it is read in', () {
+      expect(HWListLoop.item, 'hwItem');
+      expect(HWListLoop.index, 'hwIndex');
+      expect(HWListLoop.items, 'hwItems');
+      expect(HWListLoop.ascents, 'hwAscents');
+    });
+
+    test('stays itself when unwrapped, also inside HWTimedData', () {
+      const type = HWItemData(HWString('label'));
+
+      expect(type.unwrapped, same(type));
+      expect(const HWTimedData(type).unwrapped, same(type));
+    });
+
+    test('resolves a localized field an item stores no text for', () {
+      const type = HWItemData(localized);
+
+      expect(
+        type.androidToString(outerValue: 'hwItem.title', innerValue: 'x'),
+        '(hwItem.title ?: hwResolveLocalized(hwLocales, '
+        'mapOf("en" to "Event", "de" to "Termin"), "en") ?: "Event")',
+      );
+      expect(
+        type.iosToString(outerValue: 'hwItem.title', innerValue: 'x'),
+        '((hwItem.title) ?? hwResolveLocalized(hwCurrentLocales(), '
+        '["en": "Event", "de": "Termin"], baseLocale: "en") ?? "Event")',
+      );
+    });
+
+    test('reads and renders through the helpers of a JSON leaf', () {
+      const date = HWItemData(HWDateTime('day'));
+      const previewed = HWLocalizedString.resolved(
+        'title',
+        defaultTranslations: {'en': 'Event'},
+        previewTranslations: {'en': 'Party'},
+        isConstant: false,
+        defaultLocale: 'en',
+      );
+      const resolvers = {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      };
+
+      expect(date.nativeHelpers, [HWNativeHelper.hwParseIsoDate]);
+      expect(date.timedNativeHelpers, [HWNativeHelper.hwParseIsoDate]);
+      expect(date.renderHelpers, isEmpty);
+      expect(const HWItemData(localized).nativeHelpers, isEmpty);
+      expect(const HWItemData(localized).renderHelpers, resolvers);
+      expect(const HWItemData(previewed).nativeHelpers, resolvers.toList());
+      expect(const HWTimedData(HWItemData(localized)).nativeHelpers, isEmpty);
+      expect(
+        const HWTimedData(HWItemData(localized)).renderHelpers,
+        resolvers,
+      );
+    });
+
+    test('finds the leaf through every wrapper', () {
+      const number = HWInt('n');
+      const wrapped = <HWDataType<dynamic>>[
+        number,
+        HWTimedData(number),
+        HWJson('group', HWJson('inner', number)),
+        HWTimedData(HWJson('group', number)),
+        HWItemData(number),
+        HWTimedData(HWItemData(number)),
+      ];
+
+      for (final type in wrapped) {
+        expect(type.leaf, same(number), reason: '$type');
+        expect(numberLeafOf(type), same(number), reason: '$type');
+      }
+      expect(
+        imageLeafOf(const HWItemData(HWImageData('avatar'))),
+        const HWImageData('avatar'),
+      );
+      expect(iconLeafOf(const HWTimedData(HWItemData(icon))), icon);
+      expect(
+        dateTimeLeafOf(const HWItemData(HWDateTime('day'))),
+        const HWDateTime('day'),
+      );
+      const text = HWItemData(HWString('a'));
+      expect(imageLeafOf(text), isNull);
+      expect(iconLeafOf(text), isNull);
+      expect(numberLeafOf(text), isNull);
+      expect(dateTimeLeafOf(text), isNull);
+    });
+
+    test('equality and hashCode cover the field and its previewValues', () {
+      const read = HWItemData(HWInt('t'), previewValues: [1, 2]);
+      final twin = HWItemData(const HWInt('t'), previewValues: [1, 2]);
+
+      expect(read, twin);
+      expect(read.hashCode, twin.hashCode);
+      expect(read, isNot(const HWItemData(HWInt('t'), previewValues: [1, 3])));
+      expect(read, isNot(const HWItemData(HWInt('t'))));
+      expect(const HWItemData(HWInt('t')), isNot(read));
+      expect(const HWItemData(HWInt('t')), const HWItemData(HWInt('t')));
+      expect(read, isNot(const HWItemData(HWInt('u'), previewValues: [1, 2])));
+      expect(const HWItemData(HWInt('t')), isNot(const HWInt('t')));
+      expect(
+        const HWItemData(HWInt('t')),
+        isNot(const HWTimedData(HWInt('t'))),
+      );
+    });
+
+    test('hashCode matches == across type arguments', () {
+      const HWDataType<dynamic> dynamicallyTyped =
+          HWItemData<dynamic>(HWInt('t'));
+      const HWDataType<dynamic> numberTyped = HWItemData<num>(HWInt('t'));
+
+      expect(dynamicallyTyped, numberTyped);
+      expect(dynamicallyTyped.hashCode, numberTyped.hashCode);
+    });
+
+    test('merges with a compatible read, a value set on one side carried over',
+        () {
+      const bare = HWItemData(HWInt('t', defaultValue: 0));
+      const previewed =
+          HWItemData(HWInt('t', previewValue: 3), previewValues: [1, 2]);
+      const merged = HWItemData(
+        HWInt('t', defaultValue: 0, previewValue: 3),
+        previewValues: [1, 2],
+      );
+
+      expect(bare.isCompatibleWith(previewed), isTrue);
+      expect(bare.mergedWith(previewed), merged);
+      expect(previewed.mergedWith(bare), merged);
+      expect(
+        previewed.isCompatibleWith(
+          const HWItemData(HWInt('t'), previewValues: [1, 2]),
+        ),
+        isTrue,
+      );
+    });
+
+    test('conflicts with a read of another field or other previewValues', () {
+      const read = HWItemData(HWInt('t'), previewValues: [1, 2]);
+
+      expect(
+        read.isCompatibleWith(
+          const HWItemData(HWInt('t'), previewValues: [2, 1]),
+        ),
+        isFalse,
+      );
+      expect(read.isCompatibleWith(const HWItemData(HWDouble('t'))), isFalse);
+      expect(read.isCompatibleWith(const HWInt('t')), isFalse);
+      expect(
+        read.isCompatibleWith(const HWTimedData(HWItemData(HWInt('t')))),
+        isFalse,
+      );
+      expect(
+        () => read.mergedWith(const HWItemData(HWDouble('t'))),
+        throwsA(isA<GeneratorError>()),
+      );
+    });
+  });
 }

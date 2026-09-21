@@ -650,6 +650,39 @@ void main() {
       );
     });
 
+    test('checks the item and whenEmpty of an inline builder', () {
+      WidgetSpec inline(HWWidget item) => _spec(
+            HWSizeAdaptive(
+              small: HWText.fixed('s'),
+              accessoryInline: HWRow.builder(
+                'tags',
+                maxItems: 3,
+                item: item,
+                whenEmpty: HWText.fixed('none'),
+              ),
+            ),
+            iOS: const HomeWidgetIOSConfiguration(
+              groupId: 'group.test',
+              supportedFamilies: [
+                HWWidgetFamily.systemSmall,
+                HWWidgetFamily.accessoryInline,
+              ],
+            ),
+          );
+
+      validateSizeAdaptive(inline(HWText(HWItemData(HWString('tag')))));
+      verifyNever(
+        () => mockLogger.warn(any(that: contains('accessoryInline'))),
+      );
+
+      validateSizeAdaptive(
+        inline(HWColumn(children: [HWText(HWItemData(HWString('tag')))])),
+      );
+      verify(
+        () => mockLogger.warn(any(that: contains('`accessoryInline` slot'))),
+      ).called(1);
+    });
+
     test('warns once per HWSizeAdaptive nested in a slot', () {
       final spec = _spec(
         HWSizeAdaptive(

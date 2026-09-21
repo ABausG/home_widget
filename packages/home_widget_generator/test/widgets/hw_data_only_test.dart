@@ -27,6 +27,46 @@ void main() {
       test('emits no view code', () {
         expect(dataOnly.toSwift(0, dataExpr: 'd'), isEmpty);
       });
+
+      test('emits nothing for a wrapper around it', () {
+        const wrappers = [
+          HWPadding(padding: HWEdgeInsets.all(4), child: dataOnly),
+          HWColoredBox(color: HWFixedColor(0xFFFF0000), child: dataOnly),
+          HWDecoratedBox(
+            decoration: HWBoxDecoration(
+              color: HWFixedColor(0xFFFF0000),
+              border:
+                  HWBoxBorder(thickness: 1, color: HWFixedColor(0xFF00FF00)),
+            ),
+            child: dataOnly,
+          ),
+          HWFill(child: dataOnly),
+        ];
+
+        for (final wrapper in wrappers) {
+          expect(wrapper.swiftRendersNothing, isTrue, reason: '$wrapper');
+          expect(
+            wrapper.toSwift(1, dataExpr: 'd'),
+            isEmpty,
+            reason: '$wrapper',
+          );
+        }
+      });
+
+      test('renders as an EmptyView in the branch of a size adaptive', () {
+        const adaptive = HWSizeAdaptive(
+          small: dataOnly,
+          medium: HWText.fixed('medium'),
+        );
+
+        expect(adaptive.toSwift(0, dataExpr: 'd'), '''
+switch widgetFamily {
+case .systemMedium:
+    Text("medium")
+default:
+    EmptyView()
+}''');
+      });
     });
 
     group('Android (Glance)', () {
@@ -36,6 +76,22 @@ void main() {
 
       test('no kotlin imports', () {
         expect(dataOnly.kotlinImports, isEmpty);
+      });
+
+      test('leaves no empty Box behind for a wrapper around it', () {
+        const column = HWColumn(
+          children: [
+            HWText.fixed('first'),
+            HWPadding(padding: HWEdgeInsets.all(4), child: dataOnly),
+          ],
+        );
+
+        expect(
+          const HWPadding(padding: HWEdgeInsets.all(4), child: dataOnly)
+              .kotlinRendersNothing,
+          isTrue,
+        );
+        expect(column.toKotlin(0, dataExpr: 'd'), isNot(contains('padding')));
       });
     });
 

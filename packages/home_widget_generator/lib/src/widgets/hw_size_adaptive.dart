@@ -232,11 +232,25 @@ class HWSizeAdaptive extends HWWidget {
             .expand((slot) => slot.kotlinImportsIn(enclosingLinearAxis)),
       };
 
-  /// Any slot rendering a `Text` is enough, since the slot taken is only known
-  /// at runtime.
+  /// The slot taken is only known at runtime, so a stack lays out each slot
+  /// Android renders by what it needs itself: the ones [toKotlin] branches
+  /// over, or the one it falls back to when no system family has a slot.
   @override
-  bool get kotlinReportsBaseline =>
-      providedSlots.any((slot) => slot.kotlinReportsBaseline);
+  List<HWWidget> _kotlinChoices(HWEmitContext? context) {
+    final slots = _kotlinRenderedSlots(context);
+    return slots.isEmpty ? [providedSlots.first] : slots;
+  }
+
+  /// What the `when` over `LocalSize.current` needs, when there is one to
+  /// write.
+  @override
+  Set<String> get _kotlinChoiceImports => _kotlinChoices(null).length > 1
+      ? const {
+          'import androidx.glance.LocalSize',
+          'import androidx.compose.ui.unit.DpSize',
+          'import androidx.compose.ui.unit.dp',
+        }
+      : const {};
 
   /// The text every slot Android renders lines up by, which they have to agree
   /// on: the row pads a child once, and the slot taken is only known at
@@ -255,6 +269,7 @@ class HWSizeAdaptive extends HWWidget {
         texts.every(
           (text) =>
               text.isBitmap == first.isBitmap &&
+              text.readsItem == first.readsItem &&
               text.ascent(_ascentProbe) == first.ascent(_ascentProbe),
         );
     if (agree) return first;
@@ -262,6 +277,7 @@ class HWSizeAdaptive extends HWWidget {
     return HWKotlinBaselineText(
       ascent: first.ascent,
       isBitmap: texts.any((text) => text.isBitmap),
+      readsItem: texts.any((text) => text.readsItem),
       kotlinImports: {
         for (final text in texts) ...text.kotlinImports,
       },
@@ -382,8 +398,7 @@ class HWSizeAdaptive extends HWWidget {
       buffer
         ..writeln('${pad}case $cases:')
         ..writeln(
-          group.widget
-              .toSwift(indent + 1, dataExpr: dataExpr, context: context),
+          _swiftBranch(group.widget, indent + 1, dataExpr, context),
         );
     }
 
@@ -393,15 +408,27 @@ class HWSizeAdaptive extends HWWidget {
       buffer.writeln('''
 $pad#if compiler(>=${family.swiftCompilerGate})
 ${pad}case .${family.name}:
-${widget.toSwift(indent + 1, dataExpr: dataExpr, context: context)}
+${_swiftBranch(widget, indent + 1, dataExpr, context)}
 $pad#endif''');
     }
 
     buffer.write('''
 ${pad}default:
-${defaultWidget.toSwift(indent + 1, dataExpr: dataExpr, context: context)}
+${_swiftBranch(defaultWidget, indent + 1, dataExpr, context)}
 $pad}''');
     return buffer.toString();
+  }
+
+  /// [widget] as the body of one `case` of the `switch`, which Swift does not
+  /// let be empty: a slot rendering nothing becomes an `EmptyView()`.
+  static String _swiftBranch(
+    HWWidget widget,
+    int indent,
+    String dataExpr,
+    HWEmitContext? context,
+  ) {
+    final code = widget.toSwift(indent, dataExpr: dataExpr, context: context);
+    return code.trim().isEmpty ? '${'    ' * indent}EmptyView()' : code;
   }
 
   @override
@@ -409,19 +436,30 @@ $pad}''');
     int indent, {
     required String dataExpr,
     HWEmitContext? context,
+  }) =>
+      _kotlinChoice(
+        indent,
+        dataExpr: dataExpr,
+        context: context,
+        emit: (widget, indent) =>
+            widget.toKotlin(indent, dataExpr: dataExpr, context: context),
+      );
+
+  @override
+  String _kotlinChoice(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext? context,
+    required String Function(HWWidget widget, int indent) emit,
   }) {
     final reachable = {
       for (final family in context?.reachableFamilies ?? providedFamilies)
         if (!family.isAccessory) family,
     };
     final resolved = _resolveAll(reachable);
-    if (resolved.isEmpty) {
-      return providedSlots.first
-          .toKotlin(indent, dataExpr: dataExpr, context: context);
-    }
+    if (resolved.isEmpty) return emit(providedSlots.first, indent);
     if (_allIdentical(resolved.values)) {
-      return resolved.values.first
-          .toKotlin(indent, dataExpr: dataExpr, context: context);
+      return emit(resolved.values.first, indent);
     }
 
     // A context carries the table the whole widget declares to Glance, which
@@ -443,13 +481,13 @@ $pad}''');
           group.families.map((family) => table[family]!.toKotlin()).join(', ');
       buffer.writeln('''
 $branchPad$sizes -> {
-${group.widget.toKotlin(indent + 2, dataExpr: dataExpr, context: context)}
+${emit(group.widget, indent + 2)}
 $branchPad}''');
     }
 
     buffer.write('''
 ${branchPad}else -> {
-${elseWidget.toKotlin(indent + 2, dataExpr: dataExpr, context: context)}
+${emit(elseWidget, indent + 2)}
 $branchPad}
 $pad}''');
     return buffer.toString();
@@ -492,8 +530,8 @@ $pad}''');
         ]);
 }
 
-/// The data expression two slots' ascents are compared as, which only has to
-/// be the same for both of them.
+/// The data expression an ascent is read with where only its shape matters:
+/// comparing two slots' ascents.
 const String _ascentProbe = 'widgetData';
 
 /// The families of one emitted branch and the widget they share.

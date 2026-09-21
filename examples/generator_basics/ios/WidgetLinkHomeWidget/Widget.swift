@@ -38,7 +38,7 @@ struct WidgetLinkHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack(alignment: .leading) {
+    VStack(alignment: .leading, spacing: 0) {
       Text("Tap me")
         .font(.caption)
       Text("Opens the app")

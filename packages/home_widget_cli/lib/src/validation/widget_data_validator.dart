@@ -1,12 +1,15 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 import '../models/widget_spec.dart';
+import '../util/logger.dart';
 import '../util/naming.dart';
 import 'baseline_validator.dart';
+import 'child_limit_validator.dart';
 import 'size_validator.dart';
 
 part 'dart_keywords.dart';
 part 'kotlin_keywords.dart';
+part 'list_validator.dart';
 part 'swift_keywords.dart';
 
 /// ASCII identifier shape safe for codegen across Dart, Kotlin, and Swift.
@@ -30,11 +33,13 @@ const String reservedTimedDataName = 'timedData';
 
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
+  validateLists(spec);
+
   // `timedData` only collides with generated API surface when the spec
-  // actually has time-based fields (the `saveData(timedData: ...)` parameter,
+  // actually has time-based data (the `saveData(timedData: ...)` parameter,
   // the `deleteData(timedData: ...)` flag and the `.timedData` storage key are
-  // only emitted then). Specs without timed fields may use the name freely.
-  final reservesTimedDataName = spec.timedDataFields.isNotEmpty;
+  // only emitted then). Specs without any may use the name freely.
+  final reservesTimedDataName = spec.hasTimedData;
 
   for (final field in spec.dataFields) {
     _validateDataTypeKeys(field);
@@ -59,6 +64,8 @@ void validateWidgetData(WidgetSpec spec) {
   _validateIconEnums(spec);
   validateSizeAdaptive(spec);
   validateBaselineRows(spec);
+  validateChildLimits(spec);
+  validateMeasuredTexts(spec);
 
   for (final group in [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]) {
     _validateAsciiIdentifier(group.key, descriptor: 'JSON root');
@@ -68,6 +75,7 @@ void validateWidgetData(WidgetSpec spec) {
         _validateAsciiIdentifier(
           segment,
           descriptor: 'JSON path segment in "${group.key}"',
+          membersClass: true,
         );
       }
       root.insertField(group.key, path: field.path, field: field);
@@ -426,7 +434,7 @@ void _validatePlainStringData(
   required String descriptor,
   required String subject,
 }) {
-  final leaf = _leafOf(data);
+  final leaf = data.leaf;
   if (leaf is HWLocalizedString) {
     throw GeneratorError(
       'Widget "${spec.data.name}": $descriptor("${data.key}") reads a '
@@ -483,19 +491,12 @@ void _validateDigitCount(
   );
 }
 
-/// The type a data field ultimately describes: a time-based wrapper stripped
-/// and a JSON path descended, the way `numberLeafOf` and friends do it.
-HWDataType<dynamic> _leafOf(HWDataType<dynamic> type) {
-  final unwrapped = type.unwrapped;
-  return unwrapped is HWJson ? unwrapped.leafType : unwrapped;
-}
-
 String _describeBoundLeaf(HWDataType<dynamic> data) {
   final unwrapped = data.unwrapped;
   if (unwrapped is HWJson) {
     return '${unwrapped.leafType.runtimeType} at its JSON leaf';
   }
-  return '${unwrapped.runtimeType}';
+  return '${data.leaf.runtimeType}';
 }
 
 /// Validates locale maps, the localization block, and their interaction.
@@ -784,11 +785,14 @@ void _validatePreviewDates(WidgetSpec spec) {
     if (iso == null || leaf.previewDateTime != null) continue;
     throw GeneratorError(
       'Widget "${spec.data.name}": HWDateTime("${leaf.key}") has previewValue '
-      '"$iso", which is not an ISO 8601 date. Write the instant as e.g. '
-      '"2024-03-08T09:41:00Z".',
+      '"$iso", which is not an ISO 8601 date. $_isoDateExample',
     );
   }
 }
+
+/// How a preview instant is written, which every rejection of one ends with.
+const String _isoDateExample =
+    'Write the instant as e.g. "2024-03-08T09:41:00Z".';
 
 /// Rejects keys that are declared both time-based and regular, because both
 /// would map onto the same storage key and the same generated parameter name.
@@ -818,9 +822,29 @@ String _describeLeafContext(HWDataType<dynamic> type) {
   return 'field "${type.key}"';
 }
 
+/// Members the generated data classes carry besides their own fields: the
+/// `toJson` each one declares, and what every Dart object inherits.
+///
+/// A field of the same name redeclares one of them, which does not compile.
+/// The `fromJson` factory is not among them: a constructor and a field may
+/// share a name.
+const Set<String> _reservedMemberNames = {
+  'hashCode',
+  'noSuchMethod',
+  'runtimeType',
+  'toJson',
+  'toString',
+};
+
+/// Validates [name] as an identifier the generated APIs can carry.
+///
+/// [membersClass] is set where [name] becomes a member of a generated class —
+/// a list key, an item field, a JSON path segment — and rejects the names
+/// that class already has.
 void _validateAsciiIdentifier(
   String name, {
   required String descriptor,
+  bool membersClass = false,
 }) {
   if (name.isEmpty) {
     throw GeneratorError('Invalid data name for $descriptor: name is empty.');
@@ -829,6 +853,12 @@ void _validateAsciiIdentifier(
     throw GeneratorError(
       'Invalid data name "$name" ($descriptor): '
       'use ASCII letters and digits only; must start with a letter.',
+    );
+  }
+  if (membersClass && _reservedMemberNames.contains(name)) {
+    throw GeneratorError(
+      'Invalid data name "$name" ($descriptor): '
+      'the generated data class already has a member named "$name".',
     );
   }
 

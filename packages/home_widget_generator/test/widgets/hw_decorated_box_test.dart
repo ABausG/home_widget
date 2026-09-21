@@ -38,6 +38,28 @@ void main() {
         expect(result, contains('lineWidth: 2.0'));
       });
 
+      test('a border around a child rendering nothing renders nothing', () {
+        const node = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            color: HWFixedColor(0xFFFFFFFF),
+            border: HWBoxBorder(
+              radius: 12,
+              thickness: 2,
+              color: HWFixedColor(0xFF000000),
+            ),
+          ),
+          child: HWDataOnly([HWString('hidden')]),
+        );
+
+        expect(node.swiftRendersNothing, isTrue);
+        expect(node.toSwift(0, dataExpr: 'data'), isEmpty);
+        expect(
+          const HWColumn(children: [node, HWText.fixed('x')])
+              .toSwift(0, dataExpr: 'data'),
+          isNot(contains('.overlay(')),
+        );
+      });
+
       test('themed colors contribute colorScheme environment', () {
         const node = HWDecoratedBox(
           decoration: HWBoxDecoration(
@@ -121,6 +143,51 @@ void main() {
         expect(result, contains('.padding(2.0.dp)'));
         expect(result, isNot(contains('.cornerRadius(10.0.dp)')));
         expect(result, contains('Text(text = "Decorated",'));
+      });
+
+      test('a border around a child rendering nothing renders nothing', () {
+        const node = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            color: HWFixedColor(0xFFFFFFFF),
+            border: HWBoxBorder(
+              radius: 12,
+              thickness: 2,
+              color: HWFixedColor(0xFF000000),
+            ),
+          ),
+          child: HWDataOnly([HWString('hidden')]),
+        );
+
+        expect(node.kotlinRendersNothing, isTrue);
+        expect(node.toKotlin(0, dataExpr: 'data'), isEmpty);
+        expect(node.kotlinImports, isEmpty);
+        expect(node.kotlinImportsIn(HWAxis.vertical), isEmpty);
+      });
+
+      test('a stack skips it exactly as the root does', () {
+        const column = HWColumn(
+          spacing: 8,
+          children: [
+            HWDecoratedBox(
+              decoration: HWBoxDecoration(
+                border: HWBoxBorder(
+                  thickness: 2,
+                  color: HWFixedColor(0xFF000000),
+                ),
+              ),
+              child: HWDataOnly([HWString('hidden')]),
+            ),
+            HWText.fixed('x'),
+          ],
+        );
+
+        final kotlin = column.toKotlin(0, dataExpr: 'data');
+        expect(kotlin, isNot(contains('Box')));
+        expect(kotlin, isNot(contains('padding')));
+        expect(
+          column.kotlinImports,
+          isNot(contains('import androidx.glance.layout.Box')),
+        );
       });
 
       test('kotlinImports include decoration dependencies', () {

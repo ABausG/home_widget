@@ -64,7 +64,7 @@ struct ForecastHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack(alignment: .leading) {
+    VStack(alignment: .leading, spacing: 0) {
       Text(entry.data.city ?? "")
         .font(.caption)
       Text(entry.data.condition ?? "")

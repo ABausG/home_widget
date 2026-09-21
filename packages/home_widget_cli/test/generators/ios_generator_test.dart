@@ -571,7 +571,7 @@ void main() {
     expect(content, contains('let value: Int?'));
 
     // Should produce the debug VStack view body
-    expect(content, contains('VStack(alignment: .center) {'));
+    expect(content, contains('VStack(alignment: .center, spacing: 0) {'));
     expect(content, contains('Text("Simple Data")'));
     // Default tree uses separate Text views in HStack
     expect(content, contains('Text("label: ")'));
@@ -2254,7 +2254,466 @@ void main() {
       );
     });
   });
+
+  group('lists', () {
+    setUp(() {
+      useMockLogger();
+      final package = writeFontPackage(
+        tempDir,
+        'brand_icons',
+        pubspecFonts: '''
+    - family: BrandIcons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+        assets: ['fonts/BrandIcons.otf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [FixturePackage(name: 'brand_icons', root: package.path)],
+      );
+      resetFontResolverCaches();
+      addTearDown(resetFontResolverCaches);
+    });
+
+    Future<String> generate(HWWidget tree) async {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Weather',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.weather'),
+        ),
+        className: 'Weather',
+        dataFields: tree.dataDependencies.toList(),
+        widgetTree: tree,
+      );
+      await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(tempDir.path, 'ios/WeatherHomeWidget/Widget.swift'),
+      ).readAsStringSync();
+    }
+
+    test('reads a list that is the only data into the data struct', () async {
+      final content = await generate(
+        const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+      );
+
+      expect(
+        content,
+        contains('''
+struct WeatherData {
+  let forecast: [WeatherForecastItem]?
+
+  static let paramPrefix = "home_widget.Weather"
+
+  static func fromUserDefaults(_ defaults: UserDefaults?) -> WeatherData {
+    return WeatherData(
+      forecast: WeatherForecastItem.fromPath(defaults?.string(forKey: "\\(paramPrefix).forecast")),
+    )
+  }
 }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          'ForEach(Array((entry.data.forecast ?? []).prefix(5).enumerated()), '
+          'id: \\.offset) { hwIndex, hwItem in',
+        ),
+      );
+      expect(content, isNot(contains('previewFromUserDefaults')));
+    });
+
+    test('decodes an item into optional properties, defaults applied',
+        () async {
+      final content = await generate(
+        const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+      );
+
+      expect(
+        content,
+        contains(r'''
+struct WeatherForecastItem {
+  let day: Date?
+  let condition: Int?
+  let temperature: Int?
+  let rain: Double?
+  let windy: Bool?
+  let note: String?
+
+  static func fromPath(_ path: String?) -> [WeatherForecastItem]? {
+    guard let path else { return nil }
+    guard FileManager.default.fileExists(atPath: path) else { return nil }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      let json = try JSONSerialization.jsonObject(with: data)
+      return fromJsonArray(json)
+    } catch {
+      return nil
+    }
+  }
+
+  static func fromJsonArray(_ value: Any?) -> [WeatherForecastItem]? {
+    guard let items = value as? [Any] else { return nil }
+    return items.map { fromJson($0 as? [String: Any]) }
+  }
+
+  static func fromJson(_ json: [String: Any]?) -> WeatherForecastItem {
+    let values = json ?? [:]
+    return WeatherForecastItem(
+      day: hwParseIsoDate((values["day"] as? String) ?? ""),
+      condition: (values["condition"] as? Int) ?? 59530,
+      temperature: (values["temperature"] as? Int) ?? 0,
+      rain: values["rain"] as? Double,
+      windy: (values["windy"] as? Bool) ?? false,
+      note: values["note"] as? String,
+    )
+  }
+}
+'''),
+      );
+      expect(content, contains('func hwParseIsoDate(_ value: String)'));
+    });
+
+    test('adds the list after the root fields read beside it', () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWText(HWString('unit', defaultValue: '°C')),
+            HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '  let unit: String?\n'
+          '  let forecast: [WeatherForecastItem]?\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      unit: (defaults?.string(forKey: "\\(paramPrefix).unit") '
+          '?? "°C"),\n'
+          '      forecast: WeatherForecastItem.fromPath(',
+        ),
+      );
+      expect(content, contains('Text(entry.data.unit ?? "")'));
+    });
+
+    test('gives several builders over one list one struct and one property',
+        () async {
+      final content = await generate(
+        const HWSizeAdaptive(
+          small: HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWText(HWItemData(HWString('label'))),
+          ),
+          large: HWColumn.builder(
+            'forecast',
+            maxItems: 6,
+            item: HWText.number(HWItemData(HWInt('temperature'))),
+          ),
+        ),
+      );
+
+      expect('struct WeatherForecastItem {'.allMatches(content), hasLength(1));
+      expect(content, contains('  let label: String?\n'));
+      expect(content, contains('  let temperature: Int?\n'));
+      expect(
+        '  let forecast: [WeatherForecastItem]?'.allMatches(content),
+        hasLength(1),
+      );
+    });
+
+    test('gives every list a struct and a property of its own', () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+            HWColumn.builder(
+              'events',
+              maxItems: 2,
+              item: HWText(HWItemData(HWString('title'))),
+            ),
+          ],
+        ),
+      );
+
+      expect(content, contains('struct WeatherForecastItem {'));
+      expect(content, contains('struct WeatherEventsItem {'));
+      expect(
+        content,
+        contains(
+          '  let forecast: [WeatherForecastItem]?\n'
+          '  let events: [WeatherEventsItem]?\n',
+        ),
+      );
+    });
+
+    test('leaves the translations of a localized item field to the render site',
+        () async {
+      final content = await generate(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 5,
+          item: HWText(
+            HWItemData(
+              HWString.localized(
+                'label',
+                defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(content, contains('  let label: String?\n'));
+      expect(content, contains('      label: values["label"] as? String,\n'));
+      expect(
+        content,
+        contains(
+          'Text(((hwItem.label) ?? hwResolveLocalized(hwCurrentLocales(), '
+          '["en": "Day", "de": "Tag"], baseLocale: "en") ?? "Day"))',
+        ),
+      );
+    });
+
+    test('maps every element of a list whose item reads no field', () async {
+      final content = await generate(
+        const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+      );
+
+      expect(
+        content,
+        contains('''
+struct WeatherDotsItem {
+  static func fromPath(_ path: String?) -> [WeatherDotsItem]? {'''),
+      );
+      expect(
+        content,
+        contains('''
+    guard let items = value as? [Any] else { return nil }
+    return items.map { _ in WeatherDotsItem() }
+  }
+}
+'''),
+      );
+      expect(content, isNot(contains('static func fromJson(')));
+    });
+
+    test('reads a time-based list out of the active timed entry', () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWText(HWString('city')),
+            HWColumn.builder(
+              'hourly',
+              maxItems: 4,
+              item: HWText.number(
+                HWTimedData(HWItemData(HWInt('temperature'))),
+              ),
+            ),
+            HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(r'''
+struct WeatherData {
+  let city: String?
+  let hourly: [WeatherHourlyItem]?
+  let forecast: [WeatherForecastItem]?
+
+  static let paramPrefix = "home_widget.Weather"
+
+  static func fromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> WeatherData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return WeatherData(
+      city: defaults?.string(forKey: "\(paramPrefix).city"),
+      hourly: WeatherHourlyItem.fromJsonArray(timedValues["hourly"]),
+      forecast: WeatherForecastItem.fromPath(defaults?.string(forKey: "\(paramPrefix).forecast")),
+    )
+  }
+'''),
+      );
+      expect(content, contains('struct WeatherHourlyItem {'));
+      expect(content, contains('  let temperature: Int?\n'));
+      expect(
+        content,
+        contains(
+          'ForEach(Array((entry.data.hourly ?? []).prefix(4).enumerated()), '
+          'id: \\.offset) { hwIndex, hwItem in',
+        ),
+      );
+    });
+
+    test('builds the timeline of a widget whose only timed data is a list',
+        () async {
+      final content = await generate(
+        const HWColumn.builder(
+          'hourly',
+          maxItems: 4,
+          item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+          whenEmpty: HWText.fixed('No forecast'),
+        ),
+      );
+
+      expect(
+        content,
+        contains('let timedEntries = WeatherData.loadTimedEntries(prefs)'),
+      );
+      expect(
+        content,
+        contains(
+          'data: WeatherData.fromUserDefaults(prefs, at: now, '
+          'timedEntries: timedEntries)',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'for timedEntry in timedEntries where timedEntry.date > now {',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'data: WeatherData.fromUserDefaults(prefs, at: timedEntry.date, '
+          'timedEntries: timedEntries)',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'fileprivate static func loadTimedEntries(_ defaults: UserDefaults?)',
+        ),
+      );
+      expect(
+        content,
+        contains('      hourly: WeatherHourlyItem.fromJsonArray('
+            'timedValues["hourly"]),\n'),
+      );
+      expect(content, contains('if (entry.data.hourly ?? []).isEmpty {'));
+    });
+
+    test('re-reads a time-based list at the entry date when it resolves text',
+        () async {
+      final content = await generate(
+        const HWColumn.builder(
+          'hourly',
+          maxItems: 4,
+          item: HWText(
+            HWTimedData(
+              HWItemData(
+                HWString.localized(
+                  'label',
+                  defaultTranslations: {'en': 'Hour', 'de': 'Stunde'},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          'let data = WeatherData.fromUserDefaults(prefs, at: entry.date, '
+          'timedEntries: entry.timedEntries)',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'struct WeatherHomeWidgetEntry: TimelineEntry {\n'
+          '  let date: Date\n'
+          '  let data: WeatherData\n'
+          '  let timedEntries: [(date: Date, values: [String: Any])]\n'
+          '}',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'Text(((hwItem.label) ?? hwResolveLocalized(hwCurrentLocales(), '
+          '["en": "Hour", "de": "Stunde"], baseLocale: "en") ?? "Hour"))',
+        ),
+      );
+    });
+
+    test('reads an item image as the path of its file', () async {
+      final content = await generate(
+        const HWColumn.builder(
+          'contacts',
+          maxItems: 3,
+          item: HWDataExists(
+            data: HWItemData(HWImageData('avatar')),
+            whenPresent: HWImage(HWItemData(HWImageData('avatar')), width: 24),
+            whenAbsent: HWText.fixed('?'),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('struct WeatherContactsItem {\n  let avatar: String?\n'),
+      );
+      expect(
+        content,
+        contains('      avatar: values["avatar"] as? String,\n'),
+      );
+      expect(content, contains('if hwImageExists(hwItem.avatar) {'));
+      expect(
+        content,
+        contains(
+          'if let path = hwItem.avatar, '
+          'let uiImage = hwDecodeImage(path, 24.0, nil) {',
+        ),
+      );
+      expect(
+        content,
+        contains('func hwImageExists(_ path: String?) -> Bool {'),
+      );
+      expect(content, contains('func hwDecodeImage(_ path: String,'));
+    });
+  });
+}
+
+const _forecastCondition = HWIconData.resolved(
+  'condition',
+  entries: [HWIconEntry('happy', 0xE88A), HWIconEntry('sad', 0xE25B)],
+  iconFont: HWIconFont(family: 'BrandIcons', package: 'brand_icons'),
+  defaultValue: 0xE88A,
+);
+
+/// The item of a forecast list, reading one field of every kind.
+const _forecastItem = HWColumn(
+  children: [
+    HWText.dateTime(HWItemData(HWDateTime('day'))),
+    HWIcon(HWItemData(_forecastCondition)),
+    HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+    HWText.number(HWItemData(HWDouble('rain'))),
+    HWBoolConditional(
+      data: HWItemData(HWBool('windy', defaultValue: false)),
+      whenTrue: HWText.fixed('windy'),
+      whenFalse: HWText.fixed('calm'),
+    ),
+    HWText(HWItemData(HWString('note'))),
+  ],
+);
 
 const _devFlavor = RunnerFlavor(
   name: 'dev',

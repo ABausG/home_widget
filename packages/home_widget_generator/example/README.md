@@ -1,6 +1,6 @@
 # home_widget_generator examples
 
-A gallery of widget schemas, ordered from the simplest possible widget to a multi-state conditional one. Each section shows the full `@HomeWidget`-annotated class you would drop into your project's `home_widget/` folder, then run:
+A gallery of widget schemas, ordered from the simplest possible widget to one rendering a list the app saves. Each section shows the full `@HomeWidget`-annotated class you would drop into your project's `home_widget/` folder, then run:
 
 ```bash
 dart run home_widget_cli generate
@@ -295,3 +295,133 @@ class ConditionalStatus {}
 | iOS — No Data | iOS — Enabled | iOS — Disabled | Android — No Data | Android — Enabled | Android — Disabled |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/data_no_data.jpg" width="200"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/data_enabled.jpg" width="200"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/ios/data_disabled.jpg" width="200"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/data_no_data.jpg" width="200"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/data_enabled.jpg" width="200"/> | <img src="https://raw.githubusercontent.com/ABausG/home_widget/main/.github/assets/generator_examples/android/data_disabled.jpg" width="200"/> |
+
+---
+
+## Week Forecast
+
+A list the app saves: `HWRow.builder` renders its `item` once per saved day, at most `maxItems` of them, and its `whenEmpty` prompt while there is none. Fields wrapped in `HWItemData` read the day being rendered; the unwrapped `unit` reads the widget's own data, the same in every day. `previewValues` give the widget gallery five sample days.
+
+[Full source on GitHub](https://github.com/ABausG/home_widget/blob/main/examples/generator_basics/home_widget/week_forecast.dart)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Week Forecast',
+  description: 'A five-day forecast, one column per day the app saves.',
+  android: HomeWidgetAndroidConfiguration(
+    targetCellWidth: 4,
+    targetCellHeight: 2,
+  ),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.es.antonborri.generatorBasics',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
+  ),
+  widget: HWColumn(
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+    children: [
+      HWText(
+        HWString('city', defaultValue: 'Nowhere', previewValue: 'Berlin'),
+        style: HWRoleTextStyle(role: HWTextStyleRole.headline),
+      ),
+      HWRow.builder(
+        'days',
+        maxItems: 5,
+        mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+        spacing: 4,
+        item: HWColumn(
+          spacing: 4,
+          children: [
+            HWText.dateTime(
+              HWItemData(
+                HWDateTime('day'),
+                previewValues: [
+                  '2026-09-21T12:00:00Z',
+                  '2026-09-22T12:00:00Z',
+                  '2026-09-23T12:00:00Z',
+                  '2026-09-24T12:00:00Z',
+                  '2026-09-25T12:00:00Z',
+                ],
+              ),
+              format: HWDateFormat.skeleton('E'),
+              style: HWRoleTextStyle(
+                role: HWTextStyleRole.caption,
+                color: HWDefaultColor(HWColorRole.contentSecondary),
+              ),
+            ),
+            HWIcon(
+              HWItemData(
+                HWIconData(
+                  'condition',
+                  icons: [
+                    Icons.wb_sunny,
+                    Icons.cloud,
+                    Icons.umbrella,
+                    Icons.thunderstorm,
+                    Icons.ac_unit,
+                  ],
+                  defaultValue: Icons.cloud,
+                ),
+                previewValues: [
+                  Icons.wb_sunny,
+                  Icons.cloud,
+                  Icons.umbrella,
+                  Icons.thunderstorm,
+                  Icons.wb_sunny,
+                ],
+              ),
+            ),
+            HWRow(
+              children: [
+                HWText.number(
+                  HWItemData(
+                    HWInt('temperature', defaultValue: 0),
+                    previewValues: [21, 18, 14, 16, 22],
+                  ),
+                  style: HWRoleTextStyle(role: HWTextStyleRole.body),
+                ),
+                HWText(
+                  HWString('unit', defaultValue: '°'),
+                  style: HWRoleTextStyle(role: HWTextStyleRole.body),
+                ),
+              ],
+            ),
+          ],
+        ),
+        whenEmpty: HWText.fixed(
+          'Open the app to load the forecast',
+          style: HWRoleTextStyle(
+            role: HWTextStyleRole.caption,
+            color: HWDefaultColor(HWColorRole.contentSecondary),
+          ),
+        ),
+      ),
+    ],
+  ),
+)
+class WeekForecast {}
+```
+
+Drive it from your app with the generated item class and icon enum:
+
+```dart
+await WeekForecastHomeWidget.saveData(
+  city: 'Berlin',
+  days: [
+    WeekForecastDaysItem(
+      day: DateTime(2026, 9, 21),
+      condition: WeekForecastConditionIcon.wbSunny,
+      temperature: 21,
+    ),
+    WeekForecastDaysItem(
+      day: DateTime(2026, 9, 22),
+      condition: WeekForecastConditionIcon.cloud,
+      temperature: 18,
+    ),
+  ],
+);
+await WeekForecastHomeWidget.updateWidget();
+```

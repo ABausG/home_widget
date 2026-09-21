@@ -13,6 +13,8 @@ HWDataOnly([HWString('label'), HWInt('value')])
 
 Combine it with a visible widget tree using [`HWColumn`](/generator/widgets/hw-column) or similar — `HWDataOnly` itself emits nothing.
 
+Inside the `item` of a [list builder](/generator/lists), `HWDataOnly([HWItemData(HWString('id'))])` declares item fields that are saved and read back but never shown.
+
 ## Parameters
 
 | Name   | Type                | Default      | Description                                       |

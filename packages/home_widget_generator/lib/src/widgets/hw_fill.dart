@@ -9,15 +9,22 @@ class HWFill extends HWSingleChildWidget {
   const HWFill({required super.child});
 
   @override
-  Set<String> get kotlinImports => {
+  Set<String> _kotlinImportsAroundChild(HWAxis? enclosingLinearAxis) => {
         'import androidx.glance.layout.fillMaxSize',
         'import androidx.glance.layout.Box',
-        ...super.kotlinImports,
+        ...child.kotlinImports,
       };
 
   /// Always false: a wrap-content `Box` would take back the room this asks for.
   @override
   bool get kotlinReportsBaseline => false;
+
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) =>
+      const HWKotlinRoom(fillsWidth: true, fillsHeight: true);
+
+  @override
+  HWFill _wrapping(HWWidget widget) => HWFill(child: widget);
 
   static HWFill fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');
@@ -44,7 +51,7 @@ class HWFill extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(
+  String _kotlinAroundChild(
     int indent, {
     required String dataExpr,
     HWEmitContext? context,

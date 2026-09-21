@@ -411,4 +411,267 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 class SizeAdaptive {}
 ''',
   ),
+  BuildScenario(
+    description: 'renders saved lists through row and column builders',
+    className: 'ListBuilders',
+    widgetSource: '''
+import 'package:flutter/material.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'List Builders',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  localization: HomeWidgetLocalization(
+    defaultLocale: 'en',
+    supportedLocales: ['en', 'de'],
+  ),
+  widget: HWColumn(
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    children: [
+      HWText(HWString('city', previewValue: 'Berlin')),
+      HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        spacing: 4,
+        mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+        item: HWColumn(
+          children: [
+            HWText.dateTime(
+              HWItemData(
+                HWDateTime('day'),
+                previewValues: [
+                  '2026-09-21T12:00:00Z',
+                  '2026-09-22T12:00:00Z',
+                  '2026-09-23T12:00:00Z',
+                ],
+              ),
+              format: HWDateFormat.skeleton('E'),
+            ),
+            HWIcon(
+              HWItemData(
+                HWIconData(
+                  'condition',
+                  icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+                  defaultValue: Icons.cloud,
+                ),
+                previewValues: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+              ),
+              size: 16,
+            ),
+            HWText.number(
+              HWItemData(
+                HWInt('temperature', defaultValue: 0),
+                previewValues: [21, 17, 19],
+              ),
+            ),
+            HWText.number(
+              HWItemData(HWDouble('rain', previewValue: 0.4)),
+              format: HWNumberFormat.percent(),
+            ),
+            HWText(
+              HWItemData(
+                HWString.localized(
+                  'summary',
+                  defaultTranslations: {'en': 'Fair', 'de': 'Heiter'},
+                  previewTranslations: {'en': 'Sunny', 'de': 'Sonnig'},
+                ),
+                previewValues: ['Clear'],
+              ),
+            ),
+            HWText(HWString('unit', defaultValue: '°C')),
+          ],
+        ),
+        whenEmpty: HWText.fixed('No forecast yet'),
+      ),
+      HWRow.builder(
+        'scores',
+        maxItems: 3,
+        spacing: 8,
+        crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        item: HWBoolConditional(
+          data: HWItemData(HWBool('leading', defaultValue: false)),
+          whenTrue: HWText(
+            HWItemData(HWString('label', previewValue: 'Top')),
+            style: HWTextStyle(fontFamily: 'Chewy', fontSize: 24),
+          ),
+          whenFalse: HWText(
+            HWItemData(HWString('label')),
+            style: HWTextStyle(fontSize: 12),
+          ),
+        ),
+      ),
+      HWRow.builder('dots', maxItems: 3, item: HWText.fixed('·')),
+    ],
+  ),
+)
+class ListBuilders {}
+''',
+    fontFamilies: {'Chewy': 'assets/fonts/Chewy-Regular.ttf'},
+  ),
+  BuildScenario(
+    description: 'renders images inside list items',
+    className: 'ListImages',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'List Images',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    children: [
+      HWImage(
+        HWImageData('banner', previewAsset: 'assets/banner.png'),
+        height: 24,
+      ),
+      HWColumn.builder(
+        'contacts',
+        maxItems: 3,
+        spacing: 4,
+        item: HWRow(
+          children: [
+            HWDataExists(
+              data: HWItemData(HWImageData('avatar')),
+              whenPresent: HWImage(
+                HWItemData(
+                  HWImageData('avatar', previewAsset: 'assets/avatar.png'),
+                  previewValues: ['assets/avatar.png', 'assets/logo.png'],
+                ),
+                width: 24,
+                height: 24,
+                fit: HWImageFit.cover,
+              ),
+              whenAbsent: HWText.fixed('?'),
+            ),
+            HWText(HWItemData(HWString('name', previewValue: 'Ada'))),
+            HWImage(HWItemData(HWImageData('badge')), width: 12, height: 12),
+          ],
+        ),
+        whenEmpty: HWText.fixed('No contacts yet'),
+      ),
+    ],
+  ),
+)
+class ListImages {}
+''',
+    assetPaths: ['assets/banner.png', 'assets/avatar.png', 'assets/logo.png'],
+  ),
+  BuildScenario(
+    description: 'renders time-based lists with item images',
+    className: 'TimedLists',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Timed Lists',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  localization: HomeWidgetLocalization(
+    defaultLocale: 'en',
+    supportedLocales: ['en', 'de'],
+  ),
+  widget: HWColumn(
+    children: [
+      HWText(HWString('city', previewValue: 'Berlin')),
+      HWText(HWTimedData(HWString('summary', previewValue: 'Sunny'))),
+      HWRow.builder(
+        'hourly',
+        maxItems: 4,
+        spacing: 4,
+        item: HWColumn(
+          children: [
+            HWText.dateTime(
+              HWTimedData(
+                HWItemData(
+                  HWDateTime('time'),
+                  previewValues: ['2026-09-21T09:00:00Z', '2026-09-21T10:00:00Z'],
+                ),
+              ),
+              format: HWDateFormat.jm,
+            ),
+            HWDataExists(
+              data: HWTimedData(HWItemData(HWImageData('icon'))),
+              whenPresent: HWImage(
+                HWTimedData(
+                  HWItemData(
+                    HWImageData('icon', previewAsset: 'assets/sun.png'),
+                    previewValues: ['assets/sun.png', 'assets/rain.png'],
+                  ),
+                ),
+                width: 16,
+                height: 16,
+              ),
+              whenAbsent: HWText.fixed('-'),
+            ),
+            HWText.number(
+              HWTimedData(
+                HWItemData(
+                  HWInt('temperature', defaultValue: 0),
+                  previewValues: [12, 13],
+                ),
+              ),
+            ),
+            HWText(
+              HWTimedData(
+                HWItemData(
+                  HWString.localized(
+                    'label',
+                    defaultTranslations: {'en': 'Hour', 'de': 'Stunde'},
+                    previewTranslations: {'en': 'Now', 'de': 'Jetzt'},
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        whenEmpty: HWText.fixed('No hourly forecast'),
+      ),
+      HWColumn.builder(
+        'alerts',
+        maxItems: 2,
+        item: HWText(HWItemData(HWString('title', previewValue: 'Wind'))),
+      ),
+    ],
+  ),
+)
+class TimedLists {}
+''',
+    expectsScheduledUpdateWiring: true,
+    assetPaths: ['assets/sun.png', 'assets/rain.png'],
+  ),
+  BuildScenario(
+    description: 'renders a list as the only time-based data',
+    className: 'TimedListOnly',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Timed List Only',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  localization: HomeWidgetLocalization(
+    defaultLocale: 'en',
+    supportedLocales: ['en', 'de'],
+  ),
+  widget: HWColumn.builder(
+    'slots',
+    maxItems: 3,
+    item: HWText(
+      HWTimedData(
+        HWItemData(
+          HWString.localized(
+            'label',
+            defaultTranslations: {'en': 'Slot', 'de': 'Termin'},
+          ),
+        ),
+      ),
+    ),
+    whenEmpty: HWText.fixed('Nothing scheduled'),
+  ),
+)
+class TimedListOnly {}
+''',
+    expectsScheduledUpdateWiring: true,
+  ),
 ];

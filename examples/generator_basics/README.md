@@ -26,6 +26,12 @@ small and each one demonstrates a different feature of the generator:
   own values at the times passed to `saveData(timedData: {...})`. Every field
   also carries a `previewValue`, and the app has a "Refresh the gallery
   preview" action wired to the generated `updatePreview()`.
+- `week_forecast.dart` – a list via `HWRow.builder`: the app saves a typed list
+  of `WeekForecastDaysItem`s, and the row renders one column per day, at most
+  `maxItems: 5` of them, or its `whenEmpty` prompt while there is none. Fields
+  wrapped in `HWItemData` read the day being rendered, while the unwrapped
+  `unit` reads the widget's own data. `previewValues` give the widget gallery
+  five sample days.
 - `image_showcase.dart` – a bundled asset image (`HWImage.asset`), a runtime
   image (`HWImage`) wrapped in `HWDataExists` for a placeholder, a time-based
   image (`HWImage(HWTimedData(HWImageData(...)))`) that alternates between two
