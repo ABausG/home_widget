@@ -70,8 +70,8 @@ class WidgetValueDecoder {
       return HWDataOnly.fromDartObject(object!, this);
     } else if (typeName == 'HWAdaptive') {
       return HWAdaptive.fromDartObject(object!, this);
-    } else if (typeName == 'HWFill') {
-      return HWFill.fromDartObject(object!, this);
+    } else if (typeName == 'HWSizedBox') {
+      return HWSizedBox.fromDartObject(object!, this);
     } else if (typeName == 'HWColoredBox') {
       return HWColoredBox.fromDartObject(object!, this);
     } else if (typeName == 'HWDecoratedBox') {

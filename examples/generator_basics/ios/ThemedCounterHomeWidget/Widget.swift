@@ -59,7 +59,7 @@ struct ThemedCounterHomeWidgetEntryView: View {
       .font(.title).fontWeight(.bold).foregroundColor(Color.primary)
       Spacer(minLength: 0)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .applyContainerBackground(
       (colorScheme == .dark
         ? Color(

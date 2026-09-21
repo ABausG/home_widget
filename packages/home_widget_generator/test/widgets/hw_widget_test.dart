@@ -94,10 +94,31 @@ void main() {
       expect(roomIn(leaf, HWAxis.vertical), isEmpty);
     });
 
-    test('a fill takes the whole box whatever it sits in', () {
-      const fill = HWFill(child: spread);
-      expect(roomIn(fill, HWAxis.vertical), ['fillMaxSize()']);
-      expect(roomIn(fill, null), ['fillMaxSize()']);
+    test('an expanded box shares the axis it sits along by weight', () {
+      const expanded = HWSizedBox.expand(child: spread);
+      expect(
+        roomIn(expanded, HWAxis.vertical),
+        ['defaultWeight()', 'fillMaxWidth()'],
+      );
+      expect(
+        roomIn(expanded, HWAxis.horizontal),
+        ['defaultWeight()', 'fillMaxHeight()'],
+      );
+      expect(roomIn(expanded, null), ['fillMaxSize()']);
+    });
+
+    test('a size in pixels is no room of its own', () {
+      expect(
+        roomIn(const HWSizedBox(width: 8, height: 8, child: spread), null),
+        isEmpty,
+      );
+      expect(
+        roomIn(
+          const HWSizedBox(width: 8, height: double.infinity, child: spread),
+          HWAxis.vertical,
+        ),
+        ['defaultWeight()'],
+      );
     });
 
     test('wrappers injecting into the child ask for its room', () {
@@ -141,7 +162,7 @@ void main() {
       const conditional = HWDataExists(
         data: HWString('maybe'),
         whenPresent: spread,
-        whenAbsent: HWFill(child: leaf),
+        whenAbsent: HWSizedBox.expand(child: leaf),
       );
       expect(roomIn(conditional, HWAxis.vertical), isEmpty);
       final branches = const HWColumn(
@@ -159,7 +180,7 @@ void main() {
         branches,
         contains(
           '        Text(modifier = GlanceModifier.padding(top = 8.0.dp)'
-          '.fillMaxSize(), text = "leaf", ',
+          '.fillMaxWidth().defaultWeight(), text = "leaf", ',
         ),
       );
       expect(branches, isNot(contains('Box(')));
@@ -214,7 +235,10 @@ void main() {
             .kotlinPaddingAddsRoom,
         isTrue,
       );
-      expect(const HWFill(child: leaf).kotlinPaddingAddsRoom, isTrue);
+      expect(
+        const HWSizedBox.expand(child: leaf).kotlinPaddingAddsRoom,
+        isTrue,
+      );
       expect(
         const HWDecoratedBox(decoration: HWBoxDecoration(), child: leaf)
             .kotlinPaddingAddsRoom,
@@ -254,7 +278,14 @@ void main() {
 
     test('is given up by the fixed size of an icon', () {
       expect(icon.kotlinPaddingAddsRoom, isFalse);
-      expect(const HWFill(child: icon).kotlinPaddingAddsRoom, isFalse);
+      expect(
+        const HWSizedBox.expand(child: icon).kotlinPaddingAddsRoom,
+        isFalse,
+      );
+      expect(
+        const HWSizedBox(width: 8, child: leaf).kotlinPaddingAddsRoom,
+        isFalse,
+      );
     });
 
     test('is taken by each branch Android may render on its own', () {

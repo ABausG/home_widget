@@ -123,6 +123,11 @@ class HWImage extends HWWidget implements HWDataWidget {
   @override
   Set<HWDataType<dynamic>> get dataDependencies => {dataType};
 
+  /// A picture sits in the middle of a box larger than it is, which is what
+  /// Flutter's `Image` and Glance's `fitCenter` do with it.
+  @override
+  String get swiftFrameAlignment => '.center';
+
   @override
   Set<HWNativeHelper> get renderHelpers => const {HWNativeHelper.hwDecodeImage};
 

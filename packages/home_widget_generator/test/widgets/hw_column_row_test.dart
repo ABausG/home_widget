@@ -896,19 +896,19 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
         );
       });
 
-      test('gives the Box the whole size a fill with a background takes', () {
+      test('gives the Box the whole room an expanded background takes', () {
         const column = HWColumn(
           spacing: 8,
           children: [
             a,
-            HWFill(child: HWColoredBox(color: green, child: b)),
+            HWSizedBox.expand(child: HWColoredBox(color: green, child: b)),
           ],
         );
         final r = column.toKotlin(0, dataExpr: 'data');
         expect(
           r,
           contains(
-            'Box(modifier = GlanceModifier.fillMaxSize()'
+            'Box(modifier = GlanceModifier.defaultWeight().fillMaxWidth()'
             '.padding(top = 8.0.dp)) {',
           ),
         );
@@ -1110,7 +1110,7 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
               decoration: HWBoxDecoration(color: green),
               child: conditional,
             ),
-            HWFill(child: conditional),
+            HWSizedBox.expand(child: conditional),
           ],
         );
         final r = column.toKotlin(0, dataExpr: 'data');
@@ -1137,7 +1137,7 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
           contains(
             '    if (data.event != null) {\n'
             '        Row(modifier = GlanceModifier.padding(top = 8.0.dp)'
-            '.fillMaxSize(), ',
+            '.fillMaxWidth().defaultWeight(), ',
           ),
         );
         expect('    } else {\n\n    }'.allMatches(r).length, 4);

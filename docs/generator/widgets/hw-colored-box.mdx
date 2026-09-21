@@ -8,10 +8,10 @@ description: Paint a child with a solid background color.
 Paints its area with a single [`HWColor`](/generator/styling/hw-color) and renders a child on top. For backgrounds with a border or rounded corners use [`HWDecoratedBox`](/generator/widgets/hw-decorated-box).
 
 ```dart
-HWFill(
+HWSizedBox.expand(
   child: HWColoredBox(
     color: HWColor.fixed(0xFF0000FF),
-    child: HWFill(
+    child: HWSizedBox.expand(
       child: HWColumn(
         children: [
           HWText.fixed('No Color'),

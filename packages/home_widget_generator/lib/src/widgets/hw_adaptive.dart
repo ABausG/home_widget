@@ -87,6 +87,9 @@ class HWAdaptive extends HWWidget {
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;
 
   @override
+  String get swiftFrameAlignment => ios.swiftFrameAlignment;
+
+  @override
   String toSwift(
     int indent, {
     required String dataExpr,

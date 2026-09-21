@@ -16,7 +16,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     groupId: 'group.es.antonborri.generatorBasics',
     supportedFamilies: [HWWidgetFamily.systemSmall],
   ),
-  widget: HWFill(
+  widget: HWSizedBox.expand(
     child: HWDataExists(
       data: HWBool('hasData', previewValue: true),
       whenPresent: HWBoolConditional(

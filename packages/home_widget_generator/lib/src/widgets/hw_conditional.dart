@@ -45,6 +45,10 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
         ...secondBranch.swiftViewModifiers,
       };
 
+  @override
+  String get swiftFrameAlignment =>
+      _sharedSwiftFrameAlignment([firstBranch, secondBranch]);
+
   /// The branch taken is only known at runtime, so a stack lays out each of
   /// them by what it needs itself.
   @override

@@ -40,7 +40,7 @@ void main() {
             ),
             child: dataOnly,
           ),
-          HWFill(child: dataOnly),
+          HWSizedBox.expand(child: dataOnly),
         ];
 
         for (final wrapper in wrappers) {

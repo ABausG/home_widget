@@ -217,6 +217,9 @@ class HWSizeAdaptive extends HWWidget {
   List<HWWidget> get childWidgets => providedSlots;
 
   @override
+  String get swiftFrameAlignment => _sharedSwiftFrameAlignment(providedSlots);
+
+  @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
 
   /// Whichever slot renders is emitted where the adaptive sits, so every one of

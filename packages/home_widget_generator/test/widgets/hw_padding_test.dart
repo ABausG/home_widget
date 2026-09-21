@@ -8,6 +8,29 @@ void main() {
       padding: HWEdgeInsets.only(left: 1, top: 2, right: 3, bottom: 4),
     );
 
+    group('model', () {
+      test('delegates the child questions to the child', () {
+        const bound = HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWText(
+            HWString('k'),
+            style: HWTextStyle(
+              color: HWThemedColor(
+                light: HWFixedColor(0xFF000000),
+                dark: HWFixedColor(0xFFFFFFFF),
+              ),
+            ),
+          ),
+        );
+        expect(bound.dataDependencies, contains(const HWString('k')));
+        expect(bound.childWidgets, hasLength(1));
+        expect(
+          bound.swiftViewModifiers.any((e) => e.contains('colorScheme')),
+          isTrue,
+        );
+      });
+    });
+
     group('iOS (SwiftUI)', () {
       test('chains .padding(EdgeInsets…) after child', () {
         final result = padding.toSwift(0, dataExpr: 'data');

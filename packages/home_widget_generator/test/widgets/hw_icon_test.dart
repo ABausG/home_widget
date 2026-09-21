@@ -36,6 +36,14 @@ void main() {
       expect(icon.semanticLabel, isNull);
     });
 
+    test('a frame larger than the glyph centers it', () {
+      expect(
+        const HWIcon.glyph(0xE88A, font: _materialIcons).swiftFrameAlignment,
+        '.center',
+      );
+      expect(const HWIcon(_mood).swiftFrameAlignment, '.center');
+    });
+
     test('a bound icon reads its font off the data type', () {
       const icon = HWIcon(_mood);
       expect(icon.codePoint, isNull);

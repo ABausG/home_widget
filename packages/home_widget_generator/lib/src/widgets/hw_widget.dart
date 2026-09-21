@@ -25,7 +25,7 @@ part 'hw_image.dart';
 part 'hw_icon.dart';
 part 'hw_data_only.dart';
 part 'hw_adaptive.dart';
-part 'hw_fill.dart';
+part 'hw_sized_box.dart';
 part 'hw_colored_box.dart';
 part 'hw_decorated_box.dart';
 part 'hw_padding.dart';
@@ -66,6 +66,10 @@ sealed class HWSingleChildWidget extends HWWidget {
   /// own composable; one emitting a `Box` of its own answers false instead.
   @override
   bool get kotlinReportsBaseline => child.kotlinReportsBaseline;
+
+  /// The child's, since a wrapper is laid out around whatever the child does.
+  @override
+  String get swiftFrameAlignment => child.swiftFrameAlignment;
 
   /// The child's, for the wrappers that inject their modifier into the child's
   /// own composable.
@@ -632,6 +636,14 @@ sealed class HWWidget implements HWGeneratable {
   /// [HWSizeAdaptive]: a stack asks each widget it can land on instead.
   bool get kotlinReportsBaseline => false;
 
+  /// The place a SwiftUI frame wider or taller than this widget puts it, as an
+  /// `Alignment` literal.
+  ///
+  /// A frame only has a say while the widget does not fill it, and it then puts
+  /// it where the widget's own alignment would, so a bounded child renders the
+  /// way Flutter's tight constraints render it.
+  String get swiftFrameAlignment => '.topLeading';
+
   /// Whether this widget's Glance output is a bitmap the core plugin draws the
   /// text into, rather than something Glance renders itself.
   ///
@@ -916,6 +928,13 @@ sealed class HWWidget implements HWGeneratable {
     required String dataExpr,
     HWEmitContext? context,
   });
+}
+
+/// The [HWWidget.swiftFrameAlignment] every one of [widgets] answers with, or
+/// `.topLeading` while they disagree and only the runtime knows which renders.
+String _sharedSwiftFrameAlignment(Iterable<HWWidget> widgets) {
+  final alignments = widgets.map((w) => w.swiftFrameAlignment).toSet();
+  return alignments.length == 1 ? alignments.single : '.topLeading';
 }
 
 /// The `spacing` of the stack [obj] holds, which [stack] names in the error a

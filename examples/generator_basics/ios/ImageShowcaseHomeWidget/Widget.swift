@@ -121,7 +121,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
       Spacer(minLength: 0)
     }
     .padding(EdgeInsets(top: 8.0, leading: 8.0, bottom: 8.0, trailing: 8.0))
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .applyContainerBackground()
   }
 }

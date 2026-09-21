@@ -12,6 +12,17 @@ void main() {
         expect(image.imageData.isAsset, isFalse);
       });
 
+      test('a frame larger than the picture centers it', () {
+        expect(
+          const HWImage(HWImageData('avatar')).swiftFrameAlignment,
+          '.center',
+        );
+        expect(
+          const HWImage.asset('assets/logo.png').swiftFrameAlignment,
+          '.center',
+        );
+      });
+
       test('reads an item field off the item a builder renders', () {
         const image = HWImage(HWItemData(HWImageData('avatar')));
 
