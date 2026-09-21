@@ -42,11 +42,27 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
         ...secondBranch.swiftViewModifiers,
       };
 
-  /// Either branch rendering a `Text` is enough, since the branch taken is only
-  /// known at runtime.
+  /// The branch taken is only known at runtime, so a stack lays out each of
+  /// them by what it needs itself.
   @override
-  bool get kotlinReportsBaseline =>
-      firstBranch.kotlinReportsBaseline || secondBranch.kotlinReportsBaseline;
+  List<HWWidget> _kotlinChoices(HWEmitContext? context) =>
+      [firstBranch, secondBranch];
+
+  @override
+  String _kotlinChoice(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext? context,
+    required String Function(HWWidget widget, int indent) emit,
+  }) {
+    final pad = '    ' * indent;
+    return '''
+${pad}if (${conditionKotlin(dataExpr: dataExpr)}) {
+${emit(firstBranch, indent + 1)}
+$pad} else {
+${emit(secondBranch, indent + 1)}
+$pad}''';
+  }
 
   /// The text of whichever branch renders, read through the same condition the
   /// emitted `if` goes by; a branch rendering no text of its own leaves the
@@ -85,16 +101,14 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
     int indent, {
     required String dataExpr,
     HWEmitContext? context,
-  }) {
-    final spaces = '    ' * indent; // Use 4 spaces per indent level
-    final cond = conditionKotlin(dataExpr: dataExpr);
-    final first =
-        firstBranch.toKotlin(indent + 1, dataExpr: dataExpr, context: context);
-    final second =
-        secondBranch.toKotlin(indent + 1, dataExpr: dataExpr, context: context);
-
-    return '${spaces}if ($cond) {\n$first\n$spaces} else {\n$second\n$spaces}';
-  }
+  }) =>
+      _kotlinChoice(
+        indent,
+        dataExpr: dataExpr,
+        context: context,
+        emit: (widget, indent) =>
+            widget.toKotlin(indent, dataExpr: dataExpr, context: context),
+      );
 }
 
 /// Renders a widget depending on whether a data field exists in the preferences.
@@ -254,19 +268,11 @@ class HWBoolConditional extends HWConditional {
     return '${data.kotlinReadExpr(dataExpr)} == true';
   }
 
-  static bool _isSupportedBoolData(HWDataType<dynamic> data) {
-    final inner = data.unwrapped;
-    if (inner is HWBool) return true;
-    if (inner is HWJson && inner.leafType is HWBool) return true;
-    return false;
-  }
+  static bool _isSupportedBoolData(HWDataType<dynamic> data) =>
+      data.leaf is HWBool;
 
   static bool? _boolDefaultValue(HWDataType<dynamic> data) {
-    final inner = data.unwrapped;
-    if (inner is HWBool) return inner.defaultValue;
-    if (inner is HWJson && inner.leafType is HWBool) {
-      return (inner.leafType as HWBool).defaultValue;
-    }
-    return null;
+    final leaf = data.leaf;
+    return leaf is HWBool ? leaf.defaultValue : null;
   }
 }

@@ -19,6 +19,13 @@ class HWFill extends HWSingleChildWidget {
   @override
   bool get kotlinReportsBaseline => false;
 
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) =>
+      const HWKotlinRoom(fillsWidth: true, fillsHeight: true);
+
+  @override
+  HWFill _wrapping(HWWidget widget) => HWFill(child: widget);
+
   static HWFill fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');
     if (childField == null || childField.isNull) {

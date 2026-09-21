@@ -28,7 +28,8 @@ enum HWMainAxisAlignment {
   spaceEvenly,
 }
 
-/// Whether aligning on a value needs more room than the children take.
+/// How a stack carries out a main-axis alignment: with spacers, which need
+/// more room than the children take.
 extension HWMainAxisAlignmentFill on HWMainAxisAlignment? {
   /// Whether the alignment is carried by spacers, which only take room in a
   /// layout that fills its main axis.
@@ -40,4 +41,47 @@ extension HWMainAxisAlignmentFill on HWMainAxisAlignment? {
           true,
         HWMainAxisAlignment.start || null => false,
       };
+
+  /// Whether a spacer goes before the first child.
+  bool get hasLeadingSpacer => switch (this) {
+        HWMainAxisAlignment.center ||
+        HWMainAxisAlignment.end ||
+        HWMainAxisAlignment.spaceEvenly =>
+          true,
+        HWMainAxisAlignment.start ||
+        HWMainAxisAlignment.spaceBetween ||
+        null =>
+          false,
+      };
+
+  /// Whether a spacer goes between every two adjacent children.
+  bool get hasSpacerBetween => switch (this) {
+        HWMainAxisAlignment.spaceBetween ||
+        HWMainAxisAlignment.spaceEvenly =>
+          true,
+        HWMainAxisAlignment.start ||
+        HWMainAxisAlignment.center ||
+        HWMainAxisAlignment.end ||
+        null =>
+          false,
+      };
+
+  /// Whether a spacer goes after the last child.
+  bool get hasTrailingSpacer => switch (this) {
+        HWMainAxisAlignment.center || HWMainAxisAlignment.spaceEvenly => true,
+        HWMainAxisAlignment.start ||
+        HWMainAxisAlignment.end ||
+        HWMainAxisAlignment.spaceBetween ||
+        null =>
+          false,
+      };
+
+  /// How many spacers the alignment puts among [children] children.
+  ///
+  /// Glance counts every spacer as a child of the stack, so a stack holds
+  /// `children + spacerCount(children)` of them.
+  int spacerCount(int children) =>
+      (hasLeadingSpacer ? 1 : 0) +
+      (hasSpacerBetween && children > 1 ? children - 1 : 0) +
+      (hasTrailingSpacer ? 1 : 0);
 }

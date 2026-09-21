@@ -30,6 +30,10 @@ class HWPadding extends HWSingleChildWidget {
   HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
       padding.top == 0 ? child.kotlinBaselineText(context) : null;
 
+  @override
+  HWPadding _wrapping(HWWidget widget) =>
+      HWPadding(padding: padding, child: widget);
+
   static HWPadding fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final childField = WidgetValueDecoder.getField(obj, 'child');
     final child = childField != null && !childField.isNull

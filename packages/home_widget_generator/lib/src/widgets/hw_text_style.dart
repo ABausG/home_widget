@@ -1,5 +1,6 @@
 import '../fonts.dart';
 import '../native_helpers.dart';
+import '../types.dart';
 import '../utils/fnv_hash.dart';
 import '../utils/string_literals.dart';
 import 'hw_color.dart';
@@ -283,10 +284,14 @@ sealed class HWKotlinTextRenderer {
   Set<String> get kotlinImports;
 
   /// The Kotlin rendering [text], the expression the bound value is read with.
+  ///
+  /// [itemList] is the key of the list whose item the text renders in, or null
+  /// outside every item.
   String toKotlin(
     int indent, {
     required String dataExpr,
     required String text,
+    String? itemList,
   });
 
   /// What a baseline-aligned [HWRow] lines this text up by.
@@ -383,6 +388,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
     int indent, {
     required String dataExpr,
     required String text,
+    String? itemList,
   }) {
     final pad = '    ' * indent;
     final style = styleExpression(indent, dataExpr: dataExpr);
@@ -480,7 +486,11 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
   /// drawn at, and the alignment and decorations drawn around them. Two texts
   /// agreeing on all of that share a key, and with it the room the measuring
   /// pass found.
-  String boundsKey(String text) {
+  ///
+  /// Inside the item of the builder over [itemList] the expression is the same
+  /// for every item, so the list takes part too, and [toKotlin] appends each
+  /// item's index to the key.
+  String boundsKey(String text, {String? itemList}) {
     final parts = <String>[
       text,
       variant.flutterFamilyKey,
@@ -490,6 +500,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
       textAlign?.name ?? '',
       'underline=$underline',
       'lineThrough=$lineThrough',
+      if (itemList != null) 'itemList=$itemList',
     ];
     return fnv1a32(parts.join(_boundsKeySeparator))
         .toRadixString(16)
@@ -501,12 +512,14 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     int indent, {
     required String dataExpr,
     required String text,
+    String? itemList,
   }) {
     final pad = '    ' * indent;
     final typeface = _typefaceExpression;
     final tint =
         (color ?? hwDefaultContentColor).toKotlin(indent, dataExpr: dataExpr);
-    final key = boundsKey(text);
+    final hash = boundsKey(text, itemList: itemList);
+    final key = itemList == null ? hash : '$hash-\$${HWListLoop.index}';
 
     final buffer = StringBuffer();
     buffer.writeln('${pad}Image(');

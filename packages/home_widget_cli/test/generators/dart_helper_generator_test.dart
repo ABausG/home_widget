@@ -204,7 +204,13 @@ void main() {
       expect(
         output,
         contains(
-          "if (avatar != null) HomeWidget.saveImage('\${_\$paramPrefix}.avatar', avatar),",
+          '    final _rootImage_avatar = await _\$readImage(avatar);\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "if (_rootImage_avatar != null) _\$saveImage('\${_\$paramPrefix}.avatar', _rootImage_avatar),",
         ),
       );
 
@@ -258,7 +264,8 @@ void main() {
       expect(
         output,
         contains(
-          "HomeWidget.saveImage('\${_\$paramPrefix}.avatar', avatar, appGroupId: _\$appGroupId)",
+          'final path = await HomeWidget.saveImage(key, image, '
+          'appGroupId: _\$appGroupId);',
         ),
       );
     });
@@ -869,9 +876,15 @@ void main() {
       expect(
         output,
         contains(
-          "_contactJson['avatar'] = await HomeWidget.saveImage("
-          "'\${_\$paramPrefix}.contact.avatar', _jsonImage_contact_avatar, "
-          'appGroupId: _\$appGroupId);',
+          'final _jsonImage_contact_avatar = '
+          'await _\$readImage(contact?.avatar);',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "_contactJson['avatar'] = await _\$saveImage("
+          "'\${_\$paramPrefix}.contact.avatar', _jsonImage_contact_avatar);",
         ),
       );
       // A missing image writes nothing into the blob and drops the PNG.
@@ -888,21 +901,22 @@ void main() {
       expect(
         output,
         contains(
-          'final _jsonImage_contact_photos_main = contact.photos?.main;',
+          'final _jsonImage_contact_photos_main = '
+          'await _\$readImage(contact?.photos?.main);',
         ),
       );
       expect(
         output,
         contains(
           "(_contactJson['photos']! as Map<String, dynamic>)['main'] = "
-          "await HomeWidget.saveImage('"
-          "\${_\$paramPrefix}.contact.photos.main', _jsonImage_contact_photos_main, "
-          'appGroupId: _\$appGroupId);',
+          "await _\$saveImage('"
+          "\${_\$paramPrefix}.contact.photos.main', "
+          '_jsonImage_contact_photos_main);',
         ),
       );
       // Images are written before the blob that has to carry their paths.
       expect(
-        output.indexOf('HomeWidget.saveImage('),
+        output.indexOf(r'_$saveImage('),
         lessThan(output.indexOf('HomeWidget.saveFile(')),
       );
 
@@ -933,13 +947,22 @@ void main() {
 
       expect(
         output,
-        contains('final _jsonImage_slot_picture = _entry.slot?.picture;'),
+        contains(
+          '          _time: await _\$readImage(_entry.slot?.picture),\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'final _jsonImage_slot_picture = '
+          '_timedJsonImages_slot_picture[_time];',
+        ),
       );
       expect(
         output,
         contains(
           "(_values['slot']! as Map<String, dynamic>)['picture'] = "
-          "await HomeWidget.saveImage('"
+          "await _\$saveImage('"
           "\${_\$paramPrefix}.timedData.slot.picture.\$_millis', "
           '_jsonImage_slot_picture);',
         ),
@@ -969,12 +992,16 @@ void main() {
 
       expect(
         output,
-        contains('final _timedImage_contactAvatar = _entry.contactAvatar;'),
+        contains(
+          'final _timedImage_contactAvatar = '
+          '_timedImages_contactAvatar[_time];',
+        ),
       );
       expect(
         output,
         contains(
-          'final _jsonImage_contact_avatar = _entry.contact?.avatar;',
+          'final _jsonImage_contact_avatar = '
+          '_timedJsonImages_contact_avatar[_time];',
         ),
       );
     });
@@ -993,11 +1020,17 @@ void main() {
 
       expect(
         output,
-        contains('final _jsonImage_media_photoSet = media.photoSet;'),
+        contains(
+          'final _jsonImage_media_photoSet = '
+          'await _\$readImage(media?.photoSet);',
+        ),
       );
       expect(
         output,
-        contains('final _jsonImage_media_photo_set = media.photo?.set;'),
+        contains(
+          'final _jsonImage_media_photo_set = '
+          'await _\$readImage(media?.photo?.set);',
+        ),
       );
     });
 
@@ -1035,7 +1068,7 @@ void main() {
       // images of dropped timestamps deleted.
       final storedAt =
           output.indexOf(r'final _storedTimes = await _$storedTimedKeys();');
-      final saveImageAt = output.indexOf('HomeWidget.saveImage(');
+      final saveImageAt = output.indexOf(r'await _$saveImage(');
       final saveFileAt = output.indexOf('HomeWidget.saveFile(');
       final deleteAt =
           output.indexOf(r'await _$deleteTimedImages(_storedTimes.where(');
@@ -1047,9 +1080,8 @@ void main() {
       expect(
         output,
         contains(
-          "_values['slide'] = await HomeWidget.saveImage("
-          "'\${_\$paramPrefix}.timedData.slide.\$_millis', _timedImage_slide, "
-          'appGroupId: _\$appGroupId);',
+          "_values['slide'] = await _\$saveImage("
+          "'\${_\$paramPrefix}.timedData.slide.\$_millis', _timedImage_slide);",
         ),
       );
       // A slot that survives but loses its image drops the old PNG too.
@@ -2071,9 +2103,1590 @@ void main() {
       );
     });
   });
+
+  group('DartHelperGenerator lists', () {
+    test('saves, deletes and reads a list as its only data', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+        ),
+      ).generate();
+
+      expect(output, contains("import 'dart:convert';"));
+      expect(output, contains("import 'dart:io';"));
+      expect(output, contains("import 'dart:typed_data';"));
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+      expect(
+        output,
+        contains("static const String _\$appGroupId = 'group.weather';"),
+      );
+
+      expect(
+        output,
+        contains(
+          '  static Future<void> saveData({\n'
+          '    List<WeatherForecastItem>? forecast,\n'
+          '  }) {',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '      if (forecast != null) () async {\n'
+          "        await HomeWidget.saveFile('\${_\$paramPrefix}.forecast', "
+          'Uint8List.fromList(utf8.encode(jsonEncode([for (final _item in '
+          "forecast) _item.toJson()]))), extension: 'json', "
+          'appGroupId: _\$appGroupId);\n'
+          '      }(),',
+        ),
+      );
+
+      expect(output, contains('    bool forecast = false,\n'));
+      expect(
+        output,
+        contains(
+          "      if (forecast) HomeWidget.saveWidgetData('\${_\$paramPrefix}"
+          ".forecast', null, appGroupId: _\$appGroupId),",
+        ),
+      );
+
+      expect(
+        output,
+        contains(
+          'static Future<({List<WeatherForecastItem>? forecast})> getData() '
+          'async {',
+        ),
+      );
+      expect(
+        output,
+        contains('''
+    final _forecastPath = await HomeWidget.getWidgetData<String>('\${_\$paramPrefix}.forecast', appGroupId: _\$appGroupId);
+    List<WeatherForecastItem>? forecast;
+    if (_forecastPath != null) {
+      try {
+        final _forecastJson = jsonDecode(await File(_forecastPath).readAsString());
+        if (_forecastJson is List) forecast = [for (final _item in _forecastJson) WeatherForecastItem.fromJson(_item is Map<String, dynamic> ? _item : null)];
+      } on Exception {
+        forecast = null;
+      }
+    }
+'''),
+      );
+      expect(output, contains('      forecast: forecast,\n'));
+    });
+
+    test('shapes the item class like a JSON group, defaults applied', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+        ),
+      ).generate();
+
+      expect(
+        output,
+        contains('''
+class WeatherForecastItem {
+  final DateTime? day;
+  final WeatherConditionIcon? condition;
+  final int? temperature;
+  final double? rain;
+  final bool? windy;
+  final String? note;
+
+  const WeatherForecastItem({
+    this.day,
+    this.condition,
+    this.temperature,
+    this.rain,
+    this.windy,
+    this.note,
+  });
+
+  factory WeatherForecastItem.fromJson(Map<String, dynamic>? json) {
+    json ??= const {};
+    return WeatherForecastItem(
+      day: _readDateTime(json['day']),
+      condition: WeatherConditionIcon.fromCodePoint(_readInt(json['condition']) ?? 0xe2bd),
+      temperature: _readInt(json['temperature']) ?? 0,
+      rain: _readDouble(json['rain']),
+      windy: _readBool(json['windy']) ?? false,
+      note: _readString(json['note']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (day != null) 'day': day!.toUtc().toIso8601String(),
+      if (condition != null) 'condition': condition!.codePoint,
+      if (temperature != null) 'temperature': temperature,
+      if (rain != null) 'rain': rain,
+      if (windy != null) 'windy': windy,
+      if (note != null) 'note': note,
+    };
+  }
+}
+'''),
+      );
+      expect(output, contains('enum WeatherConditionIcon {'));
+      for (final reader in [
+        'String? _readString(',
+        'int? _readInt(',
+        'double? _readDouble(',
+        'bool? _readBool(',
+        'DateTime? _readDateTime(',
+      ]) {
+        expect(output, contains(reader));
+      }
+    });
+
+    test('puts the list after the root fields it is saved beside', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn(
+            children: [
+              HWText(HWString('unit', defaultValue: '°C')),
+              HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+            ],
+          ),
+        ),
+      ).generate();
+
+      expect(
+        output,
+        contains(
+          '    String? unit,\n'
+          '    List<WeatherForecastItem>? forecast,\n',
+        ),
+      );
+      expect(
+        output,
+        contains('    bool unit = false,\n    bool forecast = false,\n'),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<({String? unit, List<WeatherForecastItem>? '
+          'forecast})> getData()',
+        ),
+      );
+    });
+
+    test('gives several builders over one list one class and one parameter',
+        () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWSizeAdaptive(
+            small: HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+            large: HWColumn.builder(
+              'forecast',
+              maxItems: 6,
+              item: HWText.number(HWItemData(HWInt('temperature'))),
+            ),
+          ),
+        ),
+      ).generate();
+
+      expect('class WeatherForecastItem {'.allMatches(output), hasLength(1));
+      expect(output, contains('  final String? label;\n'));
+      expect(output, contains('  final int? temperature;\n'));
+      expect(
+        'List<WeatherForecastItem>? forecast,'.allMatches(output),
+        hasLength(1),
+      );
+    });
+
+    test('gives every list a class and a parameter of its own', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn(
+            children: [
+              HWRow.builder(
+                'forecast',
+                maxItems: 3,
+                item: HWText(HWItemData(HWString('label'))),
+              ),
+              HWColumn.builder(
+                'events',
+                maxItems: 2,
+                item: HWText(HWItemData(HWString('title'))),
+              ),
+            ],
+          ),
+        ),
+      ).generate();
+
+      expect(output, contains('class WeatherForecastItem {'));
+      expect(output, contains('class WeatherEventsItem {'));
+      expect(
+        output,
+        contains(
+          '    List<WeatherForecastItem>? forecast,\n'
+          '    List<WeatherEventsItem>? events,\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<({List<WeatherForecastItem>? forecast, '
+          'List<WeatherEventsItem>? events})> getData()',
+        ),
+      );
+    });
+
+    test('shares one enum between an item icon and a root icon of its key', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn(
+            children: [
+              HWIcon(
+                HWIconData.resolved(
+                  'condition',
+                  entries: [HWIconEntry('rain', 0xe2c1)],
+                  iconFont: _materialIcons,
+                ),
+              ),
+              HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+            ],
+          ),
+        ),
+      ).generate();
+
+      expect('enum WeatherConditionIcon {'.allMatches(output), hasLength(1));
+      for (final name in ['rain', 'wbSunny', 'cloud']) {
+        expect(output, contains('  $name(IconData(0x'));
+      }
+      expect(output, contains('    WeatherConditionIcon? condition,\n'));
+      expect(output, contains('  final WeatherConditionIcon? condition;\n'));
+    });
+
+    test('keeps a localized item field a plain string', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWRow.builder(
+            'forecast',
+            maxItems: 5,
+            item: HWText(
+              HWItemData(
+                HWString.localized(
+                  'label',
+                  defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+                  previewTranslations: {'en': 'Monday'},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ).generate();
+
+      expect(output, contains('  final String? label;\n'));
+      expect(output, contains("      label: _readString(json['label']),\n"));
+      expect(output, contains("      if (label != null) 'label': label,\n"));
+      expect(output, isNot(contains('Translations')));
+    });
+
+    test('gives an item that reads no field a class without members', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+        ),
+      ).generate();
+
+      expect(
+        output,
+        contains('''
+class WeatherDotsItem {
+  const WeatherDotsItem();
+
+  factory WeatherDotsItem.fromJson(Map<String, dynamic>? json) {'''),
+      );
+      expect(output, contains('    List<WeatherDotsItem>? dots,\n'));
+    });
+
+    test('carries a time-based list in every timed entry, not in saveData', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn(
+            children: [
+              HWText(HWString('city')),
+              HWText(HWTimedData(HWString('summary'))),
+              HWColumn.builder('hourly', maxItems: 4, item: _hourlyItem),
+              HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+            ],
+          ),
+        ),
+      ).generate();
+
+      expect(
+        output,
+        contains('''
+class WeatherTimedData {
+  final String? summary;
+  final List<WeatherHourlyItem>? hourly;
+
+  const WeatherTimedData({
+    this.summary,
+    this.hourly,
+  });
+
+  factory WeatherTimedData.fromJson(Map<String, dynamic>? json) {
+    json ??= const {};
+    return WeatherTimedData(
+      summary: _readString(json['summary']),
+      hourly: json['hourly'] is List ? [for (final _e in json['hourly'] as List) WeatherHourlyItem.fromJson(_e is Map<String, dynamic> ? _e : null)] : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (summary != null) 'summary': summary,
+      if (hourly != null) 'hourly': [for (final _e in hourly!) _e.toJson()],
+    };
+  }
+}
+'''),
+      );
+      expect(output, contains('class WeatherHourlyItem {'));
+      expect(output, contains('class WeatherForecastItem {'));
+      expect(
+        output,
+        contains(
+          '  static Future<void> saveData({\n'
+          '    String? city,\n'
+          '    List<WeatherForecastItem>? forecast,\n'
+          '    Map<DateTime, WeatherTimedData>? timedData,\n'
+          '  }) {',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '    bool city = false,\n'
+          '    bool forecast = false,\n'
+          '    bool timedData = false,\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<({String? city, List<WeatherForecastItem>? forecast, '
+          'Map<DateTime, WeatherTimedData>? timedData})> getData()',
+        ),
+      );
+    });
+
+    test('saves, reads and deletes a time-based list as the only timed data',
+        () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn.builder('hourly', maxItems: 4, item: _hourlyItem),
+        ),
+      ).generate();
+
+      expect(output, contains("import 'dart:convert';"));
+      expect(output, contains("import 'dart:io';"));
+      expect(output, contains("import 'package:flutter/foundation.dart';"));
+      expect(output, isNot(contains("import 'dart:typed_data';")));
+      expect(output, isNot(contains("import 'package:flutter/widgets.dart';")));
+      expect(
+        output,
+        contains(
+          '  static Future<void> saveData({\n'
+          '    Map<DateTime, WeatherTimedData>? timedData,\n'
+          '  }) {',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '_time.toUtc().millisecondsSinceEpoch.toString(): '
+          'timedData[_time]!.toJson(),',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'await HomeWidget.scheduleWidgetUpdates(_timedTimes, '
+          "androidName: 'WeatherHomeWidgetReceiver');",
+        ),
+      );
+      expect(output, contains('    bool timedData = false,\n'));
+      expect(
+        output,
+        contains(
+          'await HomeWidget.cancelScheduledWidgetUpdates('
+          "androidName: 'WeatherHomeWidgetReceiver');",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          'static Future<({Map<DateTime, WeatherTimedData>? timedData})> '
+          'getData() async {',
+        ),
+      );
+      expect(output, contains('  final List<WeatherHourlyItem>? hourly;\n'));
+      for (final reader in [
+        'String? _readString(',
+        'int? _readInt(',
+        'DateTime? _readDateTime(',
+      ]) {
+        expect(output, contains(reader));
+      }
+      expect(output, isNot(contains('_\$storedTimedListLengths')));
+      expect(output, isNot(contains('_\$deleteListImages')));
+    });
+
+    test('round-trips every kind of item field', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWRow.builder('forecast', maxItems: 1, item: _forecastItem),
+          ),
+        ).generate(),
+        r'''
+  await WeatherHomeWidget.saveData(
+    forecast: [
+      WeatherForecastItem(
+        day: DateTime.utc(2026, 9, 21, 12),
+        condition: WeatherConditionIcon.cloud,
+        temperature: 21,
+        rain: 0.5,
+        windy: true,
+        note: 'Sunny spells',
+      ),
+      const WeatherForecastItem(),
+    ],
+  );
+  print(File(HomeWidget.data['home_widget.Weather.forecast'] as String).readAsStringSync());
+  final forecast = (await WeatherHomeWidget.getData()).forecast!;
+  print(forecast.length);
+  print(forecast.first.day!.isAtSameMomentAs(DateTime.utc(2026, 9, 21, 12)));
+  print(forecast.first.condition);
+  for (final item in forecast) {
+    print(item.toJson());
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[{"day":"2026-09-21T12:00:00.000Z","condition":58047,'
+            '"temperature":21,"rain":0.5,"windy":true,"note":"Sunny spells"},'
+            '{}]',
+        // Every item is stored, however few a builder renders.
+        '2',
+        'true',
+        'WeatherConditionIcon.cloud',
+        '{day: 2026-09-21T12:00:00.000Z, condition: 58047, temperature: 21, '
+            'rain: 0.5, windy: true, note: Sunny spells}',
+        // A field an item was saved without reads back as its default.
+        '{condition: 58045, temperature: 0, windy: false}',
+      ]);
+    });
+
+    test('tells nothing saved, an empty list and a deleted one apart',
+        () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn(
+              children: [
+                HWText(HWString('unit')),
+                HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+              ],
+            ),
+          ),
+        ).generate(),
+        r'''
+  print((await WeatherHomeWidget.getData()).forecast);
+  await WeatherHomeWidget.saveData(forecast: const []);
+  print((await WeatherHomeWidget.getData()).forecast);
+  await WeatherHomeWidget.saveData(unit: '°F');
+  print((await WeatherHomeWidget.getData()).forecast);
+  await WeatherHomeWidget.deleteData(forecast: true);
+  print((await WeatherHomeWidget.getData()).forecast);
+  print(HomeWidget.data.keys.toList());
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        'null',
+        '[]',
+        // Saving another field leaves the list as it was.
+        '[]',
+        'null',
+        '[home_widget.Weather.unit]',
+      ]);
+    });
+
+    test('reads anything but a JSON array back as no list', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+          ),
+        ).generate(),
+        r'''
+  final file = File('${HomeWidget.directory.path}/stored.json');
+  HomeWidget.data['home_widget.Weather.forecast'] = file.path;
+  for (final content in ['{"temperature": 3}', '42', 'not json']) {
+    file.writeAsStringSync(content);
+    print((await WeatherHomeWidget.getData()).forecast);
+  }
+  file.deleteSync();
+  print((await WeatherHomeWidget.getData()).forecast);
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        'null',
+        'null',
+        'null',
+        'null',
+      ]);
+    });
+
+    test('reads an element that is no JSON object as an item storing nothing',
+        () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+          ),
+        ).generate(),
+        r'''
+  final file = File('${HomeWidget.directory.path}/stored.json');
+  file.writeAsStringSync('[{"temperature": 3}, 42, null, "rain"]');
+  HomeWidget.data['home_widget.Weather.forecast'] = file.path;
+  for (final item in (await WeatherHomeWidget.getData()).forecast!) {
+    print(item.toJson());
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '{condition: 58045, temperature: 3, windy: false}',
+        '{condition: 58045, temperature: 0, windy: false}',
+        '{condition: 58045, temperature: 0, windy: false}',
+        '{condition: 58045, temperature: 0, windy: false}',
+      ]);
+    });
+
+    test('round-trips a list whose item reads no field', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+          ),
+        ).generate(),
+        r'''
+  await WeatherHomeWidget.saveData(
+    dots: const [WeatherDotsItem(), WeatherDotsItem()],
+  );
+  print(File(HomeWidget.data['home_widget.Weather.dots'] as String).readAsStringSync());
+  print((await WeatherHomeWidget.getData()).dots!.length);
+''',
+      );
+
+      expect(const LineSplitter().convert(output), ['[{},{}]', '2']);
+    });
+
+    test('saves the images of every item to a PNG each, keyed by its index',
+        () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+        ),
+      ).generate();
+
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+      // Every item's pictures are read before the first of them is written,
+      // so an item that moved keeps the one it came with.
+      expect(
+        output,
+        contains(r'''
+    final _itemImages_contacts_avatar = [
+      if (contacts != null)
+        for (final _item in contacts) await _$readImage(_item.avatar),
+    ];
+    final _itemImages_contacts_badge = [
+      if (contacts != null)
+        for (final _item in contacts) await _$readImage(_item.badge),
+    ];
+    await Future.wait([
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+      if (contacts != null) () async {
+        final _storedLength = await _$storedListLength('${_$paramPrefix}.contacts');
+        final _listJson = <Map<String, dynamic>>[];
+        for (var _index = 0; _index < contacts.length; _index++) {
+          final _item = contacts[_index];
+          final _values = _item.toJson();
+          final _itemImage_avatar = _itemImages_contacts_avatar[_index];
+          if (_itemImage_avatar != null) {
+            _values['avatar'] = await _$saveImage('${_$paramPrefix}.contacts.$_index.avatar', _itemImage_avatar);
+          } else if (_index < _storedLength) {
+            await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contacts.$_index.avatar', null, appGroupId: _$appGroupId);
+          }
+          final _itemImage_badge = _itemImages_contacts_badge[_index];
+          if (_itemImage_badge != null) {
+            _values['badge'] = await _$saveImage('${_$paramPrefix}.contacts.$_index.badge', _itemImage_badge);
+          } else if (_index < _storedLength) {
+            await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contacts.$_index.badge', null, appGroupId: _$appGroupId);
+          }
+          _listJson.add(_values);
+        }
+        await HomeWidget.saveFile('${_$paramPrefix}.contacts', Uint8List.fromList(utf8.encode(jsonEncode(_listJson))), extension: 'json', appGroupId: _$appGroupId);
+        await _$deleteListImages('${_$paramPrefix}.contacts', const ['avatar', 'badge'], contacts.length, _storedLength);
+      }(),
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+      if (contacts) () async {
+        final _storedLength = await _$storedListLength('${_$paramPrefix}.contacts');
+        await HomeWidget.saveWidgetData('${_$paramPrefix}.contacts', null, appGroupId: _$appGroupId);
+        await _$deleteListImages('${_$paramPrefix}.contacts', const ['avatar', 'badge'], 0, _storedLength);
+      }(),
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+  static Future<int> _$storedListLength(String key) async {
+    final path = await HomeWidget.getWidgetData<String>(key, appGroupId: _$appGroupId);
+    if (path == null) return 0;
+    try {
+      final decoded = jsonDecode(await File(path).readAsString());
+      return decoded is List ? decoded.length : 0;
+    } on Exception {
+      return 0;
+    }
+  }
+
+  static Future<void> _$deleteListImages(
+    String key,
+    List<String> fields,
+    int from,
+    int to,
+  ) async {
+    await Future.wait([
+      for (var index = from; index < to; index++)
+        for (final field in fields)
+          HomeWidget.saveWidgetData<String>('$key.$index.$field', null, appGroupId: _$appGroupId),
+    ]);
+  }
+'''),
+      );
+      expect(output, contains('  final ImageProvider? avatar;\n'));
+      expect(
+        output,
+        contains("      avatar: _readFileImage(json['avatar']),\n"),
+      );
+      expect(output, contains('ImageProvider? _readFileImage(Object? value)'));
+    });
+
+    test('keeps a list without images a single write beside one with them', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn(
+            children: [
+              HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+              HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+            ],
+          ),
+        ),
+      ).generate();
+
+      expect(
+        output,
+        contains(
+          "        await HomeWidget.saveFile('\${_\$paramPrefix}.forecast', "
+          'Uint8List.fromList(utf8.encode(jsonEncode([for (final _item in '
+          "forecast) _item.toJson()]))), extension: 'json', "
+          'appGroupId: _\$appGroupId);\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "      if (forecast) HomeWidget.saveWidgetData('\${_\$paramPrefix}"
+          ".forecast', null, appGroupId: _\$appGroupId),",
+        ),
+      );
+      expect(
+        'static Future<int> _\$storedListLength('.allMatches(output),
+        hasLength(1),
+      );
+    });
+
+    test('emits no list image helpers for lists without images', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+        ),
+      ).generate();
+
+      expect(output, isNot(contains('_\$storedListLength')));
+      expect(output, isNot(contains('_\$deleteListImages')));
+    });
+
+    test('round-trips item images through a PNG per item', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+          ),
+        ).generate(),
+        r'''
+  String shown(Object? value) =>
+      '$value'.replaceAll(HomeWidget.directory.path, '<dir>');
+  await WeatherHomeWidget.saveData(
+    contacts: [
+      WeatherContactsItem(
+        name: 'Ada',
+        avatar: MemoryImage(utf8.encode('ada')),
+        badge: MemoryImage(utf8.encode('star')),
+      ),
+      const WeatherContactsItem(name: 'Bob'),
+      WeatherContactsItem(name: 'Cy', avatar: MemoryImage(utf8.encode('cy'))),
+    ],
+  );
+  print(shown(File(HomeWidget.data['home_widget.Weather.contacts'] as String).readAsStringSync()));
+  print(HomeWidget.data.keys.toList()..sort());
+  for (final item in (await WeatherHomeWidget.getData()).contacts!) {
+    final avatar = item.avatar;
+    final badge = item.badge;
+    print([
+      item.name,
+      avatar is FileImage ? avatar.file.readAsStringSync() : avatar,
+      badge is FileImage ? badge.file.readAsStringSync() : badge,
+    ]);
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[{"name":"Ada","avatar":"<dir>/home_widget.Weather.contacts.0.avatar.png",'
+            '"badge":"<dir>/home_widget.Weather.contacts.0.badge.png"},'
+            '{"name":"Bob"},'
+            '{"name":"Cy","avatar":"<dir>/home_widget.Weather.contacts.2.avatar.png"}]',
+        '[home_widget.Weather.contacts, home_widget.Weather.contacts.0.avatar, '
+            'home_widget.Weather.contacts.0.badge, '
+            'home_widget.Weather.contacts.2.avatar]',
+        '[Ada, ada, star]',
+        '[Bob, null, null]',
+        '[Cy, cy, null]',
+      ]);
+    });
+
+    test('keeps every item image when the list is reordered', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+          ),
+        ).generate(),
+        r'''
+  Future<List<String>> avatars() async => [
+        for (final item in (await WeatherHomeWidget.getData()).contacts!)
+          switch (item.avatar) {
+            FileImage(:final file) => file.readAsStringSync(),
+            _ => '<none>',
+          },
+      ];
+  Future<void> save(List<WeatherContactsItem> contacts) =>
+      WeatherHomeWidget.saveData(contacts: contacts);
+
+  await save([
+    WeatherContactsItem(name: 'a', avatar: MemoryImage(utf8.encode('A'))),
+    WeatherContactsItem(name: 'b', avatar: MemoryImage(utf8.encode('B'))),
+  ]);
+  print(await avatars());
+
+  // A new item in front of the ones getData handed back: every stored item
+  // moves up one index, onto the file the item before it was read from.
+  await save([
+    WeatherContactsItem(name: 'c', avatar: MemoryImage(utf8.encode('C'))),
+    ...(await WeatherHomeWidget.getData()).contacts!,
+  ]);
+  print(await avatars());
+
+  // Two items trading places read each other's file.
+  final stored = (await WeatherHomeWidget.getData()).contacts!;
+  await save([stored[1], stored[0], stored[2]]);
+  print(await avatars());
+
+  // ...and the same list saved again is unchanged.
+  await save((await WeatherHomeWidget.getData()).contacts!);
+  print(await avatars());
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[A, B]',
+        '[C, A, B]',
+        '[A, C, B]',
+        '[A, C, B]',
+      ]);
+    });
+
+    test('keeps every entry image when the timeline shifts', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn(
+              children: [
+                HWImage(HWTimedData(HWImageData('hero'))),
+                HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+              ],
+            ),
+          ),
+        ).generate(),
+        r'''
+  final morning = DateTime.utc(2026, 9, 21, 6);
+  final noon = DateTime.utc(2026, 9, 21, 12);
+  String shown(ImageProvider? image) => switch (image) {
+        FileImage(:final file) => file.readAsStringSync(),
+        _ => '<none>',
+      };
+  Future<List<Object>> timeline() async {
+    final data = (await WeatherHomeWidget.getData()).timedData!;
+    return [
+      for (final time in data.keys.toList()..sort())
+        [
+          shown(data[time]!.hero),
+          [for (final slide in data[time]!.slides!) shown(slide.photo)],
+        ],
+    ];
+  }
+
+  await WeatherHomeWidget.saveData(
+    timedData: {
+      morning: WeatherTimedData(
+        hero: MemoryImage(utf8.encode('dawn')),
+        slides: [
+          WeatherSlidesItem(caption: 'a', photo: MemoryImage(utf8.encode('A'))),
+        ],
+      ),
+      noon: WeatherTimedData(
+        hero: MemoryImage(utf8.encode('midday')),
+        slides: [
+          WeatherSlidesItem(caption: 'b', photo: MemoryImage(utf8.encode('B'))),
+        ],
+      ),
+    },
+  );
+  print(await timeline());
+
+  // The timeline shifts one slot up: what noon shows moves to morning, whose
+  // own pictures are written first. getData hands the instants back in local
+  // time, so the stored entries are taken by the keys it used.
+  final stored = (await WeatherHomeWidget.getData()).timedData!;
+  final times = stored.keys.toList()..sort();
+  await WeatherHomeWidget.saveData(
+    timedData: {times[0]: stored[times[1]]!, times[1]: stored[times[0]]!},
+  );
+  print(await timeline());
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[[dawn, [A]], [midday, [B]]]',
+        '[[midday, [B]], [dawn, [A]]]',
+      ]);
+    });
+
+    test('deletes the images of the items a shorter list no longer has',
+        () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+          ),
+        ).generate(),
+        r'''
+  List<String> files() => [
+        for (final file in HomeWidget.directory.listSync())
+          file.path.split('/').last,
+      ]..sort();
+  await WeatherHomeWidget.saveData(
+    contacts: [
+      for (final name in ['ada', 'bob', 'cy'])
+        WeatherContactsItem(
+          name: name,
+          avatar: MemoryImage(utf8.encode(name)),
+          badge: MemoryImage(utf8.encode('$name badge')),
+        ),
+    ],
+  );
+  await WeatherHomeWidget.saveData(
+    contacts: [
+      const WeatherContactsItem(name: 'ada'),
+      WeatherContactsItem(name: 'bob', avatar: MemoryImage(utf8.encode('bob 2'))),
+    ],
+  );
+  print(files());
+  print(HomeWidget.data.keys.toList()..sort());
+  final contacts = (await WeatherHomeWidget.getData()).contacts!;
+  print((contacts[1].avatar as FileImage).file.readAsStringSync());
+  await WeatherHomeWidget.saveData(contacts: const []);
+  print(files());
+  print((await WeatherHomeWidget.getData()).contacts);
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[home_widget.Weather.contacts.1.avatar.png, '
+            'home_widget.Weather.contacts.json]',
+        '[home_widget.Weather.contacts, '
+            'home_widget.Weather.contacts.1.avatar]',
+        'bob 2',
+        '[home_widget.Weather.contacts.json]',
+        '[]',
+      ]);
+    });
+
+    test('deletes a list together with the images of its items', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn(
+              children: [
+                HWText(HWString('title')),
+                HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+              ],
+            ),
+          ),
+        ).generate(),
+        r'''
+  await WeatherHomeWidget.saveData(
+    title: 'Team',
+    contacts: [
+      WeatherContactsItem(name: 'Ada', avatar: MemoryImage(utf8.encode('ada'))),
+      WeatherContactsItem(name: 'Bob', badge: MemoryImage(utf8.encode('bob'))),
+    ],
+  );
+  await WeatherHomeWidget.deleteData(contacts: true);
+  print(HomeWidget.data.keys.toList());
+  print(HomeWidget.directory.listSync());
+  print((await WeatherHomeWidget.getData()).contacts);
+  await WeatherHomeWidget.deleteData(contacts: true);
+  print(HomeWidget.data.keys.toList());
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[home_widget.Weather.title]',
+        '[]',
+        'null',
+        '[home_widget.Weather.title]',
+      ]);
+    });
+
+    test('reads an item image whose file is gone as no image', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+          ),
+        ).generate(),
+        r'''
+  await WeatherHomeWidget.saveData(
+    contacts: [
+      WeatherContactsItem(name: 'Ada', avatar: MemoryImage(utf8.encode('ada'))),
+    ],
+  );
+  File(HomeWidget.data['home_widget.Weather.contacts.0.avatar'] as String).deleteSync();
+  print((await WeatherHomeWidget.getData()).contacts!.single.avatar);
+''',
+      );
+
+      expect(output, 'null');
+    });
+
+    test('saves over a stored list it cannot read', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+          ),
+        ).generate(),
+        r'''
+  final file = File('${HomeWidget.directory.path}/stored.json');
+  for (final content in ['not json', '{"name": "Ada"}']) {
+    file.writeAsStringSync(content);
+    HomeWidget.data['home_widget.Weather.contacts'] = file.path;
+    await WeatherHomeWidget.saveData(
+      contacts: [
+        WeatherContactsItem(name: 'Ada', avatar: MemoryImage(utf8.encode('ada'))),
+      ],
+    );
+    print((await WeatherHomeWidget.getData()).contacts!.single.name);
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), ['Ada', 'Ada']);
+    });
+
+    test('round-trips a timeline whose every entry carries a list of its own',
+        () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn(
+              children: [
+                HWText(HWTimedData(HWString('summary'))),
+                HWColumn.builder('hourly', maxItems: 2, item: _hourlyItem),
+              ],
+            ),
+          ),
+        ).generate(),
+        r'''
+  final morning = DateTime.utc(2026, 9, 21, 6);
+  final noon = DateTime.utc(2026, 9, 21, 12);
+  final evening = DateTime.utc(2026, 9, 21, 18);
+  await WeatherHomeWidget.saveData(
+    timedData: {
+      noon: const WeatherTimedData(
+        hourly: [
+          WeatherHourlyItem(temperature: 21),
+          WeatherHourlyItem(temperature: 22),
+          WeatherHourlyItem(temperature: 20),
+        ],
+      ),
+      morning: WeatherTimedData(
+        summary: 'Fog',
+        hourly: [
+          WeatherHourlyItem(
+            time: DateTime.utc(2026, 9, 21, 7),
+            temperature: 12,
+            note: 'Chilly',
+          ),
+          const WeatherHourlyItem(),
+        ],
+      ),
+      evening: const WeatherTimedData(summary: 'Clear'),
+    },
+  );
+  print(File(HomeWidget.data['home_widget.Weather.timedData'] as String).readAsStringSync());
+  print(HomeWidget.schedule);
+  final timedData = (await WeatherHomeWidget.getData()).timedData!;
+  for (final time in [morning, noon, evening]) {
+    print(timedData[time.toLocal()]!.hourly?.map((item) => item.toJson()).toList());
+  }
+  print(timedData[morning.toLocal()]!.hourly!.first.time!.isAtSameMomentAs(DateTime.utc(2026, 9, 21, 7)));
+  await WeatherHomeWidget.deleteData(timedData: true);
+  print((await WeatherHomeWidget.getData()).timedData);
+  print(HomeWidget.schedule);
+''',
+      );
+
+      final morning = DateTime.utc(2026, 9, 21, 6).millisecondsSinceEpoch;
+      final noon = DateTime.utc(2026, 9, 21, 12).millisecondsSinceEpoch;
+      final evening = DateTime.utc(2026, 9, 21, 18).millisecondsSinceEpoch;
+      expect(const LineSplitter().convert(output), [
+        '{"$morning":{"summary":"Fog","hourly":['
+            '{"time":"2026-09-21T07:00:00.000Z","temperature":12,'
+            '"note":"Chilly"},{}]},'
+            '"$noon":{"hourly":[{"temperature":21},{"temperature":22},'
+            '{"temperature":20}]},'
+            '"$evening":{"summary":"Clear"}}',
+        '[2026-09-21 06:00:00.000Z, 2026-09-21 12:00:00.000Z, '
+            '2026-09-21 18:00:00.000Z]',
+        '[{time: 2026-09-21T07:00:00.000Z, temperature: 12, note: Chilly}, '
+            '{temperature: 0}]',
+        '[{temperature: 21}, {temperature: 22}, {temperature: 20}]',
+        // An entry saved without the list reads back without one.
+        'null',
+        'true',
+        'null',
+        'null',
+      ]);
+    });
+
+    test('reads a timed list that is no JSON array back as no list', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('hourly', maxItems: 4, item: _hourlyItem),
+          ),
+        ).generate(),
+        r'''
+  final file = File('${HomeWidget.directory.path}/stored.json');
+  file.writeAsStringSync('{"1000": {"hourly": {"temperature": 3}}, "2000": {"hourly": [{"temperature": 3}, 42]}}');
+  HomeWidget.data['home_widget.Weather.timedData'] = file.path;
+  final timedData = (await WeatherHomeWidget.getData()).timedData!;
+  for (final millis in [1000, 2000]) {
+    final time = DateTime.fromMillisecondsSinceEpoch(millis);
+    print(timedData[time]!.hourly?.map((item) => item.toJson()).toList());
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        'null',
+        '[{temperature: 3}, {temperature: 0}]',
+      ]);
+    });
+
+    test('saves the item images of every timed entry keyed by index and time',
+        () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+        ),
+      ).generate();
+
+      expect(output, contains("import 'package:flutter/widgets.dart';"));
+      // The whole timeline's pictures are read before the first write, so an
+      // entry that shifted keeps the one it came with.
+      expect(
+        output,
+        contains(r'''
+    final _timedItemImages_slides_photo = {
+      if (timedData != null)
+        for (final MapEntry(key: _time, value: _entry) in timedData.entries)
+          _time: [
+            for (final _item in _entry.slides ?? const [])
+              await _$readImage(_item.photo),
+          ],
+    };
+    await Future.wait([
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+        final _timedTimes = timedData.keys.toList()..sort();
+        final _storedLengths = await _$storedTimedListLengths();
+        if (_timedTimes.isEmpty) {
+          await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
+          await _$deleteTimedListImages(_storedLengths, _storedLengths.keys);
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+          final _values = _entry.toJson();
+          if (_entry.slides case final _items?) {
+            final _itemsJson = _values['slides'] as List<Map<String, dynamic>>;
+            for (var _index = 0; _index < _items.length; _index++) {
+              final _item = _items[_index];
+              final _itemImage_photo = _timedItemImages_slides_photo[_time]![_index];
+              if (_itemImage_photo != null) {
+                _itemsJson[_index]['photo'] = await _$saveImage('${_$paramPrefix}.timedData.slides.$_index.photo.$_millis', _itemImage_photo);
+              } else if (_index < (_storedLengths[_millis]?['slides'] ?? 0)) {
+                await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.timedData.slides.$_index.photo.$_millis', null, appGroupId: _$appGroupId);
+              }
+            }
+          }
+          await _$deleteListImages('${_$paramPrefix}.timedData.slides', const ['photo'], _entry.slides?.length ?? 0, _storedLengths[_millis]?['slides'] ?? 0, '.$_millis');
+          _timedJson[_millis.toString()] = _values;
+        }
+        await HomeWidget.saveFile('${_$paramPrefix}.timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json', appGroupId: _$appGroupId);
+        await _$deleteTimedListImages(_storedLengths, _storedLengths.keys.where((_millis) => !_timedJson.containsKey(_millis.toString())));
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+      if (timedData) () async {
+        final _storedLengths = await _$storedTimedListLengths();
+        await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
+        await _$deleteTimedListImages(_storedLengths, _storedLengths.keys);
+'''),
+      );
+      expect(
+        output,
+        contains(r'''
+  static Future<Map<int, Map<String, int>>> _$storedTimedListLengths() async {
+    final path = await HomeWidget.getWidgetData<String>('${_$paramPrefix}.timedData', appGroupId: _$appGroupId);
+    if (path == null) return const {};
+    try {
+      final decoded = jsonDecode(await File(path).readAsString());
+      if (decoded is! Map<String, dynamic>) return const {};
+      return {
+        for (final MapEntry(:key, :value) in decoded.entries)
+          if (int.tryParse(key) case final millis?)
+            millis: {
+              if (value is Map<String, dynamic>)
+                for (final list in const ['slides'])
+                  if (value[list] case final List items) list: items.length,
+            },
+      };
+    } on Exception {
+      return const {};
+    }
+  }
+
+  static Future<void> _$deleteTimedListImages(
+    Map<int, Map<String, int>> stored,
+    Iterable<int> times,
+  ) async {
+    await Future.wait([
+      for (final millis in times)
+        for (final MapEntry(key: list, value: fields) in const {'slides': ['photo']}.entries)
+          _$deleteListImages('${_$paramPrefix}.timedData.$list', fields, 0, stored[millis]?[list] ?? 0, '.$millis'),
+    ]);
+  }
+
+  static Future<void> _$deleteListImages(
+    String key,
+    List<String> fields,
+    int from,
+    int to, [
+    String suffix = '',
+  ]) async {
+    await Future.wait([
+      for (var index = from; index < to; index++)
+        for (final field in fields)
+          HomeWidget.saveWidgetData<String>('$key.$index.$field$suffix', null, appGroupId: _$appGroupId),
+    ]);
+  }
+'''),
+      );
+      expect(output, isNot(contains(r'_$storedListLength')));
+      expect(output, isNot(contains(r'_$storedTimedKeys')));
+      expect(output, contains('  final ImageProvider? photo;\n'));
+      expect(output, contains("      photo: _readFileImage(json['photo']),\n"));
+    });
+
+    test('prunes the item images of timed and untimed lists side by side', () {
+      final output = DartHelperGenerator(
+        _listSpec(
+          const HWColumn(
+            children: [
+              HWImage(HWTimedData(HWImageData('backdrop'))),
+              HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+              HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+              HWColumn.builder(
+                'badges',
+                maxItems: 3,
+                item: HWImage(HWTimedData(HWItemData(HWImageData('icon')))),
+              ),
+            ],
+          ),
+        ),
+      ).generate();
+
+      expect(
+        output,
+        contains(r'''
+        final _storedTimes = await _$storedTimedKeys();
+        final _storedLengths = await _$storedTimedListLengths();
+        if (_timedTimes.isEmpty) {
+          await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
+          await _$deleteTimedImages(_storedTimes);
+          await _$deleteTimedListImages(_storedLengths, _storedLengths.keys);
+'''),
+      );
+      expect(
+        output,
+        contains(
+          r"await _$deleteListImages('${_$paramPrefix}.contacts', "
+          "const ['avatar', 'badge'], contacts.length, _storedLength);",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          r"await _$deleteListImages('${_$paramPrefix}.timedData.badges', "
+          "const ['icon'], _entry.badges?.length ?? 0, "
+          r"_storedLengths[_millis]?['badges'] ?? 0, '.$_millis');",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          r'''await _$deleteTimedImages(_storedTimes.where((_millis) => !_timedJson.containsKey(_millis.toString())));
+        await _$deleteTimedListImages(_storedLengths, _storedLengths.keys.where((_millis) => !_timedJson.containsKey(_millis.toString())));''',
+        ),
+      );
+      expect(
+        output,
+        contains(r'''
+        final _storedTimes = await _$storedTimedKeys();
+        final _storedLengths = await _$storedTimedListLengths();
+        await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
+        await _$deleteTimedImages(_storedTimes);
+        await _$deleteTimedListImages(_storedLengths, _storedLengths.keys);
+'''),
+      );
+      expect(
+        'static Future<int> _\$storedListLength('.allMatches(output),
+        hasLength(1),
+      );
+      expect(
+        output,
+        contains("for (final list in const ['slides', 'badges'])"),
+      );
+      expect(
+        output,
+        contains("const {'slides': ['photo'], 'badges': ['icon']}.entries"),
+      );
+    });
+
+    test('round-trips the item images of every timed entry through a PNG each',
+        () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+          ),
+        ).generate(),
+        r'''
+  String shown(Object? value) =>
+      '$value'.replaceAll(HomeWidget.directory.path, '<dir>');
+  final morning = DateTime.utc(2026, 9, 21, 6);
+  final noon = DateTime.utc(2026, 9, 21, 12);
+  await WeatherHomeWidget.saveData(
+    timedData: {
+      morning: WeatherTimedData(
+        slides: [
+          WeatherSlidesItem(caption: 'Sunrise', photo: MemoryImage(utf8.encode('sunrise'))),
+          const WeatherSlidesItem(caption: 'Coffee'),
+        ],
+      ),
+      noon: WeatherTimedData(
+        slides: [
+          WeatherSlidesItem(caption: 'Lunch', photo: MemoryImage(utf8.encode('lunch'))),
+        ],
+      ),
+    },
+  );
+  print(shown(File(HomeWidget.data['home_widget.Weather.timedData'] as String).readAsStringSync()));
+  print(HomeWidget.data.keys.toList()..sort());
+  final timedData = (await WeatherHomeWidget.getData()).timedData!;
+  for (final time in [morning, noon]) {
+    for (final slide in timedData[time.toLocal()]!.slides!) {
+      final photo = slide.photo;
+      print([slide.caption, photo is FileImage ? photo.file.readAsStringSync() : photo]);
+    }
+  }
+''',
+      );
+
+      final morning = DateTime.utc(2026, 9, 21, 6).millisecondsSinceEpoch;
+      final noon = DateTime.utc(2026, 9, 21, 12).millisecondsSinceEpoch;
+      expect(const LineSplitter().convert(output), [
+        '{"$morning":{"slides":[{"caption":"Sunrise","photo":'
+            '"<dir>/home_widget.Weather.timedData.slides.0.photo.$morning.png"},'
+            '{"caption":"Coffee"}]},'
+            '"$noon":{"slides":[{"caption":"Lunch","photo":'
+            '"<dir>/home_widget.Weather.timedData.slides.0.photo.$noon.png"}]}}',
+        '[home_widget.Weather.timedData, '
+            'home_widget.Weather.timedData.slides.0.photo.$morning, '
+            'home_widget.Weather.timedData.slides.0.photo.$noon]',
+        '[Sunrise, sunrise]',
+        '[Coffee, null]',
+        '[Lunch, lunch]',
+      ]);
+    });
+
+    test('deletes the timed item images a kept or dropped entry no longer has',
+        () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+          ),
+        ).generate(),
+        r'''
+  List<String> files() => [
+        for (final file in HomeWidget.directory.listSync())
+          file.path.split('/').last,
+      ]..sort();
+  WeatherSlidesItem slide(String name) =>
+      WeatherSlidesItem(caption: name, photo: MemoryImage(utf8.encode(name)));
+  final morning = DateTime.utc(2026, 9, 21, 6);
+  final noon = DateTime.utc(2026, 9, 21, 12);
+  final evening = DateTime.utc(2026, 9, 21, 18);
+  await WeatherHomeWidget.saveData(
+    timedData: {
+      morning: WeatherTimedData(slides: [slide('a'), slide('b'), slide('c')]),
+      noon: WeatherTimedData(slides: [slide('d'), slide('e')]),
+      evening: WeatherTimedData(slides: [slide('f')]),
+    },
+  );
+  print(files().length);
+  await WeatherHomeWidget.saveData(
+    timedData: {
+      morning: WeatherTimedData(
+        slides: [const WeatherSlidesItem(caption: 'a'), slide('b2')],
+      ),
+      evening: const WeatherTimedData(),
+    },
+  );
+  print(files());
+  print(HomeWidget.data.keys.toList()..sort());
+  final slides = (await WeatherHomeWidget.getData()).timedData![morning.toLocal()]!.slides!;
+  print([for (final item in slides) item.photo is FileImage ? (item.photo as FileImage).file.readAsStringSync() : item.photo]);
+''',
+      );
+
+      final morning = DateTime.utc(2026, 9, 21, 6).millisecondsSinceEpoch;
+      expect(const LineSplitter().convert(output), [
+        '7',
+        '[home_widget.Weather.timedData.json, '
+            'home_widget.Weather.timedData.slides.1.photo.$morning.png]',
+        '[home_widget.Weather.timedData, '
+            'home_widget.Weather.timedData.slides.1.photo.$morning]',
+        '[null, b2]',
+      ]);
+    });
+
+    test('deletes every timed item image with the timeline', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+          ),
+        ).generate(),
+        r'''
+  WeatherSlidesItem slide(String name) =>
+      WeatherSlidesItem(caption: name, photo: MemoryImage(utf8.encode(name)));
+  final morning = DateTime.utc(2026, 9, 21, 6);
+  final noon = DateTime.utc(2026, 9, 21, 12);
+  Future<void> save() => WeatherHomeWidget.saveData(
+        timedData: {
+          morning: WeatherTimedData(slides: [slide('a'), slide('b')]),
+          noon: WeatherTimedData(slides: [slide('c')]),
+        },
+      );
+  await save();
+  await WeatherHomeWidget.saveData(timedData: const {});
+  print(HomeWidget.directory.listSync());
+  print(HomeWidget.data.keys.toList());
+  print(HomeWidget.schedule);
+  await save();
+  await WeatherHomeWidget.deleteData(timedData: true);
+  print(HomeWidget.directory.listSync());
+  print(HomeWidget.data.keys.toList());
+  print((await WeatherHomeWidget.getData()).timedData);
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        '[]',
+        '[]',
+        'null',
+        '[]',
+        '[]',
+        'null',
+      ]);
+    });
+
+    test('saves a timeline over a stored one it cannot read', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('slides', maxItems: 3, item: _slideItem),
+          ),
+        ).generate(),
+        r'''
+  final file = File('${HomeWidget.directory.path}/stored.json');
+  for (final content in [
+    'not json',
+    '[]',
+    '{"soon": {}, "1000": 5, "2000": {"slides": 3}}',
+  ]) {
+    file.writeAsStringSync(content);
+    HomeWidget.data['home_widget.Weather.timedData'] = file.path;
+    await WeatherHomeWidget.saveData(
+      timedData: {
+        DateTime.utc(2026, 9, 21, 6): WeatherTimedData(
+          slides: [WeatherSlidesItem(caption: 'Sunrise', photo: MemoryImage(utf8.encode('sunrise')))],
+        ),
+      },
+    );
+    final timedData = (await WeatherHomeWidget.getData()).timedData!;
+    print(timedData.values.single.slides!.single.caption);
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        'Sunrise',
+        'Sunrise',
+        'Sunrise',
+      ]);
+    });
+  });
 }
 
 const _materialIcons = HWIconFont(family: 'MaterialIcons');
+
+const _forecastCondition = HWIconData.resolved(
+  'condition',
+  entries: [HWIconEntry('wbSunny', 0xe2bd), HWIconEntry('cloud', 0xe2bf)],
+  iconFont: _materialIcons,
+  defaultValue: 0xe2bd,
+);
+
+/// The item of a forecast list, reading one field of every kind.
+const _forecastItem = HWColumn(
+  children: [
+    HWText.dateTime(HWItemData(HWDateTime('day'))),
+    HWIcon(HWItemData(_forecastCondition)),
+    HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+    HWText.number(HWItemData(HWDouble('rain'))),
+    HWBoolConditional(
+      data: HWItemData(HWBool('windy', defaultValue: false)),
+      whenTrue: HWText.fixed('windy'),
+      whenFalse: HWText.fixed('calm'),
+    ),
+    HWText(HWItemData(HWString('note'))),
+  ],
+);
+
+/// The item of a contacts list, holding two images beside its name.
+const _contactItem = HWRow(
+  children: [
+    HWImage(HWItemData(HWImageData('avatar'))),
+    HWText(HWItemData(HWString('name'))),
+    HWImage(HWItemData(HWImageData('badge'))),
+  ],
+);
+
+/// The item of a time-based hourly list.
+const _hourlyItem = HWRow(
+  children: [
+    HWText.dateTime(HWTimedData(HWItemData(HWDateTime('time')))),
+    HWText.number(
+      HWTimedData(HWItemData(HWInt('temperature', defaultValue: 0))),
+    ),
+    HWText(HWTimedData(HWItemData(HWString('note')))),
+  ],
+);
+
+/// The item of a time-based slides list, holding an image beside its caption.
+const _slideItem = HWRow(
+  children: [
+    HWImage(HWTimedData(HWItemData(HWImageData('photo')))),
+    HWText(HWTimedData(HWItemData(HWString('caption')))),
+  ],
+);
+
+/// An iOS widget `Weather` rendering [tree], which is where its lists come
+/// from.
+WidgetSpec _listSpec(HWWidget tree) => WidgetSpec(
+      data: HomeWidget(
+        name: 'Weather',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.weather'),
+      ),
+      className: 'Weather',
+      dataFields: tree.dataDependencies.toList(),
+      widgetTree: tree,
+    );
 
 const _mood = HWIconData.resolved(
   'mood',
@@ -2122,3 +3735,198 @@ Future<String> _runGenerated(
   }
   return (result.stdout as String).trim();
 }
+
+/// Runs a whole generated helper in a subprocess, against [_pluginStub] in
+/// place of `package:home_widget` and the Flutter types it names, so a test
+/// saves and reads back through the generated API itself.
+///
+/// [body] runs with `HomeWidget.directory`, where the stub writes files, set
+/// to a fresh directory.
+Future<String> _runHelper(String dart, String body) async {
+  final dir = await Directory.systemTemp.createTemp('hw_helper_run_');
+  addTearDown(() {
+    if (dir.existsSync()) dir.deleteSync(recursive: true);
+  });
+  final storage = Directory(p.join(dir.path, 'storage'))..createSync();
+  final generated =
+      dart.replaceAll(RegExp(r"^import '.*';$", multiLine: true), '');
+  final file = File(p.join(dir.path, 'main.dart'));
+  await file.writeAsString('''
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+$generated
+$_pluginStub
+Future<void> main() async {
+  HomeWidget.directory = Directory(r'${storage.path}');
+$body}
+''');
+
+  final result = await Process.run(Platform.resolvedExecutable, [file.path]);
+  if (result.exitCode != 0) {
+    fail('generated code did not run:\n${result.stdout}\n${result.stderr}');
+  }
+  return (result.stdout as String).trim();
+}
+
+/// What a generated helper of an iOS-only widget calls on the plugin, backed
+/// by a map for the preferences and by real files for `saveFile`, and the
+/// Flutter error reporting a timed save guards its scheduling with.
+///
+/// Clearing a key holding a file's path deletes the file, as the plugin does.
+/// `saveImage` writes the bytes an image carries rather than encoding a PNG.
+/// The update times last scheduled are kept in `HomeWidget.schedule`.
+const _pluginStub = r'''
+class ErrorDescription {
+  const ErrorDescription(this.message);
+
+  final String message;
+}
+
+class FlutterErrorDetails {
+  const FlutterErrorDetails({
+    required this.exception,
+    this.stack,
+    this.library,
+    this.context,
+  });
+
+  final Object exception;
+  final StackTrace? stack;
+  final String? library;
+  final ErrorDescription? context;
+}
+
+class FlutterError {
+  static void reportError(FlutterErrorDetails details) {}
+}
+
+sealed class ImageProvider {
+  const ImageProvider();
+}
+
+class MemoryImage extends ImageProvider {
+  const MemoryImage(this.bytes);
+
+  final List<int> bytes;
+}
+
+class FileImage extends ImageProvider {
+  const FileImage(this.file);
+
+  final File file;
+
+  /// The real one drops the decoded bitmap of [file] from Flutter's image
+  /// cache; there is no cache here, so nothing was ever cached.
+  Future<bool> evict() async => false;
+}
+
+class IconData {
+  const IconData(
+    this.codePoint, {
+    this.fontFamily,
+    this.fontPackage,
+    this.matchTextDirection = false,
+  });
+
+  final int codePoint;
+  final String? fontFamily;
+  final String? fontPackage;
+  final bool matchTextDirection;
+}
+
+class HomeWidgetInfo {
+  const HomeWidgetInfo({this.androidClassName, this.iOSKind});
+
+  final String? androidClassName;
+  final String? iOSKind;
+}
+
+class HomeWidget {
+  static final data = <String, Object?>{};
+  static late Directory directory;
+  static List<DateTime>? schedule;
+
+  static Future<bool?> saveWidgetData<T>(
+    String id,
+    T? value, {
+    String? appGroupId,
+  }) async {
+    if (value != null) {
+      data[id] = value;
+      return true;
+    }
+    final stored = data.remove(id);
+    if (stored is String && stored.startsWith(directory.path)) {
+      File(stored).deleteSync();
+    }
+    return true;
+  }
+
+  static Future<T?> getWidgetData<T>(
+    String id, {
+    T? defaultValue,
+    String? appGroupId,
+  }) async =>
+      data[id] as T? ?? defaultValue;
+
+  static Future<String> saveFile(
+    String key,
+    Uint8List bytes, {
+    String extension = 'bin',
+    String? appGroupId,
+  }) async {
+    final file = File('${directory.path}/$key.$extension');
+    await file.writeAsBytes(bytes);
+    data[key] = file.path;
+    return file.path;
+  }
+
+  static Future<String> saveImage(
+    String key,
+    ImageProvider imageProvider, {
+    String? appGroupId,
+  }) {
+    final bytes = switch (imageProvider) {
+      MemoryImage(:final bytes) => bytes,
+      FileImage(:final file) => file.readAsBytesSync(),
+    };
+    return saveFile(
+      key,
+      Uint8List.fromList(bytes),
+      extension: 'png',
+      appGroupId: appGroupId,
+    );
+  }
+
+  static Future<bool?> updateWidget({
+    String? androidName,
+    String? iOSName,
+    String? qualifiedAndroidName,
+  }) async =>
+      true;
+
+  static Future<bool?> scheduleWidgetUpdates(
+    List<DateTime> updateTimes, {
+    String? name,
+    String? androidName,
+    String? qualifiedAndroidName,
+  }) async {
+    schedule = updateTimes;
+    return true;
+  }
+
+  static Future<bool?> cancelScheduledWidgetUpdates({
+    String? name,
+    String? androidName,
+    String? qualifiedAndroidName,
+  }) async {
+    schedule = null;
+    return true;
+  }
+
+  static Future<List<HomeWidgetInfo>> getInstalledWidgets() async => const [];
+}
+''';

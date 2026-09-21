@@ -53,6 +53,31 @@ void main() {
       );
     });
 
+    test('reads an item field off the item a builder renders', () {
+      const icon = HWIcon.resolved(
+        HWItemData(_mood),
+        fontResourcePrefix: 'hw_font_forecast',
+      );
+
+      expect(icon.iconData, _mood);
+      expect(icon.dataDependencies, {const HWItemData(_mood)});
+      expect(icon.ownIconCodePoints, {
+        _materialIcons: {0xE88A, 0xE42D},
+      });
+      expect(
+        icon.toSwift(0, dataExpr: 'entry.data'),
+        startsWith(
+          'if let codePoint = hwItem.mood, '
+          'let value = UInt32(exactly: codePoint), '
+          'let scalar = UnicodeScalar(value) {',
+        ),
+      );
+      expect(
+        icon.toKotlin(0, dataExpr: 'widgetData'),
+        startsWith('hwItem.mood?.let { codePoint ->'),
+      );
+    });
+
     test('defaults to the platform primary content color', () {
       expect(
         const HWIcon(_mood).effectiveColor,

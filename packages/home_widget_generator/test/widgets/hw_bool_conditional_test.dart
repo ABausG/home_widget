@@ -85,6 +85,45 @@ void main() {
         );
       });
 
+      test('reads an item field off the item a builder renders', () {
+        for (final data in const <HWDataType<dynamic>>[
+          HWItemData(HWBool('done', defaultValue: false)),
+          HWTimedData(HWItemData(HWBool('done', defaultValue: false))),
+        ]) {
+          final conditional = HWBoolConditional(
+            data: data,
+            whenTrue: const HWText.fixed('True'),
+            whenFalse: const HWText(HWString('status')),
+          );
+
+          expect(
+            conditional.toSwift(0, dataExpr: 'entry.data'),
+            'if hwItem.done == true {\n'
+            '    Text("True")\n'
+            '} else {\n'
+            '    Text(entry.data.status ?? "")\n'
+            '}',
+          );
+          expect(
+            conditional.toKotlin(0, dataExpr: 'widgetData'),
+            startsWith('if (hwItem.done == true) {'),
+          );
+        }
+      });
+
+      test('still needs a default on an item field', () {
+        const conditional = HWBoolConditional(
+          data: HWItemData(HWBool('done')),
+          whenTrue: HWText.fixed('True'),
+          whenFalse: HWText.fixed('False'),
+        );
+
+        expect(
+          () => conditional.toSwift(0, dataExpr: 'entry.data'),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
       test('supports nested JSON child bool conditions', () {
         const jsonConditional = HWBoolConditional(
           data: HWJson(

@@ -62,7 +62,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = ImageShowcaseData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "52a07baf",
+            "1a3a9929",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
             listOf(hwPreviewData.picture, hwPreviewData.slide, hwPreviewData.contact?.avatar)
@@ -111,15 +111,18 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
             widgetData.picture
                 ?.let { path -> hwDecodeImage(context, path, 64.0, 64.0) }
                 ?.let { bitmap ->
-                  Image(
-                      provider = ImageProvider(bitmap),
-                      contentDescription = "Picture saved by the app",
-                      contentScale = ContentScale.Crop,
-                      modifier = GlanceModifier.width(64.0.dp).height(64.0.dp),
-                  )
+                  Box(modifier = GlanceModifier.padding(top = 8.0.dp)) {
+                    Image(
+                        provider = ImageProvider(bitmap),
+                        contentDescription = "Picture saved by the app",
+                        contentScale = ContentScale.Crop,
+                        modifier = GlanceModifier.width(64.0.dp).height(64.0.dp),
+                    )
+                  }
                 }
           } else {
             Text(
+                modifier = GlanceModifier.padding(top = 8.0.dp),
                 text = "Open the app to pick an image",
                 style =
                     TextStyle(
@@ -130,7 +133,7 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
             )
           }
           Row(
-              modifier = GlanceModifier.fillMaxWidth(),
+              modifier = GlanceModifier.padding(top = 8.0.dp).fillMaxWidth(),
               verticalAlignment = Alignment.CenterVertically,
           ) {
             Spacer(modifier = GlanceModifier.defaultWeight())
@@ -148,14 +151,17 @@ class ImageShowcaseHomeWidget : GlanceAppWidget() {
                 ?.avatar
                 ?.let { path -> hwDecodeImage(context, path, 28.0, 28.0) }
                 ?.let { bitmap ->
-                  Image(
-                      provider = ImageProvider(bitmap),
-                      contentDescription = "Contact avatar",
-                      contentScale = ContentScale.Crop,
-                      modifier = GlanceModifier.width(28.0.dp).height(28.0.dp),
-                  )
+                  Box(modifier = GlanceModifier.padding(start = 8.0.dp)) {
+                    Image(
+                        provider = ImageProvider(bitmap),
+                        contentDescription = "Contact avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = GlanceModifier.width(28.0.dp).height(28.0.dp),
+                    )
+                  }
                 }
             Text(
+                modifier = GlanceModifier.padding(start = 8.0.dp),
                 text = (widgetData.contact?.name ?: ""),
                 style =
                     TextStyle(

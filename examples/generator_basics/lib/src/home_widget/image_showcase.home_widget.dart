@@ -19,14 +19,20 @@ class ImageShowcaseHomeWidget {
     ImageProvider? picture,
     ContactJsonData? contact,
     Map<DateTime, ImageShowcaseTimedData>? timedData,
-  }) {
-    return Future.wait([
-      if (picture != null) HomeWidget.saveImage('${_$paramPrefix}.picture', picture, appGroupId: _$appGroupId),
+  }) async {
+    final _rootImage_picture = await _$readImage(picture);
+    final _jsonImage_contact_avatar = await _$readImage(contact?.avatar);
+    final _timedImages_slide = {
+      if (timedData != null)
+        for (final MapEntry(key: _time, value: _entry) in timedData.entries)
+          _time: await _$readImage(_entry.slide),
+    };
+    await Future.wait([
+      if (_rootImage_picture != null) _$saveImage('${_$paramPrefix}.picture', _rootImage_picture),
       if (contact != null) () async {
         final _contactJson = contact.toJson();
-        final _jsonImage_contact_avatar = contact.avatar;
         if (_jsonImage_contact_avatar != null) {
-          _contactJson['avatar'] = await HomeWidget.saveImage('${_$paramPrefix}.contact.avatar', _jsonImage_contact_avatar, appGroupId: _$appGroupId);
+          _contactJson['avatar'] = await _$saveImage('${_$paramPrefix}.contact.avatar', _jsonImage_contact_avatar);
         } else {
           await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contact.avatar', null, appGroupId: _$appGroupId);
         }
@@ -58,9 +64,9 @@ class ImageShowcaseHomeWidget {
           final _millis = _time.toUtc().millisecondsSinceEpoch;
           final _entry = timedData[_time]!;
           final _values = _entry.toJson();
-          final _timedImage_slide = _entry.slide;
+          final _timedImage_slide = _timedImages_slide[_time];
           if (_timedImage_slide != null) {
-            _values['slide'] = await HomeWidget.saveImage('${_$paramPrefix}.timedData.slide.$_millis', _timedImage_slide, appGroupId: _$appGroupId);
+            _values['slide'] = await _$saveImage('${_$paramPrefix}.timedData.slide.$_millis', _timedImage_slide);
           } else if (_storedTimes.contains(_millis)) {
             await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.timedData.slide.$_millis', null, appGroupId: _$appGroupId);
           }
@@ -230,6 +236,15 @@ class ImageShowcaseHomeWidget {
       return androidClassName.endsWith('.ImageShowcaseHomeWidgetReceiver');
     }
     return info.iOSKind == 'ImageShowcaseHomeWidget';
+  }
+
+  static Future<ImageProvider?> _$readImage(ImageProvider? image) async =>
+      image is FileImage ? MemoryImage(await image.file.readAsBytes()) : image;
+
+  static Future<String> _$saveImage(String key, ImageProvider image) async {
+    final path = await HomeWidget.saveImage(key, image, appGroupId: _$appGroupId);
+    await FileImage(File(path)).evict();
+    return path;
   }
 
   static Future<List<int>> _$storedTimedKeys() async {

@@ -74,13 +74,66 @@ void main() {
       });
     });
 
+    group('builder', () {
+      const events = HWColumn.builder(
+        'events',
+        maxItems: 3,
+        crossAxisAlignment: HWCrossAxisAlignment.start,
+        item: HWText(HWItemData(HWString('title'))),
+      );
+
+      test('const constructor', () {
+        const col = HWColumn.builder(
+          'events',
+          maxItems: 3,
+          spacing: 4,
+          item: HWText.fixed('event'),
+          whenEmpty: HWText.fixed('none'),
+        );
+        expect(col.list, 'events');
+        expect(col.maxItems, 3);
+        expect(col.spacing, 4);
+        expect(col.item, isA<HWText>());
+        expect(col.whenEmpty, isA<HWText>());
+        expect(col.children, isEmpty);
+        expect(col.crossAxisAlignment, isNull);
+        expect(col.mainAxisAlignment, isNull);
+      });
+
+      test('loops over the items in a VStack', () {
+        expect(events.toSwift(0, dataExpr: 'entry.data'), r'''
+VStack(alignment: .leading, spacing: 0) {
+    ForEach(Array((entry.data.events ?? []).prefix(3).enumerated()), id: \.offset) { hwIndex, hwItem in
+        Text(hwItem.title ?? "")
+    }
+}''');
+      });
+
+      test('loops over the items in a Glance Column', () {
+        expect(events.toKotlin(0, dataExpr: 'widgetData'), '''
+Column(horizontalAlignment = Alignment.Start) {
+    val hwItems = widgetData.events.orEmpty().take(3)
+    hwItems.forEachIndexed { _, hwItem ->
+        Text(text = hwItem.title ?: "", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+}''');
+        expect(
+          events.kotlinImports,
+          containsAll([
+            'import androidx.glance.layout.Column',
+            'import androidx.glance.text.Text',
+          ]),
+        );
+      });
+    });
+
     group('iOS (SwiftUI)', () {
       test('VStack with children', () {
         final node = HWColumn(
           children: [HWText.fixed('a'), HWText.fixed('b')],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Text("a")'));
         expect(r, contains('Text("b")'));
       });
@@ -93,8 +146,8 @@ void main() {
           ],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
-        expect(r, contains('HStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
+        expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Text("x")'));
         expect(r, contains('Text("y")'));
       });
@@ -102,13 +155,13 @@ void main() {
       test('data-bound text in column', () {
         final node = HWColumn(children: [HWText(HWString('countLabel'))]);
         final r = node.toSwift(0, dataExpr: 'entry.widgetData');
-        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Text(entry.widgetData.countLabel ?? "")'));
       });
 
       test('empty column', () {
         final r = HWColumn(children: []).toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('}'));
       });
 
@@ -119,8 +172,8 @@ void main() {
           ],
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, startsWith('VStack(alignment: .center) {'));
-        expect(r, contains('    HStack(alignment: .center) {'));
+        expect(r, startsWith('VStack(alignment: .center, spacing: 0) {'));
+        expect(r, contains('    HStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('        Text("x")'));
       });
 
@@ -130,7 +183,7 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .leading) {'));
+        expect(r, contains('VStack(alignment: .leading, spacing: 0) {'));
       });
 
       test('crossAxis .center', () {
@@ -139,13 +192,13 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
       });
 
       test('no alignment defaults to center', () {
         final node = HWColumn(children: [HWText.fixed('a')]);
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
       });
 
       test('crossAxis .baseline falls back to center', () {
@@ -154,7 +207,7 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
       });
 
       test('mainAxis .center uses Spacer', () {
@@ -163,10 +216,10 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .center) {'));
-        expect(r, contains('Spacer()'));
+        expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
+        expect(r, contains('Spacer(minLength: 0)'));
         expect(r, contains('Text("a")'));
-        expect('Spacer()'.allMatches(r).length, 2);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 2);
       });
 
       test('mainAxis .end uses leading Spacer', () {
@@ -175,9 +228,9 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.end,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('Spacer()'));
+        expect(r, contains('Spacer(minLength: 0)'));
         expect(r, contains('Text("a")'));
-        expect('Spacer()'.allMatches(r).length, 1);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
       });
 
       test('mainAxis .spaceEvenly', () {
@@ -186,7 +239,7 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect('Spacer()'.allMatches(r).length, 3);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 3);
       });
 
       test('mainAxis .spaceBetween and Spacer', () {
@@ -195,7 +248,7 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect('Spacer()'.allMatches(r).length, 1);
+        expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
         expect(r, contains('Text("a")'));
         expect(r, contains('Text("b")'));
       });
@@ -206,7 +259,7 @@ void main() {
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, contains('VStack(alignment: .trailing) {'));
+        expect(r, contains('VStack(alignment: .trailing, spacing: 0) {'));
       });
 
       test('mainAxis .start has no Spacer', () {
@@ -215,7 +268,7 @@ void main() {
           mainAxisAlignment: HWMainAxisAlignment.start,
         );
         final r = node.toSwift(0, dataExpr: 'data');
-        expect(r, isNot(contains('Spacer()')));
+        expect(r, isNot(contains('Spacer(')));
       });
     });
 

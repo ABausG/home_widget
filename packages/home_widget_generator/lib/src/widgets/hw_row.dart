@@ -5,24 +5,73 @@ part of 'hw_widget.dart';
 /// Maps to SwiftUI HStack and Glance Row.
 class HWRow extends HWMultiChildWidget {
   final HWCrossAxisAlignment? crossAxisAlignment;
+
+  @override
   final HWMainAxisAlignment? mainAxisAlignment;
+
+  /// The gap between two adjacent children, in logical pixels.
+  ///
+  /// Like Flutter's `Flex.spacing`: there is none before the first child or
+  /// after the last, and [mainAxisAlignment] distributes the room left over on
+  /// top of it.
+  @override
+  final double spacing;
+
+  @override
+  final String? list;
+
+  @override
+  final HWWidget? item;
+
+  @override
+  final int? maxItems;
+
+  @override
+  final HWWidget? whenEmpty;
 
   const HWRow({
     required super.children,
     this.crossAxisAlignment,
     this.mainAxisAlignment,
-  });
+    this.spacing = 0,
+  })  : list = null,
+        item = null,
+        maxItems = null,
+        whenEmpty = null;
+
+  /// A row rendering [item] once per entry of the list saved under [list], in
+  /// the order the entries were saved.
+  ///
+  /// [item] is the only subtree an [HWItemData] reads from; every other field
+  /// read inside it still reads the widget's own data. At most [maxItems]
+  /// entries render, and [whenEmpty] is the row's only child while there is
+  /// none. The alignments and [spacing] apply to the items exactly as they do
+  /// to fixed children.
+  const HWRow.builder(
+    String this.list, {
+    required HWWidget this.item,
+    this.maxItems,
+    this.whenEmpty,
+    this.crossAxisAlignment,
+    this.mainAxisAlignment,
+    this.spacing = 0,
+  }) : super(children: const []);
+
+  @override
+  HWAxis get _mainAxis => HWAxis.horizontal;
 
   /// The alignment this row renders with, always emitted so that neither
   /// platform falls back to its own default.
   HWCrossAxisAlignment get effectiveCrossAxisAlignment =>
       crossAxisAlignment ?? HWCrossAxisAlignment.center;
 
-  /// Whether a text child has to lose its baseline for the alignment to hold.
+  /// Whether a text child has to lose its baseline for the alignment to hold,
+  /// which a bare `Box` around it does: its `getBaseline()` is -1.
   ///
   /// `LinearLayout` corrects a top- or bottom-aligned child by its baseline,
   /// which renders both as baseline alignment; it leaves a centred one alone.
-  bool get _defeatsBaseline => switch (effectiveCrossAxisAlignment) {
+  @override
+  bool get _kotlinDefeatsBaseline => switch (effectiveCrossAxisAlignment) {
         HWCrossAxisAlignment.start || HWCrossAxisAlignment.end => true,
         HWCrossAxisAlignment.center || HWCrossAxisAlignment.baseline => false,
       };
@@ -32,8 +81,10 @@ class HWRow extends HWMultiChildWidget {
   ///
   /// A Glance `Row` is a `LinearLayout` with `baselineAligned` on, so an
   /// `Alignment.Top` row of Glance `Text`s is baseline-aligned by the framework
-  /// already. Only a bitmap text needs placing: it is an `Image`, reports no
-  /// baseline, and would stay at the top while its siblings moved. Two texts
+  /// already. Only a text reporting no baseline needs placing: a bitmap text,
+  /// which is an `Image`, or a text the row lays out through a `Box` of its
+  /// own to carry a gap it cannot take itself. Either would stay at the top
+  /// while its siblings moved, so the row places every text then. Two texts
   /// are the least there is to line up, and a child rendering none — an icon, a
   /// picture — stays at the top either way.
   Map<int, HWKotlinBaselineText>? _kotlinBaselineChildren(
@@ -49,15 +100,84 @@ class HWRow extends HWMultiChildWidget {
       }
     }
     if (texts.length < 2) return null;
-    if (!texts.values.any((text) => text.isBitmap)) return null;
-    return texts;
+    if (texts.values.any((text) => text.isBitmap)) return texts;
+
+    final rendered = HWMultiChildWidget._kotlinRendered(children);
+    final boxesText = texts.keys.any(
+      (index) => children[index]._kotlinBoxesTextInStack(
+        _kotlinSlot(gap: _kotlinGapAt(rendered.indexOf(index))),
+        context,
+      ),
+    );
+    return boxesText ? texts : null;
   }
 
-  /// Whether the child at [index] is emitted inside a `Box` of the row's own,
-  /// which is what lays it out then.
-  bool _wrapsChild(int index, Map<int, HWKotlinBaselineText>? texts) =>
-      (texts?.containsKey(index) ?? false) ||
-      (_defeatsBaseline && children[index].kotlinReportsBaseline);
+  /// The text every item of this builder is padded down to a shared baseline
+  /// by, or null when the row leaves the items where the layout puts them.
+  ///
+  /// The items are one widget rendered once each, so their texts only differ
+  /// in what they read of their item: one whose ascent reads no item field
+  /// sits at the same depth in every item, and each padding would be 0. As
+  /// with fixed children, a text reporting its baseline is lined up by the
+  /// layout already.
+  HWKotlinBaselineText? _kotlinBaselineItem(
+    HWWidget item,
+    HWEmitContext? context,
+  ) {
+    if (effectiveCrossAxisAlignment != HWCrossAxisAlignment.baseline) {
+      return null;
+    }
+    final text = item.kotlinBaselineText(context);
+    if (text == null) return null;
+    if (!text.isBitmap &&
+        !item._kotlinBoxesTextInStack(
+          _kotlinSlot(gap: _kotlinItemGap),
+          context,
+        )) {
+      return null;
+    }
+    if (!_reads(text.ascent(_ascentProbe), HWListLoop.item)) return null;
+    return text;
+  }
+
+  /// The modifiers of the `Box` this row pads the child at [index] down to the
+  /// row's baseline through, or null for a child it does not place.
+  List<String>? _kotlinPlacement(
+    int index,
+    Map<int, HWKotlinBaselineText>? texts,
+    String dataExpr,
+  ) {
+    if (texts == null || !texts.containsKey(index)) return null;
+
+    final ascents =
+        texts.values.map((text) => text.ascent(dataExpr)).join(', ');
+    final place = texts.keys.toList().indexOf(index);
+    return [
+      'padding(top = HomeWidgetFonts.baselinePadding(context, '
+          'listOf($ascents), $place))',
+    ];
+  }
+
+  /// The modifiers of the `Box` this row pads every item of a builder down to
+  /// the deepest ascent among the rendered ones through, or null without a
+  /// [text] to line up by.
+  static List<String>? _kotlinItemPlacement(HWKotlinBaselineText? text) =>
+      text == null
+          ? null
+          : [
+              'padding(top = HomeWidgetFonts.baselinePadding(context, '
+                  '${HWListLoop.ascents}, ${HWListLoop.index}))',
+            ];
+
+  /// A row filling the width of the row it sits in would leave its siblings
+  /// nothing, so along that axis it asks for the room by weight.
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
+    if (!mainAxisAlignment.fillsMainAxis) return const HWKotlinRoom();
+    return enclosingLinearAxis == HWAxis.horizontal
+        ? const HWKotlinRoom(weight: true)
+        : const HWKotlinRoom(fillsWidth: true);
+  }
 
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
@@ -65,51 +185,58 @@ class HWRow extends HWMultiChildWidget {
   @override
   Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
     final texts = _kotlinBaselineChildren(null);
+    final item = this.item;
+    final itemText = item == null ? null : _kotlinBaselineItem(item, null);
     return {
       'import androidx.glance.layout.Row',
       'import androidx.glance.layout.Alignment',
       if (mainAxisAlignment != null) 'import androidx.glance.layout.Spacer',
-      if (mainAxisAlignment.fillsMainAxis &&
-          enclosingLinearAxis != HWAxis.horizontal)
-        'import androidx.glance.layout.fillMaxWidth',
-      if (_defeatsBaseline && children.any((c) => c.kotlinReportsBaseline))
-        'import androidx.glance.layout.Box',
-      if (texts != null) ...{
-        'import androidx.glance.layout.Box',
+      ...kotlinRoomIn(enclosingLinearAxis).kotlinImports,
+      if (texts != null || itemText != null) ...{
         'import androidx.glance.layout.padding',
         'import es.antonborri.home_widget.HomeWidgetFonts',
       },
-      for (var index = 0; index < children.length; index++)
-        ...children[index].kotlinImportsIn(
-          _wrapsChild(index, texts) ? null : HWAxis.horizontal,
-        ),
+      ..._kotlinChildImports(
+        placement: (index) => _kotlinPlacement(index, texts, _ascentProbe),
+        itemPlacement: _kotlinItemPlacement(itemText),
+      ),
     };
   }
 
   static HWRow fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
-    final childrenField = WidgetValueDecoder.getField(obj, 'children');
-    final listValue = childrenField?.toListValue();
-    if (listValue == null) {
-      // coverage:ignore-start
-      throw GeneratorError('HWRow: children parameter is required');
-      // coverage:ignore-end
-    }
-
-    final children = listValue.map(decoder.decodeRecursive).toList();
+    final builder = _decodeBuilder(obj, decoder, 'HWRow');
+    final children = builder == null
+        ? _decodeChildren(obj, decoder, 'HWRow')
+        : const <HWWidget>[];
 
     final crossAxisAlignmentField = obj.getField('crossAxisAlignment');
     final mainAxisAlignmentField = obj.getField('mainAxisAlignment');
 
+    final crossAxisAlignment = WidgetValueDecoder.decodeEnum(
+      crossAxisAlignmentField,
+      HWCrossAxisAlignment.values,
+    );
+    final mainAxisAlignment = WidgetValueDecoder.decodeEnum(
+      mainAxisAlignmentField,
+      HWMainAxisAlignment.values,
+    );
+
+    if (builder != null) {
+      return HWRow.builder(
+        builder.list,
+        item: builder.item,
+        maxItems: builder.maxItems,
+        whenEmpty: builder.whenEmpty,
+        crossAxisAlignment: crossAxisAlignment,
+        mainAxisAlignment: mainAxisAlignment,
+        spacing: _decodeSpacing(obj, builder.spelling),
+      );
+    }
     return HWRow(
       children: children,
-      crossAxisAlignment: WidgetValueDecoder.decodeEnum(
-        crossAxisAlignmentField,
-        HWCrossAxisAlignment.values,
-      ),
-      mainAxisAlignment: WidgetValueDecoder.decodeEnum(
-        mainAxisAlignmentField,
-        HWMainAxisAlignment.values,
-      ),
+      crossAxisAlignment: crossAxisAlignment,
+      mainAxisAlignment: mainAxisAlignment,
+      spacing: _decodeSpacing(obj, 'HWRow'),
     );
   }
 
@@ -131,12 +258,12 @@ class HWRow extends HWMultiChildWidget {
       HWCrossAxisAlignment.baseline => '.firstTextBaseline',
     };
 
-    buffer.writeln('${pad}HStack(alignment: $swiftAlign) {');
+    buffer.writeln('${pad}HStack(alignment: $swiftAlign, spacing: 0) {');
 
     _emitSwiftChildren(buffer, indent + 1, dataExpr, context);
 
     buffer.write('$pad}');
-    return buffer.toString();
+    return _swiftFillingMainAxis(buffer.toString(), indent);
   }
 
   @override
@@ -146,7 +273,9 @@ class HWRow extends HWMultiChildWidget {
     HWEmitContext? context,
   }) {
     final texts = _kotlinBaselineChildren(context);
-    for (final text in texts?.values ?? const <HWKotlinBaselineText>[]) {
+    final item = this.item;
+    final itemText = item == null ? null : _kotlinBaselineItem(item, context);
+    for (final text in [...?texts?.values, if (itemText != null) itemText]) {
       if (text.conflict case final conflict?) throw GeneratorError(conflict);
     }
     final pad = '    ' * indent;
@@ -160,102 +289,35 @@ class HWRow extends HWMultiChildWidget {
       HWCrossAxisAlignment.end => 'Alignment.Bottom',
     };
 
-    // A row filling the width of the row it sits in would leave its siblings
-    // nothing, so along that axis it asks for the room by weight.
-    final fill = context?.enclosingLinearAxis == HWAxis.horizontal
-        ? 'defaultWeight()'
-        : 'fillMaxWidth()';
+    final room = kotlinRoomIn(context?.enclosingLinearAxis).modifiers;
     final arguments = [
-      if (mainAxisAlignment.fillsMainAxis) 'modifier = GlanceModifier.$fill',
+      if (room.isNotEmpty) 'modifier = GlanceModifier.${room.join('.')}',
       'verticalAlignment = $align',
     ].join(', ');
     buffer.writeln('${pad}Row($arguments) {');
 
-    final childContext =
-        (context ?? const HWEmitContext()).inLinear(HWAxis.horizontal);
-    // The texts are keyed by child index, and the spacers an alignment adds are
-    // not children; counting the calls is what keeps the two lined up.
-    var index = 0;
-    _emitChildrenWithMainAxisAlignment(
-      children,
-      buffer,
-      indent + 1,
-      dataExpr,
-      mainAxisAlignment,
-      (child, childIndent, data) => _emitKotlinChild(
-        child,
-        childIndent,
-        data,
-        childContext,
-        texts,
-        index++,
-      ),
-      (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
-    );
+    if (item == null) {
+      _emitKotlinFixed(
+        children,
+        buffer,
+        indent + 1,
+        dataExpr,
+        context,
+        placement: (index) => _kotlinPlacement(index, texts, dataExpr),
+      );
+    } else {
+      _emitKotlinItems(
+        item,
+        buffer,
+        indent + 1,
+        dataExpr,
+        context,
+        itemPlacement: _kotlinItemPlacement(itemText),
+        ascent: itemText?.ascent(dataExpr),
+      );
+    }
 
     buffer.write('$pad}');
     return buffer.toString();
-  }
-
-  /// [child]'s Glance code, wrapped in a `Box` when the row takes its placement
-  /// over from the layout.
-  ///
-  /// A child this row places is padded down to the row's baseline; one that
-  /// only has to lose a baseline [_defeatsBaseline] would otherwise correct by
-  /// gets a bare `Box`, whose `getBaseline()` is -1.
-  String _emitKotlinChild(
-    HWWidget child,
-    int indent,
-    String dataExpr,
-    HWEmitContext? context,
-    Map<int, HWKotlinBaselineText>? texts,
-    int index,
-  ) {
-    if (!_wrapsChild(index, texts)) {
-      return child.toKotlin(indent, dataExpr: dataExpr, context: context);
-    }
-    final placesChild = texts?.containsKey(index) ?? false;
-
-    final pad = '    ' * indent;
-    // The `Box` is what the row lays out now, so the child is no longer one of
-    // its children.
-    final inner = child.toKotlin(
-      indent + 1,
-      dataExpr: dataExpr,
-      context: context?.inLinear(null),
-    );
-    final String box;
-    if (placesChild) {
-      final ascents =
-          texts!.values.map((text) => text.ascent(dataExpr)).join(', ');
-      final place = texts.keys.toList().indexOf(index);
-      box = 'Box(modifier = GlanceModifier.padding(top = '
-          'HomeWidgetFonts.baselinePadding(context, listOf($ascents), '
-          '$place))) {';
-    } else {
-      box = 'Box {';
-    }
-    return '''
-$pad$box
-$inner
-$pad}''';
-  }
-
-  void _emitSwiftChildren(
-    StringBuffer buffer,
-    int indent,
-    String dataExpr,
-    HWEmitContext? context,
-  ) {
-    _emitChildrenWithMainAxisAlignment(
-      children,
-      buffer,
-      indent,
-      dataExpr,
-      mainAxisAlignment,
-      (child, childIndent, data) =>
-          child.toSwift(childIndent, dataExpr: data, context: context),
-      (pad) => '${pad}Spacer()',
-    );
   }
 }

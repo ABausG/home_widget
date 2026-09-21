@@ -59,8 +59,9 @@ formatted at all.
 
 Formats a data-bound number. `data` is an [`HWInt`](/generator/data) or
 `HWDouble`, optionally wrapped in an
-[`HWTimedData`](/generator/timed-data) or [`HWJson`](/generator/data#nested-json);
-anything else is a generation error.
+[`HWTimedData`](/generator/timed-data), an [`HWJson`](/generator/data#nested-json)
+or, inside a [list item](/generator/lists), an `HWItemData`; anything else is a
+generation error.
 
 ```dart
 HWText.number(
@@ -124,7 +125,8 @@ Notes on the individual variants:
   generation time (`HWCurrency.code('EUR')`, three upper-case ASCII letters as
   ISO 4217 spells them — anything else is a generation error) or one your app
   pushes per record (`HWCurrency.data(HWString('currency'))`, optionally wrapped
-  in `HWTimedData` or `HWJson`, the same as any other data type on this page).
+  in `HWTimedData`, `HWJson` or `HWItemData`, the same as any other data type on
+  this page).
   Case does not matter at render time: a runtime `eur` is upper-cased before it
   is looked up. A code that is empty or malformed falls back to plain decimal
   formatting rather than failing; a well-formed code no currency actually uses,
@@ -246,8 +248,9 @@ re-renders.
 
 `const HWText.dateTime(HWDataType<DateTime> data, {HWDateFormat format = HWDateFormat.defaultFormat, HWTimeZone timeZone = HWTimeZone.local, HWTextStyle? style, HWTextAlign? textAlign})`
 
-`data` must be an `HWDateTime`, optionally wrapped in an `HWTimedData` or
-`HWJson`; anything else is a generation error. `HWText(HWDateTime('x'))` is
+`data` must be an `HWDateTime`, optionally wrapped in an `HWTimedData`, an
+`HWJson` or, inside a [list item](/generator/lists), an `HWItemData`; anything
+else is a generation error. `HWText(HWDateTime('x'))` is
 allowed too and is exactly `HWText.dateTime(HWDateTime('x'))` with the default
 format and time zone.
 
@@ -425,8 +428,8 @@ HWText.dateTime(HWDateTime('startsAt'), timeZone: HWTimeZone.data(HWString('even
 
 Here each event carries its own `eventTimeZone` field alongside `startsAt`, so
 a calendar widget can show every entry in the zone it actually happens in.
-`data` must be an `HWString`, optionally wrapped in `HWTimedData` or
-`HWJson` — the same wrapping rules as every other data type on this page.
+`data` must be an `HWString`, optionally wrapped in `HWTimedData`, `HWJson` or
+`HWItemData` — the same wrapping rules as every other data type on this page.
 
 On both platforms, an empty string or an id the platform doesn't recognize
 falls back to the device's own zone — the same result as `HWTimeZone.local`.

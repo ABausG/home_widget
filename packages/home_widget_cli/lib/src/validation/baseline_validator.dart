@@ -15,23 +15,22 @@ void validateBaselineRows(WidgetSpec spec) {
   if (spec.data.android == null) return;
 
   final context = spec.androidEmitContext;
-  final rendered = _androidRendered(
-    spec.effectiveWidgetTree,
-    spec.androidReachableFamilies,
-  );
-  for (final widget in rendered) {
+  for (final widget in spec.androidRenderedWidgets) {
     if (widget is! HWRow) continue;
     if (widget.effectiveCrossAxisAlignment != HWCrossAxisAlignment.baseline) {
       continue;
     }
 
-    final texts = widget.children
-        .where((child) => child.kotlinBaselineText(context) != null);
-    if (texts.length >= 2) continue;
+    final texts = _textsToLineUp(widget, context);
+    if (texts >= 2) continue;
 
-    final how = texts.isEmpty ? 'no child' : 'only one child';
+    final row = switch (widget.list) {
+      final list? => "HWRow.builder('$list')",
+      null => 'an HWRow',
+    };
+    final how = texts == 0 ? 'no child' : 'only one child';
     logger.warn(
-      'Warning: Widget "${spec.data.name}": an HWRow with '
+      'Warning: Widget "${spec.data.name}": $row with '
       'HWCrossAxisAlignment.baseline has $how rendering text of its own. '
       'Android has no baseline to line the children up on and leaves them at '
       'the top of the row, while iOS still aligns them on the first text '
@@ -40,35 +39,17 @@ void validateBaselineRows(WidgetSpec spec) {
   }
 }
 
-/// [widget] and the widgets Android renders of its subtree, in render order.
+/// How many children of [row] render text of their own.
 ///
-/// Only what the Glance emit reaches: the iOS half of an [HWAdaptive] and the
-/// slots of an [HWSizeAdaptive] no family in [reachable] resolves to are left
-/// out, so a row only iOS renders is never reported.
-Iterable<HWWidget> _androidRendered(
-  HWWidget widget,
-  Set<HWWidgetFamily> reachable,
-) sync* {
-  yield widget;
-
-  if (widget is HWAdaptive) {
-    yield* _androidRendered(widget.android, reachable);
-    return;
+/// A builder's item counts once per item it can render, and a builder without
+/// `maxItems` as two, which is all a row needs to line its children up.
+int _textsToLineUp(HWRow row, HWEmitContext context) {
+  final item = row.item;
+  if (item == null) {
+    return row.children
+        .where((child) => child.kotlinBaselineText(context) != null)
+        .length;
   }
-
-  if (widget is HWSizeAdaptive) {
-    final seen = <HWWidget>[];
-    for (final family in reachable) {
-      final slot = widget.resolve(family);
-      if (slot == null) continue;
-      if (seen.any((other) => identical(other, slot))) continue;
-      seen.add(slot);
-      yield* _androidRendered(slot, reachable);
-    }
-    return;
-  }
-
-  for (final child in widget.childWidgets) {
-    yield* _androidRendered(child, reachable);
-  }
+  if (item.kotlinBaselineText(context) == null) return 0;
+  return row.maxItems ?? 2;
 }

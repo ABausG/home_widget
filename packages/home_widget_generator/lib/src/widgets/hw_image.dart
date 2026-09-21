@@ -70,7 +70,8 @@ class HWImage extends HWWidget implements HWDataWidget {
   /// Renders the image stored under [image].
   ///
   /// [image] is an [HWImageData], optionally wrapped in an [HWJson] to read it
-  /// from a JSON group and/or an [HWTimedData] to make it time-based.
+  /// from a JSON group or an [HWItemData] to read it from a list item, and/or
+  /// an [HWTimedData] to make it time-based.
   const HWImage(
     HWDataType<dynamic> image, {
     this.width,
@@ -186,7 +187,7 @@ class HWImage extends HWWidget implements HWDataWidget {
 
     throw GeneratorError(
       'Could not decode HWImage. HWImage requires an HWImageData, optionally '
-      'wrapped in HWJson and/or HWTimedData, got: '
+      'wrapped in HWJson or HWItemData and/or HWTimedData, got: '
       '${dataObj?.type?.element?.name}',
     );
   }
@@ -258,21 +259,64 @@ class HWImage extends HWWidget implements HWDataWidget {
     int indent, {
     required String dataExpr,
     HWEmitContext? context,
-  }) {
+  }) =>
+      _kotlinDecoded(indent, dataExpr, _kotlinPicture);
+
+  /// Nothing is drawn until a bitmap is decoded, so a stack lays out the
+  /// `Image` inside the check, and leaves no gap or `Box` behind without one.
+  @override
+  String _kotlinInStack(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext context,
+    required _HWKotlinStackSlot slot,
+  }) =>
+      _kotlinDecoded(
+        indent,
+        dataExpr,
+        (pictureIndent) => slot.lay(
+          pictureIndent,
+          context: context,
+          emit: (indent, _) => _kotlinPicture(indent),
+          reportsBaseline: false,
+          paddingAddsRoom: _kotlinPictureTakesPadding,
+          room: const HWKotlinRoom(),
+        ),
+      );
+
+  @override
+  Set<String> _kotlinImportsInStack(_HWKotlinStackSlot slot) => slot.imports(
+        importsIn: kotlinImportsIn,
+        reportsBaseline: false,
+        paddingAddsRoom: _kotlinPictureTakesPadding,
+        room: const HWKotlinRoom(),
+      );
+
+  /// Whether a padding put on the `Image` itself adds room around it, rather
+  /// than being taken out of a fixed width or height.
+  bool get _kotlinPictureTakesPadding => width == null && height == null;
+
+  /// The Glance code decoding the picture and drawing it once there is one:
+  /// the `Image` [picture] writes at the indent it is handed, showing `bitmap`.
+  String _kotlinDecoded(
+    int indent,
+    String dataExpr,
+    String Function(int indent) picture,
+  ) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final buffer = StringBuffer();
 
     final image = imageData;
     final sizeArgs = '${width ?? 'null'}, ${height ?? 'null'}';
     final decode = HWNativeHelper.hwDecodeImage.name;
-    final String closePad;
+    final int pictureIndent;
     if (image.isAsset) {
       final asset = escapeKotlinStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
         '$pad$decode(context, "$asset", $sizeArgs)'
         '?.let { bitmap ->',
       );
-      closePad = pad;
+      pictureIndent = indent + 1;
     } else {
       final access = dataType.kotlinAccess(dataExpr);
       buffer.writeln(
@@ -280,18 +324,26 @@ class HWImage extends HWWidget implements HWDataWidget {
         '$decode(context, path, $sizeArgs) }',
       );
       buffer.writeln('$pad    ?.let { bitmap ->');
-      closePad = '$pad    ';
+      pictureIndent = indent + 2;
     }
-    final bodyPad = '$closePad    ';
-    buffer.writeln('${bodyPad}Image(');
-    buffer.writeln('$bodyPad    provider = ImageProvider(bitmap),');
+    buffer.writeln(picture(pictureIndent));
+    buffer.write('${'    ' * (pictureIndent - 1)}}');
+    return buffer.toString();
+  }
+
+  /// The Glance `Image` showing the decoded `bitmap`, [indent] levels deep.
+  String _kotlinPicture(int indent) {
+    final pad = '    ' * indent;
+    final buffer = StringBuffer();
+    buffer.writeln('${pad}Image(');
+    buffer.writeln('$pad    provider = ImageProvider(bitmap),');
 
     final semanticLabel = this.semanticLabel;
     final description = semanticLabel == null
         ? 'null'
         : '"${escapeKotlinStringLiteral(semanticLabel)}"';
-    buffer.writeln('$bodyPad    contentDescription = $description,');
-    buffer.writeln('$bodyPad    contentScale = ${_kotlinContentScale()},');
+    buffer.writeln('$pad    contentDescription = $description,');
+    buffer.writeln('$pad    contentScale = ${_kotlinContentScale()},');
 
     final modifiers = <String>[
       if (width != null) 'width($width.dp)',
@@ -299,12 +351,11 @@ class HWImage extends HWWidget implements HWDataWidget {
     ];
     if (modifiers.isNotEmpty) {
       buffer.writeln(
-        '$bodyPad    modifier = GlanceModifier.${modifiers.join('.')},',
+        '$pad    modifier = GlanceModifier.${modifiers.join('.')},',
       );
     }
 
-    buffer.writeln('$bodyPad)');
-    buffer.write('$closePad}');
+    buffer.write('$pad)');
     return buffer.toString();
   }
 

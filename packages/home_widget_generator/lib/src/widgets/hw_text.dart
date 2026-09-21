@@ -180,9 +180,9 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   /// A number from [data], rendered natively in the device's current locale.
   ///
   /// [data] must resolve to an [HWInt] or [HWDouble], wrapped in an
-  /// [HWTimedData] or sitting at the leaf of an [HWJson] if you like. A widget
-  /// with no value yet renders the type's own default (`0` / `0.0`) in the
-  /// same format.
+  /// [HWTimedData] or an [HWItemData] or sitting at the leaf of an [HWJson] if
+  /// you like. A widget with no value yet renders the type's own default (`0` /
+  /// `0.0`) in the same format.
   const HWText.number(
     HWDataType<num> data, {
     HWNumberFormat format = const HWNumberFormat.decimal(),
@@ -509,6 +509,7 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
       indent,
       dataExpr: dataExpr,
       text: textValue,
+      itemList: context?.itemList,
     );
   }
 

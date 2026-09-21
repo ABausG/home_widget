@@ -149,8 +149,8 @@ class TestRowWidget {}
       expect(row.crossAxisAlignment, HWCrossAxisAlignment.end);
       expect(row.mainAxisAlignment, HWMainAxisAlignment.spaceBetween);
       final out = row.toSwift(0, dataExpr: 'd');
-      expect(out, contains('HStack(alignment: .bottom)'));
-      expect(out, contains('Spacer()'));
+      expect(out, contains('HStack(alignment: .bottom, spacing: 0)'));
+      expect(out, contains('Spacer(minLength: 0)'));
     });
 
     test('parses HWRow with a baseline cross-axis alignment', () async {
@@ -169,7 +169,7 @@ class BaselineRowWidget {}
       expect(row.crossAxisAlignment, HWCrossAxisAlignment.baseline);
       expect(
         row.toSwift(0, dataExpr: 'd'),
-        contains('HStack(alignment: .firstTextBaseline)'),
+        contains('HStack(alignment: .firstTextBaseline, spacing: 0)'),
       );
       expect(
         row.toKotlin(0, dataExpr: 'd'),
@@ -192,6 +192,50 @@ class BaselineColumnWidget {}
       expect(error.message, contains('HWColumn'));
       expect(error.message, contains('HWCrossAxisAlignment.baseline'));
       expect(error.message, contains('only applies to HWRow'));
+    });
+
+    test('parses spacing written as an int or a double literal', () async {
+      final code = '''
+@HomeWidget(
+  name: 'Spaced',
+  widget: HWColumn(
+    spacing: 8,
+    children: [
+      HWRow(spacing: 12.5, children: [HWText.fixed('a'), HWText.fixed('b')]),
+      HWRow(children: [HWText.fixed('c')]),
+    ],
+  ),
+)
+class SpacedWidget {}
+''';
+      final column = await parseCode(code) as HWColumn;
+      expect(column.spacing, 8.0);
+      expect((column.children[0] as HWRow).spacing, 12.5);
+      expect((column.children[1] as HWRow).spacing, 0);
+    });
+
+    test('rejects a negative spacing on HWRow', () async {
+      final code = '''
+@HomeWidget(
+  name: 'NegativeRow',
+  widget: HWRow(spacing: -4, children: [HWText.fixed('a')]),
+)
+class NegativeRowWidget {}
+''';
+      final error = await expectParseError(code);
+      expect(error.message, 'HWRow spacing must be 0 or more, got -4.');
+    });
+
+    test('rejects a negative spacing on HWColumn', () async {
+      final code = '''
+@HomeWidget(
+  name: 'NegativeColumn',
+  widget: HWColumn(spacing: -2.5, children: [HWText.fixed('a')]),
+)
+class NegativeColumnWidget {}
+''';
+      final error = await expectParseError(code);
+      expect(error.message, 'HWColumn spacing must be 0 or more, got -2.5.');
     });
 
     test('parses HWText with data', () async {
@@ -960,6 +1004,472 @@ class TestWidget {}
 class TestWidget {}
 ''');
       expect(e.message, 'HWDataExists requires data');
+    });
+
+    group('list builders', () {
+      /// Stand-ins for Flutter's `IconData`, which the decoder reads by field.
+      const icons = '''
+class IconData {
+  final int codePoint;
+  final String? fontFamily;
+  const IconData(this.codePoint, {this.fontFamily});
+}
+
+const sunny = IconData(0xe430, fontFamily: 'MaterialIcons');
+const cloud = IconData(0xe16f, fontFamily: 'MaterialIcons');
+const umbrella = IconData(0xe6d2, fontFamily: 'MaterialIcons');
+''';
+
+      test('parses HWRow.builder and HWColumn.builder', () async {
+        final column = await parseCode('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn(
+    children: [
+      HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        spacing: 12,
+        mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+        crossAxisAlignment: HWCrossAxisAlignment.baseline,
+        item: HWColumn(
+          children: [
+            HWText(HWItemData(HWString('day'))),
+            HWText(HWString('unit')),
+          ],
+        ),
+        whenEmpty: HWText.fixed('No forecast yet'),
+      ),
+      HWColumn.builder(
+        'events',
+        crossAxisAlignment: HWCrossAxisAlignment.start,
+        item: HWText.fixed('event'),
+      ),
+    ],
+  ),
+)
+class TestWidget {}
+''') as HWColumn;
+        final row = column.children[0] as HWRow;
+        final events = column.children[1] as HWColumn;
+
+        expect(column.isBuilder, isFalse);
+        expect(row.isBuilder, isTrue);
+        expect(row.list, 'forecast');
+        expect(row.maxItems, 5);
+        expect(row.spacing, 12.0);
+        expect(row.mainAxisAlignment, HWMainAxisAlignment.spaceBetween);
+        expect(row.crossAxisAlignment, HWCrossAxisAlignment.baseline);
+        expect(row.children, isEmpty);
+        expect(row.item, isA<HWColumn>());
+        expect(row.whenEmpty, isA<HWText>());
+        expect(row.dataDependencies, {const HWString('unit')});
+        expect(row.itemReads, [const HWItemData(HWString('day'))]);
+
+        expect(events.isBuilder, isTrue);
+        expect(events.list, 'events');
+        expect(events.maxItems, isNull);
+        expect(events.whenEmpty, isNull);
+        expect(events.spacing, 0);
+        expect(events.crossAxisAlignment, HWCrossAxisAlignment.start);
+        expect(events.item, isA<HWText>());
+      });
+
+      test('parses HWItemData over every field type with its previewValues',
+          () async {
+        final row = await parseCode('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWRow.builder(
+    'rows',
+    item: HWDataOnly([
+      HWItemData(HWString('label'), previewValues: ['Mon', 'Tue']),
+      HWItemData(
+        HWString.localized('title', defaultTranslations: {'en': 'Event'}),
+        previewValues: ['Party'],
+      ),
+      HWItemData(HWInt('count', defaultValue: 0), previewValues: [21, 17]),
+      HWItemData(HWDouble('ratio'), previewValues: [1, 2.5]),
+      HWItemData(HWBool('done'), previewValues: [true, false]),
+      HWItemData(HWDateTime('day'), previewValues: ['2026-09-21T12:00:00Z']),
+      HWItemData(HWImageData('avatar'), previewValues: ['assets/a.png']),
+      HWItemData(
+        HWIconData('condition', icons: [sunny, cloud]),
+        previewValues: [cloud, sunny],
+      ),
+      HWItemData(HWString('plain')),
+      HWTimedData(HWItemData(HWInt('hour'))),
+    ]),
+  ),
+)
+class TestWidget {}
+$icons''') as HWRow;
+        final data = (row.item! as HWDataOnly).data;
+
+        expect(
+          data[0],
+          const HWItemData(HWString('label'), previewValues: ['Mon', 'Tue']),
+        );
+        final title = data[1] as HWItemData;
+        expect(title.data, isA<HWLocalizedString>());
+        expect(title.previewValues, ['Party']);
+        expect(
+          data[2],
+          const HWItemData(
+            HWInt('count', defaultValue: 0),
+            previewValues: [21, 17],
+          ),
+        );
+        final ratio = (data[3] as HWItemData).previewValues!;
+        expect(ratio, [1.0, 2.5]);
+        expect(ratio.first, isA<double>());
+        expect(
+          data[4],
+          const HWItemData(HWBool('done'), previewValues: [true, false]),
+        );
+        expect(
+          data[5],
+          const HWItemData(
+            HWDateTime('day'),
+            previewValues: ['2026-09-21T12:00:00Z'],
+          ),
+        );
+        expect(
+          data[6],
+          const HWItemData(
+            HWImageData('avatar'),
+            previewValues: ['assets/a.png'],
+          ),
+        );
+        final condition = data[7] as HWItemData;
+        expect(condition.previewValues, [0xe16f, 0xe430]);
+        expect(iconLeafOf(condition)!.codePoints, {0xe430, 0xe16f});
+        expect(data[8], const HWItemData(HWString('plain')));
+        expect(data[9], const HWTimedData(HWItemData(HWInt('hour'))));
+        expect(row.dataDependencies, isEmpty);
+        expect(row.itemReads, data);
+      });
+
+      test('decodes item fields wherever a data field is taken', () async {
+        final column = await parseCode('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder(
+    'rows',
+    item: HWColumn(
+      children: [
+        HWText.number(
+          HWItemData(HWDouble('price')),
+          format: HWNumberFormat.currency(
+            currency: HWCurrency.data(HWItemData(HWString('currency'))),
+          ),
+        ),
+        HWText.dateTime(
+          HWItemData(HWDateTime('start')),
+          timeZone: HWTimeZone.data(HWItemData(HWString('zone'))),
+        ),
+        HWImage(HWItemData(HWImageData('avatar'))),
+        HWIcon(HWItemData(HWIconData('mood', icons: [sunny]))),
+        HWDataExists(
+          data: HWItemData(HWString('note')),
+          whenPresent: HWText(HWItemData(HWString('note'))),
+          whenAbsent: HWText(HWString('fallback')),
+        ),
+        HWBoolConditional(
+          data: HWItemData(HWBool('done', defaultValue: false)),
+          whenTrue: HWText.fixed('done'),
+          whenFalse: HWText.fixed('open'),
+        ),
+      ],
+    ),
+  ),
+)
+class TestWidget {}
+$icons''') as HWColumn;
+
+        expect(column.dataDependencies, {const HWString('fallback')});
+        expect(
+          column.itemReads.map((read) => read.key),
+          [
+            'price',
+            'currency',
+            'start',
+            'zone',
+            'avatar',
+            'mood',
+            'note',
+            'done',
+          ],
+        );
+        final swift = column.toSwift(0, dataExpr: 'entry.data');
+        expect(swift, contains('code: hwItem.currency ?? "", decimals: nil'));
+        expect(swift, contains('timeZone: hwItem.zone'));
+        expect(swift, contains('if let path = hwItem.avatar,'));
+        expect(swift, contains('if let codePoint = hwItem.mood,'));
+        expect(swift, contains('if hwItem.note != nil {'));
+        expect(swift, contains('if hwItem.done == true {'));
+        expect(swift, contains('Text(entry.data.fallback ?? "")'));
+      });
+
+      test('parses a builder inside the whenEmpty of another', () async {
+        final row = await parseCode('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWRow.builder(
+    'days',
+    item: HWText(HWItemData(HWString('day'))),
+    whenEmpty: HWColumn.builder(
+      'hints',
+      item: HWText(HWItemData(HWString('hint'))),
+    ),
+  ),
+)
+class TestWidget {}
+''') as HWRow;
+        final hints = row.whenEmpty! as HWColumn;
+
+        expect(hints.list, 'hints');
+        expect(hints.itemReads, [const HWItemData(HWString('hint'))]);
+        expect(row.dataDependencies, isEmpty);
+      });
+
+      test('rejects a builder inside the item of another, naming both',
+          () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWRow.builder(
+    'days',
+    item: HWColumn.builder('hours', item: HWText.fixed('hour')),
+  ),
+)
+class TestWidget {}
+''');
+        expect(
+          e.message,
+          "Nested lists aren't supported yet: HWColumn.builder('hours') sits "
+          "inside the item of HWRow.builder('days').",
+        );
+      });
+
+      test('rejects a builder nested deep inside the item of another',
+          () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder(
+    'days',
+    item: HWPadding(
+      padding: HWEdgeInsets.all(4),
+      child: HWColumn(
+        children: [
+          HWDataExists(
+            data: HWItemData(HWString('note')),
+            whenPresent: HWText.fixed('note'),
+            whenAbsent: HWRow.builder('hours', item: HWText.fixed('hour')),
+          ),
+        ],
+      ),
+    ),
+  ),
+)
+class TestWidget {}
+''');
+        expect(
+          e.message,
+          "Nested lists aren't supported yet: HWRow.builder('hours') sits "
+          "inside the item of HWColumn.builder('days').",
+        );
+      });
+
+      test('rejects a maxItems below 1', () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWRow.builder('forecast', maxItems: 0, item: HWText.fixed('a')),
+)
+class TestWidget {}
+''');
+        expect(
+          e.message,
+          "HWRow.builder('forecast') maxItems must be 1 or more, got 0.",
+        );
+      });
+
+      test('rejects a negative spacing, naming the builder', () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder('events', spacing: -4, item: HWText.fixed('a')),
+)
+class TestWidget {}
+''');
+        expect(
+          e.message,
+          "HWColumn.builder('events') spacing must be 0 or more, got -4.",
+        );
+      });
+
+      test('rejects a baseline cross-axis alignment on HWColumn.builder',
+          () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder(
+    'events',
+    crossAxisAlignment: HWCrossAxisAlignment.baseline,
+    item: HWText.fixed('a'),
+  ),
+)
+class TestWidget {}
+''');
+        expect(e.message, contains('only applies to HWRow'));
+      });
+
+      for (final (wrapped, message) in [
+        (
+          "HWTimedData(HWInt('temperature'))",
+          'HWItemData cannot wrap HWTimedData. A list is time-based as a '
+              'whole, so write HWTimedData(HWItemData(...)) instead.',
+        ),
+        (
+          "HWJson('weather', HWString('condition'))",
+          'HWItemData cannot wrap HWJson. JSON objects inside a list item are '
+              'not supported yet; wrap each value in an HWItemData of its own.',
+        ),
+        (
+          "HWItemData(HWString('label'))",
+          'HWItemData cannot wrap another HWItemData. A field reads the item '
+              'of the builder it sits in, so wrap it in HWItemData once.',
+        ),
+        (
+          "HWImageData.asset('assets/logo.png')",
+          'HWItemData cannot wrap the asset image "assets/logo.png". An asset '
+              'ships with the app, so there is nothing to store per item; '
+              'show it with HWImage.asset instead.',
+        ),
+      ]) {
+        test('rejects HWItemData($wrapped)', () async {
+          final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder(
+    'rows',
+    item: HWDataOnly([HWItemData($wrapped)]),
+  ),
+)
+class TestWidget {}
+''');
+          expect(e.message, message);
+        });
+      }
+
+      test('rejects an item field inside HWJson', () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder(
+    'rows',
+    item: HWText(HWJson('weather', HWItemData(HWString('condition')))),
+  ),
+)
+class TestWidget {}
+''');
+        expect(
+          e.message,
+          'An item field can\'t sit inside HWJson ("weather"). Use HWItemData '
+          'on its own, inside the item of an HWColumn.builder or '
+          'HWRow.builder.',
+        );
+      });
+
+      test('an HWItemData missing its field decodes to nothing', () async {
+        final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDataExists(
+    data: HWItemData(),
+    whenPresent: HWText.fixed('yes'),
+    whenAbsent: HWText.fixed('no'),
+  ),
+)
+class TestWidget {}
+''');
+        expect(e.message, 'HWDataExists requires data');
+      });
+
+      for (final (field, previewValues, message) in [
+        (
+          "HWInt('count')",
+          '[]',
+          'The previewValues of HWItemData "count" are empty. Leave them '
+              'out, or list one value per sample item.',
+        ),
+        (
+          "HWInt('count')",
+          "[1, 'two']",
+          'previewValues[1] of HWItemData "count" must be an int, got String.',
+        ),
+        (
+          "HWInt('count')",
+          '[1, null]',
+          'previewValues[1] of HWItemData "count" is null. List a value for '
+              'every sample item.',
+        ),
+        (
+          "HWDouble('ratio')",
+          "[true]",
+          'previewValues[0] of HWItemData "ratio" must be a number, got bool.',
+        ),
+        (
+          "HWBool('done')",
+          '[1]',
+          'previewValues[0] of HWItemData "done" must be a bool, got int.',
+        ),
+        (
+          "HWString('label')",
+          '[1]',
+          'previewValues[0] of HWItemData "label" must be a String, got int.',
+        ),
+        (
+          "HWDateTime('day')",
+          '[1]',
+          'previewValues[0] of HWItemData "day" must be an ISO 8601 String, '
+              'got int.',
+        ),
+        (
+          "HWImageData('avatar')",
+          '[1]',
+          'previewValues[0] of HWItemData "avatar" must be the String path '
+              'of a Flutter asset, got int.',
+        ),
+        (
+          "HWIconData('condition', icons: [sunny, cloud])",
+          "['sunny']",
+          'previewValues[0] of HWItemData "condition" must be an IconData '
+              'such as Icons.wb_sunny, got String.',
+        ),
+        (
+          "HWIconData('condition', icons: [sunny, cloud])",
+          '[cloud, umbrella]',
+          'previewValues[1] of HWItemData "condition" is not one of its '
+              'icons.',
+        ),
+      ]) {
+        test('rejects previewValues $previewValues for $field', () async {
+          final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWColumn.builder(
+    'rows',
+    item: HWDataOnly([HWItemData($field, previewValues: $previewValues)]),
+  ),
+)
+class TestWidget {}
+$icons''');
+          expect(e.message, message);
+        });
+      }
     });
 
     test('parses HWFill', () async {

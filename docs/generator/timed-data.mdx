@@ -145,6 +145,21 @@ await WeatherHomeWidget.saveData(
 
 An image may equally sit at the leaf of a timed JSON group — `HWImage(HWTimedData(HWJson('slot', HWImageData('picture'))))`. The member on the generated `SlotJsonData` class is an `ImageProvider?`, and it belongs to its entry's timestamp exactly like a root timed image.
 
+## Time-based lists
+
+A [list](/generator/lists) is time-based when its item fields are read as `HWTimedData(HWItemData(...))`. Every entry then carries a whole list, and the builder renders the list of the active entry:
+
+```dart
+HWColumn.builder(
+  'hourly',
+  maxItems: 4,
+  item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+  whenEmpty: HWText.fixed('No forecast yet'),
+)
+```
+
+The list is a member of the generated timed data class, `final List<WeatherHourlyItem>? hourly;`, rather than a `saveData` parameter of its own. A list is time-based as a whole: every read of its item fields has to be timed, and `HWItemData(HWTimedData(...))` is rejected. With no active entry, an active entry without the list, or an empty list in it, the builder renders its `whenEmpty`. An image in an item belongs to its entry like the [images](#images) above: `saveData` writes one PNG per item and entry, and drops the pictures of the entries and items a new schedule no longer has. See [Time-based lists](/generator/lists#time-based-lists).
+
 ## Timezones and DST
 
 Entry keys are **absolute instants**, not wall-clock times. Only the epoch milliseconds of each key are persisted, so a local `DateTime` and its `toUtc()` equivalent describe the exact same entry.
@@ -170,7 +185,7 @@ The generated `TimelineProvider.getTimeline` loads every stored entry and builds
 <Accordion title="Android">
 There is no OS-level timeline API for home screen widgets on Android, so the generated helper schedules the swaps itself by calling `HomeWidget.scheduleWidgetUpdates` (see [Update Widget](/usage/update-widget#scheduled-updates) for the underlying plugin API and its exactness/permission caveats). Each time a scheduled update fires, the widget receives a normal broadcast update and the Glance content re-resolves the active entry for "now" from the same stored JSON — the generated `fromPreferences` gains a `now` parameter for this purpose.
 
-Delivering those alarms requires `es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver` to be registered in your app's `AndroidManifest.xml`. **You do not have to add it yourself:** as soon as a widget schema uses `HWTimedData`, `home_widget_cli` adds the receiver and the `RECEIVE_BOOT_COMPLETED` permission to `android/app/src/main/AndroidManifest.xml` when it generates. The entry is added idempotently, and schemas without timed fields leave the manifest untouched. The resulting entry looks like this:
+Delivering those alarms requires `es.antonborri.home_widget.HomeWidgetScheduledUpdateReceiver` to be registered in your app's `AndroidManifest.xml`. **You do not have to add it yourself:** as soon as a widget schema uses `HWTimedData`, `home_widget_cli` adds the receiver and the `RECEIVE_BOOT_COMPLETED` permission to `android/app/src/main/AndroidManifest.xml` when it generates. The entry is added idempotently, and schemas without time-based data leave the manifest untouched. The resulting entry looks like this:
 
 ```xml
 <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

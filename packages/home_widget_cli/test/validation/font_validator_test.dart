@@ -193,6 +193,36 @@ void main() {
     );
   });
 
+  test('rejects an item icon field whose default is not one of its icons', () {
+    writeCompleteProject();
+    const field = HWIconData.resolved(
+      'mood',
+      entries: [HWIconEntry('happy', 0xE88A)],
+      iconFont: _brandIcons,
+      defaultValue: 0xE25B,
+    );
+
+    expect(
+      () => validateFonts(
+        _spec(
+          widget: const HWRow.builder(
+            'moods',
+            maxItems: 3,
+            item: HWIcon(HWItemData(field)),
+          ),
+        ),
+        tempDir,
+      ),
+      throwsA(
+        isA<GeneratorError>().having(
+          (e) => e.message,
+          'message',
+          allOf(startsWith('Widget "Mood": '), contains('defaultValue')),
+        ),
+      ),
+    );
+  });
+
   test('rejects an icon field naming the same icon twice', () {
     writeCompleteProject();
     const field = HWIconData.resolved(

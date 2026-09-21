@@ -45,7 +45,7 @@ class BuildScenario {
   final String? expectedIosWidgetUrl;
 
   /// Project-relative asset paths (e.g. `assets/logo.png`) that
-  /// [widgetSource] references through `HWImage.asset`.
+  /// [widgetSource] references through `HWImage.asset` or as a preview asset.
   ///
   /// The runner writes a placeholder PNG at each path and adds it to the
   /// project's `flutter: assets:` section, which the CLI's generate-time asset

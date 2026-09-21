@@ -1,7 +1,10 @@
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/validation/widget_data_validator.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
+
+import '../helpers/mock_logger.dart';
 
 void main() {
   group('validateWidgetData', () {
@@ -498,6 +501,49 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('throws on JSON path segments the generated class already declares',
+        () {
+      for (final key in [
+        'toJson',
+        'hashCode',
+        'toString',
+        'runtimeType',
+        'noSuchMethod',
+      ]) {
+        final spec = WidgetSpec(
+          data: HomeWidget(name: 'T'),
+          className: 'T',
+          dataFields: [HWJson('group', HWString(key))],
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          _throwsMessage(
+            'Invalid data name "$key" (JSON path segment in "group"): the '
+            'generated data class already has a member named "$key".',
+          ),
+          reason: key,
+        );
+      }
+
+      final nested = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [HWJson('group', HWJson('toJson', HWString('a')))],
+      );
+      expect(
+        () => validateWidgetData(nested),
+        _throwsMessage(contains('(JSON path segment in "group")')),
+      );
+
+      final allowed = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+        dataFields: const [HWJson('group', HWString('fromJson'))],
+      );
+      expect(() => validateWidgetData(allowed), returnsNormally);
     });
 
     test('allows duplicate identical JSON declarations', () {
@@ -2423,6 +2469,751 @@ void main() {
         returnsNormally,
       );
     });
+
+    test('rejects a stack Glance would drop children of', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'T',
+        widgetTree: HWColumn(
+          children: [
+            for (var index = 0; index < 11; index++) HWText.fixed('$index'),
+          ],
+        ),
+      );
+      expect(
+        () => validateWidgetData(spec),
+        _throwsMessage(contains('an HWColumn has 11 children')),
+      );
+    });
+  });
+
+  group('lists', () {
+    test('accepts a list whose item mixes item and root fields', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText(HWString('label')),
+                HWRow.builder(
+                  'forecast',
+                  maxItems: 5,
+                  item: HWColumn(
+                    children: [
+                      HWText(HWItemData(HWString('label'))),
+                      HWText(HWString('unit')),
+                    ],
+                  ),
+                  whenEmpty: HWText(HWString('placeholder')),
+                ),
+              ],
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an item field read outside the item of a builder', () {
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText(HWItemData(HWString('label')))),
+        ),
+        _throwsMessage(
+          'Widget "T": HWItemData(HWString(\'label\')) reads the item a '
+          'builder is rendering, so it only works inside the item of an '
+          'HWColumn.builder or HWRow.builder.',
+        ),
+      );
+    });
+
+    test('rejects one read by whenEmpty or data-only outside the item', () {
+      final trees = <HWWidget, String>{
+        const HWRow.builder(
+          'forecast',
+          item: HWText.fixed('item'),
+          whenEmpty: HWText.number(HWItemData(HWInt('count'))),
+        ): "HWItemData(HWInt('count'))",
+        HWDataOnly([
+          HWTimedData(
+            HWItemData(
+              HWString.localized(
+                'note',
+                defaultTranslations: const {'en': 'x'},
+              ),
+            ),
+          ),
+        ]): "HWTimedData(HWItemData(HWString.localized('note')))",
+      };
+
+      for (final MapEntry(key: tree, value: spelled) in trees.entries) {
+        expect(
+          () => validateWidgetData(_spec(tree)),
+          _throwsMessage(startsWith('Widget "T": $spelled reads the item')),
+        );
+      }
+    });
+
+    test('reports a stray item field before the key it shares', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText(HWString('label')),
+                HWText.number(HWItemData(HWInt('label'))),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(contains('reads the item a builder is rendering')),
+      );
+    });
+
+    test('rejects a list read both time-based and not', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWSizeAdaptive(
+              small: HWRow.builder(
+                'hourly',
+                item: HWText.number(
+                  HWTimedData(HWItemData(HWInt('temperature'))),
+                ),
+              ),
+              large: HWColumn.builder(
+                'hourly',
+                item: HWText(HWItemData(HWString('label'))),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": the list "hourly" is read both time-based '
+          '(temperature) and not (label). A list is time-based as a whole: '
+          'wrap every item field of "hourly" in HWTimedData, or none.',
+        ),
+      );
+    });
+
+    test('accepts a list read time-based throughout', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'hourly',
+              item: HWColumn(
+                children: [
+                  HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+                  HWText(HWTimedData(HWItemData(HWString('label')))),
+                ],
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('validates a list key like a data key', () {
+      expect(
+        () => validateWidgetData(
+          _spec(const HWRow.builder('class', item: HWText.fixed('x'))),
+        ),
+        _throwsMessage(
+          'Invalid data name "class" (list "class"): reserved keyword in '
+          'Dart, Kotlin and Swift.',
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWRow.builder('my-list', item: HWText.fixed('x'))),
+        ),
+        _throwsMessage(
+          'Invalid data name "my-list" (list "my-list"): use ASCII letters and '
+          'digits only; must start with a letter.',
+        ),
+      );
+    });
+
+    test('validates an item field key in the namespace of its list', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'forecast',
+              item: HWText(HWItemData(HWString('1st'))),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Invalid data name "1st" (item field "1st" of list "forecast"): use '
+          'ASCII letters and digits only; must start with a letter.',
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText(HWString('label')),
+                HWRow.builder(
+                  'forecast',
+                  item: HWText.number(HWItemData(HWInt('label'))),
+                ),
+                HWRow.builder(
+                  'hourly',
+                  item: HWText(HWItemData(HWBool('label'))),
+                ),
+              ],
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an item field key the item class already declares', () {
+      for (final key in [
+        'toJson',
+        'hashCode',
+        'toString',
+        'runtimeType',
+        'noSuchMethod',
+      ]) {
+        expect(
+          () => validateWidgetData(
+            _spec(
+              HWRow.builder(
+                'rows',
+                maxItems: 3,
+                item: HWText(HWItemData(HWString(key))),
+              ),
+            ),
+          ),
+          _throwsMessage(
+            'Invalid data name "$key" (item field "$key" of list "rows"): the '
+            'generated data class already has a member named "$key".',
+          ),
+          reason: key,
+        );
+      }
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'rows',
+              maxItems: 3,
+              item: HWText(HWItemData(HWString('fromJson'))),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a list key another data field takes', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText(HWString('forecast')),
+                HWRow.builder('forecast', item: HWText.fixed('x')),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": the key "forecast" is declared as the list of '
+          "HWRow.builder('forecast') and as HWString. Both would generate the "
+          'same field, so give them distinct keys.',
+        ),
+      );
+
+      final others = <HWDataType<dynamic>, String>{
+        const HWJson('forecast', HWString('city')): 'HWJson',
+        const HWTimedData(HWInt('forecast')): 'HWTimedData(HWInt)',
+      };
+      for (final MapEntry(key: field, value: described) in others.entries) {
+        expect(
+          () => validateWidgetData(
+            _spec(
+              HWColumn(
+                children: [
+                  HWText(field),
+                  const HWColumn.builder('forecast', item: HWText.fixed('x')),
+                ],
+              ),
+            ),
+          ),
+          _throwsMessage(
+            contains(
+              "the list of HWColumn.builder('forecast') and as $described.",
+            ),
+          ),
+        );
+      }
+    });
+
+    test('reserves timedData for a list once the widget has timed data', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText.number(HWTimedData(HWInt('score'))),
+                HWRow.builder('timedData', item: HWText.fixed('x')),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Invalid data name "timedData" (list "timedData"): reserved for the '
+          'generated timed data parameter.',
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(const HWRow.builder('timedData', item: HWText.fixed('x'))),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('a time-based list reserves timedData for the data fields', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText(HWString('timedData')),
+                HWRow.builder(
+                  'hourly',
+                  item: HWText.number(HWTimedData(HWItemData(HWInt('t')))),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Invalid data name "timedData" (field "timedData"): reserved for the '
+          'generated timed data parameter.',
+        ),
+      );
+    });
+
+    test('rejects two lists generating one item class', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWRow.builder('forecast', item: HWText.fixed('x')),
+                HWRow.builder('Forecast', item: HWText.fixed('y')),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": the lists "forecast" and "Forecast" both generate the '
+          'item class TForecastItem. Rename one of them.',
+        ),
+      );
+    });
+
+    test('rejects two reads of one item field that disagree', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWSizeAdaptive(
+              small: HWRow.builder(
+                'forecast',
+                item: HWText.number(
+                  HWItemData(HWInt('temperature', defaultValue: 0)),
+                ),
+              ),
+              large: HWRow.builder(
+                'forecast',
+                item: HWText.number(HWItemData(HWDouble('temperature'))),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": conflicting item fields in list "forecast": '
+          '"temperature" is declared as HWInt(defaultValue: 0) and as '
+          'HWDouble. Both describe the same member of the item class, so '
+          'declare them alike or give them distinct keys.',
+        ),
+      );
+    });
+
+    test('describes what two reads of one item field disagree on', () {
+      final conflicts = <List<HWDataType<dynamic>>, String>{
+        const [
+          HWItemData(HWString('label'), previewValues: ['Mon', 'Tue']),
+          HWItemData(HWString('label'), previewValues: ['Mon']),
+        ]: 'HWString with previewValues ["Mon", "Tue"] and as HWString with '
+            'previewValues ["Mon"]',
+        const [
+          HWItemData(HWInt('high', defaultValue: 0)),
+          HWItemData(HWInt('high', previewValue: 3), previewValues: [1, 2]),
+          HWItemData(HWInt('high', defaultValue: 1)),
+        ]: 'HWInt(defaultValue: 0, previewValue: 3) with previewValues [1, 2] '
+            'and as HWInt(defaultValue: 1)',
+        [
+          HWItemData(
+            HWString.localized('label', defaultTranslations: const {'en': 'A'}),
+          ),
+          HWItemData(
+            HWString.localized(
+              'label',
+              defaultTranslations: const {'en': 'B'},
+              previewTranslations: const {'en': 'C'},
+            ),
+          ),
+        ]: 'HWString.localized(defaultTranslations: {en: A}) and as '
+            'HWString.localized(defaultTranslations: {en: B}, '
+            'previewTranslations: {en: C})',
+        const [
+          HWItemData(
+            HWIconData.resolved(
+              'condition',
+              entries: [HWIconEntry('wbSunny', 0xE430)],
+              iconFont: HWIconFont(family: 'MaterialIcons'),
+            ),
+          ),
+          HWItemData(
+            HWIconData.resolved(
+              'condition',
+              entries: [HWIconEntry('cloud', 0xE2BD)],
+              iconFont: HWIconFont(family: 'MaterialIcons'),
+            ),
+          ),
+        ]: 'HWIconData of icons [wbSunny] and as HWIconData of icons [cloud]',
+      };
+
+      for (final MapEntry(key: reads, value: described) in conflicts.entries) {
+        expect(
+          () => validateWidgetData(
+            _spec(HWRow.builder('forecast', item: HWDataOnly(reads))),
+          ),
+          _throwsMessage(contains('is declared as $described.')),
+        );
+      }
+    });
+
+    test('rejects an item preview instant that is not ISO 8601', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'forecast',
+              item: HWText.dateTime(
+                HWItemData(HWDateTime('day', previewValue: 'tomorrow')),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": HWDateTime("day") of list "forecast" has previewValue '
+          '"tomorrow", which is not an ISO 8601 date. Write the instant as '
+          'e.g. "2024-03-08T09:41:00Z".',
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'forecast',
+              item: HWText.dateTime(
+                HWItemData(
+                  HWDateTime('day'),
+                  previewValues: ['2026-09-21T12:00:00Z', 'Tuesday'],
+                ),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": previewValues[1] of HWItemData "day" in list "forecast" '
+          'is "Tuesday", which is not an ISO 8601 date. Write the instant as '
+          'e.g. "2024-03-08T09:41:00Z".',
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'forecast',
+              item: HWText.dateTime(
+                HWItemData(
+                  HWDateTime('day', previewValue: '2026-09-20T12:00:00Z'),
+                  previewValues: ['2026-09-21T12:00:00Z'],
+                ),
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    group('previewValues of different lengths', () {
+      List<String> warningsFor(List<HWDataType<dynamic>> reads) {
+        final mock = useMockLogger();
+        validateLists(
+          _spec(HWRow.builder('forecast', item: HWDataOnly(reads))),
+        );
+        return [
+          for (final call in verify(() => mock.warn(captureAny())).captured)
+            call as String,
+        ];
+      }
+
+      test('warn with the fallback past the shorter ones', () {
+        final warnings = warningsFor(const [
+          HWItemData(
+            HWString('label'),
+            previewValues: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+          ),
+          HWItemData(
+            HWInt('temperature', previewValue: 20),
+            previewValues: [21, 17, 19],
+          ),
+          HWItemData(
+            HWInt('low', defaultValue: 0),
+            previewValues: [1, 2, 3, 4],
+          ),
+          HWItemData(HWString('note'), previewValues: ['a', 'b', 'c']),
+        ]);
+
+        expect(warnings, [
+          'Warning: Widget "T": in list "forecast", previewValues of "label" '
+              'has 5 entries, of "temperature" 3; items 4–5 fall back to '
+              "temperature's previewValue.",
+          'Warning: Widget "T": in list "forecast", previewValues of "label" '
+              'has 5 entries, of "low" 4; item 5 falls back to '
+              "low's defaultValue.",
+          'Warning: Widget "T": in list "forecast", previewValues of "label" '
+              'has 5 entries, of "note" 3; items 4–5 leave note empty.',
+        ]);
+      });
+
+      test('name the preview of a localized string or an image', () {
+        final warnings = warningsFor([
+          const HWItemData(HWString('label'), previewValues: ['a', 'b', 'c']),
+          HWItemData(
+            HWString.localized(
+              'title',
+              defaultTranslations: const {'en': 'Day'},
+              previewTranslations: const {'en': 'Monday'},
+            ),
+            previewValues: const ['x', 'y'],
+          ),
+          HWItemData(
+            HWString.localized(
+              'subtitle',
+              defaultTranslations: const {'en': 'Day'},
+            ),
+            previewValues: const ['x', 'y'],
+          ),
+          const HWItemData(
+            HWImageData('avatar', previewAsset: 'assets/a.png'),
+            previewValues: ['assets/b.png', 'assets/c.png'],
+          ),
+          const HWItemData(
+            HWImageData('cover'),
+            previewValues: ['assets/b.png', 'assets/c.png'],
+          ),
+        ]);
+
+        expect(warnings.map((w) => w.substring(w.indexOf(';') + 2)), [
+          "item 3 falls back to title's previewTranslations.",
+          "item 3 falls back to subtitle's defaultTranslations.",
+          "item 3 falls back to avatar's previewAsset.",
+          'item 3 leaves cover empty.',
+        ]);
+      });
+
+      test('stay quiet while every field lists as many', () {
+        final mock = useMockLogger();
+        validateLists(
+          _spec(
+            const HWRow.builder(
+              'forecast',
+              item: HWDataOnly([
+                HWItemData(HWString('label'), previewValues: ['a', 'b']),
+                HWItemData(HWInt('high'), previewValues: [1, 2]),
+                HWItemData(HWInt('low', previewValue: 3)),
+              ]),
+            ),
+          ),
+        );
+        verifyNever(() => mock.warn(any()));
+      });
+    });
+
+    test('lets an item currency and time zone come from plain strings', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'orders',
+              item: HWColumn(
+                children: [
+                  HWText.number(
+                    HWItemData(HWDouble('total')),
+                    format: HWNumberFormat.currency(
+                      currency:
+                          HWCurrency.data(HWItemData(HWString('currency'))),
+                    ),
+                  ),
+                  HWText.dateTime(
+                    HWItemData(HWDateTime('placedAt')),
+                    timeZone: HWTimeZone.data(HWItemData(HWString('zone'))),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an item currency read from a localized string', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            HWRow.builder(
+              'orders',
+              item: HWText.number(
+                const HWItemData(HWDouble('total')),
+                format: HWNumberFormat.currency(
+                  currency: HWCurrency.data(
+                    HWItemData(
+                      HWString.localized(
+                        'currency',
+                        defaultTranslations: const {'en': 'EUR'},
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en'],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          contains('HWCurrency.data("currency") reads a localized string'),
+        ),
+      );
+    });
+
+    test('names the item field a time zone reads that is not text', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'trips',
+              item: HWText.dateTime(
+                HWItemData(HWDateTime('startsAt')),
+                timeZone: HWTimeZone.data(HWItemData(HWImageData('zone'))),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('HWTimeZone.data needs an HWString'),
+            contains('"zone" is HWImageData.'),
+          ),
+        ),
+      );
+    });
+
+    test('lets HWDataExists test an item field that may be missing', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            HWRow.builder(
+              'forecast',
+              item: HWDataExists(
+                data: HWItemData(
+                  HWString.localized(
+                    'label',
+                    defaultTranslations: const {'en': 'Day'},
+                  ),
+                ),
+                whenPresent: const HWText.fixed('present'),
+                whenAbsent: const HWText.fixed('absent'),
+              ),
+            ),
+            localization: const HomeWidgetLocalization(
+              defaultLocale: 'en',
+              supportedLocales: ['en'],
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('validates the translations of an item localized string', () {
+      const tree = HWRow.builder(
+        'forecast',
+        item: HWText(
+          HWItemData(
+            HWString.localized('label', defaultTranslations: {'en': 'Day'}),
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(_spec(tree)),
+        _throwsMessage(contains('uses localized strings but has no')),
+      );
+      expect(
+        () => validateWidgetData(_spec(tree, localization: _localization)),
+        _throwsMessage(
+          contains('HWString.localized("label"): missing translations for de'),
+        ),
+      );
+    });
+
+    test('validates the enum an item icon field generates', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWRow.builder(
+              'forecast',
+              item: HWIcon(
+                HWItemData(
+                  HWIconData.resolved(
+                    'condition',
+                    entries: [
+                      HWIconEntry('sun', 0xE430),
+                      HWIconEntry('sun', 0xE2BD),
+                    ],
+                    iconFont: HWIconFont(family: 'MaterialIcons'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        _throwsMessage(contains('names the icon "sun" twice')),
+      );
+    });
   });
 }
 
@@ -2453,6 +3244,6 @@ WidgetSpec _spec(HWWidget tree, {HomeWidgetLocalization? localization}) =>
       widgetTree: tree,
     );
 
-Matcher _throwsMessage(Matcher message) => throwsA(
+Matcher _throwsMessage(Object message) => throwsA(
       isA<GeneratorError>().having((e) => e.message, 'message', message),
     );

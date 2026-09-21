@@ -18,6 +18,17 @@ void main() {
       );
     });
 
+    test('keeps arguments spread over lines on their own', () {
+      expect(
+        injectGlanceModifier(
+          'Image(\n    provider = p,\n)',
+          'padding(top = 4.dp)',
+        ),
+        'Image(modifier = GlanceModifier.padding(top = 4.dp),\n'
+        '    provider = p,\n)',
+      );
+    });
+
     test('rewrites existing GlanceModifier. prefix in args', () {
       expect(
         injectGlanceModifier(

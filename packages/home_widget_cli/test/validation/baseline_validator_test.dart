@@ -169,4 +169,50 @@ void main() {
     );
     verifyNever(() => mockLogger.warn(any()));
   });
+
+  group('a baseline builder', () {
+    HWRow builder({int? maxItems, HWWidget? item}) => HWRow.builder(
+          'forecast',
+          maxItems: maxItems,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: item ?? const HWText(HWItemData(HWString('label'))),
+        );
+
+    test('stays quiet while more than one item can render text', () {
+      validateBaselineRows(_spec(builder(maxItems: 5)));
+      validateBaselineRows(_spec(builder()));
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('warns when it renders a single item', () {
+      validateBaselineRows(_spec(builder(maxItems: 1)));
+
+      final message =
+          verify(() => mockLogger.warn(captureAny())).captured.single;
+      expect(
+        message,
+        startsWith(
+          'Warning: Widget "Baseline": HWRow.builder(\'forecast\') with '
+          'HWCrossAxisAlignment.baseline has only one child rendering text of '
+          'its own.',
+        ),
+      );
+    });
+
+    test('warns when its item renders no text of its own', () {
+      validateBaselineRows(
+        _spec(
+          builder(
+            maxItems: 5,
+            item: const HWImage(HWItemData(HWImageData('icon')), width: 8),
+          ),
+        ),
+      );
+
+      final message =
+          verify(() => mockLogger.warn(captureAny())).captured.single;
+      expect(message, contains("HWRow.builder('forecast') with"));
+      expect(message, contains('has no child rendering text'));
+    });
+  });
 }

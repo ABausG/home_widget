@@ -31,6 +31,14 @@ class HWColoredBox extends HWSingleChildWidget {
   HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
       child.kotlinBaselineText(context);
 
+  /// Never: the background covers any padding put on the same composable.
+  @override
+  bool get kotlinPaddingAddsRoom => false;
+
+  @override
+  HWColoredBox _wrapping(HWWidget widget) =>
+      HWColoredBox(color: color, child: widget);
+
   @override
   Set<String> get swiftViewModifiers {
     final modifiers = super.swiftViewModifiers;

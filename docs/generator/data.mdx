@@ -37,6 +37,7 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
 | `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 | `HWIconData` | `HWIconData(key, {required icons, defaultValue, previewValue})` | generated icon enum | An icon chosen from a fixed set, rendered with [`HWIcon`](/generator/widgets/hw-icon). See [Icon data](#icon-data) below. |
+| `HWItemData` | `HWItemData(data, {previewValues})` | the wrapped type's, on the generated item class | Wraps another type to read a field of the list item a builder is rendering. See [List items](#list-items) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
@@ -118,6 +119,8 @@ HWText(HWJson('user', HWJson('profile', HWString('name'))))
 
 This reads `user.profile.name` from a JSON string stored under the `user` key.
 
+Every segment of the path becomes a member of a generated `*JsonData` class, so besides the rules every data key follows it cannot be named `toJson`, `toString`, `hashCode`, `runtimeType` or `noSuchMethod` — the class already carries those. `fromJson` is free, since the class names a constructor rather than a member with it.
+
 A leaf may also be an `HWString.localized`. The value found at the JSON path wins; when the path yields nothing, the leaf's `defaultTranslations` are resolved against the device locale instead — see [Localization](/generator/localization).
 
 An `HWDateTime` leaf becomes a `DateTime` field on the generated `*JsonData` class and is stored as the same ISO-8601 UTC string as a top-level date field — see [Timed and JSON values](/generator/formatting#timed-and-json-values).
@@ -138,3 +141,17 @@ HWColumn(
 The generated `ContactJsonData` then carries `final String? name` next to `final ImageProvider? avatar`, and one `saveData(contact: ...)` call persists both. Saving the group with a null image clears that picture, and `deleteData(contact: true)` removes the group together with every image it owns. See [`HWImage`](/generator/widgets/hw-image#images-inside-a-json-group) for the full contract.
 
 `HWImageData.asset` is not allowed at a JSON leaf: an asset is read from the app bundle and never stored, so there is nothing for the blob to carry.
+
+## List items
+
+`HWItemData` reads a field of the item an `HWColumn.builder` or `HWRow.builder` is rendering, rather than a field of the widget's own data:
+
+```dart
+HWRow.builder(
+  'forecast',
+  maxItems: 5,
+  item: HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+)
+```
+
+It wraps an `HWString` (plain or localized), `HWInt`, `HWDouble`, `HWBool`, `HWDateTime`, `HWIconData` or runtime `HWImageData`, and takes its key, `defaultValue` and `previewValue` from the type it wraps. `previewValues` varies the sample from one gallery item to the next. The app saves the whole list through the generated helper, e.g. `saveData(forecast: [WeatherForecastItem(temperature: 21)])`. See [Lists](/generator/lists) for the generated item class, defaults, previews and the Android limits.

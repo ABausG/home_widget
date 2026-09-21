@@ -50,7 +50,7 @@ struct GreetingHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack(alignment: .leading) {
+    VStack(alignment: .leading, spacing: 0) {
       Text("Hello")
         .font(.caption)
       Text(entry.data.name ?? "")

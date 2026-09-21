@@ -28,8 +28,9 @@ class DartHelperGenerator {
     // same generated `*JsonData` classes. The validator forbids sharing a root
     // key between a timed and an untimed field, so class names never collide.
     final timedJsonGroups = spec.timedJsonDataGroups;
-    final timedFields = spec.timedDataFields;
-    final hasTimedData = timedFields.isNotEmpty;
+    final hasTimedData = spec.hasTimedData;
+    final storesFiles =
+        jsonGroups.isNotEmpty || spec.untimedListGroups.isNotEmpty;
     final className = _helperClassName;
     final iosName = _iosName;
 
@@ -38,15 +39,17 @@ class DartHelperGenerator {
       // Localized fields store their translations as a single JSON blob, so
       // they need `dart:convert` too — but none of the file plumbing JSON
       // groups use.
-      if (jsonGroups.isNotEmpty ||
-          _translationFields.isNotEmpty ||
-          hasTimedData)
+      if (storesFiles || _translationFields.isNotEmpty || hasTimedData)
         "import 'dart:convert';",
-      // `dart:io` carries both the JSON/timed file plumbing and the `Platform`
+      // `dart:io` carries the JSON/list/timed file plumbing, the `File` a
+      // written picture is evicted from the image cache by, and the `Platform`
       // check deciding which platform's widget URL a click has to match.
-      if (jsonGroups.isNotEmpty || hasTimedData || spec.hasWidgetUrl)
+      if (storesFiles ||
+          hasTimedData ||
+          spec.hasWidgetUrl ||
+          spec.hasRuntimeImages)
         "import 'dart:io';",
-      if (jsonGroups.isNotEmpty && !hasTimedData) "import 'dart:typed_data';",
+      if (storesFiles && !hasTimedData) "import 'dart:typed_data';",
       if (hasTimedData) "import 'package:flutter/foundation.dart';",
       if (_usesAppGroupId && spec.hasFlavors)
         "import 'package:flutter/services.dart';",
@@ -103,7 +106,21 @@ class $className {
     _appendSection(buffer, spec.hasWidgetUrl ? _launchHelpers() : null);
     _appendSection(
       buffer,
+      spec.hasRuntimeImages ? _runtimeImageHelpers() : null,
+    );
+    _appendSection(
+      buffer,
       _allTimedImageKeys.isNotEmpty ? _timedImageHelpers() : null,
+    );
+    _appendSection(
+      buffer,
+      _timedListImageGroups.isNotEmpty ? _timedListImageHelpers() : null,
+    );
+    _appendSection(
+      buffer,
+      spec.listDataGroups.any((group) => group.imageFields.isNotEmpty)
+          ? _listImageHelpers()
+          : null,
     );
     _appendSection(
       buffer,
@@ -125,7 +142,7 @@ class $className {
       _translationFields.isNotEmpty ? _translationsClass() : null,
     );
 
-    _appendSection(buffer, hasTimedData ? _timedDataClass(timedFields) : null);
+    _appendSection(buffer, hasTimedData ? _timedDataClass() : null);
 
     for (final group in [...jsonGroups, ...timedJsonGroups]) {
       _appendSection(
@@ -136,11 +153,26 @@ class $className {
         ),
       );
     }
+    for (final group in spec.listDataGroups) {
+      _appendSection(
+        buffer,
+        _jsonNodeClass(
+          className: group.itemClassName(spec.className),
+          node: _buildJsonTree([
+            for (final field in group.fields)
+              JsonDataField(path: [field.key], type: field.data),
+          ]),
+        ),
+      );
+    }
     final usedReaders = <String>{
       for (final group in [...jsonGroups, ...timedJsonGroups])
         for (final field in group.children) _dartReadFunction(field.type),
-      for (final member in _timedMembers(timedFields))
-        if (!member.jsonRoot) _dartTimedReadFunction(member.leafType!),
+      for (final group in spec.listDataGroups)
+        for (final field in group.fields) _dartReadFunction(field.data),
+      for (final member in _timedMembers())
+        if (member.leafType case final leafType?)
+          _dartTimedReadFunction(leafType),
       // A top-level date is stored as a string and parsed back by `getData`
       // through the same reader its JSON and timed spellings use.
       for (final field in spec.primitiveDataFields)
@@ -195,7 +227,8 @@ class $className {
   bool get _hasDataFields =>
       spec.primitiveDataFields.isNotEmpty ||
       spec.jsonDataGroups.isNotEmpty ||
-      spec.timedDataFields.isNotEmpty;
+      spec.hasTimedData ||
+      spec.untimedListGroups.isNotEmpty;
 
   /// Whether every data call names the App Group it reads and writes through.
   bool get _usesAppGroupId => _hasDataFields && spec.data.iOS?.groupId != null;
@@ -205,6 +238,13 @@ class $className {
   List<String> get _allTimedImageKeys => [
         for (final image in spec.timedImageFields) image.key,
         for (final image in spec.timedJsonImageFields) image.storageKey,
+      ];
+
+  /// The time-based lists whose items hold images, each written to a PNG per
+  /// item and timestamp, `<prefix>.timedData.<list>.<index>.<field>.<millis>`.
+  List<ListDataGroup> get _timedListImageGroups => [
+        for (final group in spec.timedListGroups)
+          if (group.imageFields.isNotEmpty) group,
       ];
 
   /// The enum the app picks one of [icon]'s glyphs out of.
@@ -388,21 +428,27 @@ class $className {
   String _saveDataMethod() {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final hasTimedData = spec.timedDataFields.isNotEmpty;
+    final lists = spec.untimedListGroups;
+    final hasTimedData = spec.hasTimedData;
 
     final parameters = <String>[
       for (final field in primitiveFields)
         '    ${_saveParameterType(field)}? ${field.key},',
       for (final group in jsonGroups)
         '    ${_dartJsonClassName(group.key)}? ${group.key},',
+      for (final group in lists)
+        '    List<${group.itemClassName(spec.className)}>? ${group.key},',
       if (hasTimedData) '    Map<DateTime, $_timedDataClassName>? timedData,',
     ];
 
     final entries = <String>[
       for (final field in primitiveFields) _primitiveSave(field),
       for (final group in jsonGroups) _jsonGroupSave(group),
+      for (final group in lists) _listSave(group),
       if (hasTimedData) _timedDataSave(),
     ];
+
+    final prologue = _imageSnapshots();
 
     final buffer = StringBuffer();
     buffer.writeln('  static Future<void> saveData({');
@@ -411,10 +457,22 @@ class $className {
       buffer.writeln(parameter);
     }
 
-    buffer.write('''
+    if (prologue.isEmpty) {
+      buffer.write('''
   }) {
     return Future.wait([
 ''');
+    } else {
+      buffer.write('''
+  }) async {
+''');
+      for (final line in prologue) {
+        buffer.writeln(line);
+      }
+      buffer.write('''
+    await Future.wait([
+''');
+    }
 
     for (final entry in entries) {
       buffer.writeln(entry);
@@ -428,13 +486,83 @@ class $className {
     return buffer.toString();
   }
 
+  /// Reads every picture this `saveData` call is about to write into memory,
+  /// before the first of them is written.
+  ///
+  /// `getData` hands an image back as a `FileImage` of the very path
+  /// `saveData` wrote it to, and `HomeWidget.saveImage` only reads a provider's
+  /// bytes while it saves it. An item that moved to another index, a timeline
+  /// whose entries shifted, or two fields trading their pictures would
+  /// otherwise be read back out of a file an earlier write of the same call
+  /// already replaced. Everything that is not a `FileImage` is left untouched.
+  List<String> _imageSnapshots() => [
+        for (final field in spec.primitiveDataFields)
+          if (field is HWImageData)
+            '    final ${_rootImageLocal(field.key)} = '
+                'await _\$readImage(${field.key});',
+        for (final image in spec.jsonImageFields)
+          '    final ${_jsonImageLocal(image.storageKey)} = '
+              'await _\$readImage(${_nullableAccess(image.rootKey, image.path)});',
+        for (final group in spec.untimedListGroups)
+          for (final image in group.imageFields)
+            ..._listImageSnapshot(group.key, image),
+        for (final image in spec.timedImageFields)
+          ..._timedImageSnapshot(_timedImagesLocal(image.key), [
+            '          _time: await _\$readImage(_entry.${image.key}),',
+          ]),
+        for (final image in spec.timedJsonImageFields)
+          ..._timedImageSnapshot(_timedJsonImagesLocal(image.storageKey), [
+            '          _time: await _\$readImage('
+                '${_nullableAccess('_entry.${image.rootKey}', image.path)}),',
+          ]),
+        for (final group in _timedListImageGroups)
+          for (final image in group.imageFields)
+            ..._timedImageSnapshot(
+              _timedListImagesLocal(group.key, image.key),
+              [
+                '          _time: [',
+                '            for (final _item in '
+                    '_entry.${group.key} ?? const [])',
+                '              await _\$readImage(_item.${image.key}),',
+                '          ],',
+              ],
+            ),
+      ];
+
+  /// The pictures every item of the untimed list [listKey] holds in [image],
+  /// in item order.
+  List<String> _listImageSnapshot(String listKey, HWImageData image) => [
+        '    final ${_listImagesLocal(listKey, image.key)} = [',
+        '      if ($listKey != null)',
+        '        for (final _item in $listKey) '
+            'await _\$readImage(_item.${image.key}),',
+        '    ];',
+      ];
+
+  /// What every timed entry holds of one image field, read off `_entry` by
+  /// [valueLines] and keyed by the instant of the entry it belongs to.
+  List<String> _timedImageSnapshot(String local, List<String> valueLines) => [
+        '    final $local = {',
+        '      if (timedData != null)',
+        '        for (final MapEntry(key: _time, value: _entry) '
+            'in timedData.entries)',
+        ...valueLines,
+        '    };',
+      ];
+
+  /// [path] read off [objectExpr] with every hop null-aware, which the
+  /// snapshots need: they run before the `if` each save entry is guarded by.
+  String _nullableAccess(String objectExpr, List<String> path) =>
+      [objectExpr, for (final segment in path) '?.$segment'].join();
+
   /// The `saveData` entry writing one top-level field.
   String _primitiveSave(HWDataType<dynamic> field) {
     final key = field.key;
     final keyLiteral = _paramKey(key);
     if (field is HWImageData) {
-      return '      if ($key != null) '
-          'HomeWidget.saveImage($keyLiteral, $key$_appGroupIdArg),';
+      final local = _rootImageLocal(key);
+      return '      if ($local != null) '
+          '_\$saveImage($keyLiteral, $local),';
     }
     if (field is HWLocalizedString) {
       return '      if ($key != null) HomeWidget.saveWidgetData<String>('
@@ -481,9 +609,8 @@ class $className {
         for (final image in images)
           _jsonImageSave(
             indent: '        ',
-            image: image,
-            objectExpr: group.key,
-            ownerNullable: false,
+            path: image.path,
+            local: _jsonImageLocal(image.storageKey),
             mapExpr: valuesExpr,
             keyLiteral: _paramKey(image.storageKey),
           ),
@@ -496,21 +623,91 @@ class $className {
     return _asyncEntry('      if (${group.key} != null) () async {', body);
   }
 
+  /// The `saveData` entry replacing one list, every item of it rather than
+  /// only as many as a builder renders.
+  ///
+  /// A list with image fields is written item by item: each picture goes to a
+  /// PNG of its own, its path into the object of its item, and the PNGs of the
+  /// items the new list no longer has are deleted.
+  String _listSave(ListDataGroup group) {
+    final key = group.key;
+    final images = group.imageFields;
+    if (images.isEmpty) {
+      return _asyncEntry('      if ($key != null) () async {', [
+        '        await HomeWidget.saveFile(${_paramKey(key)}, '
+            'Uint8List.fromList(utf8.encode(jsonEncode('
+            '[for (final _item in $key) _item.toJson()]))), '
+            "extension: 'json'$_appGroupIdArg);",
+      ]);
+    }
+
+    final body = <String>[
+      // Read before anything is written: the file about to be overwritten is
+      // the only record of which per-item images exist.
+      '        final _storedLength = '
+          'await _\$storedListLength(${_paramKey(key)});',
+      '        final _listJson = <Map<String, dynamic>>[];',
+      '        for (var _index = 0; _index < $key.length; _index++) {',
+      '          final _item = $key[_index];',
+      '          final _values = _item.toJson();',
+      for (final image in images)
+        _jsonImageSave(
+          indent: '          ',
+          path: [image.key],
+          local: _itemImageLocal(image.key),
+          valueExpr: '${_listImagesLocal(key, image.key)}[_index]',
+          mapExpr: '_values',
+          keyLiteral: _paramKey(_listImageKey(key, image)),
+          deleteGuard: '_index < _storedLength',
+        ),
+      '          _listJson.add(_values);',
+      '        }',
+      '        await HomeWidget.saveFile(${_paramKey(key)}, '
+          'Uint8List.fromList(utf8.encode(jsonEncode(_listJson))), '
+          "extension: 'json'$_appGroupIdArg);",
+      '        await _\$deleteListImages(${_paramKey(key)}, '
+          '${_listImageFieldsLiteral(images)}, $key.length, _storedLength);',
+    ];
+
+    return _asyncEntry('      if ($key != null) () async {', body);
+  }
+
+  /// The storage key suffix of [image] in the item at `_index` of the list
+  /// [listKey]: `<list>.<index>.<field>`, which `_$deleteListImages` spells
+  /// the same way.
+  String _listImageKey(String listKey, HWImageData image) =>
+      '$listKey.\$_index.${image.key}';
+
+  /// The keys of [images] as the const list `_$deleteListImages` takes.
+  String _listImageFieldsLiteral(List<HWImageData> images) =>
+      'const [${_quotedImageKeys(images)}]';
+
+  /// The keys of [images] as comma-separated string literals.
+  String _quotedImageKeys(List<HWImageData> images) =>
+      images.map((image) => "'${image.key}'").join(', ');
+
   /// The `saveData` entry writing the whole timeline, its per-timestamp images
   /// and the platform schedule that renders it.
   String _timedDataSave() {
-    final hasTimedImages = _allTimedImageKeys.isNotEmpty;
+    final hasFieldImages = _allTimedImageKeys.isNotEmpty;
+    final listImageGroups = _timedListImageGroups;
+    final hasListImages = listImageGroups.isNotEmpty;
 
     final body = <String>[
       '        final _timedTimes = timedData.keys.toList()..sort();',
       // Read before anything is written: the file about to be overwritten is
       // the only record of which per-timestamp images exist.
-      if (hasTimedImages)
+      if (hasFieldImages)
         '        final _storedTimes = await _\$storedTimedKeys();',
+      if (hasListImages)
+        '        final _storedLengths = await _\$storedTimedListLengths();',
       '        if (_timedTimes.isEmpty) {',
       '          await HomeWidget.saveWidgetData(${_paramKey('timedData')}, '
           'null$_appGroupIdArg);',
-      if (hasTimedImages) '          await _\$deleteTimedImages(_storedTimes);',
+      if (hasFieldImages) '          await _\$deleteTimedImages(_storedTimes);',
+      if (hasListImages)
+        '          await _\$deleteTimedListImages('
+            '_storedLengths, _storedLengths.keys);',
       _guardedScheduleCall(
         indent: '          ',
         call: 'HomeWidget.cancelScheduledWidgetUpdates($_androidNameArg)',
@@ -518,7 +715,7 @@ class $className {
       ),
       '          return;',
       '        }',
-      if (!hasTimedImages) ...[
+      if (!hasFieldImages && !hasListImages) ...[
         '        final _timedJson = <String, dynamic>{',
         '          for (final _time in _timedTimes)',
         '            _time.toUtc().millisecondsSinceEpoch.toString(): '
@@ -534,22 +731,27 @@ class $className {
         for (final image in spec.timedJsonImageFields)
           _jsonImageSave(
             indent: '          ',
-            image: image,
-            objectExpr: '_entry.${image.rootKey}',
-            ownerNullable: true,
+            path: image.path,
+            local: _jsonImageLocal(image.storageKey),
+            valueExpr: '${_timedJsonImagesLocal(image.storageKey)}[_time]',
             mapExpr: "(_values['${image.rootKey}']! "
                 'as Map<String, dynamic>)',
             keyLiteral: _paramKey('timedData.${image.storageKey}.\$_millis'),
             deleteGuard: '_storedTimes.contains(_millis)',
           ),
+        for (final group in listImageGroups) _timedListImagesSave(group),
         '          _timedJson[_millis.toString()] = _values;',
         '        }',
       ],
       '        await HomeWidget.saveFile(${_paramKey('timedData')}, '
           'Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), '
           "extension: 'json'$_appGroupIdArg);",
-      if (hasTimedImages)
+      if (hasFieldImages)
         '        await _\$deleteTimedImages(_storedTimes.where('
+            '(_millis) => !_timedJson.containsKey(_millis.toString())));',
+      if (hasListImages)
+        '        await _\$deleteTimedListImages(_storedLengths, '
+            '_storedLengths.keys.where('
             '(_millis) => !_timedJson.containsKey(_millis.toString())));',
       _guardedScheduleCall(
         indent: '        ',
@@ -568,45 +770,76 @@ class $className {
     final local = _timedImageLocal(image.key);
     final keyLiteral = _paramKey('timedData.${image.key}.\$_millis');
     return '''
-          final $local = _entry.${image.key};
+          final $local = ${_timedImagesLocal(image.key)}[_time];
           if ($local != null) {
-            _values['${image.key}'] = await HomeWidget.saveImage($keyLiteral, $local$_appGroupIdArg);
+            _values['${image.key}'] = await _\$saveImage($keyLiteral, $local);
           } else if (_storedTimes.contains(_millis)) {
             await HomeWidget.saveWidgetData<String>($keyLiteral, null$_appGroupIdArg);
           }''';
   }
 
-  /// Emits the save (and clear) of one image sitting at the leaf of a JSON
-  /// group, into the group's already-serialized map.
+  /// Saves the images of every item of the timed list [group] in the entry
+  /// being written, then clears the images the stored entry of that
+  /// timestamp held past the new list's end.
+  String _timedListImagesSave(ListDataGroup group) {
+    final key = group.key;
+    final images = group.imageFields;
+    final storedLength = "_storedLengths[_millis]?['$key'] ?? 0";
+
+    final buffer = StringBuffer();
+    buffer.write('''
+          if (_entry.$key case final _items?) {
+            final _itemsJson = _values['$key'] as List<Map<String, dynamic>>;
+            for (var _index = 0; _index < _items.length; _index++) {
+              final _item = _items[_index];
+''');
+
+    for (final image in images) {
+      buffer.writeln(
+        _jsonImageSave(
+          indent: '              ',
+          path: [image.key],
+          local: _itemImageLocal(image.key),
+          valueExpr: '${_timedListImagesLocal(key, image.key)}[_time]![_index]',
+          mapExpr: '_itemsJson[_index]',
+          keyLiteral:
+              _paramKey('timedData.${_listImageKey(key, image)}.\$_millis'),
+          deleteGuard: '_index < ($storedLength)',
+        ),
+      );
+    }
+
+    buffer.write('''
+            }
+          }
+          await _\$deleteListImages(${_paramKey('timedData.$key')}, ${_listImageFieldsLiteral(images)}, _entry.$key?.length ?? 0, $storedLength, '.\$_millis');''');
+
+    return buffer.toString();
+  }
+
+  /// Emits the save (and clear) of one image sitting at [path] in a JSON
+  /// group or a list item, into the already-serialized map, reading the
+  /// `ImageProvider` out of the local [local].
   ///
-  /// [objectExpr] names the object the group's data hangs off — the `saveData`
-  /// parameter itself, or the timed entry — and [ownerNullable] says whether
-  /// the first hop off it can be null. [mapExpr] is the map `toJson` produced
-  /// for that group; every ancestor map along the path is guaranteed to be
-  /// there whenever the image is non-null, because the same objects had to be
-  /// non-null for it to be reachable.
+  /// [local] holds the picture [_imageSnapshots] already read: one declared
+  /// beside `saveData`'s own locals when there is one of it, or, with
+  /// [valueExpr] set, one this emits for the item or entry being written.
+  /// [mapExpr] is the map `toJson` produced for it; every ancestor map along
+  /// the path is guaranteed to be there whenever the image is non-null,
+  /// because the same objects had to be non-null for it to be reachable.
   ///
   /// [deleteGuard], when set, narrows the clear-out of a missing image to the
-  /// keys that can actually hold a file (the timed case, where a key exists per
-  /// timestamp rather than once).
+  /// keys that can actually hold a file (the timed and the list case, where a
+  /// key exists per timestamp or per item rather than once).
   String _jsonImageSave({
     required String indent,
-    required JsonImageField image,
-    required String objectExpr,
-    required bool ownerNullable,
+    required List<String> path,
+    required String local,
     required String mapExpr,
     required String keyLiteral,
+    String? valueExpr,
     String? deleteGuard,
   }) {
-    final path = image.path;
-    final local = _jsonImageLocal(image.storageKey);
-
-    final access = [
-      objectExpr,
-      for (final (index, segment) in path.indexed)
-        '${index == 0 && !ownerNullable ? '.' : '?.'}$segment',
-    ].join();
-
     var parentMap = mapExpr;
     for (final segment in path.take(path.length - 1)) {
       parentMap = "($parentMap['$segment']! as Map<String, dynamic>)";
@@ -616,23 +849,30 @@ class $className {
         ? '$indent} else {'
         : '$indent} else if ($deleteGuard) {';
 
-    return '''
-${indent}final $local = $access;
+    final buffer = StringBuffer();
+    if (valueExpr != null) {
+      buffer.writeln('${indent}final $local = $valueExpr;');
+    }
+    buffer.write('''
 ${indent}if ($local != null) {
-$indent  $parentMap['${path.last}'] = await HomeWidget.saveImage($keyLiteral, $local$_appGroupIdArg);
+$indent  $parentMap['${path.last}'] = await _\$saveImage($keyLiteral, $local);
 $elseBranch
 $indent  await HomeWidget.saveWidgetData<String>($keyLiteral, null$_appGroupIdArg);
-$indent}''';
+$indent}''');
+
+    return buffer.toString();
   }
 
   String _deleteDataMethod() {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final hasTimedData = spec.timedDataFields.isNotEmpty;
+    final lists = spec.untimedListGroups;
+    final hasTimedData = spec.hasTimedData;
 
     final parameters = <String>[
       for (final field in primitiveFields) '    bool ${field.key} = false,',
       for (final group in jsonGroups) '    bool ${group.key} = false,',
+      for (final group in lists) '    bool ${group.key} = false,',
       if (hasTimedData) '    bool timedData = false,',
     ];
 
@@ -644,6 +884,7 @@ $indent}''';
             'HomeWidget.saveWidgetData(${_paramKey(field.key)}, '
             'null$_appGroupIdArg),',
       for (final group in jsonGroups) _jsonGroupDelete(group),
+      for (final group in lists) _listDelete(group),
       if (hasTimedData) _timedDataDelete(),
     ];
 
@@ -695,17 +936,45 @@ $indent}''';
     return _asyncEntry('      if (${group.key}) () async {', body);
   }
 
+  /// The `deleteData` entry clearing one list, and the PNG of every image its
+  /// items hold.
+  String _listDelete(ListDataGroup group) {
+    final key = group.key;
+    final images = group.imageFields;
+    if (images.isEmpty) {
+      return '      if ($key) '
+          'HomeWidget.saveWidgetData(${_paramKey(key)}, null$_appGroupIdArg),';
+    }
+
+    final body = <String>[
+      '        final _storedLength = '
+          'await _\$storedListLength(${_paramKey(key)});',
+      '        await HomeWidget.saveWidgetData(${_paramKey(key)}, '
+          'null$_appGroupIdArg);',
+      '        await _\$deleteListImages(${_paramKey(key)}, '
+          '${_listImageFieldsLiteral(images)}, 0, _storedLength);',
+    ];
+
+    return _asyncEntry('      if ($key) () async {', body);
+  }
+
   /// The `deleteData` entry taking the whole timeline, its images and its
   /// platform schedule away again.
   String _timedDataDelete() {
-    final hasTimedImages = _allTimedImageKeys.isNotEmpty;
+    final hasFieldImages = _allTimedImageKeys.isNotEmpty;
+    final hasListImages = _timedListImageGroups.isNotEmpty;
 
     final body = <String>[
-      if (hasTimedImages)
+      if (hasFieldImages)
         '        final _storedTimes = await _\$storedTimedKeys();',
+      if (hasListImages)
+        '        final _storedLengths = await _\$storedTimedListLengths();',
       '        await HomeWidget.saveWidgetData(${_paramKey('timedData')}, '
           'null$_appGroupIdArg);',
-      if (hasTimedImages) '        await _\$deleteTimedImages(_storedTimes);',
+      if (hasFieldImages) '        await _\$deleteTimedImages(_storedTimes);',
+      if (hasListImages)
+        '        await _\$deleteTimedListImages('
+            '_storedLengths, _storedLengths.keys);',
       _guardedScheduleCall(
         indent: '        ',
         call: 'HomeWidget.cancelScheduledWidgetUpdates($_androidNameArg)',
@@ -719,7 +988,8 @@ $indent}''';
   String _getDataMethod() {
     final primitiveFields = spec.primitiveDataFields;
     final jsonGroups = spec.jsonDataGroups;
-    final hasTimedData = spec.timedDataFields.isNotEmpty;
+    final lists = spec.untimedListGroups;
+    final hasTimedData = spec.hasTimedData;
     final topLevelImages = primitiveFields.whereType<HWImageData>().toList();
 
     final recordFields = <String>[
@@ -729,17 +999,22 @@ $indent}''';
             : '${f.dartGetDataType(spec.className)}? ${f.key}',
       ),
       ...jsonGroups.map((g) => '${_dartJsonClassName(g.key)}? ${g.key}'),
+      ...lists.map(
+        (g) => 'List<${g.itemClassName(spec.className)}>? ${g.key}',
+      ),
       if (hasTimedData) 'Map<DateTime, $_timedDataClassName>? timedData',
     ].join(', ');
 
     final prelude = <String>[
       for (final group in jsonGroups) _jsonGroupRead(group),
+      for (final group in lists) _listRead(group),
       if (hasTimedData) _timedDataRead(),
     ];
 
     final values = <String>[
       for (final field in primitiveFields) _primitiveRead(field),
       for (final group in jsonGroups) '      ${group.key}: ${group.key},',
+      for (final group in lists) '      ${group.key}: ${group.key},',
       if (hasTimedData) '      timedData: timedData,',
     ];
 
@@ -772,7 +1047,7 @@ $indent}''';
   /// The doc comment on `getData`, naming everything that reads back
   /// differently from what was handed to `saveData`.
   List<String> _getDataDoc(List<HWImageData> topLevelImages) {
-    final hasTimedData = spec.timedDataFields.isNotEmpty;
+    final hasTimedData = spec.hasTimedData;
     final names = topLevelImages.map((f) => '[${f.key}]').join(', ');
     return <String>[
       if (_translationFields.isNotEmpty ||
@@ -832,6 +1107,27 @@ $indent}''';
         if (decoded is Map<String, dynamic>) ${group.key} = $jsonClass.fromJson(decoded);
       } on Exception {
         ${group.key} = null;
+      }
+    }''';
+  }
+
+  /// Reads one list back off disk, leaving it null where the file is gone or
+  /// holds no JSON array.
+  ///
+  /// An element that is no JSON object reads as an item storing no field.
+  /// The locals are named after the list, so no list key can shadow them.
+  String _listRead(ListDataGroup group) {
+    final key = group.key;
+    final itemClass = group.itemClassName(spec.className);
+    return '''
+    final _${key}Path = await HomeWidget.getWidgetData<String>(${_paramKey(key)}$_appGroupIdArg);
+    List<$itemClass>? $key;
+    if (_${key}Path != null) {
+      try {
+        final _${key}Json = jsonDecode(await File(_${key}Path).readAsString());
+        if (_${key}Json is List) $key = [for (final _item in _${key}Json) $itemClass.fromJson(_item is Map<String, dynamic> ? _item : null)];
+      } on Exception {
+        $key = null;
       }
     }''';
   }
@@ -1150,6 +1446,25 @@ $filterDoc
         _ => '',
       };
 
+  /// Emits the two helpers every picture `saveData` writes goes through.
+  ///
+  /// `_$readImage` reads a `FileImage` — the shape `getData` hands an image
+  /// back in — into memory before the first write, so no write can destroy a
+  /// file a later one still has to read. `_$saveImage` drops the path it wrote
+  /// from Flutter's image cache afterwards, so the app and the next `getData`
+  /// show what was just written rather than the decoded bitmap of what it
+  /// replaced.
+  String _runtimeImageHelpers() => '''
+  static Future<ImageProvider?> _\$readImage(ImageProvider? image) async =>
+      image is FileImage ? MemoryImage(await image.file.readAsBytes()) : image;
+
+  static Future<String> _\$saveImage(String key, ImageProvider image) async {
+    final path = await HomeWidget.saveImage(key, image$_appGroupIdArg);
+    await FileImage(File(path)).evict();
+    return path;
+  }
+''';
+
   /// Emits the two helpers that keep per-timestamp image files in step with the
   /// timeline.
   ///
@@ -1182,6 +1497,116 @@ $filterDoc
       for (final _millis in times)
         for (final _key in const [$keys])
           HomeWidget.saveWidgetData<String>($timedKey, null$_appGroupIdArg),
+    ]);
+  }
+''';
+  }
+
+  /// Emits the helpers that keep the per-item image files of a list in step
+  /// with its items.
+  ///
+  /// The stored list is the only record of which images exist: the one of a
+  /// field of item `<index>` was written under `<list key>.<index>.<field>`,
+  /// so clearing that key deletes both the preferences entry and the PNG. A
+  /// time-based list's keys carry the timestamp of their entry as a suffix.
+  String _listImageHelpers() {
+    final keySuffix = _timedListImageGroups.isNotEmpty;
+
+    final buffer = StringBuffer();
+    if (spec.untimedListGroups.any((group) => group.imageFields.isNotEmpty)) {
+      buffer.write('''
+  static Future<int> _\$storedListLength(String key) async {
+    final path = await HomeWidget.getWidgetData<String>(key$_appGroupIdArg);
+    if (path == null) return 0;
+    try {
+      final decoded = jsonDecode(await File(path).readAsString());
+      return decoded is List ? decoded.length : 0;
+    } on Exception {
+      return 0;
+    }
+  }
+
+''');
+    }
+
+    buffer.write('''
+  static Future<void> _\$deleteListImages(
+    String key,
+    List<String> fields,
+    int from,
+''');
+
+    if (keySuffix) {
+      buffer.write('''
+    int to, [
+    String suffix = '',
+  ]) async {
+''');
+    } else {
+      buffer.write('''
+    int to,
+  ) async {
+''');
+    }
+
+    final itemKey =
+        keySuffix ? r'$key.$index.$field$suffix' : r'$key.$index.$field';
+    buffer.write('''
+    await Future.wait([
+      for (var index = from; index < to; index++)
+        for (final field in fields)
+          HomeWidget.saveWidgetData<String>('$itemKey', null$_appGroupIdArg),
+    ]);
+  }
+''');
+
+    return buffer.toString();
+  }
+
+  /// Emits the two helpers that keep the per-item image files of the
+  /// time-based lists in step with the timeline.
+  ///
+  /// The stored timeline is the only record of which exist: every entry holds
+  /// each list whole, so the length of a list in the entry of a timestamp says
+  /// which item indices hold an image keyed by that timestamp.
+  String _timedListImageHelpers() {
+    final groups = _timedListImageGroups;
+    final lists = groups.map((group) => "'${group.key}'").join(', ');
+    final fields = groups
+        .map(
+          (group) => "'${group.key}': [${_quotedImageKeys(group.imageFields)}]",
+        )
+        .join(', ');
+    final listKey = _paramKey(r'timedData.$list');
+    return '''
+  static Future<Map<int, Map<String, int>>> _\$storedTimedListLengths() async {
+    final path = await HomeWidget.getWidgetData<String>(${_paramKey('timedData')}$_appGroupIdArg);
+    if (path == null) return const {};
+    try {
+      final decoded = jsonDecode(await File(path).readAsString());
+      if (decoded is! Map<String, dynamic>) return const {};
+      return {
+        for (final MapEntry(:key, :value) in decoded.entries)
+          if (int.tryParse(key) case final millis?)
+            millis: {
+              if (value is Map<String, dynamic>)
+                for (final list in const [$lists])
+                  if (value[list] case final List items) list: items.length,
+            },
+      };
+    } on Exception {
+      return const {};
+    }
+  }
+
+  static Future<void> _\$deleteTimedListImages(
+    Map<int, Map<String, int>> stored,
+    Iterable<int> times,
+  ) async {
+    await Future.wait([
+      for (final millis in times)
+        for (final MapEntry(key: list, value: fields) in const {$fields}.entries)
+          _\$deleteListImages($listKey, fields, 0, stored[millis]?[list] ?? 0, '.\$millis'),
     ]);
   }
 ''';
@@ -1385,6 +1810,36 @@ $indent}''';
   String _jsonImageLocal(String storageKey) =>
       '_jsonImage_${storageKey.replaceAll(RegExp('[^A-Za-z0-9]'), '_')}';
 
+  /// Local variable holding the `ImageProvider` of an image field of the item
+  /// being saved, in a namespace of its own like [_timedImageLocal].
+  String _itemImageLocal(String key) => '_itemImage_$key';
+
+  /// Local variable holding the already-read `ImageProvider` of a root image
+  /// field, in a namespace of its own like [_timedImageLocal].
+  String _rootImageLocal(String key) => '_rootImage_$key';
+
+  /// Local variable holding the already-read pictures of one image field of
+  /// every item of the untimed list [listKey], in item order.
+  ///
+  /// Neither key can hold a `_`, so no other pair of list and field derives
+  /// the same name.
+  String _listImagesLocal(String listKey, String key) =>
+      '_itemImages_${listKey}_$key';
+
+  /// Local variable holding the already-read picture of one plain timed image
+  /// field, per instant.
+  String _timedImagesLocal(String key) => '_timedImages_$key';
+
+  /// Local variable holding the already-read picture of one timed JSON leaf,
+  /// per instant, named after its dotted storage key like [_jsonImageLocal].
+  String _timedJsonImagesLocal(String storageKey) =>
+      '_timedJsonImages_${storageKey.replaceAll(RegExp('[^A-Za-z0-9]'), '_')}';
+
+  /// Local variable holding the already-read pictures of one image field of
+  /// every item of the time-based list [listKey], per instant.
+  String _timedListImagesLocal(String listKey, String key) =>
+      '_timedItemImages_${listKey}_$key';
+
   /// The wire form of a date: the UTC ISO 8601 string every storage path
   /// writes and the native `hwParseIsoDate` helper reads back.
   String _dartIsoExpr(String valueExpr) =>
@@ -1455,17 +1910,18 @@ $indent}''';
       buffer.writeln(line);
     }
 
-    buffer.write('''
-
-  const $className({
-''');
-
-    for (final key in node.children.keys) {
-      buffer.writeln('    this.$key,');
+    if (node.children.isEmpty) {
+      buffer.writeln('  const $className();');
+    } else {
+      buffer.writeln();
+      buffer.writeln('  const $className({');
+      for (final key in node.children.keys) {
+        buffer.writeln('    this.$key,');
+      }
+      buffer.writeln('  });');
     }
 
     buffer.write('''
-  });
 
   factory $className.fromJson(Map<String, dynamic>? json) {
     json ??= const {};
@@ -1522,10 +1978,11 @@ $indent}''';
       node.leafType != null && node.children.isEmpty;
 
   /// Members of the generated `<ClassName>TimedData` class, in declaration
-  /// order, with JSON root keys collapsed to a single member.
-  List<_TimedMember> _timedMembers(List<HWTimedData<dynamic>> timedFields) {
+  /// order, with JSON root keys collapsed to a single member, and the
+  /// time-based lists after them.
+  List<_TimedMember> _timedMembers() {
     final members = <_TimedMember>[];
-    for (final timed in timedFields) {
+    for (final timed in spec.timedDataFields) {
       final field = timed.data;
       if (field is HWJson) {
         if (members.any((m) => m.key == field.key)) continue;
@@ -1553,12 +2010,23 @@ $indent}''';
         );
       }
     }
+    for (final group in spec.timedListGroups) {
+      final itemClass = group.itemClassName(spec.className);
+      members.add(
+        _TimedMember(
+          key: group.key,
+          type: 'List<$itemClass>',
+          jsonRoot: false,
+          itemClass: itemClass,
+        ),
+      );
+    }
     return members;
   }
 
-  String _timedDataClass(List<HWTimedData<dynamic>> timedFields) {
+  String _timedDataClass() {
     final className = _timedDataClassName;
-    final members = _timedMembers(timedFields);
+    final members = _timedMembers();
 
     final fields = <String>[
       for (final member in members)
@@ -1639,6 +2107,9 @@ $indent}''';
     if (member.jsonRoot) {
       return "      $key: json['$key'] is Map<String, dynamic> ? ${member.type}.fromJson(json['$key'] as Map<String, dynamic>) : null,";
     }
+    if (member.itemClass case final itemClass?) {
+      return "      $key: json['$key'] is List ? [for (final _e in json['$key'] as List) $itemClass.fromJson(_e is Map<String, dynamic> ? _e : null)] : null,";
+    }
     if (member.isImage) {
       return "      $key: _readFileImage(json['$key']),";
     }
@@ -1660,6 +2131,9 @@ $indent}''';
     final key = member.key;
     if (member.jsonRoot) {
       return "      if ($key != null) '$key': $key!.toJson(),";
+    }
+    if (member.itemClass != null) {
+      return "      if ($key != null) '$key': [for (final _e in $key!) _e.toJson()],";
     }
     if (member.leafType is HWLocalizedString) {
       // Every locale travels in the entry; the native readers merge it over
@@ -1791,11 +2265,16 @@ class _TimedMember {
   final bool jsonRoot;
   final HWDataType<dynamic>? leafType;
 
+  /// The item class of a time-based list, which this member then holds a list
+  /// of.
+  final String? itemClass;
+
   const _TimedMember({
     required this.key,
     required this.type,
     required this.jsonRoot,
     this.leafType,
+    this.itemClass,
   });
 
   /// Whether this member carries an `ImageProvider` rather than a JSON value.

@@ -1,0 +1,572 @@
+---
+title: Lists
+description: Render one child per item of a list your app saves, with HWColumn.builder, HWRow.builder and HWItemData.
+---
+
+# Lists
+
+A widget often shows a handful of records that look alike: forecast days, agenda events, recent transactions. Instead of declaring each of them, declare the layout of **one item** with `HWColumn.builder` or `HWRow.builder`, and the widget renders it once for every item your app saves:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Weather',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWColumn(
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    children: [
+      HWText(HWString('city', previewValue: 'Berlin')),
+      HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+        item: HWColumn(
+          children: [
+            HWText.dateTime(
+              HWItemData(
+                HWDateTime('day'),
+                previewValues: [
+                  '2026-09-21T12:00:00Z',
+                  '2026-09-22T12:00:00Z',
+                  '2026-09-23T12:00:00Z',
+                ],
+              ),
+              format: HWDateFormat.skeleton('E'),
+            ),
+            HWIcon(
+              HWItemData(
+                HWIconData('condition', icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella]),
+                previewValues: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+              ),
+            ),
+            HWText.number(
+              HWItemData(HWInt('temperature', defaultValue: 0), previewValues: [21, 17, 19]),
+            ),
+            HWText(HWString('unit', defaultValue: '°C')),
+          ],
+        ),
+        whenEmpty: HWText.fixed('No forecast yet'),
+      ),
+    ],
+  ),
+)
+class Weather {}
+```
+
+The app saves a typed list through the generated helper:
+
+```dart
+await WeatherHomeWidget.saveData(
+  city: 'Berlin',
+  forecast: [
+    WeatherForecastItem(day: DateTime(2026, 9, 21), condition: WeatherConditionIcon.wbSunny, temperature: 21),
+    WeatherForecastItem(day: DateTime(2026, 9, 22), condition: WeatherConditionIcon.cloud, temperature: 17),
+  ],
+);
+await WeatherHomeWidget.updateWidget();
+```
+
+On the home screen the row shows one column per saved day, at most 5 of them, spread out by `spaceBetween` exactly as if they were fixed children. Before anything is saved, and while the saved list is empty, it shows "No forecast yet". Until the app has saved a list, the widget gallery shows three sample days: Mon, Tue and Wed with their icons and temperatures.
+
+## Builders
+
+`HWColumn.builder` and `HWRow.builder` take the key of the list and the widget to render for each item:
+
+```dart
+const HWColumn.builder(
+  String list, {
+  required HWWidget item,
+  int? maxItems,
+  HWWidget? whenEmpty,
+  HWCrossAxisAlignment? crossAxisAlignment,
+  HWMainAxisAlignment? mainAxisAlignment,
+  double spacing = 0,
+})
+```
+
+`HWRow.builder` takes the same parameters.
+
+- `list` is the key the list is saved under. It also names the generated `saveData` parameter (`forecast:`) and the item class (`WeatherForecastItem`). It follows the rules of every data key: ASCII letters and digits, starting with a letter, and no Dart, Kotlin or Swift keyword. It can't also be the key of one of the widget's own fields.
+- `item` is rendered once per saved item, in the order the items were saved. Use an `HWColumn` or `HWRow` to put more than one widget into an item.
+- `maxItems` and `whenEmpty` decide how many items render and what shows when there are none, see [Layout](#layout).
+
+A builder **is** the column or row, and the rendered items are its children. It goes wherever an `HWColumn` or `HWRow` can go: at the root, inside an `HWPadding`, in a branch of a conditional, in a slot of an `HWSizeAdaptive`. A widget wrapped around it applies to the whole stack, as it would to one with fixed children.
+
+Fixed children and items don't share a stack. To put a header above the items, nest the builder in another stack:
+
+```dart
+HWColumn(
+  children: [
+    HWText.fixed('Today'),
+    HWColumn.builder(
+      'events',
+      maxItems: 4,
+      item: HWText(HWItemData(HWString('title'))),
+    ),
+  ],
+)
+```
+
+Lists don't nest yet: a builder anywhere inside another builder's `item` fails generation. A builder over another list inside `whenEmpty` is fine, since no item is being rendered there.
+
+## `HWItemData`
+
+`HWItemData` reads a field of the item a builder is rendering:
+
+```dart
+HWText.number(HWItemData(HWInt('temperature')))
+```
+
+It wraps the field it reads and is typed like it: `HWItemData(HWInt('temperature'))` is an `HWDataType<int>`, so it is accepted wherever an `HWInt` is, and the analyzer keeps checking that. The key, `defaultValue` and `previewValue` are the wrapped field's. The one addition is `previewValues`, see [Previews](#previews).
+
+Everything **not** wrapped in `HWItemData` keeps its meaning inside an item. A root field, a JSON leaf or a time-based field reads the widget's own data, exactly as it does outside a builder: in the example above, `HWText(HWString('unit'))` shows the same saved `unit` in every item. Item fields have a namespace of their own, so an item field `label` and a root field `label` can exist side by side. Their keys follow the same rules as any data key, plus one of their own: an item field becomes a member of the generated item class, so it can't be named `toJson`, `toString`, `hashCode`, `runtimeType` or `noSuchMethod`, which the class already carries. `fromJson` is free, since the class names a constructor rather than a member with it.
+
+`HWItemData` wraps:
+
+- `HWString`, plain or `.localized`
+- `HWInt`, `HWDouble` and `HWBool`
+- `HWDateTime`
+- `HWIconData`
+- a runtime `HWImageData`, see [Images in items](#images-in-items)
+
+It rejects `HWImageData.asset`, since an asset ships with the app and there is nothing to store per item, and `HWJson`, since JSON objects inside an item aren't supported yet. It also rejects another `HWItemData` and `HWTimedData`: a time-based list is written `HWTimedData(HWItemData(...))`, see [Time-based lists](#time-based-lists).
+
+Anything that takes a data field accepts one inside an item: `HWText` (plain, `.number` and `.dateTime`), `HWImage`, `HWIcon`, `HWDataExists`, `HWBoolConditional`, `HWCurrency.data` and `HWTimeZone.data`. A per-item currency, for example:
+
+```dart
+HWText.number(
+  HWItemData(HWDouble('amount')),
+  format: HWNumberFormat.currency(currency: HWCurrency.data(HWItemData(HWString('currency')))),
+)
+```
+
+[`HWDataOnly`](/generator/widgets/hw-data-only) declares item fields that are saved and read back but never shown, such as an id:
+
+```dart
+item: HWColumn(
+  children: [
+    HWText(HWItemData(HWString('title'))),
+    HWDataOnly([HWItemData(HWString('id'))]),
+  ],
+),
+```
+
+`HWItemData` only works inside the `item` of a builder. Anywhere else there is no item to read: in the root tree, in a `whenEmpty`, or in an `HWDataOnly` outside an item, it fails generation.
+
+A localized item field stores one plain text per item. When an item stores none, the widget falls back to the field's `defaultTranslations`, resolved against the device's locale, the same as for a [localized JSON leaf](/generator/data#nested-json). Like every localized string, it needs a `localization:` block on the annotation.
+
+## The item class
+
+Every list gets one generated class, named after the widget class and the list key, `<WidgetClass><ListKey>Item`. For the example above:
+
+```dart
+class WeatherForecastItem {
+  final DateTime? day;
+  final WeatherConditionIcon? condition;
+  final int? temperature;
+
+  const WeatherForecastItem({
+    this.day,
+    this.condition,
+    this.temperature,
+  });
+
+  factory WeatherForecastItem.fromJson(Map<String, dynamic>? json) { ... }
+
+  Map<String, dynamic> toJson() { ... }
+}
+```
+
+- It has one nullable, optional member per item field, in the order the fields are first read. Leaving a member out is how an item says "use the default".
+- A member has the type the same field would have at the root: `String`, `int`, `double`, `bool`, `DateTime`, the icon enum, and `ImageProvider` for an image. A localized field is a plain `String`.
+- An item icon gets the usual [icon enum](/generator/data#icon-data), `<WidgetClass><FieldKey>Icon`. An item icon and a root or JSON icon with the same key share one enum holding the icons of both.
+- The generated Swift struct and Kotlin class have the same name.
+
+## Saving and reading a list
+
+A list adds one parameter to each of the generated data methods, after the widget's own fields:
+
+```dart
+static Future<void> saveData({String? city, String? unit, List<WeatherForecastItem>? forecast});
+static Future<void> deleteData({bool city = false, bool unit = false, bool forecast = false});
+static Future<({String? city, String? unit, List<WeatherForecastItem>? forecast})> getData();
+```
+
+- `saveData(forecast: [...])` replaces the stored list with the one given. The whole list is stored, not only the first `maxItems`: `maxItems` limits what a builder renders, and another builder over the same list may render more.
+- `forecast: null`, the default, leaves the stored list as it is, like every other `saveData` parameter. `saveData(forecast: [])` stores an empty list.
+- `getData()` returns `null` while nothing is saved, `[]` after an empty list was saved, and the saved items otherwise. A field an item was saved without comes back as its `defaultValue`. It also returns `null` when the stored file can't be read or holds no JSON array.
+- `deleteData(forecast: true)` removes the list, and `getData()` returns `null` again.
+
+```dart
+final data = await WeatherHomeWidget.getData();
+data.forecast; // List<WeatherForecastItem>?
+```
+
+The list is written as one JSON file through `HomeWidget.saveFile`, like a [JSON group](/generator/data#nested-json), with one object per item. Each field is stored the way a JSON leaf is: dates as ISO-8601 UTC strings, icons as their code points, and a member left `null` is left out. The widget reads a missing, unreadable or malformed file as a list without items, and an entry that isn't an object as an item storing no field.
+
+## Layout
+
+### How many items
+
+`maxItems` limits a builder to the first `maxItems` saved items. Without it, every saved item renders. It must be 1 or more, and a widget generated for Android needs it, see [Android limits](#android-limits).
+
+A widget doesn't scroll, so items that don't fit are clipped like any other content that overflows. `maxItems` is how a layout stays inside its box.
+
+### Empty lists
+
+`whenEmpty` is the stack's only child while there is no item to render: nothing saved yet, a saved `[]`, or a stored file the widget can't read. All three look the same on the home screen; only `getData()` tells them apart. Without `whenEmpty`, the stack is empty.
+
+There are no default items. Before the app first saves a list, the builder renders `whenEmpty`, which makes it the place for a prompt such as "Open the app to load the forecast".
+
+`whenEmpty` is laid out like a single child of the stack, so the alignments place it too.
+
+### Spacing and alignment
+
+`spacing`, `mainAxisAlignment` and `crossAxisAlignment` apply to the items exactly as they apply to fixed children: `spacing` is the gap between two adjacent items, and `spaceBetween` spreads the room left over between them.
+
+```dart
+HWRow.builder(
+  'forecast',
+  maxItems: 5,
+  spacing: 12,
+  mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+  item: HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+)
+```
+
+`whenEmpty` on its own gets no gap. A baseline `HWRow.builder` lines its items up on their first text baselines, like fixed children. On Android that takes an item that renders text of its own, such as an `HWText`; see [`HWRow`](/generator/widgets/hw-row).
+
+## Defaults
+
+An item saved without a field renders that field's `defaultValue`, the same as a root field nothing was saved to: in the example, an item without a `temperature` shows `0`. Without a default, a missing field renders nothing, the same as a missing root field: empty text, no icon, no image. [`HWDataExists`](/generator/widgets/hw-conditional) gives it a placeholder, item by item:
+
+```dart
+item: HWDataExists(
+  data: HWItemData(HWDateTime('day')),
+  whenPresent: HWText.dateTime(HWItemData(HWDateTime('day')), format: HWDateFormat.skeleton('E')),
+  whenAbsent: HWText.fixed('–'),
+),
+```
+
+`HWBoolConditional` needs a `defaultValue` on an item field too: `HWBoolConditional(data: HWItemData(HWBool('windy', defaultValue: false)), ...)`.
+
+## Previews
+
+The widget gallery can show sample items in place of a list. An item field's sample comes from the field it wraps, the same as for [any other field](/generator/previews): its `previewValue` (or `previewAsset` / `previewTranslations`), then its `defaultValue`. `previewValues` on `HWItemData` varies the sample from one item to the next, item `i` taking entry `i`:
+
+```dart
+HWText(HWItemData(HWString('label'), previewValues: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']))
+HWText.number(HWItemData(HWInt('temperature', defaultValue: 0), previewValues: [21, 17, 19, 22, 18]))
+// gallery: Mon 21 | Tue 17 | Wed 19 | Thu 22 | Fri 18
+```
+
+Each entry is written the way the field's own `previewValue` is:
+
+- a `String`, `int`, `double` or `bool` for text, numbers and booleans
+- an ISO 8601 string for an `HWDateTime`
+- an `IconData` from the field's `icons` for an `HWIconData`
+- the path of a Flutter asset for a runtime `HWImageData`, like its `previewAsset`
+- plain text for an `HWString.localized`
+
+For each list, the gallery shows the first of these that applies:
+
+1. **The saved list**, where the preview reads live data (`useLiveDataInPreview`, on by default). Once the app has saved a list, the gallery shows it, and `whenEmpty` for a saved `[]`.
+2. **Varied sample items**, when at least one item field has `previewValues`. There are as many as the longest `previewValues`, and item `i` takes, for each field, `previewValues[i]`, then the field's `previewValue`, then its `defaultValue`.
+3. **Repeated sample items**, when no field has `previewValues` but at least one has a `previewValue` (or `previewAsset` / `previewTranslations`). The items are all alike, and there are as many as the largest `maxItems` among the builders over the list, or 3 when none of them sets one.
+4. **`whenEmpty`**, or an empty stack, when no item field has any of these.
+
+The gallery renders at most `maxItems` of them, like the home screen. On iOS, the placeholder WidgetKit shows before the widget's first render uses the same sample items. A [time-based list](#time-based-lists) previews the same way, for a single instant: the saved list of rule 1 is the one in the entry active at that moment, and the sample items stand in when that entry holds no list.
+
+When the fields of one list set `previewValues` of different lengths, generation warns. The longest decides how many sample items there are, and a field past the end of its own `previewValues` falls back to its `previewValue` or `defaultValue`.
+
+## Several builders over one list
+
+Builders sharing a list key render the same saved list. The list gets one item class and one `saveData` parameter, holding every field any of the builders reads, and each builder renders with its own `item`, `maxItems`, `whenEmpty` and alignment.
+
+That is how a list adapts to the widget's size, with one builder per [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) slot:
+
+```dart
+HWSizeAdaptive(
+  small: HWColumn.builder(
+    'forecast',
+    maxItems: 3,
+    item: HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+  ),
+  medium: HWRow.builder(
+    'forecast',
+    maxItems: 5,
+    spacing: 8,
+    item: HWColumn(
+      children: [
+        HWText.dateTime(HWItemData(HWDateTime('day')), format: HWDateFormat.skeleton('E')),
+        HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+      ],
+    ),
+  ),
+)
+```
+
+Both slots render the same `WeatherForecastItem`s, which carry a `day` and a `temperature`. Each slot is a stack of its own, and counts against the [Android limits](#android-limits) on its own.
+
+Two reads of one item field merge like two declarations of a root field: `defaultValue`, `previewValue` and `previewValues` each have to be equal where both set them, and a value set on one side only carries over. Reads that disagree, such as an `HWInt` in one builder and an `HWDouble` in the other, fail generation with a message naming the list and the field.
+
+## Images in items
+
+A runtime `HWImageData` can be an item field, so every item carries a picture of its own:
+
+```dart
+HWRow.builder(
+  'members',
+  maxItems: 4,
+  spacing: 8,
+  item: HWColumn(
+    children: [
+      HWImage(HWItemData(HWImageData('avatar')), width: 40, height: 40),
+      HWText(HWItemData(HWString('name'))),
+    ],
+  ),
+)
+```
+
+In a widget class `Team`, the member on the item class is an `ImageProvider?`:
+
+```dart
+await TeamHomeWidget.saveData(
+  members: [
+    TeamMembersItem(name: 'Dash', avatar: NetworkImage('https://example.com/dash.png')),
+    TeamMembersItem(name: 'Grace', avatar: AssetImage('assets/grace.png')),
+  ],
+);
+await TeamHomeWidget.updateWidget();
+```
+
+- `saveData` writes each item's picture with `HomeWidget.saveImage` to a PNG of its own, under `home_widget.<WidgetClass>.<list>.<index>.<field>`, and stores the PNG's path in that item. `getData()` hands the picture back as a `FileImage` of that PNG, or `null` once the file is gone.
+- Saving a shorter list, or `[]`, deletes the pictures of the items that are gone. An item saved without a picture stores none, and deletes the one its position held before. `deleteData(members: true)` removes the list together with all of its pictures.
+- In the gallery, sample item `i` shows the field's `previewValues[i]`, else its `previewAsset`. Each is read in place from the app bundle, like the [`previewAsset`](/generator/previews#preview-assets) of a root field, and a dependency's asset is spelled `packages/<package>/<path>`. Where the preview reads live data, a saved list replaces the sample items entirely.
+- Every one of those asset paths is checked at generation, like any `previewAsset`: a file that is missing, or not declared under `flutter: assets:`, fails generation, see [Sample values](#sample-values).
+
+`HWItemData(HWImageData.asset(...))` fails generation: a bundled image is the same in every item, so show it with `HWImage.asset`.
+
+## Time-based lists
+
+`HWTimedData(HWItemData(...))` makes a list [time-based](/generator/timed-data): every timed entry carries a whole list, and the builder renders the list of the entry active at render time, the one with the greatest timestamp at or before now. Entries never merge, as for any timed data.
+
+```dart
+HWColumn.builder(
+  'hourly',
+  maxItems: 4,
+  item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+  whenEmpty: HWText.fixed('No forecast yet'),
+)
+```
+
+The list becomes a member of the generated timed data class instead of a `saveData` parameter of its own:
+
+```dart
+class WeatherTimedData {
+  final List<WeatherHourlyItem>? hourly;
+  // ... the other timed members
+}
+```
+
+```dart
+await WeatherHomeWidget.saveData(
+  timedData: {
+    DateTime(2026, 9, 18, 6): WeatherTimedData(
+      hourly: [WeatherHourlyItem(temperature: 12), WeatherHourlyItem(temperature: 14)],
+    ),
+    DateTime(2026, 9, 18, 7): WeatherTimedData(
+      hourly: [WeatherHourlyItem(temperature: 13), WeatherHourlyItem(temperature: 15)],
+    ),
+  },
+);
+await WeatherHomeWidget.updateWidget();
+```
+
+There is no `hourly:` parameter on `saveData`. `deleteData(timedData: true)` and the `timedData` that `getData()` returns work as they do for every time-based field; an entry saved without the list reads back with `hourly` `null`.
+
+- A list is time-based as a whole. Every read of one of its item fields, in every builder over it, has to be wrapped in `HWTimedData`; mixing timed and untimed reads of one list fails generation.
+- `HWItemData(HWTimedData(...))` fails generation with a message pointing at `HWTimedData(HWItemData(...))`.
+- No active entry, an active entry without the list, and an empty list in the active entry all render `whenEmpty`.
+- A builder whose `item` reads no item field at all renders an untimed list.
+- An image in a time-based list belongs to its entry, like a [time-based image](/generator/timed-data#images). Each item's picture is written to a PNG of its own per entry, under `home_widget.<WidgetClass>.timedData.<list>.<index>.<field>.<millis>`. Saving a schedule deletes the pictures of the entries it drops. In an entry it keeps, it deletes those of the items past the end of the entry's new list, and the one of an item saved without a picture. Saving an empty schedule, or `deleteData(timedData: true)`, removes all of them.
+
+## Android limits
+
+Glance lays out at most 10 children in a `Column` or `Row` and drops the rest without a word, and each spacer a `mainAxisAlignment` adds counts as a child too. A builder's children only exist once the app has saved a list, so in a widget generated for Android, one with an `android:` configuration, every builder needs a `maxItems` small enough to fit:
+
+| `mainAxisAlignment` | Largest `maxItems` |
+| ------------------- | ------------------ |
+| `start` or unset    | 10                 |
+| `end`               | 9                  |
+| `center`            | 8                  |
+| `spaceBetween`      | 5                  |
+| `spaceEvenly`       | 4                  |
+
+[HWAlignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) shows how many spacers each alignment adds. `spacing` counts as nothing, and `whenEmpty` only ever renders on its own. A builder only iOS renders, in the `ios:` branch of an [`HWAdaptive`](/generator/widgets/hw-adaptive) or in a size slot Android never reaches, needs no `maxItems`.
+
+On Android, text in a [custom font](/generator/custom-fonts#how-it-renders) is drawn as an image, and the room it has is measured before it is drawn, for at most 32 texts per widget size. A custom-font text inside an item counts once per item the builder can render, so two of them in an item with `maxItems: 10` count 20. When a widget's Android layout can add up to more than 32, generation warns: the texts past that are drawn against the bounds of the whole widget and can overflow their place. Lower `maxItems`, or render some of the texts in the platform font.
+
+The room is measured per item, so a list that changes length while the widget is on screen is measured again, at the size it is drawn at right then. The other sizes it may be resized to are measured when the launcher next hands one over.
+
+## Errors and warnings
+
+Every error below stops generation before any file is written; the warnings at the end don't. In the messages, `<widget>` is the widget's `name`, `<builder>` is a builder the way the schema writes it (`HWRow.builder('forecast')`), `<list>` is a list key and `<field>` an item field key.
+
+### Builders
+
+- ```
+  Nested lists aren't supported yet: <builder> sits inside the item of <builder>.
+  ```
+  A builder sits inside another builder's `item`, at any depth. Move it out of the item; a builder over another list may go in `whenEmpty`.
+- ```
+  <builder> maxItems must be 1 or more, got <n>.
+  ```
+  Give `maxItems` a value of 1 or more.
+- ```
+  <builder> spacing must be 0 or more, got <n>.
+  ```
+  `spacing` is a gap and can't be negative.
+- ```
+  HWColumn cannot use HWCrossAxisAlignment.baseline. Baseline alignment lines up the text baselines along a horizontal cross axis, so it only applies to HWRow.
+  ```
+  `HWColumn.builder` takes the same alignments as `HWColumn`. Use `HWRow.builder` to line items up on a baseline.
+
+### Item fields
+
+- ```
+  HWItemData cannot wrap HWTimedData. A list is time-based as a whole, so write HWTimedData(HWItemData(...)) instead.
+  ```
+  Swap the two wrappers.
+- ```
+  HWItemData cannot wrap HWJson. JSON objects inside a list item are not supported yet; wrap each value in an HWItemData of its own.
+  ```
+  Give every value of the object an item field of its own.
+- ```
+  HWItemData cannot wrap another HWItemData. A field reads the item of the builder it sits in, so wrap it in HWItemData once.
+  ```
+  Remove the inner `HWItemData`.
+- ```
+  HWItemData cannot wrap the asset image "<path>". An asset ships with the app, so there is nothing to store per item; show it with HWImage.asset instead.
+  ```
+  Only a runtime `HWImageData('key')` can be an item field.
+- ```
+  An item field can't sit inside HWJson ("<key>"). Use HWItemData on its own, inside the item of an HWColumn.builder or HWRow.builder.
+  ```
+  Take the `HWItemData` out of the `HWJson`.
+- ```
+  Widget "<widget>": <read> reads the item a builder is rendering, so it only works inside the item of an HWColumn.builder or HWRow.builder.
+  ```
+  An `HWItemData` sits outside the `item` of every builder: in the root tree, in a `whenEmpty`, or in an `HWDataOnly` outside an item. `<read>` is the field as written, such as `HWItemData(HWString('label'))`. Move it into an item, or drop `HWItemData` to read a field of the widget's own data.
+
+### Sample values
+
+- ```
+  The previewValues of HWItemData "<field>" are empty. Leave them out, or list one value per sample item.
+  ```
+  Remove `previewValues: []`, or give it entries.
+- ```
+  previewValues[<index>] of HWItemData "<field>" is null. List a value for every sample item.
+  ```
+  Replace the `null` entry with a value.
+- ```
+  previewValues[<index>] of HWItemData "<field>" must be <kind>, got <type>.
+  ```
+  An entry has the wrong type. `<kind>` names what the field takes: `an int`, `a number`, `a bool`, `a String`, `an ISO 8601 String`, `an IconData such as Icons.wb_sunny` or `the String path of a Flutter asset`.
+- ```
+  previewValues[<index>] of HWItemData "<field>" is not one of its icons.
+  ```
+  Every entry of an icon field has to be one of its `icons`.
+- ```
+  Widget "<widget>": HWDateTime("<field>") of list "<list>" has previewValue "<text>", which is not an ISO 8601 date. Write the instant as e.g. "2024-03-08T09:41:00Z".
+  ```
+  Fix the date's `previewValue`.
+- ```
+  Widget "<widget>": previewValues[<index>] of HWItemData "<field>" in list "<list>" is "<text>", which is not an ISO 8601 date. Write the instant as e.g. "2024-03-08T09:41:00Z".
+  ```
+  Fix that entry of the date's `previewValues`.
+- ```
+  Missing asset for widget "<class>": "<path>" does not exist at <absolute path>. Create the file or fix the path in previewValues[<index>] of HWItemData "<field>" in list "<list>".
+  ```
+  A sample item image names an asset the project doesn't have; `<class>` is the annotated class. For the field's own `previewAsset`, the message ends `in previewAsset of HWItemData "<field>" in list "<list>".` Create the file, or fix the path.
+- ```
+  Undeclared asset for widget "<class>": "<path>" is not listed in the "flutter: assets:" section of pubspec.yaml. Add it so Flutter bundles the asset:
+  flutter:
+    assets:
+      - <path>
+  ```
+  The asset exists, but Flutter doesn't bundle it. Declare it as the message shows.
+- ```
+  Missing package asset for widget "<class>": "packages/<package>/<path>" does not exist at <absolute path>. Package assets live under the dependency's lib/ directory.
+  ```
+  A `packages/<package>/<path>` asset isn't in that package. Fix the path.
+
+### Keys and declarations
+
+- ```
+  Invalid data name "<name>" (list "<list>"): use ASCII letters and digits only; must start with a letter.
+  Invalid data name "<name>" (list "<list>"): reserved keyword in <languages>.
+  Invalid data name for list "": name is empty.
+  ```
+  A list key follows the rules of every data key. An item field key fails the same way, naming `item field "<field>" of list "<list>"` in place of `list "<list>"`.
+- ```
+  Invalid data name "<name>" (item field "<field>" of list "<list>"): the generated data class already has a member named "<name>".
+  ```
+  The item class carries a `toJson` of its own and inherits `toString`, `hashCode`, `runtimeType` and `noSuchMethod`, so an item field cannot take one of those names. Rename the field.
+- ```
+  Invalid data name "timedData" (list "timedData"): reserved for the generated timed data parameter.
+  ```
+  In a widget with time-based data, `timedData` is the name of a `saveData` parameter. Rename the list.
+- ```
+  Widget "<widget>": the key "<list>" is declared as the list of <builder> and as <declaration>. Both would generate the same field, so give them distinct keys.
+  ```
+  A list and one of the widget's own fields share a key. Rename one of them.
+- ```
+  Widget "<widget>": the lists "<list>" and "<list>" both generate the item class <class>. Rename one of them.
+  ```
+  Two list keys differ only in the case of their first letter, such as `forecast` and `Forecast`.
+- ```
+  Widget "<widget>": conflicting item fields in list "<list>": "<field>" is declared as <declaration> and as <declaration>. Both describe the same member of the item class, so declare them alike or give them distinct keys.
+  ```
+  Two reads of one item field disagree on its type, `defaultValue`, `previewValue` or `previewValues`, see [Several builders over one list](#several-builders-over-one-list).
+- ```
+  Widget "<widget>": the list "<list>" is read both time-based (<fields>) and not (<fields>). A list is time-based as a whole: wrap every item field of "<list>" in HWTimedData, or none.
+  ```
+  Wrap every read of the list's item fields in `HWTimedData`, or none of them.
+
+### Android
+
+In these, `<stack>` is `Column` or `Row`.
+
+- ```
+  Widget "<widget>": <builder> has no maxItems. On Android, Glance lays out at most 10 children in a <stack>, spacers included, and silently drops the rest, so a builder needs maxItems there: at most <largest> items fit a <stack> with mainAxisAlignment <alignment>.
+  ```
+  Add a `maxItems` of at most `<largest>`.
+- ```
+  Widget "<widget>": <builder> renders up to <maxItems> items + <spacers> spacers (<alignment>) = <total> > 10. On Android, Glance lays out at most 10 children in a <stack>, spacers included, and silently drops the rest. Use maxItems <largest>, or mainAxisAlignment <other>.
+  ```
+  Lower `maxItems` to `<largest>`, or pick an alignment that adds fewer spacers. With a single spacer the message says `spacer`. The closing `, or mainAxisAlignment <other>` names the alignment adding the most spacers the items still fit with, and is left out when there is none.
+
+### Warnings
+
+- ```
+  Warning: Widget "<widget>": in list "<list>", previewValues of "<longest>" has <count> entries, of "<field>" <length>; items <first>–<count> fall back to <field>'s previewValue.
+  ```
+  The fields of one list set `previewValues` of different lengths. The ending names what the shorter field falls back to: its `previewValue`, `defaultValue`, `previewAsset`, `previewTranslations` or `defaultTranslations`, or `leave <field> empty` when it has none. With only the last item short, it reads `item <count> falls back ...` or `item <count> leaves <field> empty`.
+- ```
+  Warning: Widget "<widget>": HWRow.builder('<list>') with HWCrossAxisAlignment.baseline has no child rendering text of its own. Android has no baseline to line the children up on and leaves them at the top of the row, while iOS still aligns them on the first text baseline.
+  ```
+  The item isn't a text of its own, such as a column of texts or an icon. With `maxItems: 1`, the message says `only one child` in place of `no child`. Android only lines items up that are texts, and needs at least two of them.
+- ```
+  Warning: Widget "<widget>": its Android layout can render up to <n> texts in a custom font, counting a text in the item of a builder once per item, but Android measures the room of at most 32 of them per widget size. The rest are drawn against the bounds of the whole widget and can overflow their place. Lower the maxItems of a builder, or render some of the texts in the platform font.
+  ```
+  See [Android limits](#android-limits).
+
+## Not supported yet
+
+- Nested lists: a builder inside another builder's `item`, and JSON objects inside an item.
+- Fixed children and items in one stack. Nest the builder in a stack of its own instead.
+- A tap target per item. Tapping anywhere on the widget still opens its one [widget URL](/generator/widget-url).

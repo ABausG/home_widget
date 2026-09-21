@@ -54,7 +54,8 @@ per locale at runtime, bind `HWString.localized` instead — see
 
 Renders a data-bound number formatted for the device locale — grouping and
 decimal separators, percentages, currencies, compact forms. `data` must be an
-`HWInt` or `HWDouble`, optionally wrapped in `HWTimedData` or `HWJson`.
+`HWInt` or `HWDouble`, optionally wrapped in `HWTimedData`, `HWJson` or, inside
+a [list item](/generator/lists), `HWItemData`.
 
 ```dart
 HWText.number(HWDouble('total'), format: HWNumberFormat.currency(currency: HWCurrency.code('EUR')))
@@ -77,7 +78,8 @@ HWText.fixedNumber(10000)
 
 Renders an [`HWDateTime`](/generator/data) field in the device's locale and,
 by default, the device's time zone. `data` must be an `HWDateTime`, optionally
-wrapped in `HWTimedData` or `HWJson`. Pass `timeZone` to show a fixed or
+wrapped in `HWTimedData`, `HWJson` or, inside a [list item](/generator/lists),
+`HWItemData`. Pass `timeZone` to show a fixed or
 per-record zone instead — see [Time zones](/generator/formatting#time-zones).
 
 ```dart

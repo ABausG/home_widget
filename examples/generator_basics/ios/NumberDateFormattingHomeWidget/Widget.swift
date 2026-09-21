@@ -55,8 +55,8 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack(alignment: .leading) {
-      HStack(alignment: .center) {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack(alignment: .center, spacing: 0) {
         Text("Order #")
           .font(.caption)
         Text(
@@ -75,7 +75,7 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
           NSNumber(value: entry.data.total ?? 0.0), code: entry.data.currency ?? "", decimals: nil)
       )
       .font(.title).fontWeight(.bold)
-      HStack(alignment: .center) {
+      HStack(alignment: .center, spacing: 0) {
         Text(
           hwFormatPercent(
             NSNumber(value: entry.data.discount ?? 0.0), minFraction: nil, maxFraction: nil))
@@ -86,7 +86,7 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
             grouping: true))
         Text(" items")
       }
-      HStack(alignment: .center) {
+      HStack(alignment: .center, spacing: 0) {
         Text("Delivery ")
           .font(.caption)
         Text(
@@ -96,7 +96,7 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
         )
         .font(.caption)
       }
-      HStack(alignment: .center) {
+      HStack(alignment: .center, spacing: 0) {
         Text(hwFormatCompact(NSNumber(value: entry.data.points ?? 0)))
           .font(.caption)
         Text(" of ")

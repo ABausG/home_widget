@@ -100,6 +100,30 @@ class HWDecoratedBox extends HWSingleChildWidget {
   HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) =>
       decoration.border == null ? child.kotlinBaselineText(context) : null;
 
+  /// Not with a color or a border, either of which covers any padding put on
+  /// the same composable.
+  @override
+  bool get kotlinPaddingAddsRoom =>
+      decoration.color == null &&
+      decoration.border == null &&
+      child.kotlinPaddingAddsRoom;
+
+  /// None of its own when a border's `Box` wraps the child, which asks for no
+  /// room.
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) =>
+      decoration.border == null
+          ? child.kotlinRoomIn(enclosingLinearAxis)
+          : const HWKotlinRoom();
+
+  /// Not with a border, which is a `Box` of its own around the child.
+  @override
+  bool get _kotlinInjectsIntoChild => decoration.border == null;
+
+  @override
+  HWDecoratedBox _wrapping(HWWidget widget) =>
+      HWDecoratedBox(decoration: decoration, child: widget);
+
   static HWDecoratedBox fromDartObject(
     DartObject obj,
     WidgetValueDecoder decoder,

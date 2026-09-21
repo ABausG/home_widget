@@ -32,11 +32,20 @@ class WidgetValueDecoder {
   /// resource it renders through.
   final String? fontResourcePrefix;
 
+  /// The list builder whose `item` is being decoded, spelled the way an error
+  /// names it (`HWRow.builder('days')`), or null outside the item of every
+  /// builder.
+  ///
+  /// Carried along by [decodeRecursive] and set by [decodeItem], so that a
+  /// builder nested anywhere inside an item is rejected.
+  final String? itemScope;
+
   WidgetValueDecoder(
     this.object, {
     this.defaultLocale,
     this.resourcePrefix,
     this.fontResourcePrefix,
+    this.itemScope,
   });
 
   HWWidget decode() {
@@ -82,12 +91,19 @@ class WidgetValueDecoder {
     // coverage:ignore-end
   }
 
-  HWWidget decodeRecursive(DartObject? obj) {
+  HWWidget decodeRecursive(DartObject? obj) => _decodeIn(obj, itemScope);
+
+  /// Decodes [obj] as the `item` of [builder], spelled like [itemScope].
+  HWWidget decodeItem(DartObject? obj, String builder) =>
+      _decodeIn(obj, builder);
+
+  HWWidget _decodeIn(DartObject? obj, String? itemScope) {
     return WidgetValueDecoder(
       obj,
       defaultLocale: defaultLocale,
       resourcePrefix: resourcePrefix,
       fontResourcePrefix: fontResourcePrefix,
+      itemScope: itemScope,
     ).decode();
   }
 
@@ -650,13 +666,58 @@ class WidgetValueDecoder {
       );
       if (inner == null) return null;
       return HWTimedData(inner);
+    } else if (typeName == 'HWItemData') {
+      final dataObj = getField(obj, 'data');
+      switch (dataObj?.type?.element?.name) {
+        case 'HWTimedData':
+          throw GeneratorError(
+            'HWItemData cannot wrap HWTimedData. A list is time-based as a '
+            'whole, so write HWTimedData(HWItemData(...)) instead.',
+          );
+        case 'HWJson':
+          throw GeneratorError(
+            'HWItemData cannot wrap HWJson. JSON objects inside a list item '
+            'are not supported yet; wrap each value in an HWItemData of its '
+            'own.',
+          );
+        case 'HWItemData':
+          throw GeneratorError(
+            'HWItemData cannot wrap another HWItemData. A field reads the item '
+            'of the builder it sits in, so wrap it in HWItemData once.',
+          );
+      }
+      final inner = decodeDataType(
+        dataObj,
+        defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
+      );
+      if (inner == null) return null;
+      if (inner is HWImageData && inner.isAsset) {
+        throw GeneratorError(
+          'HWItemData cannot wrap the asset image "${inner.assetPath}". An '
+          'asset ships with the app, so there is nothing to store per item; '
+          'show it with HWImage.asset instead.',
+        );
+      }
+      return HWItemData(
+        inner,
+        previewValues:
+            _decodePreviewValues(getField(obj, 'previewValues'), inner),
+      );
     } else if (typeName == 'HWJson') {
       final childObj = getField(obj, 'child');
-      if (childObj != null && childObj.type?.element?.name == 'HWTimedData') {
-        throw GeneratorError(
-          'HWTimedData must be a root-level data field and cannot be nested '
-          'inside HWJson',
-        );
+      switch (childObj?.type?.element?.name) {
+        case 'HWTimedData':
+          throw GeneratorError(
+            'HWTimedData must be a root-level data field and cannot be nested '
+            'inside HWJson',
+          );
+        case 'HWItemData':
+          throw GeneratorError(
+            'An item field can\'t sit inside HWJson ("$key"). Use HWItemData '
+            'on its own, inside the item of an HWColumn.builder or '
+            'HWRow.builder.',
+          );
       }
       final child = decodeDataType(
         childObj,
@@ -679,4 +740,70 @@ class WidgetValueDecoder {
 
     return null;
   }
+
+  /// The `previewValues` of an [HWItemData] reading [field], each decoded the
+  /// way [field]'s own `previewValue` is, or null when [obj] is absent.
+  ///
+  /// Throws a [GeneratorError] on an empty list, and on an entry that is null,
+  /// of a type [field] does not take, or an icon [field] does not offer.
+  static List<Object>? _decodePreviewValues(
+    DartObject? obj,
+    HWDataType<dynamic> field,
+  ) {
+    if (obj == null || obj.isNull) return null;
+    final entries = obj.toListValue() ?? const <DartObject>[];
+    if (entries.isEmpty) {
+      throw GeneratorError(
+        'The previewValues of HWItemData "${field.key}" are empty. Leave them '
+        'out, or list one value per sample item.',
+      );
+    }
+    return [
+      for (var index = 0; index < entries.length; index++)
+        _decodePreviewValue(entries[index], field, index),
+    ];
+  }
+
+  /// Entry [index] of the `previewValues` of an [HWItemData] reading [field].
+  static Object _decodePreviewValue(
+    DartObject entry,
+    HWDataType<dynamic> field,
+    int index,
+  ) {
+    final where = 'previewValues[$index] of HWItemData "${field.key}"';
+    if (entry.isNull) {
+      throw GeneratorError(
+        '$where is null. List a value for every sample item.',
+      );
+    }
+    final value = switch (field) {
+      HWInt() => entry.toIntValue(),
+      HWDouble() => entry.toDoubleValue() ?? entry.toIntValue()?.toDouble(),
+      HWBool() => entry.toBoolValue(),
+      HWIconData() => decodeIconCodePoint(entry),
+      _ => entry.toStringValue(),
+    };
+    if (value == null) {
+      throw GeneratorError(
+        '$where must be ${_previewValueSpelling(field)}, got '
+        '${entry.type?.element?.name}.',
+      );
+    }
+    if (field is HWIconData && !field.codePoints.contains(value)) {
+      throw GeneratorError('$where is not one of its icons.');
+    }
+    return value;
+  }
+
+  /// How a `previewValues` entry for [field] is written.
+  static String _previewValueSpelling(HWDataType<dynamic> field) =>
+      switch (field) {
+        HWInt() => 'an int',
+        HWDouble() => 'a number',
+        HWBool() => 'a bool',
+        HWIconData() => 'an IconData such as Icons.wb_sunny',
+        HWDateTime() => 'an ISO 8601 String',
+        HWImageData() => 'the String path of a Flutter asset',
+        _ => 'a String',
+      };
 }

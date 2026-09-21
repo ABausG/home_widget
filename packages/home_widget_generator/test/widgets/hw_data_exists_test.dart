@@ -121,6 +121,40 @@ void main() {
         );
       });
 
+      test('an item field is checked on the item a builder renders', () {
+        const itemExists = HWDataExists(
+          data: HWItemData(HWString('note')),
+          whenPresent: HWText(HWItemData(HWString('note'))),
+          whenAbsent: HWText(HWString('fallback')),
+        );
+        const itemImage = HWDataExists(
+          data: HWItemData(HWImageData('avatar')),
+          whenPresent: HWText.fixed('Present'),
+          whenAbsent: HWText.fixed('Absent'),
+        );
+
+        expect(
+          itemExists.toSwift(0, dataExpr: 'entry.data'),
+          'if hwItem.note != nil {\n'
+          '    Text(hwItem.note ?? "")\n'
+          '} else {\n'
+          '    Text(entry.data.fallback ?? "")\n'
+          '}',
+        );
+        expect(
+          itemExists.toKotlin(0, dataExpr: 'widgetData'),
+          startsWith('if (hwItem.note != null) {'),
+        );
+        expect(
+          itemImage.toSwift(0, dataExpr: 'entry.data'),
+          startsWith('if hwImageExists(hwItem.avatar) {'),
+        );
+        expect(
+          itemImage.toKotlin(0, dataExpr: 'widgetData'),
+          startsWith('if (hwImageExists(context, hwItem.avatar)) {'),
+        );
+      });
+
       test('a non-image field drags no image helper in', () {
         expect(
           dataExists.nativeHelpers,

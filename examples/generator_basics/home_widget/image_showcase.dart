@@ -28,6 +28,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       child: HWColumn(
         mainAxisAlignment: HWMainAxisAlignment.center,
         crossAxisAlignment: HWCrossAxisAlignment.center,
+        spacing: 8,
         children: [
           HWImage.asset(
             'assets/logo.png',
@@ -55,6 +56,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           HWRow(
             mainAxisAlignment: HWMainAxisAlignment.center,
             crossAxisAlignment: HWCrossAxisAlignment.center,
+            spacing: 8,
             children: [
               HWImage(
                 HWTimedData(HWImageData('slide')),

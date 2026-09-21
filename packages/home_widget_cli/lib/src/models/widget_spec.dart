@@ -96,6 +96,200 @@ class HWSizeAdaptiveSite {
   });
 }
 
+/// One `HWColumn.builder` or `HWRow.builder` in a widget tree.
+class ListDeclaration {
+  /// The key of the list the builder renders its item once per entry of.
+  final String key;
+
+  /// The builder itself.
+  final HWMultiChildWidget builder;
+
+  /// The item fields the builder's item reads, as
+  /// [HWMultiChildWidget.itemReads] lists them: each an [HWItemData] or an
+  /// [HWTimedData] around one, re-declarations of one field included.
+  final List<HWDataType<dynamic>> reads;
+
+  /// Creates a [ListDeclaration].
+  const ListDeclaration({
+    required this.key,
+    required this.builder,
+    required this.reads,
+  });
+
+  /// The builder as a schema writes it, e.g. `HWRow.builder('forecast')`.
+  String get spelling =>
+      "${builder is HWColumn ? 'HWColumn' : 'HWRow'}.builder('$key')";
+}
+
+/// A list the widget stores, with every builder rendering it.
+///
+/// Builders sharing a key render one stored list, so an item carries every
+/// field any of them reads.
+class ListDataGroup {
+  /// The key the list is stored and saved under, e.g. `forecast`.
+  final String key;
+
+  /// Whether the list travels inside the entries of the timed data file, its
+  /// item fields read through `HWTimedData(HWItemData(...))`.
+  ///
+  /// A list is time-based as a whole, which `validateWidgetData` enforces, and
+  /// one whose item reads no field is not time-based.
+  final bool timed;
+
+  /// The item fields, every read of one field folded into one, in the order
+  /// they are first read.
+  ///
+  /// Each is the [HWItemData] itself, for a [timed] list too: that decides
+  /// where the list is stored, not what an item holds. Reads that are not
+  /// [HWDataType.isCompatibleWith] each other stay separate entries, which
+  /// `validateWidgetData` rejects before any generator sees them.
+  final List<HWItemData<dynamic>> fields;
+
+  /// Every builder rendering the list, in document order.
+  final List<ListDeclaration> declarations;
+
+  /// Creates a [ListDataGroup].
+  const ListDataGroup({
+    required this.key,
+    required this.timed,
+    required this.fields,
+    required this.declarations,
+  });
+
+  /// The class an item is generated as, named the same in Dart, Swift and
+  /// Kotlin: `<WidgetClass><ListKey>Item`, e.g. `WeatherForecastItem`.
+  String itemClassName(String widgetClassName) =>
+      '$widgetClassName${toPascalCase(key)}Item';
+
+  /// The images among [fields].
+  List<HWImageData> get imageFields => [
+        for (final field in fields)
+          if (imageLeafOf(field) case final image?) image,
+      ];
+
+  /// The icons among [fields].
+  List<HWIconData> get iconFields => [
+        for (final field in fields)
+          if (iconLeafOf(field) case final icon?) icon,
+      ];
+
+  /// The localized strings among [fields].
+  ///
+  /// An item stores one text for each, and their translations are what the
+  /// widget falls back to for an item storing none.
+  List<HWLocalizedString> get localizedStrings => [
+        for (final field in fields)
+          if (field.data case final HWLocalizedString string) string,
+      ];
+
+  /// How many sample items the widget gallery shows in place of the list.
+  ///
+  /// As many as the longest `previewValues` among [fields]. Without any, and
+  /// provided a field sets a preview value, as many as the largest `maxItems`
+  /// among [declarations], or 3 when none of them sets one. Otherwise none, and
+  /// the builders render their `whenEmpty`.
+  int get sampleItemCount {
+    var longest = 0;
+    for (final field in fields) {
+      final values = field.previewValues;
+      if (values != null && values.length > longest) longest = values.length;
+    }
+    if (longest > 0) return longest;
+    if (!fields.any((field) => WidgetSpec._hasPreviewValue(field.data))) {
+      return 0;
+    }
+
+    int? largest;
+    for (final declaration in declarations) {
+      final maxItems = declaration.builder.maxItems;
+      if (maxItems != null && (largest == null || maxItems > largest)) {
+        largest = maxItems;
+      }
+    }
+    return largest ?? _defaultSampleItemCount;
+  }
+
+  /// Whether the sample items differ from each other, which only
+  /// `previewValues` make them do.
+  bool get variesSampleItems =>
+      fields.any((field) => field.previewValues != null);
+
+  /// The value [field], one of [fields], holds in sample item [index].
+  ///
+  /// Entry [index] of its `previewValues`, else its preview value, else its
+  /// default value, spelled the way a `previewValues` entry is: a `String` for
+  /// text, for a date's ISO 8601 text and for an image's Flutter asset path,
+  /// an `int` or a `double` for a number, a `bool`, or an icon's codepoint.
+  /// Past its `previewValues`, a localized field holds its
+  /// `previewTranslations`, a `Map<String, String>` to resolve against the
+  /// device's locales. Null leaves the field out of the item, which then
+  /// renders like an item saved without it.
+  Object? sampleValue(HWItemData<dynamic> field, int index) {
+    final values = field.previewValues;
+    if (values != null && index < values.length) return values[index];
+    return switch (field.data) {
+      HWLocalizedString(:final previewTranslations) => previewTranslations,
+      HWDateTime(:final previewIso) => previewIso,
+      HWImageData(:final previewAsset) => previewAsset,
+      final data => data.previewValue ?? data.defaultValue,
+    };
+  }
+}
+
+/// How many sample items a list previews with when a field sets a preview
+/// value, none sets `previewValues`, and no builder over it sets `maxItems`.
+const int _defaultSampleItemCount = 3;
+
+/// A runtime image among the item fields of a list.
+class ListImageField {
+  /// The key of the list.
+  final String listKey;
+
+  /// Whether the list is time-based.
+  final bool timed;
+
+  /// The image field.
+  final HWImageData image;
+
+  /// Creates a [ListImageField].
+  const ListImageField({
+    required this.listKey,
+    required this.timed,
+    required this.image,
+  });
+}
+
+/// A Flutter asset an item image previews with in the widget gallery.
+class ListPreviewAsset {
+  /// The key of the list.
+  final String listKey;
+
+  /// The key of the image field.
+  final String fieldKey;
+
+  /// The entry of the field's `previewValues` naming [asset], or null when it
+  /// is the field's `previewAsset`.
+  final int? index;
+
+  /// The asset key, spelled like `previewAsset`.
+  final String asset;
+
+  /// Creates a [ListPreviewAsset].
+  const ListPreviewAsset({
+    required this.listKey,
+    required this.fieldKey,
+    required this.asset,
+    this.index,
+  });
+}
+
+/// Whether Android draws [widget] as text in a custom font, which the room of
+/// has to be measured before it is drawn.
+bool androidMeasuresText(HWWidget widget) => switch (widget) {
+      HWFontWidget(fontVariant: _?) => true,
+      _ => false,
+    };
+
 /// Separator between the parts [WidgetSpec.previewContentHash] digests.
 ///
 /// Do not change it: the digest it produces is what decides whether a launcher
@@ -230,6 +424,59 @@ class WidgetSpec {
   /// Android has no accessory families, so no site ever sees one.
   List<HWSizeAdaptiveSite> get androidSizeAdaptiveSites =>
       _sizeAdaptiveSites(android: true, visible: androidReachableFamilies);
+
+  /// Every widget Android renders, in render order.
+  ///
+  /// Only what the Glance emit reaches: the iOS half of an [HWAdaptive] and the
+  /// slots of an [HWSizeAdaptive] no family in [androidReachableFamilies]
+  /// resolves to are left out, so a widget only iOS renders is never reported.
+  Iterable<HWWidget> get androidRenderedWidgets =>
+      androidRenderedWithin(effectiveWidgetTree);
+
+  /// The builders whose item draws text in a custom font, in render order.
+  ///
+  /// Android measures the room such a text has per widget size and per item,
+  /// under a key carrying the item's index. A list of another length therefore
+  /// renders keys nothing measured, so a running widget has to measure again
+  /// once the number of items it shows changed.
+  List<HWMultiChildWidget> get androidMeasuredItemBuilders => [
+        for (final widget in androidRenderedWidgets)
+          if (widget case HWMultiChildWidget(:final item?, list: _?))
+            if (androidRenderedWithin(item).any(androidMeasuresText)) widget,
+      ];
+
+  /// [widget] and every widget Android renders of its subtree, in render
+  /// order, left out the way [androidRenderedWidgets] leaves them out.
+  Iterable<HWWidget> androidRenderedWithin(HWWidget widget) =>
+      _androidRendered(widget, androidReachableFamilies);
+
+  static Iterable<HWWidget> _androidRendered(
+    HWWidget widget,
+    Set<HWWidgetFamily> reachable,
+  ) sync* {
+    yield widget;
+
+    if (widget is HWAdaptive) {
+      yield* _androidRendered(widget.android, reachable);
+      return;
+    }
+
+    if (widget is HWSizeAdaptive) {
+      final seen = <HWWidget>[];
+      for (final family in reachable) {
+        final slot = widget.resolve(family);
+        if (slot == null) continue;
+        if (seen.any((other) => identical(other, slot))) continue;
+        seen.add(slot);
+        yield* _androidRendered(slot, reachable);
+      }
+      return;
+    }
+
+    for (final child in widget.childWidgets) {
+      yield* _androidRendered(child, reachable);
+    }
+  }
 
   /// Every [HWSizeAdaptive] either platform reaches, in document order and
   /// without repeating an instance both trees hold.
@@ -460,9 +707,10 @@ class WidgetSpec {
   /// Constant localized strings are excluded: they are inlined into the widget
   /// body and must never reach the data class, preferences or `saveData`.
   /// Asset images are excluded too: native code reads them straight out of the
-  /// app bundle, so they are never stored.
+  /// app bundle, so they are never stored. So is an [HWItemData], which only
+  /// the item of a list reads.
   List<HWDataType<dynamic>> get primitiveDataFields => dataFields
-      .where((f) => f is! HWJson && f is! HWTimedData)
+      .where((f) => f is! HWJson && f is! HWTimedData && f is! HWItemData)
       .where((f) => !(f is HWLocalizedString && f.isConstant))
       .where((f) => !(f is HWImageData && f.isAsset))
       .toList();
@@ -498,12 +746,19 @@ class WidgetSpec {
             if (json.leafType case final HWLocalizedString leaf) leaf,
       ];
 
+  /// Localized strings among the item fields of a list, which supply the
+  /// fallback for an item storing no text, exactly like [jsonLocalizedStrings].
+  List<HWLocalizedString> get listLocalizedStrings => [
+        for (final group in listDataGroups) ...group.localizedStrings,
+      ];
+
   /// Every localized string this widget carries, wherever it is declared.
   List<HWLocalizedString> get allLocalizedStrings => [
         ...localizedStrings,
         ...timedLocalizedStrings,
         ...jsonLocalizedStrings,
         ...timedJsonLocalizedStrings,
+        ...listLocalizedStrings,
       ];
 
   /// Localized strings backed by a preferences key of their own, i.e.
@@ -641,8 +896,11 @@ class WidgetSpec {
   bool get androidAutoUpdatePreview => data.android?.autoUpdatePreview ?? true;
 
   /// Whether any field ships a value the gallery preview shows in place of
-  /// stored data, wherever it is declared.
-  bool get hasPreviewValues => dataLeaves.any(_hasPreviewValue);
+  /// stored data, wherever it is declared, a list previewing sample items
+  /// included.
+  bool get hasPreviewValues =>
+      dataLeaves.any(_hasPreviewValue) ||
+      listDataGroups.any((group) => group.sampleItemCount > 0);
 
   /// Runtime images previewing through a Flutter asset, wherever they are
   /// declared.
@@ -679,6 +937,9 @@ class WidgetSpec {
         context: androidEmitContext,
       ),
       for (final field in dataFields) _fieldFingerprint(field),
+      for (final group in listDataGroups)
+        'list(${group.key},${group.timed},'
+            '${group.fields.map(_fieldFingerprint).join(',')})',
     ];
     final digest = fnv1a32(parts.join(_hashSeparator));
     return digest.toRadixString(16).padLeft(8, '0');
@@ -720,6 +981,9 @@ class WidgetSpec {
         return 'timed(${_fieldFingerprint(field.data)})';
       case HWJson<dynamic>():
         return 'json(${field.key}>${_fieldFingerprint(field.child)})';
+      case HWItemData<dynamic>():
+        return 'item(${_fieldFingerprint(field.data)},'
+            '${_previewValuesFingerprint(field.previewValues)})';
       case HWLocalizedString():
         return 'localized(${field.key},${field.isConstant},'
             '${_translationsFingerprint(field.defaultTranslations)},'
@@ -750,6 +1014,13 @@ class WidgetSpec {
     final entries = values.entries.map((e) => '${e.key}=${e.value}').toList()
       ..sort();
     return entries.join(_hashSeparator);
+  }
+
+  /// [values] as a digest-stable string, each entry tagged with its type so
+  /// that `1`, `1.0` and `'1'` hash apart.
+  static String _previewValuesFingerprint(List<Object>? values) {
+    if (values == null) return '-';
+    return values.map((v) => '${v.runtimeType}:$v').join(_hashSeparator);
   }
 
   /// [value] carrying the `homeWidget` query parameter.
@@ -798,18 +1069,23 @@ class WidgetSpec {
   /// The icon fields this widget stores, wherever they are declared.
   ///
   /// Time-based and JSON wrappers are descended, so a field reaches this list
-  /// however it is spelled.
+  /// however it is spelled, and the item fields of every list follow.
   List<HWIconData> get iconFields => [
         for (final field in dataFields)
           if (iconLeafOf(field) case final icon?) icon,
+        for (final group in listDataGroups) ...group.iconFields,
       ];
 
   /// Every icon field paired with the dotted path saying where it is
-  /// declared; a field with no resolved entry is left out.
+  /// declared, `forecast[].condition` for an item field; a field with no
+  /// resolved entry is left out.
   List<(String, HWIconData)> get _pathedIconFields => [
         for (final field in dataFields)
           if (iconLeafOf(field) case final icon?)
             if (icon.entries.isNotEmpty) (_iconFieldPath(field), icon),
+        for (final group in listDataGroups)
+          for (final icon in group.iconFields)
+            if (icon.entries.isNotEmpty) ('${group.key}[].${icon.key}', icon),
       ];
 
   static String _iconFieldPath(HWDataType<dynamic> field) {
@@ -1003,8 +1279,17 @@ class WidgetSpec {
   String get defaultLocale => data.localization?.defaultLocale ?? 'en';
 
   /// Time-based [dataFields], in declaration order.
-  List<HWTimedData<dynamic>> get timedDataFields =>
-      dataFields.whereType<HWTimedData<dynamic>>().toList();
+  ///
+  /// An item field of a time-based list is not one: it belongs to the list.
+  List<HWTimedData<dynamic>> get timedDataFields => dataFields
+      .whereType<HWTimedData<dynamic>>()
+      .where((field) => field.data is! HWItemData)
+      .toList();
+
+  /// Whether the widget stores anything time-based: a [timedDataFields] entry
+  /// or a time-based list.
+  bool get hasTimedData =>
+      timedDataFields.isNotEmpty || timedListGroups.isNotEmpty;
 
   /// Timed fields wrapping a non-[HWJson] type, unwrapped to the inner type.
   List<HWDataType<dynamic>> get timedPrimitiveDataFields => [
@@ -1073,7 +1358,50 @@ class WidgetSpec {
   bool get hasRuntimeImages =>
       runtimeImageFields.isNotEmpty ||
       jsonImageFields.isNotEmpty ||
-      timedJsonImageFields.isNotEmpty;
+      timedJsonImageFields.isNotEmpty ||
+      listImageFields.isNotEmpty;
+
+  /// The image fields of every list, time-based ones included.
+  List<ListImageField> get listImageFields => [
+        for (final group in listDataGroups)
+          for (final image in group.imageFields)
+            ListImageField(
+              listKey: group.key,
+              timed: group.timed,
+              image: image,
+            ),
+      ];
+
+  /// Every Flutter asset an item image previews with, once each, in first-seen
+  /// order: the `previewAsset` of an image field and each of its
+  /// `previewValues`.
+  List<ListPreviewAsset> get listPreviewAssets {
+    final references = [
+      for (final group in listDataGroups)
+        for (final field in group.fields)
+          if (imageLeafOf(field) case final image?) ...[
+            if (image.previewAsset case final asset?)
+              ListPreviewAsset(
+                listKey: group.key,
+                fieldKey: image.key,
+                asset: asset,
+              ),
+            for (final (index, value) in (field.previewValues ?? []).indexed)
+              if (value is String)
+                ListPreviewAsset(
+                  listKey: group.key,
+                  fieldKey: image.key,
+                  index: index,
+                  asset: value,
+                ),
+          ],
+    ];
+    final seen = <String>{};
+    return [
+      for (final reference in references)
+        if (seen.add(reference.asset)) reference,
+    ];
+  }
 
   List<JsonImageField> _jsonImages(List<JsonDataGroup> groups) => [
         for (final group in groups)
@@ -1130,4 +1458,78 @@ class WidgetSpec {
         ),
     ];
   }
+
+  /// Every `HWColumn.builder` and `HWRow.builder` in the tree, in document
+  /// order, both platforms' included.
+  ///
+  /// One builder written into two places is one declaration.
+  List<ListDeclaration> get declaredLists {
+    final declarations = <ListDeclaration>[];
+    for (final widget in effectiveWidgetTree.descendants) {
+      if (widget is! HWMultiChildWidget) continue;
+      final key = widget.list;
+      if (key == null) continue;
+      if (declarations.any((other) => identical(other.builder, widget))) {
+        continue;
+      }
+      declarations.add(
+        ListDeclaration(key: key, builder: widget, reads: widget.itemReads),
+      );
+    }
+    return declarations;
+  }
+
+  /// The lists the widget stores, one per key in first-seen order, each
+  /// holding the item fields every builder over it reads.
+  ///
+  /// Derived from the tree alone: a list is never one of [dataFields].
+  List<ListDataGroup> get listDataGroups {
+    final keys = <String>[];
+    final grouped = <String, List<ListDeclaration>>{};
+    for (final declaration in declaredLists) {
+      grouped.putIfAbsent(declaration.key, () {
+        keys.add(declaration.key);
+        return <ListDeclaration>[];
+      }).add(declaration);
+    }
+
+    return [
+      for (final key in keys) _listDataGroup(key, grouped[key]!),
+    ];
+  }
+
+  static ListDataGroup _listDataGroup(
+    String key,
+    List<ListDeclaration> declarations,
+  ) {
+    final reads = [
+      for (final declaration in declarations) ...declaration.reads,
+    ];
+    final fields = <HWItemData<dynamic>>[];
+    for (final read in reads) {
+      final field = read.unwrapped as HWItemData<dynamic>;
+      final existing = fields.indexWhere((f) => f.isCompatibleWith(field));
+      if (existing == -1) {
+        fields.add(field);
+        continue;
+      }
+      fields[existing] =
+          fields[existing].mergedWith(field) as HWItemData<dynamic>;
+    }
+    return ListDataGroup(
+      key: key,
+      timed: reads.any((read) => read is HWTimedData),
+      fields: fields,
+      declarations: declarations,
+    );
+  }
+
+  /// The [listDataGroups] stored under a preferences key of their own.
+  List<ListDataGroup> get untimedListGroups =>
+      listDataGroups.where((group) => !group.timed).toList();
+
+  /// The [listDataGroups] traveling inside the entries of the timed data
+  /// file.
+  List<ListDataGroup> get timedListGroups =>
+      listDataGroups.where((group) => group.timed).toList();
 }

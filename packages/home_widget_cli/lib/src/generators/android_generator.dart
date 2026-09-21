@@ -39,20 +39,20 @@ class AndroidGenerator {
     final jsonGroups = spec.jsonDataGroups;
     final timedPrimitiveFields = spec.timedPrimitiveDataFields;
     final timedJsonGroups = spec.timedJsonDataGroups;
-    final hasTimedFields = spec.timedDataFields.isNotEmpty;
-    final hasDataFields =
-        primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedFields;
+    final lists = spec.listDataGroups;
+    final hasTimedData = spec.hasTimedData;
+    final hasDataFields = primitiveFields.isNotEmpty ||
+        jsonGroups.isNotEmpty ||
+        hasTimedData ||
+        lists.isNotEmpty;
 
     // The Kotlin `locales` parameter and every argument passed to it have to be
     // gated on this one flag; two separately-spelled "equivalent" conditions
     // emit Kotlin that does not compile.
     final needsLocaleArg = spec.resolvesLocalizedOnRead;
     final needsResolver = spec.needsLocaleHelpers;
-    // A preview resolves the JSON leaves that ship preview translations itself,
-    // which the plain read leaves to the render site.
-    final previewNeedsLocaleArg = needsLocaleArg ||
-        (spec.hasPreviewValues &&
-            [...jsonGroups, ...timedJsonGroups].any(_previewResolvesLocalized));
+    final previewNeedsLocaleArg =
+        needsLocaleArg || _previewResolvesTranslations;
 
     final nativeHelpers = kotlinNativeHelpers(spec.nativeHelpers).toList();
 
@@ -146,6 +146,12 @@ class AndroidGenerator {
         final jsonClass = '${spec.className}${toPascalCase(group.key)}JsonData';
         buffer.writeln('    val ${group.key}: $jsonClass? = null,');
       }
+      for (final group in lists) {
+        buffer.writeln(
+          '    val ${group.key}: '
+          'List<${group.itemClassName(spec.className)}>? = null,',
+        );
+      }
       buffer.write('''
 ) {
     companion object {
@@ -157,7 +163,7 @@ class AndroidGenerator {
         buffer.writeln();
         buffer.write(_androidDataFactory(className: className, preview: true));
       }
-      if (hasTimedFields) {
+      if (hasTimedData) {
         buffer.writeln();
         buffer.write(_kotlinTimedDataResolver());
       }
@@ -179,6 +185,10 @@ class AndroidGenerator {
                 spec.hasPreviewValues && _previewResolvesLocalized(group),
           ),
         );
+      }
+      for (final group in lists) {
+        buffer.writeln();
+        buffer.write(_androidListItemClass(group));
       }
       dataClassContent = buffer.toString();
     }
@@ -398,6 +408,8 @@ class AndroidGenerator {
           )
         : null;
 
+    final measuredItemBuilders = spec.androidMeasuredItemBuilders;
+
     await widgetFile.writeAsString(
       androidGlanceWidgetTemplate(
         packageName: packageName,
@@ -410,6 +422,13 @@ class AndroidGenerator {
         previewParameter: spec.hasPreviewValues,
         previewFingerprint: previewFingerprint,
         measuresTextBounds: rendersCustomFontText,
+        measuredItemCounts:
+            rendersCustomFontText && measuredItemBuilders.isNotEmpty
+                ? _measuredItemCountsFunction(
+                    builders: measuredItemBuilders,
+                    needsLocaleArg: needsLocaleArg,
+                  )
+                : null,
       ),
     );
     logger.detail('Generated: ${widgetFile.path}');
@@ -504,10 +523,11 @@ class AndroidGenerator {
     if (widgetUrl != null) {
       await ensureAndroidManifestLaunchIntent(projectRoot);
     }
-    if (spec.timedDataFields.isNotEmpty) {
+    if (hasTimedData) {
       // Time-based content drives itself through HomeWidget.scheduleWidgetUpdates
       // on Android, which needs the plugin's scheduling receiver declared by the
-      // consuming app. Specs without timed fields must not touch the manifest.
+      // consuming app. Specs without time-based data must not touch the
+      // manifest.
       await ensureAndroidManifestScheduledUpdates(projectRoot);
     }
   }
@@ -704,20 +724,18 @@ class AndroidGenerator {
     String groupLocaleArg(JsonDataGroup group) =>
         preview && _previewResolvesLocalized(group) ? ', locales' : '';
     final needsLocales = spec.resolvesLocalizedOnRead ||
-        (preview &&
-            [...spec.jsonDataGroups, ...spec.timedJsonDataGroups]
-                .any(_previewResolvesLocalized));
+        (preview && _previewResolvesTranslations);
     final localeParam = needsLocales ? ', locales: List<String>' : '';
-    final hasTimedFields = spec.timedDataFields.isNotEmpty;
+    final hasTimedData = spec.hasTimedData;
     final nowParam =
-        hasTimedFields ? ', now: Long = System.currentTimeMillis()' : '';
+        hasTimedData ? ', now: Long = System.currentTimeMillis()' : '';
 
     final buffer = StringBuffer();
     buffer.writeln(
       '        fun $name(prefs: android.content.SharedPreferences'
       '$localeParam$nowParam): $className {',
     );
-    if (hasTimedFields) {
+    if (hasTimedData) {
       buffer.writeln(
         '            val timedValues = resolveTimedValues(prefs, now)',
       );
@@ -771,12 +789,87 @@ class AndroidGenerator {
         '${groupLocaleArg(group)}),',
       );
     }
+    for (final group in spec.listDataGroups) {
+      final itemClass = group.itemClassName(spec.className);
+      final read = group.timed
+          ? '$itemClass.fromJsonArray('
+              'timedValues.optJSONArray("${group.key}"))'
+          : '$itemClass.fromPath('
+              'prefs.getString("\${PREFERENCES_PREFIX}.${group.key}", null))';
+      if (!preview || group.sampleItemCount == 0) {
+        buffer.writeln('                ${group.key} = $read,');
+        continue;
+      }
+      buffer.writeln('                ${group.key} = $read');
+      buffer.write(_kotlinPreviewItems(group, itemClass));
+    }
     buffer.write('''
             )
         }
 ''');
     return buffer.toString();
   }
+
+  /// The sample items of [group], which the gallery shows until a list is
+  /// saved, as the fallback of the preview factory's read.
+  String _kotlinPreviewItems(ListDataGroup group, String itemClass) {
+    String item(int index) {
+      final arguments = [
+        for (final field in group.fields)
+          if (group.sampleValue(field, index) case final value?)
+            '${field.key} = ${_kotlinSampleLiteral(field.data, value)}',
+      ];
+      return '$itemClass(${arguments.join(', ')})';
+    }
+
+    final count = group.sampleItemCount;
+    final buffer = StringBuffer();
+    if (!group.variesSampleItems) {
+      buffer.writeln('                    ?: List($count) { ${item(0)} },');
+      return buffer.toString();
+    }
+
+    buffer.writeln('                    ?: listOf(');
+    for (var index = 0; index < count; index++) {
+      buffer.writeln('                        ${item(index)},');
+    }
+    buffer.writeln('                    ),');
+    return buffer.toString();
+  }
+
+  /// [value], a field's value in a sample item as [ListDataGroup.sampleValue]
+  /// spells it, as the Kotlin property of [leaf] holds it.
+  String _kotlinSampleLiteral(HWDataType<dynamic> leaf, Object value) {
+    if (value is Map) {
+      return _kotlinPreviewLocalizedFallback(leaf as HWLocalizedString);
+    }
+    return switch (leaf) {
+      HWDateTime() =>
+        'hwParseIsoDate("${escapeKotlinStringLiteral(value as String)}")',
+      HWString() ||
+      HWImageData() =>
+        '"${escapeKotlinStringLiteral(value as String)}"',
+      HWInt() => '${value}L',
+      HWDouble() => '${(value as num).toDouble()}',
+      _ => '$value',
+    };
+  }
+
+  /// Whether the preview factory resolves translations itself, and so takes
+  /// the locale list: a JSON leaf shipping preview translations, or a sample
+  /// item holding them, which the plain read leaves to the render site.
+  bool get _previewResolvesTranslations =>
+      spec.hasPreviewValues &&
+      ([...spec.jsonDataGroups, ...spec.timedJsonDataGroups]
+              .any(_previewResolvesLocalized) ||
+          spec.listDataGroups.any(_samplesResolveLocalized));
+
+  /// Whether a sample item of [group] holds a localized field's preview
+  /// translations.
+  static bool _samplesResolveLocalized(ListDataGroup group) => [
+        for (var index = 0; index < group.sampleItemCount; index++)
+          for (final field in group.fields) group.sampleValue(field, index),
+      ].any((value) => value is Map);
 
   /// The `previewFingerprint` the generated receiver forwards to the plugin,
   /// which re-registers the gallery preview whenever it changes.
@@ -786,6 +879,33 @@ class AndroidGenerator {
   /// for a language change, the stored data where the preview reads it, and the
   /// modification time of every runtime image file that data points at, whose
   /// path stays the same when its bytes are replaced.
+  /// The Kotlin `hwMeasuredItemCounts` counting the items of every one of
+  /// [builders], which is what tells a running widget that the room its item
+  /// texts have is worth measuring again.
+  ///
+  /// The locale a localized field resolves against decides nothing about how
+  /// many items a list holds, so the counts are read without one.
+  String _measuredItemCountsFunction({
+    required List<HWMultiChildWidget> builders,
+    required bool needsLocaleArg,
+  }) {
+    final localeArg = needsLocaleArg ? ', emptyList()' : '';
+    final counts = [
+      for (final builder in builders)
+        'widgetData.${builder.list}.orEmpty()'
+            '${builder.maxItems == null ? '' : '.take(${builder.maxItems})'}'
+            '.size',
+    ].join(', ');
+
+    return '''
+  /** How many items every list whose item draws text in a custom font shows. */
+  private fun hwMeasuredItemCounts(currentState: HomeWidgetGlanceState): List<Int> {
+    val widgetData = ${spec.className}Data.fromPreferences(currentState.preferences$localeArg)
+    return listOf($counts)
+  }
+''';
+  }
+
   String _previewFingerprintFunction({
     required bool hasDataFields,
     required bool needsLocaleArg,
@@ -814,10 +934,10 @@ class AndroidGenerator {
 ''');
       parts.add('hwPreviewData.toString()');
 
-      final imagePaths = _previewImagePathAccessors('hwPreviewData');
-      if (imagePaths.isNotEmpty) {
+      final imagePaths = _previewImagePaths('hwPreviewData');
+      if (imagePaths != null) {
         parts.add(
-          'listOf(${imagePaths.join(', ')}).joinToString(",") '
+          '$imagePaths.joinToString(",") '
           '{ hwPath -> hwPath?.let { java.io.File(it).lastModified().toString() }'
           ' ?: "" }',
         );
@@ -834,17 +954,37 @@ class AndroidGenerator {
     return buffer.toString();
   }
 
-  /// Kotlin accessors, from [dataExpr], for every runtime image path the
-  /// preview can read. Asset images are left out; they have no runtime file.
-  List<String> _previewImagePathAccessors(String dataExpr) => [
-        for (final field in spec.runtimeImageFields) '$dataExpr.${field.key}',
-        for (final field in [
-          ...spec.jsonImageFields,
-          ...spec.timedJsonImageFields,
-        ])
-          if (!field.image.isAsset)
-            '$dataExpr.${field.rootKey}?.${field.path.join('?.')}',
-      ];
+  /// A Kotlin list, from [dataExpr], of every runtime image path the preview
+  /// can read, the images of every stored item included, or null when there
+  /// is none. Asset images are left out; they have no runtime file.
+  String? _previewImagePaths(String dataExpr) {
+    final accessors = [
+      for (final field in spec.runtimeImageFields) '$dataExpr.${field.key}',
+      for (final field in [
+        ...spec.jsonImageFields,
+        ...spec.timedJsonImageFields,
+      ])
+        if (!field.image.isAsset)
+          '$dataExpr.${field.rootKey}?.${field.path.join('?.')}',
+    ];
+    final lists = [
+      if (accessors.isNotEmpty) 'listOf(${accessors.join(', ')})',
+      for (final group in spec.listDataGroups)
+        if (_itemImagePaths(group.imageFields) case final paths?)
+          '$dataExpr.${group.key}.orEmpty().$paths',
+    ];
+    if (lists.isEmpty) return null;
+    return lists.length == 1 ? lists.single : '(${lists.join(' + ')})';
+  }
+
+  /// The call collecting the paths of [images] off every item of a list, or
+  /// null when its item holds no image.
+  static String? _itemImagePaths(List<HWImageData> images) {
+    if (images.isEmpty) return null;
+    if (images.length == 1) return 'map { it.${images.single.key} }';
+    final paths = images.map((image) => 'it.${image.key}').join(', ');
+    return 'flatMap { listOf($paths) }';
+  }
 
   /// Emits the companion-object helper resolving the timed data entry that is
   /// active at `now` (greatest timestamp <= now), or an empty object.
@@ -887,7 +1027,7 @@ class AndroidGenerator {
     if (defaultValue is String) {
       return '"${escapeKotlinStringLiteral(defaultValue)}"';
     }
-    if (defaultValue is int) return '${defaultValue}L';
+    if (defaultValue is int && field is! HWIconData) return '${defaultValue}L';
     return '$defaultValue';
   }
 
@@ -1108,6 +1248,88 @@ class AndroidGenerator {
     if (values == null) return 'null';
     final base = escapeKotlinStringLiteral(leaf.previewBaseLocaleTag!);
     return 'hwResolveLocalized(locales, $values, "$base")';
+  }
+
+  /// The class an item of [group] is decoded into, with the factories reading
+  /// a stored list of them.
+  ///
+  /// Every property is nullable, as on the data class, so a widget reads an
+  /// item field the way it reads a root one; `fromJson` applies the defaults.
+  /// It is a data class for the `toString` the preview fingerprint digests,
+  /// and one needs a property, so an item holding no field spells out what a
+  /// data class would generate.
+  String _androidListItemClass(ListDataGroup group) {
+    final className = group.itemClassName(spec.className);
+    final buffer = StringBuffer();
+    if (group.fields.isEmpty) {
+      buffer.write('''
+class $className {
+    override fun equals(other: Any?): Boolean = other is $className
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "$className()"
+
+''');
+    } else {
+      buffer.writeln('data class $className(');
+      for (final field in group.fields) {
+        buffer
+            .writeln('    val ${field.key}: ${field.data.kotlinType}? = null,');
+      }
+      buffer.writeln(') {');
+    }
+
+    buffer.write('''
+    companion object {
+        fun fromPath(path: String?): List<$className>? {
+            if (path == null) return null
+            return try {
+                val file = java.io.File(path)
+                if (!file.exists()) return null
+                fromJsonArray(org.json.JSONArray(file.readText()))
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        fun fromJsonArray(array: org.json.JSONArray?): List<$className>? {
+            if (array == null) return null
+''');
+
+    if (group.fields.isEmpty) {
+      buffer.write('''
+            return List(array.length()) { $className() }
+        }
+    }
+}
+''');
+      return buffer.toString();
+    }
+
+    buffer.write('''
+            return List(array.length()) { index -> fromJson(array.optJSONObject(index)) }
+        }
+
+        fun fromJson(obj: org.json.JSONObject?): $className {
+            val json = obj ?: org.json.JSONObject()
+            return $className(
+''');
+    for (final field in group.fields) {
+      final read = _androidLeafReadExpression(
+        objExpr: 'json',
+        key: field.key,
+        type: field.data,
+      );
+      buffer.writeln('                ${field.key} = $read,');
+    }
+    buffer.write('''
+            )
+        }
+    }
+}
+''');
+    return buffer.toString();
   }
 
   /// Whether [group] has a localized leaf whose preview translations the preview

@@ -1182,6 +1182,138 @@ void main() {
     });
   });
 
+  group('item fields', () {
+    test('render exactly like the same root field read off the item', () {
+      const fields = <HWDataType<dynamic>>[
+        HWString('label'),
+        HWString('label', defaultValue: 'none'),
+        HWInt('count'),
+        HWInt('count', defaultValue: 0),
+        HWDouble('ratio'),
+        HWBool('done'),
+        HWDateTime('day'),
+      ];
+
+      for (final field in fields) {
+        final item = HWText(HWItemData(field));
+        final root = HWText(field);
+        expect(
+          item.toSwift(0, dataExpr: 'entry.data'),
+          root.toSwift(0, dataExpr: 'hwItem'),
+          reason: field.key,
+        );
+        expect(
+          item.toKotlin(0, dataExpr: 'widgetData'),
+          root.toKotlin(0, dataExpr: 'hwItem'),
+          reason: field.key,
+        );
+      }
+    });
+
+    test('format numbers and dates read off the item', () {
+      const number = HWText.number(
+        HWItemData(HWInt('temperature', defaultValue: 0)),
+      );
+      const date = HWText.dateTime(
+        HWTimedData(HWItemData(HWDateTime('day'))),
+        format: HWDateFormat.skeleton('E'),
+      );
+
+      expect(number.formatsNumber, isTrue);
+      expect(
+        number.toSwift(0, dataExpr: 'entry.data'),
+        contains('NSNumber(value: hwItem.temperature ?? 0)'),
+      );
+      expect(
+        number.toKotlin(0, dataExpr: 'widgetData'),
+        contains('hwFormatDecimal((hwItem.temperature ?: 0L)'),
+      );
+      expect(date.formatsDate, isTrue);
+      expect(
+        date.toSwift(0, dataExpr: 'entry.data'),
+        contains(r'Text(hwItem.day.map { hwFormatDateSkeleton($0, "E") }'),
+      );
+    });
+
+    test('a currency or a time zone of the item reads off the item', () {
+      const price = HWText.number(
+        HWItemData(HWDouble('price')),
+        format: HWNumberFormat.currency(
+          currency: HWCurrency.data(HWItemData(HWString('currency'))),
+        ),
+      );
+      const start = HWText.dateTime(
+        HWItemData(HWDateTime('start')),
+        timeZone: HWTimeZone.data(HWItemData(HWString('zone'))),
+      );
+
+      expect(
+        price.toSwift(0, dataExpr: 'entry.data'),
+        contains('code: hwItem.currency ?? ""'),
+      );
+      expect(
+        price.toKotlin(0, dataExpr: 'widgetData'),
+        contains('hwItem.currency ?: ""'),
+      );
+      expect(
+        start.toKotlin(0, dataExpr: 'widgetData'),
+        contains('hwFormatLocale(context), hwItem.zone)'),
+      );
+      expect(price.dataDependencies, {
+        const HWItemData(HWDouble('price')),
+        const HWItemData(HWString('currency')),
+      });
+    });
+
+    test('a localized one falls back to its translations', () {
+      const text = HWText(
+        HWItemData(
+          HWLocalizedString.resolved(
+            'title',
+            defaultTranslations: {'en': 'Event'},
+            isConstant: false,
+            defaultLocale: 'en',
+          ),
+        ),
+      );
+
+      expect(
+        text.toSwift(0, dataExpr: 'entry.data'),
+        'Text(((hwItem.title) ?? hwResolveLocalized(hwCurrentLocales(), '
+        '["en": "Event"], baseLocale: "en") ?? "Event"))',
+      );
+      expect(
+        text.toKotlin(0, dataExpr: 'widgetData'),
+        'Text(text = (hwItem.title ?: hwResolveLocalized(hwLocales, '
+        'mapOf("en" to "Event"), "en") ?: "Event"), '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+      );
+      expect(
+        text.nativeHelpers,
+        {HWNativeHelper.hwCurrentLocales, HWNativeHelper.hwResolveLocalized},
+      );
+    });
+
+    test('a root field beside them still reads the widget data', () {
+      const row = HWRow.builder(
+        'forecast',
+        item: HWColumn(
+          children: [
+            HWText(HWItemData(HWString('day'))),
+            HWText(HWString('unit')),
+          ],
+        ),
+      );
+
+      final swift = row.toSwift(0, dataExpr: 'entry.data');
+      expect(swift, contains('Text(hwItem.day ?? "")'));
+      expect(swift, contains('Text(entry.data.unit ?? "")'));
+      final kotlin = row.toKotlin(0, dataExpr: 'widgetData');
+      expect(kotlin, contains('Text(text = hwItem.day ?: ""'));
+      expect(kotlin, contains('Text(text = widgetData.unit ?: ""'));
+    });
+  });
+
   group('nativeHelpers', () {
     Set<String> namesOf(HWWidget widget) =>
         widget.nativeHelpers.map((h) => h.name).toSet();
