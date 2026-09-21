@@ -12,10 +12,10 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 @HomeWidget(
   name: 'Simple Color',
   android: HomeWidgetAndroidConfiguration(),
-  widget: HWFill(
+  widget: HWSizedBox.expand(
     child: HWColoredBox(
       color: HWColor.fixed(0xFF0000FF),
-      child: HWFill(
+      child: HWSizedBox.expand(
         child: HWColumn(
           children: [
             HWText.fixed('No Color'),

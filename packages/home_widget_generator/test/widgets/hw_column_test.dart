@@ -75,6 +75,40 @@ void main() {
     });
 
     group('iOS (SwiftUI)', () {
+      test('swiftFrameAlignment keeps the cross axis, never the main one', () {
+        const children = [HWText.fixed('a')];
+        expect(
+          const HWColumn(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.start,
+            mainAxisAlignment: HWMainAxisAlignment.end,
+          ).swiftFrameAlignment,
+          '.topLeading',
+        );
+        expect(
+          const HWColumn(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.center,
+          ).swiftFrameAlignment,
+          '.top',
+        );
+        expect(
+          const HWColumn(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          ).swiftFrameAlignment,
+          '.top',
+        );
+        expect(
+          const HWColumn(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.end,
+          ).swiftFrameAlignment,
+          '.topTrailing',
+        );
+        expect(const HWColumn(children: children).swiftFrameAlignment, '.top');
+      });
+
       test('VStack with children', () {
         final node = HWColumn(
           children: [HWText.fixed('a'), HWText.fixed('b')],
@@ -533,17 +567,22 @@ void main() {
         );
       });
 
-      test('a Box in between gives the column its height back', () {
+      test('a sized box in between gives the column its height back', () {
         const inner = HWColumn(
           children: [HWText.fixed('a')],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         const node = HWColumn(
-          children: [HWFill(child: inner), HWText.fixed('b')],
+          children: [HWSizedBox.expand(child: inner), HWText.fixed('b')],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
-        expect(r, contains('Column(modifier = GlanceModifier.fillMaxSize(), '));
-        expect(r, isNot(contains('fillMaxSize().fillMaxHeight()')));
+        expect(
+          r,
+          contains(
+            'Column(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), ',
+          ),
+        );
+        expect(r, isNot(contains('fillMaxHeight()')));
         expect(
           node.kotlinImports,
           contains('import androidx.glance.layout.fillMaxHeight'),

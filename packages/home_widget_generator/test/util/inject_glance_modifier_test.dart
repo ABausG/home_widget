@@ -93,6 +93,186 @@ void main() {
       expect(injectGlanceModifier(code, 'fillMaxWidth()'), code);
     });
 
+    test('reads a fill off the calls, not off a string literal', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.clickable(actionStartActivity'
+              '<MainActivity>(context, Uri.parse("app://x?q=fillMaxSize()"))), '
+              'text = "a")',
+          'fillMaxWidth()',
+        ),
+        'Text(modifier = GlanceModifier.fillMaxWidth().clickable'
+        '(actionStartActivity<MainActivity>(context, '
+        'Uri.parse("app://x?q=fillMaxSize()"))), text = "a")',
+      );
+    });
+
+    test('a size() does not keep an injected fill out', () {
+      expect(
+        injectGlanceModifier(
+          'Image(modifier = GlanceModifier.size(24.0.dp), provider = p)',
+          'fillMaxWidth()',
+        ),
+        'Image(modifier = GlanceModifier.fillMaxWidth().height(24.0.dp), '
+        'provider = p)',
+      );
+    });
+
+    test('drops the width the chain already carried', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.width(100.0.dp), text = "a")',
+          'width(80.0.dp)',
+        ),
+        'Text(modifier = GlanceModifier.width(80.0.dp), text = "a")',
+      );
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.fillMaxWidth()) {',
+          'width(80.0.dp)',
+        ),
+        'Column(modifier = GlanceModifier.width(80.0.dp)) {',
+      );
+    });
+
+    test('drops the height the chain already carried', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.height(50.0.dp), text = "a")',
+          'height(40.0.dp)',
+        ),
+        'Text(modifier = GlanceModifier.height(40.0.dp), text = "a")',
+      );
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.fillMaxHeight()) {',
+          'fillMaxHeight()',
+        ),
+        'Column(modifier = GlanceModifier.fillMaxHeight()) {',
+      );
+    });
+
+    test('leaves a chain filling both axes the one it is not given', () {
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.fillMaxSize()) {',
+          'width(80.0.dp)',
+        ),
+        'Column(modifier = GlanceModifier.width(80.0.dp).fillMaxHeight()) {',
+      );
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.fillMaxSize()) {',
+          'height(40.0.dp)',
+        ),
+        'Column(modifier = GlanceModifier.height(40.0.dp).fillMaxWidth()) {',
+      );
+    });
+
+    test('drops every size when both axes are injected', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.width(100.0.dp).height(50.0.dp)'
+              '.padding(4.dp), text = "a")',
+          'fillMaxSize()',
+        ),
+        'Text(modifier = GlanceModifier.fillMaxSize().padding(4.dp), '
+        'text = "a")',
+      );
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.fillMaxSize()) {',
+          'width(80.0.dp).height(40.0.dp)',
+        ),
+        'Column(modifier = GlanceModifier.width(80.0.dp).height(40.0.dp)) {',
+      );
+    });
+
+    test('a size() sizes both axes, and keeps the one it is not given', () {
+      expect(
+        injectGlanceModifier(
+          'Image(modifier = GlanceModifier.size(24.0.dp), provider = p)',
+          'width(80.0.dp).height(40.0.dp)',
+        ),
+        'Image(modifier = GlanceModifier.width(80.0.dp).height(40.0.dp), '
+        'provider = p)',
+      );
+      expect(
+        injectGlanceModifier(
+          'Image(modifier = GlanceModifier.size(24.0.dp), provider = p)',
+          'width(80.0.dp)',
+        ),
+        'Image(modifier = GlanceModifier.width(80.0.dp).height(24.0.dp), '
+        'provider = p)',
+      );
+      expect(
+        injectGlanceModifier(
+          'Image(modifier = GlanceModifier.size(24.0.dp), provider = p)',
+          'height(40.0.dp)',
+        ),
+        'Image(modifier = GlanceModifier.height(40.0.dp).width(24.0.dp), '
+        'provider = p)',
+      );
+    });
+
+    test('a wrapContent call is a size too', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.wrapContentWidth(), text = "a")',
+          'width(80.0.dp)',
+        ),
+        'Text(modifier = GlanceModifier.width(80.0.dp), text = "a")',
+      );
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.wrapContentSize(), text = "a")',
+          'width(80.0.dp)',
+        ),
+        'Text(modifier = GlanceModifier.width(80.0.dp).wrapContentHeight(), '
+        'text = "a")',
+      );
+    });
+
+    test('keeps the modifiers sizing nothing, in the order they were in', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.background(Color.Red)'
+              '.padding(start = 8.dp).height(50.0.dp), text = "a")',
+          'width(80.0.dp)',
+        ),
+        'Text(modifier = GlanceModifier.width(80.0.dp).background(Color.Red)'
+        '.padding(start = 8.dp).height(50.0.dp), text = "a")',
+      );
+    });
+
+    test('keeps a defaultWeight the chain carried, whose axis it cannot see',
+        () {
+      expect(
+        injectGlanceModifier(
+          'Column(modifier = GlanceModifier.defaultWeight()) {',
+          'height(40.0.dp)',
+        ),
+        'Column(modifier = GlanceModifier.height(40.0.dp).defaultWeight()) {',
+      );
+    });
+
+    test('an injected defaultWeight sizes the axis it is named with', () {
+      const code = 'Column(modifier = GlanceModifier.fillMaxHeight()) {';
+      expect(
+        injectGlanceModifier(
+          code,
+          'fillMaxWidth().defaultWeight()',
+          weightAxis: GlanceSizeAxis.height,
+        ),
+        'Column(modifier = GlanceModifier.fillMaxWidth().defaultWeight()) {',
+      );
+      expect(
+        injectGlanceModifier(code, 'fillMaxWidth().defaultWeight()'),
+        'Column(modifier = GlanceModifier.fillMaxWidth().defaultWeight()'
+        '.fillMaxHeight()) {',
+      );
+    });
+
     test('rewrites bare GlanceModifier token in args', () {
       expect(
         injectGlanceModifier('Column(GlanceModifier) {', 'fillMaxSize'),

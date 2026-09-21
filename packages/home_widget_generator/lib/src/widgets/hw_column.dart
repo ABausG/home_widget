@@ -21,6 +21,16 @@ class HWColumn extends HWMultiChildWidget {
   HWCrossAxisAlignment get effectiveCrossAxisAlignment =>
       crossAxisAlignment ?? HWCrossAxisAlignment.center;
 
+  /// The cross axis is the horizontal one, so the column keeps its own
+  /// alignment there; a main axis alignment other than start is emitted as
+  /// `Spacer()`s expanding the `VStack`, which leaves the vertical one moot.
+  @override
+  String get swiftFrameAlignment => switch (effectiveCrossAxisAlignment) {
+        HWCrossAxisAlignment.start => '.topLeading',
+        HWCrossAxisAlignment.end => '.topTrailing',
+        HWCrossAxisAlignment.center || HWCrossAxisAlignment.baseline => '.top',
+      };
+
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
 

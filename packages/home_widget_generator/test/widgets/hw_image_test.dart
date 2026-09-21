@@ -12,6 +12,17 @@ void main() {
         expect(image.imageData.isAsset, isFalse);
       });
 
+      test('a frame larger than the picture centers it', () {
+        expect(
+          const HWImage(HWImageData('avatar')).swiftFrameAlignment,
+          '.center',
+        );
+        expect(
+          const HWImage.asset('assets/logo.png').swiftFrameAlignment,
+          '.center',
+        );
+      });
+
       test('asset constructor derives the key', () {
         const image = HWImage.asset('assets/images/logo.png');
         expect(image.imageData.key, 'assetsImagesLogoPng');

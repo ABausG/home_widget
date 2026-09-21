@@ -1,0 +1,21 @@
+---
+title: Migration to 0.2.0
+description: Breaking changes and migration guide for home_widget_generator 0.2.0
+---
+
+# Migration to 0.2.0
+
+Regenerate your widgets, then check the changes below.
+
+## HWFill was replaced by HWSizedBox.expand
+
+`HWFill` is gone. [`HWSizedBox`](/generator/widgets/hw-sized-box) does the same and more — a fixed width or height, and a gap without a child:
+
+```dart
+HWFill(child: x) // [!code --]
+HWSizedBox.expand(child: x) // [!code ++]
+```
+
+Inside an `HWColumn` or `HWRow` an expanded box now shares the main axis by weight with its siblings on Android, where `HWFill` took all the remaining room and left them none.
+
+On iOS `HWFill` centered a child smaller than itself. `HWSizedBox.expand` places it where its own alignment would instead — an `HWColumn` / `HWRow` by its `crossAxisAlignment`, an `HWImage` or `HWIcon` centered, a lone `HWText` at the top start — which is what the same tree already renders as on Android. A widget that relied on `HWFill` centering a bare child should wrap it in an `HWColumn` / `HWRow` with center alignments.

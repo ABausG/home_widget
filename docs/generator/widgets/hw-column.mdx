@@ -5,15 +5,15 @@ description: Vertical layout of children.
 
 # HWColumn
 
-Arranges its children vertically. The cross axis is horizontal, the main axis is vertical. Pair with [`HWRow`](/generator/widgets/hw-row) and [`HWFill`](/generator/widgets/hw-fill) to build layouts.
+Arranges its children vertically. The cross axis is horizontal, the main axis is vertical. Pair with [`HWRow`](/generator/widgets/hw-row) and [`HWSizedBox`](/generator/widgets/hw-sized-box) to build layouts.
 
 ```dart
-HWFill(
+HWSizedBox.expand(
   child: HWColumn(
     mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
     children: [
       HWText.fixed('Hello World'),
-      HWFill(
+      HWSizedBox.expand(
         child: HWRow(
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
           children: [HWText.fixed('1'), HWText.fixed('2')],

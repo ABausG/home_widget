@@ -962,19 +962,79 @@ class TestWidget {}
       expect(e.message, 'HWDataExists requires data');
     });
 
-    test('parses HWFill', () async {
+    test('parses HWSizedBox.expand', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWFill(
+  widget: HWSizedBox.expand(
     child: HWText.fixed('fill'),
   ),
 )
 class TestWidget {}
 ''';
       final widget = await parseCode(code);
-      expect(widget, isA<HWFill>());
-      expect(((widget as HWFill).child as HWText).fixedContent, 'fill');
+      expect(widget, isA<HWSizedBox>());
+      final box = widget as HWSizedBox;
+      expect(box.width, double.infinity);
+      expect(box.height, double.infinity);
+      expect((box.child as HWText).fixedContent, 'fill');
+    });
+
+    test('parses HWSizedBox dimensions written as int and double', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWSizedBox(width: 8, height: 8.5),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final box = widget as HWSizedBox;
+      expect(box.width, 8.0);
+      expect(box.height, 8.5);
+      expect(box.child, isNull);
+    });
+
+    test('parses HWSizedBox.shrink', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWSizedBox.shrink(),
+)
+class TestWidget {}
+''';
+      final box = await parseCode(code) as HWSizedBox;
+      expect(box.width, 0.0);
+      expect(box.height, 0.0);
+      expect(box.child, isNull);
+    });
+
+    test('throws when an HWSizedBox dimension is negative', () async {
+      final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWSizedBox(width: -1),
+)
+class TestWidget {}
+''');
+      expect(
+        e.message,
+        'HWSizedBox: width has to be zero or more, got -1.0.',
+      );
+    });
+
+    test('throws when an HWSizedBox dimension is NaN', () async {
+      final e = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWSizedBox(height: double.nan),
+)
+class TestWidget {}
+''');
+      expect(
+        e.message,
+        'HWSizedBox: height has to be zero or more, got NaN.',
+      );
     });
 
     test('parses HWImage with runtime HWImageData', () async {

@@ -225,6 +225,11 @@ class HWIcon extends HWWidget implements HWDataWidget {
           '@Environment(\\.layoutDirection) var layoutDirection',
       };
 
+  /// A glyph sits in the middle of a box larger than it is, which is what
+  /// Flutter's `Icon` and Glance's `fitCenter` do with it.
+  @override
+  String get swiftFrameAlignment => '.center';
+
   /// Decodes an [HWIcon] from an analyzer constant.
   static HWIcon fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final size =

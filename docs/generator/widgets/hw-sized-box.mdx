@@ -1,0 +1,62 @@
+---
+title: HWSizedBox
+description: Give a child a fixed size, or leave a gap.
+---
+
+# HWSizedBox
+
+Sizes its child to a fixed `width` and/or `height`, exactly like Flutter's `SizedBox`. An axis left `null` is sized by the child, and `double.infinity` takes every pixel the enclosing layout offers. Without a child the box is a gap, and an axis left `null` collapses to zero.
+
+```dart
+HWSizedBox.expand(
+  child: HWColumn(
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    children: [
+      HWRow(
+        children: [
+          HWText.fixed('Left'),
+          HWSizedBox(width: 16),
+          HWText.fixed('Right'),
+        ],
+      ),
+      HWSizedBox(height: 8),
+      HWColoredBox(
+        color: HWColor.fixed(0xFF2563EB),
+        child: HWSizedBox(
+          width: 80,
+          height: 40,
+          child: HWText.fixed('80 x 40'),
+        ),
+      ),
+      HWBoolConditional(
+        data: HWBool('showDetail'),
+        whenTrue: HWText.fixed('Detail'),
+        whenFalse: HWSizedBox.shrink(),
+      ),
+    ],
+  ),
+)
+```
+
+## Parameters
+
+| Name     | Type       | Default | Description                                                                |
+| -------- | ---------- | ------- | -------------------------------------------------------------------------- |
+| `width`  | `double?`  | `null`  | Width in logical pixels, `double.infinity` to fill, `null` to size from the child. |
+| `height` | `double?`  | `null`  | Height in logical pixels, `double.infinity` to fill, `null` to size from the child. |
+| `child`  | `HWWidget?`| `null`  | Widget being sized. Without one the box is an empty gap.                   |
+
+Two more const constructors, both taking only a `child`:
+
+- `HWSizedBox.shrink({HWWidget? child})` — `width` and `height` of `0`, so the box takes no room. Useful as the hidden branch of an [`HWBoolConditional`](/generator/widgets/hw-conditional) or [`HWDataExists`](/generator/widgets/hw-conditional).
+- `HWSizedBox.expand({HWWidget? child})` — `width` and `height` of `double.infinity`, so the box takes every pixel offered. Most useful as the root of a widget, or inside an [`HWColumn`](/generator/widgets/hw-column) / [`HWRow`](/generator/widgets/hw-row) to claim the remaining space.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`.frame(width:height:alignment:)`](https://developer.apple.com/documentation/swiftui/view/frame(width:height:alignment:)) for the axes with a fixed size and [`.frame(maxWidth:maxHeight:alignment:)`](<https://developer.apple.com/documentation/swiftui/view/frame(minwidth:idealwidth:maxwidth:minheight:idealheight:maxheight:alignment:)>) for the infinite ones. Those are two different overloads, so a box with one fixed and one infinite axis chains two `.frame` modifiers.
+- **Android:** Glance [`GlanceModifier.width(...)` / `height(...)`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary) in `dp`, or `fillMaxWidth()` / `fillMaxHeight()` / `fillMaxSize()` for an infinite axis, injected into the child's own composable.
+- Inside an `HWColumn` or `HWRow`, an infinite axis running **along** the main axis becomes `defaultWeight()` instead of a fill on Android: a Glance linear layout is a `LinearLayout`, and a child asking to match the parent there would leave its siblings nothing.
+- A child smaller than the box is placed where its **own alignment** puts it, which is what Flutter's tight constraints produce: an [`HWColumn`](/generator/widgets/hw-column) / [`HWRow`](/generator/widgets/hw-row) keeps its `crossAxisAlignment` across the box, an [`HWImage`](/generator/widgets/hw-image) or [`HWIcon`](/generator/widgets/hw-icon) is centered, and everything else sits at the top start. On iOS that is the `alignment:` of the emitted `.frame`, on Android the natural placement. An [`HWBoolConditional`](/generator/widgets/hw-conditional) / [`HWDataExists`](/generator/widgets/hw-conditional) / [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) child whose branches would be placed differently sits at the top start, since iOS applies the one frame around the whole conditional.
+- A box **without a child** is a gap: SwiftUI `Color.clear` in a frame, Glance `Spacer`. A gap of `0 × 0` is SwiftUI `EmptyView()` instead, since a stack puts its spacing around even a zero-size view.
+- A background is drawn by the child, so to color the whole box put the `HWSizedBox` inside the [`HWColoredBox`](/generator/widgets/hw-colored-box) / [`HWDecoratedBox`](/generator/widgets/hw-decorated-box), not around it. The other way round only paints behind the child's content on iOS.
+- The box does **not clip** on iOS, so a child larger than the box overflows; on Android a view always clips to its bounds. Size the child rather than relying on either. The one exception is an axis sized to `0`, which is clipped on iOS too so the child it hides really is gone.

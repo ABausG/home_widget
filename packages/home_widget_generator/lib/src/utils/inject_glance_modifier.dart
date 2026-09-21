@@ -74,7 +74,11 @@ int _endOfLiteral(String code, int openIndex) {
 ///
 /// Returns null when [code] holds no brace-delimited branch, so the caller can
 /// fall back to its other strategies.
-String? _injectIntoIfBranches(String code, String modifier) {
+String? _injectIntoIfBranches(
+  String code,
+  String modifier,
+  GlanceSizeAxis? weightAxis,
+) {
   var cursor = 0;
   final buffer = StringBuffer();
 
@@ -87,7 +91,13 @@ String? _injectIntoIfBranches(String code, String modifier) {
 
     buffer
       ..write(code.substring(cursor, open + 1))
-      ..write(injectGlanceModifier(code.substring(open + 1, close), modifier));
+      ..write(
+        injectGlanceModifier(
+          code.substring(open + 1, close),
+          modifier,
+          weightAxis: weightAxis,
+        ),
+      );
     cursor = close;
 
     // Continue only while the blocks are chained by `else` / `else if`.
@@ -106,7 +116,11 @@ String? _injectIntoIfBranches(String code, String modifier) {
 /// statement, recursing into nested branches.
 ///
 /// Returns null when [code] holds no such branch.
-String? _injectIntoWhenBranches(String code, String modifier) {
+String? _injectIntoWhenBranches(
+  String code,
+  String modifier,
+  GlanceSizeAxis? weightAxis,
+) {
   final bodyOpen = code.indexOf('{');
   if (bodyOpen == -1) return null;
 
@@ -128,7 +142,13 @@ String? _injectIntoWhenBranches(String code, String modifier) {
 
     buffer
       ..write(code.substring(cursor, open + 1))
-      ..write(injectGlanceModifier(code.substring(open + 1, close), modifier));
+      ..write(
+        injectGlanceModifier(
+          code.substring(open + 1, close),
+          modifier,
+          weightAxis: weightAxis,
+        ),
+      );
     cursor = close;
   }
 
@@ -138,23 +158,139 @@ String? _injectIntoWhenBranches(String code, String modifier) {
   return buffer.toString();
 }
 
-/// The fill modifiers `fillMaxSize()` already asks for both of.
-const _fillAxisModifiers = ['fillMaxWidth()', 'fillMaxHeight()'];
+/// An axis a Glance modifier chain can size.
+enum GlanceSizeAxis {
+  /// Sized by `width(...)`, `fillMaxWidth()` and the calls sizing both.
+  width('Width'),
 
-const _fillBothAxes = 'fillMaxSize()';
+  /// Sized by `height(...)`, `fillMaxHeight()` and the calls sizing both.
+  height('Height');
+
+  const GlanceSizeAxis(this.suffix);
+
+  /// The axis as the Glance modifier names spell it.
+  final String suffix;
+
+  /// The modifier filling this axis and no other.
+  String get fill => 'fillMax$suffix()';
+}
 
 /// The token a modifier chain opens with.
 const _modifierToken = 'GlanceModifier';
 
-/// [chain] without the fill modifiers [modifier] makes redundant.
+/// The start and end index of every `.` separated call of [chain], the token it
+/// opens with included.
 ///
-/// Both axes at once say everything one of them does, so a chain keeps the one
-/// that asks for more rather than carrying both.
-String _withoutRedundantFills(String chain, String modifier) {
-  if (modifier != _fillBothAxes) return chain;
+/// Only a `.` outside the brackets of a call separates two of them, so the ones
+/// in `width(80.0.dp)` stay part of its argument.
+List<(int, int)> _modifierCalls(String chain) {
+  final calls = <(int, int)>[];
+  var start = 0;
+  var depth = 0;
+
+  int endAt(int index) {
+    var end = index;
+    while (end > start && chain[end - 1].trim().isEmpty) {
+      end--;
+    }
+    return end;
+  }
+
+  for (var index = 0; index < chain.length; index++) {
+    final char = chain[index];
+    if (char == '"') {
+      index = _endOfLiteral(chain, index);
+    } else if (char == '(') {
+      depth++;
+    } else if (char == ')') {
+      depth--;
+    } else if (char == '.' && depth == 0) {
+      calls.add((start, endAt(index)));
+      start = index + 1;
+    }
+  }
+  calls.add((start, endAt(chain.length)));
+  return calls;
+}
+
+/// The axes [call] sizes.
+///
+/// `defaultWeight()` sizes the main axis of the layout around it, which the
+/// call does not say on its own: it counts for [weightAxis], and for nothing
+/// while the caller names no axis.
+Set<GlanceSizeAxis> _axesSizedBy(String call, GlanceSizeAxis? weightAxis) =>
+    switch (_callName(call)) {
+      'width' || 'fillMaxWidth' || 'wrapContentWidth' => {GlanceSizeAxis.width},
+      'height' || 'fillMaxHeight' || 'wrapContentHeight' => {
+          GlanceSizeAxis.height,
+        },
+      'size' ||
+      'fillMaxSize' ||
+      'wrapContentSize' =>
+        GlanceSizeAxis.values.toSet(),
+      'defaultWeight' => {if (weightAxis != null) weightAxis},
+      _ => const {},
+    };
+
+/// The name [call] invokes, its arguments left out.
+String _callName(String call) {
+  final open = call.indexOf('(');
+  return (open == -1 ? call : call.substring(0, open)).trim();
+}
+
+/// [call], sizing [axis] alone.
+///
+/// The calls sizing both axes each have a name per axis, and `size(24.0.dp)`
+/// keeps its argument as `width(24.0.dp)` / `height(24.0.dp)`.
+String _singleAxisForm(String call, GlanceSizeAxis axis) {
+  final open = call.indexOf('(');
+  final arguments = open == -1 ? '()' : call.substring(open);
+  return switch (_callName(call)) {
+    'fillMaxSize' => axis.fill,
+    'wrapContentSize' => 'wrapContent${axis.suffix}()',
+    _ => '${axis.name}$arguments',
+  };
+}
+
+/// Whether a call of [chain] fills both axes, which is what leaves an injected
+/// fill along one of them nothing to say.
+///
+/// Read off the calls rather than the text, so a `fillMaxSize()` written inside
+/// a string literal argument is not one. Only a fill counts: `size(24.0.dp)`
+/// sizes both axes too, but an injected fill still takes its axis over.
+bool _fillsBothAxes(String chain) => _modifierCalls(chain).any(
+      (call) => _callName(chain.substring(call.$1, call.$2)) == 'fillMaxSize',
+    );
+
+/// [chain] without the sizes [modifier] takes over.
+///
+/// [modifier] is prepended to [chain] and Glance keeps the last modifier of a
+/// kind, so every size on an axis the injected chain sizes has to go for the
+/// outer widget to win. A chain sizing both axes at once is left sizing the one
+/// the injected chain leaves alone.
+String _withoutSupersededSizes(
+  String chain,
+  String modifier,
+  GlanceSizeAxis? weightAxis,
+) {
+  final injected = <GlanceSizeAxis>{
+    for (final (start, end) in _modifierCalls(modifier))
+      ..._axesSizedBy(modifier.substring(start, end), weightAxis),
+  };
+  if (injected.isEmpty) return chain;
+
   var kept = chain;
-  for (final axis in _fillAxisModifiers) {
-    kept = kept.replaceAll('.$axis', '');
+  for (final (start, end) in _modifierCalls(chain).reversed) {
+    if (start == 0) continue;
+
+    final call = chain.substring(start, end);
+    final sized = _axesSizedBy(call, null);
+    if (sized.intersection(injected).isEmpty) continue;
+
+    final left = sized.difference(injected);
+    kept = left.isEmpty
+        ? kept.replaceRange(start - 1, end, '')
+        : kept.replaceRange(start, end, _singleAxisForm(call, left.single));
   }
   return kept;
 }
@@ -194,7 +330,16 @@ String _withoutRedundantFills(String chain, String modifier) {
 
 /// Helper to parse a typical Compose call (e.g. `Column {` or `Text(...)`)
 /// and inject a modifier string (e.g. `fillMaxSize()`).
-String injectGlanceModifier(String code, String modifier) {
+///
+/// A size the chain already there carries along an axis [modifier] sizes is
+/// dropped, so the widget injecting its size wins over the one that asked for
+/// it further in. [weightAxis] is the axis a `defaultWeight()` in [modifier]
+/// sizes, which the call does not say on its own.
+String injectGlanceModifier(
+  String code,
+  String modifier, {
+  GlanceSizeAxis? weightAxis,
+}) {
   // We want to find the first Compose element like `Column(`, `Column {`, `Text(`.
   // If it already has arguments `Column(abc) {`, we inject `modifier = modifier, abc` or similar.
 
@@ -203,12 +348,12 @@ String injectGlanceModifier(String code, String modifier) {
   final indent = indentMatch?.group(1) ?? '';
 
   if (trimmed.startsWith('if (')) {
-    final injected = _injectIntoIfBranches(code, modifier);
+    final injected = _injectIntoIfBranches(code, modifier, weightAxis);
     if (injected != null) return injected;
   }
 
   if (trimmed.startsWith('when (')) {
-    final injected = _injectIntoWhenBranches(code, modifier);
+    final injected = _injectIntoWhenBranches(code, modifier, weightAxis);
     if (injected != null) return injected;
   }
 
@@ -226,8 +371,9 @@ String injectGlanceModifier(String code, String modifier) {
         : declared!.substring(chainRange.$1, chainRange.$2);
 
     // One axis of a chain already filling both says nothing more.
-    if (_fillAxisModifiers.contains(modifier) &&
-        (chain?.contains(_fillBothAxes) ?? false)) {
+    if (GlanceSizeAxis.values.any((axis) => axis.fill == modifier) &&
+        chain != null &&
+        _fillsBothAxes(chain)) {
       return code;
     }
     final args = chainRange == null
@@ -235,7 +381,7 @@ String injectGlanceModifier(String code, String modifier) {
         : declared!.replaceRange(
             chainRange.$1,
             chainRange.$2,
-            _withoutRedundantFills(chain!, modifier),
+            _withoutSupersededSizes(chain!, modifier, weightAxis),
           );
 
     final hasBrace = trimmed.substring(callEnd).trimLeft().startsWith('{');

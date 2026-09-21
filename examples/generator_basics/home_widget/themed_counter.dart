@@ -22,7 +22,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       dark: HWColor.fixed(0xFF0B1220),
     ),
   ),
-  widget: HWFill(
+  widget: HWSizedBox.expand(
     child: HWColumn(
       mainAxisAlignment: HWMainAxisAlignment.center,
       crossAxisAlignment: HWCrossAxisAlignment.center,

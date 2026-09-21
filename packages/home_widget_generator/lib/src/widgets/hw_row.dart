@@ -18,6 +18,18 @@ class HWRow extends HWMultiChildWidget {
   HWCrossAxisAlignment get effectiveCrossAxisAlignment =>
       crossAxisAlignment ?? HWCrossAxisAlignment.center;
 
+  /// The cross axis is the vertical one, so the row keeps its own alignment
+  /// there; a main axis alignment other than start is emitted as `Spacer()`s
+  /// expanding the `HStack`, which leaves the horizontal one moot.
+  @override
+  String get swiftFrameAlignment => switch (effectiveCrossAxisAlignment) {
+        HWCrossAxisAlignment.start ||
+        HWCrossAxisAlignment.baseline =>
+          '.topLeading',
+        HWCrossAxisAlignment.center => '.leading',
+        HWCrossAxisAlignment.end => '.bottomLeading',
+      };
+
   /// Whether a text child has to lose its baseline for the alignment to hold.
   ///
   /// `LinearLayout` corrects a top- or bottom-aligned child by its baseline,

@@ -70,6 +70,40 @@ void main() {
     });
 
     group('iOS (SwiftUI)', () {
+      test('swiftFrameAlignment keeps the cross axis, never the main one', () {
+        const children = [HWText.fixed('a')];
+        expect(
+          const HWRow(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.start,
+            mainAxisAlignment: HWMainAxisAlignment.end,
+          ).swiftFrameAlignment,
+          '.topLeading',
+        );
+        expect(
+          const HWRow(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          ).swiftFrameAlignment,
+          '.topLeading',
+        );
+        expect(
+          const HWRow(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.center,
+          ).swiftFrameAlignment,
+          '.leading',
+        );
+        expect(
+          const HWRow(
+            children: children,
+            crossAxisAlignment: HWCrossAxisAlignment.end,
+          ).swiftFrameAlignment,
+          '.bottomLeading',
+        );
+        expect(const HWRow(children: children).swiftFrameAlignment, '.leading');
+      });
+
       test('HStack with children defaults to center', () {
         final node = HWRow(children: [HWText.fixed('x')]);
         final r = node.toSwift(0, dataExpr: 'data');
@@ -495,7 +529,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
               ),
               child: HWText.fixed('a'),
             ),
-            HWFill(child: HWText.fixed('b')),
+            HWSizedBox.expand(child: HWText.fixed('b')),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
@@ -872,7 +906,7 @@ Row(verticalAlignment = Alignment.Top) {
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         expect(
-          const HWFill(child: row).toKotlin(0, dataExpr: 'data'),
+          const HWSizedBox.expand(child: row).toKotlin(0, dataExpr: 'data'),
           startsWith(
             'Row(modifier = GlanceModifier.fillMaxSize(), '
             'verticalAlignment = Alignment.Top) {',
@@ -942,7 +976,7 @@ Row(verticalAlignment = Alignment.Top) {
           child: HWText.fixed('a'),
         );
         expect(bordered.kotlinBaselineText(), isNull);
-        const filled = HWFill(child: HWText.fixed('a'));
+        const filled = HWSizedBox.expand(child: HWText.fixed('a'));
         expect(filled.kotlinBaselineText(), isNull);
       });
 
