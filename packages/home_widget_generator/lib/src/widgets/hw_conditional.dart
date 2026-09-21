@@ -10,6 +10,9 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
   /// The widget to render if the condition is not met.
   HWWidget get secondBranch;
 
+  /// The field the condition reads.
+  HWDataType<dynamic> get data;
+
   /// Returns the Swift condition expression.
   String conditionSwift({required String dataExpr});
 
@@ -76,6 +79,8 @@ $pad}''';
       ascent: (dataExpr) => 'if (${conditionKotlin(dataExpr: dataExpr)}) '
           '${first.ascent(dataExpr)} else ${second.ascent(dataExpr)}',
       isBitmap: first.isBitmap || second.isBitmap,
+      readsItem:
+          data.unwrapped is HWItemData || first.readsItem || second.readsItem,
       conflict: first.conflict ?? second.conflict,
     );
   }
@@ -113,6 +118,7 @@ $pad}''';
 
 /// Renders a widget depending on whether a data field exists in the preferences.
 class HWDataExists extends HWConditional {
+  @override
   final HWDataType<dynamic> data;
   final HWWidget whenPresent;
   final HWWidget whenAbsent;
@@ -194,6 +200,7 @@ class HWDataExists extends HWConditional {
 /// Renders a widget depending on a boolean data field.
 /// The provided HWBool must have a default value.
 class HWBoolConditional extends HWConditional {
+  @override
   final HWDataType<dynamic> data;
   final HWWidget whenTrue;
   final HWWidget whenFalse;

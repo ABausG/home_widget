@@ -53,14 +53,11 @@ class HWDecoratedBox extends HWSingleChildWidget {
     required this.decoration,
   });
 
-  @override
-  Set<String> get kotlinImports => kotlinImportsIn(null);
-
   /// Without a border the decoration is injected into the child's own
   /// composable, so the child is still what the enclosing layout lays out; a
   /// border puts a `Box` of its own in between.
   @override
-  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
+  Set<String> _kotlinImportsAroundChild(HWAxis? enclosingLinearAxis) {
     final imports = <String>{
       ...child.kotlinImportsIn(
         decoration.border == null ? enclosingLinearAxis : null,
@@ -183,7 +180,7 @@ class HWDecoratedBox extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(
+  String _kotlinAroundChild(
     int indent, {
     required String dataExpr,
     HWEmitContext? context,

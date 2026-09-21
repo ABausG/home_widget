@@ -45,8 +45,11 @@ void main() {
 
         for (final wrapper in wrappers) {
           expect(wrapper.swiftRendersNothing, isTrue, reason: '$wrapper');
-          expect(wrapper.toSwift(1, dataExpr: 'd'), isEmpty,
-              reason: '$wrapper');
+          expect(
+            wrapper.toSwift(1, dataExpr: 'd'),
+            isEmpty,
+            reason: '$wrapper',
+          );
         }
       });
 

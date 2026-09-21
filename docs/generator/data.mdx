@@ -37,7 +37,7 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
 | `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 | `HWIconData` | `HWIconData(key, {required icons, defaultValue, previewValue})` | generated icon enum | An icon chosen from a fixed set, rendered with [`HWIcon`](/generator/widgets/hw-icon). See [Icon data](#icon-data) below. |
-| `HWItemData` | `HWItemData(data, {previewValues})` | the wrapped type's, on the generated item class | Wraps another type to read a field of the list item a builder is rendering. See [List items](#list-items) below. |
+| `HWItemData` | `HWItemData(data, {previewValues})` | the wrapped type's, on the generated item class | Wraps another type to read a field of the list item a builder is rendering, taking its key and the applicable default and preview. See [List items](#list-items) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
@@ -154,4 +154,4 @@ HWRow.builder(
 )
 ```
 
-It wraps an `HWString` (plain or localized), `HWInt`, `HWDouble`, `HWBool`, `HWDateTime`, `HWIconData` or runtime `HWImageData`, and takes its key, `defaultValue` and `previewValue` from the type it wraps. `previewValues` varies the sample from one gallery item to the next. The app saves the whole list through the generated helper, e.g. `saveData(forecast: [WeatherForecastItem(temperature: 21)])`. See [Lists](/generator/lists) for the generated item class, defaults, previews and the Android limits.
+It wraps an `HWString` (plain or localized), `HWInt`, `HWDouble`, `HWBool`, `HWDateTime`, `HWIconData` or runtime `HWImageData`, and takes its key from the type it wraps, along with the applicable default and preview — `defaultValue`/`previewValue` for most, `defaultTranslations`/`previewTranslations` for `HWString.localized`, and `previewAsset` with no default for a runtime `HWImageData`; see [`HWItemData`](/generator/lists#hwitemdata) for the full mapping. `previewValues` varies the sample from one gallery item to the next. The app saves the whole list through the generated helper, e.g. `saveData(forecast: [WeatherForecastItem(temperature: 21)])`. See [Lists](/generator/lists) for the generated item class, defaults, previews and the Android limits.

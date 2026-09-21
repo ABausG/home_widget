@@ -839,8 +839,8 @@ const Set<String> _reservedMemberNames = {
 /// Validates [name] as an identifier the generated APIs can carry.
 ///
 /// [membersClass] is set where [name] becomes a member of a generated class —
-/// an item field, a JSON path segment — and rejects the names that class
-/// already has.
+/// a list key, an item field, a JSON path segment — and rejects the names
+/// that class already has.
 void _validateAsciiIdentifier(
   String name, {
   required String descriptor,

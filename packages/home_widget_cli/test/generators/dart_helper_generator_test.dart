@@ -207,6 +207,27 @@ void main() {
           '    final _rootImage_avatar = await _\$readImage(avatar);\n',
         ),
       );
+
+      // Only a picture this widget wrote itself can be overwritten by the
+      // call reading it, so only those are held in memory.
+      expect(
+        output,
+        contains(r'''
+  static Future<ImageProvider?> _$readImage(ImageProvider? image) async {
+    if (image is! FileImage) return image;
+    final path = image.file.path;
+    final name = path.substring(path.lastIndexOf('/') + 1);
+    if (!name.startsWith('${_$paramPrefix}.') || !name.endsWith('.png')) {
+      return image;
+    }
+    try {
+      return MemoryImage(await image.file.readAsBytes());
+    } on FileSystemException {
+      return null;
+    }
+  }
+'''),
+      );
       expect(
         output,
         contains(
@@ -2938,6 +2959,83 @@ class WeatherTimedData {
       ]);
     });
 
+    test('leaves a picture no write of the call can replace unread', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+          ),
+        ).generate(),
+        r'''
+  final brought = FileImage(
+    File('${HomeWidget.directory.path}/photo.png')..writeAsStringSync('pic'),
+  );
+  print(identical(await WeatherHomeWidget._$readImage(brought), brought));
+
+  final gone = FileImage(File('${HomeWidget.directory.path}/gone.png'));
+  print(identical(await WeatherHomeWidget._$readImage(gone), gone));
+
+  await WeatherHomeWidget.saveData(
+    contacts: [WeatherContactsItem(name: 'Ada', avatar: brought)],
+  );
+  final stored = (await WeatherHomeWidget.getData()).contacts!.single.avatar!;
+  print(await WeatherHomeWidget._$readImage(stored) is MemoryImage);
+  print((stored as FileImage).file.readAsStringSync());
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        'true',
+        'true',
+        'true',
+        'pic',
+      ]);
+    });
+
+    test('saves every other field when an item image file is gone', () async {
+      final output = await _runHelper(
+        DartHelperGenerator(
+          _listSpec(
+            const HWColumn(
+              children: [
+                HWText(HWString('title')),
+                HWColumn.builder('contacts', maxItems: 3, item: _contactItem),
+              ],
+            ),
+          ),
+        ).generate(),
+        r'''
+  await WeatherHomeWidget.saveData(
+    title: 'Team',
+    contacts: [
+      WeatherContactsItem(name: 'Ada', avatar: MemoryImage(utf8.encode('ada'))),
+      WeatherContactsItem(name: 'Bob', avatar: MemoryImage(utf8.encode('bob'))),
+    ],
+  );
+  final stored = (await WeatherHomeWidget.getData()).contacts!;
+  File(HomeWidget.data['home_widget.Weather.contacts.0.avatar'] as String)
+      .deleteSync();
+
+  await WeatherHomeWidget.saveData(title: 'Crew', contacts: stored);
+  final data = await WeatherHomeWidget.getData();
+  print(data.title);
+  for (final item in data.contacts!) {
+    final avatar = item.avatar;
+    print([
+      item.name,
+      avatar is FileImage ? avatar.file.readAsStringSync() : avatar,
+    ]);
+  }
+''',
+      );
+
+      expect(const LineSplitter().convert(output), [
+        'Crew',
+        '[Ada, null]',
+        '[Bob, bob]',
+      ]);
+    });
+
     test('keeps every entry image when the timeline shifts', () async {
       final output = await _runHelper(
         DartHelperGenerator(
@@ -3775,7 +3873,8 @@ $body}
 /// by a map for the preferences and by real files for `saveFile`, and the
 /// Flutter error reporting a timed save guards its scheduling with.
 ///
-/// Clearing a key holding a file's path deletes the file, as the plugin does.
+/// Clearing a key holding a file's path deletes the file if it is still
+/// there, as the plugin does.
 /// `saveImage` writes the bytes an image carries rather than encoding a PNG.
 /// The update times last scheduled are kept in `HomeWidget.schedule`.
 const _pluginStub = r'''
@@ -3860,7 +3959,8 @@ class HomeWidget {
     }
     final stored = data.remove(id);
     if (stored is String && stored.startsWith(directory.path)) {
-      File(stored).deleteSync();
+      final file = File(stored);
+      if (file.existsSync()) file.deleteSync();
     }
     return true;
   }

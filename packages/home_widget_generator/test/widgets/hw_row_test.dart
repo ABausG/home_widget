@@ -1168,6 +1168,23 @@ Row(verticalAlignment = Alignment.Top) {
         );
       });
 
+      test('leaves items alone whose condition reads the widget data', () {
+        const row = HWRow.builder(
+          'scores',
+          maxItems: 3,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWBoolConditional(
+            data: HWBool('big', defaultValue: false),
+            whenTrue: bitmapLabel,
+            whenFalse: plainLabel,
+          ),
+        );
+        final kotlin = row.toKotlin(0, dataExpr: 'data');
+
+        expect(kotlin, isNot(contains('hwAscents')));
+        expect(kotlin, isNot(contains('baselinePadding')));
+      });
+
       test('leaves items of plain text to the layout', () {
         const row = HWRow.builder(
           'scores',
@@ -1376,6 +1393,40 @@ Row(verticalAlignment = Alignment.Top) {
         );
         expect(baseline.ascent('data'), contains('19f'));
         expect(baseline.ascent('data'), contains('11f'));
+      });
+
+      test('a conditional reads the item only where an item is read', () {
+        const plain = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
+        const other = HWText.fixed('b', style: HWTextStyle(fontSize: 11));
+        expect(plain.kotlinBaselineText()?.readsItem, isFalse);
+
+        const onItem = HWBoolConditional(
+          data: HWItemData(HWBool('big', defaultValue: false)),
+          whenTrue: plain,
+          whenFalse: other,
+        );
+        expect(onItem.kotlinBaselineText()?.readsItem, isTrue);
+
+        const onTimedItem = HWBoolConditional(
+          data: HWTimedData(HWItemData(HWBool('big', defaultValue: false))),
+          whenTrue: plain,
+          whenFalse: other,
+        );
+        expect(onTimedItem.kotlinBaselineText()?.readsItem, isTrue);
+
+        const onWidgetData = HWDataExists(
+          data: HWString('maybe'),
+          whenPresent: plain,
+          whenAbsent: other,
+        );
+        expect(onWidgetData.kotlinBaselineText()?.readsItem, isFalse);
+
+        const nested = HWDataExists(
+          data: HWString('maybe'),
+          whenPresent: onItem,
+          whenAbsent: other,
+        );
+        expect(nested.kotlinBaselineText()?.readsItem, isTrue);
       });
 
       test('a conditional with a branch rendering no text answers null', () {

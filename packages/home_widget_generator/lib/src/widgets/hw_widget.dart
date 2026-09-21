@@ -39,7 +39,19 @@ sealed class HWSingleChildWidget extends HWWidget {
   const HWSingleChildWidget({required this.child});
 
   @override
-  Set<String> get kotlinImports => child.kotlinImports;
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// None when [child] renders nothing: this wrapper emits no Glance code of
+  /// its own around it either.
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) =>
+      child.kotlinRendersNothing
+          ? const {}
+          : _kotlinImportsAroundChild(enclosingLinearAxis);
+
+  /// The imports of the Glance code this wrapper puts around [child]'s, laid
+  /// out inside a `Column` or `Row` running along [enclosingLinearAxis].
+  Set<String> _kotlinImportsAroundChild(HWAxis? enclosingLinearAxis);
 
   @override
   Set<String> get swiftViewModifiers => child.swiftViewModifiers;
@@ -113,6 +125,27 @@ sealed class HWSingleChildWidget extends HWWidget {
 
   @override
   Set<String> get _kotlinChoiceImports => child._kotlinChoiceImports;
+
+  /// Nothing when [child] renders nothing, which is what
+  /// [kotlinRendersNothing] answers for this wrapper: the modifier or `Box` of
+  /// its own would otherwise render where the model says nothing does.
+  @override
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) =>
+      child.kotlinRendersNothing
+          ? ''
+          : _kotlinAroundChild(indent, dataExpr: dataExpr, context: context);
+
+  /// The Glance code this wrapper puts around [child]'s, which renders
+  /// something.
+  String _kotlinAroundChild(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  });
 }
 
 /// Base class for widgets that accept multiple children (e.g. Column, Row).
@@ -120,29 +153,49 @@ sealed class HWMultiChildWidget extends HWWidget {
   /// The fixed children of this stack, empty for a builder.
   final List<HWWidget> children;
 
-  const HWMultiChildWidget({required this.children});
-
   /// How the children are distributed along the main axis.
-  HWMainAxisAlignment? get mainAxisAlignment;
+  final HWMainAxisAlignment? mainAxisAlignment;
 
   /// The gap between two adjacent children along the main axis, in logical
   /// pixels.
-  double get spacing;
+  ///
+  /// Like Flutter's `Flex.spacing`: there is none before the first child or
+  /// after the last, and [mainAxisAlignment] distributes the room left over on
+  /// top of it.
+  final double spacing;
 
   /// The key of the list a builder renders [item] once per entry of, or null
   /// for a stack of fixed [children].
-  String? get list;
+  final String? list;
 
   /// The widget a builder renders once per list entry, the only subtree an
   /// [HWItemData] reads from, or null for a stack of fixed [children].
-  HWWidget? get item;
+  final HWWidget? item;
 
   /// The most items a builder renders, or null for every one of them.
-  int? get maxItems;
+  final int? maxItems;
 
   /// What a builder renders as its only child while there is no item to
   /// render, or null for an empty stack.
-  HWWidget? get whenEmpty;
+  final HWWidget? whenEmpty;
+
+  const HWMultiChildWidget({
+    required this.children,
+    this.mainAxisAlignment,
+    this.spacing = 0,
+  })  : list = null,
+        item = null,
+        maxItems = null,
+        whenEmpty = null;
+
+  const HWMultiChildWidget.builder(
+    String this.list, {
+    required HWWidget this.item,
+    this.maxItems,
+    this.whenEmpty,
+    this.mainAxisAlignment,
+    this.spacing = 0,
+  }) : children = const [];
 
   /// Whether this stack renders [item] once per entry of [list], rather than
   /// fixed [children].
@@ -203,6 +256,29 @@ sealed class HWMultiChildWidget extends HWWidget {
   /// 0 for the first one, or null for no spacing.
   String? get _kotlinItemGap =>
       spacing > 0 ? 'if (${HWListLoop.index} > 0) $spacing.dp else 0.dp' : null;
+
+  /// The name the Glance loop binds each item under, or `_` when nothing reads
+  /// it: Kotlin warns about a lambda parameter nothing reads under a name of
+  /// its own.
+  ///
+  /// [HWItemData] is the only thing emitting a read of it, so a builder whose
+  /// [item] reads no item field never names it.
+  String get _kotlinItemName => itemReads.isEmpty ? '_' : HWListLoop.item;
+
+  /// The name the Glance loop binds each item's index under, or `_` when
+  /// nothing reads it, as [_kotlinItemName].
+  ///
+  /// Four things emit a read of it: the gap before every item but the first,
+  /// the spacers [mainAxisAlignment] puts between the items, the `Box` a
+  /// baseline-aligned row places each item through, which [places] reports,
+  /// and the bounds key of an Android bitmap text, which is keyed per item.
+  String _kotlinIndexName(HWEmitContext? context, {required bool places}) =>
+      _kotlinItemGap != null ||
+              mainAxisAlignment.hasSpacerBetween ||
+              places ||
+              (item?.kotlinRendersBitmapText(context) ?? false)
+          ? HWListLoop.index
+          : '_';
 
   /// Whether this stack turns `LinearLayout`'s baseline correction off, which
   /// a child reporting a baseline then has to lose.
@@ -440,11 +516,15 @@ $loopPad    }
     final alignment = mainAxisAlignment;
     if (alignment.hasLeadingSpacer) buffer.writeln('$loopPad$_kotlinSpacer');
     if (rendersItems) {
-      final body = StringBuffer();
+      buffer.writeln(
+        '$loopPad$items.forEachIndexed { '
+        '${_kotlinIndexName(context, places: itemPlacement != null)}, '
+        '$_kotlinItemName ->',
+      );
       if (alignment.hasSpacerBetween) {
-        body.writeln('$loopPad    if ($index > 0) $_kotlinSpacer');
+        buffer.writeln('$loopPad    if ($index > 0) $_kotlinSpacer');
       }
-      body.writeln(
+      buffer.writeln(
         item._kotlinInStack(
           loopIndent + 1,
           dataExpr: dataExpr,
@@ -452,12 +532,6 @@ $loopPad    }
           slot: _kotlinSlot(gap: _kotlinItemGap, placement: itemPlacement),
         ),
       );
-      final code = body.toString();
-      buffer.writeln(
-        '$loopPad$items.forEachIndexed { ${_usedIn(code, index)}, '
-        '${_usedIn(code, HWListLoop.item)} ->',
-      );
-      buffer.write(code);
       buffer.writeln('$loopPad}');
     }
     if (alignment.hasTrailingSpacer) buffer.writeln('$loopPad$_kotlinSpacer');
@@ -564,6 +638,23 @@ sealed class HWWidget implements HWGeneratable {
   /// decides the slots of an [HWSizeAdaptive] the row has to line up; without
   /// one every slot written counts.
   HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) => null;
+
+  /// Whether Android draws any text of this subtree into a bitmap.
+  ///
+  /// Such a text is an `Image` whose room is measured under a bounds key, and
+  /// inside the item of a builder that key carries the item's index, so the
+  /// loop has to name it.
+  ///
+  /// Follows what Android renders the way [kotlinBaselineText] does: an
+  /// [HWAdaptive]'s Android side, and the slots of an [HWSizeAdaptive] the
+  /// [context] can show, which is what [_kotlinChoices] answers.
+  bool kotlinRendersBitmapText([HWEmitContext? context]) {
+    if (_kotlinChoices(context) case final choices?) {
+      return choices.any((choice) => choice.kotlinRendersBitmapText(context));
+    }
+    if (kotlinBaselineText(context)?.isBitmap ?? false) return true;
+    return childWidgets.any((child) => child.kotlinRendersBitmapText(context));
+  }
 
   /// [kotlinImports], for a widget emitted directly inside a Glance `Column` or
   /// `Row` running along [enclosingLinearAxis].
@@ -866,13 +957,6 @@ List<HWWidget> _decodeChildren(
         : decoder.decodeRecursive(whenEmpty),
   );
 }
-
-/// Whether the generated [code] reads the variable [name].
-bool _reads(String code, String name) => RegExp('\\b$name\\b').hasMatch(code);
-
-/// [name] when the Kotlin [code] reads it, otherwise `_`: Kotlin warns about a
-/// lambda parameter nothing reads under a name of its own.
-String _usedIn(String code, String name) => _reads(code, name) ? name : '_';
 
 /// The spacer a SwiftUI stack puts where a main-axis alignment asks for room.
 ///

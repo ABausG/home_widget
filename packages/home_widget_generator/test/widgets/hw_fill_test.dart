@@ -92,6 +92,14 @@ void main() {
         );
         expect(result, contains('fillMaxSize()'));
       });
+
+      test('a child rendering nothing leaves nothing to fill', () {
+        const empty = HWFill(child: HWDataOnly([HWString('hidden')]));
+
+        expect(empty.kotlinRendersNothing, isTrue);
+        expect(empty.toKotlin(0, dataExpr: 'data'), isEmpty);
+        expect(empty.kotlinImports, isEmpty);
+      });
     });
   });
 }

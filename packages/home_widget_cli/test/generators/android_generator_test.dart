@@ -1435,7 +1435,14 @@ void main() {
         contains(
           '    provideContent {\n'
           '      val size = LocalSize.current\n'
-          '      val itemCounts = hwMeasuredItemCounts(currentState())\n'
+          '      val hwState: HomeWidgetGlanceState = currentState()\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      val itemCounts = remember(hwState) '
+          '{ hwMeasuredItemCounts(hwState) }\n'
           '      var textBounds by remember { mutableStateOf(measured) }\n'
           '      var measuredItems by remember { mutableStateOf(itemCounts) }\n'
           '      LaunchedEffect(size, itemCounts) {\n'
@@ -1468,6 +1475,45 @@ void main() {
           '    return listOf(widgetData.labels.orEmpty().take(3).size)\n'
           '  }\n',
         ),
+      );
+    });
+
+    test('counts the items off the state the body renders from', () async {
+      final content = await generate(
+        const HWRow.builder(
+          'labels',
+          maxItems: 3,
+          item: HWText(
+            HWItemData(HWString('label')),
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ),
+      );
+
+      // Counting reads every list back off disk, so it runs once for the state
+      // the body is handed, not again for every recomposition against new
+      // bounds.
+      expect(
+        'hwMeasuredItemCounts('.allMatches(content).length,
+        2,
+        reason: 'the declaration and its one remembered call site',
+      );
+      expect(content, isNot(contains('hwMeasuredItemCounts(currentState())')));
+
+      final provideGlance = content.substring(
+        content.indexOf('  override suspend fun provideGlance'),
+        content.indexOf('  override suspend fun providePreview'),
+      );
+      expect(
+        provideGlance,
+        contains(
+          '      WidgetContent(context, hwState, textBounds = textBounds)\n',
+        ),
+      );
+      expect(
+        'currentState()'.allMatches(provideGlance).length,
+        1,
+        reason: 'counting and rendering read the one state',
       );
     });
 

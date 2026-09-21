@@ -451,6 +451,18 @@ class $className {
     final prologue = _imageSnapshots();
 
     final buffer = StringBuffer();
+
+    if (spec.hasRuntimeImages) {
+      buffer.write('''
+  /// Writes every value handed to it, and leaves out what it was not given.
+  ///
+  /// A picture this widget itself wrote, handed back by [getData] and since
+  /// removed from disk, is saved as no picture rather than failing the call:
+  /// a nested, timed or per-item one is cleared, a top-level one keeps the
+  /// path it had.
+''');
+    }
+
     buffer.writeln('  static Future<void> saveData({');
 
     for (final parameter in parameters) {
@@ -486,15 +498,16 @@ class $className {
     return buffer.toString();
   }
 
-  /// Reads every picture this `saveData` call is about to write into memory,
-  /// before the first of them is written.
+  /// Reads the pictures this `saveData` call can overwrite into memory, before
+  /// the first of them is written.
   ///
   /// `getData` hands an image back as a `FileImage` of the very path
   /// `saveData` wrote it to, and `HomeWidget.saveImage` only reads a provider's
   /// bytes while it saves it. An item that moved to another index, a timeline
   /// whose entries shifted, or two fields trading their pictures would
   /// otherwise be read back out of a file an earlier write of the same call
-  /// already replaced. Everything that is not a `FileImage` is left untouched.
+  /// already replaced. `_$readImage` decides which ones those are; anything
+  /// else is handed on untouched.
   List<String> _imageSnapshots() => [
         for (final field in spec.primitiveDataFields)
           if (field is HWImageData)
@@ -1448,15 +1461,33 @@ $filterDoc
 
   /// Emits the two helpers every picture `saveData` writes goes through.
   ///
-  /// `_$readImage` reads a `FileImage` — the shape `getData` hands an image
-  /// back in — into memory before the first write, so no write can destroy a
-  /// file a later one still has to read. `_$saveImage` drops the path it wrote
-  /// from Flutter's image cache afterwards, so the app and the next `getData`
-  /// show what was just written rather than the decoded bitmap of what it
-  /// replaced.
+  /// `_$readImage` reads a `FileImage` of one of this widget's own picture
+  /// files — the shape `getData` hands an image back in — into memory before
+  /// the first write, so no write can destroy a file a later one still has to
+  /// read. Those files are the only ones a save can replace: each is the
+  /// `<key>.png` `HomeWidget.saveImage` wrote for a key of this widget, so the
+  /// file name alone tells them apart from a picture the app brought along,
+  /// which streams through `HomeWidget.saveImage` as it is saved. One of ours
+  /// that is gone from disk reads as no image, leaving the rest of the call to
+  /// be written.
+  ///
+  /// `_$saveImage` drops the path it wrote from Flutter's image cache
+  /// afterwards, so the app and the next `getData` show what was just written
+  /// rather than the decoded bitmap of what it replaced.
   String _runtimeImageHelpers() => '''
-  static Future<ImageProvider?> _\$readImage(ImageProvider? image) async =>
-      image is FileImage ? MemoryImage(await image.file.readAsBytes()) : image;
+  static Future<ImageProvider?> _\$readImage(ImageProvider? image) async {
+    if (image is! FileImage) return image;
+    final path = image.file.path;
+    final name = path.substring(path.lastIndexOf('/') + 1);
+    if (!name.startsWith('\${_\$paramPrefix}.') || !name.endsWith('.png')) {
+      return image;
+    }
+    try {
+      return MemoryImage(await image.file.readAsBytes());
+    } on FileSystemException {
+      return null;
+    }
+  }
 
   static Future<String> _\$saveImage(String key, ImageProvider image) async {
     final path = await HomeWidget.saveImage(key, image$_appGroupIdArg);

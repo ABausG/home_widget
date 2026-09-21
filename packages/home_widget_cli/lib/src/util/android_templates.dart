@@ -79,6 +79,11 @@ String androidGlanceWidgetTemplate({
     }
 ''';
 
+  // The state the body renders from, read once so counting the items of its
+  // lists and rendering them agree on what is stored.
+  final stateExpression =
+      measuredItemCounts == null ? 'currentState()' : 'hwState';
+
   // A size the launcher hands the running widget later is measured when it
   // comes up; a list that changed length invalidates every size at once.
   final boundsEffect = measuredItemCounts == null
@@ -90,7 +95,10 @@ String androidGlanceWidgetTemplate({
         }
       }'''
       : '''
-      val itemCounts = hwMeasuredItemCounts(currentState())
+      val hwState: HomeWidgetGlanceState = currentState()
+      // Counting reads every list back off disk, which only the state it was
+      // stored in can change; a recomposition against new bounds reuses it.
+      val itemCounts = remember(hwState) { hwMeasuredItemCounts(hwState) }
       var textBounds by remember { mutableStateOf(measured) }
       var measuredItems by remember { mutableStateOf(itemCounts) }
       LaunchedEffect(size, itemCounts) {
@@ -125,7 +133,7 @@ String androidGlanceWidgetTemplate({
     provideContent {
       val size = LocalSize.current
 $boundsEffect
-      WidgetContent(context, currentState(), textBounds = textBounds)
+      WidgetContent(context, $stateExpression, textBounds = textBounds)
     }
   }
 '''

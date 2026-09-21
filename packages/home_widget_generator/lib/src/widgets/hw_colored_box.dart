@@ -11,13 +11,10 @@ class HWColoredBox extends HWSingleChildWidget {
     required this.color,
   });
 
-  @override
-  Set<String> get kotlinImports => kotlinImportsIn(null);
-
   /// The background is injected into the child's own composable, so the child
   /// is still what the enclosing layout lays out.
   @override
-  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
+  Set<String> _kotlinImportsAroundChild(HWAxis? enclosingLinearAxis) => {
         'import androidx.glance.layout.Box',
         'import androidx.compose.ui.graphics.Color',
         'import androidx.glance.background',
@@ -83,7 +80,7 @@ class HWColoredBox extends HWSingleChildWidget {
   }
 
   @override
-  String toKotlin(
+  String _kotlinAroundChild(
     int indent, {
     required String dataExpr,
     HWEmitContext? context,

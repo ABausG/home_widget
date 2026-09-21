@@ -269,6 +269,7 @@ class HWSizeAdaptive extends HWWidget {
         texts.every(
           (text) =>
               text.isBitmap == first.isBitmap &&
+              text.readsItem == first.readsItem &&
               text.ascent(_ascentProbe) == first.ascent(_ascentProbe),
         );
     if (agree) return first;
@@ -276,6 +277,7 @@ class HWSizeAdaptive extends HWWidget {
     return HWKotlinBaselineText(
       ascent: first.ascent,
       isBitmap: texts.any((text) => text.isBitmap),
+      readsItem: texts.any((text) => text.readsItem),
       conflict: 'An HWRow with HWCrossAxisAlignment.baseline cannot line up an '
           'HWSizeAdaptive whose slots render text differently. The row pads '
           'its children once, and which slot renders is only known at '
@@ -526,7 +528,7 @@ $pad}''');
 }
 
 /// The data expression an ascent is read with where only its shape matters:
-/// comparing two slots' ascents, or asking whether one reads a list item.
+/// comparing two slots' ascents.
 const String _ascentProbe = 'widgetData';
 
 /// The families of one emitted branch and the widget they share.

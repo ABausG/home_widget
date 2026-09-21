@@ -314,6 +314,10 @@ class HWKotlinBaselineText {
   /// its own for the layout to correct.
   final bool isBitmap;
 
+  /// Whether [ascent] reads the list item a builder renders, and so can differ
+  /// from item to item.
+  final bool readsItem;
+
   /// Why a row cannot pad this child, or null when it can.
   ///
   /// Reported rather than thrown, so that the context-free import pass, which
@@ -324,6 +328,7 @@ class HWKotlinBaselineText {
   const HWKotlinBaselineText({
     required this.ascent,
     required this.isBitmap,
+    required this.readsItem,
     this.conflict,
   });
 }
@@ -407,6 +412,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
               'weight = $weight, italic = $italic)';
         },
         isBitmap: false,
+        readsItem: false,
       );
 }
 
@@ -477,6 +483,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
             'HomeWidgetFonts.textAscentPx(context, $_typefaceExpression, '
             '${hwSizeLiteral(fontSize)}f)',
         isBitmap: true,
+        readsItem: false,
       );
 
   /// The key the room for [text] is measured and looked back up under.

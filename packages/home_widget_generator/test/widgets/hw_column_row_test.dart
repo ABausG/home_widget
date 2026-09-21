@@ -1648,6 +1648,95 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Cent
       );
     });
 
+    group('names the index of a loop', () {
+      const bitmap = HWText.fixed(
+        'tag',
+        style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16),
+      );
+      const plain = HWText.fixed('tag');
+
+      String header(HWWidget stack) => lines(
+            stack.toKotlin(0, dataExpr: 'data'),
+          ).firstWhere((line) => line.startsWith('hwItems.forEachIndexed'));
+
+      test('the spacers of spaceEvenly go by', () {
+        expect(
+          header(
+            const HWRow.builder(
+              'tags',
+              mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
+              item: plain,
+            ),
+          ),
+          'hwItems.forEachIndexed { hwIndex, _ ->',
+        );
+      });
+
+      test('a bitmap text keys its measured room by', () {
+        expect(
+          header(const HWColumn.builder('tags', item: bitmap)),
+          'hwItems.forEachIndexed { hwIndex, _ ->',
+        );
+        expect(
+          header(
+            const HWColumn.builder(
+              'tags',
+              item: HWPadding(
+                padding: HWEdgeInsets.all(4),
+                child: HWDataExists(
+                  data: HWString('flag'),
+                  whenPresent: bitmap,
+                  whenAbsent: plain,
+                ),
+              ),
+            ),
+          ),
+          'hwItems.forEachIndexed { hwIndex, _ ->',
+        );
+      });
+
+      test('a bitmap text only Android renders keys by', () {
+        expect(
+          header(
+            const HWColumn.builder(
+              'tags',
+              item: HWAdaptive(ios: plain, android: bitmap),
+            ),
+          ),
+          'hwItems.forEachIndexed { hwIndex, _ ->',
+        );
+        expect(
+          header(
+            const HWColumn.builder(
+              'tags',
+              item: HWAdaptive(ios: bitmap, android: plain),
+            ),
+          ),
+          'hwItems.forEachIndexed { _, _ ->',
+        );
+      });
+
+      test('the Box a baseline-aligned row places its items through goes by',
+          () {
+        const row = HWRow.builder(
+          'scores',
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          item: HWBoolConditional(
+            data: HWItemData(HWBool('big', defaultValue: false)),
+            whenTrue: bitmap,
+            whenFalse: HWText.fixed('tag', style: HWTextStyle(fontSize: 14)),
+          ),
+        );
+
+        expect(
+          row.toKotlin(0, dataExpr: 'data'),
+          contains('HomeWidgetFonts.baselinePadding(context, hwAscents, '
+              'hwIndex)'),
+        );
+        expect(header(row), 'hwItems.forEachIndexed { hwIndex, hwItem ->');
+      });
+    });
+
     test('declares its items in a whenEmpty builder of its own', () {
       const row = HWRow.builder(
         'days',

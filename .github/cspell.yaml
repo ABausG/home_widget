@@ -122,6 +122,7 @@ words:
     - homewidgetiosconfiguration
     - homewidgetandroidconfiguration
     - hwcolorrole
+    - hwitemdata
     - hwwidgetfamily
     - idempotently
     - INFOPLIST

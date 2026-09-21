@@ -15,6 +15,12 @@ class ImageShowcaseHomeWidget {
 
   static const String _$paramPrefix = 'home_widget.ImageShowcase';
 
+  /// Writes every value handed to it, and leaves out what it was not given.
+  ///
+  /// A picture this widget itself wrote, handed back by [getData] and since
+  /// removed from disk, is saved as no picture rather than failing the call:
+  /// a nested, timed or per-item one is cleared, a top-level one keeps the
+  /// path it had.
   static Future<void> saveData({
     ImageProvider? picture,
     ContactJsonData? contact,
@@ -238,8 +244,19 @@ class ImageShowcaseHomeWidget {
     return info.iOSKind == 'ImageShowcaseHomeWidget';
   }
 
-  static Future<ImageProvider?> _$readImage(ImageProvider? image) async =>
-      image is FileImage ? MemoryImage(await image.file.readAsBytes()) : image;
+  static Future<ImageProvider?> _$readImage(ImageProvider? image) async {
+    if (image is! FileImage) return image;
+    final path = image.file.path;
+    final name = path.substring(path.lastIndexOf('/') + 1);
+    if (!name.startsWith('${_$paramPrefix}.') || !name.endsWith('.png')) {
+      return image;
+    }
+    try {
+      return MemoryImage(await image.file.readAsBytes());
+    } on FileSystemException {
+      return null;
+    }
+  }
 
   static Future<String> _$saveImage(String key, ImageProvider image) async {
     final path = await HomeWidget.saveImage(key, image, appGroupId: _$appGroupId);

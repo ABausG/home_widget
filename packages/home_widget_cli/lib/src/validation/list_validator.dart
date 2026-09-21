@@ -50,7 +50,11 @@ String _spellItemRead(HWDataType<dynamic> read) => switch (read) {
 /// Rejects a list key the generated API cannot be named after.
 void _validateListKey(WidgetSpec spec, ListDataGroup group) {
   final descriptor = 'list "${group.key}"';
-  _validateAsciiIdentifier(group.key, descriptor: descriptor);
+  _validateAsciiIdentifier(
+    group.key,
+    descriptor: descriptor,
+    membersClass: true,
+  );
   if (group.key == reservedTimedDataName && spec.hasTimedData) {
     throw GeneratorError(
       'Invalid data name "$reservedTimedDataName" ($descriptor): '

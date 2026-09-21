@@ -6,38 +6,12 @@ part of 'hw_widget.dart';
 class HWRow extends HWMultiChildWidget {
   final HWCrossAxisAlignment? crossAxisAlignment;
 
-  @override
-  final HWMainAxisAlignment? mainAxisAlignment;
-
-  /// The gap between two adjacent children, in logical pixels.
-  ///
-  /// Like Flutter's `Flex.spacing`: there is none before the first child or
-  /// after the last, and [mainAxisAlignment] distributes the room left over on
-  /// top of it.
-  @override
-  final double spacing;
-
-  @override
-  final String? list;
-
-  @override
-  final HWWidget? item;
-
-  @override
-  final int? maxItems;
-
-  @override
-  final HWWidget? whenEmpty;
-
   const HWRow({
     required super.children,
     this.crossAxisAlignment,
-    this.mainAxisAlignment,
-    this.spacing = 0,
-  })  : list = null,
-        item = null,
-        maxItems = null,
-        whenEmpty = null;
+    super.mainAxisAlignment,
+    super.spacing = 0,
+  });
 
   /// A row rendering [item] once per entry of the list saved under [list], in
   /// the order the entries were saved.
@@ -48,14 +22,14 @@ class HWRow extends HWMultiChildWidget {
   /// none. The alignments and [spacing] apply to the items exactly as they do
   /// to fixed children.
   const HWRow.builder(
-    String this.list, {
-    required HWWidget this.item,
-    this.maxItems,
-    this.whenEmpty,
+    super.list, {
+    required super.item,
+    super.maxItems,
+    super.whenEmpty,
     this.crossAxisAlignment,
-    this.mainAxisAlignment,
-    this.spacing = 0,
-  }) : super(children: const []);
+    super.mainAxisAlignment,
+    super.spacing = 0,
+  }) : super.builder();
 
   @override
   HWAxis get _mainAxis => HWAxis.horizontal;
@@ -136,7 +110,7 @@ class HWRow extends HWMultiChildWidget {
         )) {
       return null;
     }
-    if (!_reads(text.ascent(_ascentProbe), HWListLoop.item)) return null;
+    if (!text.readsItem) return null;
     return text;
   }
 
@@ -209,8 +183,10 @@ class HWRow extends HWMultiChildWidget {
         ? _decodeChildren(obj, decoder, 'HWRow')
         : const <HWWidget>[];
 
-    final crossAxisAlignmentField = obj.getField('crossAxisAlignment');
-    final mainAxisAlignmentField = obj.getField('mainAxisAlignment');
+    final crossAxisAlignmentField =
+        WidgetValueDecoder.getField(obj, 'crossAxisAlignment');
+    final mainAxisAlignmentField =
+        WidgetValueDecoder.getField(obj, 'mainAxisAlignment');
 
     final crossAxisAlignment = WidgetValueDecoder.decodeEnum(
       crossAxisAlignmentField,

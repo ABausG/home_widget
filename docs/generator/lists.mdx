@@ -120,7 +120,7 @@ Lists don't nest yet: a builder anywhere inside another builder's `item` fails g
 HWText.number(HWItemData(HWInt('temperature')))
 ```
 
-It wraps the field it reads and is typed like it: `HWItemData(HWInt('temperature'))` is an `HWDataType<int>`, so it is accepted wherever an `HWInt` is, and the analyzer keeps checking that. The key, `defaultValue` and `previewValue` are the wrapped field's. The one addition is `previewValues`, see [Previews](#previews).
+It wraps the field it reads and is typed like it: `HWItemData(HWInt('temperature'))` is an `HWDataType<int>`, so it is accepted wherever an `HWInt` is, and the analyzer keeps checking that. The key is the wrapped field's, and so are the applicable defaults and previews — see the table below. The one addition is `previewValues`, see [Previews](#previews).
 
 Everything **not** wrapped in `HWItemData` keeps its meaning inside an item. A root field, a JSON leaf or a time-based field reads the widget's own data, exactly as it does outside a builder: in the example above, `HWText(HWString('unit'))` shows the same saved `unit` in every item. Item fields have a namespace of their own, so an item field `label` and a root field `label` can exist side by side. Their keys follow the same rules as any data key, plus one of their own: an item field becomes a member of the generated item class, so it can't be named `toJson`, `toString`, `hashCode`, `runtimeType` or `noSuchMethod`, which the class already carries. `fromJson` is free, since the class names a constructor rather than a member with it.
 
@@ -133,6 +133,15 @@ Everything **not** wrapped in `HWItemData` keeps its meaning inside an item. A r
 - a runtime `HWImageData`, see [Images in items](#images-in-items)
 
 It rejects `HWImageData.asset`, since an asset ships with the app and there is nothing to store per item, and `HWJson`, since JSON objects inside an item aren't supported yet. It also rejects another `HWItemData` and `HWTimedData`: a time-based list is written `HWTimedData(HWItemData(...))`, see [Time-based lists](#time-based-lists).
+
+Each wrapped field keeps its own names for its default and its preview:
+
+| Wrapped field | Default | Preview |
+| --- | --- | --- |
+| `HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWIconData` | `defaultValue` | `previewValue` |
+| `HWDateTime` | none | `previewValue` |
+| `HWString.localized` | `defaultTranslations` | `previewTranslations` |
+| a runtime `HWImageData` | none | `previewAsset` |
 
 Anything that takes a data field accepts one inside an item: `HWText` (plain, `.number` and `.dateTime`), `HWImage`, `HWIcon`, `HWDataExists`, `HWBoolConditional`, `HWCurrency.data` and `HWTimeZone.data`. A per-item currency, for example:
 
@@ -241,7 +250,7 @@ HWRow.builder(
 
 ## Defaults
 
-An item saved without a field renders that field's `defaultValue`, the same as a root field nothing was saved to: in the example, an item without a `temperature` shows `0`. Without a default, a missing field renders nothing, the same as a missing root field: empty text, no icon, no image. [`HWDataExists`](/generator/widgets/hw-conditional) gives it a placeholder, item by item:
+An item saved without a field renders the field's applicable default — `defaultValue`, or `defaultTranslations` for `HWString.localized`, resolved against the device's locale — the same as a root field nothing was saved to: in the example, an item without a `temperature` shows `0`. Without one, a missing field renders nothing, the same as a missing root field: empty text, no icon, no image. [`HWDataExists`](/generator/widgets/hw-conditional) gives it a placeholder, item by item:
 
 ```dart
 item: HWDataExists(
@@ -255,7 +264,7 @@ item: HWDataExists(
 
 ## Previews
 
-The widget gallery can show sample items in place of a list. An item field's sample comes from the field it wraps, the same as for [any other field](/generator/previews): its `previewValue` (or `previewAsset` / `previewTranslations`), then its `defaultValue`. `previewValues` on `HWItemData` varies the sample from one item to the next, item `i` taking entry `i`:
+The widget gallery can show sample items in place of a list. An item field's sample comes from the field it wraps, the same as for [any other field](/generator/previews): its applicable preview, then its applicable default — see the [table above](#hwitemdata) for what each is named. `previewValues` on `HWItemData` varies the sample from one item to the next, item `i` taking entry `i`:
 
 ```dart
 HWText(HWItemData(HWString('label'), previewValues: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']))
@@ -274,13 +283,13 @@ Each entry is written the way the field's own `previewValue` is:
 For each list, the gallery shows the first of these that applies:
 
 1. **The saved list**, where the preview reads live data (`useLiveDataInPreview`, on by default). Once the app has saved a list, the gallery shows it, and `whenEmpty` for a saved `[]`.
-2. **Varied sample items**, when at least one item field has `previewValues`. There are as many as the longest `previewValues`, and item `i` takes, for each field, `previewValues[i]`, then the field's `previewValue`, then its `defaultValue`.
+2. **Varied sample items**, when at least one item field has `previewValues`. There are as many as the longest `previewValues`, and item `i` takes, for each field, `previewValues[i]`, then the field's applicable preview, then its applicable default — see the [table above](#hwitemdata).
 3. **Repeated sample items**, when no field has `previewValues` but at least one has a `previewValue` (or `previewAsset` / `previewTranslations`). The items are all alike, and there are as many as the largest `maxItems` among the builders over the list, or 3 when none of them sets one.
 4. **`whenEmpty`**, or an empty stack, when no item field has any of these.
 
 The gallery renders at most `maxItems` of them, like the home screen. On iOS, the placeholder WidgetKit shows before the widget's first render uses the same sample items. A [time-based list](#time-based-lists) previews the same way, for a single instant: the saved list of rule 1 is the one in the entry active at that moment, and the sample items stand in when that entry holds no list.
 
-When the fields of one list set `previewValues` of different lengths, generation warns. The longest decides how many sample items there are, and a field past the end of its own `previewValues` falls back to its `previewValue` or `defaultValue`.
+When the fields of one list set `previewValues` of different lengths, generation warns. The longest decides how many sample items there are, and a field past the end of its own `previewValues` falls back to its applicable preview or default, see the [table above](#hwitemdata).
 
 ## Several builders over one list
 

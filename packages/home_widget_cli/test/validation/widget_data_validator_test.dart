@@ -2639,6 +2639,28 @@ void main() {
       );
     });
 
+    test('rejects a list key the item class already declares', () {
+      for (final key in ['toJson', 'hashCode']) {
+        expect(
+          () => validateWidgetData(
+            _spec(HWRow.builder(key, item: const HWText.fixed('x'))),
+          ),
+          _throwsMessage(
+            'Invalid data name "$key" (list "$key"): the generated data '
+            'class already has a member named "$key".',
+          ),
+          reason: key,
+        );
+      }
+
+      expect(
+        () => validateWidgetData(
+          _spec(const HWRow.builder('forecast', item: HWText.fixed('x'))),
+        ),
+        returnsNormally,
+      );
+    });
+
     test('validates an item field key in the namespace of its list', () {
       expect(
         () => validateWidgetData(

@@ -744,14 +744,22 @@ class WidgetValueDecoder {
   /// The `previewValues` of an [HWItemData] reading [field], each decoded the
   /// way [field]'s own `previewValue` is, or null when [obj] is absent.
   ///
-  /// Throws a [GeneratorError] on an empty list, and on an entry that is null,
-  /// of a type [field] does not take, or an icon [field] does not offer.
+  /// Throws a [GeneratorError] on a value that isn't a const list, on an
+  /// empty list, and on an entry that is null, of a type [field] does not
+  /// take, or an icon [field] does not offer.
   static List<Object>? _decodePreviewValues(
     DartObject? obj,
     HWDataType<dynamic> field,
   ) {
     if (obj == null || obj.isNull) return null;
-    final entries = obj.toListValue() ?? const <DartObject>[];
+    final entries = obj.toListValue();
+    if (entries == null) {
+      throw GeneratorError(
+        'The previewValues of HWItemData "${field.key}" could not be read as '
+        'a constant list. They must be a const list literal of values, e.g. '
+        "previewValues: ['a', 'b'].",
+      );
+    }
     if (entries.isEmpty) {
       throw GeneratorError(
         'The previewValues of HWItemData "${field.key}" are empty. Leave them '
