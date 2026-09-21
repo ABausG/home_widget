@@ -64,6 +64,7 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
       ascent: (dataExpr) => 'if (${conditionKotlin(dataExpr: dataExpr)}) '
           '${first.ascent(dataExpr)} else ${second.ascent(dataExpr)}',
       isBitmap: first.isBitmap || second.isBitmap,
+      kotlinImports: {...first.kotlinImports, ...second.kotlinImports},
       conflict: first.conflict ?? second.conflict,
     );
   }

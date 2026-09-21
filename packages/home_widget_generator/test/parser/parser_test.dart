@@ -332,6 +332,92 @@ class TestWidget {}
       expect(text.style!.underline, true);
       expect(text.style!.lineThrough, false);
       expect(text.style!.baseStyle, isNull);
+      expect(text.style!.androidFont, isNull);
+    });
+
+    test('parses a preset androidFont next to a custom family', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText.fixed('Serif',
+    style: HWTextStyle(
+      fontFamily: 'Chewy',
+      androidFont: HWAndroidFont.serif,
+    )
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final text = widget as HWText;
+      expect(text.style!.fontFamily, 'Chewy');
+      expect(text.style!.androidFont, HWAndroidFont.serif);
+      expect(text.style!.kotlinRenderer(), isA<HWGlanceTextRenderer>());
+    });
+
+    test('parses a named androidFont family', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText.fixed('Casual',
+    style: HWTextStyle(androidFont: HWAndroidFont.family('casual'))
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final text = widget as HWText;
+      expect(text.style!.androidFont, const HWAndroidFont.family('casual'));
+    });
+
+    test('parses the two androidFont choices naming no family', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWRow(
+    children: [
+      HWText.fixed('System',
+        style: HWTextStyle(
+          fontFamily: 'Chewy',
+          androidFont: HWAndroidFont.system,
+        )
+      ),
+      HWText.fixed('Custom',
+        style: HWTextStyle(
+          fontFamily: 'Chewy',
+          androidFont: HWAndroidFont.custom,
+        )
+      ),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final children = (widget as HWRow).children.cast<HWText>();
+      expect(children[0].style!.androidFont, HWAndroidFont.system);
+      expect(children[1].style!.androidFont, HWAndroidFont.custom);
+      expect(children[0].kotlinRendersBitmapText, isFalse);
+      expect(children[1].kotlinRendersBitmapText, isTrue);
+    });
+
+    test('parses androidFont on an HWRoleTextStyle', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWText.fixed('Role',
+    style: HWRoleTextStyle.caption(
+      fontFamily: 'Chewy',
+      androidFont: HWAndroidFont.monospace,
+    )
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      final text = widget as HWText;
+      expect(text.style, isA<HWRoleTextStyle>());
+      expect(text.style!.androidFont, HWAndroidFont.monospace);
     });
 
     test('parses HWRoleTextStyle and baseStyle', () async {
