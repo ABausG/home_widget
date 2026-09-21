@@ -51,11 +51,13 @@ class HWSizedBox extends HWWidget {
   @override
   String get swiftFrameAlignment => child?.swiftFrameAlignment ?? '.topLeading';
 
-  @override
-  Set<String> get kotlinImports => kotlinImportsIn(null);
-
+  /// Nothing while this box renders nothing: neither the `Spacer` a gap asking
+  /// for no room would be nor the modifiers around a child rendering nothing
+  /// are emitted.
   @override
   Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
+    if (kotlinRendersNothing) return const {};
+
     final modifiers = _kotlinModifiers(enclosingLinearAxis);
     final child = this.child;
     return {
@@ -69,6 +71,82 @@ class HWSizedBox extends HWWidget {
       },
     };
   }
+
+  @override
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// Whether both axes resolve to no room at all, which is what a box without
+  /// a child to size itself from renders as.
+  bool get _isEmptyGap => (width ?? 0) == 0 && (height ?? 0) == 0;
+
+  /// Whether an axis is sized to a number of pixels, rather than filled or
+  /// left to the child.
+  bool get _hasFiniteSize =>
+      (width?.isFinite ?? false) || (height?.isFinite ?? false);
+
+  /// A gap asking for no room, or a box around a child rendering nothing: a
+  /// frame around nothing is nothing.
+  @override
+  bool get swiftRendersNothing => child?.swiftRendersNothing ?? _isEmptyGap;
+
+  /// [swiftRendersNothing]'s rule, which also keeps Glance from counting a
+  /// `Spacer` of no size among the children of a stack.
+  @override
+  bool get kotlinRendersNothing => child?.kotlinRendersNothing ?? _isEmptyGap;
+
+  /// The room the outermost composable asks for: a weight along the main axis
+  /// of the stack around it, a fill on the other one.
+  ///
+  /// A finite size is no room — it is injected into the child, which the
+  /// wrap-content `Box` a stack may put around it then sits tight around.
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) => HWKotlinRoom(
+        weight: (width == double.infinity &&
+                enclosingLinearAxis == HWAxis.horizontal) ||
+            (height == double.infinity &&
+                enclosingLinearAxis == HWAxis.vertical),
+        fillsWidth: width == double.infinity &&
+            enclosingLinearAxis != HWAxis.horizontal,
+        fillsHeight:
+            height == double.infinity && enclosingLinearAxis != HWAxis.vertical,
+      );
+
+  /// False once an axis is sized: Glance takes the padding out of the pixels
+  /// the size asks for, so a gap would eat the content instead of sitting
+  /// outside it.
+  @override
+  bool get kotlinPaddingAddsRoom =>
+      _hasFiniteSize ? false : child?.kotlinPaddingAddsRoom ?? true;
+
+  /// [widget] as this box's modifiers land on it: sized, unless it renders
+  /// nothing for them to go on.
+  HWWidget _kotlinWrapping(HWWidget widget) => widget.kotlinRendersNothing
+      ? widget
+      : HWSizedBox(width: width, height: height, child: widget);
+
+  /// The size is injected into whichever widget the child's Glance output is
+  /// picked from, so the box sits on each of them.
+  @override
+  List<HWWidget>? _kotlinChoices(HWEmitContext? context) =>
+      child?._kotlinChoices(context)?.map(_kotlinWrapping).toList();
+
+  @override
+  String? _kotlinChoice(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext? context,
+    required String Function(HWWidget widget, int indent) emit,
+  }) =>
+      child?._kotlinChoice(
+        indent,
+        dataExpr: dataExpr,
+        context: context,
+        emit: (widget, indent) => emit(_kotlinWrapping(widget), indent),
+      );
+
+  @override
+  Set<String> get _kotlinChoiceImports =>
+      child?._kotlinChoiceImports ?? const {};
 
   /// The child's, unless this box sets the height: the row pads the child from
   /// the top of the box it sits in, and a height moves that top off the glyphs.
@@ -207,14 +285,9 @@ class HWSizedBox extends HWWidget {
     required String dataExpr,
     HWEmitContext? context,
   }) {
+    if (swiftRendersNothing) return '';
+
     final child = this.child;
-
-    // A zero-size view still takes the spacing a stack puts around it, so a gap
-    // asking for no room at all has to be no view.
-    if (child == null && (width ?? 0) == 0 && (height ?? 0) == 0) {
-      return '${'    ' * indent}EmptyView()';
-    }
-
     var code = child == null
         ? '${'    ' * indent}Color.clear'
         : child.toSwift(indent, dataExpr: dataExpr, context: context);
@@ -237,12 +310,13 @@ class HWSizedBox extends HWWidget {
     required String dataExpr,
     HWEmitContext? context,
   }) {
+    if (kotlinRendersNothing) return '';
+
     final modifiers = _kotlinModifiers(context?.enclosingLinearAxis);
     final child = this.child;
 
     if (child == null) {
       final pad = '    ' * indent;
-      if (modifiers.isEmpty) return '${pad}Spacer()';
       return '${pad}Spacer(modifier = GlanceModifier.${modifiers.join('.')})';
     }
 

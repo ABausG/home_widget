@@ -307,7 +307,7 @@ List<HWWidgetFamily> _ordered(Iterable<HWWidgetFamily> families) => [
 /// Whether [slot] is something the inline accessory can render.
 bool _isInlineSlot(HWWidget slot) {
   if (_isInlineContent(slot)) return true;
-  if (slot is HWRow) return slot.children.every(_isInlineContent);
+  if (slot is HWRow) return slot.childWidgets.every(_isInlineContent);
   return false;
 }
 

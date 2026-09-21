@@ -45,6 +45,9 @@ Future<void> ensureAppGroupEntitlement({
 
   final pairs = dict.childElements.toList(growable: false);
   XmlElement? arrayEl;
+  // Re-serializing reformats the whole plist, so a file already holding the
+  // group is left exactly as it is.
+  var added = false;
 
   for (var i = 0; i < pairs.length - 1; i++) {
     final a = pairs[i];
@@ -72,6 +75,7 @@ Future<void> ensureAppGroupEntitlement({
     newArray.children.add(XmlText('\n\t'));
     dict.children.add(newArray);
     dict.children.add(XmlText('\n'));
+    added = true;
   } else {
     final existing =
         arrayEl.findElements('string').map((e) => e.innerText.trim()).toSet();
@@ -81,14 +85,16 @@ Future<void> ensureAppGroupEntitlement({
       arrayEl.children
           .add(XmlElement(XmlName('string'))..children.add(XmlText(id)));
       arrayEl.children.add(XmlText('\n\t'));
+      added = true;
     }
   }
 
-  final updated = doc.toXmlString(pretty: true, indent: '\t');
-  if (updated != original) {
-    await entitlementsFile.writeAsString(updated);
-    logger.detail('Updated entitlements: ${entitlementsFile.path}');
-  }
+  if (!added) return;
+
+  await entitlementsFile.writeAsString(
+    doc.toXmlString(pretty: true, indent: '\t'),
+  );
+  logger.detail('Updated entitlements: ${entitlementsFile.path}');
 }
 
 String _newEntitlementsXml(String appGroupId) => '''

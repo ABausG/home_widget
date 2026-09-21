@@ -497,5 +497,149 @@ void main() {
         );
       });
     });
+
+    group('item preview assets', () {
+      WidgetSpec contactsSpec(HWItemData<dynamic> avatar) {
+        final tree = HWColumn.builder(
+          'contacts',
+          maxItems: 3,
+          item: HWImage(avatar),
+        );
+        return WidgetSpec(
+          data: HomeWidget(name: 'Test Widget'),
+          className: 'TestWidget',
+          dataFields: tree.dataDependencies.toList(),
+          widgetTree: tree,
+        );
+      }
+
+      test('accepts declared preview assets that exist', () {
+        writeProjectFile('assets/a.png', 'png');
+        writeProjectFile('assets/b.png', 'png');
+        writePubspec(['assets/']);
+
+        expect(
+          () => validateAssets(
+            contactsSpec(
+              const HWItemData(
+                HWImageData('avatar', previewAsset: 'assets/a.png'),
+                previewValues: ['assets/b.png', 'assets/a.png'],
+              ),
+            ),
+            projectRoot,
+          ),
+          returnsNormally,
+        );
+      });
+
+      test(
+          'rejects a missing previewValues entry, naming list, field and index',
+          () {
+        writeProjectFile('assets/a.png', 'png');
+        writePubspec(['assets/']);
+
+        expect(
+          () => validateAssets(
+            contactsSpec(
+              const HWItemData(
+                HWImageData('avatar'),
+                previewValues: ['assets/a.png', 'assets/missing.png'],
+              ),
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                startsWith(
+                  'Missing asset for widget "TestWidget": '
+                  '"assets/missing.png" does not exist at ',
+                ),
+                endsWith(
+                  'Create the file or fix the path in previewValues[1] of '
+                  'HWItemData "avatar" in list "contacts".',
+                ),
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a missing previewAsset of an item image', () {
+        writePubspec(['assets/']);
+
+        expect(
+          () => validateAssets(
+            contactsSpec(
+              const HWItemData(
+                HWImageData('avatar', previewAsset: 'assets/missing.png'),
+              ),
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              endsWith(
+                'Create the file or fix the path in previewAsset of '
+                'HWItemData "avatar" in list "contacts".',
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a preview asset the pubspec does not bundle', () {
+        writeProjectFile('assets/a.png', 'png');
+        writePubspec([]);
+
+        expect(
+          () => validateAssets(
+            contactsSpec(
+              const HWItemData(
+                HWImageData('avatar'),
+                previewValues: ['assets/a.png'],
+              ),
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('Undeclared asset'),
+            ),
+          ),
+        );
+      });
+
+      test('resolves a packages/ preview asset through the package config', () {
+        final packageDir = Directory.systemTemp.createTempSync('hw_pkg_item_');
+        addTearDown(() => packageDir.deleteSync(recursive: true));
+        writePackageConfig('my_icons', packageDir);
+
+        expect(
+          () => validateAssets(
+            contactsSpec(
+              const HWItemData(
+                HWImageData('avatar'),
+                previewValues: ['packages/my_icons/preview.png'],
+              ),
+            ),
+            projectRoot,
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('Missing package asset'),
+            ),
+          ),
+        );
+      });
+    });
   });
 }

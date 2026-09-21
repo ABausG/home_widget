@@ -20,7 +20,51 @@ HWSizedBox.expand(
 
 Children are centred vertically unless `crossAxisAlignment` says otherwise. A row is also the only place [`HWCrossAxisAlignment.baseline`](/generator/styling/hw-alignment) applies, which lines the children up on their first text baselines instead of on the boxes they sit in.
 
-On Android `baseline` lines up the children that render text of their own; a child rendering none stays at the top of the row, and a row with fewer than two texts leaves all of them there. iOS aligns every child, text or not, on the first text baseline, so the two platforms differ where a row mixes text with a picture or an icon. A row holding a text in a [custom font](/generator/custom-fonts) is lined up by the plugin when the widget updates.
+On Android `baseline` lines up the children that render text of their own; a child rendering none stays at the top of the row, and a row with fewer than two texts leaves all of them there. iOS aligns every child, text or not, on the first text baseline, so the two platforms differ where a row mixes text with a picture or an icon. A row holding a text in a [custom font](/generator/custom-fonts) is lined up by the plugin when the widget updates, and so is one whose `spacing` puts a text with a background or a border in a `Box` of its own.
+
+## Spacing
+
+`spacing` puts a gap between every two adjacent children, like Flutter's `Row.spacing`: there is none before the first child or after the last. It is in logical pixels, which is points on iOS and dp on Android, and defaults to `0`, so children touch unless you ask for a gap.
+
+```dart
+HWRow(
+  spacing: 8,
+  children: [
+    HWIcon.fixed(Icons.favorite, size: 24),
+    HWText(HWInt('likes')),
+  ],
+)
+```
+
+`mainAxisAlignment` distributes the width left over on top of the gaps:
+
+- `spaceBetween`: every gap is `spacing` plus an equal share.
+- `spaceEvenly`: the gaps between children are `spacing` plus a share, the room before the first and after the last child is just the share.
+- `start`, `center` and `end`: the children move as one block, gaps included.
+
+The gap stays outside each child, so a child's background or border never covers it. In a right-to-left layout it follows the children to the other side. A negative `spacing` fails generation.
+
+## Building from a list
+
+`HWRow.builder` renders one child per item of a list your app saves, laid out from a single `item` widget:
+
+```dart
+HWRow.builder(
+  'forecast',
+  maxItems: 5,
+  mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
+  item: HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+  whenEmpty: HWText.fixed('No forecast yet'),
+)
+```
+
+The items are the row's children, so the alignments and `spacing` apply to them as they would to fixed children: `spaceBetween` spreads the room left over between the items, and `baseline` lines them up on their first text baselines. `whenEmpty` is the only child while there is no item to render. A builder takes no `children`: to put a label next to the items, nest it in another `HWRow`. See [Lists](/generator/lists) for `HWItemData`, the generated Dart API and the gallery preview.
+
+## Android: at most 10 children
+
+Glance lays out at most 10 children in a `Row`, and every `Spacer` a `mainAxisAlignment` adds counts as one of them. `spacing` counts as nothing, and neither does a child that renders nothing on Android, such as [`HWDataOnly`](/generator/widgets/hw-data-only). A row Android would render with more than 10 fails generation instead of losing children on the home screen. Group some children in a nested `HWColumn` or `HWRow`, which counts as one child, or use an alignment that adds fewer spacers; [HWAlignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) lists how many each one adds.
+
+A builder's items count the same way. On Android an `HWRow.builder` therefore needs a `maxItems`, at most 10 with no spacers and fewer with them; see [Android limits](/generator/lists#android-limits).
 
 ## Parameters
 
@@ -29,10 +73,20 @@ On Android `baseline` lines up the children that render text of their own; a chi
 | `children`            | `List<HWWidget>`         | **required** | Widgets stacked left-to-right.           |
 | `crossAxisAlignment`  | `HWCrossAxisAlignment?`  | `null` (`center`) | Vertical alignment of children. `baseline` is allowed here. |
 | `mainAxisAlignment`   | `HWMainAxisAlignment?`   | `null`       | Horizontal distribution of children.     |
+| `spacing`             | `double`                 | `0`          | Gap between two adjacent children, in logical pixels. |
+
+`HWRow.builder` takes these in place of `children`, and `crossAxisAlignment`, `mainAxisAlignment` and `spacing` as above:
+
+| Name         | Type        | Default      | Description                              |
+| ------------ | ----------- | ------------ | ---------------------------------------- |
+| `list`       | `String`    | **required** (positional) | Key the list is saved under. Also names the generated `saveData` parameter and item class. |
+| `item`       | `HWWidget`  | **required** | Rendered once per saved item, in saved order. The only place `HWItemData` reads from. |
+| `maxItems`   | `int?`      | `null` (every item) | Renders at most this many items. 1 or more; required for widgets generated for Android. |
+| `whenEmpty`  | `HWWidget?` | `null` (empty row) | The row's only child while there is no item to render. |
 
 See [HWAlignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.
 
 ## Platform mapping
 
-- **iOS:** SwiftUI [`HStack`](https://developer.apple.com/documentation/swiftui/hstack).
-- **Android:** Glance [`Row`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Row(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment.Horizontal,androidx.glance.layout.Alignment.Vertical,kotlin.Function1)).
+- **iOS:** SwiftUI [`HStack`](https://developer.apple.com/documentation/swiftui/hstack) with `spacing: 0`. The gap is a `.padding(.leading, spacing)` on every child but the first. A builder renders its items with a `ForEach` over the saved items, at most `maxItems` of them. A row whose alignment spreads its children takes `.frame(maxWidth: .infinity, alignment: .leading)` wherever its spacers might not stretch it: under `spaceBetween` with a single child, and always for a builder.
+- **Android:** Glance [`Row`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Row(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment.Horizontal,androidx.glance.layout.Alignment.Vertical,kotlin.Function1)). The gap is a start padding on every child but the first, on a `Box` around a child that draws a background or has a fixed size. A child drawn only some of the time — a branch of a conditional, a slot of an `HWSizeAdaptive`, an icon or picture bound to data — takes the gap on whatever it draws, so one drawing nothing leaves no gap. A builder renders its items in a loop over the saved items, at most `maxItems` of them.

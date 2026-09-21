@@ -39,10 +39,13 @@ class IosGenerator {
     final jsonGroups = spec.jsonDataGroups;
     final timedPrimitiveFields = spec.timedPrimitiveDataFields;
     final timedJsonGroups = spec.timedJsonDataGroups;
-    final hasTimedFields = spec.timedDataFields.isNotEmpty;
-    final hasDataFields =
-        primitiveFields.isNotEmpty || jsonGroups.isNotEmpty || hasTimedFields;
-    final needsEntryTimedEntries = spec.needsLocaleHelpers && hasTimedFields;
+    final lists = spec.listDataGroups;
+    final hasTimedData = spec.hasTimedData;
+    final hasDataFields = primitiveFields.isNotEmpty ||
+        jsonGroups.isNotEmpty ||
+        hasTimedData ||
+        lists.isNotEmpty;
+    final needsEntryTimedEntries = spec.needsLocaleHelpers && hasTimedData;
 
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
@@ -133,6 +136,11 @@ class IosGenerator {
       for (final group in timedJsonGroups) {
         buffer.writeln('  let ${group.key}: ${_jsonStructName(group.key)}?');
       }
+      for (final group in lists) {
+        buffer.writeln(
+          '  let ${group.key}: [${group.itemClassName(spec.className)}]?',
+        );
+      }
       buffer.writeln();
       buffer.writeln(
         '  static let paramPrefix = "home_widget.${spec.className}"',
@@ -143,7 +151,7 @@ class IosGenerator {
         buffer.writeln();
         buffer.write(_swiftDataFactory(preview: true));
       }
-      if (hasTimedFields) {
+      if (hasTimedData) {
         buffer.writeln();
         buffer.write(_swiftTimedDataHelpers());
       }
@@ -160,6 +168,10 @@ class IosGenerator {
             isRoot: true,
           ),
         );
+      }
+      for (final group in lists) {
+        buffer.writeln();
+        buffer.write(_swiftListItemStruct(group));
       }
       extraContent = buffer.toString();
 
@@ -228,7 +240,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
       getSnapshotBody = snapshotBuffer.toString();
 
       final timelineBuffer = StringBuffer();
-      if (hasTimedFields) {
+      if (hasTimedData) {
         // The trailing comma opens the argument list for the `timedEntries:`
         // line that follows it.
         final entryComma = needsEntryTimedEntries ? ',' : '';
@@ -308,7 +320,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
     // The re-read has to land on the same instant WidgetKit is rendering, or
     // every entry of the timeline would show the values that were active when
     // the timeline was built and no timed change would ever appear.
-    final atEntryDate = hasTimedFields ? ', at: entry.date' : '';
+    final atEntryDate = hasTimedData ? ', at: entry.date' : '';
     final entryTimedEntriesArg =
         needsEntryTimedEntries ? ', timedEntries: entry.timedEntries' : '';
     final reReadArgs = 'prefs$atEntryDate$entryTimedEntriesArg';
@@ -791,7 +803,7 @@ $pad}
     final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
 
     final buffer = StringBuffer();
-    if (spec.timedDataFields.isEmpty) {
+    if (!spec.hasTimedData) {
       buffer.writeln(
         '  static func $name(_ defaults: UserDefaults?) -> $className {',
       );
@@ -831,6 +843,18 @@ $pad}
         'timedValues["${group.key}"] as? [String: Any]),',
       );
     }
+    for (final group in spec.listDataGroups) {
+      final itemStruct = group.itemClassName(spec.className);
+      final read = group.timed
+          ? '$itemStruct.fromJsonArray(timedValues["${group.key}"])'
+          : '$itemStruct.fromPath('
+              'defaults?.string(forKey: "\\(paramPrefix).${group.key}"))';
+      buffer.writeln(
+        preview && group.sampleItemCount > 0
+            ? '      ${group.key}: $read ?? $itemStruct.previewItems,'
+            : '      ${group.key}: $read,',
+      );
+    }
     buffer.write('''
     )
   }
@@ -863,7 +887,7 @@ $pad}
   }
 
   /// Emits the timed-data file loader and the active-entry resolver used by
-  /// `fromUserDefaults` when the spec has [WidgetSpec.timedDataFields].
+  /// `fromUserDefaults` when the spec has [WidgetSpec.hasTimedData].
   ///
   /// Both statics are implementation details of the generated file, so they are
   /// `fileprivate` rather than public. They cannot be `private`: Swift's
@@ -1099,6 +1123,125 @@ $pad}
       }
     }
     return buffer.toString();
+  }
+
+  /// The struct an item of [group] is decoded into, with the factories
+  /// reading a stored list of them.
+  ///
+  /// Every property is optional, as on the data struct, so a widget reads an
+  /// item field the way it reads a root one; `fromJson` applies the defaults.
+  String _swiftListItemStruct(ListDataGroup group) {
+    final structName = group.itemClassName(spec.className);
+    final buffer = StringBuffer();
+    buffer.writeln('struct $structName {');
+    for (final field in group.fields) {
+      buffer.writeln('  let ${field.key}: ${field.data.swiftType}?');
+    }
+    if (group.fields.isNotEmpty) buffer.writeln();
+
+    if (group.sampleItemCount > 0) {
+      buffer
+        ..write(_swiftPreviewItems(group, structName))
+        ..writeln();
+    }
+
+    buffer.write('''
+  static func fromPath(_ path: String?) -> [$structName]? {
+    guard let path else { return nil }
+    guard FileManager.default.fileExists(atPath: path) else { return nil }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      let json = try JSONSerialization.jsonObject(with: data)
+      return fromJsonArray(json)
+    } catch {
+      return nil
+    }
+  }
+
+  static func fromJsonArray(_ value: Any?) -> [$structName]? {
+    guard let items = value as? [Any] else { return nil }
+''');
+
+    if (group.fields.isEmpty) {
+      buffer.write('''
+    return items.map { _ in $structName() }
+  }
+}
+''');
+      return buffer.toString();
+    }
+
+    buffer.write('''
+    return items.map { fromJson(\$0 as? [String: Any]) }
+  }
+
+  static func fromJson(_ json: [String: Any]?) -> $structName {
+    let values = json ?? [:]
+    return $structName(
+''');
+    for (final field in group.fields) {
+      final read = _swiftJsonNodeRead(
+        structName: structName,
+        key: field.key,
+        child: _SwiftJsonNode()..leafType = field.data,
+        preview: false,
+      );
+      buffer.writeln('      ${field.key}: $read,');
+    }
+    buffer.write('''
+    )
+  }
+}
+''');
+    return buffer.toString();
+  }
+
+  /// `previewItems`: the sample items of [group], which the gallery shows
+  /// until a list is saved.
+  String _swiftPreviewItems(ListDataGroup group, String structName) {
+    String item(int index) {
+      final arguments = [
+        for (final field in group.fields)
+          '${field.key}: '
+              '${_swiftSampleLiteral(field.data, group.sampleValue(field, index))}',
+      ];
+      return '$structName(${arguments.join(', ')})';
+    }
+
+    final count = group.sampleItemCount;
+    final buffer = StringBuffer();
+    if (!group.variesSampleItems) {
+      buffer.writeln(
+        '  static let previewItems: [$structName] = '
+        'Array(repeating: ${item(0)}, count: $count)',
+      );
+      return buffer.toString();
+    }
+
+    buffer.writeln('  static let previewItems: [$structName] = [');
+    for (var index = 0; index < count; index++) {
+      buffer.writeln('    ${item(index)},');
+    }
+    buffer.writeln('  ]');
+    return buffer.toString();
+  }
+
+  /// [value], a field's value in a sample item as [ListDataGroup.sampleValue]
+  /// spells it, as the Swift property of [leaf] holds it.
+  String _swiftSampleLiteral(HWDataType<dynamic> leaf, Object? value) {
+    if (value == null) return 'nil';
+    if (value is Map) {
+      return _swiftPreviewLocalizedFallback(leaf as HWLocalizedString)!;
+    }
+    return switch (leaf) {
+      HWDateTime() =>
+        'hwParseIsoDate("${escapeSwiftStringLiteral(value as String)}")',
+      HWString() ||
+      HWImageData() =>
+        '"${escapeSwiftStringLiteral(value as String)}"',
+      HWDouble() => '${(value as num).toDouble()}',
+      _ => '$value',
+    };
   }
 }
 

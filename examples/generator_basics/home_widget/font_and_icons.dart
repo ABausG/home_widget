@@ -43,6 +43,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   widget: HWColumn(
     mainAxisAlignment: HWMainAxisAlignment.center,
     crossAxisAlignment: HWCrossAxisAlignment.center,
+    spacing: 4,
     children: [
       HWText.fixed(
         'Chewy',
@@ -74,6 +75,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWRow(
         mainAxisAlignment: HWMainAxisAlignment.center,
         crossAxisAlignment: HWCrossAxisAlignment.center,
+        spacing: 8,
         children: [
           HWIcon.fixed(
             Icons.favorite,

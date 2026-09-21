@@ -98,7 +98,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "b0ef3267",
+            "776bd66b",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -152,7 +152,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
               colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
           )
           Image(
-              modifier = GlanceModifier,
+              modifier = GlanceModifier.padding(top = 4.0.dp),
               provider =
                   ImageProvider(
                       if (textBounds.isProbe("41d76946", LocalSize.current))
@@ -174,7 +174,10 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                   else "The same family again, wrapping to the room the label leaves it.",
               colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
           )
-          Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+          Row(
+              modifier = GlanceModifier.padding(top = 4.0.dp).fillMaxWidth(),
+              verticalAlignment = Alignment.Top,
+          ) {
             Spacer(modifier = GlanceModifier.defaultWeight())
             Box(
                 modifier =
@@ -260,7 +263,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
             Spacer(modifier = GlanceModifier.defaultWeight())
           }
           Row(
-              modifier = GlanceModifier.fillMaxWidth(),
+              modifier = GlanceModifier.padding(top = 4.0.dp).fillMaxWidth(),
               verticalAlignment = Alignment.CenterVertically,
           ) {
             Spacer(modifier = GlanceModifier.defaultWeight())
@@ -281,44 +284,49 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                         ColorProvider(day = Color(0xFFE53935), night = Color(0xFFE53935))
                     ),
             )
-            Image(
-                modifier = GlanceModifier.size(24.dp),
-                provider =
-                    ImageProvider(
-                        HomeWidgetFonts.iconBitmap(
-                            context,
-                            R.font.hw_font_font_and_icons__icons_cupertinoicons__cupertino_icons,
-                            0xF4B6,
-                            24f,
-                        )
-                    ),
-                contentDescription = null,
-                colorFilter =
-                    ColorFilter.tint(
-                        ColorProvider(day = Color(0xFFFB8C00), night = Color(0xFFFB8C00))
-                    ),
-            )
-            Image(
-                modifier = GlanceModifier.size(24.dp),
-                provider =
-                    ImageProvider(
-                        HomeWidgetFonts.iconBitmap(
-                            context,
-                            R.font
-                                .hw_font_font_and_icons__icons_fontawesomesolid__font_awesome_flutter,
-                            0xF004,
-                            24f,
-                        )
-                    ),
-                contentDescription = null,
-                colorFilter =
-                    ColorFilter.tint(
-                        ColorProvider(day = Color(0xFF8E24AA), night = Color(0xFF8E24AA))
-                    ),
-            )
+            Box(modifier = GlanceModifier.padding(start = 8.0.dp)) {
+              Image(
+                  modifier = GlanceModifier.size(24.dp),
+                  provider =
+                      ImageProvider(
+                          HomeWidgetFonts.iconBitmap(
+                              context,
+                              R.font.hw_font_font_and_icons__icons_cupertinoicons__cupertino_icons,
+                              0xF4B6,
+                              24f,
+                          )
+                      ),
+                  contentDescription = null,
+                  colorFilter =
+                      ColorFilter.tint(
+                          ColorProvider(day = Color(0xFFFB8C00), night = Color(0xFFFB8C00))
+                      ),
+              )
+            }
+            Box(modifier = GlanceModifier.padding(start = 8.0.dp)) {
+              Image(
+                  modifier = GlanceModifier.size(24.dp),
+                  provider =
+                      ImageProvider(
+                          HomeWidgetFonts.iconBitmap(
+                              context,
+                              R.font
+                                  .hw_font_font_and_icons__icons_fontawesomesolid__font_awesome_flutter,
+                              0xF004,
+                              24f,
+                          )
+                      ),
+                  contentDescription = null,
+                  colorFilter =
+                      ColorFilter.tint(
+                          ColorProvider(day = Color(0xFF8E24AA), night = Color(0xFF8E24AA))
+                      ),
+              )
+            }
             Spacer(modifier = GlanceModifier.defaultWeight())
           }
           Text(
+              modifier = GlanceModifier.padding(top = 4.0.dp),
               text = "three icons, three fonts",
               style =
                   TextStyle(
@@ -328,21 +336,23 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                   ),
           )
           widgetData.mood?.let { codePoint ->
-            Image(
-                modifier = GlanceModifier.size(40.dp),
-                provider =
-                    ImageProvider(
-                        HomeWidgetFonts.iconBitmap(
-                            context,
-                            R.font.hw_font_font_and_icons__icons_materialicons,
-                            codePoint,
-                            40f,
-                            matchTextDirection = codePoint in hwMirroredIcons,
-                        )
-                    ),
-                contentDescription = "Mood",
-                colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
-            )
+            Box(modifier = GlanceModifier.padding(top = 4.0.dp)) {
+              Image(
+                  modifier = GlanceModifier.size(40.dp),
+                  provider =
+                      ImageProvider(
+                          HomeWidgetFonts.iconBitmap(
+                              context,
+                              R.font.hw_font_font_and_icons__icons_materialicons,
+                              codePoint,
+                              40f,
+                              matchTextDirection = codePoint in hwMirroredIcons,
+                          )
+                      ),
+                  contentDescription = "Mood",
+                  colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+              )
+            }
           }
           Spacer(modifier = GlanceModifier.defaultWeight())
         }

@@ -52,8 +52,8 @@ struct SizeAdaptiveDashboardHomeWidgetEntryView: View {
     Group {
       switch widgetFamily {
       case .systemMedium:
-        HStack(alignment: .firstTextBaseline) {
-          Spacer()
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+          Spacer(minLength: 0)
           Text(
             hwFormatDecimal(
               NSNumber(value: entry.data.score ?? 0), minFraction: nil, maxFraction: nil,
@@ -63,10 +63,10 @@ struct SizeAdaptiveDashboardHomeWidgetEntryView: View {
           Text(entry.data.scoreLabel ?? "")
             .font(.body).foregroundColor(Color.secondary)
             .padding(EdgeInsets(top: 0.0, leading: 8.0, bottom: 0.0, trailing: 0.0))
-          Spacer()
+          Spacer(minLength: 0)
         }
       case .systemLarge:
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 0) {
           Text(
             hwFormatDecimal(
               NSNumber(value: entry.data.score ?? 0), minFraction: nil, maxFraction: nil,
@@ -91,7 +91,7 @@ struct SizeAdaptiveDashboardHomeWidgetEntryView: View {
         )
         .font(.title).fontWeight(.bold)
       case .accessoryRectangular:
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 0) {
           Text(
             hwFormatDecimal(
               NSNumber(value: entry.data.score ?? 0), minFraction: nil, maxFraction: nil,
@@ -110,41 +110,41 @@ struct SizeAdaptiveDashboardHomeWidgetEntryView: View {
         .font(.body)
       #if compiler(>=6.4)
         case .systemExtraLargePortrait:
-          VStack(alignment: .leading) {
+          VStack(alignment: .leading, spacing: 0) {
             Text("Dashboard")
               .font(.caption)
-            Spacer()
+            Spacer(minLength: 0)
             Text(
               hwFormatDecimal(
                 NSNumber(value: entry.data.score ?? 0), minFraction: nil, maxFraction: nil,
                 grouping: true)
             )
             .font(.title).fontWeight(.bold)
-            Spacer()
+            Spacer(minLength: 0)
             Text(entry.data.scoreLabel ?? "")
               .font(.body).foregroundColor(Color.secondary)
-            Spacer()
+            Spacer(minLength: 0)
             Text(
               hwFormatDecimal(
                 NSNumber(value: entry.data.streak ?? 0), minFraction: nil, maxFraction: nil,
                 grouping: true)
             )
             .font(.caption)
-            Spacer()
+            Spacer(minLength: 0)
             Text(entry.data.motivation ?? "")
               .font(.caption).foregroundColor(Color.secondary)
           }
       #endif
       default:
-        VStack(alignment: .center) {
-          Spacer()
+        VStack(alignment: .center, spacing: 0) {
+          Spacer(minLength: 0)
           Text(
             hwFormatDecimal(
               NSNumber(value: entry.data.score ?? 0), minFraction: nil, maxFraction: nil,
               grouping: true)
           )
           .font(.title).fontWeight(.bold)
-          Spacer()
+          Spacer(minLength: 0)
         }
       }
     }

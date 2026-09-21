@@ -283,8 +283,8 @@ void main() {
 
       expect(swift, contains('let mood: Int'));
       expect(swift, contains('(values["mood"] as? Int) ?? $happy'));
-      expect(kotlin, contains('val mood: Int'));
-      expect(kotlin, contains('json.optInt("mood") else $happy'));
+      expect(kotlin, contains('val mood: Int = $happy,'));
+      expect(kotlin, contains('json.optInt("mood") else $happy,'));
     });
 
     test('a time-based icon reads out of the active entry', () async {
@@ -299,7 +299,7 @@ void main() {
       );
 
       expect(swift, contains('(timedValues["mood"] as? Int) ?? $happy'));
-      expect(kotlin, contains('timedValues.optInt("mood") else $happy'));
+      expect(kotlin, contains('timedValues.optInt("mood") else $happy,'));
     });
 
     test('the font is copied into both native projects', () async {

@@ -13,6 +13,7 @@ import 'package:generator_basics/src/home_widget/number_date_formatting.home_wid
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
 import 'package:generator_basics/src/home_widget/size_adaptive_dashboard.home_widget.dart';
 import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart';
+import 'package:generator_basics/src/home_widget/week_forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/widget_link.home_widget.dart';
 import 'package:generator_basics/src/widget_section.dart';
 
@@ -340,6 +341,73 @@ class _HomePageState extends State<_HomePage> {
               ),
               trailing: const Icon(Icons.wallpaper_outlined),
               onTap: ForecastHomeWidget.updatePreview,
+            ),
+          ],
+        ),
+
+        // -------------------------------------------------------------------
+        // Week Forecast: HWRow.builder renders one column per saved day.
+        // -------------------------------------------------------------------
+        WidgetSection(
+          title: 'Week Forecast',
+          description:
+              'saveData(days: [...]) + updateWidget(). The row renders its item '
+              'once per saved day, at most maxItems: 5 of them, and the '
+              'whenEmpty prompt while there is none.',
+          isInstalled: WeekForecastHomeWidget.isInstalled,
+          isRequestPinWidgetSupported:
+              WeekForecastHomeWidget.isRequestPinWidgetSupported,
+          requestPinWidget: WeekForecastHomeWidget.requestPinWidget,
+          children: [
+            ListTile(
+              title: const Text('Save five days'),
+              subtitle: const Text(
+                'Today and the next four days, one WeekForecastDaysItem each.',
+              ),
+              trailing: const Icon(Icons.view_week_outlined),
+              onTap: () => _saveWeekForecast(5),
+            ),
+            ListTile(
+              title: const Text('Save seven days'),
+              subtitle: const Text(
+                'The row still shows five: maxItems caps what renders, while '
+                'all seven days stay saved.',
+              ),
+              trailing: const Icon(Icons.date_range),
+              onTap: () => _saveWeekForecast(7),
+            ),
+            ListTile(
+              title: const Text('Save an empty list'),
+              subtitle: const Text(
+                'saveData(days: []) + updateWidget(). The row shows whenEmpty.',
+              ),
+              trailing: const Icon(Icons.playlist_remove),
+              onTap: () async {
+                await WeekForecastHomeWidget.saveData(days: []);
+                await WeekForecastHomeWidget.updateWidget();
+              },
+            ),
+            ListTile(
+              title: const Text('Delete the forecast'),
+              subtitle: const Text(
+                'deleteData(days: true) + updateWidget(). Renders like an empty '
+                'list; only getData() tells them apart, returning null '
+                'instead of [].',
+              ),
+              trailing: const Icon(Icons.delete_outline),
+              onTap: () async {
+                await WeekForecastHomeWidget.deleteData(days: true);
+                await WeekForecastHomeWidget.updateWidget();
+              },
+            ),
+            ListTile(
+              title: const Text('Refresh the gallery preview'),
+              subtitle: const Text(
+                'updatePreview() — Android 15+ only, rate-limited to about '
+                'twice per hour and widget.',
+              ),
+              trailing: const Icon(Icons.wallpaper_outlined),
+              onTap: WeekForecastHomeWidget.updatePreview,
             ),
           ],
         ),
@@ -786,6 +854,33 @@ class _HomePageState extends State<_HomePage> {
     );
     await NumberDateFormattingHomeWidget.updateWidget();
   }
+
+  Future<void> _saveWeekForecast(int count) async {
+    final now = DateTime.now();
+    await WeekForecastHomeWidget.saveData(
+      city: 'Berlin',
+      days: [
+        for (final (index, (condition, temperature))
+            in _weekForecast.take(count).indexed)
+          WeekForecastDaysItem(
+            day: DateTime(now.year, now.month, now.day + index, 12),
+            condition: condition,
+            temperature: temperature,
+          ),
+      ],
+    );
+    await WeekForecastHomeWidget.updateWidget();
+  }
+
+  static const _weekForecast = [
+    (WeekForecastConditionIcon.wbSunny, 21),
+    (WeekForecastConditionIcon.cloud, 18),
+    (WeekForecastConditionIcon.umbrella, 14),
+    (WeekForecastConditionIcon.thunderstorm, 16),
+    (WeekForecastConditionIcon.wbSunny, 22),
+    (WeekForecastConditionIcon.acUnit, 2),
+    (WeekForecastConditionIcon.cloud, 9),
+  ];
 
   static const _greetings = [
     'Hello',

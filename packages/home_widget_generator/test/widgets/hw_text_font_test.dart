@@ -554,6 +554,70 @@ void main() {
     });
   });
 
+  group('the room a bitmap text in a list item is drawn in', () {
+    const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
+    const title = HWText(HWItemData(HWString('title')), style: style);
+
+    /// Every hash [kotlin] keys a measured text by, with the suffix after it.
+    Set<String> itemKeysIn(String kotlin) => RegExp(
+          r'textBounds\.(?:width|height)\("([0-9a-f]{8}-\$hwIndex)"',
+        ).allMatches(kotlin).map((match) => match.group(1)!).toSet();
+
+    test('is keyed apart for every item', () {
+      const row = HWRow.builder('events', item: title);
+      final kotlin = row.toKotlin(0, dataExpr: 'data');
+      final key = itemKeysIn(kotlin).single;
+
+      expect(
+        kotlin,
+        contains('if (textBounds.isProbe("$key", LocalSize.current)) '
+            'HomeWidgetFonts.probeBitmap()'),
+      );
+      expect(
+        kotlin,
+        contains('if (textBounds.isProbe("$key", LocalSize.current)) '
+            '"hw_text_bounds:$key" else hwItem.title ?: "",'),
+      );
+      expect(kotlin, contains('hwItems.forEachIndexed { hwIndex, hwItem ->'));
+    });
+
+    test('is keyed by the list, so two builders never share a key', () {
+      final events = itemKeysIn(
+        const HWRow.builder('events', item: title)
+            .toKotlin(0, dataExpr: 'data'),
+      );
+      final tasks = itemKeysIn(
+        const HWRow.builder('tasks', item: title).toKotlin(0, dataExpr: 'data'),
+      );
+
+      expect(events, isNot(tasks));
+    });
+
+    test('keeps the key of a text outside every item', () {
+      const hint = HWText(HWString('hint'), style: style);
+      final inItem = hint.toKotlin(
+        0,
+        dataExpr: 'data',
+        context: const HWEmitContext(itemList: 'events'),
+      );
+      final outside = hint.toKotlin(0, dataExpr: 'data');
+      final whenEmpty = const HWRow.builder(
+        'events',
+        item: HWText.fixed('event'),
+        whenEmpty: hint,
+      ).toKotlin(0, dataExpr: 'data');
+
+      expect(_boundsKeysIn(outside), hasLength(1));
+      expect(_boundsKeysIn(whenEmpty), _boundsKeysIn(outside));
+      expect(whenEmpty, isNot(contains(r'$hwIndex')));
+      expect(itemKeysIn(inItem), hasLength(1));
+      expect(
+        itemKeysIn(inItem).single,
+        isNot(startsWith(_boundsKeysIn(outside).single)),
+      );
+    });
+  });
+
   group('the alignment of a bitmap text', () {
     const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
 

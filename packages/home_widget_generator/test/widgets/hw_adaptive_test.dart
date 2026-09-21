@@ -104,6 +104,55 @@ void main() {
           contains('import androidx.glance.text.Text'),
         );
       });
+
+      test('answers for the layout as its Android side does', () {
+        const spread = HWRow(
+          mainAxisAlignment: HWMainAxisAlignment.center,
+          children: [HWText.fixed('b')],
+        );
+        const adaptive = HWAdaptive(ios: HWText.fixed('a'), android: spread);
+        expect(
+          adaptive.kotlinImportsIn(HWAxis.vertical),
+          spread.kotlinImportsIn(HWAxis.vertical),
+        );
+        expect(
+          adaptive.kotlinImportsIn(HWAxis.vertical),
+          contains('import androidx.glance.layout.fillMaxWidth'),
+        );
+        expect(adaptive.kotlinReportsBaseline, isFalse);
+        expect(
+          const HWAdaptive(ios: spread, android: HWText.fixed('a'))
+              .kotlinReportsBaseline,
+          isTrue,
+        );
+      });
+
+      test('is laid out by a stack through its Android side', () {
+        const row = HWRow(
+          spacing: 4,
+          crossAxisAlignment: HWCrossAxisAlignment.start,
+          children: [
+            HWText.fixed('a'),
+            HWAdaptive(
+              ios: HWText.fixed('ios'),
+              android: HWDataExists(
+                data: HWString('maybe'),
+                whenPresent: HWText.fixed('b'),
+                whenAbsent: HWDataOnly([HWString('id')]),
+              ),
+            ),
+          ],
+        );
+        expect(
+          row.toKotlin(0, dataExpr: 'd'),
+          contains(
+            '    if (d.maybe != null) {\n'
+            '        Box(modifier = GlanceModifier.padding(start = 4.0.dp)) {\n'
+            '            Text(text = "b", ',
+          ),
+        );
+        expect(row.toKotlin(0, dataExpr: 'd'), contains('} else {\n\n    }'));
+      });
     });
 
     group('parser integration', () {

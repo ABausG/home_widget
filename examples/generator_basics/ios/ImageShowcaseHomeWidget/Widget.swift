@@ -67,8 +67,8 @@ struct ImageShowcaseHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack(alignment: .center) {
-      Spacer()
+    VStack(alignment: .center, spacing: 0) {
+      Spacer(minLength: 0)
       if let uiImage = hwDecodeImage("assets/logo.png", 24.0, 24.0) {
         Image(uiImage: uiImage)
           .resizable()
@@ -76,21 +76,24 @@ struct ImageShowcaseHomeWidgetEntryView: View {
           .frame(width: 24.0, height: 24.0)
           .accessibilityLabel("App logo")
       }
-      if hwImageExists(entry.data.picture) {
-        if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
-          Image(uiImage: uiImage)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: 64.0, height: 64.0)
-            .clipped()
-            .accessibilityLabel("Picture saved by the app")
+      Group {
+        if hwImageExists(entry.data.picture) {
+          if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
+            Image(uiImage: uiImage)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+              .frame(width: 64.0, height: 64.0)
+              .clipped()
+              .accessibilityLabel("Picture saved by the app")
+          }
+        } else {
+          Text("Open the app to pick an image")
+            .font(.caption).foregroundColor(Color.secondary)
         }
-      } else {
-        Text("Open the app to pick an image")
-          .font(.caption).foregroundColor(Color.secondary)
       }
-      HStack(alignment: .center) {
-        Spacer()
+      .padding(.top, 8.0)
+      HStack(alignment: .center, spacing: 0) {
+        Spacer(minLength: 0)
         if let path = entry.data.slide, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
           Image(uiImage: uiImage)
             .resizable()
@@ -98,19 +101,24 @@ struct ImageShowcaseHomeWidgetEntryView: View {
             .frame(width: 28.0, height: 28.0)
             .accessibilityLabel("Picture for the current time slot")
         }
-        if let path = entry.data.contact?.avatar, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
-          Image(uiImage: uiImage)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: 28.0, height: 28.0)
-            .clipped()
-            .accessibilityLabel("Contact avatar")
+        Group {
+          if let path = entry.data.contact?.avatar, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
+            Image(uiImage: uiImage)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+              .frame(width: 28.0, height: 28.0)
+              .clipped()
+              .accessibilityLabel("Contact avatar")
+          }
         }
+        .padding(.leading, 8.0)
         Text((((entry.data.contact?.name) ?? (""))))
           .font(.caption)
-        Spacer()
+          .padding(.leading, 8.0)
+        Spacer(minLength: 0)
       }
-      Spacer()
+      .padding(.top, 8.0)
+      Spacer(minLength: 0)
     }
     .padding(EdgeInsets(top: 8.0, leading: 8.0, bottom: 8.0, trailing: 8.0))
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

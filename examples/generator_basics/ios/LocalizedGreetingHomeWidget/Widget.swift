@@ -61,7 +61,7 @@ struct LocalizedGreetingHomeWidgetEntryView: View {
       entry.preview
       ? LocalizedGreetingData.previewFromUserDefaults(prefs)
       : LocalizedGreetingData.fromUserDefaults(prefs)
-    VStack(alignment: .leading) {
+    VStack(alignment: .leading, spacing: 0) {
       Text(NSLocalizedString("home_widget_localized_greeting_t_1e28f816", comment: ""))
         .font(.caption)
       Text(data.greeting ?? "")

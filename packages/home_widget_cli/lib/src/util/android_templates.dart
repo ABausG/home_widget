@@ -25,6 +25,13 @@ const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
 ///                are keyed by it. A [sizeModeDeclaration] takes precedence:
 ///                the measurements are then keyed by the declared size the
 ///                body is composed against.
+/// [measuredItemCounts]: Optional Kotlin body of `hwMeasuredItemCounts`, which
+///                counts the items of every list whose item draws such a text.
+///                Their room is measured per item, so a list that grew while
+///                the widget was running renders keys nothing measured; the
+///                widget then measures the size it is at again and forgets what
+///                it knew of the others, whose item keys went stale with it.
+///                Only a body that [measuresTextBounds] has one.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceWidgetTemplate({
   required String packageName,
@@ -37,6 +44,7 @@ String androidGlanceWidgetTemplate({
   bool previewParameter = false,
   String? previewFingerprint,
   bool measuresTextBounds = false,
+  String? measuredItemCounts,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
@@ -71,6 +79,43 @@ String androidGlanceWidgetTemplate({
     }
 ''';
 
+  // The state the body renders from, read once so counting the items of its
+  // lists and rendering them agree on what is stored.
+  final stateExpression =
+      measuredItemCounts == null ? 'currentState()' : 'hwState';
+
+  // A size the launcher hands the running widget later is measured when it
+  // comes up; a list that changed length invalidates every size at once.
+  final boundsEffect = measuredItemCounts == null
+      ? '''
+      var textBounds by remember { mutableStateOf(measured) }
+      LaunchedEffect(size) {
+        if (!textBounds.covers(size)) {
+          textBounds += HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
+        }
+      }'''
+      : '''
+      val hwState: HomeWidgetGlanceState = currentState()
+      // Counting reads every list back off disk, which only the state it was
+      // stored in can change; a recomposition against new bounds reuses it.
+      val itemCounts = remember(hwState) { hwMeasuredItemCounts(hwState) }
+      var textBounds by remember { mutableStateOf(measured) }
+      var measuredItems by remember { mutableStateOf(itemCounts) }
+      LaunchedEffect(size, itemCounts) {
+        if (itemCounts != measuredItems) {
+          // The items now rendered have keys nothing measured, and what every
+          // other size measured of them went stale with them. A measurement
+          // that did not happen at all leaves the old one in place.
+          val hwRemeasured = HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
+          if (hwRemeasured.covers(size)) {
+            textBounds = hwRemeasured
+            measuredItems = itemCounts
+          }
+        } else if (!textBounds.covers(size)) {
+          textBounds += HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
+        }
+      }''';
+
   // The measuring pass composes the same body with no bounds, which every
   // bitmap text renders a tagged probe for; the gallery preview has no widget
   // to measure in and draws against no room at all.
@@ -87,13 +132,8 @@ String androidGlanceWidgetTemplate({
     val measured = HomeWidgetFonts.measureTextBounds(context, id, measuring)
     provideContent {
       val size = LocalSize.current
-      var textBounds by remember { mutableStateOf(measured) }
-      LaunchedEffect(size) {
-        if (!textBounds.covers(size)) {
-          textBounds += HomeWidgetFonts.measureTextBounds(context, id, size, measuring)
-        }
-      }
-      WidgetContent(context, currentState(), textBounds = textBounds)
+$boundsEffect
+      WidgetContent(context, $stateExpression, textBounds = textBounds)
     }
   }
 '''
@@ -164,6 +204,12 @@ $provideGlance
     buffer
       ..writeln()
       ..writeln(previewFingerprint);
+  }
+
+  if (measuredItemCounts != null) {
+    buffer
+      ..writeln()
+      ..writeln(measuredItemCounts);
   }
 
   buffer.write('''

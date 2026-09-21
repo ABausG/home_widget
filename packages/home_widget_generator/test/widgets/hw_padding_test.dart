@@ -79,6 +79,17 @@ void main() {
         );
         expect(result, contains('GlanceModifier.padding'));
       });
+
+      test('a child rendering nothing leaves nothing to inset', () {
+        const empty = HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWDataOnly([HWString('hidden')]),
+        );
+
+        expect(empty.kotlinRendersNothing, isTrue);
+        expect(empty.toKotlin(0, dataExpr: 'data'), isEmpty);
+        expect(empty.kotlinImports, isEmpty);
+      });
     });
   });
 }

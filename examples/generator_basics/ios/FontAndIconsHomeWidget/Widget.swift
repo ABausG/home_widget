@@ -54,23 +54,25 @@ struct FontAndIconsHomeWidgetEntryView: View {
   @Environment(\.layoutDirection) var layoutDirection
 
   var body: some View {
-    VStack(alignment: .center) {
-      Spacer()
+    VStack(alignment: .center, spacing: 0) {
+      Spacer(minLength: 0)
       Text("Chewy")
         .font(hwFont("Chewy", 400, false, 24))
       Text("The same family again, wrapping to the room the label leaves it.")
         .font(hwFont("Chewy", 400, false, 14))
         .multilineTextAlignment(.center)
-      HStack(alignment: .firstTextBaseline) {
-        Spacer()
+        .padding(.top, 4.0)
+      HStack(alignment: .firstTextBaseline, spacing: 0) {
+        Spacer(minLength: 0)
         Text("Chewy")
           .font(hwFont("Chewy", 400, false, 20))
         Text("serif on Android")
           .font(hwFont("Chewy", 400, false, 11))
-        Spacer()
+        Spacer(minLength: 0)
       }
-      HStack(alignment: .center) {
-        Spacer()
+      .padding(.top, 4.0)
+      HStack(alignment: .center, spacing: 0) {
+        Spacer(minLength: 0)
         Text(String(UnicodeScalar(UInt32(0xE25B))!))
           .font(hwBundledFont("hw_font_icons_materialicons", size: 24))
           .frame(width: 24, height: 24)
@@ -87,6 +89,7 @@ struct FontAndIconsHomeWidgetEntryView: View {
             Color(red: 0.984313725490196, green: 0.5490196078431373, blue: 0.0, opacity: 1.0)
           )
           .accessibilityHidden(true)
+          .padding(.leading, 8.0)
         Text(String(UnicodeScalar(UInt32(0xF004))!))
           .font(hwBundledFont("hw_font_icons_fontawesomesolid__font_awesome_flutter", size: 24))
           .frame(width: 24, height: 24)
@@ -96,23 +99,29 @@ struct FontAndIconsHomeWidgetEntryView: View {
               opacity: 1.0)
           )
           .accessibilityHidden(true)
-        Spacer()
+          .padding(.leading, 8.0)
+        Spacer(minLength: 0)
       }
+      .padding(.top, 4.0)
       Text("three icons, three fonts")
         .font(.caption)
-      if let codePoint = entry.data.mood, let value = UInt32(exactly: codePoint),
-        let scalar = UnicodeScalar(value)
-      {
-        Text(String(scalar))
-          .font(hwBundledFont("hw_font_icons_materialicons", size: 40))
-          .frame(width: 40, height: 40)
-          .foregroundColor(Color.primary)
-          .accessibilityLabel("Mood")
-          .scaleEffect(
-            x: layoutDirection == .rightToLeft && hwMirroredIcons.contains(codePoint) ? -1 : 1, y: 1
-          )
+        .padding(.top, 4.0)
+      Group {
+        if let codePoint = entry.data.mood, let value = UInt32(exactly: codePoint),
+          let scalar = UnicodeScalar(value)
+        {
+          Text(String(scalar))
+            .font(hwBundledFont("hw_font_icons_materialicons", size: 40))
+            .frame(width: 40, height: 40)
+            .foregroundColor(Color.primary)
+            .accessibilityLabel("Mood")
+            .scaleEffect(
+              x: layoutDirection == .rightToLeft && hwMirroredIcons.contains(codePoint) ? -1 : 1,
+              y: 1)
+        }
       }
-      Spacer()
+      .padding(.top, 4.0)
+      Spacer(minLength: 0)
     }
     .applyContainerBackground()
   }

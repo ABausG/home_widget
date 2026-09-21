@@ -94,6 +94,7 @@
         { "title": "Getting Started", "href": "/generator/getting-started" },
         { "title": "Annotation", "href": "/generator/annotation" },
         { "title": "Data Types", "href": "/generator/data" },
+        { "title": "Lists", "href": "/generator/lists" },
         { "title": "Localization", "href": "/generator/localization" },
         { "title": "Formatting", "href": "/generator/formatting" },
         { "title": "Custom Fonts", "href": "/generator/custom-fonts" },
@@ -141,8 +142,8 @@
       "tab": "generator",
       "group": "Migrations",
       "pages": [
-        { "title": "0.1.0", "href": "/generator/migrations/0.1.0" },
-        { "title": "0.2.0", "href": "/generator/migrations/0.2.0" }
+        { "title": "0.2.0", "href": "/generator/migrations/0.2.0" },
+        { "title": "0.1.0", "href": "/generator/migrations/0.1.0" }
       ]
     },
     {

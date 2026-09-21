@@ -12,9 +12,9 @@ part of 'hw_widget.dart';
 /// - `HWIcon(HWIconData('mood', icons: [...]))` -- one of a fixed set, chosen
 ///   by the app at runtime
 ///
-/// The data form takes an [HWIconData], optionally wrapped in an [HWJson]
-/// and/or an [HWTimedData], exactly like [HWImage]. Nothing is rendered while
-/// there is no stored value and the field declares no default.
+/// The data form takes an [HWIconData], optionally wrapped in an [HWJson] or
+/// an [HWItemData] and/or an [HWTimedData], exactly like [HWImage]. Nothing is
+/// rendered while there is no stored value and the field declares no default.
 ///
 /// The `icon` of [HWIcon.fixed] is a Flutter `IconData` constant, typed as
 /// [Object] for the reason [HWIconData] spells out.
@@ -62,7 +62,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
   /// Renders the icon stored under [icon].
   ///
   /// [icon] is an [HWIconData], optionally wrapped in an [HWJson] to read it
-  /// from a JSON group and/or an [HWTimedData] to make it time-based.
+  /// from a JSON group or an [HWItemData] to read it from a list item, and/or
+  /// an [HWTimedData] to make it time-based.
   const HWIcon(
     HWDataType<dynamic> icon, {
     this.size = 24,
@@ -230,6 +231,11 @@ class HWIcon extends HWWidget implements HWDataWidget {
   @override
   String get swiftFrameAlignment => '.center';
 
+  /// Never: a padding would be taken out of the fixed size the glyph is drawn
+  /// at.
+  @override
+  bool get kotlinPaddingAddsRoom => false;
+
   /// Decodes an [HWIcon] from an analyzer constant.
   static HWIcon fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final size =
@@ -304,7 +310,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
 
     throw GeneratorError(
       'Could not decode HWIcon. HWIcon requires an HWIconData, optionally '
-      'wrapped in HWJson and/or HWTimedData, got: '
+      'wrapped in HWJson or HWItemData and/or HWTimedData, got: '
       '${dataObj?.type?.element?.name}',
     );
   }
@@ -428,12 +434,60 @@ class HWIcon extends HWWidget implements HWDataWidget {
       return '$pad${_kotlinImage(indent, dataExpr, hex)}';
     }
 
-    final buffer = StringBuffer();
+    return _kotlinSavedGlyph(
+      indent,
+      dataExpr,
+      (glyphIndent) =>
+          '${'    ' * glyphIndent}${_kotlinImage(indent, dataExpr, 'codePoint')}',
+    );
+  }
+
+  /// The data form draws nothing without a stored icon, so a stack lays out
+  /// the glyph inside the check, and leaves no gap or `Box` behind without
+  /// one.
+  @override
+  String _kotlinInStack(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext context,
+    required _HWKotlinStackSlot slot,
+  }) {
+    if (codePoint != null) {
+      return super._kotlinInStack(
+        indent,
+        dataExpr: dataExpr,
+        context: context,
+        slot: slot,
+      );
+    }
+    return _kotlinSavedGlyph(
+      indent,
+      dataExpr,
+      (glyphIndent) => slot.lay(
+        glyphIndent,
+        context: context,
+        emit: (imageIndent, _) =>
+            '${'    ' * imageIndent}${_kotlinImage(indent, dataExpr, 'codePoint')}',
+        reportsBaseline: kotlinReportsBaseline,
+        paddingAddsRoom: kotlinPaddingAddsRoom,
+        room: kotlinRoomIn(slot.axis),
+      ),
+    );
+  }
+
+  /// The data form's Glance code: the glyph [glyph] writes at the indent it is
+  /// handed, drawing `codePoint`, only while there is a stored one.
+  String _kotlinSavedGlyph(
+    int indent,
+    String dataExpr,
+    String Function(int indent) glyph,
+  ) {
+    final pad = '    ' * indent;
     final access = _boundDataType.kotlinAccess(dataExpr);
-    buffer.writeln('$pad$access?.let { codePoint ->');
-    buffer.writeln('$pad    ${_kotlinImage(indent, dataExpr, 'codePoint')}');
-    buffer.write('$pad}');
-    return buffer.toString();
+    return '''
+$pad$access?.let { codePoint ->
+${glyph(indent + 1)}
+$pad}''';
   }
 
   /// [codePoint] as the hexadecimal literal an icon is usually written as,

@@ -2,12 +2,15 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/android_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_cli/src/util/android_wiring.dart';
+import 'package:home_widget_cli/src/util/font_resolver.dart';
 import 'package:home_widget_cli/src/util/logger.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
+import '../helpers/font_fixture.dart';
 import '../helpers/mock_logger.dart';
 
 /// Writes a manifest declaring a launcher activity, which is what makes the
@@ -1381,6 +1384,8 @@ void main() {
           '  }\n',
         ),
       );
+      // Nothing counts items: no builder renders a text that is measured.
+      expect(content, isNot(contains('hwMeasuredItemCounts')));
       expect(
         content,
         contains(
@@ -1408,6 +1413,144 @@ void main() {
           '    provideContent { WidgetContent(context, HomeWidgetGlanceState('
           'HomeWidgetPlugin.getData(context)), '
           'textBounds = HomeWidgetFonts.TextBounds.NONE) }',
+        ),
+      );
+    });
+
+    test('measures again once a list of measured texts changed length',
+        () async {
+      final content = await generate(
+        const HWRow.builder(
+          'labels',
+          maxItems: 3,
+          item: HWText(
+            HWItemData(HWString('label')),
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '    provideContent {\n'
+          '      val size = LocalSize.current\n'
+          '      val hwState: HomeWidgetGlanceState = currentState()\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      val itemCounts = remember(hwState) '
+          '{ hwMeasuredItemCounts(hwState) }\n'
+          '      var textBounds by remember { mutableStateOf(measured) }\n'
+          '      var measuredItems by remember { mutableStateOf(itemCounts) }\n'
+          '      LaunchedEffect(size, itemCounts) {\n'
+          '        if (itemCounts != measuredItems) {\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '          val hwRemeasured = HomeWidgetFonts.measureTextBounds('
+          'context, id, size, measuring)\n'
+          '          if (hwRemeasured.covers(size)) {\n'
+          '            textBounds = hwRemeasured\n'
+          '            measuredItems = itemCounts\n'
+          '          }\n'
+          '        } else if (!textBounds.covers(size)) {\n'
+          '          textBounds += HomeWidgetFonts.measureTextBounds(context, '
+          'id, size, measuring)\n'
+          '        }\n'
+          '      }\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '  private fun hwMeasuredItemCounts(currentState: '
+          'HomeWidgetGlanceState): List<Int> {\n'
+          '    val widgetData = FontWidgetData.fromPreferences('
+          'currentState.preferences)\n'
+          '    return listOf(widgetData.labels.orEmpty().take(3).size)\n'
+          '  }\n',
+        ),
+      );
+    });
+
+    test('counts the items off the state the body renders from', () async {
+      final content = await generate(
+        const HWRow.builder(
+          'labels',
+          maxItems: 3,
+          item: HWText(
+            HWItemData(HWString('label')),
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+        ),
+      );
+
+      // Counting reads every list back off disk, so it runs once for the state
+      // the body is handed, not again for every recomposition against new
+      // bounds.
+      expect(
+        'hwMeasuredItemCounts('.allMatches(content).length,
+        2,
+        reason: 'the declaration and its one remembered call site',
+      );
+      expect(content, isNot(contains('hwMeasuredItemCounts(currentState())')));
+
+      final provideGlance = content.substring(
+        content.indexOf('  override suspend fun provideGlance'),
+        content.indexOf('  override suspend fun providePreview'),
+      );
+      expect(
+        provideGlance,
+        contains(
+          '      WidgetContent(context, hwState, textBounds = textBounds)\n',
+        ),
+      );
+      expect(
+        'currentState()'.allMatches(provideGlance).length,
+        1,
+        reason: 'counting and rendering read the one state',
+      );
+    });
+
+    test('counts the items of every list a measured text is rendered in',
+        () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWRow.builder(
+              'labels',
+              maxItems: 3,
+              item: HWText(
+                HWItemData(HWString('label')),
+                style: HWTextStyle(fontFamily: 'Chewy'),
+              ),
+            ),
+            HWRow.builder(
+              'days',
+              item: HWText(
+                HWItemData(HWString('day')),
+                style: HWTextStyle(fontFamily: 'Chewy'),
+              ),
+            ),
+            HWRow.builder(
+              'plain',
+              maxItems: 2,
+              item: HWText(HWItemData(HWString('note'))),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '    return listOf(widgetData.labels.orEmpty().take(3).size, '
+          'widgetData.days.orEmpty().size)\n',
         ),
       );
     });
@@ -2640,4 +2783,434 @@ dependencies {
       expect(content, isNot(contains('SizeMode.Exact')));
     });
   });
+
+  group('lists', () {
+    setUp(() {
+      final package = writeFontPackage(
+        tempDir,
+        'brand_icons',
+        pubspecFonts: '''
+    - family: BrandIcons
+      fonts:
+        - asset: fonts/BrandIcons.otf
+''',
+        assets: ['fonts/BrandIcons.otf'],
+      );
+      writeFontFixture(
+        tempDir,
+        packages: [FixturePackage(name: 'brand_icons', root: package.path)],
+      );
+      resetFontResolverCaches();
+      addTearDown(resetFontResolverCaches);
+    });
+
+    Future<String> generate(HWWidget tree) async {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'Weather',
+          android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
+        ),
+        className: 'Weather',
+        dataFields: tree.dataDependencies.toList(),
+        widgetTree: tree,
+      );
+      await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
+      return File(
+        p.join(
+          tempDir.path,
+          'android/app/src/main/kotlin/com/example/WeatherHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    test('reads a list that is the only data into the data class', () async {
+      final content = await generate(
+        const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+      );
+
+      expect(
+        content,
+        contains(r'''
+data class WeatherData(
+    val forecast: List<WeatherForecastItem>? = null,
+) {
+    companion object {
+        private const val PREFERENCES_PREFIX = "home_widget.Weather"
+
+        fun fromPreferences(prefs: android.content.SharedPreferences): WeatherData {
+            return WeatherData(
+                forecast = WeatherForecastItem.fromPath(prefs.getString("${PREFERENCES_PREFIX}.forecast", null)),
+            )
+        }
+    }
 }
+'''),
+      );
+      expect(
+        content,
+        contains('    val widgetData = WeatherData.fromPreferences(prefs)\n'),
+      );
+      expect(
+        content,
+        contains('val hwItems = widgetData.forecast.orEmpty().take(5)'),
+      );
+      expect(content, isNot(contains('import org.json')));
+      expect(content, isNot(contains('import java.io.File')));
+    });
+
+    test('decodes an item into nullable properties, defaults applied',
+        () async {
+      final content = await generate(
+        const HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+      );
+
+      expect(
+        content,
+        contains('''
+data class WeatherForecastItem(
+    val day: java.util.Date? = null,
+    val condition: Int? = null,
+    val temperature: Long? = null,
+    val rain: Double? = null,
+    val windy: Boolean? = null,
+    val note: String? = null,
+) {
+    companion object {
+        fun fromPath(path: String?): List<WeatherForecastItem>? {
+            if (path == null) return null
+            return try {
+                val file = java.io.File(path)
+                if (!file.exists()) return null
+                fromJsonArray(org.json.JSONArray(file.readText()))
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        fun fromJsonArray(array: org.json.JSONArray?): List<WeatherForecastItem>? {
+            if (array == null) return null
+            return List(array.length()) { index -> fromJson(array.optJSONObject(index)) }
+        }
+
+        fun fromJson(obj: org.json.JSONObject?): WeatherForecastItem {
+            val json = obj ?: org.json.JSONObject()
+            return WeatherForecastItem(
+                day = hwParseIsoDate(if (json.has("day") && !json.isNull("day")) json.optString("day") else ""),
+                condition = if (json.has("condition") && !json.isNull("condition")) json.optInt("condition") else 59530,
+                temperature = if (json.has("temperature") && !json.isNull("temperature")) json.optLong("temperature") else 0L,
+                rain = if (json.has("rain") && !json.isNull("rain")) json.optDouble("rain") else null,
+                windy = if (json.has("windy") && !json.isNull("windy")) json.optBoolean("windy") else false,
+                note = if (json.has("note") && !json.isNull("note")) json.optString("note") else null,
+            )
+        }
+    }
+}
+'''),
+      );
+      expect(content, contains('private fun hwParseIsoDate(value: String)'));
+    });
+
+    test('adds the list after the root fields read beside it', () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWText(HWString('unit', defaultValue: '°C')),
+            HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '    val unit: String? = null,\n'
+          '    val forecast: List<WeatherForecastItem>? = null,\n',
+        ),
+      );
+      expect(content, contains('Text(text = widgetData.unit ?: ""'));
+    });
+
+    test('gives several builders over one list one class and one property',
+        () async {
+      final content = await generate(
+        const HWSizeAdaptive(
+          small: HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWText(HWItemData(HWString('label'))),
+          ),
+          large: HWColumn.builder(
+            'forecast',
+            maxItems: 6,
+            item: HWText.number(HWItemData(HWInt('temperature'))),
+          ),
+        ),
+      );
+
+      expect(
+        'data class WeatherForecastItem('.allMatches(content),
+        hasLength(1),
+      );
+      expect(content, contains('    val label: String? = null,\n'));
+      expect(content, contains('    val temperature: Long? = null,\n'));
+      expect(
+        'val forecast: List<WeatherForecastItem>? = null,'.allMatches(content),
+        hasLength(1),
+      );
+    });
+
+    test('gives every list a class and a property of its own', () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+            HWColumn.builder(
+              'events',
+              maxItems: 2,
+              item: HWText(HWItemData(HWString('title'))),
+            ),
+          ],
+        ),
+      );
+
+      expect(content, contains('data class WeatherForecastItem('));
+      expect(content, contains('data class WeatherEventsItem('));
+      expect(
+        content,
+        contains(
+          '    val forecast: List<WeatherForecastItem>? = null,\n'
+          '    val events: List<WeatherEventsItem>? = null,\n',
+        ),
+      );
+    });
+
+    test('leaves the translations of a localized item field to the render site',
+        () async {
+      final content = await generate(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 5,
+          item: HWText(
+            HWItemData(
+              HWString.localized(
+                'label',
+                defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '                label = if (json.has("label") && '
+          '!json.isNull("label")) json.optString("label") else null,\n',
+        ),
+      );
+      expect(
+        content,
+        contains('    val hwLocales = hwCurrentLocales(context)'),
+      );
+      expect(
+        content,
+        contains(
+          'Text(text = (hwItem.label ?: hwResolveLocalized(hwLocales, '
+          'mapOf("en" to "Day", "de" to "Tag"), "en") ?: "Day")',
+        ),
+      );
+    });
+
+    test('spells out what a data class would for an item holding no field',
+        () async {
+      final content = await generate(
+        const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+      );
+
+      expect(
+        content,
+        contains('''
+class WeatherDotsItem {
+    override fun equals(other: Any?): Boolean = other is WeatherDotsItem
+
+    override fun hashCode(): Int = javaClass.hashCode()
+
+    override fun toString(): String = "WeatherDotsItem()"
+
+    companion object {
+'''),
+      );
+      expect(
+        content,
+        contains('''
+            if (array == null) return null
+            return List(array.length()) { WeatherDotsItem() }
+        }
+    }
+}
+'''),
+      );
+      expect(content, isNot(contains('fun fromJson(')));
+    });
+
+    test('reads a time-based list out of the active timed entry', () async {
+      final content = await generate(
+        const HWColumn(
+          children: [
+            HWText(HWString('city')),
+            HWColumn.builder(
+              'hourly',
+              maxItems: 4,
+              item: HWText.number(
+                HWTimedData(HWItemData(HWInt('temperature'))),
+              ),
+            ),
+            HWRow.builder('forecast', maxItems: 5, item: _forecastItem),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(r'''
+data class WeatherData(
+    val city: String? = null,
+    val hourly: List<WeatherHourlyItem>? = null,
+    val forecast: List<WeatherForecastItem>? = null,
+) {
+    companion object {
+        private const val PREFERENCES_PREFIX = "home_widget.Weather"
+
+        fun fromPreferences(prefs: android.content.SharedPreferences, now: Long = System.currentTimeMillis()): WeatherData {
+            val timedValues = resolveTimedValues(prefs, now)
+            return WeatherData(
+                city = prefs.getString("${PREFERENCES_PREFIX}.city", null),
+                hourly = WeatherHourlyItem.fromJsonArray(timedValues.optJSONArray("hourly")),
+                forecast = WeatherForecastItem.fromPath(prefs.getString("${PREFERENCES_PREFIX}.forecast", null)),
+            )
+        }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          '        private fun resolveTimedValues(prefs: '
+          'android.content.SharedPreferences, now: Long): org.json.JSONObject {',
+        ),
+      );
+      expect(content, contains('data class WeatherHourlyItem('));
+      expect(content, contains('    val temperature: Long? = null,\n'));
+      expect(
+        content,
+        contains('val hwItems = widgetData.hourly.orEmpty().take(4)'),
+      );
+    });
+
+    test('schedules the updates of a widget whose only timed data is a list',
+        () async {
+      writeLauncherManifest(tempDir);
+      await generate(
+        const HWColumn.builder(
+          'hourly',
+          maxItems: 4,
+          item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+        ),
+      );
+
+      final manifest = File(
+        p.join(tempDir.path, 'android/app/src/main/AndroidManifest.xml'),
+      ).readAsStringSync();
+      expect(manifest, contains(scheduledUpdateReceiverFqcn));
+      expect(manifest, contains('android.permission.RECEIVE_BOOT_COMPLETED'));
+    });
+
+    test('leaves the manifest unscheduled for an untimed list', () async {
+      writeLauncherManifest(tempDir);
+      await generate(
+        const HWColumn.builder(
+          'hourly',
+          maxItems: 4,
+          item: HWText.number(HWItemData(HWInt('temperature'))),
+        ),
+      );
+
+      final manifest = File(
+        p.join(tempDir.path, 'android/app/src/main/AndroidManifest.xml'),
+      ).readAsStringSync();
+      expect(manifest, isNot(contains(scheduledUpdateReceiverFqcn)));
+    });
+
+    test('reads an item image as the path of its file', () async {
+      final content = await generate(
+        const HWColumn.builder(
+          'contacts',
+          maxItems: 3,
+          item: HWDataExists(
+            data: HWItemData(HWImageData('avatar')),
+            whenPresent: HWImage(HWItemData(HWImageData('avatar')), width: 24),
+            whenAbsent: HWText.fixed('?'),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          'data class WeatherContactsItem(\n'
+          '    val avatar: String? = null,\n'
+          ') {\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '                avatar = if (json.has("avatar") && '
+          '!json.isNull("avatar")) json.optString("avatar") else null,\n',
+        ),
+      );
+      expect(content, contains('if (hwImageExists(context, hwItem.avatar)) {'));
+      expect(
+        content,
+        contains(
+          'hwItem.avatar?.let { path -> '
+          'hwDecodeImage(context, path, 24.0, null) }',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          'private fun hwImageExists(context: Context, path: String?): '
+          'Boolean {',
+        ),
+      );
+      expect(content, contains('private fun hwDecodeImage('));
+    });
+  });
+}
+
+const _forecastCondition = HWIconData.resolved(
+  'condition',
+  entries: [HWIconEntry('happy', 0xE88A), HWIconEntry('sad', 0xE25B)],
+  iconFont: HWIconFont(family: 'BrandIcons', package: 'brand_icons'),
+  defaultValue: 0xE88A,
+);
+
+/// The item of a forecast list, reading one field of every kind.
+const _forecastItem = HWColumn(
+  children: [
+    HWText.dateTime(HWItemData(HWDateTime('day'))),
+    HWIcon(HWItemData(_forecastCondition)),
+    HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+    HWText.number(HWItemData(HWDouble('rain'))),
+    HWBoolConditional(
+      data: HWItemData(HWBool('windy', defaultValue: false)),
+      whenTrue: HWText.fixed('windy'),
+      whenFalse: HWText.fixed('calm'),
+    ),
+    HWText(HWItemData(HWString('note'))),
+  ],
+);

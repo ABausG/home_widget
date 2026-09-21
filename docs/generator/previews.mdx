@@ -205,6 +205,16 @@ HWText(
 )
 ```
 
+## Sample list items
+
+A [list builder](/generator/lists) previews sample items in place of its `whenEmpty`. Each item field's sample comes from the type `HWItemData` wraps, its applicable preview and then its applicable default — see [`HWItemData`](/generator/lists#hwitemdata) for what each is named per variant — and `previewValues` varies it from one item to the next:
+
+```dart
+HWText.number(HWItemData(HWInt('temperature', defaultValue: 0), previewValues: [21, 17, 19]))
+```
+
+With `previewValues`, the gallery shows as many items as the longest of them; with only `previewValue`s, as many identical items as the largest `maxItems` among the builders over the list, or 3. A list the app has already saved wins wherever the preview reads live data, and no builder shows more than its `maxItems`. See [Previews](/generator/lists#previews) in the Lists guide.
+
 ## Declaring one key in several places
 
 The same key can carry a `previewValue` in one place and not in another — for example a display

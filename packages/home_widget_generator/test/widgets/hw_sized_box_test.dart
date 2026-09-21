@@ -265,18 +265,53 @@ void main() {
         );
       });
 
-      test('a childless box asking for no room at all is no view', () {
-        expect(
-          const HWSizedBox().toSwift(0, dataExpr: 'data'),
-          'EmptyView()',
-        );
+      test('a childless box asking for no room at all renders nothing', () {
+        expect(const HWSizedBox().swiftRendersNothing, isTrue);
+        expect(const HWSizedBox().toSwift(0, dataExpr: 'data'), isEmpty);
+        expect(const HWSizedBox.shrink().swiftRendersNothing, isTrue);
         expect(
           const HWSizedBox.shrink().toSwift(0, dataExpr: 'data'),
-          'EmptyView()',
+          isEmpty,
         );
         expect(
           const HWSizedBox(width: 8).toSwift(0, dataExpr: 'data'),
           'Color.clear\n.frame(width: 8.0, height: 0.0)',
+        );
+      });
+
+      test('a box around a child rendering nothing renders nothing', () {
+        const box = HWSizedBox(
+          width: 80,
+          height: 40,
+          child: HWDataOnly([HWString('hidden')]),
+        );
+        expect(box.swiftRendersNothing, isTrue);
+        expect(box.toSwift(0, dataExpr: 'data'), isEmpty);
+        expect(
+          const HWSizedBox.expand(child: HWDataOnly([HWString('hidden')]))
+              .toSwift(0, dataExpr: 'data'),
+          isEmpty,
+        );
+      });
+
+      test('shrink is the empty branch of a conditional', () {
+        expect(
+          const HWColumn(
+            children: [
+              HWBoolConditional(
+                data: HWBool('flag', defaultValue: false),
+                whenTrue: HWText.fixed('on'),
+                whenFalse: HWSizedBox.shrink(),
+              ),
+            ],
+          ).toSwift(0, dataExpr: 'data'),
+          'VStack(alignment: .center, spacing: 0) {\n'
+          '    if data.flag == true {\n'
+          '        Text("on")\n'
+          '    } else {\n'
+          '\n'
+          '    }\n'
+          '}',
         );
       });
 
@@ -289,10 +324,6 @@ void main() {
         expect(
           const HWSizedBox(width: 8).toSwift(1, dataExpr: 'data'),
           '    Color.clear\n    .frame(width: 8.0, height: 0.0)',
-        );
-        expect(
-          const HWSizedBox.shrink().toSwift(1, dataExpr: 'data'),
-          '    EmptyView()',
         );
       });
 
@@ -494,10 +525,35 @@ void main() {
               .toKotlin(0, dataExpr: 'data', context: inColumn),
           'Spacer(modifier = GlanceModifier.defaultWeight())',
         );
-        expect(const HWSizedBox().toKotlin(0, dataExpr: 'data'), 'Spacer()');
         expect(
           const HWSizedBox(width: 8).toKotlin(1, dataExpr: 'data'),
           '    Spacer(modifier = GlanceModifier.width(8.0.dp))',
+        );
+      });
+
+      test('a gap asking for no room at all is no Spacer', () {
+        expect(const HWSizedBox().kotlinRendersNothing, isTrue);
+        expect(const HWSizedBox().toKotlin(0, dataExpr: 'data'), isEmpty);
+        expect(const HWSizedBox().kotlinImports, isEmpty);
+        expect(const HWSizedBox.shrink().kotlinRendersNothing, isTrue);
+        expect(
+          const HWSizedBox.shrink().toKotlin(0, dataExpr: 'data'),
+          isEmpty,
+        );
+      });
+
+      test('a child rendering nothing leaves nothing to size', () {
+        const empty = HWSizedBox.expand(
+          child: HWDataOnly([HWString('hidden')]),
+        );
+
+        expect(empty.kotlinRendersNothing, isTrue);
+        expect(empty.toKotlin(0, dataExpr: 'data'), isEmpty);
+        expect(empty.kotlinImports, isEmpty);
+        expect(
+          const HWSizedBox(width: 8, child: HWDataOnly([HWString('hidden')]))
+              .toKotlin(0, dataExpr: 'data'),
+          isEmpty,
         );
       });
 
@@ -525,6 +581,30 @@ void main() {
         expect(
           const HWSizedBox(child: HWText.fixed('a')).kotlinImports,
           isNot(contains('import androidx.glance.GlanceModifier')),
+        );
+      });
+
+      test('a stack collects the imports of each branch the box sizes', () {
+        const column = HWColumn(
+          spacing: 8,
+          children: [
+            HWText.fixed('a'),
+            HWSizedBox.expand(
+              child: HWDataExists(
+                data: HWString('flag'),
+                whenPresent: HWText.fixed('on'),
+                whenAbsent: HWImage(HWImageData('avatar')),
+              ),
+            ),
+          ],
+        );
+        expect(
+          column.kotlinImports,
+          allOf(
+            contains('import androidx.glance.layout.fillMaxWidth'),
+            contains('import androidx.glance.text.Text'),
+            contains('import androidx.glance.Image'),
+          ),
         );
       });
 

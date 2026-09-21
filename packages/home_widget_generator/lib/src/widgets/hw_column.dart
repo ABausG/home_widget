@@ -5,13 +5,34 @@ part of 'hw_widget.dart';
 /// Maps to SwiftUI VStack and Glance Column.
 class HWColumn extends HWMultiChildWidget {
   final HWCrossAxisAlignment? crossAxisAlignment;
-  final HWMainAxisAlignment? mainAxisAlignment;
 
   const HWColumn({
     required super.children,
     this.crossAxisAlignment,
-    this.mainAxisAlignment,
+    super.mainAxisAlignment,
+    super.spacing = 0,
   });
+
+  /// A column rendering [item] once per entry of the list saved under [list],
+  /// in the order the entries were saved.
+  ///
+  /// [item] is the only subtree an [HWItemData] reads from; every other field
+  /// read inside it still reads the widget's own data. At most [maxItems]
+  /// entries render, and [whenEmpty] is the column's only child while there
+  /// is none. The alignments and [spacing] apply to the items exactly as they
+  /// do to fixed children.
+  const HWColumn.builder(
+    super.list, {
+    required super.item,
+    super.maxItems,
+    super.whenEmpty,
+    this.crossAxisAlignment,
+    super.mainAxisAlignment,
+    super.spacing = 0,
+  }) : super.builder();
+
+  @override
+  HWAxis get _mainAxis => HWAxis.vertical;
 
   /// The alignment this column renders with, always emitted so that neither
   /// platform falls back to its own default.
@@ -31,6 +52,16 @@ class HWColumn extends HWMultiChildWidget {
         HWCrossAxisAlignment.center || HWCrossAxisAlignment.baseline => '.top',
       };
 
+  /// A column filling the height of the column it sits in would leave its
+  /// siblings nothing, so along that axis it asks for the room by weight.
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
+    if (!mainAxisAlignment.fillsMainAxis) return const HWKotlinRoom();
+    return enclosingLinearAxis == HWAxis.vertical
+        ? const HWKotlinRoom(weight: true)
+        : const HWKotlinRoom(fillsHeight: true);
+  }
+
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
 
@@ -39,25 +70,20 @@ class HWColumn extends HWMultiChildWidget {
         'import androidx.glance.layout.Column',
         'import androidx.glance.layout.Alignment',
         if (mainAxisAlignment != null) 'import androidx.glance.layout.Spacer',
-        if (mainAxisAlignment.fillsMainAxis &&
-            enclosingLinearAxis != HWAxis.vertical)
-          'import androidx.glance.layout.fillMaxHeight',
-        for (final child in children) ...child.kotlinImportsIn(HWAxis.vertical),
+        ...kotlinRoomIn(enclosingLinearAxis).kotlinImports,
+        ..._kotlinChildImports(),
       };
 
   static HWColumn fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
-    final childrenField = WidgetValueDecoder.getField(obj, 'children');
-    final listValue = childrenField?.toListValue();
-    if (listValue == null) {
-      // coverage:ignore-start
-      throw GeneratorError('HWColumn: children parameter is required');
-      // coverage:ignore-end
-    }
+    final builder = _decodeBuilder(obj, decoder, 'HWColumn');
+    final children = builder == null
+        ? _decodeChildren(obj, decoder, 'HWColumn')
+        : const <HWWidget>[];
 
-    final children = listValue.map(decoder.decodeRecursive).toList();
-
-    final crossAxisAlignmentField = obj.getField('crossAxisAlignment');
-    final mainAxisAlignmentField = obj.getField('mainAxisAlignment');
+    final crossAxisAlignmentField =
+        WidgetValueDecoder.getField(obj, 'crossAxisAlignment');
+    final mainAxisAlignmentField =
+        WidgetValueDecoder.getField(obj, 'mainAxisAlignment');
 
     final crossAxisAlignment = WidgetValueDecoder.decodeEnum(
       crossAxisAlignmentField,
@@ -70,14 +96,27 @@ class HWColumn extends HWMultiChildWidget {
         'applies to HWRow.',
       );
     }
+    final mainAxisAlignment = WidgetValueDecoder.decodeEnum(
+      mainAxisAlignmentField,
+      HWMainAxisAlignment.values,
+    );
 
+    if (builder != null) {
+      return HWColumn.builder(
+        builder.list,
+        item: builder.item,
+        maxItems: builder.maxItems,
+        whenEmpty: builder.whenEmpty,
+        crossAxisAlignment: crossAxisAlignment,
+        mainAxisAlignment: mainAxisAlignment,
+        spacing: _decodeSpacing(obj, builder.spelling),
+      );
+    }
     return HWColumn(
       children: children,
       crossAxisAlignment: crossAxisAlignment,
-      mainAxisAlignment: WidgetValueDecoder.decodeEnum(
-        mainAxisAlignmentField,
-        HWMainAxisAlignment.values,
-      ),
+      mainAxisAlignment: mainAxisAlignment,
+      spacing: _decodeSpacing(obj, 'HWColumn'),
     );
   }
 
@@ -95,12 +134,12 @@ class HWColumn extends HWMultiChildWidget {
       HWCrossAxisAlignment.center || HWCrossAxisAlignment.baseline => '.center',
     };
 
-    buffer.writeln('${pad}VStack(alignment: $swiftAlign) {');
+    buffer.writeln('${pad}VStack(alignment: $swiftAlign, spacing: 0) {');
 
     _emitSwiftChildren(buffer, indent + 1, dataExpr, context);
 
     buffer.write('$pad}');
-    return buffer.toString();
+    return _swiftFillingMainAxis(buffer.toString(), indent);
   }
 
   @override
@@ -119,49 +158,21 @@ class HWColumn extends HWMultiChildWidget {
         'Alignment.CenterHorizontally',
     };
 
-    // A column filling the height of the column it sits in would leave its
-    // siblings nothing, so along that axis it asks for the room by weight.
-    final fill = context?.enclosingLinearAxis == HWAxis.vertical
-        ? 'defaultWeight()'
-        : 'fillMaxHeight()';
+    final room = kotlinRoomIn(context?.enclosingLinearAxis).modifiers;
     final arguments = [
-      if (mainAxisAlignment.fillsMainAxis) 'modifier = GlanceModifier.$fill',
+      if (room.isNotEmpty) 'modifier = GlanceModifier.${room.join('.')}',
       'horizontalAlignment = $align',
     ].join(', ');
     buffer.writeln('${pad}Column($arguments) {');
 
-    final childContext =
-        (context ?? const HWEmitContext()).inLinear(HWAxis.vertical);
-    _emitChildrenWithMainAxisAlignment(
-      children,
-      buffer,
-      indent + 1,
-      dataExpr,
-      mainAxisAlignment,
-      (child, childIndent, data) =>
-          child.toKotlin(childIndent, dataExpr: data, context: childContext),
-      (pad) => '${pad}Spacer(modifier = GlanceModifier.defaultWeight())',
-    );
+    final item = this.item;
+    if (item == null) {
+      _emitKotlinFixed(children, buffer, indent + 1, dataExpr, context);
+    } else {
+      _emitKotlinItems(item, buffer, indent + 1, dataExpr, context);
+    }
 
     buffer.write('$pad}');
     return buffer.toString();
-  }
-
-  void _emitSwiftChildren(
-    StringBuffer buffer,
-    int indent,
-    String dataExpr,
-    HWEmitContext? context,
-  ) {
-    _emitChildrenWithMainAxisAlignment(
-      children,
-      buffer,
-      indent,
-      dataExpr,
-      mainAxisAlignment,
-      (child, childIndent, data) =>
-          child.toSwift(childIndent, dataExpr: data, context: context),
-      (pad) => '${pad}Spacer()',
-    );
   }
 }

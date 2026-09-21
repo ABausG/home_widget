@@ -58,34 +58,34 @@ struct ConditionalStatusHomeWidgetEntryView: View {
     Group {
       if entry.data.hasData != nil {
         if entry.data.enabled == true {
-          VStack(alignment: .center) {
-            Spacer()
+          VStack(alignment: .center, spacing: 0) {
+            Spacer(minLength: 0)
             Text("Enabled")
               .font(.headline).foregroundColor(
                 Color(
                   red: 0.08627450980392157, green: 0.6392156862745098, blue: 0.2901960784313726,
                   opacity: 1.0))
-            Spacer()
+            Spacer(minLength: 0)
           }
         } else {
-          VStack(alignment: .center) {
-            Spacer()
+          VStack(alignment: .center, spacing: 0) {
+            Spacer(minLength: 0)
             Text("Disabled")
               .font(.headline).foregroundColor(
                 Color(
                   red: 0.8627450980392157, green: 0.14901960784313725, blue: 0.14901960784313725,
                   opacity: 1.0))
-            Spacer()
+            Spacer(minLength: 0)
           }
         }
       } else {
-        VStack(alignment: .center) {
-          Spacer()
+        VStack(alignment: .center, spacing: 0) {
+          Spacer(minLength: 0)
           Text("No Data")
             .font(.headline)
           Text("Open the app")
             .font(.caption).foregroundColor(Color.secondary)
-          Spacer()
+          Spacer(minLength: 0)
         }
       }
     }

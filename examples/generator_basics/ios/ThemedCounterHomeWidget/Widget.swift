@@ -47,8 +47,8 @@ struct ThemedCounterHomeWidgetEntryView: View {
   @Environment(\.colorScheme) var colorScheme
 
   var body: some View {
-    VStack(alignment: .center) {
-      Spacer()
+    VStack(alignment: .center, spacing: 0) {
+      Spacer(minLength: 0)
       Text("Counter")
         .font(.caption).foregroundColor(Color.secondary)
       Text(
@@ -57,7 +57,7 @@ struct ThemedCounterHomeWidgetEntryView: View {
         )
       )
       .font(.title).fontWeight(.bold).foregroundColor(Color.primary)
-      Spacer()
+      Spacer(minLength: 0)
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .applyContainerBackground(

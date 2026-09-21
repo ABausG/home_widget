@@ -22,13 +22,16 @@ import '../util/package_config.dart';
 /// yet) the field is skipped silently rather than failing generation.
 ///
 /// Runtime images are never validated: their bytes only exist at runtime —
-/// except for the `previewAsset` a runtime image previews with, which is a
-/// bundled asset and is checked exactly like a declared one.
+/// except for the `previewAsset` a runtime image previews with, and the
+/// `previewValues` of an item image, which are bundled assets and are checked
+/// exactly like a declared one.
 void validateAssets(WidgetSpec spec, Directory projectRoot) {
   final references = <_AssetReference>[
     for (final image in spec.assetImageFields) _AssetReference.from(image),
     for (final image in spec.previewAssetImageFields)
       _AssetReference.preview(image.previewAsset!),
+    for (final preview in spec.listPreviewAssets)
+      _AssetReference.itemPreview(preview),
   ];
   if (references.isEmpty) return;
 
@@ -92,6 +95,18 @@ class _AssetReference {
   /// argument: a dependency's asset is spelled `packages/<pkg>/<rest>`.
   factory _AssetReference.preview(String previewAsset) =>
       _AssetReference.of(previewAsset, origin: 'previewAsset');
+
+  /// The asset an item image previews with, named after the argument that
+  /// spells it.
+  factory _AssetReference.itemPreview(ListPreviewAsset preview) {
+    final index = preview.index;
+    final argument = index == null ? 'previewAsset' : 'previewValues[$index]';
+    return _AssetReference.of(
+      preview.asset,
+      origin: '$argument of HWItemData "${preview.fieldKey}" in list '
+          '"${preview.listKey}"',
+    );
+  }
 
   /// [assetKey] split on a `packages/<pkg>/` prefix, if it has one.
   factory _AssetReference.of(String assetKey, {required String origin}) {

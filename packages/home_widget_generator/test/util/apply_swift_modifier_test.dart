@@ -56,6 +56,11 @@ void main() {
       );
     });
 
+    test('leaves a child that renders nothing alone', () {
+      expect(applySwiftModifier('', '.padding(8)', 1), '');
+      expect(applySwiftModifier('   \n', '.padding(8)', 1), '   \n');
+    });
+
     test('handles indented leading if/else', () {
       const input = '    if cond { Text("a") } else { Text("b") }';
       final result =

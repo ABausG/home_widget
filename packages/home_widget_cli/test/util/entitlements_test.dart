@@ -102,6 +102,27 @@ void main() {
       expect(content, contains('<string>group.new</string>'));
     });
 
+    test('leaves a file that already holds the group byte for byte', () async {
+      final file = entitlementsFile();
+
+      await ensureAppGroupEntitlement(
+        entitlementsFile: file,
+        appGroupId: 'group.example',
+      );
+      final written = file.readAsStringSync();
+
+      clearInteractions(mockLogger);
+      await ensureAppGroupEntitlement(
+        entitlementsFile: file,
+        appGroupId: 'group.example',
+      );
+
+      expect(file.readAsStringSync(), written);
+      verifyNever(
+        () => mockLogger.detail(any(that: contains('Updated entitlements'))),
+      );
+    });
+
     test('does not duplicate id when already present and is stable on re-run',
         () async {
       final file = entitlementsFile();

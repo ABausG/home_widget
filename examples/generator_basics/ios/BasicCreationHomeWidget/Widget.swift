@@ -40,7 +40,7 @@ struct BasicCreationHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    VStack(alignment: .center) {
+    VStack(alignment: .center, spacing: 0) {
       Text("Basic Creation")
     }
     .applyContainerBackground()

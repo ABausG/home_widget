@@ -31,6 +31,21 @@ void main() {
         );
       });
 
+      test('a child rendering nothing leaves nothing to paint', () {
+        const node = HWColoredBox(
+          color: HWFixedColor(0xFF00FF00),
+          child: HWDataOnly([HWString('hidden')]),
+        );
+
+        expect(node.swiftRendersNothing, isTrue);
+        expect(node.toSwift(0, dataExpr: 'data'), isEmpty);
+        expect(
+          const HWColumn(children: [node, HWText.fixed('x')])
+              .toSwift(0, dataExpr: 'data'),
+          isNot(contains('.background(')),
+        );
+      });
+
       test('HWDefaultColor: semantic Color.secondary', () {
         final node = HWColoredBox(
           color: HWDefaultColor(HWColorRole.contentSecondary),
@@ -85,6 +100,39 @@ void main() {
         expect(
           node.kotlinImports,
           contains('import androidx.glance.color.ColorProvider'),
+        );
+      });
+
+      test('a child rendering nothing leaves nothing to paint', () {
+        const node = HWColoredBox(
+          color: HWFixedColor(0xFF00FF00),
+          child: HWDataOnly([HWString('hidden')]),
+        );
+
+        expect(node.kotlinRendersNothing, isTrue);
+        expect(node.toKotlin(0, dataExpr: 'data'), isEmpty);
+        expect(node.kotlinImports, isEmpty);
+        expect(node.kotlinImportsIn(HWAxis.vertical), isEmpty);
+      });
+
+      test('a stack skips it exactly as the root does', () {
+        const column = HWColumn(
+          spacing: 8,
+          children: [
+            HWColoredBox(
+              color: HWFixedColor(0xFF00FF00),
+              child: HWDataOnly([HWString('hidden')]),
+            ),
+            HWText.fixed('x'),
+          ],
+        );
+
+        final kotlin = column.toKotlin(0, dataExpr: 'data');
+        expect(kotlin, isNot(contains('Box')));
+        expect(kotlin, isNot(contains('background')));
+        expect(
+          column.kotlinImports,
+          isNot(contains('import androidx.glance.layout.Box')),
         );
       });
 

@@ -566,7 +566,7 @@ default:
             ),
           ),
           '''
-VStack(alignment: .center) {
+VStack(alignment: .center, spacing: 0) {
     Text("s")
 }''',
         );

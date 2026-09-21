@@ -18,6 +18,17 @@ void main() {
       );
     });
 
+    test('keeps arguments spread over lines on their own', () {
+      expect(
+        injectGlanceModifier(
+          'Image(\n    provider = p,\n)',
+          'padding(top = 4.dp)',
+        ),
+        'Image(modifier = GlanceModifier.padding(top = 4.dp),\n'
+        '    provider = p,\n)',
+      );
+    });
+
     test('rewrites existing GlanceModifier. prefix in args', () {
       expect(
         injectGlanceModifier(
@@ -258,6 +269,28 @@ void main() {
         ),
         'Text(modifier = GlanceModifier.width(80.0.dp).background(Color.Red)'
         '.padding(start = 8.dp).height(50.0.dp), text = "a")',
+      );
+    });
+
+    test('a padding sizes no axis, so it takes none of them over', () {
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.width(80.0.dp).height(40.0.dp), '
+              'text = "a")',
+          'padding(top = 8.0.dp)',
+        ),
+        'Text(modifier = GlanceModifier.padding(top = 8.0.dp).width(80.0.dp)'
+        '.height(40.0.dp), text = "a")',
+      );
+      expect(
+        injectGlanceModifier(
+          'Text(modifier = GlanceModifier.defaultWeight().fillMaxWidth(), '
+              'text = "a")',
+          'padding(start = 8.0.dp)',
+          weightAxis: GlanceSizeAxis.height,
+        ),
+        'Text(modifier = GlanceModifier.padding(start = 8.0.dp)'
+        '.defaultWeight().fillMaxWidth(), text = "a")',
       );
     });
 
