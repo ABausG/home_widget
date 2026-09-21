@@ -78,6 +78,7 @@ class HWRow extends HWMultiChildWidget {
         'import androidx.glance.layout.Box',
         'import androidx.glance.layout.padding',
         'import es.antonborri.home_widget.HomeWidgetFonts',
+        for (final text in texts.values) ...text.kotlinImports,
       },
       for (var index = 0; index < children.length; index++)
         ...children[index].kotlinImportsIn(

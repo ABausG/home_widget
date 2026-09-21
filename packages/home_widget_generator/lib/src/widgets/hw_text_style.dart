@@ -405,6 +405,10 @@ class HWKotlinBaselineText {
   /// its own for the layout to correct.
   final bool isBitmap;
 
+  /// The Kotlin imports [ascent] needs, which only the row emitting it pulls
+  /// in: nothing else in the generated file names them.
+  final Set<String> kotlinImports;
+
   /// Why a row cannot pad this child, or null when it can.
   ///
   /// Reported rather than thrown, so that the context-free import pass, which
@@ -415,6 +419,7 @@ class HWKotlinBaselineText {
   const HWKotlinBaselineText({
     required this.ascent,
     required this.isBitmap,
+    this.kotlinImports = const {},
     this.conflict,
   });
 }
@@ -461,10 +466,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
         if (underline || lineThrough)
           'import androidx.glance.text.TextDecoration',
         if (textAlign != null) 'import androidx.glance.text.TextAlign',
-        if (fontFamily != null) ...[
-          'import androidx.glance.text.FontFamily',
-          'import android.graphics.Typeface',
-        ],
+        if (fontFamily != null) 'import androidx.glance.text.FontFamily',
       };
 
   /// The `TextStyle(...)` the Glance `Text` is styled with.
@@ -531,6 +533,9 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
               'weight = $weight, italic = $italic)';
         },
         isBitmap: false,
+        kotlinImports: fontFamily == null
+            ? const {}
+            : const {'import android.graphics.Typeface'},
       );
 }
 

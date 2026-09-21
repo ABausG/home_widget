@@ -4,6 +4,7 @@
 package es.antonborri.generator_basics
 
 import android.content.Context
+import android.graphics.Typeface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,7 +98,7 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = FontAndIconsData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "9c8e4c60",
+            "b0ef3267",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -173,15 +174,91 @@ class FontAndIconsHomeWidget : GlanceAppWidget() {
                   else "The same family again, wrapping to the room the label leaves it.",
               colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
           )
-          Text(
-              text = "serif on Android",
-              style =
-                  TextStyle(
-                      color = GlanceTheme.colors.onSurface,
-                      fontSize = 11.sp,
-                      fontFamily = FontFamily("serif"),
-                  ),
-          )
+          Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Spacer(modifier = GlanceModifier.defaultWeight())
+            Box(
+                modifier =
+                    GlanceModifier.padding(
+                        top =
+                            HomeWidgetFonts.baselinePadding(
+                                context,
+                                listOf(
+                                    HomeWidgetFonts.textAscentPx(
+                                        context,
+                                        HomeWidgetFonts.typeface(context, "Chewy", 400, false),
+                                        20f,
+                                    ),
+                                    HomeWidgetFonts.textAscentPx(
+                                        context,
+                                        Typeface.create("serif", Typeface.NORMAL),
+                                        11f,
+                                        weight = 400,
+                                        italic = false,
+                                    ),
+                                ),
+                                0,
+                            )
+                    )
+            ) {
+              Image(
+                  modifier = GlanceModifier,
+                  provider =
+                      ImageProvider(
+                          if (textBounds.isProbe("6a560ee0", LocalSize.current))
+                              HomeWidgetFonts.probeBitmap()
+                          else
+                              HomeWidgetFonts.textBitmap(
+                                  context,
+                                  HomeWidgetFonts.typeface(context, "Chewy", 400, false),
+                                  "Chewy",
+                                  fontSizeSp = 20f,
+                                  maxWidthDp = textBounds.width("6a560ee0", LocalSize.current),
+                                  maxHeightDp = textBounds.height("6a560ee0", LocalSize.current),
+                              )
+                      ),
+                  contentDescription =
+                      if (textBounds.isProbe("6a560ee0", LocalSize.current))
+                          "hw_text_bounds:6a560ee0"
+                      else "Chewy",
+                  colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+              )
+            }
+            Box(
+                modifier =
+                    GlanceModifier.padding(
+                        top =
+                            HomeWidgetFonts.baselinePadding(
+                                context,
+                                listOf(
+                                    HomeWidgetFonts.textAscentPx(
+                                        context,
+                                        HomeWidgetFonts.typeface(context, "Chewy", 400, false),
+                                        20f,
+                                    ),
+                                    HomeWidgetFonts.textAscentPx(
+                                        context,
+                                        Typeface.create("serif", Typeface.NORMAL),
+                                        11f,
+                                        weight = 400,
+                                        italic = false,
+                                    ),
+                                ),
+                                1,
+                            )
+                    )
+            ) {
+              Text(
+                  text = "serif on Android",
+                  style =
+                      TextStyle(
+                          color = GlanceTheme.colors.onSurface,
+                          fontSize = 11.sp,
+                          fontFamily = FontFamily("serif"),
+                      ),
+              )
+            }
+            Spacer(modifier = GlanceModifier.defaultWeight())
+          }
           Row(
               modifier = GlanceModifier.fillMaxWidth(),
               verticalAlignment = Alignment.CenterVertically,

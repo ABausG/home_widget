@@ -61,8 +61,14 @@ struct FontAndIconsHomeWidgetEntryView: View {
       Text("The same family again, wrapping to the room the label leaves it.")
         .font(hwFont("Chewy", 400, false, 14))
         .multilineTextAlignment(.center)
-      Text("serif on Android")
-        .font(hwFont("Chewy", 400, false, 11))
+      HStack(alignment: .firstTextBaseline) {
+        Spacer()
+        Text("Chewy")
+          .font(hwFont("Chewy", 400, false, 20))
+        Text("serif on Android")
+          .font(hwFont("Chewy", 400, false, 11))
+        Spacer()
+      }
       HStack(alignment: .center) {
         Spacer()
         Text(String(UnicodeScalar(UInt32(0xE25B))!))

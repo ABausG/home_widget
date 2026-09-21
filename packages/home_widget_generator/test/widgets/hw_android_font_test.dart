@@ -129,12 +129,41 @@ void main() {
         containsAll(<String>[
           'import androidx.glance.text.Text',
           'import androidx.glance.text.FontFamily',
-          'import android.graphics.Typeface',
         ]),
       );
       expect(
         text.kotlinImports,
         isNot(contains('import es.antonborri.home_widget.HomeWidgetFonts')),
+      );
+    });
+
+    test('only a baseline row pulls the typeface import in', () {
+      const serif = HWText.fixed(
+        'Hi',
+        style: HWTextStyle(
+          fontSize: 11,
+          androidFont: HWAndroidFont.serif,
+        ),
+      );
+      const bitmap = HWText.fixed(
+        'There',
+        style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20),
+      );
+      const typeface = 'import android.graphics.Typeface';
+
+      expect(serif.kotlinImports, isNot(contains(typeface)));
+      expect(serif.kotlinBaselineText()!.kotlinImports, contains(typeface));
+
+      expect(
+        const HWRow(
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          children: [bitmap, serif],
+        ).kotlinImports,
+        contains(typeface),
+      );
+      expect(
+        const HWRow(children: [bitmap, serif]).kotlinImports,
+        isNot(contains(typeface)),
       );
     });
 
@@ -331,6 +360,40 @@ void main() {
 
     test('is false for a tree with no text at all', () {
       expect(const HWColumn(children: []).rendersAndroidBitmapText, isFalse);
+    });
+
+    test('ignores the branch of an HWAdaptive only iOS renders', () {
+      expect(
+        const HWAdaptive(
+          ios: HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+          android: HWText.fixed('Hi'),
+        ).rendersAndroidBitmapText,
+        isFalse,
+      );
+    });
+
+    test('is true for a bitmap text in the branch Android renders', () {
+      expect(
+        const HWAdaptive(
+          ios: HWText.fixed('Hi'),
+          android: HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+        ).rendersAndroidBitmapText,
+        isTrue,
+      );
+    });
+
+    test('reaches a bitmap text nested in the Android branch', () {
+      expect(
+        const HWAdaptive(
+          ios: HWText.fixed('Hi'),
+          android: HWColumn(
+            children: [
+              HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+            ],
+          ),
+        ).rendersAndroidBitmapText,
+        isTrue,
+      );
     });
   });
 }

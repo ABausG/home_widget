@@ -111,6 +111,12 @@ sealed class HWWidget implements HWGeneratable {
   /// walks.
   List<HWWidget> get childWidgets => const [];
 
+  /// The widgets this one renders on Android.
+  ///
+  /// [childWidgets] for everything but an [HWAdaptive], which renders its
+  /// Android branch alone there, and is what [androidDescendants] walks.
+  List<HWWidget> get androidChildWidgets => childWidgets;
+
   /// Whether this widget's Glance output is a `Text`, and so reports a text
   /// baseline to the horizontal `LinearLayout` a Glance `Row` becomes.
   ///
@@ -161,6 +167,19 @@ sealed class HWWidget implements HWGeneratable {
     }
   }
 
+  /// Every widget Android renders in this subtree, [this] first, in render
+  /// order.
+  ///
+  /// [descendants] walked through [androidChildWidgets], for the questions only
+  /// the Glance output answers; the branch of an [HWAdaptive] only iOS renders
+  /// is not one of them.
+  Iterable<HWWidget> get androidDescendants sync* {
+    yield this;
+    for (final child in androidChildWidgets) {
+      yield* child.androidDescendants;
+    }
+  }
+
   /// The native functions displaying this one widget, before their own
   /// dependencies are resolved.
   ///
@@ -197,7 +216,7 @@ sealed class HWWidget implements HWGeneratable {
   /// still ask Glance to render the Android text itself, in which case the file
   /// is bundled but no measuring pass is needed.
   bool get rendersAndroidBitmapText =>
-      descendants.any((widget) => widget.kotlinRendersBitmapText);
+      androidDescendants.any((widget) => widget.kotlinRendersBitmapText);
 
   /// Every icon glyph this subtree can render, per icon font.
   ///
