@@ -767,11 +767,13 @@ class WidgetValueDecoder {
     if (obj == null || obj.isNull) return null;
     final entries = obj.toListValue();
     if (entries == null) {
+      // coverage:ignore-start
       throw GeneratorError(
         'The previewValues of HWItemData "${field.key}" could not be read as '
         'a constant list. They must be a const list literal of values, e.g. '
         "previewValues: ['a', 'b'].",
       );
+      // coverage:ignore-end
     }
     if (entries.isEmpty) {
       throw GeneratorError(
