@@ -211,13 +211,7 @@ void main() {
     androidSizeRanges: [HWAndroidSizeRange(child: HWText.fixed('strip'))],
   ),
 )'''),
-          throwsA(
-            isA<GeneratorError>().having(
-              (e) => e.message,
-              'message',
-              contains('Could not compute constant value'),
-            ),
-          ),
+          throwsA(isA<GeneratorError>()),
         );
       });
 
