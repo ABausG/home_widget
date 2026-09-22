@@ -82,6 +82,10 @@ sealed class HWSingleChildWidget extends HWWidget {
   @override
   bool get swiftClipsFrame => child.swiftClipsFrame;
 
+  /// The child's, for the wrappers drawing nothing past their own bounds.
+  @override
+  bool get swiftDrawsPastFrame => child.swiftDrawsPastFrame;
+
   /// The child's, for the wrappers that inject their modifier into the child's
   /// own composable.
   @override
@@ -252,6 +256,14 @@ sealed class HWWidget implements HWGeneratable {
   /// answers true, and the frame clips too so that both platforms show the
   /// same thing.
   bool get swiftClipsFrame => false;
+
+  /// Whether this widget draws outside the frame it is given on purpose, so a
+  /// frame around it must not clip.
+  ///
+  /// A border is stroked centred on the edge, half of it outside. Where the
+  /// runtime picks between widgets, one drawing past its frame vetoes the clip
+  /// another one asks for through [swiftClipsFrame].
+  bool get swiftDrawsPastFrame => false;
 
   /// The place a SwiftUI frame wider or taller than this widget puts it, as an
   /// `Alignment` literal.

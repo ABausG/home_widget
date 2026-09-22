@@ -111,6 +111,11 @@ class HWDecoratedBox extends HWSingleChildWidget {
   bool get swiftClipsFrame =>
       decoration.border == null && child.swiftClipsFrame;
 
+  /// With a border, for the same reason.
+  @override
+  bool get swiftDrawsPastFrame =>
+      decoration.border != null || child.swiftDrawsPastFrame;
+
   /// None of its own when a border's `Box` wraps the child, which asks for no
   /// room.
   @override

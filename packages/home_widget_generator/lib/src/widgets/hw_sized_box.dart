@@ -56,6 +56,10 @@ class HWSizedBox extends HWWidget {
   @override
   bool get swiftClipsFrame => child?.swiftClipsFrame ?? false;
 
+  /// The child's, as [swiftClipsFrame].
+  @override
+  bool get swiftDrawsPastFrame => child?.swiftDrawsPastFrame ?? false;
+
   /// Nothing while this box renders nothing: neither the `Spacer` a gap asking
   /// for no room would be nor the modifiers around a child rendering nothing
   /// are emitted.

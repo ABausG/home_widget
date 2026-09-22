@@ -471,4 +471,101 @@ void main() {
       );
     });
   });
+
+  group('HWWidget drawing past a SwiftUI frame', () {
+    const stack = HWStack(children: [leaf]);
+    const bordered = HWDecoratedBox(
+      decoration: HWBoxDecoration(
+        border: HWBoxBorder(thickness: 1, color: HWColor.fixed(0xFF000000)),
+      ),
+      child: leaf,
+    );
+
+    test('only a border draws past it', () {
+      expect(leaf.swiftDrawsPastFrame, isFalse);
+      expect(bordered.swiftDrawsPastFrame, isTrue);
+      expect(
+        const HWDecoratedBox(
+          decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
+          child: leaf,
+        ).swiftDrawsPastFrame,
+        isFalse,
+      );
+      expect(
+        const HWDecoratedBox(
+          decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
+          child: bordered,
+        ).swiftDrawsPastFrame,
+        isTrue,
+      );
+    });
+
+    test('a stack cuts a border inside it off itself', () {
+      expect(const HWStack(children: [bordered]).swiftDrawsPastFrame, isFalse);
+    });
+
+    test('a wrapper draws past it while its child does', () {
+      expect(
+        const HWPadding(padding: HWEdgeInsets.all(4), child: bordered)
+            .swiftDrawsPastFrame,
+        isTrue,
+      );
+      expect(
+        const HWColoredBox(color: HWColor.fixed(0xFF000000), child: bordered)
+            .swiftDrawsPastFrame,
+        isTrue,
+      );
+      expect(const HWAlign(child: bordered).swiftDrawsPastFrame, isTrue);
+      expect(const HWAlign(child: leaf).swiftDrawsPastFrame, isFalse);
+      expect(const HWSizedBox(child: bordered).swiftDrawsPastFrame, isTrue);
+      expect(const HWSizedBox(width: 8).swiftDrawsPastFrame, isFalse);
+    });
+
+    test('a bordered branch vetoes the clip another branch asks for', () {
+      const vetoed = HWDataExists(
+        data: HWBool('flag'),
+        whenPresent: stack,
+        whenAbsent: bordered,
+      );
+      expect(vetoed.swiftDrawsPastFrame, isTrue);
+      expect(vetoed.swiftClipsFrame, isFalse);
+      expect(
+        const HWDataExists(
+          data: HWBool('flag'),
+          whenPresent: bordered,
+          whenAbsent: stack,
+        ).swiftDrawsPastFrame,
+        isTrue,
+      );
+      expect(
+        const HWDataExists(
+          data: HWBool('flag'),
+          whenPresent: stack,
+          whenAbsent: leaf,
+        ).swiftDrawsPastFrame,
+        isFalse,
+      );
+    });
+
+    test('a bordered slot vetoes the clip another slot asks for', () {
+      const vetoed = HWSizeAdaptive(small: stack, large: bordered);
+      expect(vetoed.swiftDrawsPastFrame, isTrue);
+      expect(vetoed.swiftClipsFrame, isFalse);
+      expect(
+        const HWSizeAdaptive(small: stack, large: leaf).swiftDrawsPastFrame,
+        isFalse,
+      );
+    });
+
+    test('an adaptive draws past it while its iOS side does', () {
+      expect(
+        const HWAdaptive(ios: bordered, android: leaf).swiftDrawsPastFrame,
+        isTrue,
+      );
+      expect(
+        const HWAdaptive(ios: leaf, android: bordered).swiftDrawsPastFrame,
+        isFalse,
+      );
+    });
+  });
 }

@@ -266,6 +266,67 @@ void main() {
         );
       });
 
+      group('a child picked at runtime', () {
+        const stack = HWStack(children: [HWText.fixed('a')]);
+        const bordered = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            border: HWBoxBorder(
+              thickness: 2,
+              color: HWColor.fixed(0xFF000000),
+            ),
+          ),
+          child: HWText.fixed('b'),
+        );
+        const frame =
+            '.frame(width: 64.0, height: 64.0, alignment: .topLeading)';
+
+        String boxed(HWWidget child) =>
+            HWSizedBox(width: 64, height: 64, child: child)
+                .toSwift(0, dataExpr: 'data');
+
+        test('is cut off once a branch clips itself', () {
+          expect(
+            boxed(
+              const HWBoolConditional(
+                data: HWBool('flag', defaultValue: false),
+                whenTrue: stack,
+                whenFalse: HWText.fixed('b'),
+              ),
+            ),
+            endsWith('$frame\n.clipped()'),
+          );
+        });
+
+        test('is left unclipped while a branch draws a border', () {
+          expect(
+            boxed(
+              const HWBoolConditional(
+                data: HWBool('flag', defaultValue: false),
+                whenTrue: stack,
+                whenFalse: bordered,
+              ),
+            ),
+            endsWith(frame),
+          );
+          expect(
+            boxed(const HWSizeAdaptive(small: stack, large: bordered)),
+            endsWith(frame),
+          );
+          expect(
+            boxed(const HWSizeAdaptive(small: stack, large: HWText.fixed('b'))),
+            endsWith('$frame\n.clipped()'),
+          );
+          expect(
+            boxed(const HWAdaptive(ios: bordered, android: stack)),
+            endsWith(frame),
+          );
+          expect(
+            boxed(const HWAdaptive(ios: stack, android: bordered)),
+            endsWith('$frame\n.clipped()'),
+          );
+        });
+      });
+
       test('a border around such a child keeps its outer half', () {
         expect(
           const HWSizedBox(

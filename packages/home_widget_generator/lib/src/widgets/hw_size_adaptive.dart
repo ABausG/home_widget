@@ -343,9 +343,16 @@ class HWSizeAdaptive extends HWWidget {
 
   /// Whether any slot asks the frame around the adaptive to clip: cutting the
   /// others off at the room they were given is what Flutter lays them out at
-  /// anyway.
+  /// anyway, unless one draws past that room on purpose.
   @override
-  bool get swiftClipsFrame => providedSlots.any((slot) => slot.swiftClipsFrame);
+  bool get swiftClipsFrame =>
+      providedSlots.any((slot) => slot.swiftClipsFrame) && !swiftDrawsPastFrame;
+
+  /// Whether any slot draws past its frame, which keeps the one frame around
+  /// the adaptive from clipping.
+  @override
+  bool get swiftDrawsPastFrame =>
+      providedSlots.any((slot) => slot.swiftDrawsPastFrame);
 
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);

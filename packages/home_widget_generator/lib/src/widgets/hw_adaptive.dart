@@ -93,6 +93,9 @@ class HWAdaptive extends HWWidget {
   bool get swiftClipsFrame => ios.swiftClipsFrame;
 
   @override
+  bool get swiftDrawsPastFrame => ios.swiftDrawsPastFrame;
+
+  @override
   String toSwift(
     int indent, {
     required String dataExpr,
