@@ -3,7 +3,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import '../models/widget_spec.dart';
 import '../util/logger.dart';
 
-/// The most children Glance lays out in one `Column` or `Row`.
+/// The most children Glance lays out in one `Column`, `Row` or `Box`.
 ///
 /// Its container layouts hold ten child stubs, and it drops every child past
 /// them, only logging that it truncated the container.
@@ -13,42 +13,52 @@ const int glanceChildLimit = 10;
 /// size, `MAX_MEASURE_ROUNDS` in `HomeWidgetFonts.kt`.
 const int measuredTextLimit = 32;
 
-/// Rejects an [HWColumn] or [HWRow] Android would render with more children
-/// than Glance lays out.
+/// Rejects an [HWColumn], [HWRow] or [HWStack] Android would render with more
+/// children than Glance lays out.
 ///
 /// Every spacer a `mainAxisAlignment` adds is a child to Glance as well, while
 /// `spacing` is padding and a child rendering nothing, like [HWDataOnly], is
-/// not there at all. A builder's children are its items, so it needs a
-/// `maxItems` bounding them.
+/// not there at all. A stack has no spacers. A builder's children are its
+/// items, so it needs a `maxItems` bounding them.
 void validateChildLimits(WidgetSpec spec) {
   if (spec.data.android == null) return;
 
   for (final widget in spec.androidRenderedWidgets) {
     if (widget is! HWMultiChildWidget) continue;
-    if (widget.item case final item?) {
+    if (widget case HWFlex(:final item?)) {
       _validateBuilder(spec, widget, item);
       continue;
     }
 
     final children =
         widget.children.where((child) => !child.kotlinRendersNothing).length;
-    final alignment = widget.mainAxisAlignment;
-    final spacers = alignment.spacerCount(children);
+    final flex = widget is HWFlex ? widget : null;
+    final spacers =
+        flex == null ? 0 : flex.mainAxisAlignment.spacerCount(children);
     final total = children + spacers;
     if (total <= glanceChildLimit) continue;
 
-    final stack = widget is HWColumn ? 'Column' : 'Row';
-    final name = (alignment ?? HWMainAxisAlignment.start).name;
-    final spacerNoun = spacers == 1 ? 'spacer' : 'spacers';
+    final (container, name) = switch (widget) {
+      HWColumn() => ('Column', 'HWColumn'),
+      HWRow() => ('Row', 'HWRow'),
+      HWStack() => ('Box', 'HWStack'),
+    };
+    final counted = flex == null
+        ? '$children children > $glanceChildLimit'
+        : '$children children + $spacers '
+            '${spacers == 1 ? 'spacer' : 'spacers'} '
+            '(${(flex.mainAxisAlignment ?? HWMainAxisAlignment.start).name}) '
+            '= $total > $glanceChildLimit';
+    final spacersIncluded = flex == null ? '' : ', spacers included,';
     final fewerSpacers = spacers == 0
         ? ''
         : ', or use a mainAxisAlignment that adds fewer spacers';
     throw GeneratorError(
-      'Widget "${spec.data.name}": an HW$stack has $children children + '
-      '$spacers $spacerNoun ($name) = $total > $glanceChildLimit. On Android, '
-      'Glance lays out at most $glanceChildLimit children in a $stack, '
-      'spacers included, and silently drops the rest. Group some children in '
-      'a nested HWColumn or HWRow, which counts as one child$fewerSpacers.',
+      'Widget "${spec.data.name}": an $name has $counted. On Android, Glance '
+      'lays out at most $glanceChildLimit children in a $container'
+      '$spacersIncluded and silently drops the rest. Group some children in a '
+      'nested HWColumn, HWRow or HWStack, which counts as one '
+      'child$fewerSpacers.',
     );
   }
 }
@@ -60,7 +70,7 @@ void validateChildLimits(WidgetSpec spec) {
 /// with the spacers of any alignment stays well within the limit.
 void _validateBuilder(
   WidgetSpec spec,
-  HWMultiChildWidget builder,
+  HWFlex builder,
   HWWidget item,
 ) {
   if (item.kotlinRendersNothing) return;
@@ -134,7 +144,7 @@ void validateMeasuredTexts(WidgetSpec spec) {
   var texts = 0;
   for (final widget in spec.androidRenderedWidgets) {
     if (androidMeasuresText(widget)) texts++;
-    if (widget case HWMultiChildWidget(:final item?, :final maxItems?)) {
+    if (widget case HWFlex(:final item?, :final maxItems?)) {
       final perItem =
           spec.androidRenderedWithin(item).where(androidMeasuresText).length;
       texts += perItem * (maxItems - 1);

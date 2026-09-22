@@ -105,6 +105,12 @@ class HWDecoratedBox extends HWSingleChildWidget {
       decoration.border == null &&
       child.kotlinPaddingAddsRoom;
 
+  /// Not with a border: its overlay is stroked centred on the edge, so a clip
+  /// at the frame would cut off its outer half.
+  @override
+  bool get swiftClipsFrame =>
+      decoration.border == null && child.swiftClipsFrame;
+
   /// None of its own when a border's `Box` wraps the child, which asks for no
   /// room.
   @override

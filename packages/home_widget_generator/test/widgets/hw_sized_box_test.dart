@@ -228,6 +228,85 @@ void main() {
         );
       });
 
+      test('a bounded box cuts off a child that clips its own bounds', () {
+        expect(
+          const HWSizedBox(
+            width: 40,
+            height: 40,
+            child: HWStack(
+              children: [
+                HWColoredBox(
+                  color: HWColor.fixed(0xFF3366FF),
+                  child: HWSizedBox(width: 80, height: 20),
+                ),
+              ],
+            ),
+          ).toSwift(0, dataExpr: 'data'),
+          endsWith(
+            '.frame(width: 40.0, height: 40.0, alignment: .topLeading)\n'
+            '.clipped()',
+          ),
+        );
+      });
+
+      test('padding around such a child is cut off at the box too', () {
+        expect(
+          const HWSizedBox(
+            width: 40,
+            height: 40,
+            child: HWPadding(
+              padding: HWEdgeInsets.all(4),
+              child: HWStack(children: [HWText.fixed('a')]),
+            ),
+          ).toSwift(0, dataExpr: 'data'),
+          endsWith(
+            '.frame(width: 40.0, height: 40.0, alignment: .topLeading)\n'
+            '.clipped()',
+          ),
+        );
+      });
+
+      test('a border around such a child keeps its outer half', () {
+        expect(
+          const HWSizedBox(
+            width: 40,
+            height: 40,
+            child: HWDecoratedBox(
+              decoration: HWBoxDecoration(
+                border: HWBoxBorder(
+                  thickness: 2,
+                  color: HWColor.fixed(0xFF000000),
+                ),
+              ),
+              child: HWStack(children: [HWText.fixed('a')]),
+            ),
+          ).toSwift(0, dataExpr: 'data'),
+          endsWith(
+            '.frame(width: 40.0, height: 40.0, alignment: .topLeading)',
+          ),
+        );
+      });
+
+      test('an infinite axis is no bound to cut the child off at', () {
+        final result = const HWSizedBox(
+          width: double.infinity,
+          child: HWStack(children: [HWText.fixed('a')]),
+        ).toSwift(0, dataExpr: 'data');
+        expect(
+          result,
+          endsWith('.frame(maxWidth: .infinity, alignment: .topLeading)'),
+        );
+        expect('.clipped()'.allMatches(result), hasLength(1));
+      });
+
+      test('a box sized to zero around such a child clips once', () {
+        final result = const HWSizedBox(
+          width: 0,
+          child: HWStack(children: [HWText.fixed('a')]),
+        ).toSwift(0, dataExpr: 'data');
+        expect('.clipped()'.allMatches(result), hasLength(2));
+      });
+
       test('a box with room for its child does not clip', () {
         expect(
           const HWSizedBox(width: 80, child: HWText.fixed('a'))
@@ -604,6 +683,64 @@ void main() {
             contains('import androidx.glance.layout.fillMaxWidth'),
             contains('import androidx.glance.text.Text'),
             contains('import androidx.glance.Image'),
+          ),
+        );
+      });
+
+      test('an axis left open asks for the room the child asks for there', () {
+        const box =
+            HWSizedBox(width: 50, child: HWAlign(child: HWText.fixed('b')));
+        expect(box.kotlinRoomIn(HWAxis.horizontal).modifiers, [
+          'fillMaxHeight()',
+        ]);
+        expect(box.kotlinRoomIn(HWAxis.vertical).modifiers, [
+          'defaultWeight()',
+        ]);
+        expect(box.kotlinRoomIn(null).modifiers, ['fillMaxHeight()']);
+        expect(
+          const HWSizedBox(
+            width: 50,
+            height: 20,
+            child: HWAlign(child: HWText.fixed('b')),
+          ).kotlinRoomIn(HWAxis.vertical).modifiers,
+          isEmpty,
+        );
+      });
+
+      test('a stack in a row fills the height an open-height box asks for', () {
+        expect(
+          const HWRow(
+            children: [
+              HWText.fixed('a'),
+              HWStack(
+                children: [
+                  HWSizedBox(
+                    width: 50,
+                    child: HWAlign(child: HWText.fixed('b')),
+                  ),
+                ],
+              ),
+            ],
+          ).toKotlin(0, dataExpr: 'data'),
+          contains(
+            '    Box(modifier = GlanceModifier.fillMaxHeight(), '
+            'contentAlignment = Alignment.TopStart) {\n',
+          ),
+        );
+      });
+
+      test('a gap before it keeps the weight the child asks for', () {
+        expect(
+          const HWColumn(
+            spacing: 8,
+            children: [
+              HWText.fixed('a'),
+              HWSizedBox(width: 50, child: HWAlign(child: HWText.fixed('b'))),
+            ],
+          ).toKotlin(0, dataExpr: 'data'),
+          contains(
+            '    Box(modifier = GlanceModifier.defaultWeight()'
+            '.padding(top = 8.0.dp)) {\n',
           ),
         );
       });

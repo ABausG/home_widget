@@ -341,6 +341,12 @@ class HWSizeAdaptive extends HWWidget {
   @override
   String get swiftFrameAlignment => _sharedSwiftFrameAlignment(providedSlots);
 
+  /// Whether any slot asks the frame around the adaptive to clip: cutting the
+  /// others off at the room they were given is what Flutter lays them out at
+  /// anyway.
+  @override
+  bool get swiftClipsFrame => providedSlots.any((slot) => slot.swiftClipsFrame);
+
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
 

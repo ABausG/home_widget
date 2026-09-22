@@ -49,6 +49,13 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
   String get swiftFrameAlignment =>
       _sharedSwiftFrameAlignment([firstBranch, secondBranch]);
 
+  /// Whether either branch asks the frame around the conditional to clip:
+  /// cutting the other one off at the room it was given is what Flutter lays
+  /// it out at anyway.
+  @override
+  bool get swiftClipsFrame =>
+      firstBranch.swiftClipsFrame || secondBranch.swiftClipsFrame;
+
   /// The branch taken is only known at runtime, so a stack lays out each of
   /// them by what it needs itself.
   @override

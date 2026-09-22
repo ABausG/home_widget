@@ -405,7 +405,7 @@ There is no `hourly:` parameter on `saveData`. `deleteData(timedData: true)` and
 
 ## Android limits
 
-Glance lays out at most 10 children in a `Column` or `Row` and drops the rest without a word, and each spacer a `mainAxisAlignment` adds counts as a child too. A builder's children only exist once the app has saved a list, so in a widget generated for Android, one with an `android:` configuration, every builder needs a `maxItems` small enough to fit:
+Glance lays out at most 10 children in a `Column` or `Row` and drops the rest without a word, and each spacer a `mainAxisAlignment` adds counts as a child too. An [`HWStack`](/generator/widgets/hw-stack) renders as a `Box`, which Glance limits the same way. Nesting part of an item in one counts as a single child, as nesting it in another `HWColumn` or `HWRow` does. A builder's children only exist once the app has saved a list, so in a widget generated for Android, one with an `android:` configuration, every builder needs a `maxItems` small enough to fit:
 
 | `mainAxisAlignment` | Largest `maxItems` |
 | ------------------- | ------------------ |
@@ -415,7 +415,7 @@ Glance lays out at most 10 children in a `Column` or `Row` and drops the rest wi
 | `spaceBetween`      | 5                  |
 | `spaceEvenly`       | 4                  |
 
-[HWAlignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) shows how many spacers each alignment adds. `spacing` counts as nothing, and `whenEmpty` only ever renders on its own. A builder only iOS renders, in the `ios:` branch of an [`HWAdaptive`](/generator/widgets/hw-adaptive) or in a size slot Android never reaches, needs no `maxItems`.
+[Alignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) shows how many spacers each alignment adds. `spacing` counts as nothing, and `whenEmpty` only ever renders on its own. A builder only iOS renders, in the `ios:` branch of an [`HWAdaptive`](/generator/widgets/hw-adaptive) or in a size slot Android never reaches, needs no `maxItems`.
 
 On Android, text in a [custom font](/generator/custom-fonts#how-it-renders) is drawn as an image, and the room it has is measured before it is drawn, for at most 32 texts per widget size. A custom-font text inside an item counts once per item the builder can render, so two of them in an item with `maxItems: 10` count 20. When a widget's Android layout can add up to more than 32, generation warns: the texts past that are drawn against the bounds of the whole widget and can overflow their place. Lower `maxItems`, or render some of the texts in the platform font.
 

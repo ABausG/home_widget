@@ -48,7 +48,8 @@ void main() {
         'Widget "Crowded": an HWColumn has 11 children + 0 spacers (start) = '
         '11 > 10. On Android, Glance lays out at most 10 children in a '
         'Column, spacers included, and silently drops the rest. Group some '
-        'children in a nested HWColumn or HWRow, which counts as one child.',
+        'children in a nested HWColumn, HWRow or HWStack, which counts as one '
+        'child.',
       ),
     );
   });
@@ -67,8 +68,8 @@ void main() {
         'Widget "Crowded": an HWRow has 5 children + 6 spacers (spaceEvenly) '
         '= 11 > 10. On Android, Glance lays out at most 10 children in a Row, '
         'spacers included, and silently drops the rest. Group some children in '
-        'a nested HWColumn or HWRow, which counts as one child, or use a '
-        'mainAxisAlignment that adds fewer spacers.',
+        'a nested HWColumn, HWRow or HWStack, which counts as one child, or '
+        'use a mainAxisAlignment that adds fewer spacers.',
       ),
     );
   });
@@ -210,6 +211,123 @@ void main() {
       ),
       _rejectedWith(contains('an HWColumn has 11 children')),
     );
+  });
+
+  group('a stack of layers', () {
+    test('accepts ten children', () {
+      expect(
+        () => validateChildLimits(_spec(HWStack(children: _texts(10)))),
+        returnsNormally,
+      );
+    });
+
+    test('rejects eleven children, without naming spacers', () {
+      expect(
+        () => validateChildLimits(_spec(HWStack(children: _texts(11)))),
+        _rejectedWith(
+          'Widget "Crowded": an HWStack has 11 children > 10. On Android, '
+          'Glance lays out at most 10 children in a Box and silently drops '
+          'the rest. Group some children in a nested HWColumn, HWRow or '
+          'HWStack, which counts as one child.',
+        ),
+      );
+    });
+
+    test('rejects eleven children of an expanding stack too', () {
+      expect(
+        () => validateChildLimits(
+          _spec(HWStack(fit: HWStackFit.expand, children: _texts(11))),
+        ),
+        _rejectedWith(contains('an HWStack has 11 children > 10')),
+      );
+    });
+
+    test('counts a conditional child as one child', () {
+      HWStack stack(int texts) => HWStack(
+            children: [
+              ..._texts(texts),
+              const HWBoolConditional(
+                data: HWBool('flag', defaultValue: false),
+                whenTrue: HWText.fixed('on'),
+                whenFalse: HWText.fixed('off'),
+              ),
+            ],
+          );
+      expect(() => validateChildLimits(_spec(stack(9))), returnsNormally);
+      expect(
+        () => validateChildLimits(_spec(stack(10))),
+        _rejectedWith(contains('an HWStack has 11 children > 10')),
+      );
+    });
+
+    test('does not count a child rendering nothing on Android', () {
+      expect(
+        () => validateChildLimits(
+          _spec(
+            HWStack(
+              children: [
+                ..._texts(10),
+                const HWDataOnly([HWString('id')]),
+                const HWSizedBox.shrink(),
+              ],
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('is skipped where only iOS renders it', () {
+      expect(
+        () => validateChildLimits(
+          _spec(
+            HWAdaptive(
+              ios: HWStack(children: _texts(11)),
+              android: const HWText.fixed('a'),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('counts as one child of the stack around it', () {
+      expect(
+        () => validateChildLimits(
+          _spec(
+            HWColumn(
+              children: [..._texts(9), HWStack(children: _texts(2))],
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+      expect(
+        () => validateChildLimits(
+          _spec(
+            HWColumn(
+              children: [..._texts(10), HWStack(children: _texts(2))],
+            ),
+          ),
+        ),
+        _rejectedWith(contains('an HWColumn has 11 children')),
+      );
+    });
+
+    test('is checked inside the item of a builder', () {
+      expect(
+        () => validateChildLimits(
+          _spec(
+            HWRow.builder(
+              'forecast',
+              maxItems: 2,
+              item: HWStack(children: _texts(11)),
+            ),
+          ),
+        ),
+        _rejectedWith(contains('an HWStack has 11 children > 10')),
+      );
+    });
   });
 
   group('a builder', () {
@@ -465,6 +583,28 @@ void main() {
             children: [
               HWRow(children: fontTexts(3)),
               listOf('days', maxItems: 10, texts: 3),
+            ],
+          ),
+        ),
+      );
+      expect(
+        verify(() => mock.warn(captureAny())).captured.single,
+        contains('up to 33 texts'),
+      );
+    });
+
+    test('count inside a stack of layers, in the item of a builder too', () {
+      final mock = useMockLogger();
+      validateMeasuredTexts(
+        _spec(
+          HWColumn(
+            children: [
+              HWStack(children: fontTexts(3)),
+              HWRow.builder(
+                'days',
+                maxItems: 10,
+                item: HWStack(children: fontTexts(3)),
+              ),
             ],
           ),
         ),

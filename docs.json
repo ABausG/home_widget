@@ -112,6 +112,7 @@
       "pages": [
         { "title": "Overview", "href": "/generator/widgets" },
         { "title": "HWAdaptive", "href": "/generator/widgets/hw-adaptive" },
+        { "title": "HWAlign", "href": "/generator/widgets/hw-align" },
         { "title": "HWColoredBox", "href": "/generator/widgets/hw-colored-box" },
         { "title": "HWColumn", "href": "/generator/widgets/hw-column" },
         { "title": "HWConditional", "href": "/generator/widgets/hw-conditional" },
@@ -123,6 +124,7 @@
         { "title": "HWRow", "href": "/generator/widgets/hw-row" },
         { "title": "HWSizeAdaptive", "href": "/generator/widgets/hw-size-adaptive" },
         { "title": "HWSizedBox", "href": "/generator/widgets/hw-sized-box" },
+        { "title": "HWStack", "href": "/generator/widgets/hw-stack" },
         { "title": "HWText", "href": "/generator/widgets/hw-text" }
       ]
     },
@@ -131,7 +133,7 @@
       "group": "Styling",
       "pages": [
         { "title": "Overview", "href": "/generator/styling" },
-        { "title": "HWAlignment", "href": "/generator/styling/hw-alignment" },
+        { "title": "Alignment", "href": "/generator/styling/hw-alignment" },
         { "title": "HWBoxDecoration", "href": "/generator/styling/hw-box-decoration" },
         { "title": "HWColor", "href": "/generator/styling/hw-color" },
         { "title": "HWEdgeInsets", "href": "/generator/styling/hw-edge-insets" },

@@ -69,7 +69,7 @@ The items are the column's children, so the alignments and `spacing` apply to th
 
 ## Android: at most 10 children
 
-Glance lays out at most 10 children in a `Column`, and every `Spacer` a `mainAxisAlignment` adds counts as one of them. `spacing` counts as nothing, and neither does a child that renders nothing on Android, such as [`HWDataOnly`](/generator/widgets/hw-data-only). A column Android would render with more than 10 fails generation instead of losing children on the home screen. Group some children in a nested `HWColumn` or `HWRow`, which counts as one child, or use an alignment that adds fewer spacers; [HWAlignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) lists how many each one adds.
+Glance lays out at most 10 children in a `Column`, and every `Spacer` a `mainAxisAlignment` adds counts as one of them. `spacing` counts as nothing, and neither does a child that renders nothing on Android, such as [`HWDataOnly`](/generator/widgets/hw-data-only). A column Android would render with more than 10 fails generation instead of losing children on the home screen. Group some children in a nested `HWColumn`, `HWRow` or [`HWStack`](/generator/widgets/hw-stack), which counts as one child, or use an alignment that adds fewer spacers; [Alignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) lists how many each one adds.
 
 A builder's items count the same way. On Android an `HWColumn.builder` therefore needs a `maxItems`, at most 10 with no spacers and fewer with them; see [Android limits](/generator/lists#android-limits).
 
@@ -91,7 +91,7 @@ A builder's items count the same way. On Android an `HWColumn.builder` therefore
 | `maxItems`   | `int?`      | `null` (every item) | Renders at most this many items. 1 or more; required for widgets generated for Android. |
 | `whenEmpty`  | `HWWidget?` | `null` (empty column) | The column's only child while there is no item to render. |
 
-See [HWAlignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.
+See [Alignment](/generator/styling/hw-alignment) for the `HWCrossAxisAlignment` and `HWMainAxisAlignment` values.
 
 ## Platform mapping
 

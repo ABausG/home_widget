@@ -60,6 +60,10 @@ class WidgetValueDecoder {
       return HWColumn.fromDartObject(object!, this);
     } else if (typeName == 'HWRow') {
       return HWRow.fromDartObject(object!, this);
+    } else if (typeName == 'HWStack') {
+      return HWStack.fromDartObject(object!, this);
+    } else if (typeName == 'HWAlign') {
+      return HWAlign.fromDartObject(object!, this);
     } else if (typeName == 'HWText') {
       return HWText.fromDartObject(object!, this);
     } else if (typeName == 'HWImage') {

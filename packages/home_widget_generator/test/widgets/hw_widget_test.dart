@@ -364,4 +364,111 @@ void main() {
       expect(androidOnly.kotlinRendersNothing, isFalse);
     });
   });
+
+  group('HWWidget clipping a SwiftUI frame', () {
+    const stack = HWStack(children: [leaf]);
+
+    test('only a widget clipping its own bounds asks for it', () {
+      expect(leaf.swiftClipsFrame, isFalse);
+      expect(stack.swiftClipsFrame, isTrue);
+      expect(
+        const HWStack(fit: HWStackFit.expand, children: [leaf]).swiftClipsFrame,
+        isTrue,
+      );
+    });
+
+    test('a single-child wrapper asks for whatever its child does', () {
+      expect(
+        const HWPadding(padding: HWEdgeInsets.all(4), child: leaf)
+            .swiftClipsFrame,
+        isFalse,
+      );
+      expect(
+        const HWPadding(padding: HWEdgeInsets.all(4), child: stack)
+            .swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWColoredBox(color: HWColor.fixed(0xFF000000), child: stack)
+            .swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWDecoratedBox(
+          decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
+          child: stack,
+        ).swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            border: HWBoxBorder(
+              thickness: 1,
+              color: HWColor.fixed(0xFF000000),
+            ),
+          ),
+          child: stack,
+        ).swiftClipsFrame,
+        isFalse,
+      );
+      expect(const HWAlign(child: stack).swiftClipsFrame, isTrue);
+      expect(const HWAlign(child: leaf).swiftClipsFrame, isFalse);
+    });
+
+    test('a sized box asks for it for its child, a gap for nothing', () {
+      expect(const HWSizedBox(child: stack).swiftClipsFrame, isTrue);
+      expect(const HWSizedBox(child: leaf).swiftClipsFrame, isFalse);
+      expect(const HWSizedBox(width: 8).swiftClipsFrame, isFalse);
+    });
+
+    test('a conditional asks for it while either branch does', () {
+      expect(
+        const HWDataExists(
+          data: HWBool('flag'),
+          whenPresent: stack,
+          whenAbsent: leaf,
+        ).swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWDataExists(
+          data: HWBool('flag'),
+          whenPresent: leaf,
+          whenAbsent: stack,
+        ).swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWDataExists(
+          data: HWBool('flag'),
+          whenPresent: leaf,
+          whenAbsent: leaf,
+        ).swiftClipsFrame,
+        isFalse,
+      );
+    });
+
+    test('an adaptive asks for what its iOS side does', () {
+      expect(
+        const HWAdaptive(ios: stack, android: leaf).swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWAdaptive(ios: leaf, android: stack).swiftClipsFrame,
+        isFalse,
+      );
+    });
+
+    test('a size adaptive asks for it while any slot does', () {
+      expect(
+        const HWSizeAdaptive(small: stack, large: leaf).swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWSizeAdaptive(small: leaf, large: leaf).swiftClipsFrame,
+        isFalse,
+      );
+    });
+  });
 }

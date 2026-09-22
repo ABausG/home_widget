@@ -3,12 +3,10 @@ part of 'hw_widget.dart';
 /// A vertical layout widget for use in widgetBuilder.
 ///
 /// Maps to SwiftUI VStack and Glance Column.
-class HWColumn extends HWMultiChildWidget {
-  final HWCrossAxisAlignment? crossAxisAlignment;
-
+class HWColumn extends HWFlex {
   const HWColumn({
     required super.children,
-    this.crossAxisAlignment,
+    super.crossAxisAlignment,
     super.mainAxisAlignment,
     super.spacing = 0,
   });
@@ -26,21 +24,13 @@ class HWColumn extends HWMultiChildWidget {
     required super.item,
     super.maxItems,
     super.whenEmpty,
-    this.crossAxisAlignment,
+    super.crossAxisAlignment,
     super.mainAxisAlignment,
     super.spacing = 0,
   }) : super.builder();
 
   @override
   HWAxis get _mainAxis => HWAxis.vertical;
-
-  /// The alignment this column renders with, always emitted so that neither
-  /// platform falls back to its own default.
-  ///
-  /// `baseline` lines up along a horizontal cross axis, which a column has no
-  /// baseline on; [fromDartObject] rejects it, and both emitters centre on it.
-  HWCrossAxisAlignment get effectiveCrossAxisAlignment =>
-      crossAxisAlignment ?? HWCrossAxisAlignment.center;
 
   /// The cross axis is the horizontal one, so the column keeps its own
   /// alignment there; a main axis alignment other than start is emitted as
