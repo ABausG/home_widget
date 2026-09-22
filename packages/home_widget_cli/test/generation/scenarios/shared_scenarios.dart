@@ -412,6 +412,71 @@ class SizeAdaptive {}
 ''',
   ),
   BuildScenario(
+    description: 'renders Android size ranges beside the family slots',
+    className: 'SizeRanges',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Size Ranges',
+  android: HomeWidgetAndroidConfiguration(
+    targetCellWidth: 4,
+    targetCellHeight: 2,
+    resizeMode: HWAndroidResizeMode.horizontalAndVertical,
+  ),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
+  widget: HWColumn(
+    spacing: 4,
+    crossAxisAlignment: HWCrossAxisAlignment.start,
+    children: [
+      HWText(HWString('title')),
+      HWSizeAdaptive(
+        small: HWText(HWString('headline')),
+        medium: HWRow(
+          children: [
+            HWText(HWString('headline')),
+            HWText.fixed(' · '),
+            HWText(HWInt('streak')),
+          ],
+        ),
+        large: HWColumn(
+          children: [
+            HWText(HWString('headline')),
+            HWText(HWString('label')),
+            HWText(HWInt('streak')),
+          ],
+        ),
+        androidSizeRanges: [
+          HWAndroidSizeRange(
+            maxHeight: 120,
+            child: HWRow(
+              children: [
+                HWText(HWString('headline')),
+                HWText(HWInt('streak')),
+              ],
+            ),
+          ),
+          HWAndroidSizeRange(
+            minWidth: 400,
+            minHeight: 200,
+            child: HWColumn(
+              children: [
+                HWText(HWString('headline')),
+                HWText(HWString('label')),
+                HWText(HWInt('streak')),
+                HWText.fixed('dashboard'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+)
+class SizeRanges {}
+''',
+  ),
+  BuildScenario(
     description: 'renders saved lists through row and column builders',
     className: 'ListBuilders',
     widgetSource: '''

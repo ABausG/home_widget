@@ -2655,6 +2655,99 @@ dependencies {
       expect(content, contains('import androidx.compose.ui.unit.dp'));
     });
 
+    test('declares the same set for the gallery preview', () async {
+      final content = await generate(
+        HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+        ),
+      );
+
+      expect(content, contains('override val sizeMode = SizeMode.Responsive('));
+      expect(content, contains('  override val previewSizeMode = sizeMode\n'));
+    });
+
+    test('declares the grid corners of a widget with androidSizeRanges',
+        () async {
+      final content = await generate(
+        const HWSizeAdaptive(
+          small: HWText.fixed('S'),
+          medium: HWText.fixed('M'),
+          large: HWText.fixed('L'),
+          androidSizeRanges: [
+            HWAndroidSizeRange(
+              maxHeight: 120,
+              child: HWText.fixed('Strip'),
+            ),
+            HWAndroidSizeRange(
+              minWidth: 400,
+              minHeight: 200,
+              child: HWText.fixed('Dash'),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '  override val sizeMode = SizeMode.Responsive(\n'
+          '      setOf(\n'
+          '          DpSize(80.dp, 80.dp),\n'
+          '          DpSize(80.dp, 121.dp),\n'
+          '          DpSize(250.dp, 121.dp),\n'
+          '          DpSize(400.dp, 200.dp),\n'
+          '          DpSize(250.dp, 250.dp),\n'
+          '          DpSize(400.dp, 250.dp),\n'
+          '      )\n'
+          '  )\n'
+          '  override val previewSizeMode = sizeMode\n',
+        ),
+      );
+      expect(content, contains('Text(text = "Strip",'));
+      expect(content, contains('Text(text = "Dash",'));
+    });
+
+    test('keeps the family composition corners with custom-font text',
+        () async {
+      const style = HWTextStyle(fontFamily: 'Chewy');
+      final content = await generate(
+        const HWSizeAdaptive(
+          small: HWText.fixed('S', style: style),
+          medium: HWText.fixed('M', style: style),
+          large: HWText.fixed('L', style: style),
+          androidSizeRanges: [
+            HWAndroidSizeRange(
+              maxHeight: 120,
+              child: HWText.fixed('Strip', style: style),
+            ),
+            HWAndroidSizeRange(
+              minWidth: 400,
+              minHeight: 200,
+              child: HWText.fixed('Dash', style: style),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      setOf(\n'
+          '          DpSize(80.dp, 80.dp),\n'
+          '          DpSize(80.dp, 121.dp),\n'
+          '          DpSize(110.dp, 121.dp),\n'
+          '          DpSize(250.dp, 121.dp),\n'
+          '          DpSize(400.dp, 200.dp),\n'
+          '          DpSize(250.dp, 250.dp),\n'
+          '          DpSize(400.dp, 250.dp),\n'
+          '          DpSize(250.dp, 530.dp),\n'
+          '          DpSize(400.dp, 530.dp),\n'
+          '      )\n',
+        ),
+      );
+    });
+
     test('lists only the sizes the configuration can reach', () async {
       final content = await generate(
         HWSizeAdaptive(

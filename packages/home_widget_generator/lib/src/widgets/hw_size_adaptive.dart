@@ -43,6 +43,16 @@ class HWSizeAdaptive extends HWWidget {
   /// the generated `when` compares against, so an override moves both together.
   final Map<HWWidgetFamily, HWSize>? androidSizes;
 
+  /// Android-only layouts checked before the family slots, in list order.
+  ///
+  /// The first range whose bounds contain the widget's real size renders;
+  /// where none matches, the family slots render as they do without ranges.
+  /// The generator compiles the bounds into the sizes it declares to Glance, so
+  /// the launcher keeps picking the layout itself.
+  ///
+  /// iOS ignores them.
+  final List<HWAndroidSizeRange>? androidSizeRanges;
+
   const HWSizeAdaptive({
     this.small,
     this.medium,
@@ -53,6 +63,7 @@ class HWSizeAdaptive extends HWWidget {
     this.accessoryRectangular,
     this.accessoryInline,
     this.androidSizes,
+    this.androidSizeRanges,
   }) : assert(
           small != null ||
               medium != null ||
@@ -109,6 +120,24 @@ class HWSizeAdaptive extends HWWidget {
       }
     }
 
+    final androidSizeRanges = <HWAndroidSizeRange>[];
+    final rangesField = WidgetValueDecoder.getField(obj, 'androidSizeRanges');
+    final rangesList = rangesField?.toListValue();
+    if (rangesList != null) {
+      for (final element in rangesList) {
+        if (element.isNull ||
+            element.type?.element?.name != 'HWAndroidSizeRange') {
+          throw GeneratorError(
+            'HWSizeAdaptive.androidSizeRanges has an entry that is not an '
+            'HWAndroidSizeRange: ${element.type?.element?.name}.',
+          );
+        }
+        androidSizeRanges.add(
+          HWAndroidSizeRange.fromDartObject(element, decoder),
+        );
+      }
+    }
+
     return HWSizeAdaptive(
       small: slots[HWWidgetFamily.systemSmall],
       medium: slots[HWWidgetFamily.systemMedium],
@@ -119,6 +148,7 @@ class HWSizeAdaptive extends HWWidget {
       accessoryRectangular: slots[HWWidgetFamily.accessoryRectangular],
       accessoryInline: slots[HWWidgetFamily.accessoryInline],
       androidSizes: androidSizes.isEmpty ? null : androidSizes,
+      androidSizeRanges: androidSizeRanges.isEmpty ? null : androidSizeRanges,
     );
   }
 
@@ -147,6 +177,67 @@ class HWSizeAdaptive extends HWWidget {
     return null;
   }
 
+  /// [androidSizeRanges], or nothing when none were written.
+  ///
+  /// Codegen-internal: consumed by `home_widget_cli`, not by app code. Not
+  /// marked `@internal` because that package is a separate one and would then
+  /// fail its own analyze.
+  List<HWAndroidSizeRange> get androidSizeRangesOrEmpty =>
+      androidSizeRanges ?? const [];
+
+  /// The children of [androidSizeRanges], in list order.
+  ///
+  /// Codegen-internal; see [androidSizeRangesOrEmpty].
+  List<HWWidget> get androidSizeRangeChildren =>
+      [for (final range in androidSizeRangesOrEmpty) range.child];
+
+  /// The first range whose bounds contain [size], or null when the family
+  /// slots decide there.
+  ///
+  /// Codegen-internal; see [androidSizeRangesOrEmpty].
+  HWAndroidSizeRange? androidSizeRangeAt(HWSize size) {
+    for (final range in androidSizeRangesOrEmpty) {
+      if (range.matches(size)) return range;
+    }
+    return null;
+  }
+
+  /// What this instance renders on Android at the real size [size], against the
+  /// family sizes of [table].
+  ///
+  /// The first matching range wins; otherwise the family Glance picks
+  /// renders, down its fallback chain, and a family without content anywhere
+  /// below it leaves the first slot written, which is what the `else` branch
+  /// carries today.
+  ///
+  /// Codegen-internal; see [androidSizeRangesOrEmpty].
+  HWWidget? renderAtAndroid(HWSize size, Map<HWWidgetFamily, HWSize> table) {
+    if (androidSizeRangeAt(size) case final range?) return range.child;
+
+    final family = HWAndroidSizeGrid.familyAt(table, size);
+    final widget = family == null ? null : resolve(family);
+    if (widget != null) return widget;
+
+    final slots = providedSlots;
+    return slots.isEmpty ? null : slots.first;
+  }
+
+  /// The grid this instance declares on its own, which is what a tree emitted
+  /// without a context compares against.
+  ///
+  /// An instance on its own knows no Android configuration, so the floor is
+  /// 1 dp rather than the widget's minimum size, and family slots keep the size
+  /// they are composed at without ranges, which is what a tree with custom-font
+  /// text needs.
+  List<HWSize> _androidGridSizes(Map<HWWidgetFamily, HWSize> table) =>
+      HWAndroidSizeGrid.compile(
+        instances: [this],
+        table: table,
+        minWidth: 1,
+        minHeight: 1,
+        keepFamilyCompositionSize: true,
+      ).sizes;
+
   /// Which of [reachable] render [slot], so a slot nothing reaches can be
   /// reported.
   Set<HWWidgetFamily> familiesResolvingTo(
@@ -170,21 +261,41 @@ class HWSizeAdaptive extends HWWidget {
           if (slotFor(family) != null) family,
       };
 
-  /// The provided slots of the system families, which are the only ones
-  /// Android renders.
-  List<HWWidget> get _providedSystemSlots => [
-        for (final family in HWWidgetFamily.values)
-          if (!family.isAccessory)
-            if (slotFor(family) case final slot?) slot,
-      ];
-
   /// Whether [reachable] renders more than one distinct widget, and so needs a
   /// branch at all.
   ///
   /// Android callers pass the system families only, since the accessory slots
   /// are never emitted there.
-  bool branchesFor(Set<HWWidgetFamily> reachable) =>
-      !_allIdentical(_resolveAll(reachable).values);
+  ///
+  /// With [androidSizeRanges] the question is what the instance's own grid
+  /// renders: a widget rendering one layout for every corner still needs no
+  /// branch.
+  bool branchesFor(Set<HWWidgetFamily> reachable) {
+    if (androidSizeRangesOrEmpty.isEmpty) {
+      return !_allIdentical(_resolveAll(reachable).values);
+    }
+
+    final table = HWWidgetFamily.androidSizeTable(androidSizes);
+    return !_allIdentical([
+      for (final size in _androidGridSizes(table))
+        if (renderAtAndroid(size, table) case final widget?) widget,
+    ]);
+  }
+
+  /// Whether a tree emitted without a context branches over `LocalSize.current`
+  /// here: with [androidSizeRanges] the instance's own grid decides, the family
+  /// slots otherwise, which is what [_kotlinChoice] does at a null context.
+  bool get _branchesOnAndroid => branchesFor({
+        for (final family in providedFamilies)
+          if (!family.isAccessory) family,
+      });
+
+  /// The imports the `when` over `LocalSize.current` needs.
+  static const Set<String> _kotlinWhenImports = {
+    'import androidx.glance.LocalSize',
+    'import androidx.compose.ui.unit.DpSize',
+    'import androidx.compose.ui.unit.dp',
+  };
 
   /// The imports [kotlinSizeMode] needs.
   static const Set<String> kotlinSizeModeImports = {
@@ -195,6 +306,11 @@ class HWSizeAdaptive extends HWWidget {
 
   /// The `sizeMode` a Glance widget declares so that `LocalSize.current` is
   /// always one of [sizes], which are the sizes [toKotlin] compares against.
+  ///
+  /// The gallery preview declares the same set: `SizeMode.Responsive` is a
+  /// `PreviewSizeMode`, so the picker picks the layout for the span it shows by
+  /// the same rule the home screen does, instead of composing once at the
+  /// provider's minimum size.
   static String kotlinSizeMode(Iterable<HWSize> sizes) {
     final buffer = StringBuffer()..write('''
   override val sizeMode = SizeMode.Responsive(
@@ -205,16 +321,22 @@ class HWSizeAdaptive extends HWWidget {
     }
     buffer.write('''
       )
-  )''');
+  )
+  override val previewSizeMode = sizeMode''');
     return buffer.toString();
   }
 
   @override
   Set<HWDataType<dynamic>> get dataDependencies =>
-      providedSlots.expand((slot) => slot.dataDependencies).toSet();
+      childWidgets.expand((child) => child.dataDependencies).toSet();
 
+  /// Every slot and every range child: a range renders like a slot, so it
+  /// contributes data fields, fonts and icons the same way.
   @override
-  List<HWWidget> get childWidgets => providedSlots;
+  List<HWWidget> get childWidgets => [
+        ...providedSlots,
+        ...androidSizeRangeChildren,
+      ];
 
   @override
   String get swiftFrameAlignment => _sharedSwiftFrameAlignment(providedSlots);
@@ -226,13 +348,9 @@ class HWSizeAdaptive extends HWWidget {
   /// them is laid out by the enclosing layout.
   @override
   Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
-        if (!_allIdentical(_providedSystemSlots)) ...{
-          'import androidx.glance.LocalSize',
-          'import androidx.compose.ui.unit.DpSize',
-          'import androidx.compose.ui.unit.dp',
-        },
-        ...providedSlots
-            .expand((slot) => slot.kotlinImportsIn(enclosingLinearAxis)),
+        if (_branchesOnAndroid) ..._kotlinWhenImports,
+        ...childWidgets
+            .expand((child) => child.kotlinImportsIn(enclosingLinearAxis)),
       };
 
   /// The slot taken is only known at runtime, so a stack lays out each slot
@@ -245,15 +363,11 @@ class HWSizeAdaptive extends HWWidget {
   }
 
   /// What the `when` over `LocalSize.current` needs, when there is one to
-  /// write.
+  /// write, which is what [_branchesOnAndroid] answers for the grid as well as
+  /// for the family sizes.
   @override
-  Set<String> get _kotlinChoiceImports => _kotlinChoices(null).length > 1
-      ? const {
-          'import androidx.glance.LocalSize',
-          'import androidx.compose.ui.unit.DpSize',
-          'import androidx.compose.ui.unit.dp',
-        }
-      : const {};
+  Set<String> get _kotlinChoiceImports =>
+      _branchesOnAndroid ? _kotlinWhenImports : const {};
 
   /// The text every slot Android renders lines up by, which they have to agree
   /// on: the row pads a child once, and the slot taken is only known at
@@ -299,7 +413,7 @@ class HWSizeAdaptive extends HWWidget {
         if (!family.isAccessory) family,
     });
     final slots = <HWWidget>[];
-    for (final widget in resolved.values) {
+    for (final widget in [...resolved.values, ...androidSizeRangeChildren]) {
       if (slots.any((slot) => identical(slot, widget))) continue;
       slots.add(widget);
     }
@@ -460,17 +574,31 @@ $pad}''');
         if (!family.isAccessory) family,
     };
     final resolved = _resolveAll(reachable);
-    if (resolved.isEmpty) return emit(providedSlots.first, indent);
-    if (_allIdentical(resolved.values)) {
-      return emit(resolved.values.first, indent);
-    }
 
     // A context carries the table the whole widget declares to Glance, which
-    // already has every instance's overrides merged in.
+    // already has every instance's androidSizes merged in.
     final contextTable = context?.androidSizeTable;
     final table = HWWidgetFamily.androidSizeTable(
       contextTable ?? androidSizes,
     );
+
+    // The declared sizes are the whole widget's, so a sibling instance's
+    // ranges decide them too; on its own an instance compiles its own grid.
+    final declared = context?.declaredAndroidSizes ??
+        (androidSizeRangesOrEmpty.isEmpty ? null : _androidGridSizes(table));
+    if (declared != null && declared.isNotEmpty) {
+      return _toKotlinAtSizes(
+        indent,
+        table: table,
+        declared: declared,
+        emit: emit,
+      );
+    }
+
+    if (resolved.isEmpty) return emit(providedSlots.first, indent);
+    if (_allIdentical(resolved.values)) {
+      return emit(resolved.values.first, indent);
+    }
 
     // Under `SizeMode.Responsive` `LocalSize.current` is one of the declared
     // sizes, so the branches compare for equality rather than for a threshold.
@@ -482,6 +610,63 @@ $pad}''');
     for (final group in _groupByIdentity(resolved, elseWidget)) {
       final sizes =
           group.families.map((family) => table[family]!.toKotlin()).join(', ');
+      buffer.writeln('''
+$branchPad$sizes -> {
+${emit(group.widget, indent + 2)}
+$branchPad}''');
+    }
+
+    buffer.write('''
+${branchPad}else -> {
+${emit(elseWidget, indent + 2)}
+$branchPad}
+$pad}''');
+    return buffer.toString();
+  }
+
+  /// The `when` over the sizes the whole widget declares, one branch per
+  /// distinct layout.
+  ///
+  /// Every declared size answers through [renderAtAndroid], so a range and
+  /// a family slot are grouped the same way, and the `else` carries what
+  /// renders at the size Glance falls back to when nothing fits.
+  ///
+  /// [emit] writes each branch, so inside a stack every one of them is laid out
+  /// through the stack slot the way the family `when` lays its branches out.
+  String _toKotlinAtSizes(
+    int indent, {
+    required Map<HWWidgetFamily, HWSize> table,
+    required List<HWSize> declared,
+    required String Function(HWWidget widget, int indent) emit,
+  }) {
+    final groups = <_SizeGroup>[];
+    final seen = <HWSize>{};
+    for (final size in declared) {
+      if (!seen.add(size)) continue;
+      final widget = renderAtAndroid(size, table)!;
+
+      var grouped = false;
+      for (final group in groups) {
+        if (identical(group.widget, widget)) {
+          group.sizes.add(size);
+          grouped = true;
+          break;
+        }
+      }
+      if (!grouped) groups.add(_SizeGroup([size], widget));
+    }
+
+    if (groups.length == 1) return emit(groups.first.widget, indent);
+
+    final elseWidget =
+        renderAtAndroid(HWAndroidSizeGrid.sortedBySize(seen).first, table)!;
+    final pad = '    ' * indent;
+    final branchPad = '    ' * (indent + 1);
+    final buffer = StringBuffer()..writeln('${pad}when (LocalSize.current) {');
+
+    for (final group in groups) {
+      if (identical(group.widget, elseWidget)) continue;
+      final sizes = group.sizes.map((size) => size.toKotlin()).join(', ');
       buffer.writeln('''
 $branchPad$sizes -> {
 ${emit(group.widget, indent + 2)}
@@ -508,7 +693,8 @@ $pad}''');
           accessoryCircular == other.accessoryCircular &&
           accessoryRectangular == other.accessoryRectangular &&
           accessoryInline == other.accessoryInline &&
-          mapEquals(androidSizes, other.androidSizes);
+          mapEquals(androidSizes, other.androidSizes) &&
+          listEquals(androidSizeRanges, other.androidSizeRanges);
 
   @override
   int get hashCode => Object.hash(
@@ -521,6 +707,9 @@ $pad}''');
         accessoryRectangular,
         accessoryInline,
         _sizesHash(androidSizes),
+        androidSizeRanges == null
+            ? null.hashCode
+            : Object.hashAll(androidSizeRanges!),
       );
 
   /// Order-insensitive, so two annotations spelling the same sizes in a
@@ -543,4 +732,12 @@ class _FamilyGroup {
   final HWWidget widget;
 
   _FamilyGroup(this.families, this.widget);
+}
+
+/// The declared sizes of one emitted branch and the widget they share.
+class _SizeGroup {
+  final List<HWSize> sizes;
+  final HWWidget widget;
+
+  _SizeGroup(this.sizes, this.widget);
 }

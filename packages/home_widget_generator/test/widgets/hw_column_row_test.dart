@@ -1091,6 +1091,52 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
         expect(r, isNot(contains('LocalSize')));
       });
 
+      test('lays every branch of an Android size grid out through the slot',
+          () {
+        const column = HWColumn(
+          spacing: 8,
+          children: [
+            a,
+            HWSizeAdaptive(
+              small: b,
+              androidSizeRanges: [
+                HWAndroidSizeRange(
+                  maxHeight: 120,
+                  child: HWColoredBox(color: green, child: b),
+                ),
+              ],
+            ),
+          ],
+        );
+        final r = column.toKotlin(0, dataExpr: 'data');
+        expect(r, contains('    when (LocalSize.current) {\n'));
+        expect(
+          r,
+          contains(
+            ' -> {\n'
+            '            Text(modifier = GlanceModifier.padding(top = 8.0.dp), '
+            'text = "b", ',
+          ),
+        );
+        expect(
+          r,
+          contains(
+            '        else -> {\n'
+            '            Box(modifier = GlanceModifier.padding(top = 8.0.dp)) '
+            '{\n'
+            '                Text(modifier = GlanceModifier.background(',
+          ),
+        );
+        expect(
+          column.kotlinImports,
+          containsAll([
+            'import androidx.glance.LocalSize',
+            'import androidx.compose.ui.unit.DpSize',
+            'import androidx.compose.ui.unit.dp',
+          ]),
+        );
+      });
+
       test('carries a wrapper onto each branch of a conditional it wraps', () {
         const conditional = HWDataExists(
           data: HWString('event'),

@@ -44,13 +44,14 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
   override val sizeMode =
       SizeMode.Responsive(
           setOf(
-              DpSize(110.dp, 110.dp),
-              DpSize(250.dp, 110.dp),
+              DpSize(80.dp, 40.dp),
+              DpSize(80.dp, 121.dp),
+              DpSize(250.dp, 121.dp),
               DpSize(250.dp, 250.dp),
-              DpSize(530.dp, 250.dp),
               DpSize(250.dp, 530.dp),
           )
       )
+  override val previewSizeMode = sizeMode
 
   override suspend fun provideGlance(context: Context, id: GlanceId) {
     provideContent { WidgetContent(context, currentState()) }
@@ -66,7 +67,7 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = SizeAdaptiveDashboardData.fromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "40119d23",
+            "11e4cb84",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -87,7 +88,32 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
           contentAlignment = Alignment.Center,
       ) {
         when (LocalSize.current) {
-          DpSize(250.dp, 110.dp) -> {
+          DpSize(80.dp, 121.dp) -> {
+            Column(
+                modifier = GlanceModifier.fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+              Spacer(modifier = GlanceModifier.defaultWeight())
+              Text(
+                  text =
+                      hwFormatDecimal(
+                          (widgetData.score ?: 0L),
+                          null,
+                          null,
+                          true,
+                          hwFormatLocale(context),
+                      ),
+                  style =
+                      TextStyle(
+                          color = GlanceTheme.colors.onSurface,
+                          fontSize = 22.sp,
+                          fontWeight = FontWeight.Bold,
+                      ),
+              )
+              Spacer(modifier = GlanceModifier.defaultWeight())
+            }
+          }
+          DpSize(250.dp, 121.dp) -> {
             Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
               Spacer(modifier = GlanceModifier.defaultWeight())
               Text(
@@ -125,8 +151,7 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
               Spacer(modifier = GlanceModifier.defaultWeight())
             }
           }
-          DpSize(250.dp, 250.dp),
-          DpSize(530.dp, 250.dp) -> {
+          DpSize(250.dp, 250.dp) -> {
             Column(horizontalAlignment = Alignment.Start) {
               Text(
                   text =
@@ -249,10 +274,7 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
             }
           }
           else -> {
-            Column(
-                modifier = GlanceModifier.fillMaxHeight(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+            Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
               Spacer(modifier = GlanceModifier.defaultWeight())
               Text(
                   text =
@@ -266,8 +288,24 @@ class SizeAdaptiveDashboardHomeWidget : GlanceAppWidget() {
                   style =
                       TextStyle(
                           color = GlanceTheme.colors.onSurface,
-                          fontSize = 22.sp,
+                          fontSize = 18.sp,
                           fontWeight = FontWeight.Bold,
+                      ),
+              )
+              Text(
+                  modifier =
+                      GlanceModifier.padding(
+                          start = 6.0.dp,
+                          top = 0.0.dp,
+                          end = 0.0.dp,
+                          bottom = 0.0.dp,
+                      ),
+                  text = widgetData.scoreLabel ?: "",
+                  style =
+                      TextStyle(
+                          color = GlanceTheme.colors.onSurfaceVariant,
+                          fontSize = 12.sp,
+                          fontWeight = FontWeight.Normal,
                       ),
               )
               Spacer(modifier = GlanceModifier.defaultWeight())

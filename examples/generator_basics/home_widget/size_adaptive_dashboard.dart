@@ -10,11 +10,20 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 /// two up with `HWCrossAxisAlignment.baseline`; `center` or `end` would align
 /// the boxes the two texts sit in and leave their baselines apart by the
 /// difference in descent.
+///
+/// On Android, `androidSizeRanges` adds a one-row strip that no iOS family
+/// covers. `maxHeight: 120` clears a measured one-row placement — 104 dp on a
+/// Pixel 7, 102 dp on the reference grid — while staying well under two rows
+/// (224 dp), so a 2x1 or 4x1 widget shows the score beside its label instead of
+/// a squeezed `small` column. `minResizeHeight` is what lets the launcher
+/// shrink the widget to one row at all: without it, `targetCellHeight` is the
+/// smallest height the launcher offers.
 @HomeWidget(
   name: 'Size Adaptive Dashboard',
   android: HomeWidgetAndroidConfiguration(
     targetCellWidth: 2,
     targetCellHeight: 2,
+    minResizeHeight: 40,
     resizeMode: HWAndroidResizeMode.horizontalAndVertical,
   ),
   iOS: HomeWidgetIOSConfiguration(
@@ -30,6 +39,34 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     ],
   ),
   widget: HWSizeAdaptive(
+    androidSizeRanges: [
+      HWAndroidSizeRange(
+        maxHeight: 120,
+        child: HWRow(
+          mainAxisAlignment: HWMainAxisAlignment.center,
+          crossAxisAlignment: HWCrossAxisAlignment.baseline,
+          children: [
+            HWText(
+              HWInt('score', defaultValue: 0),
+              style: HWRoleTextStyle(
+                role: HWTextStyleRole.headline,
+                fontWeight: HWFontWeight.bold,
+              ),
+            ),
+            HWPadding(
+              padding: HWEdgeInsets.only(left: 6),
+              child: HWText(
+                HWString('scoreLabel', defaultValue: 'Points'),
+                style: HWRoleTextStyle(
+                  role: HWTextStyleRole.caption,
+                  color: HWDefaultColor(HWColorRole.contentSecondary),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
     small: HWColumn(
       mainAxisAlignment: HWMainAxisAlignment.center,
       crossAxisAlignment: HWCrossAxisAlignment.center,

@@ -59,11 +59,24 @@ class HWEmitContext {
   /// null when only the content a tree has decides.
   final Set<HWWidgetFamily>? reachableFamilies;
 
-  /// The dp size declared for each system family, overrides applied, or null
-  /// when the caller has no resolved table of its own.
+  /// The dp size declared for each system family, `androidSizes` applied, or
+  /// null when the caller has no resolved table of its own.
   ///
   /// Always null on iOS.
   final Map<HWWidgetFamily, HWSize>? androidSizeTable;
+
+  /// The sizes the whole widget declares to Glance, which is what
+  /// `LocalSize.current` is one of, or null when the caller has none.
+  ///
+  /// Set as soon as any [HWSizeAdaptive] the Android tree reaches carries
+  /// [HWSizeAdaptive.androidSizeRanges]: the declared sizes are then the corners
+  /// of the threshold grid rather than the family sizes, and every instance
+  /// answers for each of them. Always null on iOS.
+  ///
+  /// Codegen-internal: set by `home_widget_cli`, not by app code. Not marked
+  /// `@internal` because that package is a separate one and would then fail its
+  /// own analyze.
+  final List<HWSize>? declaredAndroidSizes;
 
   /// The axis of the Glance `Column` or `Row` this is emitted directly inside,
   /// or null when the nearest enclosing composable is not one.
@@ -85,6 +98,7 @@ class HWEmitContext {
   const HWEmitContext({
     this.reachableFamilies,
     this.androidSizeTable,
+    this.declaredAndroidSizes,
     this.enclosingLinearAxis,
     this.itemList,
   });
@@ -94,6 +108,7 @@ class HWEmitContext {
   HWEmitContext inLinear(HWAxis? axis) => HWEmitContext(
         reachableFamilies: reachableFamilies,
         androidSizeTable: androidSizeTable,
+        declaredAndroidSizes: declaredAndroidSizes,
         enclosingLinearAxis: axis,
         itemList: itemList,
       );
@@ -102,6 +117,7 @@ class HWEmitContext {
   HWEmitContext inItemOf(String list) => HWEmitContext(
         reachableFamilies: reachableFamilies,
         androidSizeTable: androidSizeTable,
+        declaredAndroidSizes: declaredAndroidSizes,
         enclosingLinearAxis: enclosingLinearAxis,
         itemList: list,
       );

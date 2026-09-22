@@ -15,8 +15,9 @@ class HWSize {
   ///
   /// Deliberately conservative: real launcher cells are larger, so a declared
   /// size fits its cell footprint on every launcher.
-  factory HWSize.fromCells(int columns, int rows) =>
-      HWSize(cellExtent(columns), cellExtent(rows));
+  const HWSize.cells(int columns, int rows)
+      : width = 70.0 * columns - 30.0,
+        height = 70.0 * rows - 30.0;
 
   /// The dp extent of [cells] home-screen cells along one axis.
   static double cellExtent(int cells) => 70.0 * cells - 30.0;
@@ -26,15 +27,20 @@ class HWSize {
   static HWSize? fromDartObject(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final width = _dimension(obj, 'width');
-    final height = _dimension(obj, 'height');
+    final width = dimensionOf(obj, 'width');
+    final height = dimensionOf(obj, 'height');
     if (width == null || height == null) return null;
 
     return HWSize(width, height);
   }
 
-  /// A dimension written as either an `int` or a `double` literal.
-  static double? _dimension(DartObject obj, String name) {
+  /// The dp field [name] of [obj], written as either an `int` or a `double`
+  /// literal, or null when it carries neither.
+  ///
+  /// Codegen-internal: consumed by `home_widget_cli`, not by app code. Not
+  /// marked `@internal` because that package is a separate one and would then
+  /// fail its own analyze.
+  static double? dimensionOf(DartObject obj, String name) {
     final field = obj.getField(name);
     return field?.toDoubleValue() ?? field?.toIntValue()?.toDouble();
   }

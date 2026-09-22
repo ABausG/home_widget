@@ -799,7 +799,8 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
           DpSize(250.dp, 110.dp),
           DpSize(250.dp, 250.dp),
       )
-  )''',
+  )
+  override val previewSizeMode = sizeMode''',
         );
       });
 
@@ -810,7 +811,8 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
   override val sizeMode = SizeMode.Responsive(
       setOf(
       )
-  )''',
+  )
+  override val previewSizeMode = sizeMode''',
         );
       });
     });
@@ -881,6 +883,332 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
         expect(withSizes, isNot(otherSize));
         expect(withSizes, isNot(otherFamily));
         expect(withSizes, isNot(oneMore));
+      });
+    });
+
+    group('Android size ranges', () {
+      const strip = HWText.fixed('strip');
+      const dashboard = HWText.fixed('dashboard');
+      const stripRange = HWAndroidSizeRange(maxHeight: 120, child: strip);
+      const dashboardRange = HWAndroidSizeRange(
+        minWidth: 400,
+        minHeight: 200,
+        child: dashboard,
+      );
+      const example = HWSizeAdaptive(
+        small: _small,
+        medium: _medium,
+        large: _large,
+        androidSizeRanges: [stripRange, dashboardRange],
+      );
+      final table = HWWidgetFamily.androidSizeTable();
+
+      test('renderAtAndroid takes the first matching range', () {
+        expect(
+          example.renderAtAndroid(const HWSize(276, 102), table),
+          same(strip),
+        );
+        expect(
+          example.renderAtAndroid(const HWSize(600, 280), table),
+          same(dashboard),
+        );
+        // Inside both ranges, the one written first wins.
+        expect(
+          example.renderAtAndroid(const HWSize(600, 110), table),
+          same(strip),
+        );
+      });
+
+      test('renderAtAndroid falls back to the family Glance picks', () {
+        expect(
+          example.renderAtAndroid(const HWSize(130, 220), table),
+          same(_small),
+        );
+        expect(
+          example.renderAtAndroid(const HWSize(276, 220), table),
+          same(_medium),
+        );
+        expect(
+          example.renderAtAndroid(const HWSize(276, 338), table),
+          same(_large),
+        );
+      });
+
+      test('renderAtAndroid leaves the smallest family where nothing fits', () {
+        const adaptive = HWSizeAdaptive(small: _small, large: _large);
+        expect(
+          adaptive.renderAtAndroid(const HWSize(80, 80), table),
+          same(_small),
+        );
+      });
+
+      test('a family without content renders the widget\'s first slot', () {
+        const adaptive = HWSizeAdaptive(large: _large);
+        expect(
+          adaptive.renderAtAndroid(const HWSize(130, 220), table),
+          same(_large),
+        );
+        expect(
+          adaptive.renderAtAndroid(const HWSize(130, 220), const {}),
+          same(_large),
+        );
+      });
+
+      test('childWidgets and dataDependencies cover the range children', () {
+        const adaptive = HWSizeAdaptive(
+          small: HWText(HWString('smallKey')),
+          androidSizeRanges: [
+            HWAndroidSizeRange(
+              maxHeight: 120,
+              child: HWText(HWString('stripKey')),
+            ),
+          ],
+        );
+        expect(adaptive.childWidgets.length, 2);
+        expect(
+          adaptive.dataDependencies.map((d) => d.key).toSet(),
+          {'smallKey', 'stripKey'},
+        );
+      });
+
+      test('a range child is one of the texts a row lines up', () {
+        const adaptive = HWSizeAdaptive(
+          small: HWColumn(children: [_small]),
+          androidSizeRanges: [stripRange],
+        );
+        expect(adaptive.kotlinBaselineText()?.conflict, isNotNull);
+        expect(
+          const HWSizeAdaptive(
+            small: _small,
+            androidSizeRanges: [stripRange],
+          ).kotlinBaselineText()?.conflict,
+          isNull,
+        );
+      });
+
+      test('ranges pull in the Glance size imports', () {
+        const adaptive = HWSizeAdaptive(
+          small: _small,
+          androidSizeRanges: [stripRange],
+        );
+        expect(
+          adaptive.kotlinImports,
+          containsAll([
+            'import androidx.glance.LocalSize',
+            'import androidx.compose.ui.unit.DpSize',
+            'import androidx.compose.ui.unit.dp',
+          ]),
+        );
+        expect(
+          const HWSizeAdaptive(
+            small: strip,
+            androidSizeRanges: [stripRange],
+          ).kotlinImports,
+          isNot(contains('import androidx.glance.LocalSize')),
+        );
+      });
+
+      test('a range covering the grid pulls in no size import at all', () {
+        const adaptive = HWSizeAdaptive(
+          small: _small,
+          androidSizeRanges: [HWAndroidSizeRange(minWidth: 0, child: strip)],
+        );
+        const column = HWColumn(children: [adaptive]);
+
+        expect(adaptive.toKotlin(0, dataExpr: 'd'), isNot(contains('when (')));
+        expect(
+          adaptive.kotlinImports,
+          isNot(contains('import androidx.glance.LocalSize')),
+        );
+        expect(
+          column.kotlinImports,
+          isNot(contains('import androidx.glance.LocalSize')),
+        );
+      });
+
+      test('the ranges decide with only an accessory slot written', () {
+        const adaptive = HWSizeAdaptive(
+          accessoryRectangular: _rectangular,
+          androidSizeRanges: [stripRange],
+        );
+        final declared = HWAndroidSizeGrid.compile(
+          instances: [adaptive],
+          table: table,
+          minWidth: 1,
+          minHeight: 1,
+          keepFamilyCompositionSize: true,
+        ).sizes;
+        expect(
+          adaptive.renderAtAndroid(
+            HWAndroidSizeGrid.sortedBySize(declared).first,
+            table,
+          ),
+          same(strip),
+        );
+        expect(adaptive.toKotlin(0, dataExpr: 'd'), '''
+when (LocalSize.current) {
+    DpSize(1.dp, 121.dp), DpSize(110.dp, 121.dp), DpSize(250.dp, 121.dp), DpSize(250.dp, 250.dp), DpSize(530.dp, 250.dp), DpSize(250.dp, 530.dp), DpSize(530.dp, 530.dp) -> {
+        Text(text = "r", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+    else -> {
+        Text(text = "strip", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+}''');
+      });
+
+      test('branchesFor answers for the grid, not for the families', () {
+        expect(example.branchesFor(_allSystem), isTrue);
+        expect(
+          const HWSizeAdaptive(
+            small: strip,
+            androidSizeRanges: [stripRange],
+          ).branchesFor(_allSystem),
+          isFalse,
+        );
+      });
+
+      test('iOS ignores the ranges', () {
+        expect(example.toSwift(0, dataExpr: 'd'), '''
+switch widgetFamily {
+case .systemMedium:
+    Text("m")
+case .systemLarge:
+    Text("l")
+default:
+    Text("s")
+}''');
+        expect(
+          example.swiftViewModifiers,
+          {'@Environment(\\.widgetFamily) var widgetFamily'},
+        );
+      });
+
+      test('the when groups the grid corners and defaults to the smallest', () {
+        expect(example.toKotlin(0, dataExpr: 'd'), '''
+when (LocalSize.current) {
+    DpSize(1.dp, 121.dp), DpSize(110.dp, 121.dp) -> {
+        Text(text = "s", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+    DpSize(250.dp, 121.dp) -> {
+        Text(text = "m", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+    DpSize(400.dp, 200.dp), DpSize(400.dp, 250.dp), DpSize(400.dp, 530.dp) -> {
+        Text(text = "dashboard", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+    DpSize(250.dp, 250.dp), DpSize(250.dp, 530.dp) -> {
+        Text(text = "l", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+    else -> {
+        Text(text = "strip", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+}''');
+      });
+
+      test('a declared set from the context replaces the grid', () {
+        expect(
+          example.toKotlin(
+            0,
+            dataExpr: 'd',
+            context: const HWEmitContext(
+              reachableFamilies: _allSystem,
+              declaredAndroidSizes: [HWSize(40, 40), HWSize(250, 250)],
+            ),
+          ),
+          '''
+when (LocalSize.current) {
+    DpSize(250.dp, 250.dp) -> {
+        Text(text = "l", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+    else -> {
+        Text(text = "strip", style = TextStyle(color = GlanceTheme.colors.onSurface))
+    }
+}''',
+        );
+      });
+
+      test('the declared family sizes emit what the families emit today', () {
+        const adaptive = HWSizeAdaptive(
+          small: _small,
+          medium: _medium,
+          large: _large,
+        );
+        expect(
+          adaptive.toKotlin(
+            0,
+            dataExpr: 'd',
+            context: const HWEmitContext(
+              reachableFamilies: _allSystem,
+              declaredAndroidSizes: [
+                HWSize(110, 110),
+                HWSize(250, 110),
+                HWSize(250, 250),
+                HWSize(250, 250),
+              ],
+            ),
+          ),
+          adaptive.toKotlin(0, dataExpr: 'd'),
+        );
+      });
+
+      test('one layout for every declared size needs no when', () {
+        const adaptive = HWSizeAdaptive(large: _large);
+        expect(
+          adaptive.toKotlin(
+            0,
+            dataExpr: 'd',
+            context: const HWEmitContext(
+              reachableFamilies: _allSystem,
+              declaredAndroidSizes: [HWSize(110, 110), HWSize(250, 250)],
+            ),
+          ),
+          'Text(text = "l", style = TextStyle(color = GlanceTheme.colors.onSurface))',
+        );
+      });
+
+      test('an empty declared set leaves the family branches alone', () {
+        const adaptive = HWSizeAdaptive(small: _small, medium: _medium);
+        expect(
+          adaptive.toKotlin(
+            0,
+            dataExpr: 'd',
+            context: const HWEmitContext(
+              reachableFamilies: _allSystem,
+              declaredAndroidSizes: [],
+            ),
+          ),
+          adaptive.toKotlin(
+            0,
+            dataExpr: 'd',
+            context: const HWEmitContext(reachableFamilies: _allSystem),
+          ),
+        );
+      });
+
+      test('equality and hashCode follow the range list, in order', () {
+        const a = HWSizeAdaptive(
+          small: _small,
+          androidSizeRanges: [stripRange, dashboardRange],
+        );
+        const b = HWSizeAdaptive(
+          small: _small,
+          androidSizeRanges: [dashboardRange, stripRange],
+        );
+        expect(
+          a,
+          const HWSizeAdaptive(
+            small: _small,
+            androidSizeRanges: [stripRange, dashboardRange],
+          ),
+        );
+        expect(
+          a.hashCode,
+          const HWSizeAdaptive(
+            small: _small,
+            androidSizeRanges: [stripRange, dashboardRange],
+          ).hashCode,
+        );
+        expect(a, isNot(b));
+        expect(a, isNot(const HWSizeAdaptive(small: _small)));
       });
     });
 

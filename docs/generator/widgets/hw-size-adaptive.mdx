@@ -5,7 +5,7 @@ description: Render different widget content per widget family and size.
 
 # HWSizeAdaptive
 
-`HWSizeAdaptive` picks a child based on the widget's rendered **family** — its iOS `WidgetFamily`, or the matching size on Android — rather than its platform. Use it to give a widget a meaningfully different layout as it grows from a Lock Screen accessory up to a full-page iPad layout. If you need to switch on platform instead, see [`HWAdaptive`](/generator/widgets/hw-adaptive).
+`HWSizeAdaptive` picks a child based on the widget's rendered **family** — its iOS `WidgetFamily`, or the matching size on Android — rather than its platform. Use it to give a widget a meaningfully different layout as it grows from a Lock Screen accessory up to a full-page iPad layout. If you need to switch on platform instead, see [`HWAdaptive`](/generator/widgets/hw-adaptive). On Android, `androidSizeRanges` can also add layouts for a dp range no iOS family matches (e.g. a one-row strip), checked before the family slots; see [Android size ranges](#android-size-ranges).
 
 ```dart
 HWSizeAdaptive(
@@ -34,10 +34,11 @@ const HWSizeAdaptive({
   HWWidget? accessoryRectangular,
   HWWidget? accessoryInline,
   Map<HWWidgetFamily, HWSize>? androidSizes,
+  List<HWAndroidSizeRange>? androidSizeRanges,
 })
 ```
 
-Every slot is optional, but at least one must be given. There is no `fallback` slot: the widget's [`supportedFamilies`](/generator/annotation#homewidgetiosconfiguration) (iOS) and Android configuration already say which families it can be shown in, so those are the families it has to cover (see [Which families a widget must cover](#which-families-a-widget-must-cover)). Each provided slot contributes its own data fields, exactly like [`HWAdaptive`](/generator/widgets/hw-adaptive).
+Every slot is optional, but at least one must be given. `androidSizeRanges` does not count toward that: a family slot always renders wherever no range matches, so ranges only narrow where the family slots show on Android — they never replace them (a range without any bound, which would replace them outright, is a generation error, see [Android size ranges](#android-size-ranges)). There is no `fallback` slot: the widget's [`supportedFamilies`](/generator/annotation#homewidgetiosconfiguration) (iOS) and Android configuration already say which families it can be shown in, so those are the families it has to cover (see [Which families a widget must cover](#which-families-a-widget-must-cover)). Each provided slot contributes its own data fields, exactly like [`HWAdaptive`](/generator/widgets/hw-adaptive).
 
 ## Parameters
 
@@ -51,7 +52,8 @@ Every slot is optional, but at least one must be given. There is no `fallback` s
 | `accessoryCircular` | `accessoryCircular` | Lock Screen circular accessory. |
 | `accessoryRectangular` | `accessoryRectangular` | Lock Screen rectangular accessory. |
 | `accessoryInline` | `accessoryInline` | Lock Screen inline text/image accessory. |
-| `androidSizes` | — | Overrides the size at which one or more system families render on Android. See [Overriding the Android sizes](#overriding-the-android-sizes). |
+| `androidSizes` | — | Overrides the size at which one or more system families render on Android. See [Family sizes on Android](#family-sizes-on-android). |
+| `androidSizeRanges` | — | Adds Android-only layouts for a range of real widget sizes, checked before the family slots. See [Android size ranges](#android-size-ranges). |
 
 See [`HWWidgetFamily`](/generator/annotation#hwwidgetfamily) for the full family list and their minimum OS versions.
 
@@ -120,11 +122,17 @@ Android has no widget families, so each system family maps to a home screen cell
 | `systemExtraLarge` | 8 × 4 | 530 × 250 dp |
 | `systemExtraLargePortrait` | 4 × 8 | 250 × 530 dp |
 
-The widget renders the largest family whose size fits the space the launcher gives it. Launcher cells are larger than the sizes above, so a 4 × 2 widget lands on `medium`, a 4 × 4 one on `large`, and so on; on launchers with tall cells a family can already be reached one row earlier.
+The widget declares one Glance size per reachable family, and the launcher picks among them: it renders the declared size closest to the space it actually gives the widget, among the sizes that fit, falling back to the smallest declared size when none fits. Launcher cells are larger than the sizes above, so a 4 × 2 widget lands on `medium`, a 4 × 4 one on `large`, and so on; on launchers with tall cells a family can already be reached one row earlier.
+
+<Info>
+The platform javadoc for [`RemoteViews(Map<SizeF, RemoteViews>)`](https://developer.android.com/reference/android/widget/RemoteViews#RemoteViews(java.util.Map%3Candroid.util.SizeF,%20android.widget.RemoteViews%3E)) says it picks "the layout with the largest area that fits"; the implementation actually picks the closest fit. With a plain family table the two rules only disagree where two families fit without one containing the other (by default only `extraLarge` and `extraLargePortrait`, above 530 × 530 dp). On the grid described in [Android size ranges](#android-size-ranges) both rules pick the same size everywhere.
+</Info>
+
+Every `HWSizeAdaptive` widget on Android also declares a matching `previewSizeMode`, so the widget picker's gallery preview shows the layout for the span it actually displays there, rather than always the smallest one. Existing installs re-register their preview once to pick this up — see [Previews](/generator/previews).
 
 Accessory slots are not used on Android.
 
-## Overriding the Android sizes
+## Family sizes on Android
 
 The table above is a mapping from iOS-style cell counts, not every widget's own idea of a size. `androidSizes` replaces the size for one or more system families:
 
@@ -141,6 +149,14 @@ HWSizeAdaptive(
 
 `HWSize(width, height)` is a size in dp. Families left out keep the table above. The override changes nothing on iOS.
 
+`HWSize.cells(columns, rows)` writes a size as a cell footprint instead of raw dp — a `const` constructor for the same `70 × n − 30` per axis the table above uses:
+
+```dart
+androidSizes: {
+  HWWidgetFamily.systemMedium: HWSize.cells(3, 2),
+}
+```
+
 Rules, checked at generation time:
 
 - A key must be a system family; Android has no accessory families.
@@ -148,6 +164,127 @@ Rules, checked at generation time:
 - Every `HWSizeAdaptive` in the same widget must agree: overriding the same family with two different sizes in two places is an error.
 - Two families sharing one size is an error, since the widget could not tell them apart.
 - A family made smaller than one of its fallbacks on either axis (`systemLarge` overridden to 200 × 100 while `systemMedium` stays 250 × 110, say) is a warning: content built for the bigger fallback would render in a smaller box.
+
+## Android size ranges
+
+`androidSizeRanges` adds Android-only layouts for a range of the widget's real dp size, independent of the system families — a one-row strip, a 1×1 tile, or a tablet layout, say. Each range is checked before the family slots:
+
+```dart
+HWSizeAdaptive(
+  small: …,
+  medium: …,
+  large: …,
+  androidSizes: {HWWidgetFamily.systemMedium: HWSize.cells(3, 2)},
+  androidSizeRanges: [
+    HWAndroidSizeRange(maxHeight: 120, child: strip),                    // every one-row widget
+    HWAndroidSizeRange(minWidth: 400, minHeight: 200, child: dashboard), // tablets, unfolded foldable phones
+  ],
+)
+```
+
+```dart
+class HWAndroidSizeRange {
+  const HWAndroidSizeRange({
+    this.minWidth,
+    this.maxWidth,
+    this.minHeight,
+    this.maxHeight,
+    required this.child,
+  });
+
+  /// Bounds in dp against the widget's real size, inclusive; null is unbounded.
+  final double? minWidth;
+  final double? maxWidth;
+  final double? minHeight;
+  final double? maxHeight;
+  final HWWidget child;
+}
+```
+
+For the widget's real size on Android, the first range in list order whose bounds contain it wins, so list the most specific range first: a broad earlier entry silently takes every size a narrower later one also covers. If none matches, the family slots render the way they do without any ranges at all — the family the pick rule above would choose among the resolved `androidSizes`, then the [fallback chain](#fallback-resolution). `androidSizeRanges` changes nothing on iOS. Ranges belong to their own `HWSizeAdaptive` instance: a nested `HWSizeAdaptive`, or a sibling one elsewhere in the tree, evaluates its own ranges and families against the same real size, independently. Each range's `child` contributes its own data fields, fonts and icons, exactly like a family slot.
+
+At least one bound is required. An `HWAndroidSizeRange` with all four bounds null is a generation error: it would always match, replacing the family slots outright — use [`HWAdaptive`](/generator/widgets/hw-adaptive) instead if that is really what you want.
+
+### Think in dp, not cells
+
+`HWSize.cells` uses Android's own `70 × n − 30` formula for the minimum size a widget has to declare to be granted `n` cells. That is the right number to declare a size with, which is what `androidSizes` does: every launcher gives a widget at least that much, so a declared size always fits its cells. It is the wrong number to describe what a widget really measures, because launchers hand out more than the minimum — a 4×1 widget is about 276 × 102 dp on the reference 5×4 grid and 360 × 104 dp on a Pixel 7, while `HWSize.cells(4, 1)` is 250 × 40 dp. So a cell footprint makes a poor `maxWidth` or `maxHeight`; a bound should describe the real dp range you want, not a cell count. A landscape 2×2 is also as short as a portrait row — rows are shallower in landscape — so both need to fall inside the same `maxHeight` if "one row" is the intent.
+
+For the widget above, with `small`/`medium`/`large` family slots and the two ranges shown:
+
+| Footprint | Real size (dp) | Without ranges | With `androidSizeRanges` |
+| --- | --- | --- | --- |
+| 2×1 portrait | 130 × 102 | small (nothing fits) | strip |
+| 2×1 on the Pixel 7 | ≈ 180 × 114 | small | strip |
+| 4×1 portrait | 276 × 102 | small (nothing fits) | strip |
+| 4×1 landscape | 553 × 51 | small (nothing fits) | strip |
+| 2×2 portrait | 130 × 220 | small | small |
+| 4×2 portrait | 276 × 220 | medium | medium |
+| 4×3 portrait | 276 × 338 | large | large |
+| 2×2 landscape | 269 × 117 | medium | strip (117 ≤ 120) |
+| tablet | 600 × 280 | large (via `extraLarge`) | dashboard |
+
+A range that only matches below the widget's own target span needs a `minResize` bound to go with it. A launcher does not shrink a widget under its `targetCellHeight` rows unless `HomeWidgetAndroidConfiguration` declares a `minResizeHeight`, so a one-row range on a widget with `targetCellHeight: 2` never matches on a real home screen. The same holds for `maxWidth`, `targetCellWidth` and `minResizeWidth`. The generator warns about it:
+
+```
+Warning: the first HWAndroidSizeRange (maxHeight: 120) in "MyWidget" only matches below the widget's 2-row target span. Launchers keep the widget at targetCellHeight rows unless minResizeHeight is set; add minResizeHeight (40, say) to HomeWidgetAndroidConfiguration.
+```
+
+### How it stays Responsive
+
+`SizeMode.Responsive` never tells the running widget its real size: Glance composes the widget once per declared size and hands the launcher a `RemoteViews` for each, and the launcher picks one using the pick rule above. The launcher switches layouts on its own, immediately and without waiting for the app, on the home screen and in the picker preview. A resize still starts the app process, because the options-changed broadcast is delivered to it, but on Android 12L and later Glance does not recompose a `Responsive` widget for it: every layout is already registered.
+
+To answer a range question — "is the widget narrower than 250 dp?" — inside that scheme, the generator turns every range bound and every family size, on both axes, into a grid of thresholds between the widget's minimum and maximum size, then declares only the lower-left corner of each grid cell as one of the widget's sizes. Every real size in a cell picks that same corner under the rule above, so it also renders the same thing, and each bound becomes an exact boundary (within about 1 dp, the same slack the platform's own fit check allows). Corners that would render the same thing as one already kept are dropped, so the widget declares as few sizes as it can while keeping every boundary exact. For the widget above, with the default 80 dp minimum:
+
+| height \ width | 80–109 | 110–249 | 250–399 | 400+ |
+| --- | --- | --- | --- | --- |
+| 530+ | small | small | large | dashboard |
+| 250–529 | small | small | large ● | dashboard ● |
+| 200–249 | small | small | medium | dashboard ● |
+| 121–199 | small ● | small | medium ● | medium |
+| 80–120 | strip ● | strip | strip | strip |
+
+That is 6 declared sizes (marked ●), against 5 for the same widget without ranges. A tree with custom-font text keeps a few more: see [Composed size](#composed-size).
+
+### Composed size
+
+A layout is composed at the corner it is declared for, which is what `LocalSize.current` reports. Only custom-font text depends on that size, since it measures its room against it (see [Custom fonts](/generator/custom-fonts)):
+
+- **A range is composed at its own minimum bounds:** `minWidth` and `minHeight` where given, else the widget's minimum size on that axis (`minResizeWidth` / `minWidth` and their height counterparts, 80 dp by default). Give a text-bearing range a `minWidth` close to the sizes it really shows at, or split it into a narrower and a wider range, so its text is measured against something realistic.
+- **A family slot is never composed smaller than it is without ranges** as long as the tree contains custom-font text: the generator then keeps the corners that would otherwise shrink a family's composition (the example above grows to 9 declared sizes). Without custom-font text nothing reads the composed size, and the grid stays minimal.
+
+### Cost and the size cap
+
+Every declared size is a full composition, sent to the launcher on every update — more declared sizes means more work per update. A widget with no ranges declares one size per reachable family, up to 5; the worked example above declares 6. Android allows at most **16** declared sizes per widget; past that, generation fails with an error naming the widths and heights it would need. Bounds that coincide with a family size (110, 250 or 530 dp) or with each other cost nothing extra, so reusing those numbers is the cheapest way to add another range.
+
+One pair of family sizes doesn't nest: by default, `extraLarge` (530 × 250 dp) and `extraLargePortrait` (250 × 530 dp) both fit some sizes without either containing the other. Without ranges, the pick rule follows a diagonal there; on the grid, every such size renders `extraLargePortrait`'s slot instead, even where the widget is wider than tall. The generator warns when a widget with ranges gives both families slots of their own.
+
+Checked at generation time, in addition to the [`androidSizes` rules](#family-sizes-on-android) above:
+
+- **A range with no bound is an error:**
+
+  ```
+  Widget "MyWidget": HWAndroidSizeRange needs at least one of minWidth, maxWidth, minHeight, maxHeight. A range that always matches would replace the family slots on Android; use HWAdaptive for that.
+  ```
+
+- **A minimum above its own maximum is an error** (also: a negative or non-finite minimum, or a negative or `NaN` maximum; an infinite maximum counts as unbounded):
+
+  ```
+  Widget "MyWidget": an HWAndroidSizeRange has minWidth 400 and maxWidth 300. A minimum must not exceed its maximum.
+  ```
+
+- **More than 16 declared sizes is an error,** naming the widths and heights it would need:
+
+  ```
+  Widget "MyWidget" needs 18 Android sizes to place its HWAndroidSizeRange bounds exactly (widths 80, 110, 250, 300, 400, 530; heights 80, 121, 200, 250, 530). Android renders at most 16 per widget. Reuse bounds (the family sizes 110, 250 and 530 cost nothing extra) or drop a range.
+  ```
+
+- **A range no real size ever reaches is a warning**, naming why: an earlier range already covers it, it lies beyond the widget's configured `maxResizeWidth` / `maxResizeHeight`, it lies below the widget's minimum size, or the instance it belongs to is never reached on Android at all.
+
+- **Two families with slots of their own that overlap without nesting is a warning:**
+
+  ```
+  Warning: in "MyWidget", extraLarge (530 × 250 dp) and extraLargePortrait (250 × 530 dp) render different layouts. With androidSizeRanges, sizes that fit both get extraLargePortrait's, even when they are wider than tall.
+  ```
 
 ## HWSizeAdaptive vs HWAdaptive
 
