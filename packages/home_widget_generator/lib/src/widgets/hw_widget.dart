@@ -31,6 +31,8 @@ part 'hw_decorated_box.dart';
 part 'hw_padding.dart';
 part 'hw_conditional.dart';
 part 'hw_size_adaptive.dart';
+part 'hw_android_size_range.dart';
+part 'hw_android_size_grid.dart';
 
 /// Base class for widgets that accept a single child (e.g. Expanded).
 sealed class HWSingleChildWidget extends HWWidget {

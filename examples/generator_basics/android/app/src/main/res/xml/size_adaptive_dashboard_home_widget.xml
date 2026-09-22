@@ -7,6 +7,7 @@
     android:updatePeriodMillis="0"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
+    android:minResizeHeight="40dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
 />

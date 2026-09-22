@@ -3,15 +3,20 @@ import 'package:test/test.dart';
 
 void main() {
   group('HWSize', () {
-    test('fromCells applies the 70n - 30 cell formula per axis', () {
-      expect(HWSize.fromCells(2, 2), const HWSize(110, 110));
-      expect(HWSize.fromCells(4, 2), const HWSize(250, 110));
-      expect(HWSize.fromCells(4, 4), const HWSize(250, 250));
-      expect(HWSize.fromCells(8, 4), const HWSize(530, 250));
-      expect(HWSize.fromCells(4, 8), const HWSize(250, 530));
+    test('cells applies the 70n - 30 cell formula per axis', () {
+      expect(const HWSize.cells(2, 2), const HWSize(110, 110));
+      expect(const HWSize.cells(4, 2), const HWSize(250, 110));
+      expect(const HWSize.cells(4, 4), const HWSize(250, 250));
+      expect(const HWSize.cells(8, 4), const HWSize(530, 250));
+      expect(const HWSize.cells(4, 8), const HWSize(250, 530));
     });
 
-    test('cellExtent is the per-axis half of fromCells', () {
+    test('cells is const enough for an androidSizes entry', () {
+      const sizes = {HWWidgetFamily.systemMedium: HWSize.cells(3, 2)};
+      expect(sizes[HWWidgetFamily.systemMedium], const HWSize(180, 110));
+    });
+
+    test('cellExtent is the per-axis half of cells', () {
       expect(HWSize.cellExtent(2), 110);
       expect(HWSize.cellExtent(8), 530);
     });

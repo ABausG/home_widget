@@ -1687,6 +1687,82 @@ void main() {
         specFor({'de': 'Beispiel', 'en': 'Sample'}).previewContentHash,
       );
     });
+
+    test('changes with the sizes a size-branching widget declares', () {
+      WidgetSpec specFor(HomeWidgetAndroidConfiguration android) => WidgetSpec(
+            data: HomeWidget(name: 'T', android: android),
+            className: 'T',
+            widgetTree: const HWSizeAdaptive(small: _s, medium: _m),
+          );
+
+      // The tree is the same either way, so only the declared sizes differ.
+      expect(
+        specFor(const HomeWidgetAndroidConfiguration()).previewContentHash,
+        isNot(
+          specFor(
+            const HomeWidgetAndroidConfiguration(
+              maxResizeWidth: 250,
+              maxResizeHeight: 250,
+            ),
+          ).previewContentHash,
+        ),
+      );
+    });
+
+    test('ignores the declared sizes of a widget that never branches', () {
+      WidgetSpec specFor(HomeWidgetAndroidConfiguration android) => WidgetSpec(
+            data: HomeWidget(name: 'T', android: android),
+            className: 'T',
+            widgetTree: const HWText.fixed('x'),
+          );
+
+      expect(
+        specFor(const HomeWidgetAndroidConfiguration()).previewContentHash,
+        specFor(
+          const HomeWidgetAndroidConfiguration(
+            maxResizeWidth: 250,
+            maxResizeHeight: 250,
+          ),
+        ).previewContentHash,
+      );
+    });
+
+    test('is unchanged for a widget that never branches on size', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'T',
+        widgetTree: const HWText.fixed('x'),
+      );
+
+      // The digest this widget had before the declared sizes joined the hash:
+      // a widget without a `sizeMode` must never re-register its preview.
+      expect(spec.previewContentHash, 'c1bfad07');
+    });
+
+    test('changes when an androidSizeRange bound moves', () {
+      WidgetSpec specFor(double maxHeight) => WidgetSpec(
+            data: HomeWidget(
+              name: 'T',
+              android: const HomeWidgetAndroidConfiguration(),
+            ),
+            className: 'T',
+            widgetTree: HWSizeAdaptive(
+              small: _s,
+              medium: _m,
+              androidSizeRanges: [
+                HWAndroidSizeRange(maxHeight: maxHeight, child: _strip),
+              ],
+            ),
+          );
+
+      expect(
+        specFor(120).previewContentHash,
+        isNot(specFor(200).previewContentHash),
+      );
+    });
   });
 
   group('WidgetSpec.sizeAdaptives', () {
@@ -1799,6 +1875,22 @@ void main() {
         ),
       );
 
+      expect(spec.androidBranchesOnSize, isFalse);
+    });
+
+    test('is true when the grid renders more than one layout', () {
+      expect(_rangeSpec().androidBranchesOnSize, isTrue);
+    });
+
+    test('is false when every corner of the grid renders the same one', () {
+      final spec = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(
+          small: _s,
+          androidSizeRanges: [HWAndroidSizeRange(maxHeight: 120, child: _s)],
+        ),
+      );
+
+      expect(spec.androidHasSizeRanges, isTrue);
       expect(spec.androidBranchesOnSize, isFalse);
     });
   });
@@ -2093,6 +2185,198 @@ void main() {
       expect(
         spec.androidEmitContext.androidSizeTable?[HWWidgetFamily.systemMedium],
         const HWSize(250, 110),
+      );
+    });
+
+    test('carry the declared sizes only once a range asks for them', () {
+      expect(_adaptiveSpec().androidEmitContext.declaredAndroidSizes, isNull);
+      expect(
+        _rangeSpec().androidEmitContext.declaredAndroidSizes,
+        _rangeSpec().androidDeclaredSizes,
+      );
+    });
+  });
+
+  group('WidgetSpec.androidHasSizeRanges', () {
+    test('is false for a tree of family slots alone', () {
+      expect(_adaptiveSpec().androidHasSizeRanges, isFalse);
+    });
+
+    test('is true once an Android-reached instance carries one', () {
+      expect(_rangeSpec().androidHasSizeRanges, isTrue);
+    });
+
+    test('is false without an Android configuration', () {
+      expect(_rangeSpec(android: null).androidHasSizeRanges, isFalse);
+    });
+
+    test('ignores an instance only the iOS branch of an HWAdaptive holds', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWAdaptive(
+          ios: const HWSizeAdaptive(
+            small: _s,
+            androidSizeRanges: [_stripRange],
+          ),
+          android: HWText.fixed('a'),
+        ),
+      );
+
+      expect(spec.androidHasSizeRanges, isFalse);
+    });
+
+    test('an empty list renders exactly like no ranges at all', () {
+      final empty = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(
+          small: _s,
+          medium: _m,
+          androidSizeRanges: [],
+        ),
+      );
+      final without = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(small: _s, medium: _m),
+      );
+
+      expect(empty.androidHasSizeRanges, isFalse);
+      expect(empty.androidDeclaredSizes, without.androidDeclaredSizes);
+      expect(_kotlinOf(empty), _kotlinOf(without));
+    });
+  });
+
+  group('WidgetSpec.androidSizeGrid', () {
+    test('compiles the corners the ranges ask for', () {
+      expect(_rangeSpec().androidSizeGrid.sizes, const [
+        HWSize(80, 80),
+        HWSize(80, 121),
+        HWSize(250, 121),
+        HWSize(400, 200),
+        HWSize(250, 250),
+        HWSize(400, 250),
+      ]);
+    });
+
+    test('is floored at the smallest size the launcher can give it', () {
+      final spec = _rangeSpec(
+        android: const HomeWidgetAndroidConfiguration(minResizeWidth: 260),
+      );
+
+      expect(
+        spec.androidSizeGrid.sizes.map((size) => size.width),
+        everyElement(greaterThanOrEqualTo(260)),
+      );
+    });
+
+    test('keeps the family composition corners with custom-font text', () {
+      const style = HWTextStyle(fontFamily: 'Chewy');
+      final spec = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(
+          small: HWText.fixed('s', style: style),
+          medium: HWText.fixed('m', style: style),
+          large: HWText.fixed('l', style: style),
+          androidSizeRanges: [_stripRange, _dashboardRange],
+        ),
+      );
+
+      expect(spec.androidSizeGrid.sizes, const [
+        HWSize(80, 80),
+        HWSize(80, 121),
+        HWSize(110, 121),
+        HWSize(250, 121),
+        HWSize(400, 200),
+        HWSize(250, 250),
+        HWSize(400, 250),
+        HWSize(250, 530),
+        HWSize(400, 530),
+      ]);
+      expect(
+        spec.androidDeclaredSizes.length,
+        greaterThan(_rangeSpec().androidDeclaredSizes.length),
+      );
+    });
+
+    test('is clipped by what the widget can be resized to', () {
+      final spec = _rangeSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 399,
+          maxResizeHeight: 400,
+        ),
+      );
+
+      expect(spec.androidSizeGrid.sizes, const [
+        HWSize(80, 80),
+        HWSize(80, 121),
+        HWSize(250, 121),
+        HWSize(250, 250),
+      ]);
+    });
+
+    test('is floored at one dp without an Android configuration', () {
+      final spec = _rangeSpec(android: null);
+
+      expect(spec.androidSizeGrid.sizes, const [
+        HWSize(1, 1),
+        HWSize(1, 121),
+        HWSize(250, 121),
+        HWSize(400, 200),
+        HWSize(250, 250),
+        HWSize(400, 250),
+      ]);
+    });
+  });
+
+  group('WidgetSpec.androidDeclaredSizes', () {
+    test('is every reachable family size without a range', () {
+      expect(_adaptiveSpec().androidDeclaredSizes, const [
+        HWSize(110, 110),
+        HWSize(250, 110),
+        HWSize(250, 250),
+        HWSize(530, 250),
+        HWSize(250, 530),
+      ]);
+    });
+
+    test('is the grid corners with one', () {
+      expect(
+        _rangeSpec().androidDeclaredSizes,
+        _rangeSpec().androidSizeGrid.sizes,
+      );
+    });
+  });
+
+  group('the Android size range walk', () {
+    test('descends into a range child, which belongs to no slot', () {
+      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final range = HWAndroidSizeRange(maxHeight: 120, child: inner);
+      final outer = HWSizeAdaptive(
+        small: HWText.fixed('s'),
+        androidSizeRanges: [range],
+      );
+      final spec = _adaptiveSpec(adaptive: outer);
+
+      final site = spec.androidSizeAdaptiveSites.last;
+      expect(identical(site.adaptive, inner), isTrue);
+      expect(site.enclosingSlot, isNull);
+      expect(identical(site.enclosingRange, range), isTrue);
+      expect(site.visible, spec.androidReachableFamilies);
+
+      expect(spec.iosSizeAdaptiveSites.map((s) => s.adaptive), [outer]);
+      expect(spec.sizeAdaptives, [outer, inner]);
+    });
+
+    test('a range child written into a slot too is one place', () {
+      final shared = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: shared,
+          androidSizeRanges: [
+            HWAndroidSizeRange(maxHeight: 120, child: shared),
+          ],
+        ),
+      );
+
+      expect(spec.androidSizeAdaptiveSites, hasLength(2));
+      expect(
+        spec.androidSizeAdaptiveSites.last.enclosingSlot,
+        HWWidgetFamily.systemSmall,
       );
     });
   });
@@ -2637,6 +2921,41 @@ void main() {
     });
   });
 }
+
+const _s = HWText.fixed('s');
+const _m = HWText.fixed('m');
+const _l = HWText.fixed('l');
+const _strip = HWText.fixed('strip');
+const _dashboard = HWText.fixed('dashboard');
+const _stripRange = HWAndroidSizeRange(maxHeight: 120, child: _strip);
+const _dashboardRange = HWAndroidSizeRange(
+  minWidth: 400,
+  minHeight: 200,
+  child: _dashboard,
+);
+
+/// The §4.4 widget: three slots, a strip for every one-row widget and a
+/// dashboard for tablets.
+WidgetSpec _rangeSpec({
+  HomeWidgetAndroidConfiguration? android =
+      const HomeWidgetAndroidConfiguration(),
+}) =>
+    _adaptiveSpec(
+      android: android,
+      adaptive: const HWSizeAdaptive(
+        small: _s,
+        medium: _m,
+        large: _l,
+        androidSizeRanges: [_stripRange, _dashboardRange],
+      ),
+    );
+
+/// The Glance body [spec] emits, which is what a declared size branches over.
+String _kotlinOf(WidgetSpec spec) => spec.effectiveWidgetTree.toKotlin(
+      0,
+      dataExpr: 'data',
+      context: spec.androidEmitContext,
+    );
 
 /// A spec named Weather whose data fields are exactly what [tree] binds, the
 /// way the parser builds one.

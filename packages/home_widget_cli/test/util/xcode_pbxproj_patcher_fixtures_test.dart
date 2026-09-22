@@ -786,8 +786,8 @@ void main() {
     test('fails the iOS generator before it writes anything', () async {
       await expectLater(
         IosGenerator(
-          spec: const WidgetSpec(
-            data: HomeWidget(
+          spec: WidgetSpec(
+            data: const HomeWidget(
               name: 'Greeting',
               iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
             ),
@@ -817,8 +817,8 @@ void main() {
   });
 
   group('a renamed Xcode project', () {
-    const spec = WidgetSpec(
-      data: HomeWidget(
+    final spec = WidgetSpec(
+      data: const HomeWidget(
         name: 'Greeting',
         iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
       ),
@@ -928,8 +928,8 @@ void main() {
 
       await expectLater(
         IosGenerator(
-          spec: const WidgetSpec(
-            data: HomeWidget(
+          spec: WidgetSpec(
+            data: const HomeWidget(
               name: 'Greeting',
               iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
               flavors: {'stg': HomeWidgetFlavor()},

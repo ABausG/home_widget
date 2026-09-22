@@ -327,7 +327,7 @@ enum HWWidgetFamily {
   /// accessory family.
   HWSize? get androidSize {
     final cells = androidCells;
-    return cells == null ? null : HWSize.fromCells(cells.columns, cells.rows);
+    return cells == null ? null : HWSize.cells(cells.columns, cells.rows);
   }
 
   /// The [androidSize] of every system family, with [overrides] replacing

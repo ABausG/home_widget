@@ -85,14 +85,22 @@ class HWSizeAdaptiveSite {
   /// The families that can render here.
   final Set<HWWidgetFamily> visible;
 
-  /// The slot of the enclosing [HWSizeAdaptive], or null at the top level.
+  /// The slot of the enclosing [HWSizeAdaptive], or null at the top level and
+  /// inside an [HWAndroidSizeRange], which belongs to no family.
   final HWWidgetFamily? enclosingSlot;
+
+  /// The [HWSizeAdaptive.androidSizeRanges] entry of the enclosing instance
+  /// this sits in, or null when no range encloses it.
+  ///
+  /// Only the Android walk ever sets it: iOS ignores the ranges.
+  final HWAndroidSizeRange? enclosingRange;
 
   /// Creates an [HWSizeAdaptiveSite].
   const HWSizeAdaptiveSite({
     required this.adaptive,
     required this.visible,
     this.enclosingSlot,
+    this.enclosingRange,
   });
 }
 
@@ -343,7 +351,7 @@ class WidgetSpec {
   final HWWidget? widgetTree;
 
   /// Creates a new [WidgetSpec].
-  const WidgetSpec({
+  WidgetSpec({
     required this.data,
     required this.className,
     List<HWDataType<dynamic>> dataFields = const [],
@@ -419,8 +427,16 @@ class WidgetSpec {
   /// order.
   ///
   /// Android has no accessory families, so no site ever sees one.
+  ///
+  /// Walked once per spec: nothing a spec is built from changes afterwards, and
+  /// every Android size rule asks for the same walk.
   List<HWSizeAdaptiveSite> get androidSizeAdaptiveSites =>
-      _sizeAdaptiveSites(android: true, visible: androidReachableFamilies);
+      _androidSizeAdaptiveSites;
+
+  late final List<HWSizeAdaptiveSite> _androidSizeAdaptiveSites =
+      List.unmodifiable(
+    _sizeAdaptiveSites(android: true, visible: androidReachableFamilies),
+  );
 
   /// Every widget Android renders, in render order.
   ///
@@ -477,9 +493,18 @@ class WidgetSpec {
 
   /// Every [HWSizeAdaptive] either platform reaches, in document order and
   /// without repeating an instance both trees hold.
-  List<HWSizeAdaptive> get sizeAdaptives {
+  List<HWSizeAdaptive> get sizeAdaptives => _distinctAdaptives([
+        ...iosSizeAdaptiveSites,
+        ...androidSizeAdaptiveSites,
+      ]);
+
+  /// The instances of [sites], in order and without repeating one two sites
+  /// share.
+  static List<HWSizeAdaptive> _distinctAdaptives(
+    List<HWSizeAdaptiveSite> sites,
+  ) {
     final adaptives = <HWSizeAdaptive>[];
-    for (final site in [...iosSizeAdaptiveSites, ...androidSizeAdaptiveSites]) {
+    for (final site in sites) {
       if (adaptives.any((other) => identical(other, site.adaptive))) continue;
       adaptives.add(site.adaptive);
     }
@@ -491,6 +516,11 @@ class WidgetSpec {
   ///
   /// An [HWAdaptive] contributes only the branch the platform emits, and a slot
   /// of an [HWSizeAdaptive] only the families that resolve to it.
+  ///
+  /// The Android walk also descends into every
+  /// [HWSizeAdaptive.androidSizeRanges] child, which renders like a slot there;
+  /// a range belongs to no family, so a site below one keeps the families its
+  /// enclosing instance can see.
   List<HWSizeAdaptiveSite> _sizeAdaptiveSites({
     required bool android,
     required Set<HWWidgetFamily> visible,
@@ -501,16 +531,23 @@ class WidgetSpec {
       HWWidget widget,
       Set<HWWidgetFamily> visible,
       HWWidgetFamily? enclosingSlot,
+      HWAndroidSizeRange? enclosingRange,
     ) {
       switch (widget) {
         case HWAdaptive():
-          walk(android ? widget.android : widget.ios, visible, enclosingSlot);
+          walk(
+            android ? widget.android : widget.ios,
+            visible,
+            enclosingSlot,
+            enclosingRange,
+          );
         case HWSizeAdaptive():
           sites.add(
             HWSizeAdaptiveSite(
               adaptive: widget,
               visible: visible,
               enclosingSlot: enclosingSlot,
+              enclosingRange: enclosingRange,
             ),
           );
           final walked = <HWWidget>[];
@@ -520,16 +557,28 @@ class WidgetSpec {
             // One widget written into two slots is one place in the tree.
             if (walked.any((other) => identical(other, slot))) continue;
             walked.add(slot);
-            walk(slot, widget.familiesResolvingTo(slot, visible), family);
+            walk(
+              slot,
+              Set.unmodifiable(widget.familiesResolvingTo(slot, visible)),
+              family,
+              null,
+            );
+          }
+          if (!android) return;
+          for (final range in widget.androidSizeRangesOrEmpty) {
+            final child = range.child;
+            if (walked.any((other) => identical(other, child))) continue;
+            walked.add(child);
+            walk(child, visible, null, range);
           }
         default:
           for (final child in widget.childWidgets) {
-            walk(child, visible, enclosingSlot);
+            walk(child, visible, enclosingSlot, enclosingRange);
           }
       }
     }
 
-    walk(effectiveWidgetTree, visible, null);
+    walk(effectiveWidgetTree, visible, null, null);
     return sites;
   }
 
@@ -547,13 +596,74 @@ class WidgetSpec {
           ...?site.adaptive.androidSizes,
       });
 
+  /// Whether any [HWSizeAdaptive] the Android tree reaches carries
+  /// [HWSizeAdaptive.androidSizeRanges], which is what puts the widget on the
+  /// threshold grid instead of the family sizes.
+  ///
+  /// An empty list is no range at all: it renders exactly what the family
+  /// slots render.
+  bool get androidHasSizeRanges => _androidHasSizeRanges;
+
+  late final bool _androidHasSizeRanges = data.android != null &&
+      androidSizeAdaptiveSites
+          .any((site) => site.adaptive.androidSizeRangesOrEmpty.isNotEmpty);
+
+  /// Every [HWSizeAdaptive] the Android tree reaches, in document order and
+  /// without repeating an instance the tree holds twice.
+  late final List<HWSizeAdaptive> _androidGridInstances =
+      List.unmodifiable(_distinctAdaptives(androidSizeAdaptiveSites));
+
+  /// The threshold grid the Android-reached instances compile to, clipped to
+  /// what the widget can be resized to.
+  ///
+  /// Only meaningful once [androidHasSizeRanges]: without a range the grid
+  /// is the family sizes, and the widget keeps declaring those.
+  HWAndroidSizeGrid get androidSizeGrid => _androidSizeGrid;
+
+  late final HWAndroidSizeGrid _androidSizeGrid = _compileAndroidSizeGrid();
+
+  HWAndroidSizeGrid _compileAndroidSizeGrid() {
+    final configured = data.android != null;
+    final min = configured ? androidMinSize : null;
+    final max = configured ? androidMaxSize : null;
+    return HWAndroidSizeGrid.compile(
+      instances: _androidGridInstances,
+      table: androidSizeTable,
+      minWidth: min?.width ?? 1,
+      minHeight: min?.height ?? 1,
+      // Only custom-font text reads the size a layout is composed at, so
+      // nothing else is worth keeping a corner for.
+      keepFamilyCompositionSize: rendersAndroidBitmapText,
+      maxWidth: max?.width,
+      maxHeight: max?.height,
+    );
+  }
+
   /// Whether any [HWSizeAdaptive] the Android tree reaches renders more than
   /// one layout, and so needs the sizes declared to Glance.
-  bool get androidBranchesOnSize => androidSizeAdaptiveSites
-      .any((site) => site.adaptive.branchesFor(site.visible));
+  bool get androidBranchesOnSize {
+    if (!androidHasSizeRanges) {
+      return androidSizeAdaptiveSites
+          .any((site) => site.adaptive.branchesFor(site.visible));
+    }
 
-  /// The size of every Android-reachable family, in family order.
+    final grid = androidSizeGrid;
+    for (var index = 0; index < grid.instances.length; index++) {
+      final rendered = [for (final cell in grid.cells) cell.renders[index]];
+      final first = rendered.first.widget;
+      if (rendered.any((render) => !identical(render.widget, first))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// The sizes the widget declares to Glance: the grid corners once any
+  /// instance carries size ranges, else the size of every Android-reachable
+  /// family, in family order.
   List<HWSize> get androidDeclaredSizes {
+    if (androidHasSizeRanges) return androidSizeGrid.sizes;
+
     final table = androidSizeTable;
     final reachable = _androidReachableFamilies(table);
     return [
@@ -688,11 +798,15 @@ class WidgetSpec {
       HWEmitContext(reachableFamilies: iosReachableFamilies);
 
   /// What the Android emitters switch over, and the sizes they compare against.
+  ///
+  /// The declared sizes are only carried once an instance has size ranges: a
+  /// family-only tree keeps branching over the family sizes it always did.
   HWEmitContext get androidEmitContext {
     final table = androidSizeTable;
     return HWEmitContext(
       reachableFamilies: _androidReachableFamilies(table),
       androidSizeTable: table,
+      declaredAndroidSizes: androidHasSizeRanges ? androidDeclaredSizes : null,
     );
   }
 
@@ -926,6 +1040,11 @@ class WidgetSpec {
       supportedLocales.join(','),
       'live=$androidUsesLiveDataInPreview',
       'auto=$androidAutoUpdatePreview',
+      // The sizes are declared on the widget class rather than inside the body
+      // the hash digests, so the preview would not re-register without them.
+      // Only a widget that declares a `sizeMode` carries them at all, and every
+      // other one keeps the digest it had before they joined the hash.
+      if (androidBranchesOnSize) 'sizes=${androidDeclaredSizes.join(',')}',
       // The emitted Glance source is the one serialization of the tree that
       // covers layout, styling and the values inlined into it.
       effectiveWidgetTree.toKotlin(

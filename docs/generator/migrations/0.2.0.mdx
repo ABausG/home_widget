@@ -73,3 +73,14 @@ HWRow(
 ```
 
 [HWAlignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) lists how many spacers each alignment adds.
+
+## Size-Adaptive Previews (Android)
+
+A widget with an `HWSizeAdaptive` now declares `previewSizeMode` alongside `sizeMode`, so the widget picker shows the layout for the span it displays instead of always the smallest one. Its preview fingerprint changes, so the app re-registers that preview once after the update. No annotation change is needed.
+
+`HWSize.fromCells` is gone; write the `const` `HWSize.cells` instead:
+
+```dart
+androidSizes: {HWWidgetFamily.systemMedium: HWSize.fromCells(3, 2)} // [!code --]
+androidSizes: {HWWidgetFamily.systemMedium: HWSize.cells(3, 2)} // [!code ++]
+```
