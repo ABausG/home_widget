@@ -1,6 +1,6 @@
 name: home_widget_generator
 description: Annotations and DSL widgets to generate native HomeScreen widget code for the home_widget Flutter plugin.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/ABausG/home_widget
 issue_tracker: https://github.com/ABausG/home_widget/issues
 documentation: https://docs.page/ABausG/home_widget/generator
