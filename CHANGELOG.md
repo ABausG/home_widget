@@ -3,6 +3,41 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-09-23
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`home_widget_cli` - `v0.2.0`](#home_widget_cli---v020)
+ - [`home_widget_generator` - `v0.2.0`](#home_widget_generator---v020)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `home_widget_cli` - `v0.2.0`
+
+ - **FIX**: Handle more Xcodeproject setups ([#460](https://github.com/abausg/home_widget/issues/460)). ([4db6b2eb](https://github.com/abausg/home_widget/commit/4db6b2ebd10437c6f091c047e0677af6792aa46e))
+ - **FEAT**: Add androidFont to HWTextStyle to choose the Android font ([#462](https://github.com/abausg/home_widget/issues/462)). ([5d72e0a6](https://github.com/abausg/home_widget/commit/5d72e0a6efc71061f5dac30b513fb4c838c5c082))
+ - **BREAKING** **FEAT**: Add HWStack and HWAlign with HWAlignment ([#466](https://github.com/abausg/home_widget/issues/466)). ([7cb28823](https://github.com/abausg/home_widget/commit/7cb28823d7a27216419d5258269a68c88fe596e2))
+ - **BREAKING** **FEAT**: Add androidSizeRanges to HWSizeAdaptive ([#465](https://github.com/abausg/home_widget/issues/465)). ([e20d97d2](https://github.com/abausg/home_widget/commit/e20d97d2cc8769b318a35c704b2d2e5ccc223e80))
+ - **BREAKING** **FEAT**: Add HWSizedBox and remove HWFill ([#464](https://github.com/abausg/home_widget/issues/464)). ([70c64bde](https://github.com/abausg/home_widget/commit/70c64bde85a89afb17c1976d6dab9626ebee2f1e))
+ - **BREAKING** **FEAT**: Add list builders, spacing and Glance stack layout for HWColumn/HWRow ([#463](https://github.com/abausg/home_widget/issues/463)). ([2bea2d82](https://github.com/abausg/home_widget/commit/2bea2d82ec1e5766e935fc249294a015096a486e))
+
+#### `home_widget_generator` - `v0.2.0`
+
+ - **FEAT**: Add androidFont to HWTextStyle to choose the Android font ([#462](https://github.com/abausg/home_widget/issues/462)). ([5d72e0a6](https://github.com/abausg/home_widget/commit/5d72e0a6efc71061f5dac30b513fb4c838c5c082))
+ - **BREAKING** **FEAT**: Add HWStack and HWAlign with HWAlignment ([#466](https://github.com/abausg/home_widget/issues/466)). ([7cb28823](https://github.com/abausg/home_widget/commit/7cb28823d7a27216419d5258269a68c88fe596e2))
+ - **BREAKING** **FEAT**: Add androidSizeRanges to HWSizeAdaptive ([#465](https://github.com/abausg/home_widget/issues/465)). ([e20d97d2](https://github.com/abausg/home_widget/commit/e20d97d2cc8769b318a35c704b2d2e5ccc223e80))
+ - **BREAKING** **FEAT**: Add HWSizedBox and remove HWFill ([#464](https://github.com/abausg/home_widget/issues/464)). ([70c64bde](https://github.com/abausg/home_widget/commit/70c64bde85a89afb17c1976d6dab9626ebee2f1e))
+ - **BREAKING** **FEAT**: Add list builders, spacing and Glance stack layout for HWColumn/HWRow ([#463](https://github.com/abausg/home_widget/issues/463)). ([2bea2d82](https://github.com/abausg/home_widget/commit/2bea2d82ec1e5766e935fc249294a015096a486e))
+
+
 ## 2026-09-17
 
 ### Changes
