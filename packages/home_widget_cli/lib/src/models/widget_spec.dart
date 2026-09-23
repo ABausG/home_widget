@@ -110,10 +110,10 @@ class ListDeclaration {
   final String key;
 
   /// The builder itself.
-  final HWMultiChildWidget builder;
+  final HWFlex builder;
 
   /// The item fields the builder's item reads, as
-  /// [HWMultiChildWidget.itemReads] lists them: each an [HWItemData] or an
+  /// [HWFlex.itemReads] lists them: each an [HWItemData] or an
   /// [HWTimedData] around one, re-declarations of one field included.
   final List<HWDataType<dynamic>> reads;
 
@@ -452,9 +452,9 @@ class WidgetSpec {
   /// under a key carrying the item's index. A list of another length therefore
   /// renders keys nothing measured, so a running widget has to measure again
   /// once the number of items it shows changed.
-  List<HWMultiChildWidget> get androidMeasuredItemBuilders => [
+  List<HWFlex> get androidMeasuredItemBuilders => [
         for (final widget in androidRenderedWidgets)
-          if (widget case HWMultiChildWidget(:final item?, list: _?))
+          if (widget case HWFlex(:final item?, list: _?))
             if (androidRenderedWithin(item).any(androidMeasuresText)) widget,
       ];
 
@@ -1587,7 +1587,7 @@ class WidgetSpec {
   List<ListDeclaration> get declaredLists {
     final declarations = <ListDeclaration>[];
     for (final widget in effectiveWidgetTree.descendants) {
-      if (widget is! HWMultiChildWidget) continue;
+      if (widget is! HWFlex) continue;
       final key = widget.list;
       if (key == null) continue;
       if (declarations.any((other) => identical(other.builder, widget))) {

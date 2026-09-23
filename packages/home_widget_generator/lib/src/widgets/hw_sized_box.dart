@@ -51,6 +51,15 @@ class HWSizedBox extends HWWidget {
   @override
   String get swiftFrameAlignment => child?.swiftFrameAlignment ?? '.topLeading';
 
+  /// The child's: a frame around this box is the room the child is sized to,
+  /// and a gap has nothing to clip.
+  @override
+  bool get swiftClipsFrame => child?.swiftClipsFrame ?? false;
+
+  /// The child's, as [swiftClipsFrame].
+  @override
+  bool get swiftDrawsPastFrame => child?.swiftDrawsPastFrame ?? false;
+
   /// Nothing while this box renders nothing: neither the `Spacer` a gap asking
   /// for no room would be nor the modifiers around a child rendering nothing
   /// are emitted.
@@ -98,18 +107,27 @@ class HWSizedBox extends HWWidget {
   /// of the stack around it, a fill on the other one.
   ///
   /// A finite size is no room — it is injected into the child, which the
-  /// wrap-content `Box` a stack may put around it then sits tight around.
+  /// wrap-content `Box` a stack may put around it then sits tight around. An
+  /// axis left open is the child's to size, so the room the child asks for
+  /// there is this box's too; the child is only told about the enclosing axis
+  /// while it is open, so a weight it asks for is always along an open axis.
   @override
-  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) => HWKotlinRoom(
-        weight: (width == double.infinity &&
-                enclosingLinearAxis == HWAxis.horizontal) ||
-            (height == double.infinity &&
-                enclosingLinearAxis == HWAxis.vertical),
-        fillsWidth: width == double.infinity &&
-            enclosingLinearAxis != HWAxis.horizontal,
-        fillsHeight:
-            height == double.infinity && enclosingLinearAxis != HWAxis.vertical,
-      );
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
+    final own = _kotlinFillingRoom(
+      enclosingLinearAxis,
+      fillsWidth: width == double.infinity,
+      fillsHeight: height == double.infinity,
+    );
+    final child = this.child;
+    if (child == null) return own;
+
+    final asked = child.kotlinRoomIn(_childAxis(enclosingLinearAxis));
+    return HWKotlinRoom(
+      weight: own.weight || asked.weight,
+      fillsWidth: own.fillsWidth || (width == null && asked.fillsWidth),
+      fillsHeight: own.fillsHeight || (height == null && asked.fillsHeight),
+    );
+  }
 
   /// False once an axis is sized: Glance takes the padding out of the pixels
   /// the size asks for, so a gap would eat the content instead of sitting
@@ -297,8 +315,12 @@ class HWSizedBox extends HWWidget {
     }
 
     // SwiftUI draws a child past the frame it was given, so an axis sized to
-    // zero only hides it once the overflow is cut off.
-    if (child != null && (width == 0 || height == 0)) {
+    // zero, and a child Flutter would have sized to the box, only hold once
+    // the overflow is cut off.
+    if (child != null &&
+        (width == 0 ||
+            height == 0 ||
+            (child.swiftClipsFrame && _hasFiniteSize))) {
       code = applySwiftModifier(code, '.clipped()', indent);
     }
     return code;

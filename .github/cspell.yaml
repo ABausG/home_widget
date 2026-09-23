@@ -121,8 +121,14 @@ words:
     # docs.page anchor fragments (lowercased heading text)
     - homewidgetiosconfiguration
     - homewidgetandroidconfiguration
+    - hwalignment
     - hwcolorrole
+    - hwcrossaxisalignment
+    - hwfill
     - hwitemdata
+    - hwmainaxisalignment
+    - hwsizedbox
+    - hwstackfit
     - hwwidgetfamily
     - idempotently
     - INFOPLIST

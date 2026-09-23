@@ -1,0 +1,60 @@
+---
+title: HWStack
+description: Overlap children and align them within shared room.
+---
+
+# HWStack
+
+Overlaps its children in the same space, like Flutter's `Stack`. Each child is placed by `alignment`, and later children draw on top of earlier ones.
+
+```dart
+HWSizedBox(
+  width: 64,
+  height: 64,
+  child: HWStack(
+    alignment: HWAlignment.bottomEnd,
+    children: [
+      HWImage.asset('assets/avatar.png', width: 64, height: 64),
+      HWIcon.fixed(Icons.check_circle, size: 20),
+    ],
+  ),
+)
+```
+
+## Fit
+
+`fit` decides how `HWStack` sizes itself and its children, Flutter's `StackFit` without `passthrough`:
+
+- `HWStackFit.loose` (default): the stack sizes itself to its largest child, and each child keeps its own size, unless a child asks for all the room it can get. An `HWAlign` or an `HWSizedBox.expand` does exactly that, the same as in Flutter, and grows a loose stack holding one to the whole room offered rather than to the size of its largest fixed child. That is why the badge-on-avatar example above sits inside an `HWSizedBox`: without that bound, the aligned badge would grow the stack to the size of the whole widget instead of to the size of the avatar.
+- `HWStackFit.expand`: the stack takes every pixel it is offered, and gives that same room to every child. Under the hood, every child that renders something and does not already take all the room, an `HWAlign`, an `HWSizedBox.expand` or another expanding `HWStack`, is wrapped in its own `HWAlign(alignment: alignment, child: child)` before it is emitted, so a text or an icon is placed within the full room by `alignment`, not stretched to fill it.
+
+Inside an [`HWColumn`](/generator/widgets/hw-column) / [`HWRow`](/generator/widgets/hw-row), an `expand` stack shares the main axis by weight with its siblings on Android, the same rule as [`HWSizedBox.expand`](/generator/migrations/0.2.0#hwfill-was-replaced-by-hwsizedbox-expand). A `loose` stack is as large as its children ask for, and asks for that room itself on Android: with a child that wants all the room it can get, such as an `HWAlign` or an `HWSizedBox.expand`, the stack takes a weight share along the main axis and fills the cross axis, exactly as that child would have on its own. With fixed children only it asks for nothing and wraps them.
+
+## Clipping
+
+Both platforms always clip a stack to its own bounds: SwiftUI's `ZStack` gets `.clipped()`, and a Glance `Box` clips its content naturally. A child larger than the stack is cut off on both platforms, whether the stack is `loose` or `expand`. There is no flag to turn clipping off. A stack inside an [`HWSizedBox`](/generator/widgets/hw-sized-box) is clipped to the box on both platforms too, since that is the size Flutter would have laid the stack out at.
+
+## Android: at most 10 children
+
+Same rule as [`HWColumn`](/generator/widgets/hw-column#android-at-most-10-children) and [`HWRow`](/generator/widgets/hw-row#android-at-most-10-children): Glance lays out at most 10 children in a `Box` too. `HWStack` has no `mainAxisAlignment` and no `spacing`, so there are no spacers to count, only the rendered children. A child that renders nothing, such as [`HWDataOnly`](/generator/widgets/hw-data-only), does not count either. Nest children that would push it over the limit in another `HWStack`, `HWColumn` or `HWRow`, which counts as one child.
+
+## Baseline rows
+
+A stack placed in an `HWRow` with `HWCrossAxisAlignment.baseline` stays at the top of the row on Android, where it has no text baseline of its own. On iOS SwiftUI lines the `ZStack` up by the first text baseline of the text inside it, and a stack holding no text by its bottom edge. See [`HWRow`](/generator/widgets/hw-row).
+
+## Parameters
+
+| Name        | Type             | Default                | Description                                          |
+| ----------- | ---------------- | ------------------------ | ----------------------------------------------------- |
+| `children`  | `List<HWWidget>` | **required**              | Widgets overlapped in the same space, later ones on top. |
+| `alignment` | `HWAlignment`    | `HWAlignment.topStart`   | Where each child sits within the stack.               |
+| `fit`       | `HWStackFit`     | `HWStackFit.loose`       | How the stack sizes itself and its children.          |
+
+See [HWAlignment](/generator/styling/hw-alignment#hwalignment) for the nine `alignment` values and [HWStackFit](/generator/styling/hw-alignment#hwstackfit) for `fit`.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`ZStack(alignment:)`](https://developer.apple.com/documentation/swiftui/zstack) with `.clipped()`. Under `expand`, the `ZStack` also takes `.frame(maxWidth: .infinity, maxHeight: .infinity, alignment:)` before `.clipped()`. A child that renders nothing is left out.
+- **Android:** Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment,kotlin.Function0)) with `contentAlignment`. Under `expand` the `Box` takes the same weight/fill modifier `HWSizedBox.expand` would in the same spot. A child that renders nothing is left out and does not count toward the 10-child limit.
+- An empty `loose` stack, where every child renders nothing, renders nothing itself, the same as Flutter's empty `Stack`. An empty `expand` stack still fills the room it is given, since `expand` always claims that room.
+- Wrapped in an [`HWSizedBox`](/generator/widgets/hw-sized-box), a `loose` stack is placed by its own `alignment` inside the box, which is how `HWSizedBox(width, height, child: HWStack(alignment: bottomEnd, children: [avatar, badge]))` puts a badge in the corner of a fixed-size avatar.

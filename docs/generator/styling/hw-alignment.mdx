@@ -1,11 +1,48 @@
 ---
-title: HWAlignment
-description: Cross- and main-axis alignment enums for HWColumn and HWRow.
+title: Alignment
+description: Alignment enums used across the generator widgets, HWMainAxisAlignment and HWCrossAxisAlignment for HWColumn and HWRow, HWAlignment for HWStack and HWAlign.
 ---
 
-# HWAlignment
+# Alignment
 
-Alignment enums consumed by [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row).
+Flutter splits alignment the same way the generator does: `MainAxisAlignment` and `CrossAxisAlignment` belong to `Flex` (`Row` / `Column`), and `Alignment` belongs to `Stack` / `Align`. [`HWMainAxisAlignment`](#hwmainaxisalignment) and [`HWCrossAxisAlignment`](#hwcrossaxisalignment) are for [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row). [`HWAlignment`](#hwalignment) is for [`HWStack`](/generator/widgets/hw-stack) and [`HWAlign`](/generator/widgets/hw-align).
+
+## HWAlignment
+
+`HWAlignment` places a child within the room [`HWStack`](/generator/widgets/hw-stack) or [`HWAlign`](/generator/widgets/hw-align) gives it, Flutter's `AlignmentDirectional`. It has nine values, one per corner, edge and the center:
+
+`topStart`, `topCenter`, `topEnd`, `centerStart`, `center`, `centerEnd`, `bottomStart`, `bottomCenter`, `bottomEnd`
+
+There is no `topLeft` or `topRight`. `HWAlignment` only has directional values because that is all SwiftUI and Glance have: SwiftUI's `Alignment` gives you `.topLeading`, not `.topLeft`, and Glance's `Alignment` gives you `Alignment.TopStart`, not a left/right pair. Neither platform has a left that stays on the left in a right-to-left layout, so there is no value to map a literal left or right onto, and the generator does not invent one.
+
+| `HWAlignment` | SwiftUI `Alignment` | Glance `Alignment` |
+| --- | --- | --- |
+| `topStart` | `.topLeading` | `Alignment.TopStart` |
+| `topCenter` | `.top` | `Alignment.TopCenter` |
+| `topEnd` | `.topTrailing` | `Alignment.TopEnd` |
+| `centerStart` | `.leading` | `Alignment.CenterStart` |
+| `center` | `.center` | `Alignment.Center` |
+| `centerEnd` | `.trailing` | `Alignment.CenterEnd` |
+| `bottomStart` | `.bottomLeading` | `Alignment.BottomStart` |
+| `bottomCenter` | `.bottom` | `Alignment.BottomCenter` |
+| `bottomEnd` | `.bottomTrailing` | `Alignment.BottomEnd` |
+
+`HWAlign` defaults to `center`, `HWStack` defaults to `topStart`, matching Flutter's own defaults for `Align` and `Stack`.
+
+## HWStackFit
+
+`HWStackFit` decides how [`HWStack`](/generator/widgets/hw-stack) sizes itself and its children, Flutter's `StackFit` without `passthrough`:
+
+| Value | Description |
+| --- | --- |
+| `loose` | The stack sizes itself to its largest child; each child keeps its own size. |
+| `expand` | The stack takes all the room it is offered. Each child is given that same room and placed within it by `alignment`, not stretched to fill it. |
+
+`loose` is the default. See [`HWStack`](/generator/widgets/hw-stack#fit) for how `expand` is built out of `HWAlign`.
+
+## HWMainAxisAlignment and HWCrossAxisAlignment
+
+The two enums below are consumed by [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row).
 
 The cross-axis is the axis perpendicular to the layout direction:
 
@@ -55,7 +92,7 @@ The alignment only distributes the room left over. The spacers it inserts shrink
 
 ### Spacers and the Android child limit
 
-Glance lays out at most 10 children in one `Column` or `Row`, and each spacer an alignment inserts counts as a child. For a stack of `n` children:
+Glance lays out at most 10 children in one `Column` or `Row`, and each spacer an alignment inserts counts as a child. For an `HWColumn` or `HWRow` of `n` children:
 
 | Value           | Spacers | Children + spacers | Most children |
 | --------------- | ------- | ------------------ | ------------- |

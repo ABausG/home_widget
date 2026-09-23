@@ -2,6 +2,54 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('HWAlignment', () {
+    test('maps every value to a SwiftUI Alignment', () {
+      expect(
+        {
+          for (final alignment in HWAlignment.values)
+            alignment.name: alignment.swiftAlignment,
+        },
+        {
+          'topStart': '.topLeading',
+          'topCenter': '.top',
+          'topEnd': '.topTrailing',
+          'centerStart': '.leading',
+          'center': '.center',
+          'centerEnd': '.trailing',
+          'bottomStart': '.bottomLeading',
+          'bottomCenter': '.bottom',
+          'bottomEnd': '.bottomTrailing',
+        },
+      );
+    });
+
+    test('maps every value to a Glance Alignment', () {
+      expect(
+        {
+          for (final alignment in HWAlignment.values)
+            alignment.name: alignment.kotlinAlignment,
+        },
+        {
+          'topStart': 'Alignment.TopStart',
+          'topCenter': 'Alignment.TopCenter',
+          'topEnd': 'Alignment.TopEnd',
+          'centerStart': 'Alignment.CenterStart',
+          'center': 'Alignment.Center',
+          'centerEnd': 'Alignment.CenterEnd',
+          'bottomStart': 'Alignment.BottomStart',
+          'bottomCenter': 'Alignment.BottomCenter',
+          'bottomEnd': 'Alignment.BottomEnd',
+        },
+      );
+    });
+  });
+
+  group('HWStackFit', () {
+    test('offers a loose and an expanding fit', () {
+      expect(HWStackFit.values.map((fit) => fit.name), ['loose', 'expand']);
+    });
+  });
+
   group('HWMainAxisAlignment spacers', () {
     test('place spacers before, between and after the children', () {
       final places = {

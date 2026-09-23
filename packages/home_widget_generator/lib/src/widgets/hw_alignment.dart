@@ -1,3 +1,61 @@
+/// Where a child sits inside the room it is given, Flutter's
+/// `AlignmentDirectional`.
+///
+/// Only the directional constants: SwiftUI has `.topLeading`, Glance
+/// `Alignment.TopStart`, and neither has a left that stays left in a
+/// right-to-left layout.
+enum HWAlignment {
+  topStart,
+  topCenter,
+  topEnd,
+  centerStart,
+  center,
+  centerEnd,
+  bottomStart,
+  bottomCenter,
+  bottomEnd,
+}
+
+/// The constants an [HWAlignment] places a child by on each platform.
+extension HWAlignmentPlacement on HWAlignment {
+  /// The SwiftUI `Alignment` literal.
+  String get swiftAlignment => switch (this) {
+        HWAlignment.topStart => '.topLeading',
+        HWAlignment.topCenter => '.top',
+        HWAlignment.topEnd => '.topTrailing',
+        HWAlignment.centerStart => '.leading',
+        HWAlignment.center => '.center',
+        HWAlignment.centerEnd => '.trailing',
+        HWAlignment.bottomStart => '.bottomLeading',
+        HWAlignment.bottomCenter => '.bottom',
+        HWAlignment.bottomEnd => '.bottomTrailing',
+      };
+
+  /// The Glance `Alignment` expression.
+  String get kotlinAlignment => switch (this) {
+        HWAlignment.topStart => 'Alignment.TopStart',
+        HWAlignment.topCenter => 'Alignment.TopCenter',
+        HWAlignment.topEnd => 'Alignment.TopEnd',
+        HWAlignment.centerStart => 'Alignment.CenterStart',
+        HWAlignment.center => 'Alignment.Center',
+        HWAlignment.centerEnd => 'Alignment.CenterEnd',
+        HWAlignment.bottomStart => 'Alignment.BottomStart',
+        HWAlignment.bottomCenter => 'Alignment.BottomCenter',
+        HWAlignment.bottomEnd => 'Alignment.BottomEnd',
+      };
+}
+
+/// How an [HWStack] sizes itself and its children, Flutter's `StackFit`
+/// without `passthrough`.
+enum HWStackFit {
+  /// The stack is as large as its largest child, each child at its own size.
+  loose,
+
+  /// The stack takes every pixel it is offered, and gives that same room to
+  /// every child, which the alignment then places in it.
+  expand,
+}
+
 /// Cross-axis alignment for HWColumn/HWRow.
 ///
 /// For HWColumn (vertical), cross-axis is horizontal.

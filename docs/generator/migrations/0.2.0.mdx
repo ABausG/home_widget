@@ -59,10 +59,10 @@ HWRow(
 Glance lays out at most 10 children in a `Column` or `Row`, and used to drop the rest without a word. A stack Android would render with more now fails generation, counting the spacers its `mainAxisAlignment` adds:
 
 ```
-Widget "Stats": an HWRow has 5 children + 6 spacers (spaceEvenly) = 11 > 10. On Android, Glance lays out at most 10 children in a Row, spacers included, and silently drops the rest. Group some children in a nested HWColumn or HWRow, which counts as one child, or use a mainAxisAlignment that adds fewer spacers.
+Widget "Stats": an HWRow has 5 children + 6 spacers (spaceEvenly) = 11 > 10. On Android, Glance lays out at most 10 children in a Row, spacers included, and silently drops the rest. Group some children in a nested HWColumn, HWRow or HWStack, which counts as one child, or use a mainAxisAlignment that adds fewer spacers.
 ```
 
-To fix it, nest some children in another `HWColumn` or `HWRow`, which counts as one child, or pick an alignment that adds fewer spacers:
+To fix it, nest some children in another `HWColumn`, `HWRow` or `HWStack`, which counts as one child, or pick an alignment that adds fewer spacers:
 
 ```dart
 HWRow(
@@ -72,7 +72,7 @@ HWRow(
 )
 ```
 
-[HWAlignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) lists how many spacers each alignment adds.
+[Alignment](/generator/styling/hw-alignment#spacers-and-the-android-child-limit) lists how many spacers each alignment adds.
 
 ## Size-Adaptive Previews (Android)
 

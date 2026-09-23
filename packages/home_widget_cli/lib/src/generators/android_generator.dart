@@ -885,7 +885,7 @@ class AndroidGenerator {
   /// The locale a localized field resolves against decides nothing about how
   /// many items a list holds, so the counts are read without one.
   String _measuredItemCountsFunction({
-    required List<HWMultiChildWidget> builders,
+    required List<HWFlex> builders,
     required bool needsLocaleArg,
   }) {
     final localeArg = needsLocaleArg ? ', emptyList()' : '';

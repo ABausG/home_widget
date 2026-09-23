@@ -3,12 +3,10 @@ part of 'hw_widget.dart';
 /// A horizontal layout widget for use in widgetBuilder.
 ///
 /// Maps to SwiftUI HStack and Glance Row.
-class HWRow extends HWMultiChildWidget {
-  final HWCrossAxisAlignment? crossAxisAlignment;
-
+class HWRow extends HWFlex {
   const HWRow({
     required super.children,
-    this.crossAxisAlignment,
+    super.crossAxisAlignment,
     super.mainAxisAlignment,
     super.spacing = 0,
   });
@@ -26,18 +24,13 @@ class HWRow extends HWMultiChildWidget {
     required super.item,
     super.maxItems,
     super.whenEmpty,
-    this.crossAxisAlignment,
+    super.crossAxisAlignment,
     super.mainAxisAlignment,
     super.spacing = 0,
   }) : super.builder();
 
   @override
   HWAxis get _mainAxis => HWAxis.horizontal;
-
-  /// The alignment this row renders with, always emitted so that neither
-  /// platform falls back to its own default.
-  HWCrossAxisAlignment get effectiveCrossAxisAlignment =>
-      crossAxisAlignment ?? HWCrossAxisAlignment.center;
 
   /// The cross axis is the vertical one, so the row keeps its own alignment
   /// there; a main axis alignment other than start is emitted as `Spacer()`s

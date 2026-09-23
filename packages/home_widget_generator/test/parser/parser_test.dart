@@ -1633,6 +1633,73 @@ class TestWidget {}
       );
     });
 
+    test('parses HWStack with its alignment and fit', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWStack(
+    alignment: HWAlignment.bottomEnd,
+    fit: HWStackFit.expand,
+    children: [
+      HWText.fixed('back'),
+      HWText.fixed('front'),
+    ],
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWStack>());
+      final stack = widget as HWStack;
+      expect(stack.alignment, HWAlignment.bottomEnd);
+      expect(stack.fit, HWStackFit.expand);
+      expect(stack.children, hasLength(2));
+      expect((stack.children.first as HWText).fixedContent, 'back');
+    });
+
+    test('parses an HWStack left at its defaults', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWStack(children: [HWText.fixed('only')]),
+)
+class TestWidget {}
+''';
+      final stack = await parseCode(code) as HWStack;
+      expect(stack.alignment, HWAlignment.topStart);
+      expect(stack.fit, HWStackFit.loose);
+    });
+
+    test('parses HWAlign with its alignment', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWAlign(
+    alignment: HWAlignment.centerEnd,
+    child: HWText.fixed('placed'),
+  ),
+)
+class TestWidget {}
+''';
+      final widget = await parseCode(code);
+      expect(widget, isA<HWAlign>());
+      final align = widget as HWAlign;
+      expect(align.alignment, HWAlignment.centerEnd);
+      expect((align.child as HWText).fixedContent, 'placed');
+    });
+
+    test('parses an HWAlign left at its default', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWAlign(child: HWText.fixed('placed')),
+)
+class TestWidget {}
+''';
+      final align = await parseCode(code) as HWAlign;
+      expect(align.alignment, HWAlignment.center);
+    });
+
     test('parses HWImage with runtime HWImageData', () async {
       final code = '''
 @HomeWidget(
