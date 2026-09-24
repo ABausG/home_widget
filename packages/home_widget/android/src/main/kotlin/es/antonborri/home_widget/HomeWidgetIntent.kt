@@ -53,17 +53,23 @@ inline fun <reified T : Activity> actionStartActivity(context: Context, uri: Uri
 
 object HomeWidgetBackgroundIntent {
   private const val HOME_WIDGET_BACKGROUND_ACTION = "es.antonborri.home_widget.action.BACKGROUND"
+  const val EXTRA_IS_EXPEDITED = "es.antonborri.home_widget.extra.IS_EXPEDITED"
 
-  fun getBroadcast(context: Context, uri: Uri? = null): PendingIntent {
+  @JvmOverloads
+  fun getBroadcast(context: Context, uri: Uri? = null, expedited: Boolean = false): PendingIntent {
     val intent = Intent(context, HomeWidgetBackgroundReceiver::class.java)
     intent.data = uri
     intent.action = HOME_WIDGET_BACKGROUND_ACTION
+    intent.putExtra(EXTRA_IS_EXPEDITED, expedited)
 
     var flags = PendingIntent.FLAG_UPDATE_CURRENT
     if (Build.VERSION.SDK_INT >= 23) {
       flags = flags or PendingIntent.FLAG_IMMUTABLE
     }
 
-    return PendingIntent.getBroadcast(context, 0, intent, flags)
+    // Extras are not part of a PendingIntent's identity; fold the expedited flag into
+    // the request code so expedited and non-expedited registrations don't collide.
+    val requestCode = if (expedited) 1 else 0
+    return PendingIntent.getBroadcast(context, requestCode, intent, flags)
   }
 }
