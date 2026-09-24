@@ -20,6 +20,7 @@ public struct HomeWidgetBackgroundWorker {
 
   static var isSetupCompleted: Bool = false
   static var continuations: [CheckedContinuation<Void, Never>] = []
+  static var currentDispatcher: Int64?
 
   private static var registerPlugins: FlutterPluginRegistrantCallback?
 
@@ -44,7 +45,39 @@ public struct HomeWidgetBackgroundWorker {
     await sendEvent(url: url, appGroup: appGroup)
   }
 
+  /// Spins up the headless background `FlutterEngine` that runs the Dart
+  /// interactivity callback and wires the `home_widget/background` method
+  /// channel used to dispatch widget-triggered events into Dart. If a custom
+  /// `FlutterPluginRegistrantCallback` has been supplied via
+  /// `setPluginRegistrantCallback` it is invoked to register any additional
+  /// plugins needed by the background isolate; otherwise only the
+  /// `home_widget` channels are registered on the background engine to avoid
+  /// perturbing the host app's plugin delegate chain. Re-entrant: if the same
+  /// dispatcher is re-registered after a completed setup the call is a no-op;
+  /// if the dispatcher changes, or the previous setup never finished handshake
+  /// with Dart (`HomeWidget.backgroundInitialized` was never received), the
+  /// previous engine is torn down and a fresh one is spun up so the caller
+  /// always has a usable background isolate.
   static func setupEngine(dispatcher: Int64) {
+    if engine != nil && currentDispatcher == dispatcher && isSetupCompleted {
+      return
+    }
+
+    if let previous = engine {
+      channel?.setMethodCallHandler(nil)
+      previous.destroyContext()
+      engine = nil
+      channel = nil
+      isSetupCompleted = false
+      // Unblock any pending `run` waiters — the engine they were waiting on is
+      // gone and a new one is about to be created that will emit its own
+      // `backgroundInitialized`. Leaving them suspended would deadlock.
+      while !continuations.isEmpty {
+        continuations.removeFirst().resume()
+      }
+    }
+    currentDispatcher = dispatcher
+
     engine = FlutterEngine(
       name: "home_widget_background", project: nil, allowHeadlessExecution: true)
 
@@ -53,16 +86,18 @@ public struct HomeWidgetBackgroundWorker {
       codec: FlutterStandardMethodCodec.sharedInstance()
     )
     let flutterCallbackInfo = FlutterCallbackCache.lookupCallbackInformation(dispatcher)
-    let callbackName = flutterCallbackInfo?.callbackName
-    let callbackLibrary = flutterCallbackInfo?.callbackLibraryPath
 
-    let started = engine?.run(
+    engine?.run(
       withEntrypoint: flutterCallbackInfo?.callbackName,
       libraryURI: flutterCallbackInfo?.callbackLibraryPath)
     if registerPlugins != nil {
       registerPlugins?(engine!)
     } else {
-      HomeWidgetPlugin.register(with: engine!.registrar(forPlugin: "home_widget")!)
+      // Register only the channels on the background engine — do NOT add a
+      // second HomeWidgetPlugin to the main app's UIApplication delegate chain,
+      // which breaks URL/life-cycle callbacks in other plugins (issue #408).
+      HomeWidgetPlugin.registerChannels(
+        with: engine!.registrar(forPlugin: "home_widget")!)
     }
 
     channel?.setMethodCallHandler(handle)
