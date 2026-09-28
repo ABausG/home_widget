@@ -297,28 +297,27 @@ void main() {
           );
         });
 
-        test('is left unclipped while a branch draws a border', () {
-          expect(
-            boxed(
-              const HWBoolConditional(
-                data: HWBool('flag', defaultValue: false),
-                whenTrue: stack,
-                whenFalse: bordered,
-              ),
+        test('is framed per branch once a branch draws a border', () {
+          final conditional = boxed(
+            const HWBoolConditional(
+              data: HWBool('flag', defaultValue: false),
+              whenTrue: stack,
+              whenFalse: bordered,
             ),
-            endsWith(frame),
+          );
+          expect(conditional, startsWith('if data.flag == true {\n'));
+          expect(conditional, contains('    $frame\n    .clipped()\n} else {'));
+          expect(
+            conditional,
+            contains('    Text("b")\n    $frame\n    .overlay('),
           );
           expect(
             boxed(const HWSizeAdaptive(small: stack, large: bordered)),
-            endsWith(frame),
-          );
-          expect(
-            boxed(const HWSizeAdaptive(small: stack, large: HWText.fixed('b'))),
-            endsWith('$frame\n.clipped()'),
+            isNot(contains('}\n$frame')),
           );
           expect(
             boxed(const HWAdaptive(ios: bordered, android: stack)),
-            endsWith(frame),
+            startsWith('Text("b")\n$frame\n.overlay('),
           );
           expect(
             boxed(const HWAdaptive(ios: stack, android: bordered)),
@@ -327,25 +326,226 @@ void main() {
         });
       });
 
-      test('a border around such a child keeps its outer half', () {
-        expect(
-          const HWSizedBox(
-            width: 40,
-            height: 40,
-            child: HWDecoratedBox(
-              decoration: HWBoxDecoration(
-                border: HWBoxBorder(
-                  thickness: 2,
-                  color: HWColor.fixed(0xFF000000),
-                ),
+      test('a border around such a child is stroked over the clip', () {
+        final result = const HWSizedBox(
+          width: 40,
+          height: 40,
+          child: HWDecoratedBox(
+            decoration: HWBoxDecoration(
+              border: HWBoxBorder(
+                thickness: 2,
+                color: HWColor.fixed(0xFF000000),
               ),
-              child: HWStack(children: [HWText.fixed('a')]),
             ),
-          ).toSwift(0, dataExpr: 'data'),
-          endsWith(
-            '.frame(width: 40.0, height: 40.0, alignment: .topLeading)',
+            child: HWStack(children: [HWText.fixed('a')]),
+          ),
+        ).toSwift(0, dataExpr: 'data');
+        expect(
+          result,
+          contains(
+            '.frame(width: 40.0, height: 40.0, alignment: .topLeading)\n'
+            '.clipped()\n'
+            '.overlay(',
           ),
         );
+        expect('.clipped()'.allMatches(result), hasLength(2));
+      });
+
+      group('a decorated child', () {
+        const rounded = HWBoxDecoration(
+          color: HWColor.fixed(0xFF3366FF),
+          borderRadius: HWBorderRadius.circular(16),
+          border: HWBoxBorder(
+            thickness: 0,
+            color: HWColor.fixed(0xFF3366FF),
+          ),
+        );
+        const fill = '.background(RoundedRectangle(cornerRadius: 16.0)'
+            '.fill(Color(red: 0.2, green: 0.4, blue: 1.0, opacity: 1.0)))';
+        const stroke = '.overlay(RoundedRectangle(cornerRadius: 16.0)'
+            '.strokeBorder(Color(red: 0.2, green: 0.4, blue: 1.0, '
+            'opacity: 1.0), '
+            'lineWidth: 0.0))';
+        const wide = '.frame(maxWidth: .infinity, alignment: .topLeading)';
+
+        test('is decorated across the whole box', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWDecoratedBox(
+                decoration: rounded,
+                child: HWText.fixed('a'),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            'Text("a")\n$wide\n$fill\n$stroke',
+          );
+        });
+
+        test('matches the box inside the decoration', () {
+          const inside = HWDecoratedBox(
+            decoration: rounded,
+            child: HWSizedBox(
+              width: double.infinity,
+              child: HWText.fixed('a'),
+            ),
+          );
+          const outside = HWSizedBox(
+            width: double.infinity,
+            child: HWDecoratedBox(
+              decoration: rounded,
+              child: HWText.fixed('a'),
+            ),
+          );
+          for (final stack in [
+            (List<HWWidget> c) => HWColumn(children: c),
+            (List<HWWidget> c) => HWRow(children: c),
+          ]) {
+            expect(
+              stack(const [outside]).toSwift(0, dataExpr: 'data'),
+              stack(const [inside]).toSwift(0, dataExpr: 'data'),
+            );
+          }
+          expect(
+            const HWColumn(children: [outside]).toSwift(0, dataExpr: 'data'),
+            contains('    Text("a")\n    $wide\n    $fill\n    $stroke\n'),
+          );
+        });
+
+        test('is colored across the whole box', () {
+          expect(
+            const HWSizedBox(
+              width: 80,
+              height: 40,
+              child: HWColoredBox(
+                color: HWColor.fixed(0xFF3366FF),
+                child: HWText.fixed('a'),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            'Text("a")\n'
+            '.frame(width: 80.0, height: 40.0, alignment: .topLeading)\n'
+            '.background(Color(red: 0.2, green: 0.4, blue: 1.0, opacity: 1.0))',
+          );
+        });
+
+        test('reaches through nested decorations', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWColoredBox(
+                color: HWColor.fixed(0xFF000000),
+                child: HWDecoratedBox(
+                  decoration: rounded,
+                  child: HWText.fixed('a'),
+                ),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            'Text("a")\n$wide\n$fill\n$stroke\n'
+            '.background(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0))',
+          );
+        });
+
+        group('behind a padding', () {
+          const pad8 = '.padding(EdgeInsets(top: 8.0, leading: 8.0, '
+              'bottom: 8.0, trailing: 8.0))';
+          const blue = '.background(RoundedRectangle(cornerRadius: 16.0)'
+              '.fill(Color(red: 0.2, green: 0.4, blue: 1.0, opacity: 1.0)))';
+          const card = HWDecoratedBox(
+            decoration: HWBoxDecoration(
+              color: HWColor.fixed(0xFF3366FF),
+              borderRadius: HWBorderRadius.circular(16),
+            ),
+            child: HWText.fixed('a'),
+          );
+
+          test('is framed inside the padding along an infinite axis', () {
+            const box = HWSizedBox(
+              width: double.infinity,
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
+            );
+            expect(
+              box.toSwift(0, dataExpr: 'data'),
+              'Text("a")\n$wide\n$blue\n$pad8',
+            );
+            expect(
+              const HWColumn(children: [box]).toSwift(0, dataExpr: 'data'),
+              contains('    Text("a")\n    $wide\n    $blue\n    $pad8\n'),
+            );
+            expect(
+              const HWRow(children: [box]).toSwift(0, dataExpr: 'data'),
+              contains('    Text("a")\n    $wide\n    $blue\n    $pad8\n'),
+            );
+          });
+
+          test('gives a finite axis up to the padding', () {
+            expect(
+              const HWSizedBox(
+                width: 80,
+                height: 40,
+                child: HWPadding(
+                  padding: HWEdgeInsets.only(left: 8, right: 4, top: 30),
+                  child: card,
+                ),
+              ).toSwift(0, dataExpr: 'data'),
+              startsWith(
+                'Text("a")\n'
+                '.frame(width: 68.0, height: 10.0, alignment: .topLeading)\n'
+                '$blue\n',
+              ),
+            );
+            expect(
+              const HWSizedBox(
+                width: 10,
+                child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
+              ).toSwift(0, dataExpr: 'data'),
+              contains('.frame(width: 0.0, alignment: .topLeading)\n'),
+            );
+          });
+
+          test('is framed inside a padding between two decorations', () {
+            expect(
+              const HWSizedBox(
+                width: 80,
+                child: HWColoredBox(
+                  color: HWColor.fixed(0xFF000000),
+                  child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
+                ),
+              ).toSwift(0, dataExpr: 'data'),
+              'Text("a")\n'
+              '.frame(width: 64.0, alignment: .topLeading)\n'
+              '$blue\n'
+              '$pad8\n'
+              '.background(Color(red: 0.0, green: 0.0, blue: 0.0, '
+              'opacity: 1.0))',
+            );
+          });
+
+          test('a padding around no decoration is framed as before', () {
+            expect(
+              const HWSizedBox(
+                width: 80,
+                child: HWPadding(
+                  padding: HWEdgeInsets.all(8),
+                  child: HWText.fixed('a'),
+                ),
+              ).toSwift(0, dataExpr: 'data'),
+              'Text("a")\n$pad8\n.frame(width: 80.0, alignment: .topLeading)',
+            );
+          });
+        });
+
+        test('is framed at the alignment of what it decorates', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWDecoratedBox(
+                decoration: rounded,
+                child: HWIcon.glyph(0xE88A, font: _materialIcons),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            contains('.frame(maxWidth: .infinity, alignment: .center)\n'
+                '.background('),
+          );
+        });
       });
 
       test('an infinite axis is no bound to cut the child off at', () {
@@ -634,6 +834,346 @@ void main() {
         );
       });
 
+      group('a bordered child', () {
+        const rounded = HWBoxDecoration(
+          color: HWColor.fixed(0xFF3366FF),
+          borderRadius: HWBorderRadius.circular(16),
+          border: HWBoxBorder(
+            thickness: 0,
+            color: HWColor.fixed(0xFF000000),
+          ),
+        );
+        const fillColor = 'background(ColorProvider(day = Color(0xFF3366FF), '
+            'night = Color(0xFF3366FF)))';
+        const borderColor = 'background(ColorProvider(day = Color(0xFF000000), '
+            'night = Color(0xFF000000)))';
+        const text = 'text = "a", '
+            'style = TextStyle(color = GlanceTheme.colors.onSurface))';
+
+        String card(String room, String fill) => 'Box(\n'
+            '    modifier = GlanceModifier.$room$borderColor'
+            '.cornerRadius(16.0.dp).padding(0.0.dp)\n'
+            ') {\n'
+            '    Box(\n'
+            '        modifier = GlanceModifier.$fill.$fillColor'
+            '.cornerRadius(16.0.dp)\n'
+            '    ) {\n'
+            '        Text(modifier = GlanceModifier.$fill, $text\n'
+            '    }\n'
+            '}';
+
+        const outside = HWSizedBox(
+          width: double.infinity,
+          child: HWDecoratedBox(
+            decoration: rounded,
+            child: HWText.fixed('a'),
+          ),
+        );
+        const inside = HWDecoratedBox(
+          decoration: rounded,
+          child: HWSizedBox(
+            width: double.infinity,
+            child: HWText.fixed('a'),
+          ),
+        );
+
+        test('is filled across the whole box at the top level', () {
+          for (final box in const <HWWidget>[outside, inside]) {
+            expect(
+              box.toKotlin(0, dataExpr: 'data'),
+              card('fillMaxWidth().', 'fillMaxWidth()'),
+            );
+            expect(
+              box.kotlinImports,
+              contains('import androidx.glance.layout.fillMaxWidth'),
+            );
+          }
+        });
+
+        test('fills the cross axis of a column', () {
+          for (final box in const <HWWidget>[outside, inside]) {
+            expect(
+              box.kotlinRoomIn(HWAxis.vertical),
+              isA<HWKotlinRoom>()
+                  .having((r) => r.weight, 'weight', isFalse)
+                  .having((r) => r.fillsWidth, 'fillsWidth', isTrue),
+            );
+            expect(
+              box.toKotlin(0, dataExpr: 'data', context: inColumn),
+              card('fillMaxWidth().', 'fillMaxWidth()'),
+            );
+          }
+        });
+
+        test('takes a weight along a row', () {
+          for (final box in const <HWWidget>[outside, inside]) {
+            expect(
+              box.kotlinRoomIn(HWAxis.horizontal),
+              isA<HWKotlinRoom>()
+                  .having((r) => r.weight, 'weight', isTrue)
+                  .having((r) => r.fillsWidth, 'fillsWidth', isFalse),
+            );
+            expect(
+              box.toKotlin(0, dataExpr: 'data', context: inRow),
+              card('defaultWeight().', 'fillMaxWidth()'),
+            );
+          }
+          for (final box in const <HWWidget>[outside, inside]) {
+            expect(
+              HWRow(children: [box, const HWText.fixed('b')])
+                  .toKotlin(0, dataExpr: 'data'),
+              contains('    Box(\n'
+                  '        modifier = GlanceModifier.defaultWeight().'),
+            );
+          }
+        });
+
+        test('fills a fixed size inside the border', () {
+          expect(
+            const HWSizedBox(
+              width: 80,
+              height: 40,
+              child: HWDecoratedBox(
+                decoration: rounded,
+                child: HWText.fixed('a'),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            card('width(80.0.dp).height(40.0.dp).', 'fillMaxSize()'),
+          );
+        });
+
+        test('a size wins over the room the decorated child asks for', () {
+          expect(
+            const HWSizedBox(
+              width: 80,
+              child: HWDecoratedBox(
+                decoration: rounded,
+                child: HWSizedBox.expand(child: HWText.fixed('a')),
+              ),
+            ).toKotlin(0, dataExpr: 'data', context: inColumn),
+            startsWith(
+              'Box(\n    modifier = GlanceModifier.width(80.0.dp)'
+              '.defaultWeight().$borderColor',
+            ),
+          );
+        });
+
+        test('is reached through a colored box', () {
+          final result = const HWColumn(
+            children: [
+              HWSizedBox(
+                width: double.infinity,
+                child: HWColoredBox(
+                  color: HWColor.fixed(0xFF3366FF),
+                  child: HWDecoratedBox(
+                    decoration: rounded,
+                    child: HWText.fixed('a'),
+                  ),
+                ),
+              ),
+            ],
+          ).toKotlin(0, dataExpr: 'data');
+          expect(
+            result,
+            contains('    Box(\n'
+                '        modifier = GlanceModifier.fillMaxWidth()'
+                '.$fillColor.$borderColor'),
+          );
+          expect(
+            result,
+            contains('            Text(modifier = GlanceModifier'
+                '.fillMaxWidth(), $text'),
+          );
+        });
+
+        test('without a fill the child fills the border', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWDecoratedBox(
+                decoration: HWBoxDecoration(
+                  border: HWBoxBorder(
+                    thickness: 2,
+                    color: HWColor.fixed(0xFF000000),
+                  ),
+                ),
+                child: HWText.fixed('a'),
+              ),
+            ).toKotlin(0, dataExpr: 'data', context: inRow),
+            'Box(\n'
+            '    modifier = GlanceModifier.defaultWeight().$borderColor'
+            '.cornerRadius(0.0.dp).padding(2.0.dp)\n'
+            ') {\n'
+            '        Text(modifier = GlanceModifier.fillMaxWidth(), $text\n'
+            '}',
+          );
+        });
+
+        test('a box leaving the axes open changes nothing', () {
+          expect(
+            const HWSizedBox(
+              child: HWDecoratedBox(
+                decoration: rounded,
+                child: HWText.fixed('a'),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            const HWDecoratedBox(
+              decoration: rounded,
+              child: HWText.fixed('a'),
+            ).toKotlin(0, dataExpr: 'data'),
+          );
+        });
+      });
+
+      group('a padded decoration', () {
+        const pad = 'padding(start = 8.0.dp, top = 8.0.dp, '
+            'end = 8.0.dp, bottom = 8.0.dp)';
+        const text = 'text = "a", '
+            'style = TextStyle(color = GlanceTheme.colors.onSurface))';
+        const blue = 'background(ColorProvider(day = Color(0xFF3366FF), '
+            'night = Color(0xFF3366FF))).cornerRadius(16.0.dp)';
+        const card = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            color: HWColor.fixed(0xFF3366FF),
+            borderRadius: HWBorderRadius.circular(16),
+          ),
+          child: HWText.fixed('a'),
+        );
+        const wide = HWSizedBox(
+          width: double.infinity,
+          child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
+        );
+
+        String padded(String room, String fill, {String indent = ''}) =>
+            '${indent}Box(modifier = GlanceModifier.$room$pad) {\n'
+            '$indent    Text(modifier = GlanceModifier.$fill.$blue, $text\n'
+            '$indent}';
+
+        test('fills the padding Box at the top level', () {
+          expect(
+            wide.toKotlin(0, dataExpr: 'data'),
+            padded('fillMaxWidth().', 'fillMaxWidth()'),
+          );
+          expect(
+            wide.kotlinImports,
+            containsAll([
+              'import androidx.glance.layout.fillMaxWidth',
+              'import androidx.glance.appwidget.cornerRadius',
+            ]),
+          );
+        });
+
+        test('fills the cross axis of a column', () {
+          expect(
+            const HWColumn(children: [wide]).toKotlin(0, dataExpr: 'data'),
+            contains(
+              padded('fillMaxWidth().', 'fillMaxWidth()', indent: '    '),
+            ),
+          );
+        });
+
+        test('takes a weight along a row', () {
+          expect(wide.kotlinRoomIn(HWAxis.horizontal).weight, isTrue);
+          expect(
+            const HWRow(children: [wide, HWText.fixed('b')])
+                .toKotlin(0, dataExpr: 'data'),
+            contains(
+              padded('defaultWeight().', 'fillMaxWidth()', indent: '    '),
+            ),
+          );
+        });
+
+        test('a finite size goes on the padding Box', () {
+          expect(
+            const HWSizedBox(
+              width: 80,
+              height: 40,
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
+            ).toKotlin(0, dataExpr: 'data'),
+            padded('width(80.0.dp).height(40.0.dp).', 'fillMaxSize()'),
+          );
+        });
+
+        test('between two decorations the outer one covers the padding', () {
+          expect(
+            const HWSizedBox(
+              width: 80,
+              child: HWColoredBox(
+                color: HWColor.fixed(0xFF000000),
+                child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            padded(
+              'width(80.0.dp).background(ColorProvider(day = '
+                  'Color(0xFF000000), night = Color(0xFF000000))).',
+              'fillMaxWidth()',
+            ),
+          );
+        });
+
+        test('matches the size inside the padding', () {
+          expect(
+            const HWColumn(
+              children: [
+                HWPadding(
+                  padding: HWEdgeInsets.all(8),
+                  child: HWSizedBox(width: double.infinity, child: card),
+                ),
+              ],
+            ).toKotlin(0, dataExpr: 'data'),
+            const HWColumn(children: [wide]).toKotlin(0, dataExpr: 'data'),
+          );
+        });
+
+        test('a padding around no decoration is sized as before', () {
+          expect(
+            const HWSizedBox(
+              width: 80,
+              child: HWPadding(
+                padding: HWEdgeInsets.all(8),
+                child: HWText.fixed('a'),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Text(modifier = GlanceModifier.width(80.0.dp).$pad, $text',
+          );
+        });
+
+        test('a decoration around a padded box covers the padding', () {
+          expect(
+            const HWDecoratedBox(
+              decoration: HWBoxDecoration(
+                color: HWColor.fixed(0xFF3366FF),
+                borderRadius: HWBorderRadius.circular(16),
+              ),
+              child: HWPadding(
+                padding: HWEdgeInsets.all(8),
+                child: HWSizedBox(
+                  width: double.infinity,
+                  child: HWText.fixed('a'),
+                ),
+              ),
+            ).toKotlin(0, dataExpr: 'data', context: inRow),
+            'Text(modifier = GlanceModifier.$blue.$pad.defaultWeight(), $text',
+          );
+        });
+      });
+
+      test('a decorated child without a border is sized itself', () {
+        expect(
+          const HWSizedBox(
+            width: double.infinity,
+            child: HWDecoratedBox(
+              decoration: HWBoxDecoration(color: HWColor.fixed(0xFF3366FF)),
+              child: HWText.fixed('a'),
+            ),
+          ).toKotlin(0, dataExpr: 'data', context: inRow),
+          'Text(modifier = GlanceModifier.defaultWeight()'
+          '.background(ColorProvider(day = Color(0xFF3366FF), '
+          'night = Color(0xFF3366FF))), text = "a", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))',
+        );
+      });
+
       test('shrink sizes both axes to zero', () {
         expect(
           const HWSizedBox.shrink(child: HWText.fixed('a'))
@@ -869,7 +1409,7 @@ void main() {
           ),
         );
         expect(
-          node.kotlinImports,
+          node.children.first.kotlinImportsIn(HWAxis.horizontal),
           isNot(contains('import androidx.glance.layout.fillMaxWidth')),
         );
       });
@@ -926,6 +1466,226 @@ void main() {
 
       test('a childless box reports no baseline', () {
         expect(const HWSizedBox(width: 8).kotlinReportsBaseline, isFalse);
+      });
+    });
+
+    group('the size reaching a decoration', () {
+      const blue = HWColor.fixed(0xFF3366FF);
+      const black = HWColor.fixed(0xFF000000);
+      const swiftBlue = '.background(Color(red: 0.2, green: 0.4, blue: 1.0, '
+          'opacity: 1.0))';
+      const swiftBlack = '.background(Color(red: 0.0, green: 0.0, blue: 0.0, '
+          'opacity: 1.0))';
+      const wide = '.frame(maxWidth: .infinity, alignment: .topLeading)';
+      const text = 'style = TextStyle(color = GlanceTheme.colors.onSurface))';
+      const blueA = HWColoredBox(color: blue, child: HWText.fixed('a'));
+      const blackB = HWColoredBox(color: black, child: HWText.fixed('b'));
+      const bordered = HWDecoratedBox(
+        decoration: HWBoxDecoration(
+          color: blue,
+          border: HWBoxBorder(thickness: 1, color: black),
+        ),
+        child: HWText.fixed('a'),
+      );
+
+      group('through a widget picked at runtime', () {
+        const conditional = HWSizedBox(
+          width: double.infinity,
+          child: HWBoolConditional(
+            data: HWBool('flag', defaultValue: false),
+            whenTrue: blueA,
+            whenFalse: blackB,
+          ),
+        );
+
+        test('frames each branch inside its decoration on iOS', () {
+          expect(conditional.toSwift(0, dataExpr: 'data'), '''
+if data.flag == true {
+    Text("a")
+    $wide
+    $swiftBlue
+} else {
+    Text("b")
+    $wide
+    $swiftBlack
+}''');
+        });
+
+        test('sizes each branch on Android as before', () {
+          final kotlin = conditional.toKotlin(0, dataExpr: 'data');
+          expect(
+            kotlin,
+            contains('Text(modifier = GlanceModifier.fillMaxWidth()'
+                '.background(ColorProvider(day = Color(0xFF3366FF)'),
+          );
+          expect(
+            kotlin,
+            contains('Text(modifier = GlanceModifier.fillMaxWidth()'
+                '.background(ColorProvider(day = Color(0xFF000000)'),
+          );
+        });
+
+        test('frames a plain branch beside a decorated one on its own', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWDataExists(
+                data: HWString('title'),
+                whenPresent: blueA,
+                whenAbsent: HWText.fixed('none'),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            contains('} else {\n    Text("none")\n    $wide\n}'),
+          );
+        });
+
+        test('leaves a conditional without a decoration framed as one', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWBoolConditional(
+                data: HWBool('flag', defaultValue: false),
+                whenTrue: HWText.fixed('a'),
+                whenFalse: HWText.fixed('b'),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            allOf(startsWith('Group {\n'), endsWith('}\n$wide')),
+          );
+        });
+
+        test('frames every slot of a size adaptive', () {
+          final swift = const HWSizedBox(
+            width: double.infinity,
+            child: HWSizeAdaptive(small: blueA, large: HWText.fixed('b')),
+          ).toSwift(0, dataExpr: 'data');
+          expect(swift, contains('    Text("a")\n    $wide\n    $swiftBlue\n'));
+          expect(swift, contains('    Text("b")\n    $wide\n'));
+          expect(swift, isNot(contains('}\n$wide')));
+        });
+
+        test('frames the iOS side of an adaptive inside its decoration', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWAdaptive(ios: blueA, android: HWText.fixed('b')),
+            ).toSwift(0, dataExpr: 'data'),
+            'Text("a")\n$wide\n$swiftBlue',
+          );
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWAdaptive(ios: HWText.fixed('a'), android: blueA),
+            ).toSwift(0, dataExpr: 'data'),
+            'Text("a")\n$wide',
+          );
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWAdaptive(ios: HWText.fixed('a'), android: blueA),
+            ).toKotlin(0, dataExpr: 'data'),
+            startsWith('Text(modifier = GlanceModifier.fillMaxWidth()'
+                '.background('),
+          );
+        });
+      });
+
+      group('through a box leaving the axis open', () {
+        test('fills the open axis around a padding on iOS', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWPadding(
+                padding: HWEdgeInsets.all(8),
+                child: HWSizedBox(height: 20, child: blueA),
+              ),
+            ).toSwift(0, dataExpr: 'data'),
+            'Text("a")\n'
+            '.frame(height: 20.0, alignment: .topLeading)\n'
+            '$wide\n'
+            '$swiftBlue\n'
+            '.padding(EdgeInsets(top: 8.0, leading: 8.0, bottom: 8.0, '
+            'trailing: 8.0))',
+          );
+        });
+
+        test('fills the open axis inside a border on Android', () {
+          expect(
+            const HWSizedBox(
+              width: double.infinity,
+              child: HWSizedBox(height: 20, child: bordered),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Box(\n'
+            '    modifier = GlanceModifier.fillMaxWidth().height(20.0.dp)'
+            '.background(ColorProvider(day = Color(0xFF000000), '
+            'night = Color(0xFF000000))).cornerRadius(0.0.dp).padding(1.0.dp)\n'
+            ') {\n'
+            '    Box(\n'
+            '        modifier = GlanceModifier.fillMaxSize()'
+            '.background(ColorProvider(day = Color(0xFF3366FF), '
+            'night = Color(0xFF3366FF))).cornerRadius(0.0.dp)\n'
+            '    ) {\n'
+            '        Text(modifier = GlanceModifier.fillMaxSize(), '
+            'text = "a", $text\n'
+            '    }\n'
+            '}',
+          );
+        });
+
+        test('fills the open axis on both platforms at once', () {
+          const padded = HWSizedBox(
+            width: double.infinity,
+            child: HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWSizedBox(height: 20, child: bordered),
+            ),
+          );
+          expect(
+            padded.toSwift(0, dataExpr: 'data'),
+            startsWith('Text("a")\n'
+                '.frame(height: 20.0, alignment: .topLeading)\n$wide\n'),
+          );
+          expect(
+            padded.toKotlin(0, dataExpr: 'data'),
+            contains('Text(modifier = GlanceModifier.fillMaxSize(), '),
+          );
+        });
+
+        test('keeps an axis both boxes set as it was', () {
+          const nested = HWSizedBox(
+            width: double.infinity,
+            child: HWSizedBox(width: 40, child: blueA),
+          );
+          expect(
+            nested.toSwift(0, dataExpr: 'data'),
+            'Text("a")\n'
+            '.frame(width: 40.0, alignment: .topLeading)\n'
+            '$swiftBlue\n'
+            '$wide',
+          );
+        });
+      });
+
+      test('decides whether a padding keeps its gap in a Box of its own', () {
+        expect(
+          const HWPadding(
+            padding: HWEdgeInsets.all(8),
+            child: HWSizedBox(width: 40, child: blueA),
+          ).toKotlin(0, dataExpr: 'data'),
+          startsWith('Box(modifier = GlanceModifier.padding('),
+        );
+        expect(
+          const HWPadding(
+            padding: HWEdgeInsets.all(8),
+            child: HWSizedBox(
+              width: 40,
+              child: HWDecoratedBox(
+                decoration: HWBoxDecoration(),
+                child: HWText.fixed('a'),
+              ),
+            ),
+          ).toKotlin(0, dataExpr: 'data'),
+          startsWith('Text(modifier = GlanceModifier.padding('),
+        );
       });
     });
   });

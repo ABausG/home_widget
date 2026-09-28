@@ -59,6 +59,47 @@ sealed class HWFlex extends HWMultiChildWidget {
   /// fixed [children].
   bool get isBuilder => list != null;
 
+  /// The whole main axis while [mainAxisAlignment] spreads the children or a
+  /// child takes a weight, which only has room to take once the stack is
+  /// larger than its children; Flutter's `Row` and `Column` take it anyway.
+  ///
+  /// Filling the main axis of a stack running the same way would leave its
+  /// siblings nothing, so there it asks for the room by weight.
+  @override
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
+    if (!mainAxisAlignment.fillsMainAxis && !_kotlinWeighsChild) {
+      return const HWKotlinRoom();
+    }
+    return _kotlinFillingRoom(
+      enclosingLinearAxis,
+      fillsWidth: _mainAxis == HWAxis.horizontal,
+      fillsHeight: _mainAxis == HWAxis.vertical,
+    );
+  }
+
+  /// Whether a child Glance renders here, an item or [whenEmpty] included,
+  /// takes a weight along the main axis.
+  ///
+  /// Asked every time [kotlinRoomIn] is, of every stack up the tree, so the
+  /// answer is kept per instance: a const constructor rules out a `late`
+  /// field, and the widgets never change.
+  bool get _kotlinWeighsChild => _kotlinWeighsChildCache[this] ??= [
+        ...children,
+        if (item case final item?) item,
+        if (whenEmpty case final whenEmpty?) whenEmpty,
+      ].any((child) => _kotlinTakesWeight(child, _mainAxis));
+
+  static final _kotlinWeighsChildCache = Expando<bool>();
+
+  /// Whether [widget], or any widget its Glance output is picked from, takes
+  /// a weight inside a stack running along [axis].
+  static bool _kotlinTakesWeight(HWWidget widget, HWAxis axis) {
+    if (widget._kotlinChoices(null) case final choices?) {
+      return choices.any((choice) => _kotlinTakesWeight(choice, axis));
+    }
+    return !widget.kotlinRendersNothing && widget.kotlinRoomIn(axis).weight;
+  }
+
   /// Every item field a builder's [item] reads, in the order they are first
   /// read, and empty for a stack of fixed [children].
   ///

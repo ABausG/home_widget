@@ -42,16 +42,6 @@ class HWColumn extends HWFlex {
         HWCrossAxisAlignment.center || HWCrossAxisAlignment.baseline => '.top',
       };
 
-  /// A column filling the height of the column it sits in would leave its
-  /// siblings nothing, so along that axis it asks for the room by weight.
-  @override
-  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
-    if (!mainAxisAlignment.fillsMainAxis) return const HWKotlinRoom();
-    return enclosingLinearAxis == HWAxis.vertical
-        ? const HWKotlinRoom(weight: true)
-        : const HWKotlinRoom(fillsHeight: true);
-  }
-
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
 

@@ -839,7 +839,7 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
           ),
         );
         expect(
-          column.kotlinImports,
+          inner.kotlinImportsIn(HWAxis.vertical),
           isNot(contains('import androidx.glance.layout.fillMaxHeight')),
         );
       });
@@ -1958,7 +1958,11 @@ Row(verticalAlignment = Alignment.CenterVertically) {
           contains('Column(modifier = GlanceModifier.defaultWeight(), '),
         );
         expect(
-          weighted.kotlinImports,
+          weighted.toKotlin(0, dataExpr: 'data'),
+          startsWith('Column(modifier = GlanceModifier.fillMaxHeight(), '),
+        );
+        expect(
+          weighted.item!.kotlinImportsIn(HWAxis.vertical),
           isNot(contains('import androidx.glance.layout.fillMaxHeight')),
         );
       });
@@ -2108,6 +2112,190 @@ HStack(alignment: .center, spacing: 0) {
         1,
       );
       expect(kotlin, contains('padding(start = 4.0.dp)'));
+    });
+  });
+
+  group('a weighted child makes the stack fill its main axis (Glance)', () {
+    const fixed = HWText.fixed('fixed');
+    const wide = HWSizedBox(
+      width: double.infinity,
+      child: HWText.fixed('w'),
+    );
+    const tall = HWSizedBox(
+      height: double.infinity,
+      child: HWText.fixed('t'),
+    );
+    const textW = 'Text(modifier = GlanceModifier.defaultWeight(), '
+        'text = "w", style = TextStyle(color = GlanceTheme.colors.onSurface))';
+
+    test('a row fills its width on its own and across a column', () {
+      const row = HWRow(children: [fixed, wide]);
+      expect(row.kotlinRoomIn(null).fillsWidth, isTrue);
+      expect(row.kotlinRoomIn(HWAxis.vertical).fillsWidth, isTrue);
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        startsWith('Row(modifier = GlanceModifier.fillMaxWidth(), '
+            'verticalAlignment = Alignment.CenterVertically) {\n'),
+      );
+      expect(row.toKotlin(0, dataExpr: 'data'), contains('    $textW\n'));
+      expect(
+        row.kotlinImports,
+        contains('import androidx.glance.layout.fillMaxWidth'),
+      );
+      expect(
+        const HWColumn(children: [row]).toKotlin(0, dataExpr: 'data'),
+        contains('    Row(modifier = GlanceModifier.fillMaxWidth(), '),
+      );
+    });
+
+    test('keeps its answer per stack, const or built at runtime', () {
+      // ignore: prefer_const_constructors
+      final built = HWRow(children: [fixed, wide]);
+      // ignore: prefer_const_constructors
+      final plain = HWRow(children: [fixed, fixed]);
+      for (var i = 0; i < 2; i++) {
+        expect(built.kotlinRoomIn(null).fillsWidth, isTrue);
+        expect(plain.kotlinRoomIn(null).modifiers, isEmpty);
+        expect(
+          const HWRow(children: [fixed, wide]).kotlinRoomIn(null).fillsWidth,
+          isTrue,
+        );
+      }
+    });
+
+    test('a row inside a row takes the room by weight', () {
+      const row = HWRow(children: [fixed, wide]);
+      final room = row.kotlinRoomIn(HWAxis.horizontal);
+      expect(room.weight, isTrue);
+      expect(room.fillsWidth, isFalse);
+      expect(
+        const HWRow(children: [row, HWText.fixed('b')])
+            .toKotlin(0, dataExpr: 'data'),
+        contains('    Row(modifier = GlanceModifier.defaultWeight(), '),
+      );
+    });
+
+    test('a column fills its height, or takes a weight in a column', () {
+      const column = HWColumn(children: [fixed, tall]);
+      expect(
+        column.toKotlin(0, dataExpr: 'data'),
+        startsWith('Column(modifier = GlanceModifier.fillMaxHeight(), '),
+      );
+      expect(
+        const HWRow(children: [column]).toKotlin(0, dataExpr: 'data'),
+        contains('    Column(modifier = GlanceModifier.fillMaxHeight(), '),
+      );
+      expect(column.kotlinRoomIn(HWAxis.vertical).weight, isTrue);
+    });
+
+    test('a child filling the cross axis leaves the stack alone', () {
+      const row = HWRow(children: [fixed, tall]);
+      expect(row.kotlinRoomIn(null).modifiers, isEmpty);
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        startsWith('Row(verticalAlignment = Alignment.CenterVertically) {'),
+      );
+      expect(
+        const HWColumn(children: [fixed, wide]).kotlinRoomIn(null).modifiers,
+        isEmpty,
+      );
+    });
+
+    test('a stack without a weighted child is unchanged', () {
+      const row = HWRow(children: [fixed, HWText.fixed('b')]);
+      expect(
+        row.toKotlin(0, dataExpr: 'data'),
+        'Row(verticalAlignment = Alignment.CenterVertically) {\n'
+        '    Text(text = "fixed", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
+        '    Text(text = "b", '
+        'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
+        '}',
+      );
+      expect(
+        row.kotlinImports,
+        isNot(contains('import androidx.glance.layout.fillMaxWidth')),
+      );
+    });
+
+    test('a weight through a gap Box, a conditional or an align counts', () {
+      const bordered = HWSizedBox(
+        width: double.infinity,
+        child: HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            color: HWColor.fixed(0xFF3366FF),
+            border: HWBoxBorder(thickness: 1, color: HWColor.fixed(0)),
+          ),
+          child: HWText.fixed('w'),
+        ),
+      );
+      final spaced = const HWRow(spacing: 8, children: [fixed, bordered])
+          .toKotlin(0, dataExpr: 'data');
+      expect(
+        spaced,
+        startsWith('Row(modifier = GlanceModifier.fillMaxWidth()'),
+      );
+      expect(
+        spaced,
+        contains('    Box(modifier = GlanceModifier.defaultWeight()'
+            '.padding(start = 8.0.dp)) {\n'),
+      );
+
+      const conditional = HWBoolConditional(
+        data: HWBool('flag', defaultValue: false),
+        whenTrue: wide,
+        whenFalse: HWText.fixed('off'),
+      );
+      expect(
+        const HWRow(children: [fixed, conditional])
+            .kotlinRoomIn(null)
+            .fillsWidth,
+        isTrue,
+      );
+      expect(
+        const HWRow(children: [fixed, HWAlign(child: fixed)])
+            .kotlinRoomIn(null)
+            .fillsWidth,
+        isTrue,
+      );
+    });
+
+    test('a builder item or whenEmpty asking for a weight counts', () {
+      const item = HWSizedBox(
+        width: double.infinity,
+        child: HWText(HWItemData(HWString('label'))),
+      );
+      const builder = HWRow.builder('tags', item: item, spacing: 4);
+      expect(
+        builder.toKotlin(0, dataExpr: 'data'),
+        startsWith('Row(modifier = GlanceModifier.fillMaxWidth(), '),
+      );
+      expect(
+        const HWRow.builder(
+          'tags',
+          item: HWText(HWItemData(HWString('label'))),
+          whenEmpty: wide,
+        ).kotlinRoomIn(null).fillsWidth,
+        isTrue,
+      );
+      expect(
+        const HWRow.builder(
+          'tags',
+          item: HWText(HWItemData(HWString('label'))),
+        ).kotlinRoomIn(null).modifiers,
+        isEmpty,
+      );
+    });
+
+    test('iOS is left as it was', () {
+      expect(
+        const HWRow(children: [fixed, wide]).toSwift(0, dataExpr: 'data'),
+        'HStack(alignment: .center, spacing: 0) {\n'
+        '    Text("fixed")\n'
+        '    Text("w")\n'
+        '    .frame(maxWidth: .infinity, alignment: .topLeading)\n'
+        '}',
+      );
     });
   });
 }

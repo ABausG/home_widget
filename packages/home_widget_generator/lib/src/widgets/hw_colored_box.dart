@@ -36,6 +36,20 @@ class HWColoredBox extends HWSingleChildWidget {
   HWColoredBox _wrapping(HWWidget widget) =>
       HWColoredBox(color: color, child: widget);
 
+  /// Always, since the color covers the box: SwiftUI frames the child inside
+  /// the background, and Glance paints it on the composable the box sizes.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) =>
+      _wrapping(
+        glance
+            ? child._sizedInside(width, height, glance: true) ?? child
+            : HWSizedBox(width: width, height: height, child: child),
+      );
+
   @override
   Set<String> get swiftViewModifiers {
     final modifiers = super.swiftViewModifiers;

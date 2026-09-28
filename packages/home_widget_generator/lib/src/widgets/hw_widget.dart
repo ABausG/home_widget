@@ -76,20 +76,10 @@ sealed class HWSingleChildWidget extends HWWidget {
   @override
   String get swiftFrameAlignment => child.swiftFrameAlignment;
 
-  /// The child's, for the wrappers whose own drawing a clip at the frame
-  /// leaves alone or cuts no further than Flutter would; one drawing past its
-  /// bounds, like a stroked border, answers false instead.
+  /// The child's: every wrapper draws inside its own bounds, so a clip at the
+  /// frame cuts it no further than Flutter would.
   @override
   bool get swiftClipsFrame => child.swiftClipsFrame;
-
-  /// The child's, for the wrappers drawing nothing past their own bounds.
-  @override
-  bool get swiftDrawsPastFrame => child.swiftDrawsPastFrame;
-
-  /// The child's, for the wrappers that inject their modifier into the child's
-  /// own composable.
-  @override
-  bool get kotlinPaddingAddsRoom => child.kotlinPaddingAddsRoom;
 
   /// The child's: a wrapper around a child rendering nothing has nothing to
   /// put its modifier on, so it renders nothing itself.
@@ -257,14 +247,6 @@ sealed class HWWidget implements HWGeneratable {
   /// same thing.
   bool get swiftClipsFrame => false;
 
-  /// Whether this widget draws outside the frame it is given on purpose, so a
-  /// frame around it must not clip.
-  ///
-  /// A border is stroked centred on the edge, half of it outside. Where the
-  /// runtime picks between widgets, one drawing past its frame vetoes the clip
-  /// another one asks for through [swiftClipsFrame].
-  bool get swiftDrawsPastFrame => false;
-
   /// The place a SwiftUI frame wider or taller than this widget puts it, as an
   /// `Alignment` literal.
   ///
@@ -326,6 +308,32 @@ sealed class HWWidget implements HWGeneratable {
   /// [enclosingLinearAxis].
   HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) =>
       const HWKotlinRoom();
+
+  /// This widget with the size of an [HWSizedBox] around it, [width] by
+  /// [height], pushed inside it down to the decorations it paints, or null
+  /// when there is none for the size to reach.
+  ///
+  /// Flutter paints a decoration over all the room its box gives it, and a
+  /// decoration, a padding or a conditional passes tight constraints on. The
+  /// platforms need the size in different places:
+  ///
+  /// - SwiftUI sizes a view before the modifiers that decorate it, so with
+  ///   [glance] false the frame goes inside every decoration, less the insets
+  ///   of every padding on the way.
+  /// - Glance takes the size on the outermost composable, where the box
+  ///   injects it, so with [glance] true [width] and [height] are
+  ///   `double.infinity` on the axes the box sets, and only the child of a
+  ///   `Box` of a decoration's or a padding's own is sized, to fill it. A
+  ///   conditional needs nothing: the box already sizes each widget it picks.
+  ///
+  /// Whatever answers non-null here is what the size passes through, which
+  /// also decides whether [HWPadding] needs a `Box` to keep its gap empty.
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) =>
+      null;
 
   /// Whether a padding put on this widget's outermost Glance composable adds
   /// room around what it draws.
@@ -583,6 +591,23 @@ HWKotlinRoom _kotlinFillingRoom(
       fillsWidth: fillsWidth && axis != HWAxis.horizontal,
       fillsHeight: fillsHeight && axis != HWAxis.vertical,
     );
+
+/// The room a wrapper's own `Box` around [child] asks for inside a Glance
+/// `Column` or `Row` running along [axis]: the axes the child, laid out inside
+/// the `Box`, fills there.
+HWKotlinRoom _kotlinBoxRoom(HWWidget child, HWAxis? axis) {
+  final asked = child.kotlinRoomIn(null);
+  return _kotlinFillingRoom(
+    axis,
+    fillsWidth: asked.fillsWidth,
+    fillsHeight: asked.fillsHeight,
+  );
+}
+
+/// [size] less [by], a finite size never below zero and an open or infinite
+/// one as it is.
+double? _inset(double? size, double by) =>
+    size == null || size.isInfinite ? size : (size - by).clamp(0.0, size);
 
 /// The fixed children of the [stack], `HWColumn`, `HWRow` or `HWStack`, [obj]
 /// holds.

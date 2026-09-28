@@ -83,6 +83,19 @@ class HWAdaptive extends HWWidget {
   }) =>
       emit(android, indent);
 
+  /// The iOS side's on SwiftUI; Glance already sizes the Android side it
+  /// picks.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) {
+    if (glance) return null;
+    final sized = ios._sizedInside(width, height, glance: false);
+    return sized == null ? null : HWAdaptive(ios: sized, android: android);
+  }
+
   @override
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;
 
@@ -91,9 +104,6 @@ class HWAdaptive extends HWWidget {
 
   @override
   bool get swiftClipsFrame => ios.swiftClipsFrame;
-
-  @override
-  bool get swiftDrawsPastFrame => ios.swiftDrawsPastFrame;
 
   @override
   String toSwift(

@@ -1,14 +1,23 @@
 part of 'hw_widget.dart';
 
-/// A box decoration with an optional background color and border.
+/// A box decoration with an optional background color, border and corner
+/// radius.
 class HWBoxDecoration {
   final HWColor? color;
   final HWBoxBorder? border;
 
+  /// The rounding of the corners of both the background and the border, or
+  /// null for square corners.
+  final HWBorderRadius? borderRadius;
+
   const HWBoxDecoration({
     this.color,
     this.border,
+    this.borderRadius,
   });
+
+  /// The corner radius in logical pixels, 0 for square corners.
+  double get _radius => borderRadius?.radius ?? 0.0;
 
   Set<String> get kotlinImports => {
         if (color != null) ...color!.kotlinImports,
@@ -21,17 +30,28 @@ class HWBoxDecoration {
       };
 }
 
-/// A simple border for [HWBoxDecoration].
+/// The rounding of the corners of an [HWBoxDecoration].
 ///
-/// Glance AppWidget does not expose stroke alignment, so borders are emitted as
-/// an inside border approximation on Android.
-class HWBoxBorder {
+/// Every corner shares one radius: Glance rounds a view with a single
+/// `cornerRadius`.
+class HWBorderRadius {
+  /// The radius of every corner, in logical pixels.
   final double radius;
+
+  /// Rounds every corner with a circle of [radius].
+  const HWBorderRadius.circular(this.radius);
+}
+
+/// A simple border for [HWBoxDecoration], drawn inside the box like Flutter's
+/// default `BorderSide.strokeAlignInside`.
+///
+/// SwiftUI strokes it with `strokeBorder`; Glance has no stroke, so Android
+/// insets a fill by [thickness] inside a `Box` of the border color.
+class HWBoxBorder {
   final double thickness;
   final HWColor color;
 
   const HWBoxBorder({
-    this.radius = 0.0,
     required this.thickness,
     required this.color,
   });
@@ -70,14 +90,26 @@ class HWDecoratedBox extends HWSingleChildWidget {
       imports.add('import androidx.glance.layout.Box');
     }
 
-    if (decoration.border != null) {
+    if (decoration.border != null ||
+        (decoration.color != null && decoration._radius > 0)) {
       imports.add('import androidx.compose.ui.unit.dp');
       imports.add('import androidx.glance.appwidget.cornerRadius');
+    }
+
+    if (decoration.border != null) {
       imports.add('import androidx.glance.layout.padding');
+      imports.addAll(kotlinRoomIn(enclosingLinearAxis).kotlinImports);
+      if (decoration.color != null) {
+        imports.addAll(_kotlinFillRoom.kotlinImports);
+      }
     }
 
     return imports;
   }
+
+  /// The axes a border's `Box` fills inside whatever lays it out, which are
+  /// the ones the child fills inside it.
+  HWKotlinRoom get _kotlinFillRoom => _kotlinBoxRoom(child, null);
 
   @override
   Set<String> get swiftViewModifiers => {
@@ -105,24 +137,14 @@ class HWDecoratedBox extends HWSingleChildWidget {
       decoration.border == null &&
       child.kotlinPaddingAddsRoom;
 
-  /// Not with a border: its overlay is stroked centred on the edge, so a clip
-  /// at the frame would cut off its outer half.
+  /// With a border, the room the child fills inside the border's `Box`, which
+  /// the `Box` asks for in turn.
   @override
-  bool get swiftClipsFrame =>
-      decoration.border == null && child.swiftClipsFrame;
-
-  /// With a border, for the same reason.
-  @override
-  bool get swiftDrawsPastFrame =>
-      decoration.border != null || child.swiftDrawsPastFrame;
-
-  /// None of its own when a border's `Box` wraps the child, which asks for no
-  /// room.
-  @override
-  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) =>
-      decoration.border == null
-          ? child.kotlinRoomIn(enclosingLinearAxis)
-          : const HWKotlinRoom();
+  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
+    return decoration.border == null
+        ? child.kotlinRoomIn(enclosingLinearAxis)
+        : _kotlinBoxRoom(child, enclosingLinearAxis);
+  }
 
   /// Not with a border, which is a `Box` of its own around the child.
   @override
@@ -131,6 +153,22 @@ class HWDecoratedBox extends HWSingleChildWidget {
   @override
   HWDecoratedBox _wrapping(HWWidget widget) =>
       HWDecoratedBox(decoration: decoration, child: widget);
+
+  /// Whenever the decoration paints, or passes the size on to one that does.
+  /// On Glance a border's `Box` is sized by the box around it, and the child
+  /// fills it; without a border the decoration is on the sized composable.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) {
+    final inner = child._sizedInside(width, height, glance: glance);
+    final paints = decoration.color != null || decoration.border != null;
+    if (!paints && inner == null) return null;
+    if (glance && decoration.border == null) return _wrapping(inner ?? child);
+    return _wrapping(HWSizedBox(width: width, height: height, child: child));
+  }
 
   static HWDecoratedBox fromDartObject(
     DartObject obj,
@@ -168,12 +206,13 @@ class HWDecoratedBox extends HWSingleChildWidget {
     var viewCall = child.toSwift(indent, dataExpr: dataExpr, context: context);
     final border = decoration.border;
     final color = decoration.color;
+    final radius = decoration._radius;
 
     if (color != null) {
       final String backgroundModifier;
-      if (border != null && border.radius > 0) {
+      if (radius > 0) {
         backgroundModifier =
-            '.background(RoundedRectangle(cornerRadius: ${border.radius}).fill(${color.toSwift(indent, dataExpr: dataExpr)}))';
+            '.background(RoundedRectangle(cornerRadius: $radius).fill(${color.toSwift(indent, dataExpr: dataExpr)}))';
       } else {
         backgroundModifier =
             '.background(${color.toSwift(indent, dataExpr: dataExpr)})';
@@ -183,7 +222,7 @@ class HWDecoratedBox extends HWSingleChildWidget {
 
     if (border != null) {
       final overlayModifier =
-          '.overlay(RoundedRectangle(cornerRadius: ${border.radius}).stroke(${border.color.toSwift(indent, dataExpr: dataExpr)}, lineWidth: ${border.thickness}))';
+          '.overlay(RoundedRectangle(cornerRadius: $radius).strokeBorder(${border.color.toSwift(indent, dataExpr: dataExpr)}, lineWidth: ${border.thickness}))';
       viewCall = applySwiftModifier(viewCall, overlayModifier, indent);
     }
 
@@ -198,6 +237,7 @@ class HWDecoratedBox extends HWSingleChildWidget {
   }) {
     final border = decoration.border;
     final color = decoration.color;
+    final radius = decoration._radius;
 
     if (border == null) {
       final childCode =
@@ -206,7 +246,10 @@ class HWDecoratedBox extends HWSingleChildWidget {
 
       return injectGlanceModifier(
         childCode,
-        'background(${color.toKotlin(indent, dataExpr: dataExpr)})',
+        [
+          'background(${color.toKotlin(indent, dataExpr: dataExpr)})',
+          if (radius > 0) 'cornerRadius($radius.dp)',
+        ].join('.'),
       );
     }
 
@@ -214,10 +257,10 @@ class HWDecoratedBox extends HWSingleChildWidget {
     final childPad = '    ' * (indent + 1);
     final innerPad = '    ' * (indent + 2);
     final borderColor = border.color.toKotlin(indent, dataExpr: dataExpr);
-    final radius = border.radius;
     final innerRadius = (radius - border.thickness).clamp(0.0, radius);
 
     final outerModifier = [
+      ...kotlinRoomIn(context?.enclosingLinearAxis).modifiers,
       'background($borderColor)',
       'cornerRadius($radius.dp)',
       'padding(${border.thickness}.dp)',
@@ -239,11 +282,16 @@ class HWDecoratedBox extends HWSingleChildWidget {
     }
 
     final backgroundColor = color.toKotlin(indent, dataExpr: dataExpr);
+    final innerModifier = [
+      ..._kotlinFillRoom.modifiers,
+      'background($backgroundColor)',
+      'cornerRadius($innerRadius.dp)',
+    ].join('.');
     return '${pad}Box(\n'
         '${childPad}modifier = GlanceModifier.$outerModifier\n'
         '$pad) {\n'
         '${childPad}Box(\n'
-        '${innerPad}modifier = GlanceModifier.background($backgroundColor).cornerRadius($innerRadius.dp)\n'
+        '${innerPad}modifier = GlanceModifier.$innerModifier\n'
         '$childPad) {\n'
         '$childCode\n'
         '$childPad}\n'

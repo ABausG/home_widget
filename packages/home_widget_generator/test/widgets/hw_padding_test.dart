@@ -80,6 +80,98 @@ void main() {
         expect(result, contains('GlanceModifier.padding'));
       });
 
+      group('around a child painting over its padding', () {
+        const pad = 'padding(start = 8.0.dp, top = 8.0.dp, '
+            'end = 8.0.dp, bottom = 8.0.dp)';
+        const text = 'text = "a", '
+            'style = TextStyle(color = GlanceTheme.colors.onSurface))';
+        const black =
+            'ColorProvider(day = Color(0xFF000000), night = Color(0xFF000000))';
+        const colored = HWPadding(
+          padding: HWEdgeInsets.all(8),
+          child: HWColoredBox(
+            color: HWColor.fixed(0xFF000000),
+            child: HWText.fixed('a'),
+          ),
+        );
+
+        test('puts the padding on a Box of its own', () {
+          expect(
+            colored.toKotlin(0, dataExpr: 'data'),
+            'Box(modifier = GlanceModifier.$pad) {\n'
+            '    Text(modifier = GlanceModifier.background($black), $text\n'
+            '}',
+          );
+          expect(
+            colored.kotlinImports,
+            containsAll([
+              'import androidx.glance.GlanceModifier',
+              'import androidx.glance.layout.Box',
+              'import androidx.glance.layout.padding',
+            ]),
+          );
+          expect(colored.kotlinReportsBaseline, isFalse);
+          expect(colored.kotlinBaselineText(), isNull);
+        });
+
+        test('the Box takes the room the child fills', () {
+          const wide = HWPadding(
+            padding: HWEdgeInsets.all(8),
+            child: HWColoredBox(
+              color: HWColor.fixed(0xFF000000),
+              child: HWSizedBox(
+                width: double.infinity,
+                child: HWText.fixed('a'),
+              ),
+            ),
+          );
+          expect(
+            const HWColumn(children: [wide]).toKotlin(0, dataExpr: 'data'),
+            contains(
+              '    Box(modifier = GlanceModifier.fillMaxWidth().$pad) {\n'
+              '        Text(modifier = GlanceModifier.background($black)'
+              '.fillMaxWidth(), $text\n',
+            ),
+          );
+          expect(
+            const HWRow(children: [wide]).toKotlin(0, dataExpr: 'data'),
+            contains('    Box(modifier = GlanceModifier.defaultWeight().$pad)'),
+          );
+          expect(
+            wide.kotlinImportsIn(HWAxis.vertical),
+            contains('import androidx.glance.layout.fillMaxWidth'),
+          );
+        });
+
+        test('a decoration around the padding still covers it', () {
+          expect(
+            const HWColoredBox(
+              color: HWColor.fixed(0xFF000000),
+              child: HWPadding(
+                padding: HWEdgeInsets.all(8),
+                child: HWText.fixed('a'),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Text(modifier = GlanceModifier.background($black).$pad, $text',
+          );
+        });
+
+        test('a child padding adds room to is still injected', () {
+          expect(
+            const HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWDecoratedBox(
+                decoration: HWBoxDecoration(
+                  borderRadius: HWBorderRadius.circular(8),
+                ),
+                child: HWText.fixed('a'),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Text(modifier = GlanceModifier.$pad, $text',
+          );
+        });
+      });
+
       test('a child rendering nothing leaves nothing to inset', () {
         const empty = HWPadding(
           padding: HWEdgeInsets.all(4),

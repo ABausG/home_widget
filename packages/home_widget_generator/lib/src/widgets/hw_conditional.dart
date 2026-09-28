@@ -51,17 +51,35 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
 
   /// Whether either branch asks the frame around the conditional to clip:
   /// cutting the other one off at the room it was given is what Flutter lays
-  /// it out at anyway, unless it draws past that room on purpose.
+  /// it out at anyway.
   @override
   bool get swiftClipsFrame =>
-      (firstBranch.swiftClipsFrame || secondBranch.swiftClipsFrame) &&
-      !swiftDrawsPastFrame;
+      firstBranch.swiftClipsFrame || secondBranch.swiftClipsFrame;
 
-  /// Whether either branch draws past its frame, which keeps the one frame
-  /// around the conditional from clipping.
+  /// This conditional picking between [first] and [second].
+  HWConditional _withBranches(HWWidget first, HWWidget second);
+
+  /// On SwiftUI each branch sized on its own, while either decorates: the one
+  /// frame around the conditional would come after the decoration. Glance
+  /// already sizes each branch it picks.
   @override
-  bool get swiftDrawsPastFrame =>
-      firstBranch.swiftDrawsPastFrame || secondBranch.swiftDrawsPastFrame;
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) {
+    if (glance) return null;
+    final branches = [firstBranch, secondBranch];
+    if (branches.every(
+      (branch) => branch._sizedInside(width, height, glance: false) == null,
+    )) {
+      return null;
+    }
+    return _withBranches(
+      HWSizedBox(width: width, height: height, child: firstBranch),
+      HWSizedBox(width: width, height: height, child: secondBranch),
+    );
+  }
 
   /// The branch taken is only known at runtime, so a stack lays out each of
   /// them by what it needs itself.
@@ -181,6 +199,10 @@ class HWDataExists extends HWConditional {
   HWWidget get secondBranch => whenAbsent;
 
   @override
+  HWDataExists _withBranches(HWWidget first, HWWidget second) =>
+      HWDataExists(data: data, whenPresent: first, whenAbsent: second);
+
+  @override
   Set<HWDataType<dynamic>> get dataDependencies => {
         data,
         ...super.dataDependencies,
@@ -267,6 +289,10 @@ class HWBoolConditional extends HWConditional {
 
   @override
   HWWidget get secondBranch => whenFalse;
+
+  @override
+  HWBoolConditional _withBranches(HWWidget first, HWWidget second) =>
+      HWBoolConditional(data: data, whenTrue: first, whenFalse: second);
 
   @override
   Set<HWDataType<dynamic>> get dataDependencies => {

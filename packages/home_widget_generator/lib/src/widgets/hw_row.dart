@@ -148,16 +148,6 @@ class HWRow extends HWFlex {
                   '${HWListLoop.ascents}, ${HWListLoop.index}))',
             ];
 
-  /// A row filling the width of the row it sits in would leave its siblings
-  /// nothing, so along that axis it asks for the room by weight.
-  @override
-  HWKotlinRoom kotlinRoomIn(HWAxis? enclosingLinearAxis) {
-    if (!mainAxisAlignment.fillsMainAxis) return const HWKotlinRoom();
-    return enclosingLinearAxis == HWAxis.horizontal
-        ? const HWKotlinRoom(weight: true)
-        : const HWKotlinRoom(fillsWidth: true);
-  }
-
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
 

@@ -66,6 +66,7 @@ words:
     - Jetpack
     - kotlinx
     - lateinit
+    - Expando # Dart's per-object weak map
     - prefs # short for preferences
     - mipmap # android image format
     - nullsafety

@@ -1,0 +1,77 @@
+---
+title: Migration to 0.3.0
+description: Breaking changes and migration guide for home_widget_generator 0.3.0
+---
+
+# Migration to 0.3.0
+
+Regenerate your widgets, then check the changes below.
+
+## HWBoxBorder.radius Moved to HWBoxDecoration.borderRadius
+
+Move the radius from the border to the decoration:
+
+```dart
+HWBoxDecoration(
+  color: HWColor.fixed(0xFF2563EB),
+  borderRadius: HWBorderRadius.circular(16), // [!code ++]
+  border: HWBoxBorder(
+    radius: 16, // [!code --]
+    thickness: 1,
+    color: HWColor.fixed(0xFF1E3A8A),
+  ),
+)
+```
+
+A border only used to get rounded corners can go:
+
+```dart
+HWBoxDecoration(
+  color: HWColor.fixed(0xFF2563EB),
+  border: HWBoxBorder(radius: 16, thickness: 0, color: HWColor.fixed(0xFF2563EB)), // [!code --]
+  borderRadius: HWBorderRadius.circular(16), // [!code ++]
+)
+```
+
+## Decorations Fill a Sized Box
+
+An [`HWColoredBox`](/generator/widgets/hw-colored-box) or [`HWDecoratedBox`](/generator/widgets/hw-decorated-box) inside an [`HWSizedBox`](/generator/widgets/hw-sized-box) now paints the whole box, as in Flutter, instead of only the area behind its child. The size also reaches the decoration through an [`HWPadding`](/generator/widgets/hw-padding) (less the padding), a conditional, an `HWSizeAdaptive`, an `HWAdaptive` or a nested `HWSizedBox`.
+
+To keep a decoration hugging its content, wrap it in an `HWRow` or `HWColumn`:
+
+```dart
+HWSizedBox(
+  width: double.infinity,
+  child: HWRow( // [!code ++]
+    children: [ // [!code ++]
+      HWDecoratedBox(
+        decoration: HWBoxDecoration(...),
+        child: HWText.fixed('Card'),
+      ),
+    ], // [!code ++]
+  ), // [!code ++]
+)
+```
+
+## Borders Are Drawn Inside the Box (iOS)
+
+Borders used to be stroked half outside the box. They are now drawn inside, as in Flutter and on Android. Content that runs up to the edge can end up under the border; give it an [`HWPadding`](/generator/widgets/hw-padding) of the border's thickness.
+
+## A Row or Column With an Expanded Child Fills Its Main Axis (Android)
+
+An `HWRow` or `HWColumn` with a child taking the remaining room (an infinite `HWSizedBox` along its axis, an `HWAlign`) now spans its whole main axis, as in Flutter and on iOS, so that child actually grows. To keep the stack hugging its children, give that child a fixed size.
+
+## Padding Around a Decoration Stays Empty (Android)
+
+An `HWPadding` around a colored or bordered decoration used to show the decoration's color in the padding. The padding now stays empty, as in Flutter and on iOS. To keep the color under the padding, move the padding inside the decoration:
+
+```dart
+HWPadding( // [!code --]
+  padding: HWEdgeInsets.all(8), // [!code --]
+  child: HWColoredBox(
+    color: HWColor.fixed(0xFF2563EB),
+    child: HWText.fixed('Card'), // [!code --]
+    child: HWPadding(padding: HWEdgeInsets.all(8), child: HWText.fixed('Card')), // [!code ++]
+  ),
+) // [!code --]
+```

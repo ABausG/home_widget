@@ -553,11 +553,15 @@ Column(horizontalAlignment = Alignment.Start) {
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
           r,
-          contains('Column(modifier = GlanceModifier.defaultWeight(), '),
+          startsWith(
+            'Column(modifier = GlanceModifier.fillMaxHeight(), '
+            'horizontalAlignment = Alignment.CenterHorizontally) {\n'
+            '    Column(modifier = GlanceModifier.defaultWeight(), ',
+          ),
         );
-        expect(r, isNot(contains('fillMaxHeight')));
+        expect('fillMaxHeight'.allMatches(r), hasLength(1));
         expect(
-          node.kotlinImports,
+          inner.kotlinImportsIn(HWAxis.vertical),
           isNot(contains('import androidx.glance.layout.fillMaxHeight')),
         );
       });
@@ -583,18 +587,14 @@ Column(horizontalAlignment = Alignment.Start) {
           children: [HWText.fixed('a')],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
-        const node = HWColumn(
-          children: [
-            HWPadding(padding: HWEdgeInsets.all(4), child: inner),
-            HWText.fixed('b'),
-          ],
-        );
+        const padded = HWPadding(padding: HWEdgeInsets.all(4), child: inner);
+        const node = HWColumn(children: [padded, HWText.fixed('b')]);
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains('.defaultWeight(),'),
         );
         expect(
-          node.kotlinImports,
+          padded.kotlinImportsIn(HWAxis.vertical),
           isNot(contains('import androidx.glance.layout.fillMaxHeight')),
         );
       });
@@ -604,18 +604,14 @@ Column(horizontalAlignment = Alignment.Start) {
           children: [HWText.fixed('a')],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
-        const node = HWColumn(
-          children: [
-            HWAdaptive(ios: HWText.fixed('a'), android: inner),
-            HWText.fixed('b'),
-          ],
-        );
+        const adaptive = HWAdaptive(ios: HWText.fixed('a'), android: inner);
+        const node = HWColumn(children: [adaptive, HWText.fixed('b')]);
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains('Column(modifier = GlanceModifier.defaultWeight(), '),
         );
         expect(
-          node.kotlinImports,
+          adaptive.kotlinImportsIn(HWAxis.vertical),
           isNot(contains('import androidx.glance.layout.fillMaxHeight')),
         );
       });
@@ -635,7 +631,11 @@ Column(horizontalAlignment = Alignment.Start) {
             'Column(modifier = GlanceModifier.fillMaxWidth().defaultWeight(), ',
           ),
         );
-        expect(r, isNot(contains('fillMaxHeight()')));
+        expect(
+          r,
+          startsWith('Column(modifier = GlanceModifier.fillMaxHeight(), '),
+        );
+        expect('fillMaxHeight()'.allMatches(r), hasLength(1));
         expect(
           node.kotlinImports,
           contains('import androidx.glance.layout.fillMaxHeight'),

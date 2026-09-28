@@ -324,8 +324,8 @@ class TestWidget {}
   widget: HWDecoratedBox(
     decoration: HWBoxDecoration(
       color: HWFixedColor(0xFFFFFFFF),
+      borderRadius: HWBorderRadius.circular(12),
       border: HWBoxBorder(
-        radius: 12,
         thickness: 2,
         color: HWFixedColor(0xFF000000),
       ),
@@ -341,11 +341,59 @@ class TestWidget {}
       expect(box.decoration.color, isA<HWFixedColor>());
       expect((box.decoration.color! as HWFixedColor).value, 0xFFFFFFFF);
       expect(box.decoration.border, isNotNull);
-      expect(box.decoration.border!.radius, 12.0);
+      expect(box.decoration.borderRadius!.radius, 12.0);
       expect(box.decoration.border!.thickness, 2.0);
       expect(box.decoration.border!.color, isA<HWFixedColor>());
       expect((box.decoration.border!.color as HWFixedColor).value, 0xFF000000);
       expect((box.child as HWText).fixedContent, 'Decorated');
+    });
+
+    test('parses an HWBoxDecoration without a border radius', () async {
+      final code = '''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDecoratedBox(
+    decoration: HWBoxDecoration(color: HWFixedColor(0xFFFFFFFF)),
+    child: HWText.fixed('Decorated'),
+  ),
+)
+class TestWidget {}
+''';
+      final box = await parseCode(code) as HWDecoratedBox;
+      expect(box.decoration.borderRadius, isNull);
+      expect(box.decoration.border, isNull);
+    });
+
+    test('rejects a negative border radius', () async {
+      final error = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDecoratedBox(
+    decoration: HWBoxDecoration(borderRadius: HWBorderRadius.circular(-4)),
+    child: HWText.fixed('Decorated'),
+  ),
+)
+class TestWidget {}
+''');
+      expect(error.message, contains('HWBorderRadius'));
+    });
+
+    test('rejects an infinite border radius, suggesting a finite one',
+        () async {
+      final error = await expectParseError('''
+@HomeWidget(
+  name: 'TestWidget',
+  widget: HWDecoratedBox(
+    decoration: HWBoxDecoration(
+      borderRadius: HWBorderRadius.circular(double.infinity),
+    ),
+    child: HWText.fixed('Pill'),
+  ),
+)
+class TestWidget {}
+''');
+      expect(error.message, contains('has to be finite'));
+      expect(error.message, contains('999'));
     });
 
     test('parses HWText with complex HWTextStyle and align', () async {
