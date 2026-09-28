@@ -81,11 +81,6 @@ sealed class HWSingleChildWidget extends HWWidget {
   @override
   bool get swiftClipsFrame => child.swiftClipsFrame;
 
-  /// The child's, for the wrappers that inject their modifier into the child's
-  /// own composable.
-  @override
-  bool get kotlinPaddingAddsRoom => child.kotlinPaddingAddsRoom;
-
   /// The child's: a wrapper around a child rendering nothing has nothing to
   /// put its modifier on, so it renders nothing itself.
   @override
