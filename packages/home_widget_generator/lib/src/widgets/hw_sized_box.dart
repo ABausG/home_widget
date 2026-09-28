@@ -56,10 +56,6 @@ class HWSizedBox extends HWWidget {
   @override
   bool get swiftClipsFrame => child?.swiftClipsFrame ?? false;
 
-  /// The child's, as [swiftClipsFrame].
-  @override
-  bool get swiftDrawsPastFrame => child?.swiftDrawsPastFrame ?? false;
-
   /// Nothing while this box renders nothing: neither the `Spacer` a gap asking
   /// for no room would be nor the modifiers around a child rendering nothing
   /// are emitted.
@@ -68,7 +64,7 @@ class HWSizedBox extends HWWidget {
     if (kotlinRendersNothing) return const {};
 
     final modifiers = _kotlinModifiers(enclosingLinearAxis);
-    final child = this.child;
+    final child = _kotlinChild;
     return {
       if (modifiers.isNotEmpty) 'import androidx.glance.GlanceModifier',
       for (final modifier in modifiers) ..._kotlinModifierImports(modifier),
@@ -83,6 +79,57 @@ class HWSizedBox extends HWWidget {
 
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// [child] as Glance lays it out: the size is injected into the outermost
+  /// composable, and the child of each `Box` a decoration or a padding puts in
+  /// between fills each axis this box sizes, the way Flutter's tight
+  /// constraints make a decoration paint the whole box.
+  HWWidget? get _kotlinChild {
+    final child = this.child;
+    if (child == null || (width == null && height == null)) return child;
+    return child._sizedInside(
+          width == null ? null : double.infinity,
+          height == null ? null : double.infinity,
+          glance: true,
+        ) ??
+        child;
+  }
+
+  /// The size of a box around this one passed on along the axes this box
+  /// leaves open, which Flutter's tight constraints pass through; never
+  /// while both set the same axis.
+  ///
+  /// SwiftUI takes the two as one frame. Glance keeps this box's own size on
+  /// the composable both are injected into, and passes the outer axes on to
+  /// the `Box`es below.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) {
+    final child = this.child;
+    if (child == null ||
+        (width != null && this.width != null) ||
+        (height != null && this.height != null)) {
+      return null;
+    }
+    final outerWidth = this.width ?? width;
+    final outerHeight = this.height ?? height;
+    if (!glance) {
+      return child._sizedInside(outerWidth, outerHeight, glance: false) == null
+          ? null
+          : HWSizedBox(width: outerWidth, height: outerHeight, child: child);
+    }
+    final inner = child._sizedInside(
+      outerWidth == null ? null : double.infinity,
+      outerHeight == null ? null : double.infinity,
+      glance: true,
+    );
+    return inner == null
+        ? null
+        : HWSizedBox(width: this.width, height: this.height, child: inner);
+  }
 
   /// Whether both axes resolve to no room at all, which is what a box without
   /// a child to size itself from renders as.
@@ -118,7 +165,7 @@ class HWSizedBox extends HWWidget {
       fillsWidth: width == double.infinity,
       fillsHeight: height == double.infinity,
     );
-    final child = this.child;
+    final child = _kotlinChild;
     if (child == null) return own;
 
     final asked = child.kotlinRoomIn(_childAxis(enclosingLinearAxis));
@@ -297,6 +344,9 @@ class HWSizedBox extends HWWidget {
     ];
   }
 
+  /// The decorations SwiftUI puts on the child as `.background` / `.overlay`
+  /// are sized by the modifiers before them, so the frame goes inside them,
+  /// as [HWWidget._sizedInside] answers.
   @override
   String toSwift(
     int indent, {
@@ -306,6 +356,10 @@ class HWSizedBox extends HWWidget {
     if (swiftRendersNothing) return '';
 
     final child = this.child;
+    if (child?._sizedInside(width, height, glance: false) case final sized?) {
+      return sized.toSwift(indent, dataExpr: dataExpr, context: context);
+    }
+
     var code = child == null
         ? '${'    ' * indent}Color.clear'
         : child.toSwift(indent, dataExpr: dataExpr, context: context);
@@ -335,7 +389,7 @@ class HWSizedBox extends HWWidget {
     if (kotlinRendersNothing) return '';
 
     final modifiers = _kotlinModifiers(context?.enclosingLinearAxis);
-    final child = this.child;
+    final child = _kotlinChild;
 
     if (child == null) {
       final pad = '    ' * indent;

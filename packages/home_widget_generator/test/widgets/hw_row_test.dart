@@ -400,11 +400,15 @@ void main() {
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
           r,
-          contains('Row(modifier = GlanceModifier.defaultWeight(), '),
+          startsWith(
+            'Row(modifier = GlanceModifier.fillMaxWidth(), '
+            'verticalAlignment = Alignment.CenterVertically) {\n'
+            '    Row(modifier = GlanceModifier.defaultWeight(), ',
+          ),
         );
-        expect(r, isNot(contains('fillMaxWidth')));
+        expect('fillMaxWidth'.allMatches(r), hasLength(1));
         expect(
-          node.kotlinImports,
+          inner.kotlinImportsIn(HWAxis.horizontal),
           isNot(contains('import androidx.glance.layout.fillMaxWidth')),
         );
       });
@@ -597,7 +601,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
           ],
         );
         expect(node.toKotlin(0, dataExpr: 'data'), '''
-Row(verticalAlignment = Alignment.Top) {
+Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
     if (data.title != null) {
         Row(modifier = GlanceModifier.defaultWeight(), verticalAlignment = Alignment.CenterVertically) {
             Spacer(modifier = GlanceModifier.defaultWeight())
@@ -612,7 +616,7 @@ Row(verticalAlignment = Alignment.Top) {
 }''');
         expect(
           node.kotlinImports,
-          isNot(contains('import androidx.glance.layout.fillMaxWidth')),
+          contains('import androidx.glance.layout.fillMaxWidth'),
         );
       });
 
@@ -671,10 +675,8 @@ Row(verticalAlignment = Alignment.Top) {
           r,
           contains('Box(modifier = GlanceModifier.padding(start = 4.0.dp)) {'),
         );
-        expect(
-          slots.kotlinImports,
-          isNot(contains('import androidx.glance.layout.fillMaxWidth')),
-        );
+        expect(r, startsWith('Row(modifier = GlanceModifier.fillMaxWidth(), '));
+        expect('fillMaxWidth'.allMatches(r), hasLength(1));
 
         final wrapped = node.toKotlin(0, dataExpr: 'data');
         expect(

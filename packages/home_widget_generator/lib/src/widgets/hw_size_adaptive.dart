@@ -343,16 +343,41 @@ class HWSizeAdaptive extends HWWidget {
 
   /// Whether any slot asks the frame around the adaptive to clip: cutting the
   /// others off at the room they were given is what Flutter lays them out at
-  /// anyway, unless one draws past that room on purpose.
+  /// anyway.
   @override
-  bool get swiftClipsFrame =>
-      providedSlots.any((slot) => slot.swiftClipsFrame) && !swiftDrawsPastFrame;
+  bool get swiftClipsFrame => providedSlots.any((slot) => slot.swiftClipsFrame);
 
-  /// Whether any slot draws past its frame, which keeps the one frame around
-  /// the adaptive from clipping.
+  /// On SwiftUI every slot sized on its own, while any decorates: the one
+  /// frame around the adaptive would come after the decoration. Glance
+  /// already sizes each slot it picks.
   @override
-  bool get swiftDrawsPastFrame =>
-      providedSlots.any((slot) => slot.swiftDrawsPastFrame);
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) {
+    if (glance ||
+        providedSlots.every(
+          (slot) => slot._sizedInside(width, height, glance: false) == null,
+        )) {
+      return null;
+    }
+    HWWidget? sized(HWWidget? slot) => slot == null
+        ? null
+        : HWSizedBox(width: width, height: height, child: slot);
+    return HWSizeAdaptive(
+      small: sized(small),
+      medium: sized(medium),
+      large: sized(large),
+      extraLarge: sized(extraLarge),
+      extraLargePortrait: sized(extraLargePortrait),
+      accessoryCircular: sized(accessoryCircular),
+      accessoryRectangular: sized(accessoryRectangular),
+      accessoryInline: sized(accessoryInline),
+      androidSizes: androidSizes,
+      androidSizeRanges: androidSizeRanges,
+    );
+  }
 
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);

@@ -1,11 +1,11 @@
 ---
 title: HWBoxDecoration
-description: Background color and border for HWDecoratedBox.
+description: Background color, border and corner radius for HWDecoratedBox.
 ---
 
 # HWBoxDecoration
 
-`HWBoxDecoration` describes how an [`HWDecoratedBox`](/generator/widgets/hw-decorated-box) paints behind and around its child. Both fields are optional — leave them `null` to skip that layer.
+`HWBoxDecoration` describes how an [`HWDecoratedBox`](/generator/widgets/hw-decorated-box) paints behind and around its child. Every field is optional — leave it `null` to skip that layer.
 
 ## Parameters
 
@@ -13,6 +13,7 @@ description: Background color and border for HWDecoratedBox.
 | --- | --- | --- | --- |
 | `color` | `HWColor?` | `null` | Background fill. See [HWColor](/generator/styling/hw-color). |
 | `border` | `HWBoxBorder?` | `null` | Border drawn around the child. |
+| `borderRadius` | `HWBorderRadius?` | `null` | Rounds the corners of the background and the border. |
 
 ```dart
 HWDecoratedBox(
@@ -23,33 +24,44 @@ HWDecoratedBox(
 )
 ```
 
+## HWBorderRadius
+
+The corner radius of the background and the border, the same on every corner: Glance rounds a view with a single `cornerRadius`.
+
+| Constructor | Description |
+| --- | --- |
+| `HWBorderRadius.circular(double radius)` | Rounds every corner with a circle of `radius` logical pixels. |
+
+Like Flutter's `DecoratedBox`, the radius shapes what the decoration paints and does not clip the child. Without a color or a border there is nothing to round.
+
+The radius has to be finite: `double.infinity` fails generation. For a pill shape, use a radius larger than half the box's height, such as `HWBorderRadius.circular(999)`.
+
 ## HWBoxBorder
 
-A simple, single-color rounded border.
+A simple, single-color border.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 | `color` | `HWColor` | required | Stroke color. |
 | `thickness` | `double` | required | Stroke width. |
-| `radius` | `double` | `0.0` | Corner radius applied to both border and background. |
 
 ```dart
 HWDecoratedBox(
   decoration: HWBoxDecoration(
     color: HWColor.fixed(0xFFFFFFFF),
+    borderRadius: HWBorderRadius.circular(12),
     border: HWBoxBorder(
       color: HWDefaultColor(HWColorRole.contentAccent),
       thickness: 2.0,
-      radius: 12.0,
     ),
   ),
   child: HWText.fixed('Bordered'),
 )
 ```
 
-Glance does not expose stroke alignment, so on Android the border is approximated as an inside border (an outer `Box` providing the stroke, with the child inset by `thickness`).
+The border is drawn inside the box, like Flutter's default `BorderSide.strokeAlignInside`. iOS strokes it with `strokeBorder`; Glance has no stroke, so on Android the border is approximated as an inside border (an outer `Box` providing the stroke, with the child inset by `thickness`). The fill inside it is rounded by the radius less the thickness.
 
 ## Platform mapping
 
 - iOS — emitted as SwiftUI [`.background(...)`](https://developer.apple.com/documentation/swiftui/view/background(_:alignment:)) and [`.overlay(...)`](https://developer.apple.com/documentation/swiftui/view/overlay(_:alignment:)) with a `RoundedRectangle`.
-- Android — emitted as a Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box) using [`background`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#background) and [`cornerRadius`](https://developer.android.com/reference/kotlin/androidx/glance/appwidget/package-summary#cornerRadius).
+- Android — emitted as [`background`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#background) and [`cornerRadius`](https://developer.android.com/reference/kotlin/androidx/glance/appwidget/package-summary#cornerRadius) on the child's own composable, or on a Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box) of its own with a border.

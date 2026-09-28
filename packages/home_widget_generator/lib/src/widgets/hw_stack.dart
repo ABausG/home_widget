@@ -106,11 +106,6 @@ class HWStack extends HWMultiChildWidget {
   @override
   bool get swiftClipsFrame => true;
 
-  /// Never: the stack clips its own bounds, so a border inside it is already
-  /// cut there.
-  @override
-  bool get swiftDrawsPastFrame => false;
-
   /// A loose stack with nothing to show is zero-sized, the way Flutter sizes
   /// an empty `Stack`; an expanding one still fills what it is offered.
   @override

@@ -148,14 +148,28 @@ void main() {
       );
     });
 
-    test("a border's Box asks for no room of its own", () {
+    test("a border's Box asks for the room its child fills", () {
       const bordered = HWDecoratedBox(
         decoration: HWBoxDecoration(
           border: HWBoxBorder(thickness: 1, color: color),
         ),
         child: spread,
       );
-      expect(roomIn(bordered, HWAxis.vertical), isEmpty);
+      expect(roomIn(bordered, HWAxis.vertical), ['defaultWeight()']);
+      expect(roomIn(bordered, HWAxis.horizontal), ['fillMaxHeight()']);
+      expect(roomIn(bordered, null), ['fillMaxHeight()']);
+      expect(
+        roomIn(
+          const HWDecoratedBox(
+            decoration: HWBoxDecoration(
+              border: HWBoxBorder(thickness: 1, color: color),
+            ),
+            child: leaf,
+          ),
+          HWAxis.vertical,
+        ),
+        isEmpty,
+      );
     });
 
     test('a conditional or a size-adaptive leaves the room to each branch', () {
@@ -267,11 +281,19 @@ void main() {
         ).kotlinPaddingAddsRoom,
         isFalse,
       );
+    });
+
+    test('adds room around a padding put on a Box of its own', () {
       expect(
         const HWPadding(
           padding: HWEdgeInsets.all(4),
           child: HWColoredBox(color: color, child: leaf),
         ).kotlinPaddingAddsRoom,
+        isTrue,
+      );
+      expect(
+        const HWPadding(padding: HWEdgeInsets.all(4), child: icon)
+            .kotlinPaddingAddsRoom,
         isFalse,
       );
     });
@@ -410,7 +432,7 @@ void main() {
           ),
           child: stack,
         ).swiftClipsFrame,
-        isFalse,
+        isTrue,
       );
       expect(const HWAlign(child: stack).swiftClipsFrame, isTrue);
       expect(const HWAlign(child: leaf).swiftClipsFrame, isFalse);
@@ -472,7 +494,7 @@ void main() {
     });
   });
 
-  group('HWWidget drawing past a SwiftUI frame', () {
+  group('HWWidget borders and a clipping SwiftUI frame', () {
     const stack = HWStack(children: [leaf]);
     const bordered = HWDecoratedBox(
       decoration: HWBoxDecoration(
@@ -481,90 +503,39 @@ void main() {
       child: leaf,
     );
 
-    test('only a border draws past it', () {
-      expect(leaf.swiftDrawsPastFrame, isFalse);
-      expect(bordered.swiftDrawsPastFrame, isTrue);
+    test('a border is stroked inside the box, so it asks the clip nothing', () {
+      expect(bordered.swiftClipsFrame, isFalse);
       expect(
         const HWDecoratedBox(
-          decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
-          child: leaf,
-        ).swiftDrawsPastFrame,
-        isFalse,
+          decoration: HWBoxDecoration(
+            border: HWBoxBorder(thickness: 1, color: HWColor.fixed(0)),
+          ),
+          child: stack,
+        ).swiftClipsFrame,
+        isTrue,
       );
       expect(
-        const HWDecoratedBox(
-          decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
-          child: bordered,
-        ).swiftDrawsPastFrame,
-        isTrue,
+        bordered.toSwift(0, dataExpr: 'data'),
+        contains('.strokeBorder('),
       );
     });
 
-    test('a stack cuts a border inside it off itself', () {
-      expect(const HWStack(children: [bordered]).swiftDrawsPastFrame, isFalse);
-    });
-
-    test('a wrapper draws past it while its child does', () {
-      expect(
-        const HWPadding(padding: HWEdgeInsets.all(4), child: bordered)
-            .swiftDrawsPastFrame,
-        isTrue,
-      );
-      expect(
-        const HWColoredBox(color: HWColor.fixed(0xFF000000), child: bordered)
-            .swiftDrawsPastFrame,
-        isTrue,
-      );
-      expect(const HWAlign(child: bordered).swiftDrawsPastFrame, isTrue);
-      expect(const HWAlign(child: leaf).swiftDrawsPastFrame, isFalse);
-      expect(const HWSizedBox(child: bordered).swiftDrawsPastFrame, isTrue);
-      expect(const HWSizedBox(width: 8).swiftDrawsPastFrame, isFalse);
-    });
-
-    test('a bordered branch vetoes the clip another branch asks for', () {
-      const vetoed = HWDataExists(
-        data: HWBool('flag'),
-        whenPresent: stack,
-        whenAbsent: bordered,
-      );
-      expect(vetoed.swiftDrawsPastFrame, isTrue);
-      expect(vetoed.swiftClipsFrame, isFalse);
-      expect(
-        const HWDataExists(
-          data: HWBool('flag'),
-          whenPresent: bordered,
-          whenAbsent: stack,
-        ).swiftDrawsPastFrame,
-        isTrue,
-      );
+    test('a bordered branch no longer vetoes the clip another asks for', () {
       expect(
         const HWDataExists(
           data: HWBool('flag'),
           whenPresent: stack,
-          whenAbsent: leaf,
-        ).swiftDrawsPastFrame,
-        isFalse,
-      );
-    });
-
-    test('a bordered slot vetoes the clip another slot asks for', () {
-      const vetoed = HWSizeAdaptive(small: stack, large: bordered);
-      expect(vetoed.swiftDrawsPastFrame, isTrue);
-      expect(vetoed.swiftClipsFrame, isFalse);
-      expect(
-        const HWSizeAdaptive(small: stack, large: leaf).swiftDrawsPastFrame,
-        isFalse,
-      );
-    });
-
-    test('an adaptive draws past it while its iOS side does', () {
-      expect(
-        const HWAdaptive(ios: bordered, android: leaf).swiftDrawsPastFrame,
+          whenAbsent: bordered,
+        ).swiftClipsFrame,
         isTrue,
       );
       expect(
-        const HWAdaptive(ios: leaf, android: bordered).swiftDrawsPastFrame,
-        isFalse,
+        const HWSizeAdaptive(small: stack, large: bordered).swiftClipsFrame,
+        isTrue,
+      );
+      expect(
+        const HWAdaptive(ios: stack, android: bordered).swiftClipsFrame,
+        isTrue,
       );
     });
   });

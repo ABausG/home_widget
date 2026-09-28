@@ -1,0 +1,150 @@
+---
+title: Migration to 0.3.0
+description: Breaking changes and migration guide for home_widget_generator 0.3.0
+---
+
+# Migration to 0.3.0
+
+Regenerate your widgets, then check the changes below.
+
+## HWBoxBorder.radius Moved to HWBoxDecoration.borderRadius
+
+The corner radius is part of the decoration now, as in Flutter, so it rounds a background without a border too:
+
+```dart
+HWBoxDecoration(
+  color: HWColor.fixed(0xFF2563EB),
+  borderRadius: HWBorderRadius.circular(16), // [!code ++]
+  border: HWBoxBorder(
+    radius: 16, // [!code --]
+    thickness: 1,
+    color: HWColor.fixed(0xFF1E3A8A),
+  ),
+)
+```
+
+A border only used to get rounded corners is no longer needed:
+
+```dart
+HWBoxDecoration(
+  color: HWColor.fixed(0xFF2563EB),
+  border: HWBoxBorder(radius: 16, thickness: 0, color: HWColor.fixed(0xFF2563EB)), // [!code --]
+  borderRadius: HWBorderRadius.circular(16), // [!code ++]
+)
+```
+
+Apart from the [border now drawn inside the box](#borders-are-drawn-inside-the-box-ios), a border with a radius generates the same code as before.
+
+## Decorations Fill a Sized Box
+
+An [`HWColoredBox`](/generator/widgets/hw-colored-box) or [`HWDecoratedBox`](/generator/widgets/hw-decorated-box) inside an [`HWSizedBox`](/generator/widgets/hw-sized-box) now paints the whole box, the way Flutter does:
+
+```dart
+HWSizedBox(
+  width: double.infinity,
+  child: HWDecoratedBox(
+    decoration: HWBoxDecoration(
+      color: HWColor.fixed(0xFF2563EB),
+      borderRadius: HWBorderRadius.circular(16),
+    ),
+    child: HWText.fixed('Card'),
+  ),
+)
+```
+
+iOS used to paint the decoration behind the text alone and leave the rest of the box transparent; on Android a bordered decoration hugged its child too. Both now show a full-width card. On iOS the `.frame` moves inside the `.background` / `.overlay`:
+
+```swift
+Text("Card")
+.frame(maxWidth: .infinity, alignment: .topLeading) // [!code ++]
+.background(RoundedRectangle(cornerRadius: 16.0).fill(...))
+.frame(maxWidth: .infinity, alignment: .topLeading) // [!code --]
+```
+
+An [`HWPadding`](/generator/widgets/hw-padding) between the sized box and the decoration takes its share first: the decoration paints the box less the padding, and the gap stays empty.
+
+The size also reaches a decoration through a conditional, an `HWSizeAdaptive` or an `HWAdaptive`. While a branch is decorated, iOS frames every branch on its own instead of the whole conditional at once:
+
+```swift
+Group { // [!code --]
+    if data.flag == true {
+        Text("On")
+        .frame(maxWidth: .infinity, alignment: .topLeading) // [!code ++]
+        .background(...)
+    } else {
+        Text("Off")
+        .frame(maxWidth: .infinity, alignment: .topLeading) // [!code ++]
+        .background(...)
+    }
+} // [!code --]
+.frame(maxWidth: .infinity, alignment: .topLeading) // [!code --]
+```
+
+The size also passes through a nested `HWSizedBox` on the axes it leaves open. `HWSizedBox(width: double.infinity, child: HWSizedBox(height: 20, child: HWColoredBox(...)))` is now a full-width bar 20 high on iOS, and a bordered decoration in it fills the width on Android too.
+
+On Android an `HWDecoratedBox` with a border also takes the room its child asks for. An `HWSizedBox` with an infinite axis inside it, or an [`HWAlign`](/generator/widgets/hw-align), makes the bordered box fill that axis, or share the main axis of an `HWColumn` / `HWRow` by weight, where it used to hug its content.
+
+To keep the decoration around the content alone, put it in an `HWRow` or `HWColumn` inside the sized box:
+
+```dart
+HWSizedBox(
+  width: double.infinity,
+  child: HWRow( // [!code ++]
+    children: [ // [!code ++]
+      HWDecoratedBox(
+        decoration: HWBoxDecoration(...),
+        child: HWText.fixed('Card'),
+      ),
+    ], // [!code ++]
+  ), // [!code ++]
+)
+```
+
+## Borders Are Drawn Inside the Box (iOS)
+
+A border used to be stroked centred on the edge of the box, half of it outside. It is now drawn inside, like Flutter's default border and the Android approximation, so the box keeps its size and a thick border no longer reaches into its neighbors:
+
+```swift
+.overlay(RoundedRectangle(cornerRadius: 16.0).stroke(color, lineWidth: 2.0)) // [!code --]
+.overlay(RoundedRectangle(cornerRadius: 16.0).strokeBorder(color, lineWidth: 2.0)) // [!code ++]
+```
+
+Content that ran right up to the edge now sits under the inner half of the stroke; give it an [`HWPadding`](/generator/widgets/hw-padding) of the border's thickness to keep it clear. Since no border reaches outside its box any more, an `HWSizedBox` with a fixed size around a conditional that clips one branch, such as an [`HWStack`](/generator/widgets/hw-stack), now clips even while the other branch is bordered.
+
+## A Row or Column With an Expanded Child Fills Its Main Axis (Android)
+
+A Glance `Row` or `Column` hugged its children unless its `mainAxisAlignment` spread them, so a child asking for the remaining room — an `HWSizedBox` with an infinite axis along the stack, an `HWAlign`, a nested stack filling it — had none left to take and hugged its content too. Like a Flutter `Row` / `Column`, and like iOS already did, such a stack now takes its whole main axis:
+
+```kotlin
+Row(verticalAlignment = Alignment.CenterVertically) { // [!code --]
+Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { // [!code ++]
+    Text(...)
+    Text(modifier = GlanceModifier.defaultWeight(), ...)
+}
+```
+
+Inside a stack running the same way it takes the room by weight instead. A stack without such a child is unchanged. To keep it hugging, give the child a fixed size instead of an infinite one.
+
+## Padding Around a Decoration (Android)
+
+Glance pads a view inside its own background, so an `HWPadding` around an `HWColoredBox`, or around an `HWDecoratedBox` with a color or border, used to be painted over: the padding showed the decoration's color. The padding now goes on a `Box` of its own and stays empty, as it already did on iOS:
+
+```kotlin
+Text(modifier = GlanceModifier.padding(...).background(...), ...) // [!code --]
+Box(modifier = GlanceModifier.padding(...)) { // [!code ++]
+    Text(modifier = GlanceModifier.background(...), ...) // [!code ++]
+} // [!code ++]
+```
+
+To keep the color under the padding, put the padding inside the decoration:
+
+```dart
+HWPadding( // [!code --]
+  padding: HWEdgeInsets.all(8), // [!code --]
+  child: HWColoredBox(
+    color: HWColor.fixed(0xFF2563EB),
+    child: HWText.fixed('Card'), // [!code --]
+    child: HWPadding(padding: HWEdgeInsets.all(8), child: HWText.fixed('Card')), // [!code ++]
+  ),
+) // [!code --]
+```

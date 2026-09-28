@@ -411,7 +411,27 @@ class WidgetValueDecoder {
     return HWBoxDecoration(
       color: decodeColor(getField(obj, 'color')),
       border: decodeBoxBorder(getField(obj, 'border')),
+      borderRadius: decodeBorderRadius(getField(obj, 'borderRadius')),
     );
+  }
+
+  /// Decodes an [HWBorderRadius], or null when [obj] is absent.
+  static HWBorderRadius? decodeBorderRadius(DartObject? obj) {
+    if (obj == null || obj.isNull) return null;
+
+    final radius = getField(obj, 'radius')?.toDoubleValue() ?? 0.0;
+    if (radius.isInfinite) {
+      throw GeneratorError(
+        'HWBorderRadius: radius has to be finite, got $radius. For a pill '
+        'shape use a radius larger than half the height, such as 999.',
+      );
+    }
+    if (radius.isNaN || radius < 0) {
+      throw GeneratorError(
+        'HWBorderRadius: radius has to be zero or more, got $radius.',
+      );
+    }
+    return HWBorderRadius.circular(radius);
   }
 
   static HWBoxBorder? decodeBoxBorder(DartObject? obj) {
@@ -421,7 +441,6 @@ class WidgetValueDecoder {
     if (color == null) return null;
 
     return HWBoxBorder(
-      radius: getField(obj, 'radius')?.toDoubleValue() ?? 0.0,
       thickness: getField(obj, 'thickness')?.toDoubleValue() ?? 0.0,
       color: color,
     );
