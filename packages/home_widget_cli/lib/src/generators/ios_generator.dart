@@ -684,10 +684,33 @@ struct ${widgetClassName}Entry: TimelineEntry {
       logger.detail('Updated: ${file.path}');
     }
 
+    final runnerConfigs = runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
     for (final MapEntry(key: path, value: groups) in vacated.entries) {
+      final remaining = {
+        for (final config in runnerConfigs)
+          if (config.entitlements case final setting?)
+            if (resolveProjectRelativePath(setting) case final resolved?)
+              if (p.posix.normalize(resolved) == path) config.name,
+      };
+      final removable = <String>{};
+      for (final group
+          in groups.difference({...?groupsByPath[path], groupId})) {
+        if (!await _otherExtensionNeedsGroup(
+          project: project,
+          iosDir: iosDir,
+          configurations: remaining,
+          groupId: group,
+        )) {
+          removable.add(group);
+        }
+      }
       await removeAppGroupEntitlements(
         entitlementsFile: File(p.join(iosDir.path, path)),
-        appGroupIds: groups.difference({...?groupsByPath[path], groupId}),
+        appGroupIds: removable,
       );
     }
 
@@ -701,11 +724,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
 
     // Configurations naming no file were pointed at the default one, which
     // gets no group when the widget does not exist there.
-    final signsWithDefault = runnerEntitlementsByConfiguration(
-      project,
-      projectDir: iosDir,
-      projectName: projectName,
-    ).any((config) {
+    final signsWithDefault = runnerConfigs.any((config) {
       final path = config.entitlements == null
           ? null
           : resolveProjectRelativePath(config.entitlements!);

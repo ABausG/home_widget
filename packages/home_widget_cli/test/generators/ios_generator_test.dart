@@ -1884,19 +1884,10 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
         );
       });
 
-      group('with another widget sharing the base group', () {
-        WidgetSpec otherSpec([Map<String, HomeWidgetFlavor>? flavors]) =>
-            WidgetSpec(
-              data: HomeWidget(
-                name: 'Other',
-                iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
-                flavors: flavors,
-              ),
-              className: 'Other',
-            );
-
+      group('with another widget sharing a group', () {
         Future<MockLogger> generateBoth({
           Map<String, HomeWidgetFlavor>? otherFlavors,
+          String otherGroupId = 'group.example',
           void Function()? afterOther,
         }) async {
           writePbxproj(
@@ -1907,7 +1898,14 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
             'group.example',
           ]);
           await IosGenerator(
-            spec: otherSpec(otherFlavors),
+            spec: WidgetSpec(
+              data: HomeWidget(
+                name: 'Other',
+                iOS: HomeWidgetIOSConfiguration(groupId: otherGroupId),
+                flavors: otherFlavors,
+              ),
+              className: 'Other',
+            ),
             projectRoot: tempDir,
           ).generate();
           afterOther?.call();
@@ -1917,17 +1915,60 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
           return mock;
         }
 
-        void unresolveOtherEntitlements() {
+        void replaceInPbxproj(String from, String to) {
           final pbxproj = File(
             p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
           );
           pbxproj.writeAsStringSync(
-            pbxproj.readAsStringSync().replaceAll(
-                  'CODE_SIGN_ENTITLEMENTS = OtherHomeWidget.entitlements;',
-                  r'CODE_SIGN_ENTITLEMENTS = "$(CUSTOM)/OtherHomeWidget.entitlements";',
-                ),
+            pbxproj.readAsStringSync().replaceAll(from, to),
           );
         }
+
+        void unresolveOtherEntitlements() => replaceInPbxproj(
+              'CODE_SIGN_ENTITLEMENTS = OtherHomeWidget.entitlements;',
+              r'CODE_SIGN_ENTITLEMENTS = "$(CUSTOM)/OtherHomeWidget.entitlements";',
+            );
+
+        test("keeps a moved flavor's group the other widget still uses",
+            () async {
+          await generateBoth(otherGroupId: 'group.example.dev');
+
+          expect(
+            readIos('Runner/Runner.entitlements'),
+            contains('<string>group.example.dev</string>'),
+          );
+          expect(
+            readIos('Runner/Runner-dev.entitlements'),
+            contains('<string>group.example.dev</string>'),
+          );
+        });
+
+        test("removes a moved flavor's group the other widget does not use",
+            () async {
+          await generateBoth(
+            otherFlavors: {'dev': const HomeWidgetFlavor()},
+            otherGroupId: 'group.example.dev',
+            // Back to the state before any flavor had a file of its own.
+            afterOther: () {
+              replaceInPbxproj(
+                'CODE_SIGN_ENTITLEMENTS = "Runner/Runner-dev.entitlements";',
+                'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;',
+              );
+              writeRunnerEntitlements('Runner/Runner.entitlements', [
+                'group.example.dev',
+              ]);
+            },
+          );
+
+          expect(
+            readIos('Runner/Runner.entitlements'),
+            isNot(contains('<string>group.example.dev</string>')),
+          );
+          expect(
+            readIos('Runner/Runner-dev.entitlements'),
+            contains('<string>group.example.dev</string>'),
+          );
+        });
 
         test('says nothing while the other widget uses it', () async {
           final mock = await generateBoth();
