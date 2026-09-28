@@ -2160,6 +2160,34 @@ void main() {
       );
     });
 
+    test('keeps a backslash-escaped space in a string setting element',
+        () async {
+      final editor = PbxprojEditor(_buildFlavoredPbxproj());
+      editor.setBuildSetting(
+        _flavorConfigId('BB', 2),
+        'EXCLUDED_SOURCE_FILE_NAMES',
+        r'My\ Debug.swift Legacy.appex',
+      );
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final excluded = await patch(flavors: ['dev']);
+      expect(
+        runnerConfig(excluded, 'Release-prod'),
+        contains(
+          r'EXCLUDED_SOURCE_FILE_NAMES = "\"My Debug.swift\" Legacy.appex '
+          r'GreetingHomeWidget.appex";',
+        ),
+      );
+
+      final restored = await patch();
+      expect(
+        runnerConfig(restored, 'Release-prod'),
+        contains(
+          r'EXCLUDED_SOURCE_FILE_NAMES = "\"My Debug.swift\" Legacy.appex";',
+        ),
+      );
+    });
+
     test('lists every widget left out of a configuration', () async {
       pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
 
@@ -2257,6 +2285,35 @@ void main() {
       ).called(1);
       expect(_extensionConfig(result, 'Release'), contains(signingOff));
       expect(runnerConfig(result, 'Release'), contains(excludedRunner));
+    });
+
+    test(
+        'falls back to the conventional product name for a foreign target '
+        'with no productReference', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
+      final created = await patch(flavors: ['dev']);
+      final foreign = created
+          .replaceAll(
+            xcodeObjectId('target:GreetingHomeWidget'),
+            'AB00000000000000000000FF',
+          )
+          .replaceFirst(
+            RegExp(
+              r'\t\t\tproductReference = [^\n]*GreetingHomeWidget\.appex'
+              r'[^\n]*\n',
+            ),
+            '',
+          )
+          .replaceFirst(
+            'path = GreetingHomeWidget.appex;',
+            'path = RenamedWidget.appex;',
+          );
+      pbxprojFile.writeAsStringSync(foreign);
+
+      final result = await patch(flavors: ['prod']);
+
+      expect(runnerConfig(result, 'Debug'), contains(excludedRunner));
+      expect(runnerConfig(result, 'Debug'), isNot(contains('RenamedWidget')));
     });
   });
 

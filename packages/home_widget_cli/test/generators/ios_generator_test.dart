@@ -1884,6 +1884,112 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
         );
       });
 
+      group('with another widget sharing the base group', () {
+        WidgetSpec otherSpec([Map<String, HomeWidgetFlavor>? flavors]) =>
+            WidgetSpec(
+              data: HomeWidget(
+                name: 'Other',
+                iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+                flavors: flavors,
+              ),
+              className: 'Other',
+            );
+
+        Future<MockLogger> generateBoth({
+          Map<String, HomeWidgetFlavor>? otherFlavors,
+          void Function()? afterOther,
+        }) async {
+          writePbxproj(
+            const [sharedDev, sharedProd],
+            baseEntitlements: 'Runner/Runner.entitlements',
+          );
+          writeRunnerEntitlements('Runner/Runner.entitlements', [
+            'group.example',
+          ]);
+          await IosGenerator(
+            spec: otherSpec(otherFlavors),
+            projectRoot: tempDir,
+          ).generate();
+          afterOther?.call();
+          final mock = useMockLogger();
+          await IosGenerator(spec: specFor(devOnly), projectRoot: tempDir)
+              .generate();
+          return mock;
+        }
+
+        void unresolveOtherEntitlements() {
+          final pbxproj = File(
+            p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
+          );
+          pbxproj.writeAsStringSync(
+            pbxproj.readAsStringSync().replaceAll(
+                  'CODE_SIGN_ENTITLEMENTS = OtherHomeWidget.entitlements;',
+                  r'CODE_SIGN_ENTITLEMENTS = "$(CUSTOM)/OtherHomeWidget.entitlements";',
+                ),
+          );
+        }
+
+        test('says nothing while the other widget uses it', () async {
+          final mock = await generateBoth();
+
+          expect(
+            readIos('Runner/Runner.entitlements'),
+            contains('<string>group.example</string>'),
+          );
+          verifyNever(
+            () => mock.info(any(that: contains('Remove the group'))),
+          );
+        });
+
+        test('notes it where the other widget is not embedded', () async {
+          final mock = await generateBoth(
+            otherFlavors: {'dev': const HomeWidgetFlavor()},
+          );
+
+          verify(
+            () => mock.info(
+              any(
+                that: allOf(
+                  contains('Runner/Runner.entitlements'),
+                  contains('Remove the group'),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('says nothing when the other entitlements cannot be resolved',
+            () async {
+          final mock = await generateBoth(
+            afterOther: () {
+              unresolveOtherEntitlements();
+              writeRunnerEntitlements('OtherHomeWidget.entitlements', []);
+            },
+          );
+
+          expect(
+            readIos('Runner.xcodeproj/project.pbxproj'),
+            contains(r'$(CUSTOM)/OtherHomeWidget.entitlements'),
+          );
+          verifyNever(
+            () => mock.info(any(that: contains('Remove the group'))),
+          );
+        });
+
+        test('says nothing when the other entitlements file is missing',
+            () async {
+          final mock = await generateBoth(
+            afterOther: () =>
+                File(p.join(tempDir.path, 'ios/OtherHomeWidget.entitlements'))
+                    .deleteSync(),
+          );
+
+          verifyNever(
+            () => mock.info(any(that: contains('Remove the group'))),
+          );
+        });
+      });
+
       test('keeps the base group and the app groups in every copy', () async {
         const prodOverride = {
           'dev': HomeWidgetFlavor(

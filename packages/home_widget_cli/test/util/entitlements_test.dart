@@ -287,5 +287,23 @@ void main() {
 
       expect(file.existsSync(), isFalse);
     });
+
+    test('warns and leaves file unchanged when XML is malformed', () async {
+      final file = entitlementsFile();
+      const garbage = 'not xml at all';
+      file.writeAsStringSync(garbage);
+
+      await removeAppGroupEntitlements(
+        entitlementsFile: file,
+        appGroupIds: {'group.example'},
+      );
+
+      expect(file.readAsStringSync(), equals(garbage));
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not parse entitlements as XML')),
+        ),
+      ).called(1);
+    });
   });
 }

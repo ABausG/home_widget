@@ -13,6 +13,7 @@ import '../util/fs.dart';
 import '../util/icon_font_writer.dart';
 import '../util/ios_templates.dart';
 import '../util/naming.dart';
+import '../util/pbxproj/pbxproj_document.dart' show ownBuildSettings;
 import '../util/string_catalog.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 import '../util/xcode_project.dart';
@@ -718,27 +719,43 @@ struct ${widgetClassName}Entry: TimelineEntry {
   /// Notes every Runner entitlements file of a configuration the widget does
   /// not exist in that still lists its base App Group, which an earlier run
   /// may have written there. It is left in place: the app may use it itself.
+  ///
+  /// A file another widget still needs the group in is skipped (see
+  /// [_otherExtensionNeedsGroup]).
   Future<void> _noteLeftoverBaseGroup({
     required File xcodeproj,
     required Pbxproj project,
     required String groupId,
   }) async {
     final iosDir = xcodeproj.parent.parent;
-    final paths = <String>{
-      for (final config in runnerEntitlementsByConfiguration(
-        project,
-        projectDir: iosDir,
-        projectName: xcodeProjectName(xcodeproj),
-      ))
-        if (!spec.declaredFlavors.contains(config.flavor))
-          if (config.entitlements case final setting?)
-            if (resolveProjectRelativePath(setting) case final path?)
-              p.posix.normalize(path),
-    };
-    for (final path in paths) {
+    final configurationsByPath = <String, Set<String>>{};
+    for (final config in runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: xcodeProjectName(xcodeproj),
+    )) {
+      if (spec.declaredFlavors.contains(config.flavor)) continue;
+      if (config.entitlements case final setting?) {
+        if (resolveProjectRelativePath(setting) case final path?) {
+          configurationsByPath
+              .putIfAbsent(p.posix.normalize(path), () => <String>{})
+              .add(config.name);
+        }
+      }
+    }
+    for (final MapEntry(key: path, value: configurations)
+        in configurationsByPath.entries) {
       final groups =
           await appGroupEntitlements(File(p.join(iosDir.path, path)));
       if (!groups.contains(groupId)) continue;
+      if (await _otherExtensionNeedsGroup(
+        project: project,
+        iosDir: iosDir,
+        configurations: configurations,
+        groupId: groupId,
+      )) {
+        continue;
+      }
       logger.info(
         '$path still lists the App Group $groupId, which ${spec.data.name} '
         'no longer needs there: it does not exist in the configurations '
@@ -746,6 +763,53 @@ struct ${widgetClassName}Entry: TimelineEntry {
         'it itself.',
       );
     }
+  }
+
+  /// Whether an app extension target other than this widget's is embedded in
+  /// one of the Runner [configurations] and signs there with an entitlements
+  /// file listing [groupId].
+  ///
+  /// The project is asked rather than the widgets of this run, since a run may
+  /// generate a single widget. An extension is left out of a configuration
+  /// that sets `CODE_SIGNING_ALLOWED = NO` and excludes every source, as the
+  /// patcher does for one the app does not embed. Entitlements that name a
+  /// build variable, or a file that does not exist, count as listing the
+  /// group.
+  Future<bool> _otherExtensionNeedsGroup({
+    required Pbxproj project,
+    required Directory iosDir,
+    required Set<String> configurations,
+    required String groupId,
+  }) async {
+    final ownTarget = '${spec.className}HomeWidget';
+    for (final target in project.objectsOfIsa('PBXNativeTarget')) {
+      if (target.string('productType') !=
+              'com.apple.product-type.app-extension' ||
+          target.string('name') == ownTarget) {
+        continue;
+      }
+      final settingsByName = {
+        for (final config in project.buildConfigurationsOf(target))
+          config.string('name'): ownBuildSettings(config),
+      };
+      for (final name in configurations) {
+        final settings = settingsByName[name] ?? const <String, String>{};
+        final excluded =
+            settings['EXCLUDED_SOURCE_FILE_NAMES']?.split(RegExp(r'\s+'));
+        if (settings['CODE_SIGNING_ALLOWED'] == 'NO' &&
+            (excluded?.contains('*') ?? false)) {
+          continue;
+        }
+        final setting = settings['CODE_SIGN_ENTITLEMENTS'];
+        final path =
+            setting == null ? null : resolveProjectRelativePath(setting);
+        if (path == null) return true;
+        final file = File(p.join(iosDir.path, p.posix.normalize(path)));
+        if (!file.existsSync()) return true;
+        if ((await appGroupEntitlements(file)).contains(groupId)) return true;
+      }
+    }
+    return false;
   }
 
   /// Moves every Runner configuration of a declared flavor that shares its

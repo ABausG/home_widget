@@ -27,7 +27,7 @@ The generator lists `<Widget>HomeWidget.appex` in `EXCLUDED_SOURCE_FILE_NAMES` o
 
 A declared flavor whose Runner configurations share an entitlements file with another flavor or with the unflavored configurations is moved onto a copy of that file, `Runner/Runner-<flavor>.entitlements` in a project made by `flutter create`, and its App Group is removed from the shared file. Commit the new files along with the changed `project.pbxproj`.
 
-The base App Group is no longer added to any Runner entitlements file of a widget with `flavors:`. One written there by an earlier version stays, since the app may use it itself; `generate` points it out:
+The base App Group is no longer added to any Runner entitlements file of a widget with `flavors:`. One written there by an earlier version stays, since the app may use it itself; `generate` points it out unless another widget embedded in the configurations signing with that file still uses the group:
 
 ```xml
 <key>com.apple.security.application-groups</key>
