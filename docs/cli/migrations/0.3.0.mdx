@@ -1,0 +1,39 @@
+---
+title: Migration to 0.3.0
+description: Behavior changes and migration guide for home_widget_cli 0.3.0
+---
+
+# Migration to 0.3.0
+
+Only widgets declaring [`flavors:`](/generator/flavors) are affected. Regenerate them, then check the changes below.
+
+## The helper does nothing outside the declared flavors
+
+A widget exists only in the flavors its `flavors:` map lists, on both platforms. In any other flavor, and when the app runs without `--flavor`, the generated helper now leaves it alone instead of writing to the base App Group:
+
+- `saveData` and `deleteData` return without storing anything.
+- `getData` answers every value's default.
+- `updateWidget`, `updatePreview` and `isRequestPinWidgetSupported` answer `false`, and `requestPinWidget` does nothing.
+
+Code that relied on the helper storing data in such a build has to run in one of the declared flavors.
+
+## The extension is left out of the other flavors (iOS)
+
+The widget extension is no longer embedded in, or signed for, the build configurations of a flavor missing from `flavors:`, nor the unflavored `Debug` / `Release` / `Profile`. Those builds need no provisioning profile or App Group for the extension any more.
+
+The generator lists `<Widget>HomeWidget.appex` in `EXCLUDED_SOURCE_FILE_NAMES` of those Runner configurations, and sets `CODE_SIGNING_ALLOWED = NO` and `EXCLUDED_SOURCE_FILE_NAMES = "*"` on the matching extension configurations. It removes them again once the flavor is declared.
+
+## Each declared flavor signs with its own Runner entitlements (iOS)
+
+A declared flavor whose Runner configurations share an entitlements file with another flavor or with the unflavored configurations is moved onto a copy of that file, `Runner/Runner-<flavor>.entitlements` in a project made by `flutter create`, and its App Group is removed from the shared file. Commit the new files along with the changed `project.pbxproj`.
+
+The base App Group is no longer added to any Runner entitlements file of a widget with `flavors:`. One written there by an earlier version stays, since the app may use it itself; `generate` points it out:
+
+```xml
+<key>com.apple.security.application-groups</key>
+<array>
+	<string>group.com.example.app</string> <!-- [!code --] -->
+</array>
+```
+
+Remove it unless the app uses that group.

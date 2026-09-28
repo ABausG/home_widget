@@ -1396,6 +1396,35 @@ void main() {
       );
     });
 
+    test('points the named Runner configurations at another file', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+
+      await setRunnerEntitlementsInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        entitlements: {'Release-prod': 'Runner/Runner-prod.entitlements'},
+      );
+
+      final configs = runnerEntitlementsByConfiguration(
+        Pbxproj.parse(pbxprojFile.readAsStringSync()),
+      );
+      expect(
+        configs.firstWhere((c) => c.name == 'Release-prod'),
+        (
+          name: 'Release-prod',
+          flavor: 'prod',
+          entitlements: 'Runner/Runner-prod.entitlements',
+        ),
+      );
+      expect(
+        configs.firstWhere((c) => c.name == 'Debug-prod').entitlements,
+        isNull,
+      );
+      expect(
+        configs.firstWhere((c) => c.name == 'Debug-dev').entitlements,
+        'Runner/RunnerDev.entitlements',
+      );
+    });
+
     test('lists the file the unflavored trio shares once', () {
       final pbxproj = Pbxproj.parse(
         _buildFlavoredPbxproj(
@@ -1926,6 +1955,308 @@ void main() {
 
       expect(settings, [r'$(CUSTOM)/RunnerDev.entitlements']);
       expect(resolveProjectRelativePath(settings.single), isNull);
+    });
+  });
+
+  group('flavor embedding', () {
+    Future<String> patch({
+      Iterable<String>? flavors,
+      String widgetClassName = 'GreetingHomeWidget',
+    }) async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: widgetClassName,
+        flavors: flavors,
+      );
+      return pbxprojFile.readAsStringSync();
+    }
+
+    String runnerConfig(String pbxproj, String name) {
+      final base = _baseConfigNames.indexOf(name);
+      if (base != -1) return _configObjectWithId(pbxproj, _baseConfigId(base));
+      final [baseName, flavor] = name.split('-');
+      final prefix = {'dev': 'AA', 'prod': 'BB', 'stg': 'CC'}[flavor]!;
+      return _configObjectWithId(
+        pbxproj,
+        _flavorConfigId(prefix, _baseConfigNames.indexOf(baseName) + 1),
+      );
+    }
+
+    const excludedRunner =
+        'EXCLUDED_SOURCE_FILE_NAMES = "\$(inherited) GreetingHomeWidget.appex";';
+    const excludedSources = 'EXCLUDED_SOURCE_FILE_NAMES = "*";';
+    const signingOff = 'CODE_SIGNING_ALLOWED = NO;';
+
+    test('leaves the extension out of every configuration of another flavor',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+
+      final result = await patch(flavors: ['dev']);
+
+      for (final name in [
+        'Debug',
+        'Release',
+        'Profile',
+        'Debug-prod',
+        'Release-prod',
+        'Profile-prod',
+      ]) {
+        expect(runnerConfig(result, name), contains(excludedRunner));
+        expect(_extensionConfig(result, name), contains(excludedSources));
+        expect(_extensionConfig(result, name), contains(signingOff));
+      }
+      for (final name in ['Debug-dev', 'Release-dev', 'Profile-dev']) {
+        expect(
+          runnerConfig(result, name),
+          isNot(contains('EXCLUDED_SOURCE_FILE_NAMES')),
+        );
+        expect(
+          _extensionConfig(result, name),
+          isNot(contains('EXCLUDED_SOURCE_FILE_NAMES')),
+        );
+        expect(
+          _extensionConfig(result, name),
+          isNot(contains('CODE_SIGNING_ALLOWED')),
+        );
+      }
+      // The configuration stays, so the prod scheme does not fall back to the
+      // default one.
+      expect(_extensionConfigList(result), contains('/* Release-prod */'));
+      expect(
+        _extensionConfig(result, 'Release-prod'),
+        contains(
+          '\t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;\n'
+          '\t\t\t\tCODE_SIGNING_ALLOWED = NO;\n'
+          '\t\t\t\tCODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;',
+        ),
+      );
+    });
+
+    test('excludes nothing without flavors', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+
+      final result = await patch();
+
+      expect(result, isNot(contains('EXCLUDED_SOURCE_FILE_NAMES')));
+      expect(result, isNot(contains('CODE_SIGNING_ALLOWED')));
+    });
+
+    test('is idempotent', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+
+      final first = await patch(flavors: ['dev']);
+      final second = await patch(flavors: ['dev']);
+
+      expect(second, first);
+    });
+
+    test('follows the flavors as they change', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+      final withoutFlavors = await patch();
+
+      final devOnly = await patch(flavors: ['dev']);
+      expect(runnerConfig(devOnly, 'Release-prod'), contains(excludedRunner));
+
+      final prodOnly = await patch(flavors: ['prod']);
+      expect(
+        runnerConfig(prodOnly, 'Release-prod'),
+        isNot(contains('EXCLUDED_SOURCE_FILE_NAMES')),
+      );
+      expect(
+        _extensionConfig(prodOnly, 'Release-prod'),
+        isNot(contains('CODE_SIGNING_ALLOWED')),
+      );
+      expect(runnerConfig(prodOnly, 'Release-dev'), contains(excludedRunner));
+      expect(_extensionConfig(prodOnly, 'Release-dev'), contains(signingOff));
+
+      expect(await patch(), withoutFlavors);
+    });
+
+    test('keeps the tokens it does not own', () async {
+      final editor = PbxprojEditor(_buildFlavoredPbxproj());
+      editor.setBuildSetting(
+        _flavorConfigId('BB', 2),
+        'EXCLUDED_SOURCE_FILE_NAMES',
+        'Legacy.appex',
+      );
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final excluded = await patch(flavors: ['dev']);
+      expect(
+        runnerConfig(excluded, 'Release-prod'),
+        contains(
+          'EXCLUDED_SOURCE_FILE_NAMES = "Legacy.appex GreetingHomeWidget.appex";',
+        ),
+      );
+
+      final restored = await patch();
+      expect(
+        runnerConfig(restored, 'Release-prod'),
+        contains('EXCLUDED_SOURCE_FILE_NAMES = Legacy.appex;'),
+      );
+    });
+
+    test('keeps a list setting a list, quoted elements included', () async {
+      final editor = PbxprojEditor(_buildFlavoredPbxproj());
+      editor.setBuildSettingList(
+        _flavorConfigId('BB', 2),
+        'EXCLUDED_SOURCE_FILE_NAMES',
+        [r'$(inherited)', 'My Debug.swift'],
+      );
+      final original = editor.text;
+      pbxprojFile.writeAsStringSync(original);
+      final unwired = await patch();
+
+      final excluded = await patch(flavors: ['dev']);
+      expect(
+        runnerConfig(excluded, 'Release-prod'),
+        contains(
+          'EXCLUDED_SOURCE_FILE_NAMES = (\n'
+          '\t\t\t\t\t"\$(inherited)",\n'
+          '\t\t\t\t\t"My Debug.swift",\n'
+          '\t\t\t\t\tGreetingHomeWidget.appex,\n'
+          '\t\t\t\t);',
+        ),
+      );
+
+      expect(await patch(), unwired);
+      expect(
+        runnerConfig(unwired, 'Release-prod'),
+        contains(
+          'EXCLUDED_SOURCE_FILE_NAMES = (\n'
+          '\t\t\t\t\t"\$(inherited)",\n'
+          '\t\t\t\t\t"My Debug.swift",\n'
+          '\t\t\t\t);',
+        ),
+      );
+    });
+
+    test('keeps a quoted element of a string setting whole', () async {
+      final editor = PbxprojEditor(_buildFlavoredPbxproj());
+      editor.setBuildSetting(
+        _flavorConfigId('BB', 2),
+        'EXCLUDED_SOURCE_FILE_NAMES',
+        '"My Debug.swift" Legacy.appex',
+      );
+      final original = editor.text;
+      pbxprojFile.writeAsStringSync(original);
+      final unwired = await patch();
+
+      final excluded = await patch(flavors: ['dev']);
+      expect(
+        runnerConfig(excluded, 'Release-prod'),
+        contains(
+          r'EXCLUDED_SOURCE_FILE_NAMES = "\"My Debug.swift\" Legacy.appex '
+          r'GreetingHomeWidget.appex";',
+        ),
+      );
+
+      expect(await patch(), unwired);
+      expect(
+        runnerConfig(unwired, 'Release-prod'),
+        contains(
+          r'EXCLUDED_SOURCE_FILE_NAMES = "\"My Debug.swift\" Legacy.appex";',
+        ),
+      );
+    });
+
+    test('lists every widget left out of a configuration', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+
+      await patch(flavors: ['dev']);
+      final both = await patch(
+        flavors: ['dev'],
+        widgetClassName: 'WeatherHomeWidget',
+      );
+      expect(
+        runnerConfig(both, 'Release-prod'),
+        contains(
+          'EXCLUDED_SOURCE_FILE_NAMES = '
+          '"\$(inherited) GreetingHomeWidget.appex WeatherHomeWidget.appex";',
+        ),
+      );
+
+      final one = await patch(flavors: ['dev', 'prod']);
+      expect(
+        runnerConfig(one, 'Release-prod'),
+        contains(
+          'EXCLUDED_SOURCE_FILE_NAMES = "\$(inherited) WeatherHomeWidget.appex";',
+        ),
+      );
+      expect(
+        runnerConfig(one, 'Release'),
+        contains('GreetingHomeWidget.appex'),
+      );
+    });
+
+    test(
+        'keeps signing off that a developer chose on an embedded configuration',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+      final created = await patch();
+      final block = _extensionConfig(created, 'Release-dev');
+      pbxprojFile.writeAsStringSync(
+        created.replaceFirst(
+          block,
+          block.replaceFirst(
+            '\t\t\t\tCODE_SIGN_ENTITLEMENTS',
+            '\t\t\t\t$signingOff\n\t\t\t\tCODE_SIGN_ENTITLEMENTS',
+          ),
+        ),
+      );
+
+      final result = await patch(flavors: ['dev']);
+
+      expect(_extensionConfig(result, 'Release-dev'), contains(signingOff));
+    });
+
+    test('adds a flavor introduced later as left out', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
+      final before = await patch(flavors: ['dev']);
+
+      pbxprojFile.writeAsStringSync(_addRunnerFlavor(before, _stg));
+      final after = await patch(flavors: ['dev']);
+
+      expect(runnerConfig(after, 'Profile-stg'), contains(excludedRunner));
+      expect(_extensionConfig(after, 'Profile-stg'), contains(excludedSources));
+      expect(_extensionConfig(after, 'Profile-stg'), contains(signingOff));
+    });
+
+    test('warns when it turns off signing a foreign target turned on',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
+      final created = await patch();
+      final block = _extensionConfig(created, 'Release');
+      final foreign = created
+          .replaceAll(
+            xcodeObjectId('target:GreetingHomeWidget'),
+            'AB00000000000000000000FF',
+          )
+          .replaceFirst(
+            block,
+            block.replaceFirst(
+              '\t\t\t\tCODE_SIGN_ENTITLEMENTS',
+              '\t\t\t\tCODE_SIGNING_ALLOWED = YES;\n'
+                  '\t\t\t\tCODE_SIGN_ENTITLEMENTS',
+            ),
+          );
+      pbxprojFile.writeAsStringSync(foreign);
+      final mock = useMockLogger();
+
+      final result = await patch(flavors: ['dev']);
+
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('Reset CODE_SIGNING_ALLOWED on the "Release"'),
+              contains('home_widget did not create this target'),
+            ),
+          ),
+        ),
+      ).called(1);
+      expect(_extensionConfig(result, 'Release'), contains(signingOff));
+      expect(runnerConfig(result, 'Release'), contains(excludedRunner));
     });
   });
 

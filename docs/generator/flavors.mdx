@@ -73,7 +73,7 @@ Only the iOS App Group is overridable per flavor — everything else (layout, da
 class Weather {}
 ```
 
-The widget is generated for `dev` and `prod` only — a flavor `stg` in the native project would not get the widget. In `dev`, the iOS extension uses the `group.com.example.app.dev` App Group. In `prod`, both platforms use the base configuration.
+The widget is generated for `dev` and `prod` only — a flavor `stg` in the native project would not get the widget, and the generated helper does nothing there. In `dev`, the iOS extension uses the `group.com.example.app.dev` App Group. In `prod`, both platforms use the base configuration.
 
 ## What gets generated
 
@@ -83,8 +83,11 @@ The widget is generated for `dev` and `prod` only — a flavor `stg` in the nati
 - Flavored configurations get a `HW_FLAVOR_<NAME>` compilation condition (`<NAME>` is the flavor name, uppercased, with every non-alphanumeric character replaced by `_`), used to pick the right App Group at compile time. Other compilation conditions you set on the extension are kept; only the `HW_FLAVOR_` token is managed.
 - On every run the generator resets `PRODUCT_BUNDLE_IDENTIFIER`, `CODE_SIGN_ENTITLEMENTS` and `DEVELOPMENT_TEAM` of the extension's configurations to the values derived from Runner, and says so when a value actually changed. Treat those three settings as generator-owned.
 - A per-flavor entitlements file is written at `ios/<Widget>HomeWidget.<flavor>.entitlements`, carrying that flavor's App Group.
-- That App Group is also added to every Runner entitlements file the flavor's `Debug`, `Release` and `Profile` build configurations use; the base App Group goes into the files the unflavored configurations use. A `CODE_SIGN_ENTITLEMENTS` that relies on a build variable other than `$(SRCROOT)` / `$(PROJECT_DIR)` cannot be resolved: the generator warns and leaves that file for you to update by hand.
+- That App Group is also added to every Runner entitlements file the flavor's `Debug`, `Release` and `Profile` build configurations use. The base App Group goes into no Runner file at all: the unflavored configurations and the flavors missing from `flavors:` have no widget to share it with. A `CODE_SIGN_ENTITLEMENTS` that relies on a build variable other than `$(SRCROOT)` / `$(PROJECT_DIR)` cannot be resolved: the generator warns and leaves that file for you to update by hand.
+- A flavor listed in `flavors:` whose Runner configuration signs with a file another flavor or the unflavored configurations also use — `Runner/Runner.entitlements` in a project made by `flutter create` — is moved onto a file of its own: `Runner/Runner-<flavor>.entitlements` next to the shared one, with `CODE_SIGN_ENTITLEMENTS` of that configuration pointed at it. The new file starts as a copy of the shared one, so keys such as `aps-environment` and the app's own App Groups carry over, minus the App Groups of the other flavors in `flavors:`; the flavor's App Group is then removed from the shared file. The base App Group is never removed from either file, since the app may use it itself. A flavor whose Debug and Release sign with different shared files gets a copy of each (`RunnerDebug-dev.entitlements`, `RunnerRelease-dev.entitlements`). A flavor that already signs with files of its own is left as it is.
+- When a Runner file of a configuration without the widget still lists the base App Group — written there by an earlier version of the generator — `generate` points it out instead of removing it. Remove it by hand unless the app uses that group itself.
 - The widget is registered in the `WidgetBundle` only for the flavors listed in `flavors:` — omitted flavors don't compile the widget in at all.
+- The app does not embed the extension in the build configurations of a flavor missing from `flavors:`, nor in the unflavored `Debug` / `Release` / `Profile`: the Runner configuration lists `<Widget>HomeWidget.appex` in `EXCLUDED_SOURCE_FILE_NAMES`, and the extension configuration sets `CODE_SIGNING_ALLOWED = NO` and `EXCLUDED_SOURCE_FILE_NAMES = "*"`, so those builds need no provisioning profile for the extension. The generator adds and removes only its own `.appex` entry and keeps any other value of `EXCLUDED_SOURCE_FILE_NAMES`; declaring the flavor later lifts all three again.
 
 ### Android
 
@@ -93,14 +96,10 @@ The widget is generated for `dev` and `prod` only — a flavor `stg` in the nati
 
 ### Dart
 
-The generated helper reads `package:flutter/services.dart`'s `appFlavor` at runtime and picks the App Group for the running flavor. This means the app has to be run with `--flavor <name>` for a flavored widget to pick up its flavor's App Group — running without `--flavor` falls back to the base configuration.
+The generated helper reads `package:flutter/services.dart`'s `appFlavor` at runtime and picks the App Group for the running flavor. The app has to be run with `--flavor <name>` for a flavored widget to exist at all: in a flavor missing from `flavors:`, and without `--flavor`, the widget exists on neither platform, so the helper leaves it alone on both. `saveData` and `deleteData` return without storing anything, `getData` answers every value's default, `updateWidget` answers `false`, and on Android `updatePreview` and `isRequestPinWidgetSupported` answer `false` while `requestPinWidget` does nothing.
 
 ## Diagnostics
 
 - A flavor declared in `flavors:` that the native project doesn't have is an **error**, raised before anything is written: on iOS it names the `Debug-<flavor>`, `Release-<flavor>` and `Profile-<flavor>` build configurations to add to the app's Xcode project (`Runner.xcodeproj` unless you renamed it); on Android it names the missing product flavor and lists the ones found under `android/app/`. Android flavor detection reads the Gradle files as text, so a flavor declared in a way it cannot see is accepted once its source-set directory `android/app/src/<flavor>/` exists. Without a declared flavor the widget would be compiled out of every iOS build and dropped from every Android build, which is why this is not a warning.
-- A native flavor not listed in `flavors:` is skipped silently — the widget just isn't generated for it. Its iOS build configurations are still mirrored onto the extension target so the project builds; the extension it produces contains no widget.
+- A native flavor not listed in `flavors:` is skipped silently — the widget just isn't generated for it. Its iOS build configurations are still mirrored onto the extension target, so the flavor's scheme does not fall back to another configuration, but the extension is neither signed nor embedded in its app.
 - Validation errors: an empty `flavors:` map (the widget would exist in no flavor), a blank flavor name, an `iOS:` override on a flavor whose widget has no base `iOS:` configuration, or an empty override `groupId`.
-
-## Shared Runner entitlements
-
-If your project points every flavor's Runner build configuration at the same entitlements file, that one file ends up listing the App Group for every flavor the widget declares — since the generator writes each flavor's group into whichever file that flavor's configuration uses. Give each flavor its own Runner entitlements file to keep them scoped to just that flavor's App Group.
