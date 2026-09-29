@@ -1,3 +1,9 @@
+## 0.3.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Make decorations fill sized boxes and add HWBorderRadius ([#468](https://github.com/abausg/home_widget/issues/468)). ([0f569ba7](https://github.com/abausg/home_widget/commit/0f569ba741ac3f7438a4d3902d52d62e912d8abe))
+
 ## 0.2.0
 
 > Note: This release has breaking changes.

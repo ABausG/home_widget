@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-09-29
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - [`home_widget_cli` - `v0.3.0`](#home_widget_cli---v030)
+ - [`home_widget_generator` - `v0.3.0`](#home_widget_generator---v030)
+
+Packages with other changes:
+
+ - There are no other changes in this release.
+
+---
+
+#### `home_widget_cli` - `v0.3.0`
+
+ - **BREAKING** **FIX**: Keep flavored iOS widgets out of undeclared flavors ([#469](https://github.com/abausg/home_widget/issues/469)). ([7e59f908](https://github.com/abausg/home_widget/commit/7e59f9089d6da1bb9078f6a5824a6f3150b3495e))
+
+#### `home_widget_generator` - `v0.3.0`
+
+ - **BREAKING** **FEAT**: Make decorations fill sized boxes and add HWBorderRadius ([#468](https://github.com/abausg/home_widget/issues/468)). ([0f569ba7](https://github.com/abausg/home_widget/commit/0f569ba741ac3f7438a4d3902d52d62e912d8abe))
+
+
 ## 2026-09-23
 
 ### Changes
