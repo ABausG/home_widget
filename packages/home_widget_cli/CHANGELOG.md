@@ -1,3 +1,9 @@
+## 0.3.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FIX**: Keep flavored iOS widgets out of undeclared flavors ([#469](https://github.com/abausg/home_widget/issues/469)). ([7e59f908](https://github.com/abausg/home_widget/commit/7e59f9089d6da1bb9078f6a5824a6f3150b3495e))
+
 ## 0.2.0
 
 > Note: This release has breaking changes.
