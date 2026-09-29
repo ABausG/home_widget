@@ -1470,6 +1470,11 @@ void main() {
     String readIos(String relative) =>
         File(p.join(tempDir.path, 'ios', relative)).readAsStringSync();
 
+    String? readIosOrNull(String relative) {
+      final file = File(p.join(tempDir.path, 'ios', relative));
+      return file.existsSync() ? file.readAsStringSync() : null;
+    }
+
     test('emits the flavor enum and guards the bundle', () async {
       writePbxproj(const [_devNoEntitlements, _prodFlavor]);
 
@@ -1577,6 +1582,36 @@ void main() {
       );
     });
 
+    test('leaves the extension out of the configurations it does not declare',
+        () async {
+      final pbxproj = writePbxproj(const [_devFlavor, _prodFlavor]);
+
+      await IosGenerator(
+        spec: specFor({'dev': const HomeWidgetFlavor()}),
+        projectRoot: tempDir,
+      ).generate();
+
+      final text = pbxproj.readAsStringSync();
+      // Three unflavored and three prod Runner configurations.
+      expect(
+        RegExp(
+          r'EXCLUDED_SOURCE_FILE_NAMES = "\$\(inherited\) '
+          r'GreetingHomeWidget\.appex";',
+        ).allMatches(text),
+        hasLength(6),
+      );
+      for (final name in const ['Debug', 'Release-prod']) {
+        expect(
+          _extensionConfig(text, name),
+          contains('CODE_SIGNING_ALLOWED = NO;'),
+        );
+      }
+      expect(
+        _extensionConfig(text, 'Release-dev'),
+        isNot(contains('CODE_SIGNING_ALLOWED')),
+      );
+    });
+
     test("adds a flavor's group to the Runner file its configuration names",
         () async {
       writePbxproj(const [_devFlavor]);
@@ -1594,9 +1629,12 @@ void main() {
         readIos('Runner/RunnerDev.entitlements'),
         contains('<string>group.example.dev</string>'),
       );
-      final base = readIos('Runner/Runner.entitlements');
-      expect(base, contains('<string>group.example</string>'));
-      expect(base, isNot(contains('<string>group.example.dev</string>')));
+      // The unflavored configurations have no widget, so they get no group,
+      // only a file to sign with.
+      expect(
+        readIos('Runner/Runner.entitlements'),
+        allOf(contains('<dict>'), isNot(contains('application-groups'))),
+      );
     });
 
     test("adds a flavor's group to every file its configurations name",
@@ -1624,7 +1662,7 @@ void main() {
       );
       expect(
         readIos('Runner/Runner.entitlements'),
-        isNot(contains('<string>group.example.dev</string>')),
+        isNot(contains('application-groups')),
       );
     });
 
@@ -1645,10 +1683,20 @@ void main() {
         contains('<string>group.example.dev</string>'),
       );
       // Debug-dev and Profile-dev were given Runner/Runner.entitlements before
-      // this ran, so they carry the group there.
+      // this ran, which the unflavored configurations share, so they move to a
+      // file of their own.
+      expect(
+        readIos('Runner/Runner-dev.entitlements'),
+        contains('<string>group.example.dev</string>'),
+      );
       expect(
         readIos('Runner/Runner.entitlements'),
-        contains('<string>group.example.dev</string>'),
+        isNot(contains('application-groups')),
+      );
+      expect(
+        RegExp('CODE_SIGN_ENTITLEMENTS = "Runner/Runner-dev.entitlements";')
+            .allMatches(readIos('Runner.xcodeproj/project.pbxproj')),
+        hasLength(2),
       );
     });
 
@@ -1690,7 +1738,8 @@ void main() {
       );
     });
 
-    test('notes the Runner entitlements file flavors have to share', () async {
+    test('moves the flavors sharing a Runner file onto files of their own',
+        () async {
       writePbxproj(const [_devNoEntitlements, _prodFlavor]);
       final mock = useMockLogger();
 
@@ -1704,19 +1753,450 @@ void main() {
         projectRoot: tempDir,
       ).generate();
 
-      final runner = readIos('Runner/Runner.entitlements');
-      expect(runner, contains('<string>group.example</string>'));
-      expect(runner, contains('<string>group.example.dev</string>'));
-      verify(
-        () => mock.info(
-          any(
-            that: allOf(
-              contains('Runner/Runner.entitlements'),
-              contains('several App Groups'),
+      expect(
+        readIos('Runner/Runner.entitlements'),
+        isNot(contains('application-groups')),
+      );
+      final dev = readIos('Runner/Runner-dev.entitlements');
+      expect(dev, contains('<string>group.example.dev</string>'));
+      expect(dev, isNot(contains('<string>group.example</string>')));
+      final prod = readIos('Runner/Runner-prod.entitlements');
+      expect(prod, contains('<string>group.example</string>'));
+      expect(prod, isNot(contains('<string>group.example.dev</string>')));
+
+      final pbxproj = readIos('Runner.xcodeproj/project.pbxproj');
+      for (final flavor in const ['dev', 'prod']) {
+        expect(
+          RegExp(
+            'CODE_SIGN_ENTITLEMENTS = "Runner/Runner-$flavor.entitlements";',
+          ).allMatches(pbxproj),
+          hasLength(3),
+        );
+      }
+      verifyNever(() => mock.info(any(that: contains('several App Groups'))));
+    });
+
+    group('shared Runner entitlements', () {
+      const sharedDev = RunnerFlavor(
+        name: 'dev',
+        idPrefix: 'AA',
+        bundleId: 'com.example.app.dev',
+        entitlements: 'Runner/Runner.entitlements',
+      );
+      const sharedProd = RunnerFlavor(
+        name: 'prod',
+        idPrefix: 'BB',
+        bundleId: 'com.example.app',
+        entitlements: 'Runner/Runner.entitlements',
+      );
+      final devOnly = {
+        'dev': const HomeWidgetFlavor(
+          iOS: HomeWidgetIOSFlavor(groupId: 'group.example.dev'),
+        ),
+      };
+
+      File writeRunnerEntitlements(String path, List<String> groups) =>
+          File(p.join(tempDir.path, 'ios', path))
+            ..parent.createSync(recursive: true)
+            ..writeAsStringSync('''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.security.application-groups</key>
+	<array>
+${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
+	</array>
+</dict>
+</plist>
+''');
+
+      test('copies the shared file, keeping its other keys', () async {
+        writePbxproj(
+          const [sharedDev, sharedProd],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        );
+        writeRunnerEntitlements('Runner/Runner.entitlements', [
+          'group.example.other',
+        ]);
+
+        await IosGenerator(spec: specFor(devOnly), projectRoot: tempDir)
+            .generate();
+
+        final dev = readIos('Runner/Runner-dev.entitlements');
+        expect(dev, contains('<key>aps-environment</key>'));
+        expect(dev, contains('<string>group.example.other</string>'));
+        expect(dev, contains('<string>group.example.dev</string>'));
+        expect(dev, isNot(contains('<string>group.example</string>')));
+        final shared = readIos('Runner/Runner.entitlements');
+        expect(shared, contains('<key>aps-environment</key>'));
+        expect(shared, isNot(contains('<string>group.example.dev</string>')));
+        // prod keeps sharing the file with the unflavored configurations.
+        expect(
+          readIos('Runner.xcodeproj/project.pbxproj'),
+          contains('CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;'),
+        );
+        expect(
+          File(p.join(tempDir.path, 'ios/Runner/Runner-prod.entitlements'))
+              .existsSync(),
+          isFalse,
+        );
+      });
+
+      test("removes the flavor's group from the file it left", () async {
+        writePbxproj(
+          const [sharedDev, sharedProd],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        );
+        // What an earlier run left behind, when every flavor shared one file.
+        writeRunnerEntitlements('Runner/Runner.entitlements', [
+          'group.example',
+          'group.example.dev',
+          'group.example.other',
+        ]);
+
+        final mock = useMockLogger();
+
+        await IosGenerator(spec: specFor(devOnly), projectRoot: tempDir)
+            .generate();
+
+        final shared = readIos('Runner/Runner.entitlements');
+        expect(shared, isNot(contains('<string>group.example.dev</string>')));
+        expect(shared, contains('<string>group.example.other</string>'));
+        // The base group may be the app's own, so it is only pointed out.
+        expect(shared, contains('<string>group.example</string>'));
+        verify(
+          () => mock.info(
+            any(
+              that: allOf(
+                contains('Runner/Runner.entitlements'),
+                contains('group.example,'),
+                contains('Remove the group'),
+              ),
             ),
           ),
-        ),
-      ).called(1);
+        ).called(1);
+        expect(
+          readIos('Runner/Runner-dev.entitlements'),
+          contains('<string>group.example.dev</string>'),
+        );
+      });
+
+      group('with another widget sharing a group', () {
+        Future<MockLogger> generateBoth({
+          Map<String, HomeWidgetFlavor>? otherFlavors,
+          String otherGroupId = 'group.example',
+          void Function()? afterOther,
+        }) async {
+          writePbxproj(
+            const [sharedDev, sharedProd],
+            baseEntitlements: 'Runner/Runner.entitlements',
+          );
+          writeRunnerEntitlements('Runner/Runner.entitlements', [
+            'group.example',
+          ]);
+          await IosGenerator(
+            spec: WidgetSpec(
+              data: HomeWidget(
+                name: 'Other',
+                iOS: HomeWidgetIOSConfiguration(groupId: otherGroupId),
+                flavors: otherFlavors,
+              ),
+              className: 'Other',
+            ),
+            projectRoot: tempDir,
+          ).generate();
+          afterOther?.call();
+          final mock = useMockLogger();
+          await IosGenerator(spec: specFor(devOnly), projectRoot: tempDir)
+              .generate();
+          return mock;
+        }
+
+        void replaceInPbxproj(String from, String to) {
+          final pbxproj = File(
+            p.join(tempDir.path, 'ios/Runner.xcodeproj/project.pbxproj'),
+          );
+          pbxproj.writeAsStringSync(
+            pbxproj.readAsStringSync().replaceAll(from, to),
+          );
+        }
+
+        void unresolveOtherEntitlements() => replaceInPbxproj(
+              'CODE_SIGN_ENTITLEMENTS = OtherHomeWidget.entitlements;',
+              r'CODE_SIGN_ENTITLEMENTS = "$(CUSTOM)/OtherHomeWidget.entitlements";',
+            );
+
+        test("keeps a moved flavor's group the other widget still uses",
+            () async {
+          await generateBoth(otherGroupId: 'group.example.dev');
+
+          expect(
+            readIos('Runner/Runner.entitlements'),
+            contains('<string>group.example.dev</string>'),
+          );
+          expect(
+            readIos('Runner/Runner-dev.entitlements'),
+            contains('<string>group.example.dev</string>'),
+          );
+        });
+
+        test("removes a moved flavor's group the other widget does not use",
+            () async {
+          await generateBoth(
+            otherFlavors: {'dev': const HomeWidgetFlavor()},
+            otherGroupId: 'group.example.dev',
+            // Back to the state before any flavor had a file of its own.
+            afterOther: () {
+              replaceInPbxproj(
+                'CODE_SIGN_ENTITLEMENTS = "Runner/Runner-dev.entitlements";',
+                'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;',
+              );
+              writeRunnerEntitlements('Runner/Runner.entitlements', [
+                'group.example.dev',
+              ]);
+            },
+          );
+
+          expect(
+            readIos('Runner/Runner.entitlements'),
+            isNot(contains('<string>group.example.dev</string>')),
+          );
+          expect(
+            readIos('Runner/Runner-dev.entitlements'),
+            contains('<string>group.example.dev</string>'),
+          );
+        });
+
+        test('says nothing while the other widget uses it', () async {
+          final mock = await generateBoth();
+
+          expect(
+            readIos('Runner/Runner.entitlements'),
+            contains('<string>group.example</string>'),
+          );
+          verifyNever(
+            () => mock.info(any(that: contains('Remove the group'))),
+          );
+        });
+
+        test('notes it where the other widget is not embedded', () async {
+          final mock = await generateBoth(
+            otherFlavors: {'dev': const HomeWidgetFlavor()},
+          );
+
+          verify(
+            () => mock.info(
+              any(
+                that: allOf(
+                  contains('Runner/Runner.entitlements'),
+                  contains('Remove the group'),
+                ),
+              ),
+            ),
+          ).called(1);
+        });
+
+        test('says nothing when the other entitlements cannot be resolved',
+            () async {
+          final mock = await generateBoth(
+            afterOther: () {
+              unresolveOtherEntitlements();
+              writeRunnerEntitlements('OtherHomeWidget.entitlements', []);
+            },
+          );
+
+          expect(
+            readIos('Runner.xcodeproj/project.pbxproj'),
+            contains(r'$(CUSTOM)/OtherHomeWidget.entitlements'),
+          );
+          verifyNever(
+            () => mock.info(any(that: contains('Remove the group'))),
+          );
+        });
+
+        test('says nothing when the other entitlements file is missing',
+            () async {
+          final mock = await generateBoth(
+            afterOther: () =>
+                File(p.join(tempDir.path, 'ios/OtherHomeWidget.entitlements'))
+                    .deleteSync(),
+          );
+
+          verifyNever(
+            () => mock.info(any(that: contains('Remove the group'))),
+          );
+        });
+      });
+
+      test('keeps the base group and the app groups in every copy', () async {
+        const prodOverride = {
+          'dev': HomeWidgetFlavor(
+            iOS: HomeWidgetIOSFlavor(groupId: 'group.example.dev'),
+          ),
+          'prod': HomeWidgetFlavor(
+            iOS: HomeWidgetIOSFlavor(groupId: 'group.example.prod'),
+          ),
+        };
+        writePbxproj(
+          const [sharedDev, sharedProd],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        );
+        writeRunnerEntitlements('Runner/Runner.entitlements', [
+          'group.example',
+          'group.example.dev',
+          'group.example.prod',
+          'group.example.other',
+        ]);
+
+        await IosGenerator(spec: specFor(prodOverride), projectRoot: tempDir)
+            .generate();
+
+        final dev = readIos('Runner/Runner-dev.entitlements');
+        expect(dev, contains('<string>group.example.dev</string>'));
+        expect(dev, contains('<string>group.example</string>'));
+        expect(dev, contains('<string>group.example.other</string>'));
+        expect(dev, isNot(contains('<string>group.example.prod</string>')));
+        final prod = readIos('Runner/Runner-prod.entitlements');
+        expect(prod, contains('<string>group.example.prod</string>'));
+        expect(prod, contains('<string>group.example</string>'));
+        expect(prod, isNot(contains('<string>group.example.dev</string>')));
+      });
+
+      test('never removes the base group from the file a flavor left',
+          () async {
+        writePbxproj(
+          const [sharedDev, sharedProd],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        );
+        writeRunnerEntitlements('Runner/Runner.entitlements', [
+          'group.example',
+          'group.example.dev',
+        ]);
+
+        // prod has no override, so its group is the base one.
+        await IosGenerator(
+          spec: specFor({...devOnly, 'prod': const HomeWidgetFlavor()}),
+          projectRoot: tempDir,
+        ).generate();
+
+        final shared = readIos('Runner/Runner.entitlements');
+        expect(shared, contains('<string>group.example</string>'));
+        expect(shared, isNot(contains('<string>group.example.dev</string>')));
+        expect(
+          readIos('Runner/Runner-prod.entitlements'),
+          contains('<string>group.example</string>'),
+        );
+      });
+
+      test('gives each shared file of a flavor its own copy', () async {
+        const splitProd = RunnerFlavor(
+          name: 'prod',
+          idPrefix: 'BB',
+          bundleId: 'com.example.app',
+          entitlements: 'Runner/RunnerDevRelease.entitlements',
+          entitlementsByConfiguration: {
+            'Debug': 'Runner/RunnerDevDebug.entitlements',
+          },
+        );
+        writePbxproj(const [_splitDevFlavor, splitProd]);
+
+        await IosGenerator(spec: specFor(devOnly), projectRoot: tempDir)
+            .generate();
+
+        final pbxproj = readIos('Runner.xcodeproj/project.pbxproj');
+        expect(
+          pbxproj,
+          contains(
+            'CODE_SIGN_ENTITLEMENTS = '
+            '"Runner/RunnerDevDebug-dev.entitlements";',
+          ),
+        );
+        expect(
+          RegExp(
+            'CODE_SIGN_ENTITLEMENTS = '
+            '"Runner/RunnerDevRelease-dev.entitlements";',
+          ).allMatches(pbxproj),
+          hasLength(2),
+        );
+        for (final name in const [
+          'Runner/RunnerDevDebug-dev.entitlements',
+          'Runner/RunnerDevRelease-dev.entitlements',
+        ]) {
+          expect(readIos(name), contains('<string>group.example.dev</string>'));
+        }
+      });
+
+      test('leaves a flavor that has a file of its own', () async {
+        final pbxproj = writePbxproj(const [_devFlavor, _prodFlavor]);
+
+        await IosGenerator(spec: specFor(devOnly), projectRoot: tempDir)
+            .generate();
+
+        expect(
+          RegExp(
+            'CODE_SIGN_ENTITLEMENTS = Runner/RunnerDev.entitlements;',
+          ).allMatches(pbxproj.readAsStringSync()),
+          hasLength(3),
+        );
+        expect(
+          File(p.join(tempDir.path, 'ios/Runner/RunnerDev-dev.entitlements'))
+              .existsSync(),
+          isFalse,
+        );
+      });
+
+      test('changes nothing on a second run', () async {
+        final pbxproj = writePbxproj(
+          const [sharedDev, sharedProd],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        );
+        writeRunnerEntitlements('Runner/Runner.entitlements', [
+          'group.example.dev',
+        ]);
+        final generator =
+            IosGenerator(spec: specFor(devOnly), projectRoot: tempDir);
+        await generator.generate();
+        final project = pbxproj.readAsStringSync();
+        final shared = readIos('Runner/Runner.entitlements');
+        final dev = readIos('Runner/Runner-dev.entitlements');
+
+        await generator.generate();
+
+        expect(pbxproj.readAsStringSync(), project);
+        expect(readIos('Runner/Runner.entitlements'), shared);
+        expect(readIos('Runner/Runner-dev.entitlements'), dev);
+      });
+
+      test('splits nothing without flavors', () async {
+        final pbxproj = writePbxproj(
+          const [sharedDev, sharedProd],
+          baseEntitlements: 'Runner/Runner.entitlements',
+        );
+        final before = pbxproj.readAsStringSync();
+
+        await IosGenerator(spec: specFor(const {}), projectRoot: tempDir)
+            .generate();
+
+        expect(
+          RegExp(
+            'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;',
+          ).allMatches(pbxproj.readAsStringSync()),
+          hasLength(
+            RegExp('CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;')
+                .allMatches(before)
+                .length,
+          ),
+        );
+        expect(
+          Directory(p.join(tempDir.path, 'ios/Runner'))
+              .listSync()
+              .map((entity) => p.basename(entity.path)),
+          ['Runner.entitlements'],
+        );
+      });
     });
 
     test('fails on a flavor the Xcode project does not have', () async {
@@ -1902,13 +2382,14 @@ void main() {
         isFalse,
       );
       expect(
-        readIos('Runner/Runner.entitlements'),
+        readIosOrNull('Runner/Runner.entitlements') ?? '',
         isNot(contains('<string>group.example.dev</string>')),
       );
     });
 
-    test('writes the base group next to the app without unflavored ones',
-        () async {
+    /// A project whose Runner holds only the dev configurations, its
+    /// `Info.plist` in `App/`.
+    void writeDevOnlyAppProject() {
       final pbxproj = writePbxproj(const [_devNoEntitlements]);
       pbxproj.writeAsStringSync(
         pbxproj
@@ -1919,6 +2400,25 @@ void main() {
             )
             .replaceAll('Runner/Info.plist', 'App/Info.plist'),
       );
+    }
+
+    test('writes the base group next to the app without unflavored ones',
+        () async {
+      writeDevOnlyAppProject();
+
+      await IosGenerator(spec: specFor(const {}), projectRoot: tempDir)
+          .generate();
+
+      expect(
+        readIos('App/App.entitlements'),
+        contains('<string>group.example</string>'),
+      );
+      expect(readIosOrNull('Runner/Runner.entitlements'), isNull);
+    });
+
+    test('writes no base group next to the app for a flavored widget',
+        () async {
+      writeDevOnlyAppProject();
 
       await IosGenerator(
         spec: specFor({
@@ -1929,18 +2429,10 @@ void main() {
         projectRoot: tempDir,
       ).generate();
 
-      expect(
-        readIos('App/App.entitlements'),
-        allOf(
-          contains('<string>group.example</string>'),
-          contains('<string>group.example.dev</string>'),
-        ),
-      );
-      expect(
-        File(p.join(tempDir.path, 'ios/Runner/Runner.entitlements'))
-            .existsSync(),
-        isFalse,
-      );
+      final app = readIos('App/App.entitlements');
+      expect(app, contains('<string>group.example.dev</string>'));
+      expect(app, isNot(contains('<string>group.example</string>')));
+      expect(readIosOrNull('Runner/Runner.entitlements'), isNull);
     });
 
     test('writes the base group into the file Runner actually signs with',

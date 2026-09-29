@@ -198,4 +198,112 @@ void main() {
       ).called(1);
     });
   });
+
+  group('removeAppGroupEntitlements', () {
+    const twoGroups = '''<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>aps-environment</key>
+	<string>development</string>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.example</string>
+		<string>group.example.dev</string>
+	</array>
+</dict>
+</plist>
+''';
+
+    test('removes only the given groups', () async {
+      final file = entitlementsFile()..writeAsStringSync(twoGroups);
+
+      await removeAppGroupEntitlements(
+        entitlementsFile: file,
+        appGroupIds: {'group.example.dev'},
+      );
+
+      final content = file.readAsStringSync();
+      expect(content, isNot(contains('group.example.dev')));
+      expect(content, contains('<string>group.example</string>'));
+      expect(content, contains('<key>aps-environment</key>'));
+    });
+
+    test('removes the entitlement once no group is left', () async {
+      final file = entitlementsFile()..writeAsStringSync(twoGroups);
+
+      await removeAppGroupEntitlements(
+        entitlementsFile: file,
+        appGroupIds: {'group.example', 'group.example.dev'},
+      );
+
+      final content = file.readAsStringSync();
+      expect(content, isNot(contains('application-groups')));
+      expect(content, isNot(contains('<array')));
+      expect(content, contains('<string>development</string>'));
+    });
+
+    test('leaves a file without the groups byte for byte', () async {
+      final file = entitlementsFile()..writeAsStringSync(twoGroups);
+
+      await removeAppGroupEntitlements(
+        entitlementsFile: file,
+        appGroupIds: {'group.other'},
+      );
+
+      expect(file.readAsStringSync(), twoGroups);
+    });
+
+    test('reads the groups a file lists', () async {
+      final file = entitlementsFile();
+      expect(await appGroupEntitlements(file), isEmpty);
+
+      file.writeAsStringSync(twoGroups);
+
+      expect(
+        await appGroupEntitlements(file),
+        {'group.example', 'group.example.dev'},
+      );
+    });
+
+    test('creates an empty entitlements file only when missing', () async {
+      final file = entitlementsFile();
+
+      await ensureEntitlementsFile(file);
+      expect(await appGroupEntitlements(file), isEmpty);
+      expect(file.readAsStringSync(), contains('<dict>'));
+
+      file.writeAsStringSync(twoGroups);
+      await ensureEntitlementsFile(file);
+      expect(file.readAsStringSync(), twoGroups);
+    });
+
+    test('does nothing for a missing file', () async {
+      final file = entitlementsFile();
+
+      await removeAppGroupEntitlements(
+        entitlementsFile: file,
+        appGroupIds: {'group.example'},
+      );
+
+      expect(file.existsSync(), isFalse);
+    });
+
+    test('warns and leaves file unchanged when XML is malformed', () async {
+      final file = entitlementsFile();
+      const garbage = 'not xml at all';
+      file.writeAsStringSync(garbage);
+
+      await removeAppGroupEntitlements(
+        entitlementsFile: file,
+        appGroupIds: {'group.example'},
+      );
+
+      expect(file.readAsStringSync(), equals(garbage));
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not parse entitlements as XML')),
+        ),
+      ).called(1);
+    });
+  });
 }

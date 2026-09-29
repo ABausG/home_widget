@@ -181,10 +181,35 @@ $indent$literal,
   /// [value], replacing a list value whole and dropping duplicates of [key].
   ///
   /// A new setting goes where Xcode sorts it.
-  void setBuildSetting(String configurationId, String key, String value) {
+  void setBuildSetting(String configurationId, String key, String value) =>
+      _setBuildSetting(configurationId, key, (_) => pbxLiteral(value));
+
+  /// Sets the build setting [key] of the configuration [configurationId] to
+  /// the list [values], written one element per line the way Xcode writes
+  /// `LD_RUNPATH_SEARCH_PATHS`; otherwise as [setBuildSetting].
+  void setBuildSettingList(
+    String configurationId,
+    String key,
+    List<String> values,
+  ) =>
+      _setBuildSetting(configurationId, key, (indent) {
+        final buffer = StringBuffer()..writeln('(');
+        for (final value in values) {
+          buffer.writeln('$indent\t${pbxLiteral(value)},');
+        }
+        buffer.write('$indent)');
+        return buffer.toString();
+      });
+
+  /// Sets the build setting [key] of the configuration [configurationId] to
+  /// the literal [render] gives for the indentation of its line.
+  void _setBuildSetting(
+    String configurationId,
+    String key,
+    String Function(String indent) render,
+  ) {
     final configuration = project.object(configurationId);
     if (configuration == null) return;
-    final literal = pbxLiteral(value);
     final settings = configuration.fields.dict('buildSettings');
     if (settings == null) {
       _insertEntry(
@@ -192,7 +217,7 @@ $indent$literal,
         'buildSettings',
         (indent) => '''
 buildSettings = {
-$indent\t${pbxLiteral(key)} = $literal;
+$indent\t${pbxLiteral(key)} = ${render('$indent\t')};
 $indent};''',
       );
       return;
@@ -203,12 +228,20 @@ $indent};''',
         if (entry.key.value == key) entry,
     ];
     if (existing.isEmpty) {
-      _insertEntry(settings, key, (_) => '${pbxLiteral(key)} = $literal;');
+      _insertEntry(
+        settings,
+        key,
+        (indent) => '${pbxLiteral(key)} = ${render(indent)};',
+      );
       return;
     }
     final last = existing.removeLast();
     final keyText = _text.substring(last.key.start, last.key.end);
-    _replace(last.start, last.end, '$keyText = $literal;');
+    _replace(
+      last.start,
+      last.end,
+      '$keyText = ${render(_indentAt(last.start))};',
+    );
     for (final duplicate in existing.reversed) {
       _remove(duplicate.start, duplicate.end);
     }

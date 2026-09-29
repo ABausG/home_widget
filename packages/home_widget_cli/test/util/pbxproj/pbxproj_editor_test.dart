@@ -534,6 +534,40 @@ void main() {
       );
     });
 
+    test('writes a list value one element per line', () {
+      final editor = PbxprojEditor(_project)
+        ..setBuildSettingList('CONFIG', 'LIST', [r'$(inherited)', 'a b', 'c'])
+        ..setBuildSettingList('CONFIG', 'BETA', ['x']);
+
+      expect(
+        editor.text,
+        contains(
+          '\t\t\t\tBETA = (\n'
+          '\t\t\t\t\tx,\n'
+          '\t\t\t\t);\n',
+        ),
+      );
+      expect(
+        editor.text,
+        contains(
+          '\t\t\t\tLIST = (\n'
+          '\t\t\t\t\t"\$(inherited)",\n'
+          '\t\t\t\t\t"a b",\n'
+          '\t\t\t\t\tc,\n'
+          '\t\t\t\t);\n'
+          '\t\t\t\tOMEGA = 2;\n',
+        ),
+      );
+      final settings = Pbxproj.parse(editor.text)
+          .object('CONFIG')!
+          .fields
+          .dict('buildSettings')!;
+      expect(
+        (settings.entry('LIST')!.value as PbxArray).strings,
+        [r'$(inherited)', 'a b', 'c'],
+      );
+    });
+
     test('quotes the key and value it writes', () {
       const value = r'$(inherited) PATH="a" HW_FLAVOR_DEV';
       final editor = PbxprojEditor(_project)

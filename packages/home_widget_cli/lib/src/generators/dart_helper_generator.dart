@@ -49,10 +49,10 @@ class DartHelperGenerator {
           spec.hasWidgetUrl ||
           spec.hasRuntimeImages)
         "import 'dart:io';",
-      if (storesFiles && !hasTimedData) "import 'dart:typed_data';",
+      if (storesFiles && !hasTimedData && !spec.hasFlavors)
+        "import 'dart:typed_data';",
       if (hasTimedData) "import 'package:flutter/foundation.dart';",
-      if (_usesAppGroupId && spec.hasFlavors)
-        "import 'package:flutter/services.dart';",
+      if (spec.hasFlavors) "import 'package:flutter/services.dart';",
       if (spec.hasRuntimeImages || spec.iconEnums.isNotEmpty)
         "import 'package:flutter/widgets.dart';",
       "import 'package:home_widget/home_widget.dart';",
@@ -77,6 +77,12 @@ class $className {
 
 ''');
 
+    if (spec.hasFlavors) {
+      buffer
+        ..write(_flavorGate())
+        ..writeln();
+    }
+
     if (_hasDataFields) {
       buffer.write(_dataMembers());
     }
@@ -84,7 +90,7 @@ class $className {
     buffer.write('''
 
   static Future<bool?> updateWidget() {
-    return HomeWidget.updateWidget(
+${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
       $_androidNameArg,
 ''');
 
@@ -233,6 +239,48 @@ class $className {
   /// Whether every data call names the App Group it reads and writes through.
   bool get _usesAppGroupId => _hasDataFields && spec.data.iOS?.groupId != null;
 
+  /// What reads a stored value: the plugin itself, or for a widget declaring
+  /// flavors the reader that answers the default outside them.
+  String get _readCall =>
+      spec.hasFlavors ? r'_$getWidgetData' : 'HomeWidget.getWidgetData';
+
+  /// The App Group argument of a read through [_readCall], which the flavored
+  /// reader adds itself.
+  String get _readAppGroupIdArg => spec.hasFlavors ? '' : _appGroupIdArg;
+
+  /// The first line of an entry point of a widget declaring flavors, returning
+  /// [value] without touching the widget when the app runs in another flavor
+  /// or none; nothing for a widget without flavors.
+  String _flavorGuard([String? value]) => spec.hasFlavors
+      ? '    if (!_\$inDeclaredFlavor) '
+          'return${value == null ? '' : ' $value'};\n'
+      : '';
+
+  /// Whether the app runs in a flavor the widget exists in, and the reader
+  /// that leaves the store alone elsewhere.
+  ///
+  /// Outside those flavors neither platform has the widget, and iOS has no
+  /// App Group for it, so the helper does nothing there.
+  String _flavorGate() {
+    final flavors =
+        spec.declaredFlavors.map((flavor) => "'$flavor'").join(', ');
+    final buffer = StringBuffer()..write('''
+  /// Whether the app runs in a flavor this widget is generated for. Outside
+  /// them every call leaves the widget alone.
+  static bool get _\$inDeclaredFlavor => const {$flavors}.contains(appFlavor);
+''');
+    if (_hasDataFields) {
+      buffer.write('''
+
+  static Future<T?> _\$getWidgetData<T>(String id, {T? defaultValue}) async {
+    if (!_\$inDeclaredFlavor) return defaultValue;
+    return HomeWidget.getWidgetData<T>(id, defaultValue: defaultValue$_appGroupIdArg);
+  }
+''');
+    }
+    return buffer.toString();
+  }
+
   /// Every timed image key is namespaced by its timestamp, so the timed save
   /// path and its pruning cover the JSON leaves of a timed group too.
   List<String> get _allTimedImageKeys => [
@@ -366,8 +414,8 @@ class $className {
   /// Emits the App Group the data calls write to.
   ///
   /// A widget declaring flavors resolves it from the flavor the app was built
-  /// with, since one generated helper serves them all; the base group answers
-  /// for every other flavor.
+  /// with, since one generated helper serves them all. No other flavor reaches
+  /// it: every call returns early there.
   String _appGroupIdDeclaration(String baseGroupId) {
     if (!spec.hasFlavors) {
       return '''
@@ -383,7 +431,7 @@ class $className {
     }
 
     buffer.write('''
-    _ => '$baseGroupId',
+    _ => throw StateError('${escapeDartStringLiteral(spec.data.name)} is not generated for the flavor \$appFlavor.'),
   };
 ''');
 
@@ -472,12 +520,12 @@ class $className {
     if (prologue.isEmpty) {
       buffer.write('''
   }) {
-    return Future.wait([
+${_flavorGuard('Future.value()')}    return Future.wait([
 ''');
     } else {
       buffer.write('''
   }) async {
-''');
+${_flavorGuard()}''');
       for (final line in prologue) {
         buffer.writeln(line);
       }
@@ -910,7 +958,7 @@ $indent}''');
 
     buffer.write('''
   }) {
-    return Future.wait([
+${_flavorGuard('Future.value()')}    return Future.wait([
 ''');
 
     for (final entry in entries) {
@@ -1111,7 +1159,7 @@ $indent}''');
   String _jsonGroupRead(JsonDataGroup group) {
     final jsonClass = _dartJsonClassName(group.key);
     return '''
-    final _${group.key}Path = await HomeWidget.getWidgetData<String>(${_paramKey(group.key)}$_appGroupIdArg);
+    final _${group.key}Path = await $_readCall<String>(${_paramKey(group.key)}$_readAppGroupIdArg);
     $jsonClass? ${group.key};
     if (_${group.key}Path != null) {
       try {
@@ -1133,7 +1181,7 @@ $indent}''');
     final key = group.key;
     final itemClass = group.itemClassName(spec.className);
     return '''
-    final _${key}Path = await HomeWidget.getWidgetData<String>(${_paramKey(key)}$_appGroupIdArg);
+    final _${key}Path = await $_readCall<String>(${_paramKey(key)}$_readAppGroupIdArg);
     List<$itemClass>? $key;
     if (_${key}Path != null) {
       try {
@@ -1147,7 +1195,7 @@ $indent}''');
 
   /// Reads the timeline back, keyed by the local [DateTime] of each entry.
   String _timedDataRead() => '''
-    final _timedDataPath = await HomeWidget.getWidgetData<String>(${_paramKey('timedData')}$_appGroupIdArg);
+    final _timedDataPath = await $_readCall<String>(${_paramKey('timedData')}$_readAppGroupIdArg);
     Map<DateTime, $_timedDataClassName>? timedData;
     if (_timedDataPath != null) {
       try {
@@ -1177,13 +1225,13 @@ $indent}''');
     }
     if (field is HWDateTime) {
       return '      $key: _readDateTime('
-          'await HomeWidget.getWidgetData<String>('
-          '${_paramKey(key)}$_appGroupIdArg)),';
+          'await $_readCall<String>('
+          '${_paramKey(key)}$_readAppGroupIdArg)),';
     }
     final literal = field.codegenDartDefaultLiteral();
     final defaultLiteral = literal == null ? '' : ', defaultValue: $literal';
-    final read = 'await HomeWidget.getWidgetData<${field.dartType}>('
-        '${_paramKey(key)}$defaultLiteral$_appGroupIdArg)';
+    final read = 'await $_readCall<${field.dartType}>('
+        '${_paramKey(key)}$defaultLiteral$_readAppGroupIdArg)';
     return '      $key: ${_dartLeafDecode(field, read)},';
   }
 
@@ -1227,7 +1275,7 @@ $indent}''');
   /// registers the preview automatically when the app starts, so this is only
   /// needed after data changes that should show in the gallery right away.
   static Future<bool> updatePreview() async {
-    return await HomeWidget.updateWidgetPreview(
+${_flavorGuard('false')}    return await HomeWidget.updateWidgetPreview(
       $_androidNameArg,
     ) ?? false;
   }
@@ -1242,7 +1290,7 @@ $indent}''');
   /// screen: Android 8 or newer with a launcher that supports pinning. Always
   /// false on iOS.
   static Future<bool> isRequestPinWidgetSupported() async {
-    return await HomeWidget.isRequestPinWidgetSupported() ?? false;
+${_flavorGuard('false')}    return await HomeWidget.isRequestPinWidgetSupported() ?? false;
   }
 
   /// Asks the launcher to add this widget to the home screen.
@@ -1250,7 +1298,7 @@ $indent}''');
   /// Shows the system pin dialog where [isRequestPinWidgetSupported] is true
   /// and does nothing anywhere else.
   static Future<void> requestPinWidget() {
-    return HomeWidget.requestPinWidget(
+${_flavorGuard('Future.value()')}    return HomeWidget.requestPinWidget(
       $_androidNameArg,
     );
   }
@@ -1509,7 +1557,7 @@ $filterDoc
     final timedKey = _paramKey(r'timedData.$_key.$_millis');
     return '''
   static Future<List<int>> _\$storedTimedKeys() async {
-    final path = await HomeWidget.getWidgetData<String>(${_paramKey('timedData')}$_appGroupIdArg);
+    final path = await $_readCall<String>(${_paramKey('timedData')}$_readAppGroupIdArg);
     if (path == null) return const [];
     try {
       final decoded = jsonDecode(await File(path).readAsString());
@@ -1547,7 +1595,7 @@ $filterDoc
     if (spec.untimedListGroups.any((group) => group.imageFields.isNotEmpty)) {
       buffer.write('''
   static Future<int> _\$storedListLength(String key) async {
-    final path = await HomeWidget.getWidgetData<String>(key$_appGroupIdArg);
+    final path = await $_readCall<String>(key$_readAppGroupIdArg);
     if (path == null) return 0;
     try {
       final decoded = jsonDecode(await File(path).readAsString());
@@ -1611,7 +1659,7 @@ $filterDoc
     final listKey = _paramKey(r'timedData.$list');
     return '''
   static Future<Map<int, Map<String, int>>> _\$storedTimedListLengths() async {
-    final path = await HomeWidget.getWidgetData<String>(${_paramKey('timedData')}$_appGroupIdArg);
+    final path = await $_readCall<String>(${_paramKey('timedData')}$_readAppGroupIdArg);
     if (path == null) return const {};
     try {
       final decoded = jsonDecode(await File(path).readAsString());
@@ -1650,7 +1698,7 @@ $filterDoc
   /// object of strings reads back as null instead of throwing.
   String _localizedReader() => '''
   static Future<Map<String, String>?> _\$readLocalized(String key) async {
-    final raw = await HomeWidget.getWidgetData<String>(key$_appGroupIdArg);
+    final raw = await $_readCall<String>(key$_readAppGroupIdArg);
     if (raw == null) return null;
     Object? decoded;
     try {

@@ -13,6 +13,7 @@ import '../util/fs.dart';
 import '../util/icon_font_writer.dart';
 import '../util/ios_templates.dart';
 import '../util/naming.dart';
+import '../util/pbxproj/pbxproj_document.dart' show ownBuildSettings;
 import '../util/string_catalog.dart';
 import '../util/xcode_pbxproj_patcher.dart';
 import '../util/xcode_project.dart';
@@ -498,6 +499,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
       pbxprojFile: xcodeproj,
       widgetClassName: widgetClassName,
       flavorEntitlements: flavorEntitlements,
+      flavors: spec.hasFlavors ? spec.declaredFlavors : null,
     );
     await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
 
@@ -603,6 +605,14 @@ struct ${widgetClassName}Entry: TimelineEntry {
   /// builds. Flavors whose configurations name none fall back to the file the
   /// scaffolder creates.
   ///
+  /// With flavors, only the declared ones get a group: the base group has no
+  /// widget to share with elsewhere. A declared flavor sharing its file with a
+  /// configuration outside it is first moved onto a file of its own (see
+  /// [_splitSharedRunnerEntitlements]), and its group removed from the file it
+  /// left, so the group never reaches a flavor that does not declare the
+  /// widget. The base group is never removed, since the app may use it itself;
+  /// a note says where it is left.
+  ///
   /// A configuration naming a file through a build variable only Xcode can
   /// resolve is left to the user: writing to a guessed path would create a
   /// second entitlements file that nothing signs with.
@@ -614,6 +624,13 @@ struct ${widgetClassName}Entry: TimelineEntry {
   }) async {
     final iosDir = xcodeproj.parent.parent;
     final projectName = xcodeProjectName(xcodeproj);
+    final vacated = await _splitSharedRunnerEntitlements(
+      xcodeproj: xcodeproj,
+      project: project,
+      groupId: groupId,
+      flavorAppGroupIds: flavorAppGroupIds,
+    );
+    if (spec.hasFlavors) project = await readXcodeProject(xcodeproj);
     final defaultPath = defaultRunnerEntitlementsPath(
       project,
       projectDir: iosDir,
@@ -622,7 +639,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
     final groupsByPath = <String, Set<String>>{};
 
     for (final entry in <String?, String>{
-      null: groupId,
+      if (!spec.hasFlavors) null: groupId,
       ...flavorAppGroupIds,
     }.entries) {
       final flavor = entry.key;
@@ -650,7 +667,9 @@ struct ${widgetClassName}Entry: TimelineEntry {
           );
           continue;
         }
-        groupsByPath.putIfAbsent(path, () => <String>{}).add(entry.value);
+        groupsByPath
+            .putIfAbsent(p.posix.normalize(path), () => <String>{})
+            .add(entry.value);
       }
     }
 
@@ -663,15 +682,243 @@ struct ${widgetClassName}Entry: TimelineEntry {
         );
       }
       logger.detail('Updated: ${file.path}');
-      if (entry.value.length > 1) {
-        logger.info(
-          '${entry.key} now lists several App Groups '
-          '(${entry.value.join(', ')}) because the flavors sharing it use '
-          'different ones. Point each flavor at its own Runner entitlements '
-          'file via CODE_SIGN_ENTITLEMENTS to keep them apart.',
-        );
+    }
+
+    final runnerConfigs = runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+    for (final MapEntry(key: path, value: groups) in vacated.entries) {
+      final remaining = {
+        for (final config in runnerConfigs)
+          if (config.entitlements case final setting?)
+            if (resolveProjectRelativePath(setting) case final resolved?)
+              if (p.posix.normalize(resolved) == path) config.name,
+      };
+      final removable = <String>{};
+      for (final group
+          in groups.difference({...?groupsByPath[path], groupId})) {
+        if (!await _otherExtensionNeedsGroup(
+          project: project,
+          iosDir: iosDir,
+          configurations: remaining,
+          groupId: group,
+        )) {
+          removable.add(group);
+        }
+      }
+      await removeAppGroupEntitlements(
+        entitlementsFile: File(p.join(iosDir.path, path)),
+        appGroupIds: removable,
+      );
+    }
+
+    if (spec.hasFlavors) {
+      await _noteLeftoverBaseGroup(
+        xcodeproj: xcodeproj,
+        project: project,
+        groupId: groupId,
+      );
+    }
+
+    // Configurations naming no file were pointed at the default one, which
+    // gets no group when the widget does not exist there.
+    final signsWithDefault = runnerConfigs.any((config) {
+      final path = config.entitlements == null
+          ? null
+          : resolveProjectRelativePath(config.entitlements!);
+      return path != null && p.posix.normalize(path) == defaultPath;
+    });
+    if (signsWithDefault) {
+      await ensureEntitlementsFile(File(p.join(iosDir.path, defaultPath)));
+    }
+  }
+
+  /// Notes every Runner entitlements file of a configuration the widget does
+  /// not exist in that still lists its base App Group, which an earlier run
+  /// may have written there. It is left in place: the app may use it itself.
+  ///
+  /// A file another widget still needs the group in is skipped (see
+  /// [_otherExtensionNeedsGroup]).
+  Future<void> _noteLeftoverBaseGroup({
+    required File xcodeproj,
+    required Pbxproj project,
+    required String groupId,
+  }) async {
+    final iosDir = xcodeproj.parent.parent;
+    final configurationsByPath = <String, Set<String>>{};
+    for (final config in runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: xcodeProjectName(xcodeproj),
+    )) {
+      if (spec.declaredFlavors.contains(config.flavor)) continue;
+      if (config.entitlements case final setting?) {
+        if (resolveProjectRelativePath(setting) case final path?) {
+          configurationsByPath
+              .putIfAbsent(p.posix.normalize(path), () => <String>{})
+              .add(config.name);
+        }
       }
     }
+    for (final MapEntry(key: path, value: configurations)
+        in configurationsByPath.entries) {
+      final groups =
+          await appGroupEntitlements(File(p.join(iosDir.path, path)));
+      if (!groups.contains(groupId)) continue;
+      if (await _otherExtensionNeedsGroup(
+        project: project,
+        iosDir: iosDir,
+        configurations: configurations,
+        groupId: groupId,
+      )) {
+        continue;
+      }
+      logger.info(
+        '$path still lists the App Group $groupId, which ${spec.data.name} '
+        'no longer needs there: it does not exist in the configurations '
+        'signing with this file. Remove the group from it unless the app uses '
+        'it itself.',
+      );
+    }
+  }
+
+  /// Whether an app extension target other than this widget's is embedded in
+  /// one of the Runner [configurations] and signs there with an entitlements
+  /// file listing [groupId].
+  ///
+  /// The project is asked rather than the widgets of this run, since a run may
+  /// generate a single widget. An extension is left out of a configuration
+  /// that sets `CODE_SIGNING_ALLOWED = NO` and excludes every source, as the
+  /// patcher does for one the app does not embed. Entitlements that name a
+  /// build variable, or a file that does not exist, count as listing the
+  /// group.
+  Future<bool> _otherExtensionNeedsGroup({
+    required Pbxproj project,
+    required Directory iosDir,
+    required Set<String> configurations,
+    required String groupId,
+  }) async {
+    final ownTarget = '${spec.className}HomeWidget';
+    for (final target in project.objectsOfIsa('PBXNativeTarget')) {
+      if (target.string('productType') !=
+              'com.apple.product-type.app-extension' ||
+          target.string('name') == ownTarget) {
+        continue;
+      }
+      final settingsByName = {
+        for (final config in project.buildConfigurationsOf(target))
+          config.string('name'): ownBuildSettings(config),
+      };
+      for (final name in configurations) {
+        final settings = settingsByName[name] ?? const <String, String>{};
+        final excluded =
+            settings['EXCLUDED_SOURCE_FILE_NAMES']?.split(RegExp(r'\s+'));
+        if (settings['CODE_SIGNING_ALLOWED'] == 'NO' &&
+            (excluded?.contains('*') ?? false)) {
+          continue;
+        }
+        final setting = settings['CODE_SIGN_ENTITLEMENTS'];
+        final path =
+            setting == null ? null : resolveProjectRelativePath(setting);
+        if (path == null) return true;
+        final file = File(p.join(iosDir.path, p.posix.normalize(path)));
+        if (!file.existsSync()) return true;
+        if ((await appGroupEntitlements(file)).contains(groupId)) return true;
+      }
+    }
+    return false;
+  }
+
+  /// Moves every Runner configuration of a declared flavor that shares its
+  /// entitlements file with a configuration outside that flavor, or names none,
+  /// onto a file of its own: `<file>-<flavor>.entitlements` next to the shared
+  /// one, or next to [defaultRunnerEntitlementsPath].
+  ///
+  /// A new file starts as a copy of the shared one, keeping keys such as
+  /// `aps-environment` and the app's own App Groups, without the groups of the
+  /// other declared flavors. The base group stays, since the app may use it
+  /// itself. A file that exists already is reused as it is. Returns, per file
+  /// a flavor was moved off, the App Groups of the flavors moved off it.
+  ///
+  /// Does nothing for a widget without flavors.
+  Future<Map<String, Set<String>>> _splitSharedRunnerEntitlements({
+    required File xcodeproj,
+    required Pbxproj project,
+    required String groupId,
+    required Map<String, String> flavorAppGroupIds,
+  }) async {
+    if (!spec.hasFlavors) return const {};
+    final iosDir = xcodeproj.parent.parent;
+    final projectName = xcodeProjectName(xcodeproj);
+    final configs = runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+    final defaultPath = defaultRunnerEntitlementsPath(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+
+    String? pathOf(String? setting) {
+      final path = setting == null ? null : resolveProjectRelativePath(setting);
+      return path == null ? null : p.posix.normalize(path);
+    }
+
+    final moves = <String, String>{};
+    final vacated = <String, Set<String>>{};
+    for (final MapEntry(key: flavor, value: flavorGroup)
+        in flavorAppGroupIds.entries) {
+      for (final config in configs.where((c) => c.flavor == flavor)) {
+        final source = pathOf(config.entitlements);
+        if (config.entitlements != null) {
+          if (source == null) continue;
+          final shared = configs.any(
+            (other) =>
+                other.flavor != flavor && pathOf(other.entitlements) == source,
+          );
+          if (!shared) continue;
+        }
+
+        final target = _flavorEntitlementsPath(source ?? defaultPath, flavor);
+        moves[config.name] = target;
+        final targetFile = File(p.join(iosDir.path, target));
+        final sourceFile =
+            source == null ? null : File(p.join(iosDir.path, source));
+        if (!targetFile.existsSync() && sourceFile != null) {
+          if (sourceFile.existsSync()) {
+            await targetFile.parent.create(recursive: true);
+            await sourceFile.copy(targetFile.path);
+            await removeAppGroupEntitlements(
+              entitlementsFile: targetFile,
+              appGroupIds: {...flavorAppGroupIds.values}
+                  .difference({flavorGroup, groupId}),
+            );
+            logger.detail('Created: ${targetFile.path}');
+          }
+        }
+        if (source != null) {
+          vacated.putIfAbsent(source, () => <String>{}).add(flavorGroup);
+        }
+      }
+    }
+
+    await setRunnerEntitlementsInXcodeProject(
+      pbxprojFile: xcodeproj,
+      entitlements: moves,
+    );
+    return vacated;
+  }
+
+  /// `<path>` with `-<flavor>` before its extension, in the same folder.
+  static String _flavorEntitlementsPath(String path, String flavor) {
+    final name = '${p.posix.basenameWithoutExtension(path)}-$flavor'
+        '.entitlements';
+    final folder = p.posix.dirname(path);
+    return folder == '.' ? name : '$folder/$name';
   }
 
   /// Notes the Xcode flavors the widget leaves out.

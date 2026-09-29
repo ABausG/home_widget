@@ -60,6 +60,14 @@ Future<Pbxproj> checkWidgetExtensionTargetInXcodeProject({
 /// configurations use, relative to `ios/`; flavors it does not list and the
 /// unflavored configurations use `<widgetClassName>.entitlements`.
 ///
+/// [flavors] are the flavors the widget exists in, `null` for every
+/// configuration. A configuration outside them, the unflavored ones included,
+/// leaves the extension out of the app: the app configuration lists
+/// `<widgetClassName>.appex` in `EXCLUDED_SOURCE_FILE_NAMES`, which skips it in
+/// the embed phase, and the extension configuration excludes its sources and
+/// sets `CODE_SIGNING_ALLOWED = NO`, so it needs no provisioning profile. Both
+/// are lifted again once the configuration's flavor is among [flavors].
+///
 /// A configuration this adds starts at the deployment target of the app
 /// configuration it mirrors, 14.0 at the least; one that exists keeps its own.
 ///
@@ -74,6 +82,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
   required File pbxprojFile,
   required String widgetClassName,
   Map<String, String> flavorEntitlements = const {},
+  Iterable<String>? flavors,
 }) async {
   final projectName = xcodeProjectName(pbxprojFile);
   await _updateXcodeProject(pbxprojFile, (editor) {
@@ -83,6 +92,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
       project,
       widgetClassName: widgetClassName,
       flavorEntitlements: flavorEntitlements,
+      flavors: flavors?.toSet(),
       projectDir: _projectDirOf(pbxprojFile),
       projectName: projectName,
     );
@@ -110,6 +120,13 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
       configs: configs,
       ownTarget: ownTarget,
       appTarget: appTarget,
+    );
+    _syncRunnerEmbedExclusions(
+      editor,
+      widgetClassName: widgetClassName,
+      configs: configs,
+      projectDir: _projectDirOf(pbxprojFile),
+      projectName: projectName,
     );
 
     return existing == null
@@ -188,6 +205,54 @@ List<String> runnerEntitlementsSettingsForFlavor(
     settings.add(entitlements);
   }
   return settings;
+}
+
+/// Every build configuration of the app target with the flavor it belongs to
+/// and the `CODE_SIGN_ENTITLEMENTS` it resolves to, `null` where it names no
+/// file.
+///
+/// [projectDir] and [projectName] are read as [detectXcodeFlavors] reads them.
+List<({String name, String? flavor, String? entitlements})>
+    runnerEntitlementsByConfiguration(
+  Pbxproj project, {
+  Directory? projectDir,
+  String? projectName,
+}) =>
+        [
+          for (final config in _runnerBuildConfigurations(
+            project,
+            projectDir: projectDir,
+            projectName: projectName,
+          ))
+            (
+              name: config.name,
+              flavor: config.flavor,
+              entitlements: config.entitlements,
+            ),
+        ];
+
+/// Points the app target's build configurations named by the keys of
+/// [entitlements] at the entitlements file each maps to, relative to `ios/`.
+Future<void> setRunnerEntitlementsInXcodeProject({
+  required File pbxprojFile,
+  required Map<String, String> entitlements,
+}) async {
+  if (entitlements.isEmpty) return;
+  final projectName = xcodeProjectName(pbxprojFile);
+  await _updateXcodeProject(pbxprojFile, (editor) {
+    for (final config in _runnerBuildConfigurations(
+      editor.project,
+      projectDir: _projectDirOf(pbxprojFile),
+      projectName: projectName,
+    )) {
+      final path = entitlements[config.name];
+      if (path == null) continue;
+      editor.setBuildSetting(config.id, 'CODE_SIGN_ENTITLEMENTS', path);
+    }
+    return 'Pointed ${entitlements.keys.join(', ')} of '
+        '${_appTargetName(editor.project, projectName)} at their own '
+        'entitlements files.';
+  });
 }
 
 /// The entitlements file, relative to `ios/`, the app target signs with where
@@ -285,6 +350,7 @@ final class _ExtensionBuildConfiguration {
     required this.entitlements,
     required this.flavor,
     required this.deploymentTarget,
+    required this.embedded,
   });
 
   final String id;
@@ -294,6 +360,9 @@ final class _ExtensionBuildConfiguration {
   final String? developmentTeam;
   final String entitlements;
   final String? flavor;
+
+  /// Whether the app embeds the extension in this configuration.
+  final bool embedded;
 
   /// Only written into a configuration this creates.
   final String deploymentTarget;
@@ -627,6 +696,7 @@ List<_ExtensionBuildConfiguration> _desiredExtensionConfigurations(
   Pbxproj project, {
   required String widgetClassName,
   required Map<String, String> flavorEntitlements,
+  required Set<String>? flavors,
   required Directory projectDir,
   required String? projectName,
 }) {
@@ -660,6 +730,7 @@ List<_ExtensionBuildConfiguration> _desiredExtensionConfigurations(
           : flavorEntitlements[flavor] ?? defaultEntitlements,
       flavor: flavor,
       deploymentTarget: _extensionDeploymentTarget(runner?.deploymentTarget),
+      embedded: flavors == null || flavors.contains(flavor),
     );
   }
 
@@ -1010,12 +1081,23 @@ String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
 \t\t\tisa = XCBuildConfiguration;
 \t\t\tbuildSettings = {
 \t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
+''');
+  if (!config.embedded) {
+    buffer.writeln('\t\t\t\t$_codeSigningAllowedKey = NO;');
+  }
+  buffer.write('''
 \t\t\t\tCODE_SIGN_ENTITLEMENTS = ${pbxLiteral(config.entitlements)};
 \t\t\t\tCODE_SIGN_STYLE = Automatic;
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 ''');
   if (team != null) {
     buffer.writeln('\t\t\t\tDEVELOPMENT_TEAM = ${pbxLiteral(team)};');
+  }
+  if (!config.embedded) {
+    buffer.writeln(
+      '\t\t\t\t$_excludedSourcesKey = '
+      '${pbxLiteral(_excludeEverySource)};',
+    );
   }
   buffer.write('''
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
@@ -1139,6 +1221,30 @@ void _applyExtensionBuildSettings(
   owned('CODE_SIGN_ENTITLEMENTS', config.entitlements);
   owned('DEVELOPMENT_TEAM', config.developmentTeam);
 
+  if (config.embedded) {
+    final lifted = _updateBuildSettingToken(
+      editor,
+      configurationId,
+      _excludedSourcesKey,
+      _excludeEverySource,
+      present: false,
+    );
+    final signing = setting(_codeSigningAllowedKey);
+    if (lifted && signing != null && buildSettingValue(signing) == 'NO') {
+      editor.removeBuildSetting(configurationId, _codeSigningAllowedKey);
+    }
+  } else {
+    owned(_codeSigningAllowedKey, 'NO');
+    _updateBuildSettingToken(
+      editor,
+      configurationId,
+      _excludedSourcesKey,
+      _excludeEverySource,
+      present: true,
+      inherit: false,
+    );
+  }
+
   const conditionsKey = 'SWIFT_ACTIVE_COMPILATION_CONDITIONS';
   final existing = setting(conditionsKey);
   final existingTokens = existing == null
@@ -1201,6 +1307,142 @@ List<String>? _mergedCompilationConditions(
     return null;
   }
   return tokens;
+}
+
+const _codeSigningAllowedKey = 'CODE_SIGNING_ALLOWED';
+const _excludedSourcesKey = 'EXCLUDED_SOURCE_FILE_NAMES';
+const _excludeEverySource = '*';
+
+/// Lists the extension's product in `EXCLUDED_SOURCE_FILE_NAMES` of every app
+/// configuration that does not embed it, which keeps it out of the embed
+/// phase, and drops it from those that do.
+///
+/// Only the product's own token belongs to this patcher; the other widgets'
+/// products and the developer's patterns stay where they are.
+void _syncRunnerEmbedExclusions(
+  PbxprojEditor editor, {
+  required String widgetClassName,
+  required List<_ExtensionBuildConfiguration> configs,
+  required Directory projectDir,
+  required String? projectName,
+}) {
+  final project = editor.project;
+  final target = project.nativeTargetNamed(widgetClassName);
+  final product =
+      project.object(target?.string('productReference'))?.string('path') ??
+          '$widgetClassName.appex';
+  final embedded = {for (final config in configs) config.name: config.embedded};
+
+  for (final config in _runnerBuildConfigurations(
+    project,
+    projectDir: projectDir,
+    projectName: projectName,
+  )) {
+    _updateBuildSettingToken(
+      editor,
+      config.id,
+      _excludedSourcesKey,
+      product,
+      present: !(embedded[config.name] ?? true),
+    );
+  }
+}
+
+/// Adds [token] to, or removes it from, the list build setting [key] of the
+/// configuration [configurationId], keeping every other token in place, and
+/// returns whether that changed anything.
+///
+/// A list stays a list; a string is split the way Xcode splits it, so a quoted
+/// element holding spaces stays one. A setting this creates starts from
+/// `$(inherited)` unless [inherit] is `false`; one that holds nothing else once
+/// [token] is gone is removed.
+bool _updateBuildSettingToken(
+  PbxprojEditor editor,
+  String configurationId,
+  String key,
+  String token, {
+  required bool present,
+  bool inherit = true,
+}) {
+  final value = editor.project
+      .object(configurationId)
+      ?.fields
+      .dict('buildSettings')
+      ?.entry(key)
+      ?.value;
+  final tokens = switch (value) {
+    PbxArray(:final strings) => [...strings],
+    PbxString(value: final text) => _splitBuildSettingValue(text),
+    _ => <String>[],
+  };
+  if (tokens.contains(token) == present) return false;
+
+  if (present) {
+    tokens
+      ..insertAll(0, [if (value == null && inherit) r'$(inherited)'])
+      ..add(token);
+  } else {
+    tokens.removeWhere((t) => t == token);
+    if (tokens.isEmpty ||
+        (tokens.length == 1 && tokens.single == r'$(inherited)')) {
+      editor.removeBuildSetting(configurationId, key);
+      return true;
+    }
+  }
+  if (value is PbxArray) {
+    editor.setBuildSettingList(configurationId, key, tokens);
+  } else {
+    editor.setBuildSetting(
+      configurationId,
+      key,
+      tokens.map(_quoteBuildSettingToken).join(' '),
+    );
+  }
+  return true;
+}
+
+/// The elements of the build setting value [text], split at whitespace outside
+/// quotes the way Xcode splits a list setting written as one string: quotes
+/// group, a backslash escapes the next character, and neither is kept.
+List<String> _splitBuildSettingValue(String text) {
+  final tokens = <String>[];
+  final current = StringBuffer();
+  var inToken = false;
+  String? quote;
+  for (var i = 0; i < text.length; i++) {
+    final char = text[i];
+    if (char == r'\' && i + 1 < text.length && quote != "'") {
+      current.write(text[++i]);
+      inToken = true;
+    } else if (quote != null) {
+      if (char == quote) {
+        quote = null;
+      } else {
+        current.write(char);
+      }
+    } else if (char == '"' || char == "'") {
+      quote = char;
+      inToken = true;
+    } else if (char.trim().isEmpty) {
+      if (inToken) tokens.add(current.toString());
+      current.clear();
+      inToken = false;
+    } else {
+      current.write(char);
+      inToken = true;
+    }
+  }
+  if (inToken) tokens.add(current.toString());
+  return tokens;
+}
+
+/// [token] as one element of a build setting written as one string: quoted
+/// when it holds whitespace or a quote, bare otherwise.
+String _quoteBuildSettingToken(String token) {
+  if (token.isNotEmpty && !RegExp(r'''[\s"'\\]''').hasMatch(token)) {
+    return token;
+  }
+  return '"${token.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
 }
 
 /// Wires `<widgetClassName>/Localizable.xcstrings` into the extension target.

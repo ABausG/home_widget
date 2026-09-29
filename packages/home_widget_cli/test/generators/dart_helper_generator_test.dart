@@ -1359,7 +1359,8 @@ void main() {
           'static String get _\$appGroupId => switch (appFlavor) {\n'
           "    'dev' => 'group.example.dev',\n"
           "    'prod' => 'group.example',\n"
-          "    _ => 'group.example',\n"
+          "    _ => throw StateError('ExampleWidget is not generated for the "
+          "flavor \$appFlavor.'),\n"
           '  };',
         ),
       );
@@ -1382,6 +1383,83 @@ void main() {
       expect(formatted, contains('switch (appFlavor)'));
     });
 
+    test('leaves the widget alone outside the flavors it declares', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+          android: HomeWidgetAndroidConfiguration(),
+          flavors: const {'dev': HomeWidgetFlavor()},
+        ),
+        className: 'ExampleWidget',
+        dataFields: [HWString('title'), HWInt('count', defaultValue: 3)],
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(
+        output,
+        contains(
+          'static bool get _\$inDeclaredFlavor => '
+          "const {'dev'}.contains(appFlavor);",
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '  static Future<T?> _\$getWidgetData<T>(String id, '
+          '{T? defaultValue}) async {\n'
+          '    if (!_\$inDeclaredFlavor) return defaultValue;\n'
+          '    return HomeWidget.getWidgetData<T>(id, '
+          'defaultValue: defaultValue, appGroupId: _\$appGroupId);\n'
+          '  }',
+        ),
+      );
+      for (final (signature, guard) in const [
+        ('saveData({', 'return Future.value();'),
+        ('deleteData({', 'return Future.value();'),
+        ('updateWidget() {', 'return Future.value(false);'),
+        ('updatePreview() async {', 'return false;'),
+        ('isRequestPinWidgetSupported() async {', 'return false;'),
+        ('requestPinWidget() {', 'return Future.value();'),
+      ]) {
+        final start = output.indexOf(signature);
+        expect(start, isNot(-1), reason: signature);
+        final body = output.substring(start, output.indexOf('\n  }\n', start));
+        expect(
+          body,
+          contains('    if (!_\$inDeclaredFlavor) $guard\n'),
+          reason: signature,
+        );
+      }
+      expect(
+        output,
+        contains(
+          "count: await _\$getWidgetData<int>('\${_\$paramPrefix}.count', "
+          'defaultValue: 3),',
+        ),
+      );
+      expect(output, isNot(contains('HomeWidget.getWidgetData<String>')));
+    });
+
+    test('guards a flavored widget that stores nothing', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+          flavors: const {'dev': HomeWidgetFlavor()},
+        ),
+        className: 'ExampleWidget',
+      );
+
+      final output = DartHelperGenerator(spec).generate();
+
+      expect(output, contains("import 'package:flutter/services.dart';"));
+      expect(output, contains('if (!_\$inDeclaredFlavor) return'));
+      expect(output, isNot(contains('_\$getWidgetData')));
+      expect(output, isNot(contains('_\$appGroupId')));
+    });
+
     test('keeps the appGroupId constant when no flavors are declared', () {
       final spec = WidgetSpec(
         data: HomeWidget(
@@ -1399,6 +1477,8 @@ void main() {
         contains("static const String _\$appGroupId = 'group.example';"),
       );
       expect(output, isNot(contains('appFlavor')));
+      expect(output, isNot(contains('_\$inDeclaredFlavor')));
+      expect(output, isNot(contains('_\$getWidgetData')));
       expect(
         output,
         isNot(contains("import 'package:flutter/services.dart';")),
