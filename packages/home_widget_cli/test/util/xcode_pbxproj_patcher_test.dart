@@ -2869,6 +2869,24 @@ void main() {
       );
     });
 
+    test('keeps a placeholder it does not know as it is written', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), releaseDev, profile: 'App Dev'),
+      );
+
+      final result = await patch(
+        provisioningProfile: '{appProfile} {team} {extensionName}',
+      );
+
+      expect(
+        _extensionSigning(
+          result,
+          'Release-dev',
+        )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+        'App Dev {team} GreetingHomeWidget',
+      );
+    });
+
     test('has no profile for an app profile template the app names none for',
         () async {
       pbxprojFile.writeAsStringSync(
@@ -3567,6 +3585,29 @@ void main() {
       await patch();
 
       expect(plist.readAsStringSync(), content);
+    });
+
+    test('warns about a plist it cannot parse and leaves it unchanged',
+        () async {
+      final mock = useMockLogger();
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      const content = '<plist><dict>';
+      final plist = exportOptions('ExportOptions.plist', content);
+
+      await patch();
+
+      expect(plist.readAsStringSync(), content);
+      verify(
+        () => mock.warn(
+          any(that: contains('Could not parse export options as XML')),
+        ),
+      ).called(1);
     });
 
     test('removes the entry of a flavor the extension is not in', () async {
