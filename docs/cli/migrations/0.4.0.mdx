@@ -11,7 +11,7 @@ Only iOS projects whose app target signs manually in some build configurations a
 
 The widget extension now mirrors the app target's signing per build configuration instead of always signing automatically. See [Manual signing](/cli/generate#manual-signing-ios) for the details.
 
-In a configuration where the app sets `CODE_SIGN_STYLE = Manual`, the next `generate` switches the extension to `Manual` too, with the app's `CODE_SIGN_IDENTITY`. It also sets a `PROVISIONING_PROFILE_SPECIFIER` of the extension's own. Unless you set `provisioningProfile`, that profile is named after the app's profile followed by the extension's name:
+In a configuration where the app sets `CODE_SIGN_STYLE = Manual`, or sets no `CODE_SIGN_STYLE` but names a `PROVISIONING_PROFILE_SPECIFIER`, the next `generate` switches the extension to `Manual` too, with the app's `CODE_SIGN_IDENTITY`. It also sets a `PROVISIONING_PROFILE_SPECIFIER` of the extension's own. Unless you set `provisioningProfile`, that profile is named after the app's profile followed by the extension's name:
 
 ```text
 "PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "App Prod WeatherHomeWidget";

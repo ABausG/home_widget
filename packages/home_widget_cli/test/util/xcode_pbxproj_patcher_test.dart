@@ -888,6 +888,28 @@ String _signManually(String pbxproj, String id, {String? profile}) {
   return editor.text;
 }
 
+/// [pbxproj] with the configuration [id] naming [profile] and a team and
+/// identity for device builds, without a `CODE_SIGN_STYLE`.
+String _nameProfileWithoutStyle(
+  String pbxproj,
+  String id, {
+  required String profile,
+}) {
+  final editor = PbxprojEditor(pbxproj)
+    ..setBuildSetting(id, 'DEVELOPMENT_TEAM[sdk=iphoneos*]', 'ABCDE12345')
+    ..setBuildSetting(
+      id,
+      'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+      'iPhone Distribution',
+    )
+    ..setBuildSetting(
+      id,
+      'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]',
+      profile,
+    );
+  return editor.text;
+}
+
 final RegExp _signingKey = RegExp(
   r'^(CODE_SIGNING_ALLOWED|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|'
   r'DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER)(\[|$)',
@@ -2426,6 +2448,66 @@ void main() {
       }
     });
 
+    test('signs manually where the app names a profile without a style',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _nameProfileWithoutStyle(
+          _buildFlavoredPbxproj(),
+          releaseDev,
+          profile: 'App Dev',
+        ),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release-dev'), {
+        'CODE_SIGN_IDENTITY[sdk=iphoneos*]': 'iPhone Distribution',
+        'CODE_SIGN_STYLE': 'Manual',
+        'DEVELOPMENT_TEAM': 'TEAM123',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]':
+            'App Dev GreetingHomeWidget',
+      });
+      expect(
+        _extensionSigning(result, 'Debug-dev'),
+        {'CODE_SIGN_STYLE': 'Automatic', 'DEVELOPMENT_TEAM': 'TEAM123'},
+      );
+      verify(
+        () => mock.info(
+          any(
+            that: contains(
+              '"App Dev GreetingHomeWidget" '
+              '(com.example.app.dev.GreetingHomeWidget)',
+            ),
+          ),
+        ),
+      ).called(1);
+      verifyNever(() => mock.warn(any()));
+
+      expect(await patch(), result);
+    });
+
+    test('signs automatically where the app says so and names a profile',
+        () async {
+      final editor = PbxprojEditor(
+        _nameProfileWithoutStyle(
+          _buildFlavoredPbxproj(),
+          releaseDev,
+          profile: 'App Dev',
+        ),
+      )..setBuildSetting(releaseDev, 'CODE_SIGN_STYLE', 'Automatic');
+      pbxprojFile.writeAsStringSync(editor.text);
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release-dev'), {
+        'CODE_SIGN_STYLE': 'Automatic',
+        'DEVELOPMENT_TEAM': 'TEAM123',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+      });
+    });
+
     test('signs manually with a profile named after the app one', () async {
       pbxprojFile.writeAsStringSync(
         _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
@@ -3585,6 +3667,37 @@ void main() {
       await patch();
 
       expect(plist.readAsStringSync(), content);
+    });
+
+    test('lists the extension where the app names a profile without a style',
+        () async {
+      projectFile.writeAsStringSync(
+        _nameProfileWithoutStyle(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final plist = exportOptions(
+        'dev_ExportOptions.plist',
+        _exportOptions(_profileEntry('com.example.app.dev', 'App Dev')),
+      );
+
+      final profiles = await patch();
+
+      expect(
+        profiles['com.example.app.dev'],
+        'App Dev GreetingHomeWidget',
+      );
+      expect(
+        plist.readAsStringSync(),
+        contains(
+          _profileEntry(
+            'com.example.app.dev.GreetingHomeWidget',
+            'App Dev GreetingHomeWidget',
+          ),
+        ),
+      );
     });
 
     test('warns about a plist it cannot parse and leaves it unchanged',

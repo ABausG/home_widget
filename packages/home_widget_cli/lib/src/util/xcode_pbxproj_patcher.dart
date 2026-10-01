@@ -836,7 +836,8 @@ Map<String, String>? _developmentTeamFor(
 /// The signing settings of the extension configuration mirroring [runner].
 ///
 /// A configuration the extension is not [embedded] in signs nothing, and so
-/// signs automatically. Otherwise the extension signs the way [runner] does:
+/// signs automatically. Otherwise the extension signs the way [runner] does,
+/// which without a `CODE_SIGN_STYLE` is manually where it names a profile:
 /// automatically, or manually with the app's identity and a profile of its
 /// own under each key the app names one: [provisioningProfile], by default
 /// [defaultProvisioningProfileTemplate], with `{appProfile}` replaced by the
@@ -856,9 +857,12 @@ _ExtensionSigning _extensionSigning({
   final team = _developmentTeamFor(name, runnerConfigs);
   if (!embedded || runner == null) return _ExtensionSigning(team: team);
 
+  final runnerProfile = _variantsOf(runner.signing, _profileKey);
+  final unnamed = runnerProfile.values.every((value) => value.isEmpty);
+  final runnerStyle = _variantsOf(runner.signing, _styleKey);
   final style = {
-    _styleKey: 'Automatic',
-    ..._variantsOf(runner.signing, _styleKey),
+    _styleKey: runnerStyle.isEmpty && !unnamed ? 'Manual' : 'Automatic',
+    ...runnerStyle,
   };
   if (!style.values.contains('Manual')) {
     return _ExtensionSigning(team: team, style: style);
@@ -874,8 +878,6 @@ _ExtensionSigning _extensionSigning({
         },
       );
 
-  final runnerProfile = _variantsOf(runner.signing, _profileKey);
-  final unnamed = runnerProfile.values.every((value) => value.isEmpty);
   final profile = unnamed && !template.contains('{$_appProfilePlaceholder}')
       ? {
           for (final MapEntry(:key, :value) in style.entries)
