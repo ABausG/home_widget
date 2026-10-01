@@ -178,14 +178,17 @@ final class Pbxproj {
 /// The build settings [configuration] spells out itself, by name.
 ///
 /// A list value stands for its elements joined by spaces, which is how Xcode
-/// reads it. Conditional settings (`KEY[sdk=iphoneos*]`) are left out: they
-/// apply to a subset of builds only.
-Map<String, String> ownBuildSettings(PbxObject configuration) {
+/// reads it. Conditional settings (`KEY[sdk=iphoneos*]`) apply to a subset of
+/// builds only, and are left out unless [conditional] is `true`.
+Map<String, String> ownBuildSettings(
+  PbxObject configuration, {
+  bool conditional = false,
+}) {
   final settings = configuration.fields.dict('buildSettings');
   if (settings == null) return const {};
   return {
     for (final entry in settings.entries)
-      if (!entry.key.value.contains('['))
+      if (conditional || !entry.key.value.contains('['))
         if (buildSettingValue(entry) case final value?) entry.key.value: value,
   };
 }

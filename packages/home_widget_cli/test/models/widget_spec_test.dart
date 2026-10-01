@@ -1140,6 +1140,20 @@ void main() {
       expect(spec.iosGroupIdFor('dev'), 'g.dev');
       expect(spec.iosGroupIdFor('stg'), 'group.base');
     });
+
+    test('a flavor provisioning profile overrides the base one', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(
+            iOS: HomeWidgetIOSFlavor(provisioningProfile: 'App Dev Widget'),
+          ),
+          'stg': HomeWidgetFlavor(),
+        },
+      );
+      expect(spec.iosProvisioningProfileFor(null), isNull);
+      expect(spec.iosProvisioningProfileFor('dev'), 'App Dev Widget');
+      expect(spec.iosProvisioningProfileFor('stg'), isNull);
+    });
   });
 
   group('WidgetSpec.nativeHelpers', () {

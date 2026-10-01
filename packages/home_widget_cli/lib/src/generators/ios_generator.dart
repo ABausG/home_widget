@@ -8,6 +8,7 @@ import '../models/widget_spec.dart';
 import '../models/extensions.dart';
 import '../util/logger.dart';
 import '../util/entitlements.dart';
+import '../util/export_options.dart';
 import '../util/font_resolver.dart';
 import '../util/fs.dart';
 import '../util/icon_font_writer.dart';
@@ -495,11 +496,22 @@ struct ${widgetClassName}Entry: TimelineEntry {
       flavorEntitlements[flavor] = name;
     }
 
-    await ensureWidgetExtensionTargetInXcodeProject(
+    final exportProfiles = await ensureWidgetExtensionTargetInXcodeProject(
       pbxprojFile: xcodeproj,
       widgetClassName: widgetClassName,
       flavorEntitlements: flavorEntitlements,
       flavors: spec.hasFlavors ? spec.declaredFlavors : null,
+      provisioningProfile: spec.iosProvisioningProfileFor(null),
+      flavorProvisioningProfiles: {
+        for (final flavor in spec.declaredFlavors)
+          if (spec.iosProvisioningProfileFor(flavor) case final profile?)
+            flavor: profile,
+      },
+    );
+    await syncExportOptionsProvisioningProfiles(
+      iosDir: iosDir,
+      widgetClassName: widgetClassName,
+      profiles: exportProfiles,
     );
     await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
 

@@ -93,6 +93,7 @@ Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widget
 | `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |
 | `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on iOS. See [Widget Clicks](/generator/widget-url). |
 | `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on iOS. `null` inherits it. See [Previews](/generator/previews). |
+| `provisioningProfile` | `String?` | `null` | Name of the provisioning profile the widget extension signs with in every build configuration the app signs manually. May hold the placeholders `{appProfile}`, the app's profile name in that configuration, and `{extensionName}`, the extension target's name, e.g. `'{appProfile}.{extensionName}'`; because `{appProfile}` differs per configuration, Debug and Release can get different profiles from one value. `null` is `'{appProfile} {extensionName}'`, e.g. `App Prod WeatherHomeWidget`. Overridable per flavor. See [Manual signing](/cli/generate#manual-signing-ios). |
 
 ## `HWWidgetFamily`
 

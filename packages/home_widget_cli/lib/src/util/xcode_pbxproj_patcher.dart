@@ -71,6 +71,30 @@ Future<Pbxproj> checkWidgetExtensionTargetInXcodeProject({
 /// A configuration this adds starts at the deployment target of the app
 /// configuration it mirrors, 14.0 at the least; one that exists keeps its own.
 ///
+/// Each extension configuration signs the way the app configuration of the
+/// same name does, with the same `DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE` and
+/// `CODE_SIGN_IDENTITY` settings, conditional variants
+/// (`DEVELOPMENT_TEAM[sdk=iphoneos*]`) included. Where the app signs manually
+/// the extension needs a profile of its own: [flavorProvisioningProfiles]
+/// names it for a flavor and [provisioningProfile] for the rest, and without
+/// either it is [defaultProvisioningProfileTemplate]. Each may hold the
+/// placeholders `{appProfile}`, the app's `PROVISIONING_PROFILE_SPECIFIER`
+/// under the same key of that configuration, and `{extensionName}`,
+/// [widgetClassName]. A configuration these give no profile name keeps the
+/// `CODE_SIGN_STYLE`, `CODE_SIGN_IDENTITY` and
+/// `PROVISIONING_PROFILE_SPECIFIER` settings it has, with a warning; one this
+/// creates signs automatically. A profile name that ends up on configurations
+/// with different extension bundle ids is a warning as well.
+///
+/// Returns what the manual-signing export options plists should list for the
+/// extension, keyed by the app bundle id of each `Release` / `Release-<flavor>`
+/// configuration: the profile it signs a device build with where a
+/// configuration of that bundle id embeds it and signs it manually, and `null`
+/// where none embeds it. A bundle id that embeds the extension without a
+/// profile is left out, as is one no such configuration has. Configurations
+/// sharing a bundle id but not the profile get the first one's, with a
+/// warning.
+///
 /// A target this patcher created is recognized by its id and has whatever part
 /// of its wiring went missing restored; a target of that name created in Xcode
 /// only has its build configurations synced.
@@ -78,23 +102,35 @@ Future<Pbxproj> checkWidgetExtensionTargetInXcodeProject({
 /// Throws a [GeneratorError] when the file cannot be parsed, or when a new
 /// target has nothing to attach to: no root project, no app target, or no
 /// main or products group.
-Future<void> ensureWidgetExtensionTargetInXcodeProject({
+Future<Map<String, String?>> ensureWidgetExtensionTargetInXcodeProject({
   required File pbxprojFile,
   required String widgetClassName,
   Map<String, String> flavorEntitlements = const {},
   Iterable<String>? flavors,
+  String? provisioningProfile,
+  Map<String, String> flavorProvisioningProfiles = const {},
 }) async {
   final projectName = xcodeProjectName(pbxprojFile);
-  await _updateXcodeProject(pbxprojFile, (editor) {
+  final projectDir = _projectDirOf(pbxprojFile);
+  var runnerConfigs = const <_RunnerBuildConfiguration>[];
+  var configs = const <_ExtensionBuildConfiguration>[];
+  var appTarget = 'Runner';
+  final wrote = await _updateXcodeProject(pbxprojFile, (editor) {
     final project = editor.project;
-    final appTarget = _appTargetName(project, projectName);
-    final configs = _desiredExtensionConfigurations(
+    appTarget = _appTargetName(project, projectName);
+    runnerConfigs = _runnerBuildConfigurations(
+      project,
+      projectDir: projectDir,
+      projectName: projectName,
+    );
+    configs = _desiredExtensionConfigurations(
       project,
       widgetClassName: widgetClassName,
       flavorEntitlements: flavorEntitlements,
       flavors: flavors?.toSet(),
-      projectDir: _projectDirOf(pbxprojFile),
-      projectName: projectName,
+      provisioningProfile: provisioningProfile,
+      flavorProvisioningProfiles: flavorProvisioningProfiles,
+      runnerConfigs: runnerConfigs,
     );
     _checkAnchorsForNewTarget(project, pbxprojFile, widgetClassName);
 
@@ -125,7 +161,7 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
       editor,
       widgetClassName: widgetClassName,
       configs: configs,
-      projectDir: _projectDirOf(pbxprojFile),
+      projectDir: projectDir,
       projectName: projectName,
     );
 
@@ -136,10 +172,134 @@ Future<void> ensureWidgetExtensionTargetInXcodeProject({
             '$appTarget.';
   });
 
+  _reportManualSigning(
+    configs,
+    appTarget: appTarget,
+    widgetClassName: widgetClassName,
+    wrote: wrote,
+  );
+  final exportProfiles = _exportProfiles(
+    runnerConfigs,
+    configs,
+    widgetClassName: widgetClassName,
+  );
+
   await ensureRunnerEntitlementsInXcodeProject(pbxprojFile: pbxprojFile);
   await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
     pbxprojFile: pbxprojFile,
   );
+  return exportProfiles;
+}
+
+/// Warns about the configurations the app signs manually that the extension
+/// has no profile name for and about a profile configurations with different
+/// bundle ids share, and, when [wrote] is `true`, lists the profiles the
+/// extension signs with where it signs manually.
+void _reportManualSigning(
+  List<_ExtensionBuildConfiguration> configs, {
+  required String appTarget,
+  required String widgetClassName,
+  required bool wrote,
+}) {
+  final missing = [
+    for (final config in configs)
+      if (config.signing.missingProfile) config.name,
+  ];
+  if (missing.isNotEmpty) {
+    logger.warn(
+      'Warning: $appTarget signs manually in ${missing.join(', ')}, but '
+      'names no provisioning profile there to derive one for '
+      '$widgetClassName from, so the signing settings of $widgetClassName '
+      'are left as they are in those configurations. Set provisioningProfile '
+      'in its HomeWidgetIOSConfiguration or HomeWidgetIOSFlavor to a name '
+      'without {appProfile} to sign it manually.',
+    );
+  }
+
+  final bundleIdsByProfile = <String, Set<String>>{};
+  for (final config in configs) {
+    if (!config.embedded || !config.signing.manual) continue;
+    for (final profile in config.signing.profile.values) {
+      if (profile.isEmpty) continue;
+      (bundleIdsByProfile[profile] ??= {}).add(config.bundleId);
+    }
+  }
+  for (final MapEntry(key: profile, value: bundleIds)
+      in bundleIdsByProfile.entries) {
+    if (bundleIds.length < 2) continue;
+    logger.warn(
+      'Warning: $widgetClassName signs with the provisioning profile '
+      '"$profile" under different bundle ids (${bundleIds.join(', ')}), and '
+      'a profile belongs to one. Use {appProfile} in provisioningProfile to '
+      'derive a profile per configuration, or set provisioningProfile per '
+      'flavor in HomeWidgetIOSFlavor.',
+    );
+  }
+
+  final profiles = {
+    for (final config in configs)
+      if (config.signing.manual)
+        for (final profile in config.signing.profile.values)
+          if (profile.isNotEmpty) '"$profile" (${config.bundleId})',
+  };
+  if (!wrote || profiles.isEmpty) return;
+  logger.info(
+    '$widgetClassName signs manually like $appTarget. Create these '
+    'provisioning profiles for it: ${profiles.join(', ')}.',
+  );
+}
+
+/// What the export options plists list for the extension under each app
+/// bundle id a Release configuration of the app has: the profile a
+/// configuration embedding the extension signs a device build with, `null`
+/// where no configuration of that bundle id embeds it, and no entry where one
+/// embeds it without naming a profile.
+///
+/// Configurations sharing a bundle id but not the profile keep the first
+/// one's, with a warning.
+Map<String, String?> _exportProfiles(
+  List<_RunnerBuildConfiguration> runnerConfigs,
+  List<_ExtensionBuildConfiguration> configs, {
+  required String widgetClassName,
+}) {
+  final byName = {for (final config in configs) config.name: config};
+  final matched = <String>{};
+  final embedded = <String>{};
+  final named = <String, Map<String, String>>{};
+  for (final runner in runnerConfigs) {
+    final bundleId = runner.bundleId;
+    final config = byName[runner.name];
+    if (bundleId == null || config == null) continue;
+    if (runner.name != 'Release' && !runner.name.startsWith('Release-')) {
+      continue;
+    }
+    matched.add(bundleId);
+    if (!config.embedded) continue;
+    embedded.add(bundleId);
+    final profile = config.signing.deviceProfile;
+    if (profile != null) (named[bundleId] ??= {})[runner.name] = profile;
+  }
+
+  final profiles = <String, String?>{};
+  for (final bundleId in matched) {
+    final byConfiguration = named[bundleId];
+    if (byConfiguration == null) {
+      if (!embedded.contains(bundleId)) profiles[bundleId] = null;
+      continue;
+    }
+    final profile = byConfiguration.values.first;
+    profiles[bundleId] = profile;
+    if (byConfiguration.values.toSet().length == 1) continue;
+    logger.warn(
+      'Warning: ${byConfiguration.keys.join(', ')} share the bundle id '
+      '$bundleId but sign $widgetClassName with different provisioning '
+      'profiles '
+      '(${byConfiguration.values.toSet().map((name) => '"$name"').join(', ')}'
+      '). The export options plists can name one profile per bundle id and '
+      'get "$profile", the one ${byConfiguration.keys.first} signs with.',
+    );
+  }
+  return profiles;
 }
 
 /// The Flutter flavors the Xcode project defines, in first-seen order.
@@ -318,7 +478,7 @@ final class _RunnerBuildConfiguration {
     required this.object,
     required this.name,
     required this.bundleId,
-    required this.developmentTeam,
+    required this.signing,
     required this.entitlements,
     required this.deploymentTarget,
     required this.infoPlist,
@@ -328,8 +488,9 @@ final class _RunnerBuildConfiguration {
   final String name;
   final String? bundleId;
 
-  /// Empty for the team Xcode writes when signing is set to none.
-  final String? developmentTeam;
+  /// The signing settings it resolves to, each of [_signingKeys] with its
+  /// conditional variants (`DEVELOPMENT_TEAM[sdk=iphoneos*]`).
+  final Map<String, String> signing;
   final String? entitlements;
   final String? deploymentTarget;
   final String? infoPlist;
@@ -346,7 +507,7 @@ final class _ExtensionBuildConfiguration {
     required this.name,
     required this.widgetClassName,
     required this.bundleId,
-    required this.developmentTeam,
+    required this.signing,
     required this.entitlements,
     required this.flavor,
     required this.deploymentTarget,
@@ -357,7 +518,7 @@ final class _ExtensionBuildConfiguration {
   final String name;
   final String widgetClassName;
   final String bundleId;
-  final String? developmentTeam;
+  final _ExtensionSigning signing;
   final String entitlements;
   final String? flavor;
 
@@ -372,6 +533,85 @@ final class _ExtensionBuildConfiguration {
       : '\$(inherited) ${flavorCompilationCondition(flavor!)}';
 }
 
+/// The signing settings an extension configuration should have, each keyed by
+/// build setting with its conditional variants.
+final class _ExtensionSigning {
+  const _ExtensionSigning({
+    required this.team,
+    this.style = const {_styleKey: 'Automatic'},
+    this.identity = const {},
+    this.profile = const {},
+    this.missingProfile = false,
+  });
+
+  /// `null` leaves the configuration's team as it is.
+  final Map<String, String>? team;
+  final Map<String, String> style;
+  final Map<String, String> identity;
+  final Map<String, String> profile;
+
+  /// Whether the app signs manually and no profile name could be found for
+  /// the extension. An existing configuration then keeps the style, identity
+  /// and profile it has, and only one that is created gets these.
+  final bool missingProfile;
+
+  bool get manual => style.values.contains('Manual');
+
+  /// The profile a device build signs with, `null` when it names none: that
+  /// of `[sdk=iphoneos*]`, else of another variant conditioned on a device SDK
+  /// (`[sdk=iphoneos*][arch=*]`, `[sdk=iphoneos18.0]`), else the unconditional
+  /// one.
+  String? get deviceProfile {
+    final deviceKeys = [
+      for (final key in profile.keys)
+        if (key != _profileKey && key.contains('sdk=iphoneos')) key,
+    ]..sort();
+    return [
+      profile['$_profileKey[sdk=iphoneos*]'],
+      for (final key in deviceKeys) profile[key],
+      profile[_profileKey],
+    ].firstWhere(
+      (value) => value != null && value.isNotEmpty,
+      orElse: () => null,
+    );
+  }
+}
+
+const _teamKey = 'DEVELOPMENT_TEAM';
+const _styleKey = 'CODE_SIGN_STYLE';
+const _identityKey = 'CODE_SIGN_IDENTITY';
+const _profileKey = 'PROVISIONING_PROFILE_SPECIFIER';
+const _signingKeys = [_teamKey, _styleKey, _identityKey, _profileKey];
+
+const _appProfilePlaceholder = 'appProfile';
+const _extensionNamePlaceholder = 'extensionName';
+
+/// The placeholders a provisioning profile name may hold.
+const provisioningProfilePlaceholders = [
+  _appProfilePlaceholder,
+  _extensionNamePlaceholder,
+];
+
+/// The provisioning profile name the extension signs with when none is set:
+/// the app's profile name followed by the extension's name.
+const defaultProvisioningProfileTemplate =
+    '{$_appProfilePlaceholder} {$_extensionNamePlaceholder}';
+
+/// A `{name}` placeholder in a provisioning profile name; group 1 is its name.
+final RegExp provisioningProfilePlaceholder = RegExp(r'\{([^{}]*)\}');
+
+/// The setting [key] is a variant of: [key] itself without its conditions.
+String _unconditionalKey(String key) {
+  final condition = key.indexOf('[');
+  return condition == -1 ? key : key.substring(0, condition);
+}
+
+/// The entries of [settings] that are [key] or a conditional variant of it.
+Map<String, String> _variantsOf(Map<String, String> settings, String key) => {
+      for (final MapEntry(key: name, :value) in settings.entries)
+        if (_unconditionalKey(name) == key) name: value,
+    };
+
 /// The ids a new extension target is attached to.
 typedef _ProjectAnchors = ({
   String projectId,
@@ -384,11 +624,12 @@ String? _flavorOfConfigurationName(String name) =>
     RegExp(r'^(?:Debug|Release|Profile)-(.+)$').firstMatch(name)?.group(1);
 
 /// Applies [edit] to the project in [pbxprojFile] and writes the result back
-/// when the text changed, logging the summary [edit] returns.
+/// when the text changed, logging the summary [edit] returns; returns whether
+/// it wrote.
 ///
 /// Throws a [GeneratorError] when the file cannot be parsed, and when the
 /// edited text does not parse either; the file is left unchanged then.
-Future<void> _updateXcodeProject(
+Future<bool> _updateXcodeProject(
   File pbxprojFile,
   String Function(PbxprojEditor editor) edit,
 ) async {
@@ -397,7 +638,7 @@ Future<void> _updateXcodeProject(
   final String summary;
   try {
     summary = edit(editor);
-    if (editor.text == project.text) return;
+    if (editor.text == project.text) return false;
     Pbxproj.parse(editor.text);
   } on FormatException catch (error) {
     throw GeneratorError(
@@ -409,6 +650,7 @@ Future<void> _updateXcodeProject(
   await pbxprojFile.writeAsString(editor.text);
   logger.detail('Updated Xcode project: ${pbxprojFile.path}');
   logger.detail(summary);
+  return true;
 }
 
 /// The app's target, as [detectXcodeFlavors] describes it.
@@ -537,7 +779,9 @@ List<_RunnerBuildConfiguration> _runnerBuildConfigurations(
         object: config,
         name: name,
         bundleId: resolved['PRODUCT_BUNDLE_IDENTIFIER'],
-        developmentTeam: resolved['DEVELOPMENT_TEAM'],
+        signing: {
+          for (final key in _signingKeys) ..._variantsOf(resolved, key),
+        },
         entitlements: resolved['CODE_SIGN_ENTITLEMENTS'],
         deploymentTarget: resolved['IPHONEOS_DEPLOYMENT_TARGET'],
         infoPlist: resolved['INFOPLIST_FILE'],
@@ -549,9 +793,9 @@ List<_RunnerBuildConfiguration> _runnerBuildConfigurations(
 
 /// The first value [read] gives for [configs] taken in the order the project
 /// lists them.
-String? _firstInSourceOrder(
+T? _firstInSourceOrder<T extends Object>(
   List<_RunnerBuildConfiguration> configs,
-  String? Function(_RunnerBuildConfiguration config) read,
+  T? Function(_RunnerBuildConfiguration config) read,
 ) {
   final bySource = [...configs]
     ..sort((a, b) => a.object.entry.start.compareTo(b.object.entry.start));
@@ -562,33 +806,109 @@ String? _firstInSourceOrder(
   return null;
 }
 
-/// The team the extension configuration named [name] signs with: that of the
-/// app configuration of the same name, or, when that one sets no team at all,
-/// that of the first unflavored app configuration setting one.
+/// The `DEVELOPMENT_TEAM` settings, conditional variants included, the
+/// extension configuration named [name] signs with: those of the app
+/// configuration of the same name, or, when that one sets no team at all,
+/// those of the first unflavored app configuration setting one.
 ///
-/// An empty team is signing turned off, which is kept rather than filled in.
-String? _developmentTeamFor(
+/// A team is set when any of the settings names one, so an empty
+/// `DEVELOPMENT_TEAM` next to a `DEVELOPMENT_TEAM[sdk=iphoneos*]` is copied as
+/// it is. Only teams that are all empty are signing turned off, which is kept
+/// rather than filled in: that, like finding no team at all, is `null`.
+Map<String, String>? _developmentTeamFor(
   String name,
   List<_RunnerBuildConfiguration> runnerConfigs,
 ) {
-  final team =
-      runnerConfigs.where((c) => c.name == name).firstOrNull?.developmentTeam ??
-          _firstInSourceOrder(
-            runnerConfigs,
-            (c) => c.flavor == null && c.developmentTeam != ''
-                ? c.developmentTeam
-                : null,
-          );
-  return team == null || team.isEmpty ? null : team;
+  bool setsTeam(Map<String, String> team) =>
+      team.values.any((value) => value.isNotEmpty);
+
+  final own = runnerConfigs.where((c) => c.name == name).firstOrNull;
+  final team = own == null
+      ? const <String, String>{}
+      : _variantsOf(own.signing, _teamKey);
+  if (team.isNotEmpty) return setsTeam(team) ? team : null;
+  return _firstInSourceOrder(runnerConfigs, (c) {
+    final team = _variantsOf(c.signing, _teamKey);
+    return c.flavor == null && setsTeam(team) ? team : null;
+  });
+}
+
+/// The signing settings of the extension configuration mirroring [runner].
+///
+/// A configuration the extension is not [embedded] in signs nothing, and so
+/// signs automatically. Otherwise the extension signs the way [runner] does:
+/// automatically, or manually with the app's identity and a profile of its
+/// own under each key the app names one: [provisioningProfile], by default
+/// [defaultProvisioningProfileTemplate], with `{appProfile}` replaced by the
+/// app's profile name under that key and `{extensionName}` by
+/// [widgetClassName]. Where the app names none, a [provisioningProfile]
+/// without `{appProfile}` goes under the keys matching the conditions it
+/// signs manually in and nowhere else, so no empty variant of the app shadows
+/// it. With no profile name [_ExtensionSigning.missingProfile] is set.
+_ExtensionSigning _extensionSigning({
+  required String name,
+  required _RunnerBuildConfiguration? runner,
+  required List<_RunnerBuildConfiguration> runnerConfigs,
+  required String widgetClassName,
+  required bool embedded,
+  required String? provisioningProfile,
+}) {
+  final team = _developmentTeamFor(name, runnerConfigs);
+  if (!embedded || runner == null) return _ExtensionSigning(team: team);
+
+  final style = {
+    _styleKey: 'Automatic',
+    ..._variantsOf(runner.signing, _styleKey),
+  };
+  if (!style.values.contains('Manual')) {
+    return _ExtensionSigning(team: team, style: style);
+  }
+
+  final template = provisioningProfile ?? defaultProvisioningProfileTemplate;
+  String named(String appProfile) => template.replaceAllMapped(
+        provisioningProfilePlaceholder,
+        (match) => switch (match.group(1)) {
+          _appProfilePlaceholder => appProfile,
+          _extensionNamePlaceholder => widgetClassName,
+          _ => match.group(0)!,
+        },
+      );
+
+  final runnerProfile = _variantsOf(runner.signing, _profileKey);
+  final unnamed = runnerProfile.values.every((value) => value.isEmpty);
+  final profile = unnamed && !template.contains('{$_appProfilePlaceholder}')
+      ? {
+          for (final MapEntry(:key, :value) in style.entries)
+            if (value == 'Manual')
+              '$_profileKey${key.substring(_styleKey.length)}': named(''),
+        }
+      : {
+          for (final MapEntry(:key, :value) in runnerProfile.entries)
+            key: value.isEmpty ? '' : named(value),
+        };
+  if (profile.values.every((value) => value.isEmpty)) {
+    return _ExtensionSigning(team: team, missingProfile: true);
+  }
+  return _ExtensionSigning(
+    team: team,
+    style: style,
+    identity: _variantsOf(runner.signing, _identityKey),
+    profile: profile,
+  );
 }
 
 /// Everything a build configuration resolves to, unquoted and with references
-/// to other settings expanded.
+/// to other settings expanded; a conditional variant is a setting of its own.
 ///
 /// The four layers Xcode reads, weakest first: the project's `.xcconfig`, the
 /// project configuration of the same name, the target's `.xcconfig`, and the
 /// target configuration's own settings. `$(inherited)` in a layer stands for
-/// what the layers below it resolve the setting to.
+/// what the layers below it resolve the setting to, which for a conditional
+/// variant the layers below do not set is the unconditional value.
+///
+/// A layer setting the unconditional `KEY` without `$(inherited)` overrides
+/// the conditional variants (`KEY[sdk=iphoneos*]`) of the layers below it as
+/// well, the way Xcode resolves them.
 Map<String, String> _resolvedBuildSettings({
   required PbxObject config,
   required PbxObject? inherited,
@@ -598,13 +918,20 @@ Map<String, String> _resolvedBuildSettings({
   final merged = <String, String>{};
   for (final layer in [
     _xcconfigSettings(inherited, projectDir, xcconfigPaths),
-    if (inherited != null) ownBuildSettings(inherited),
+    if (inherited != null) ownBuildSettings(inherited, conditional: true),
     _xcconfigSettings(config, projectDir, xcconfigPaths),
-    ownBuildSettings(config),
+    ownBuildSettings(config, conditional: true),
   ]) {
+    final lower = {...merged};
     for (final MapEntry(:key, :value) in layer.entries) {
-      merged[key] =
-          value.replaceAll(_inheritedReference, merged[key] ?? '').trim();
+      if (key.contains('[') || value.contains(_inheritedReference)) continue;
+      merged.removeWhere(
+        (name, _) => name != key && _unconditionalKey(name) == key,
+      );
+    }
+    for (final MapEntry(:key, :value) in layer.entries) {
+      final inherited = lower[key] ?? lower[_unconditionalKey(key)] ?? '';
+      merged[key] = value.replaceAll(_inheritedReference, inherited).trim();
     }
   }
   return {
@@ -697,16 +1024,12 @@ List<_ExtensionBuildConfiguration> _desiredExtensionConfigurations(
   required String widgetClassName,
   required Map<String, String> flavorEntitlements,
   required Set<String>? flavors,
-  required Directory projectDir,
-  required String? projectName,
+  required String? provisioningProfile,
+  required Map<String, String> flavorProvisioningProfiles,
+  required List<_RunnerBuildConfiguration> runnerConfigs,
 }) {
   final defaultEntitlements = '$widgetClassName.entitlements';
 
-  final runnerConfigs = _runnerBuildConfigurations(
-    project,
-    projectDir: projectDir,
-    projectName: projectName,
-  );
   final fallbackBundleId = _firstInSourceOrder(
         runnerConfigs,
         (c) => c.flavor == null ? c.bundleId : null,
@@ -719,18 +1042,27 @@ List<_ExtensionBuildConfiguration> _desiredExtensionConfigurations(
     _RunnerBuildConfiguration? runner,
   ]) {
     final flavor = _flavorOfConfigurationName(name);
+    final embedded = flavors == null || flavors.contains(flavor);
     return _ExtensionBuildConfiguration(
       id: xcodeObjectId('cfg:$name:$widgetClassName'),
       name: name,
       widgetClassName: widgetClassName,
       bundleId: '${runner?.bundleId ?? fallbackBundleId}.$widgetClassName',
-      developmentTeam: _developmentTeamFor(name, runnerConfigs),
+      signing: _extensionSigning(
+        name: name,
+        runner: runner,
+        runnerConfigs: runnerConfigs,
+        widgetClassName: widgetClassName,
+        embedded: embedded,
+        provisioningProfile:
+            flavorProvisioningProfiles[flavor] ?? provisioningProfile,
+      ),
       entitlements: flavor == null
           ? defaultEntitlements
           : flavorEntitlements[flavor] ?? defaultEntitlements,
       flavor: flavor,
       deploymentTarget: _extensionDeploymentTarget(runner?.deploymentTarget),
-      embedded: flavors == null || flavors.contains(flavor),
+      embedded: embedded,
     );
   }
 
@@ -1074,7 +1406,7 @@ void _ensureWidgetExtensionObjects(
 }
 
 String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
-  final team = config.developmentTeam;
+  final signing = config.signing;
   final conditions = config.compilationConditions;
   final buffer = StringBuffer()..write('''
 \t\t${config.id} /* ${config.name} */ = {
@@ -1082,17 +1414,24 @@ String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
 \t\t\tbuildSettings = {
 \t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 ''');
+  void writeSettings(Map<String, String>? settings) {
+    for (final key in [...?settings?.keys]..sort()) {
+      buffer.writeln(
+        '\t\t\t\t${pbxLiteral(key)} = ${pbxLiteral(settings![key]!)};',
+      );
+    }
+  }
+
   if (!config.embedded) {
     buffer.writeln('\t\t\t\t$_codeSigningAllowedKey = NO;');
   }
-  buffer.write('''
-\t\t\t\tCODE_SIGN_ENTITLEMENTS = ${pbxLiteral(config.entitlements)};
-\t\t\t\tCODE_SIGN_STYLE = Automatic;
-\t\t\t\tCURRENT_PROJECT_VERSION = 1;
-''');
-  if (team != null) {
-    buffer.writeln('\t\t\t\tDEVELOPMENT_TEAM = ${pbxLiteral(team)};');
-  }
+  buffer.writeln(
+    '\t\t\t\tCODE_SIGN_ENTITLEMENTS = ${pbxLiteral(config.entitlements)};',
+  );
+  writeSettings(signing.identity);
+  writeSettings(signing.style);
+  buffer.writeln('\t\t\t\tCURRENT_PROJECT_VERSION = 1;');
+  writeSettings(signing.team);
   if (!config.embedded) {
     buffer.writeln(
       '\t\t\t\t$_excludedSourcesKey = '
@@ -1112,8 +1451,9 @@ String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
 \t\t\t\tMARKETING_VERSION = 1.0;
 \t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = ${pbxLiteral(config.bundleId)};
 \t\t\t\tPRODUCT_NAME = "\$(TARGET_NAME)";
-\t\t\t\tSKIP_INSTALL = YES;
 ''');
+  writeSettings(signing.profile);
+  buffer.writeln('\t\t\t\tSKIP_INSTALL = YES;');
   if (conditions != null) {
     buffer.writeln(
       '\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = ${pbxLiteral(conditions)};',
@@ -1217,9 +1557,36 @@ void _applyExtensionBuildSettings(
     if (before != null && buildSettingValue(before) != value) reset.add(key);
   }
 
+  void ownedVariants(String key, Map<String, String>? values) {
+    if (values == null) return;
+    final settings = editor.project
+        .object(configurationId)
+        ?.fields
+        .dict('buildSettings')
+        ?.entries;
+    final stale = {
+      for (final entry in settings ?? const <PbxDictEntry>[])
+        if (_unconditionalKey(entry.key.value) == key &&
+            !values.containsKey(entry.key.value))
+          entry.key.value,
+    };
+    for (final name in stale) {
+      editor.removeBuildSetting(configurationId, name);
+      reset.add(name);
+    }
+    for (final name in [...values.keys]..sort()) {
+      owned(name, values[name]);
+    }
+  }
+
   owned('PRODUCT_BUNDLE_IDENTIFIER', config.bundleId);
   owned('CODE_SIGN_ENTITLEMENTS', config.entitlements);
-  owned('DEVELOPMENT_TEAM', config.developmentTeam);
+  ownedVariants(_teamKey, config.signing.team);
+  if (!config.signing.missingProfile) {
+    ownedVariants(_styleKey, config.signing.style);
+    ownedVariants(_identityKey, config.signing.identity);
+    ownedVariants(_profileKey, config.signing.profile);
+  }
 
   if (config.embedded) {
     final lifted = _updateBuildSettingToken(
@@ -1740,14 +2107,17 @@ Future<void> ensureMinimumDeploymentTargetInXcodeProject({
   });
 }
 
-/// Ensures widget extension targets use the same [DEVELOPMENT_TEAM] as the app
-/// target.
+/// Ensures widget extension targets use the same `DEVELOPMENT_TEAM` settings
+/// as the app target, conditional variants (`DEVELOPMENT_TEAM[sdk=iphoneos*]`)
+/// included.
 ///
 /// Physical device builds fail when extension targets lack a development team
 /// even if the main app target is already signed. An extension configuration
-/// takes the team of the app configuration of the same name, so a flavor
-/// signed by a different team stays signed by it; only when that configuration
-/// sets no team at all does the first unflavored one stand in.
+/// takes the team settings of the app configuration of the same name, so a
+/// flavor signed by a different team stays signed by it; only when that
+/// configuration sets no team at all does the first unflavored one stand in.
+/// Only those settings are written: a variant the app configuration does not
+/// have stays, since the extension may not be one home_widget created.
 Future<void> ensureWidgetExtensionDevelopmentTeamInXcodeProject({
   required File pbxprojFile,
 }) async {
@@ -1767,7 +2137,9 @@ Future<void> ensureWidgetExtensionDevelopmentTeamInXcodeProject({
       final team =
           _developmentTeamFor(config.string('name') ?? '', runnerConfigs);
       if (team == null) continue;
-      editor.setBuildSetting(config.id, 'DEVELOPMENT_TEAM', team);
+      for (final key in [...team.keys]..sort()) {
+        editor.setBuildSetting(config.id, key, team[key]!);
+      }
     }
     return 'Ensured widget extensions use the '
         '${_appTargetName(project, projectName)} DEVELOPMENT_TEAM.';

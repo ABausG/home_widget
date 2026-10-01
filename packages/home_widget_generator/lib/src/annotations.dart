@@ -372,6 +372,22 @@ class HomeWidgetIOSConfiguration {
   /// Null inherits [HomeWidget.useLiveDataInPreview].
   final bool? useLiveDataInPreview;
 
+  /// The name of the provisioning profile the widget extension signs with
+  /// wherever the app target signs manually.
+  ///
+  /// Two placeholders are replaced per build configuration:
+  ///
+  /// - `{appProfile}`: the app's `PROVISIONING_PROFILE_SPECIFIER` in that
+  ///   configuration, so one value gives Debug and Release their own profile.
+  /// - `{extensionName}`: the name of the extension target, e.g.
+  ///   `WeatherHomeWidget`.
+  ///
+  /// A value without placeholders is the profile name itself. Null is
+  /// `'{appProfile} {extensionName}'`: `"App Prod"` becomes
+  /// `"App Prod WeatherHomeWidget"`. Any other `{…}` placeholder is an error.
+  /// Configurations the app signs automatically ignore it.
+  final String? provisioningProfile;
+
   const HomeWidgetIOSConfiguration({
     required this.groupId,
     this.supportedFamilies,
@@ -379,6 +395,7 @@ class HomeWidgetIOSConfiguration {
     this.applyContentPadding = true,
     this.widgetUrl,
     this.useLiveDataInPreview,
+    this.provisioningProfile,
   });
 
   @override
@@ -390,7 +407,8 @@ class HomeWidgetIOSConfiguration {
           backgroundColor == other.backgroundColor &&
           applyContentPadding == other.applyContentPadding &&
           widgetUrl == other.widgetUrl &&
-          useLiveDataInPreview == other.useLiveDataInPreview;
+          useLiveDataInPreview == other.useLiveDataInPreview &&
+          provisioningProfile == other.provisioningProfile;
 
   @override
   int get hashCode =>
@@ -399,7 +417,8 @@ class HomeWidgetIOSConfiguration {
       backgroundColor.hashCode ^
       applyContentPadding.hashCode ^
       widgetUrl.hashCode ^
-      useLiveDataInPreview.hashCode;
+      useLiveDataInPreview.hashCode ^
+      provisioningProfile.hashCode;
 }
 
 /// Per-flavor overrides of [HomeWidgetIOSConfiguration].
@@ -409,15 +428,24 @@ class HomeWidgetIOSFlavor {
   /// Replaces [HomeWidgetIOSConfiguration.groupId] in this flavor.
   final String? groupId;
 
-  const HomeWidgetIOSFlavor({this.groupId});
+  /// Replaces [HomeWidgetIOSConfiguration.provisioningProfile] in this flavor.
+  ///
+  /// Takes the same `{appProfile}` and `{extensionName}` placeholders. Null
+  /// keeps the base value, which itself defaults to
+  /// `'{appProfile} {extensionName}'`.
+  final String? provisioningProfile;
+
+  const HomeWidgetIOSFlavor({this.groupId, this.provisioningProfile});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is HomeWidgetIOSFlavor && groupId == other.groupId;
+      other is HomeWidgetIOSFlavor &&
+          groupId == other.groupId &&
+          provisioningProfile == other.provisioningProfile;
 
   @override
-  int get hashCode => groupId.hashCode;
+  int get hashCode => groupId.hashCode ^ provisioningProfile.hashCode;
 }
 
 /// What one entry of [HomeWidget.flavors] changes about the widget.

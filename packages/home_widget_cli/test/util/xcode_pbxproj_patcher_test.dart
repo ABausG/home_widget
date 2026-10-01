@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:home_widget_cli/src/generator_error.dart';
+import 'package:home_widget_cli/src/util/export_options.dart';
 import 'package:home_widget_cli/src/util/fnv_hash.dart';
 import 'package:home_widget_cli/src/util/pbxproj/pbxproj_editor.dart';
 import 'package:home_widget_cli/src/util/xcode_pbxproj_patcher.dart';
@@ -863,6 +864,70 @@ String _withCompilationConditions(
         );
   return pbxproj.replaceFirst(block, patched);
 }
+
+/// [pbxproj] with the Runner configuration [id] signing the way a Flutter
+/// release setup commonly does: manually, with the team, the identity and the
+/// named [profile] set for device builds only.
+String _signManually(String pbxproj, String id, {String? profile}) {
+  final editor = PbxprojEditor(pbxproj)
+    ..setBuildSetting(id, 'CODE_SIGN_STYLE', 'Manual')
+    ..setBuildSetting(id, 'DEVELOPMENT_TEAM', '')
+    ..setBuildSetting(id, 'DEVELOPMENT_TEAM[sdk=iphoneos*]', 'ABCDE12345')
+    ..setBuildSetting(
+      id,
+      'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+      'iPhone Distribution',
+    );
+  if (profile != null) {
+    editor.setBuildSetting(
+      id,
+      'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]',
+      profile,
+    );
+  }
+  return editor.text;
+}
+
+final RegExp _signingKey = RegExp(
+  r'^(CODE_SIGNING_ALLOWED|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|'
+  r'DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER)(\[|$)',
+);
+
+/// The signing settings the extension's configuration [name] spells out,
+/// conditional variants included.
+Map<String, String> _extensionSigning(String pbxproj, String name) {
+  final config = Pbxproj.parse(pbxproj)
+      .object(xcodeObjectId('cfg:$name:GreetingHomeWidget'))!;
+  return {
+    for (final MapEntry(:key, :value)
+        in ownBuildSettings(config, conditional: true).entries)
+      if (_signingKey.hasMatch(key)) key: value,
+  };
+}
+
+/// An export options plist signing with [signingStyle] and listing
+/// [profiles], each an entry rendered by [_profileEntry].
+String _exportOptions(String profiles, {String signingStyle = 'manual'}) => '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<!-- Used by flutter build ipa -->
+\t<key>method</key>
+\t<string>app-store-connect</string>
+\t<key>provisioningProfiles</key>
+\t<dict>
+$profiles\t</dict>
+\t<key>signingStyle</key>
+\t<string>$signingStyle</string>
+</dict>
+</plist>
+''';
+
+String _profileEntry(String bundleId, String profile) => '''
+\t\t<key>$bundleId</key>
+\t\t<string>$profile</string>
+''';
 
 void main() {
   late Directory tempDir;
@@ -2317,6 +2382,1264 @@ void main() {
     });
   });
 
+  group('signing', () {
+    Future<String> patch({
+      Iterable<String>? flavors,
+      String? provisioningProfile,
+      Map<String, String> flavorProvisioningProfiles = const {},
+    }) async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+        flavors: flavors,
+        provisioningProfile: provisioningProfile,
+        flavorProvisioningProfiles: flavorProvisioningProfiles,
+      );
+      return pbxprojFile.readAsStringSync();
+    }
+
+    final release = _baseConfigId(1);
+    final profile = _baseConfigId(2);
+    final releaseDev = _flavorConfigId('AA', 2);
+    final releaseProd = _flavorConfigId('BB', 2);
+
+    const manualRelease = {
+      'CODE_SIGN_IDENTITY[sdk=iphoneos*]': 'iPhone Distribution',
+      'CODE_SIGN_STYLE': 'Manual',
+      'DEVELOPMENT_TEAM': '',
+      'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+    };
+
+    test('signs automatically where the app does', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj());
+
+      final result = await patch();
+
+      for (final flavor in ['', '-dev', '-prod']) {
+        for (final base in _baseConfigNames) {
+          expect(
+            _extensionSigning(result, '$base$flavor'),
+            {'CODE_SIGN_STYLE': 'Automatic', 'DEVELOPMENT_TEAM': 'TEAM123'},
+            reason: '$base$flavor',
+          );
+        }
+      }
+    });
+
+    test('signs manually with a profile named after the app one', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]':
+            'App Prod GreetingHomeWidget',
+      });
+      expect(
+        _extensionSigning(result, 'Debug'),
+        {'CODE_SIGN_STYLE': 'Automatic', 'DEVELOPMENT_TEAM': 'TEAM123'},
+      );
+      // Xcode sorts the build settings, conditional variants included.
+      expect(
+        _extensionConfig(result, 'Release'),
+        contains(
+          '\t\t\t\tCODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;\n'
+          '\t\t\t\t"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";\n'
+          '\t\t\t\tCODE_SIGN_STYLE = Manual;\n'
+          '\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
+          '\t\t\t\tDEVELOPMENT_TEAM = "";\n'
+          '\t\t\t\t"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ABCDE12345;\n',
+        ),
+      );
+      expect(
+        _extensionConfig(result, 'Release'),
+        contains(
+          '\t\t\t\tPRODUCT_NAME = "\$(TARGET_NAME)";\n'
+          '\t\t\t\t"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = '
+          '"App Prod GreetingHomeWidget";\n'
+          '\t\t\t\tSKIP_INSTALL = YES;\n',
+        ),
+      );
+      verify(
+        () => mock.info(
+          any(
+            that: contains(
+              '"App Prod GreetingHomeWidget" '
+              '(com.example.app.GreetingHomeWidget)',
+            ),
+          ),
+        ),
+      ).called(1);
+      verifyNever(() => mock.warn(any()));
+    });
+
+    test('copies a conditional team the app sets without a plain one',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_buildFlavoredPbxproj())
+              ..removeBuildSetting(release, 'DEVELOPMENT_TEAM')
+              ..setBuildSetting(
+                release,
+                'DEVELOPMENT_TEAM[sdk=iphoneos*]',
+                'ABCDE12345',
+              ))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release'), {
+        'CODE_SIGN_STYLE': 'Automatic',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+      });
+    });
+
+    test('writes no team where every team setting of the app is empty',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_buildFlavoredPbxproj())
+              ..setBuildSetting(release, 'DEVELOPMENT_TEAM', '')
+              ..setBuildSetting(
+                release,
+                'DEVELOPMENT_TEAM[sdk=iphoneos*]',
+                '',
+              ))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(
+        _extensionSigning(result, 'Release'),
+        {'CODE_SIGN_STYLE': 'Automatic'},
+      );
+    });
+
+    test('falls back to every team setting of an unflavored configuration',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_buildFlavoredPbxproj())
+              ..removeBuildSetting(_baseConfigId(0), 'DEVELOPMENT_TEAM')
+              ..setBuildSetting(
+                _baseConfigId(0),
+                'DEVELOPMENT_TEAM[sdk=iphoneos*]',
+                'BASE7EAM',
+              )
+              ..removeBuildSetting(releaseDev, 'DEVELOPMENT_TEAM'))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release-dev'), {
+        'CODE_SIGN_STYLE': 'Automatic',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'BASE7EAM',
+      });
+    });
+
+    test('signs a configuration the extension is not in automatically',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          releaseProd,
+          profile: 'App Prod',
+        ),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(flavors: ['dev']);
+
+      expect(_extensionSigning(result, 'Release-prod'), {
+        'CODE_SIGNING_ALLOWED': 'NO',
+        'CODE_SIGN_STYLE': 'Automatic',
+        'DEVELOPMENT_TEAM': '',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+      });
+      verifyNever(() => mock.warn(any()));
+      verifyNever(() => mock.info(any(that: contains('provisioning'))));
+    });
+
+    test('mirrors a signing style set for device builds only', () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_buildFlavoredPbxproj())
+              ..setBuildSetting(release, 'CODE_SIGN_STYLE', 'Automatic')
+              ..setBuildSetting(
+                release,
+                'CODE_SIGN_STYLE[sdk=iphoneos*]',
+                'Manual',
+              )
+              ..setBuildSetting(
+                release,
+                'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]',
+                'App Prod',
+              ))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release'), {
+        'CODE_SIGN_STYLE': 'Automatic',
+        'CODE_SIGN_STYLE[sdk=iphoneos*]': 'Manual',
+        'DEVELOPMENT_TEAM': 'TEAM123',
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]':
+            'App Prod GreetingHomeWidget',
+      });
+    });
+
+    test('signs with the profile provisioningProfile names', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+      );
+
+      final result = await patch(provisioningProfile: 'Widget Prod');
+
+      expect(_extensionSigning(result, 'Release'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]': 'Widget Prod',
+      });
+    });
+
+    test('lets a flavor name a profile of its own', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(
+            _buildFlavoredPbxproj(),
+            releaseDev,
+            profile: 'App Dev',
+          ),
+          releaseProd,
+          profile: 'App Prod',
+        ),
+      );
+
+      final result = await patch(
+        provisioningProfile: 'Widget Base',
+        flavorProvisioningProfiles: {'dev': 'Widget Dev'},
+      );
+
+      expect(
+        _extensionSigning(
+          result,
+          'Release-dev',
+        )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+        'Widget Dev',
+      );
+      expect(
+        _extensionSigning(
+          result,
+          'Release-prod',
+        )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+        'Widget Base',
+      );
+    });
+
+    test(
+        'signs a configuration it creates automatically and warns without a '
+        'profile to name one after', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(_buildFlavoredPbxproj(), release),
+          profile,
+        ),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      for (final name in ['Release', 'Profile']) {
+        expect(
+          _extensionSigning(result, name),
+          {
+            'CODE_SIGN_STYLE': 'Automatic',
+            'DEVELOPMENT_TEAM': '',
+            'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+          },
+          reason: name,
+        );
+      }
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('Runner signs manually in Release, Profile'),
+              contains('provisioningProfile'),
+            ),
+          ),
+        ),
+      ).called(1);
+      expect(await patch(), result);
+    });
+
+    test('leaves signing set by hand alone without a profile to name',
+        () async {
+      const uuid = '01234567-89AB-CDEF-0123-456789ABCDEF';
+      final extensionRelease = xcodeObjectId('cfg:Release:GreetingHomeWidget');
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_signManually(_buildFlavoredPbxproj(), release))
+              ..setBuildSetting(
+                release,
+                'PROVISIONING_PROFILE[sdk=iphoneos*]',
+                'FEDCBA98-7654-3210-FEDC-BA9876543210',
+              ))
+            .text,
+      );
+      final created = await patch();
+      final byHand = (PbxprojEditor(created)
+            ..setBuildSetting(extensionRelease, 'CODE_SIGN_STYLE', 'Manual')
+            ..setBuildSetting(
+              extensionRelease,
+              'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+              'iPhone Distribution',
+            )
+            ..setBuildSetting(
+              extensionRelease,
+              'PROVISIONING_PROFILE[sdk=iphoneos*]',
+              uuid,
+            ))
+          .text;
+      pbxprojFile.writeAsStringSync(byHand);
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      expect(result, byHand);
+      expect(_extensionSigning(result, 'Release'), manualRelease);
+      expect(
+        _extensionConfig(result, 'Release'),
+        contains('"PROVISIONING_PROFILE[sdk=iphoneos*]" = "$uuid";'),
+      );
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('Runner signs manually in Release'),
+              contains('left as they are'),
+            ),
+          ),
+        ),
+      ).called(1);
+      verifyNever(() => mock.info(any(that: contains('CODE_SIGN_STYLE'))));
+      expect(await patch(), byHand);
+    });
+
+    test('still syncs the team without a profile to name', () async {
+      final extensionRelease = xcodeObjectId('cfg:Release:GreetingHomeWidget');
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release),
+      );
+      final created = await patch();
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(created)
+              ..setBuildSetting(extensionRelease, 'CODE_SIGN_STYLE', 'Manual')
+              ..setBuildSetting(
+                extensionRelease,
+                'PROVISIONING_PROFILE_SPECIFIER',
+                'Widget By Hand',
+              )
+              ..setBuildSetting(extensionRelease, 'DEVELOPMENT_TEAM', 'OTHER'))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(_extensionSigning(result, 'Release'), {
+        'CODE_SIGN_STYLE': 'Manual',
+        'DEVELOPMENT_TEAM': '',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+        'PROVISIONING_PROFILE_SPECIFIER': 'Widget By Hand',
+      });
+    });
+
+    test('names the profile after the default template', () async {
+      final manual =
+          _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod');
+      pbxprojFile.writeAsStringSync(manual);
+      final byDefault = await patch();
+      pbxprojFile.writeAsStringSync(manual);
+
+      final result = await patch(
+        provisioningProfile: defaultProvisioningProfileTemplate,
+      );
+
+      expect(
+        defaultProvisioningProfileTemplate,
+        '{appProfile} {extensionName}',
+      );
+      expect(result, byDefault);
+      expect(
+        _extensionSigning(
+          result,
+          'Release',
+        )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+        'App Prod GreetingHomeWidget',
+      );
+    });
+
+    test('fills a template in per configuration', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(
+            _buildFlavoredPbxproj(),
+            _baseConfigId(0),
+            profile: 'App Dev',
+          ),
+          release,
+          profile: 'App Prod',
+        ),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(
+        provisioningProfile: '{appProfile}.{extensionName}',
+      );
+
+      expect(_extensionSigning(result, 'Debug'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]':
+            'App Dev.GreetingHomeWidget',
+      });
+      expect(_extensionSigning(result, 'Release'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]':
+            'App Prod.GreetingHomeWidget',
+      });
+      verifyNever(() => mock.warn(any()));
+    });
+
+    test('fills in a template naming the extension only', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+          profile,
+        ),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(provisioningProfile: 'Team {extensionName}');
+
+      expect(_extensionSigning(result, 'Release'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]':
+            'Team GreetingHomeWidget',
+      });
+      expect(_extensionSigning(result, 'Profile'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER': 'Team GreetingHomeWidget',
+      });
+      verifyNever(() => mock.warn(any()));
+    });
+
+    test('lets a flavor set a template of its own', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(
+            _buildFlavoredPbxproj(),
+            releaseDev,
+            profile: 'App Dev',
+          ),
+          releaseProd,
+          profile: 'App Prod',
+        ),
+      );
+
+      final result = await patch(
+        provisioningProfile: '{appProfile} {extensionName}',
+        flavorProvisioningProfiles: {'dev': '{extensionName} for {appProfile}'},
+      );
+
+      expect(
+        _extensionSigning(
+          result,
+          'Release-dev',
+        )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+        'GreetingHomeWidget for App Dev',
+      );
+      expect(
+        _extensionSigning(
+          result,
+          'Release-prod',
+        )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+        'App Prod GreetingHomeWidget',
+      );
+    });
+
+    test('has no profile for an app profile template the app names none for',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(
+        provisioningProfile: '{appProfile}.{extensionName}',
+      );
+
+      expect(_extensionSigning(result, 'Release'), {
+        'CODE_SIGN_STYLE': 'Automatic',
+        'DEVELOPMENT_TEAM': '',
+        'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+      });
+      verify(
+        () => mock.warn(
+          any(that: contains('Runner signs manually in Release,')),
+        ),
+      ).called(1);
+    });
+
+    test('warns once about a profile shared by different bundle ids', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(
+            _signManually(
+              _buildFlavoredPbxproj(),
+              _flavorConfigId('AA', 1),
+              profile: 'App Dev',
+            ),
+            releaseDev,
+            profile: 'App Dev',
+          ),
+          releaseProd,
+          profile: 'App Prod',
+        ),
+      );
+      final mock = useMockLogger();
+
+      await patch(provisioningProfile: 'Widget Shared');
+
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('"Widget Shared"'),
+              contains(
+                'com.example.app.dev.GreetingHomeWidget, '
+                'com.example.app.GreetingHomeWidget',
+              ),
+              contains('{appProfile}'),
+              contains('HomeWidgetIOSFlavor'),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('does not warn about a profile shared under one bundle id', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(
+          _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+          releaseProd,
+          profile: 'App Prod',
+        ),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(provisioningProfile: 'Widget Shared');
+
+      for (final name in ['Release', 'Release-prod']) {
+        expect(
+          _extensionSigning(
+            result,
+            name,
+          )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+          'Widget Shared',
+          reason: name,
+        );
+      }
+      verifyNever(() => mock.warn(any()));
+    });
+
+    test('names the profile under the key of the manual signing style',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release),
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(provisioningProfile: 'Widget Prod');
+
+      expect(_extensionSigning(result, 'Release'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER': 'Widget Prod',
+      });
+      verifyNever(() => mock.warn(any()));
+    });
+
+    test('keeps no empty profile of the app next to the one it names',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(_signManually(_buildFlavoredPbxproj(), release))
+              ..setBuildSetting(release, 'PROVISIONING_PROFILE_SPECIFIER', '')
+              ..setBuildSetting(
+                release,
+                'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]',
+                '',
+              ))
+            .text,
+      );
+      final mock = useMockLogger();
+
+      final result = await patch(provisioningProfile: 'Widget Prod');
+
+      expect(_extensionSigning(result, 'Release'), {
+        ...manualRelease,
+        'PROVISIONING_PROFILE_SPECIFIER': 'Widget Prod',
+      });
+      verifyNever(() => mock.warn(any()));
+      expect(await patch(provisioningProfile: 'Widget Prod'), result);
+    });
+
+    group('settings the project level conditions on an SDK', () {
+      const projectDebug = '97C147031CF9000F007C117D';
+      final debug = _baseConfigId(0);
+
+      String manualDebug(String pbxproj) => (PbxprojEditor(pbxproj)
+            ..setBuildSetting(debug, 'CODE_SIGN_STYLE', 'Manual')
+            ..setBuildSetting(debug, 'CODE_SIGN_IDENTITY', 'Apple Distribution')
+            ..setBuildSetting(
+              debug,
+              'PROVISIONING_PROFILE_SPECIFIER',
+              'App Dev',
+            ))
+          .text;
+
+      test('yield to an identity the app target sets unconditionally',
+          () async {
+        pbxprojFile.writeAsStringSync(
+          manualDebug(
+            (PbxprojEditor(_buildFlavoredPbxproj())
+                  ..setBuildSetting(
+                    projectDebug,
+                    'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+                    'iPhone Developer',
+                  ))
+                .text,
+          ),
+        );
+
+        final result = await patch();
+
+        expect(_extensionSigning(result, 'Debug'), {
+          'CODE_SIGN_IDENTITY': 'Apple Distribution',
+          'CODE_SIGN_STYLE': 'Manual',
+          'DEVELOPMENT_TEAM': 'TEAM123',
+          'PROVISIONING_PROFILE_SPECIFIER': 'App Dev GreetingHomeWidget',
+        });
+      });
+
+      test('yield to a team the app target sets unconditionally', () async {
+        pbxprojFile.writeAsStringSync(
+          (PbxprojEditor(_buildFlavoredPbxproj())
+                ..setBuildSetting(
+                  projectDebug,
+                  'DEVELOPMENT_TEAM[sdk=iphoneos*]',
+                  'ABCDE12345',
+                ))
+              .text,
+        );
+
+        final result = await patch();
+
+        expect(
+          _extensionSigning(result, 'Debug'),
+          {'CODE_SIGN_STYLE': 'Automatic', 'DEVELOPMENT_TEAM': 'TEAM123'},
+        );
+      });
+
+      test('stay where the app target conditions the setting as well',
+          () async {
+        pbxprojFile.writeAsStringSync(
+          (PbxprojEditor(
+            manualDebug(
+              (PbxprojEditor(_buildFlavoredPbxproj())
+                    ..setBuildSetting(
+                      projectDebug,
+                      'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+                      'iPhone Developer',
+                    ))
+                  .text,
+            ),
+          )..setBuildSetting(
+                  debug,
+                  'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+                  'iPhone Distribution',
+                ))
+              .text,
+        );
+
+        final result = await patch();
+
+        final signing = _extensionSigning(result, 'Debug');
+        expect(signing['CODE_SIGN_IDENTITY'], 'Apple Distribution');
+        expect(
+          signing['CODE_SIGN_IDENTITY[sdk=iphoneos*]'],
+          'iPhone Distribution',
+        );
+      });
+
+      test('stand in for what a conditional setting of the app inherits',
+          () async {
+        pbxprojFile.writeAsStringSync(
+          (PbxprojEditor(_buildFlavoredPbxproj())
+                ..setBuildSetting(
+                  projectDebug,
+                  'PROVISIONING_PROFILE_SPECIFIER',
+                  'App Dev',
+                )
+                ..setBuildSetting(debug, 'CODE_SIGN_STYLE', 'Manual')
+                ..setBuildSetting(
+                  debug,
+                  'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]',
+                  r'$(inherited) Device',
+                ))
+              .text,
+        );
+
+        final result = await patch();
+
+        expect(
+          _extensionSigning(
+            result,
+            'Debug',
+          )['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+          'App Dev Device GreetingHomeWidget',
+        );
+      });
+    });
+
+    test('changes nothing on a second run', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+      );
+      final first = await patch();
+      final mock = useMockLogger();
+
+      expect(await patch(), first);
+      verifyNever(() => mock.info(any()));
+    });
+
+    test('drops the identity and profile once the app signs automatically',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+      );
+      final signed = await patch();
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(signed)
+              ..setBuildSetting(release, 'CODE_SIGN_STYLE', 'Automatic')
+              ..setBuildSetting(release, 'DEVELOPMENT_TEAM', 'TEAM123')
+              ..removeBuildSetting(release, 'DEVELOPMENT_TEAM[sdk=iphoneos*]')
+              ..removeBuildSetting(
+                release,
+                'CODE_SIGN_IDENTITY[sdk=iphoneos*]',
+              )
+              ..removeBuildSetting(
+                release,
+                'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]',
+              ))
+            .text,
+      );
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      expect(
+        _extensionSigning(result, 'Release'),
+        {'CODE_SIGN_STYLE': 'Automatic', 'DEVELOPMENT_TEAM': 'TEAM123'},
+      );
+      verify(
+        () => mock.info(
+          any(
+            that: allOf(
+              contains('DEVELOPMENT_TEAM[sdk=iphoneos*]'),
+              contains('CODE_SIGN_IDENTITY[sdk=iphoneos*]'),
+              contains('PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'),
+              contains('CODE_SIGN_STYLE'),
+              contains('on the "Release" configuration'),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('resets a team set by hand that the app does not have', () async {
+      pbxprojFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), release, profile: 'App Prod'),
+      );
+      final signed = await patch();
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(signed)
+              ..setBuildSetting(
+                xcodeObjectId('cfg:Release:GreetingHomeWidget'),
+                'DEVELOPMENT_TEAM',
+                'ABCDE12345',
+              ))
+            .text,
+      );
+
+      expect(await patch(), signed);
+    });
+
+    test('warns when it resets the signing of a target it did not create',
+        () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
+      final created = await patch();
+      final foreign = _signManually(
+        created.replaceAll(
+          xcodeObjectId('target:GreetingHomeWidget'),
+          'AB00000000000000000000FF',
+        ),
+        release,
+        profile: 'App Prod',
+      );
+      pbxprojFile.writeAsStringSync(foreign);
+      final mock = useMockLogger();
+
+      await patch();
+
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('CODE_SIGN_STYLE'),
+              contains('on the "Release" configuration'),
+              contains('home_widget did not create this target'),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+  });
+
+  group('export options', () {
+    late Directory iosDir;
+    late File projectFile;
+
+    setUp(() {
+      iosDir = Directory('${tempDir.path}/ios');
+      projectFile = File('${iosDir.path}/Runner.xcodeproj/project.pbxproj')
+        ..parent.createSync(recursive: true);
+    });
+
+    /// The patcher followed by the export options sync, as `generate` runs
+    /// them; returns what the patcher asks the sync for.
+    Future<Map<String, String?>> patch({Iterable<String>? flavors}) async {
+      final profiles = await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: projectFile,
+        widgetClassName: 'GreetingHomeWidget',
+        flavors: flavors,
+      );
+      await syncExportOptionsProvisioningProfiles(
+        iosDir: iosDir,
+        widgetClassName: 'GreetingHomeWidget',
+        profiles: profiles,
+      );
+      return profiles;
+    }
+
+    File exportOptions(String name, String content) =>
+        File('${iosDir.path}/$name')..writeAsStringSync(content);
+
+    test('leaves the plists to the caller', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final content = _exportOptions(
+        _profileEntry('com.example.app.dev', 'App Dev'),
+      );
+      final plist = exportOptions('ExportOptions.plist', content);
+
+      final profiles = await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: projectFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+
+      expect(profiles, {'com.example.app.dev': 'App Dev GreetingHomeWidget'});
+      expect(plist.readAsStringSync(), content);
+    });
+
+    test('keeps a hand-added entry of a bundle id no configuration has',
+        () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final content = _exportOptions(
+        _profileEntry('com.example.elsewhere', 'Elsewhere') +
+            _profileEntry(
+              'com.example.elsewhere.GreetingHomeWidget',
+              'Elsewhere Widget',
+            ),
+      );
+      final plist = exportOptions('ExportOptions.plist', content);
+
+      final profiles = await patch();
+
+      expect(profiles.containsKey('com.example.elsewhere'), isFalse);
+      expect(plist.readAsStringSync(), content);
+    });
+
+    test('keeps a hand-added entry where the app signs automatically',
+        () async {
+      projectFile.writeAsStringSync(_buildFlavoredPbxproj());
+      final content = _exportOptions(
+        _profileEntry('com.example.app.dev', 'App Dev') +
+            _profileEntry(
+              'com.example.app.dev.GreetingHomeWidget',
+              'Widget Dev',
+            ),
+      );
+      final plist = exportOptions('ExportOptions.plist', content);
+
+      final profiles = await patch();
+
+      expect(profiles, isEmpty);
+      expect(plist.readAsStringSync(), content);
+    });
+
+    test('keeps a hand-added entry where it has no profile to name', () async {
+      projectFile.writeAsStringSync(
+        _signManually(_buildFlavoredPbxproj(), _flavorConfigId('AA', 2)),
+      );
+      final content = _exportOptions(
+        _profileEntry('com.example.app.dev', 'App Dev') +
+            _profileEntry(
+              'com.example.app.dev.GreetingHomeWidget',
+              'Widget Dev',
+            ),
+      );
+      final plist = exportOptions('ExportOptions.plist', content);
+
+      final profiles = await patch();
+
+      expect(profiles.containsKey('com.example.app.dev'), isFalse);
+      expect(plist.readAsStringSync(), content);
+    });
+
+    test('keeps the first profile of configurations sharing a bundle id',
+        () async {
+      // The unflavored Release and Release-prod both build com.example.app.
+      projectFile.writeAsStringSync(
+        _signManually(
+          _signManually(
+            _buildFlavoredPbxproj(),
+            _baseConfigId(1),
+            profile: 'App Base',
+          ),
+          _flavorConfigId('BB', 2),
+          profile: 'App Prod',
+        ),
+      );
+      final plist = exportOptions(
+        'ExportOptions.plist',
+        _exportOptions(_profileEntry('com.example.app', 'App Prod')),
+      );
+      final mock = useMockLogger();
+
+      final profiles = await patch();
+
+      expect(profiles, {'com.example.app': 'App Base GreetingHomeWidget'});
+      expect(
+        plist.readAsStringSync(),
+        _exportOptions(
+          _profileEntry('com.example.app', 'App Prod') +
+              _profileEntry(
+                'com.example.app.GreetingHomeWidget',
+                'App Base GreetingHomeWidget',
+              ),
+        ),
+      );
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('Release, Release-prod share the bundle id '
+                  'com.example.app '),
+              contains('"App Base GreetingHomeWidget"'),
+              contains('"App Prod GreetingHomeWidget"'),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('does not warn when configurations sharing a bundle id agree',
+        () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _signManually(
+            _buildFlavoredPbxproj(),
+            _baseConfigId(1),
+            profile: 'App Prod',
+          ),
+          _flavorConfigId('BB', 2),
+          profile: 'App Prod',
+        ),
+      );
+      final mock = useMockLogger();
+
+      final profiles = await patch();
+
+      expect(profiles, {'com.example.app': 'App Prod GreetingHomeWidget'});
+      verifyNever(() => mock.warn(any()));
+    });
+
+    test('keeps the value of an entry escaped without need', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final plist = exportOptions(
+        'ExportOptions.plist',
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') +
+              _profileEntry('com.example.other', 'Other -&gt; Dev'),
+        ),
+      );
+
+      await patch();
+
+      expect(
+        plist.readAsStringSync(),
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') +
+              _profileEntry(
+                'com.example.app.dev.GreetingHomeWidget',
+                'App Dev GreetingHomeWidget',
+              ) +
+              _profileEntry('com.example.other', 'Other -> Dev'),
+        ),
+      );
+    });
+
+    test('reads the device profile from any variant of the device SDK',
+        () async {
+      final releaseDev = _flavorConfigId('AA', 2);
+      String manual(Map<String, String> profiles) {
+        final editor = PbxprojEditor(_buildFlavoredPbxproj())
+          ..setBuildSetting(releaseDev, 'CODE_SIGN_STYLE', 'Manual');
+        for (final MapEntry(:key, :value) in profiles.entries) {
+          editor.setBuildSetting(
+            releaseDev,
+            'PROVISIONING_PROFILE_SPECIFIER$key',
+            value,
+          );
+        }
+        return editor.text;
+      }
+
+      for (final (profiles, expected) in [
+        (
+          {'': 'App Any', '[sdk=iphoneos*][arch=*]': 'App Device'},
+          'App Device GreetingHomeWidget',
+        ),
+        (
+          {'': 'App Any', '[sdk=iphoneos18.0]': 'App Device'},
+          'App Device GreetingHomeWidget',
+        ),
+        (
+          {
+            '[sdk=iphoneos*][arch=*]': 'App Arch',
+            '[sdk=iphoneos*]': 'App Device',
+          },
+          'App Device GreetingHomeWidget',
+        ),
+        (
+          {'': 'App Any', '[sdk=iphonesimulator*]': 'App Simulator'},
+          'App Any GreetingHomeWidget',
+        ),
+        (
+          {'': 'App Any', '[sdk=iphoneos*]': ''},
+          'App Any GreetingHomeWidget',
+        ),
+      ]) {
+        projectFile.writeAsStringSync(manual(profiles));
+
+        expect(
+          await patch(),
+          {'com.example.app.dev': expected},
+          reason: '$profiles',
+        );
+      }
+    });
+
+    test('adds the extension profile to a manual plist by bundle id', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final plist = exportOptions(
+        'ExportOptionsDevelopment.plist',
+        _exportOptions(_profileEntry('com.example.app.dev', 'App Dev')),
+      );
+      final mock = useMockLogger();
+
+      await patch();
+
+      expect(
+        plist.readAsStringSync(),
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') +
+              _profileEntry(
+                'com.example.app.dev.GreetingHomeWidget',
+                'App Dev GreetingHomeWidget',
+              ),
+        ),
+      );
+      verify(
+        () => mock.info(
+          any(
+            that: allOf(
+              contains('ExportOptionsDevelopment.plist'),
+              contains('com.example.app.dev.GreetingHomeWidget'),
+            ),
+          ),
+        ),
+      ).called(1);
+
+      final patched = plist.readAsStringSync();
+      await patch();
+      expect(plist.readAsStringSync(), patched);
+    });
+
+    test('corrects the profile of an entry that names another', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final plist = exportOptions(
+        'ExportOptions.plist',
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') +
+              _profileEntry('com.example.app.dev.GreetingHomeWidget', 'Old'),
+        ),
+      );
+
+      await patch();
+
+      expect(
+        plist.readAsStringSync(),
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') +
+              _profileEntry(
+                'com.example.app.dev.GreetingHomeWidget',
+                'App Dev GreetingHomeWidget',
+              ),
+        ),
+      );
+    });
+
+    test('leaves a plist that signs automatically untouched', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final content = _exportOptions(
+        _profileEntry('com.example.app.dev', 'App Dev'),
+        signingStyle: 'automatic',
+      );
+      final plist = exportOptions('ExportOptions.plist', content);
+
+      await patch();
+
+      expect(plist.readAsStringSync(), content);
+    });
+
+    test('removes the entry of a flavor the extension is not in', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('BB', 2),
+          profile: 'App Prod',
+        ),
+      );
+      final plist = exportOptions(
+        'ExportOptions-prod.plist',
+        _exportOptions(
+          _profileEntry('com.example.app', 'App Prod') +
+              _profileEntry(
+                'com.example.app.GreetingHomeWidget',
+                'App Prod GreetingHomeWidget',
+              ),
+        ),
+      );
+
+      await patch(flavors: ['dev']);
+
+      expect(
+        plist.readAsStringSync(),
+        _exportOptions(_profileEntry('com.example.app', 'App Prod')),
+      );
+    });
+
+    test('keeps every entry it does not own as it is', () async {
+      projectFile.writeAsStringSync(
+        _signManually(
+          _buildFlavoredPbxproj(),
+          _flavorConfigId('AA', 2),
+          profile: 'App Dev',
+        ),
+      );
+      final others = _profileEntry(
+            'com.example.app.dev.NotificationService',
+            'App Dev Notifications',
+          ) +
+          _profileEntry('com.example.other', 'Other');
+      final plist = exportOptions(
+        'ExportOptions.plist',
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') + others,
+        ),
+      );
+      final unrelated = exportOptions(
+        'Info.plist',
+        _exportOptions(_profileEntry('com.example.app.dev', 'App Dev')),
+      );
+
+      await patch();
+
+      expect(
+        plist.readAsStringSync(),
+        _exportOptions(
+          _profileEntry('com.example.app.dev', 'App Dev') +
+              _profileEntry(
+                'com.example.app.dev.GreetingHomeWidget',
+                'App Dev GreetingHomeWidget',
+              ) +
+              others,
+        ),
+      );
+      expect(
+        unrelated.readAsStringSync(),
+        _exportOptions(_profileEntry('com.example.app.dev', 'App Dev')),
+      );
+    });
+  });
+
   group('resolveProjectRelativePath', () {
     test('keeps a path relative to the project directory', () {
       expect(
@@ -3081,6 +4404,54 @@ void main() {
       // Writing an empty DEVELOPMENT_TEAM is worse than writing none: Xcode
       // reads it as "no team" and stops falling back to the account's own.
       expect(pbxprojFile.readAsStringSync(), content);
+    });
+
+    test('copies the conditional team settings and keeps the others', () async {
+      const content = '''
+// !\$*UTF8*\$!
+{
+	objects = {
+/* Begin XCBuildConfiguration section */
+		97C147061CF9000F007C117D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ABCDE12345;
+				INFOPLIST_FILE = Runner/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.app;
+			};
+			name = Release;
+		};
+		AABBCCDD11223344EEFF5566 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				DEVELOPMENT_TEAM = ABCDE12345;
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = ABCDE12345;
+				INFOPLIST_FILE = MyWidgetHomeWidget/Info.plist;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+	};
+}
+''';
+      pbxprojFile.writeAsStringSync(content);
+
+      await ensureWidgetExtensionDevelopmentTeamInXcodeProject(
+        pbxprojFile: pbxprojFile,
+      );
+
+      expect(
+        pbxprojFile.readAsStringSync(),
+        content.replaceFirst(
+          '\t\t\t\tDEVELOPMENT_TEAM = ABCDE12345;\n'
+              '\t\t\t\t"DEVELOPMENT_TEAM[sdk=macosx*]" = ABCDE12345;\n',
+          '\t\t\t\tDEVELOPMENT_TEAM = "";\n'
+              '\t\t\t\t"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ABCDE12345;\n'
+              '\t\t\t\t"DEVELOPMENT_TEAM[sdk=macosx*]" = ABCDE12345;\n',
+        ),
+      );
     });
 
     test('does not modify Runner configs', () async {

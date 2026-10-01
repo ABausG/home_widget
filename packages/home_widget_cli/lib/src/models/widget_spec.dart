@@ -950,6 +950,17 @@ class WidgetSpec {
   String iosGroupIdFor(String? flavor) =>
       _flavor(flavor)?.iOS?.groupId ?? data.iOS!.groupId;
 
+  /// The provisioning profile the extension signs with in [flavor], where the
+  /// flavor's override wins over
+  /// [HomeWidgetIOSConfiguration.provisioningProfile].
+  ///
+  /// Null when neither names one. [flavor] null selects the base
+  /// configuration. Only ever called for a widget that has an iOS
+  /// configuration.
+  String? iosProvisioningProfileFor(String? flavor) =>
+      _flavor(flavor)?.iOS?.provisioningProfile ??
+      data.iOS!.provisioningProfile;
+
   /// The URL configured for Android, where the platform value wins over the
   /// top-level [HomeWidget.widgetUrl].
   ///

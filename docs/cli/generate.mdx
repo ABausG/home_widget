@@ -30,6 +30,70 @@ dart run home_widget_cli generate [options]
 - The `home_widget` package is automatically added to your `pubspec.yaml` if it isn't already listed as a dependency.
 - Flavored projects need no extra flags — a single `generate` run wires every declared flavor on both platforms. See [Flavors](/generator/flavors).
 
+## Manual signing (iOS)
+
+Every build configuration of the widget extension signs the way the app target's configuration of the same name does. The generator copies `DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE` and `CODE_SIGN_IDENTITY` from it, conditional variants such as `DEVELOPMENT_TEAM[sdk=iphoneos*]` included. It reads them the way Xcode does, from the target, the project level and the `.xcconfig` the configuration is based on. A typical release setup that signs manually for devices only:
+
+```text
+CODE_SIGN_STYLE = Manual;
+DEVELOPMENT_TEAM = "";
+"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ABCDE12345;
+"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";
+"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "App Prod";
+```
+
+gives the extension the same settings, with a profile of its own:
+
+```text
+"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "App Prod WeatherHomeWidget";
+```
+
+- **Automatic**: where the app signs automatically, or sets no `CODE_SIGN_STYLE`, so does the extension. It gets no identity or profile.
+- **Manual**: where the app signs manually, the extension does too, with the app's identity. Its `PROVISIONING_PROFILE_SPECIFIER` goes under the same keys the app uses. The name comes from `provisioningProfile` on [`HomeWidgetIOSConfiguration`](/generator/annotation#homewidgetiosconfiguration), or on the flavor's [`HomeWidgetIOSFlavor`](/generator/flavors#homewidgetiosflavor). Without one it is the app's profile name followed by the extension's name, `<Widget>HomeWidget`. See [Profile name placeholders](#profile-name-placeholders).
+- **No profile name**: a configuration the app signs manually without a `PROVISIONING_PROFILE_SPECIFIER` to derive a name from, for example one that names its profile by UUID in `PROVISIONING_PROFILE`. The generator leaves the extension's `CODE_SIGN_STYLE`, `CODE_SIGN_IDENTITY` and `PROVISIONING_PROFILE_SPECIFIER` as they are there, so signing you set up by hand in Xcode stays; on a newly created target they start as Automatic. Only the team is still synced. `generate` warns and names the configuration. Set `provisioningProfile` to a name without `{appProfile}` to have the generator sign it manually.
+- **Not embedded**: a configuration the extension is not embedded in, because the widget's `flavors:` leave that flavor out, sets `CODE_SIGNING_ALLOWED = NO` and signs automatically without a profile, whatever the app does.
+
+The generator does not create certificates or profiles. After a run that changed the project, it lists every profile the extension expects with its bundle ID. Create those profiles for the extension's bundle IDs in your Apple Developer account.
+
+### Profile name placeholders
+
+`provisioningProfile`, on the widget and per flavor, can hold two placeholders. They are filled in per build configuration and per `PROVISIONING_PROFILE_SPECIFIER` key:
+
+| Placeholder | Replaced by |
+| --- | --- |
+| `{appProfile}` | The app's `PROVISIONING_PROFILE_SPECIFIER` under that same key in that configuration. |
+| `{extensionName}` | The extension target's name, `<Widget>HomeWidget`. |
+
+The default, when `provisioningProfile` is not set, is `'{appProfile} {extensionName}'`. A project whose extension profiles follow another scheme sets its own template:
+
+```dart
+iOS: HomeWidgetIOSConfiguration(
+  groupId: 'group.com.example.app',
+  provisioningProfile: '{appProfile}.{extensionName}',
+),
+```
+
+With the app signing `Debug` with `App Dev` and `Release` with `App Prod`, the extension signs with `App Dev.WeatherHomeWidget` and `App Prod.WeatherHomeWidget`. Because `{appProfile}` differs per configuration, Debug and Release can get different profiles from one template.
+
+- A value with `{appProfile}` names a profile only under the keys where the app names one. In a manually signed configuration where the app names none, it gives no profile name, which is the **No profile name** case above.
+- A value without `{appProfile}`, such as `'Weather Widget Prod'` or `'Widgets {extensionName}'`, is used as it is in every configuration it applies to, Debug, Release and Profile alike. Where the app names no profile, it goes under the keys of the conditions the app signs manually in.
+- Any other `{…}` placeholder is a validation error.
+
+A profile belongs to one bundle ID. When the same resolved name ends up on manually signed configurations whose extension bundle IDs differ, for example a name without placeholders applied to `com.example.app.dev.WeatherHomeWidget` and `com.example.app.stg.WeatherHomeWidget`, `generate` warns with the profile and the bundle IDs. Use `{appProfile}` or set `provisioningProfile` per flavor.
+
+### Export options
+
+`flutter build ipa --export-options-plist` needs a profile for every bundle ID in the archive. The generator updates every `.plist` directly in `ios/` whose name contains `ExportOptions`, as long as it sets `signingStyle` to `manual` and has a `provisioningProfiles` dictionary. For each app bundle ID listed there, it looks at the app's `Release` and `Release-<flavor>` configurations with that bundle ID:
+
+- **Embedded and signed manually**: `<bundle ID>.<Widget>HomeWidget` is added, or updated, with the profile the extension signs device builds with.
+- **Not embedded in any of them**: an existing `<bundle ID>.<Widget>HomeWidget` entry is removed.
+- **Embedded without a profile**, because the app signs automatically there or the generator has no profile name for the extension: an existing entry is left alone.
+- **No configuration with that bundle ID**: an existing entry is left alone.
+
+When several of those configurations share a bundle ID but sign the extension with different profiles, the plist gets the first one's, and `generate` warns with the bundle ID and the configurations.
+
+Every other entry keeps its value and the file keeps its layout and comments. A rewritten file is not guaranteed to be byte-identical beyond that: text that was escaped without need, such as `&gt;`, is written back as the plain character.
+
 ## Options
 
 | Option                  | Description                                                              | Default         |

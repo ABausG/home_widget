@@ -355,6 +355,140 @@ void main() {
       );
     });
 
+    test('throws when a flavor provisioningProfile is empty', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.t'),
+          flavors: const {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(provisioningProfile: ' '),
+            ),
+          },
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"dev"'),
+              contains('empty iOS provisioningProfile'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when the base provisioningProfile is empty', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.t',
+            provisioningProfile: '',
+          ),
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('iOS provisioningProfile is empty'),
+          ),
+        ),
+      );
+    });
+
+    test('throws when the base provisioningProfile has an unknown placeholder',
+        () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.t',
+            provisioningProfile: '{appProfile} {widgetName}',
+          ),
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('unknown placeholder {widgetName}'),
+              contains('{appProfile} and {extensionName}'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('throws when a flavor provisioningProfile has an unknown placeholder',
+        () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.t'),
+          flavors: const {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(provisioningProfile: 'Widget {flavor}'),
+            ),
+          },
+        ),
+        className: 'T',
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('flavor "dev"'),
+              contains('unknown placeholder {flavor}'),
+              contains('{appProfile} and {extensionName}'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('accepts the provisioningProfile placeholders', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          iOS: const HomeWidgetIOSConfiguration(
+            groupId: 'group.t',
+            provisioningProfile: '{appProfile}.{extensionName}',
+          ),
+          flavors: const {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(
+                provisioningProfile: 'Widget {extensionName}',
+              ),
+            ),
+          },
+        ),
+        className: 'T',
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
     test('accepts image fields with distinct derived keys', () {
       final spec = WidgetSpec(
         data: HomeWidget(name: 'T'),

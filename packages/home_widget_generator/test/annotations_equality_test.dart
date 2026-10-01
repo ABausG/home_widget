@@ -571,6 +571,46 @@ void main() {
       expect(a, isNot(equals(const HomeWidgetIOSFlavor(groupId: 'h'))));
       expect(a, isNot(equals(const HomeWidgetIOSFlavor())));
       expect(const HomeWidgetIOSFlavor(), const HomeWidgetIOSFlavor());
+
+      const profile = HomeWidgetIOSFlavor(provisioningProfile: 'App Dev');
+      expect(
+        profile,
+        const HomeWidgetIOSFlavor(provisioningProfile: 'App Dev'),
+      );
+      expect(
+        profile.hashCode,
+        const HomeWidgetIOSFlavor(provisioningProfile: 'App Dev').hashCode,
+      );
+      expect(
+        profile,
+        isNot(equals(const HomeWidgetIOSFlavor(provisioningProfile: 'App'))),
+      );
+      expect(profile, isNot(equals(const HomeWidgetIOSFlavor())));
+    });
+
+    test('HomeWidgetIOSConfiguration compares its provisioning profile', () {
+      const ios = HomeWidgetIOSConfiguration(
+        groupId: 'g',
+        provisioningProfile: 'App Prod',
+      );
+      expect(
+        ios,
+        const HomeWidgetIOSConfiguration(
+          groupId: 'g',
+          provisioningProfile: 'App Prod',
+        ),
+      );
+      expect(
+        ios.hashCode,
+        const HomeWidgetIOSConfiguration(
+          groupId: 'g',
+          provisioningProfile: 'App Prod',
+        ).hashCode,
+      );
+      expect(
+        ios,
+        isNot(equals(const HomeWidgetIOSConfiguration(groupId: 'g'))),
+      );
     });
 
     test('HomeWidgetFlavor compares the nested iOS overrides', () {
