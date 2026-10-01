@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_cli/src/util/export_options.dart';
 import 'package:home_widget_cli/src/util/fnv_hash.dart';
 import 'package:home_widget_cli/src/util/naming.dart';
 import 'package:home_widget_cli/src/util/pbxproj/pbxproj_editor.dart';
@@ -952,6 +953,221 @@ void main() {
       expect(renamed.readAsStringSync(), content);
       expect(Directory(p.join(iosDir.path, _widget)).existsSync(), isFalse);
     });
+  });
+
+  group('manual_release_flavors.pbxproj (Release signed manually per flavor)',
+      () {
+    const devExportOptions = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.example.app.dev</key>
+		<string>App Dev</string>
+	</dict>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>ABCDE12345</string>
+</dict>
+</plist>
+''';
+    const stgExportOptions = '''
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.example.app.stg</key>
+		<string>App Stg</string>
+		<key>com.example.app.stg.GreetingHomeWidget</key>
+		<string>App Stg GreetingHomeWidget</string>
+	</dict>
+	<key>signingStyle</key>
+	<string>manual</string>
+</dict>
+</plist>
+''';
+
+    late File devPlist;
+    late File stgPlist;
+
+    setUp(() {
+      useFixture('manual_release_flavors.pbxproj');
+      devPlist = File(p.join(iosDir.path, 'ExportOptions-dev.plist'))
+        ..writeAsStringSync(devExportOptions);
+      stgPlist = File(p.join(iosDir.path, 'ExportOptions-stg.plist'))
+        ..writeAsStringSync(stgExportOptions);
+    });
+
+    /// `generate` for a widget declared only for the dev flavor.
+    Future<String> generateForDev() async {
+      final profiles = await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: _widget,
+        flavorEntitlements: const {'dev': '$_widget.dev.entitlements'},
+        flavors: const ['dev'],
+      );
+      await syncExportOptionsProvisioningProfiles(
+        iosDir: iosDir,
+        widgetClassName: _widget,
+        profiles: profiles,
+      );
+      return pbxprojFile.readAsStringSync();
+    }
+
+    /// The signing settings the extension configuration [name] spells out.
+    Map<String, String> signingOf(String pbxproj, String name) {
+      final project = Pbxproj.parse(pbxproj);
+      final config = project
+          .buildConfigurationsOf(project.nativeTargetNamed(_widget)!)
+          .singleWhere((config) => config.string('name') == name);
+      return {
+        for (final MapEntry(:key, :value)
+            in ownBuildSettings(config, conditional: true).entries)
+          if (RegExp(
+            r'^(CODE_SIGNING_ALLOWED|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|'
+            r'DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER)(\[|$)',
+          ).hasMatch(key))
+            key: value,
+      };
+    }
+
+    test('signs the flavor the widget is in the way the app does', () async {
+      final result = await generateForDev();
+
+      for (final name in ['Release-dev', 'Profile-dev']) {
+        expect(
+          signingOf(result, name),
+          {
+            'CODE_SIGN_IDENTITY': 'Apple Development',
+            'CODE_SIGN_IDENTITY[sdk=iphoneos*]': 'iPhone Distribution',
+            'CODE_SIGN_STYLE': 'Manual',
+            'DEVELOPMENT_TEAM': '',
+            'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+            'PROVISIONING_PROFILE_SPECIFIER': '',
+            'PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]': 'App Dev $_widget',
+          },
+          reason: name,
+        );
+      }
+      expect(signingOf(result, 'Debug-dev'), {
+        'CODE_SIGN_STYLE': 'Automatic',
+        'DEVELOPMENT_TEAM': 'ABCDE12345',
+      });
+      verify(
+        () => mockLogger.info(
+          any(
+            that: allOf(
+              contains('"App Dev $_widget" '
+                  '(com.example.app.dev.$_widget)'),
+              isNot(contains('App Stg')),
+            ),
+          ),
+        ),
+      ).called(1);
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('leaves a flavor the widget is not in unsigned', () async {
+      final result = await generateForDev();
+
+      for (final name in ['Release-stg', 'Profile-stg']) {
+        expect(
+          signingOf(result, name),
+          {
+            'CODE_SIGNING_ALLOWED': 'NO',
+            'CODE_SIGN_STYLE': 'Automatic',
+            'DEVELOPMENT_TEAM': '',
+            'DEVELOPMENT_TEAM[sdk=iphoneos*]': 'ABCDE12345',
+          },
+          reason: name,
+        );
+      }
+    });
+
+    test('points the export options at the profile of the extension', () async {
+      await generateForDev();
+
+      expect(
+        devPlist.readAsStringSync(),
+        devExportOptions.replaceFirst(
+          '\t\t<string>App Dev</string>\n',
+          '\t\t<string>App Dev</string>\n'
+              '\t\t<key>com.example.app.dev.$_widget</key>\n'
+              '\t\t<string>App Dev $_widget</string>\n',
+        ),
+      );
+      expect(
+        stgPlist.readAsStringSync(),
+        stgExportOptions.replaceFirst(
+          '\t\t<key>com.example.app.stg.$_widget</key>\n'
+              '\t\t<string>App Stg $_widget</string>\n',
+          '',
+        ),
+      );
+    });
+
+    test('signs with the profile a flavor of the widget names', () async {
+      await IosGenerator(
+        spec: WidgetSpec(
+          data: const HomeWidget(
+            name: 'Greeting',
+            iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+            flavors: {
+              'dev': HomeWidgetFlavor(
+                iOS: HomeWidgetIOSFlavor(provisioningProfile: 'Widget Dev'),
+              ),
+            },
+          ),
+          className: 'Greeting',
+        ),
+        projectRoot: tempDir,
+      ).generate();
+
+      final result = pbxprojFile.readAsStringSync();
+      for (final name in ['Release-dev', 'Profile-dev']) {
+        final signing = signingOf(result, name);
+        expect(
+          signing['PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]'],
+          'Widget Dev',
+          reason: name,
+        );
+      }
+      expect(devPlist.readAsStringSync(), contains('Widget Dev'));
+    });
+
+    test('changes nothing on a second run', () async {
+      final first = await generateForDev();
+      final devFirst = devPlist.readAsStringSync();
+      final stgFirst = stgPlist.readAsStringSync();
+      clearInteractions(mockLogger);
+
+      expect(await generateForDev(), first);
+      expect(devPlist.readAsStringSync(), devFirst);
+      expect(stgPlist.readAsStringSync(), stgFirst);
+      verifyNever(() => mockLogger.info(any()));
+    });
+
+    test(
+      'passes plutil -lint',
+      () async {
+        await generateForDev();
+
+        for (final file in [pbxprojFile, devPlist, stgPlist]) {
+          final lint = Process.runSync('plutil', ['-lint', file.path]);
+          expect(lint.exitCode, 0, reason: '${lint.stdout}${lint.stderr}');
+        }
+      },
+      skip: Platform.isMacOS ? false : 'plutil is only available on macOS',
+    );
   });
 
   test('reports a project it cannot parse as a generator error', () async {

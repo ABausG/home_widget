@@ -3,6 +3,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import '../models/widget_spec.dart';
 import '../util/logger.dart';
 import '../util/naming.dart';
+import '../util/xcode_pbxproj_patcher.dart'
+    show provisioningProfilePlaceholder, provisioningProfilePlaceholders;
 import 'baseline_validator.dart';
 import 'child_limit_validator.dart';
 import 'size_validator.dart';
@@ -53,6 +55,7 @@ void validateWidgetData(WidgetSpec spec) {
   }
 
   _validateWidgetUrls(spec);
+  _validateProvisioningProfile(spec);
   _validateFlavors(spec);
   _validateImageKeys(spec);
   _validateNoConflictingKeys(spec);
@@ -123,6 +126,36 @@ void _validateWidgetUrl(
   }
 }
 
+/// Rejects an empty iOS provisioning profile name, and one holding a
+/// placeholder the generator does not know.
+void _validateProvisioningProfile(WidgetSpec spec) {
+  final profile = spec.data.iOS?.provisioningProfile;
+  if (profile == null) return;
+  if (profile.trim().isEmpty) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": the iOS provisioningProfile is empty. Omit '
+      "it to derive the profile name from the app target's own profile.",
+    );
+  }
+  _validateProvisioningProfilePlaceholders(
+    profile,
+    'Widget "${spec.data.name}": the iOS provisioningProfile',
+  );
+}
+
+/// Rejects a `{name}` placeholder in [profile] other than
+/// [provisioningProfilePlaceholders]; [where] starts the error message.
+void _validateProvisioningProfilePlaceholders(String profile, String where) {
+  for (final match in provisioningProfilePlaceholder.allMatches(profile)) {
+    if (provisioningProfilePlaceholders.contains(match.group(1))) continue;
+    throw GeneratorError(
+      '$where "$profile" holds the unknown placeholder ${match.group(0)}. '
+      'Supported placeholders are '
+      '${provisioningProfilePlaceholders.map((name) => '{$name}').join(' and ')}.',
+    );
+  }
+}
+
 /// Rejects a flavor map that would generate nothing, or that overrides a
 /// platform the widget is not configured for.
 void _validateFlavors(WidgetSpec spec) {
@@ -160,6 +193,20 @@ void _validateFlavors(WidgetSpec spec) {
         'Omit it to keep the App Group of the base configuration.',
       );
     }
+    final flavorProfile = flavor.iOS?.provisioningProfile;
+    if (flavorProfile == null) continue;
+    if (flavorProfile.trim().isEmpty) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": flavor "$name" has an empty iOS '
+        'provisioningProfile. Omit it to keep the profile of the base '
+        'configuration.',
+      );
+    }
+    _validateProvisioningProfilePlaceholders(
+      flavorProfile,
+      'Widget "${spec.data.name}": the iOS provisioningProfile of flavor '
+      '"$name"',
+    );
   }
 }
 

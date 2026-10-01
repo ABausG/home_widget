@@ -98,17 +98,19 @@ void main() {
     expect(readXcconfigSettings(file), isEmpty);
   });
 
-  test('skips conditional assignments', () {
+  test('keeps conditional assignments apart from the unconditional value', () {
     final file = write(
       'Debug.xcconfig',
       'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements\n'
-          'CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Runner/Device.entitlements\n',
+          'CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Runner/Device.entitlements\n'
+          'DEVELOPMENT_TEAM[sdk=iphoneos*] [arch=arm64] = "ABCDE12345"\n',
     );
 
-    expect(
-      readXcconfigSettings(file)['CODE_SIGN_ENTITLEMENTS'],
-      'Runner/Runner.entitlements',
-    );
+    expect(readXcconfigSettings(file), {
+      'CODE_SIGN_ENTITLEMENTS': 'Runner/Runner.entitlements',
+      'CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]': 'Runner/Device.entitlements',
+      'DEVELOPMENT_TEAM[sdk=iphoneos*][arch=arm64]': 'ABCDE12345',
+    });
   });
 
   test('survives a file that includes itself', () {

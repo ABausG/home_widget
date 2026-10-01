@@ -201,6 +201,7 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
     useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
+    provisioningProfile: obj.getField('provisioningProfile')?.toStringValue(),
   );
 }
 
@@ -230,6 +231,7 @@ HomeWidgetIOSFlavor? _extractIosFlavor(DartObject? obj) {
 
   return HomeWidgetIOSFlavor(
     groupId: obj.getField('groupId')?.toStringValue(),
+    provisioningProfile: obj.getField('provisioningProfile')?.toStringValue(),
   );
 }
 

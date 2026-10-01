@@ -1,0 +1,62 @@
+---
+title: Migration to 0.4.0
+description: Behavior changes and migration guide for home_widget_cli 0.4.0
+---
+
+# Migration to 0.4.0
+
+Only iOS projects whose app target signs manually in some build configurations are affected. Regenerate, then check the changes below.
+
+## The extension signs manually where the app does (iOS)
+
+The widget extension now mirrors the app target's signing per build configuration instead of always signing automatically. See [Manual signing](/cli/generate#manual-signing-ios) for the details.
+
+In a configuration where the app sets `CODE_SIGN_STYLE = Manual`, or sets no `CODE_SIGN_STYLE` but names a `PROVISIONING_PROFILE_SPECIFIER`, the next `generate` switches the extension to `Manual` too, with the app's `CODE_SIGN_IDENTITY`. It also sets a `PROVISIONING_PROFILE_SPECIFIER` of the extension's own. Unless you set `provisioningProfile`, that profile is named after the app's profile followed by the extension's name:
+
+```text
+"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "App Prod WeatherHomeWidget";
+```
+
+Create a profile of that name for the extension's bundle ID, or name the one you already have:
+
+```dart
+@HomeWidget(
+  name: 'Weather',
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.app',
+    provisioningProfile: 'Weather Widget Prod', // [!code ++]
+  ),
+  flavors: {
+    'dev': HomeWidgetFlavor(
+      iOS: HomeWidgetIOSFlavor(provisioningProfile: 'Weather Widget Dev'), // [!code ++]
+    ),
+  },
+  // ...
+)
+class Weather {}
+```
+
+If your extension profiles follow another naming scheme, describe it once with the placeholders `{appProfile}`, the app's profile name in that configuration, and `{extensionName}`, the extension target's name:
+
+```dart
+iOS: HomeWidgetIOSConfiguration(
+  groupId: 'group.com.example.app',
+  provisioningProfile: '{appProfile}.{extensionName}', // [!code ++]
+),
+```
+
+The default is `'{appProfile} {extensionName}'`. Because `{appProfile}` differs per configuration, Debug and Release can get different profiles from one template. A name without `{appProfile}` is used in every manually signed configuration it applies to; `generate` warns when that puts one profile on configurations with different extension bundle IDs. See [Profile name placeholders](/cli/generate#profile-name-placeholders).
+
+`generate` lists every profile the extension expects with its bundle ID after a run that changed the project. In a configuration where the app signs manually but names no profile to derive one from, the generator leaves the extension's signing style, identity and profile settings as they are (Automatic on a newly created target), and `generate` warns about it.
+
+## Signing settings are generator-owned (iOS)
+
+`CODE_SIGN_STYLE`, `CODE_SIGN_IDENTITY` and `PROVISIONING_PROFILE_SPECIFIER` of the extension's configurations now join `DEVELOPMENT_TEAM` as settings `generate` resets to match the app target. All four include their conditional variants, such as `DEVELOPMENT_TEAM[sdk=iphoneos*]`. The team is read from these variants too: an empty `DEVELOPMENT_TEAM` next to a `DEVELOPMENT_TEAM[sdk=iphoneos*]` is copied as it is, where it used to leave the extension without a team.
+
+A variant the app target does not have is removed from the extension. Values you set on the extension in Xcode are replaced on the next `generate`; change them on the app target, or through `provisioningProfile`, instead. The exception is a configuration the app signs manually without a profile name to derive one from: there only the team is reset, and the style, identity and profile settings stay as you set them.
+
+## Export options list the extension (iOS)
+
+A manual-signing `ios/*ExportOptions*.plist` gets an entry `<app bundle ID>.<Widget>HomeWidget` with the extension's profile for every app bundle ID whose `Release` configuration embeds the extension and signs it manually. An existing entry is removed only where a `Release` configuration with that bundle ID exists and none of them embeds the extension. It is left alone where the extension is embedded but the generator has no profile for it, and where no `Release` configuration has that bundle ID. `Release` configurations that share a bundle ID but sign the extension with different profiles get the first one's, and `generate` warns about it.
+
+Every other entry keeps its value, and the file keeps its layout. Unnecessary escapes such as `&gt;` are written back as the plain character. See [Export options](/cli/generate#export-options) for the details. Commit the changed plists along with `project.pbxproj`.

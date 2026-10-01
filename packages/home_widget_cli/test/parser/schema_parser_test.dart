@@ -656,6 +656,51 @@ void main() {
       expect(spec.iosGroupIdFor('dev'), 'group.base');
     });
 
+    test('parses the provisioning profile on the base and a flavor', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Signed',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.base',
+            provisioningProfile: 'App Prod Widget',
+          ),
+          flavors: {
+            'dev': HomeWidgetFlavor(
+              iOS: HomeWidgetIOSFlavor(provisioningProfile: 'App Dev Widget'),
+            ),
+            'stg': HomeWidgetFlavor(),
+          },
+        )
+        class SignedWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.data.iOS?.provisioningProfile, 'App Prod Widget');
+      expect(spec.flavor('dev')?.iOS?.provisioningProfile, 'App Dev Widget');
+      expect(spec.iosProvisioningProfileFor(null), 'App Prod Widget');
+      expect(spec.iosProvisioningProfileFor('dev'), 'App Dev Widget');
+      expect(spec.iosProvisioningProfileFor('stg'), 'App Prod Widget');
+    });
+
+    test('parses no provisioning profile when none is set', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Unsigned',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.base'),
+          flavors: {'dev': HomeWidgetFlavor()},
+        )
+        class UnsignedWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec!.data.iOS?.provisioningProfile, isNull);
+      expect(spec.iosProvisioningProfileFor('dev'), isNull);
+    });
+
     test('defaults the preview configuration', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';

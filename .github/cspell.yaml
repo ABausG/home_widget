@@ -122,6 +122,7 @@ words:
     # docs.page anchor fragments (lowercased heading text)
     - homewidgetiosconfiguration
     - homewidgetandroidconfiguration
+    - homewidgetiosflavor
     - hwalignment
     - hwcolorrole
     - hwcrossaxisalignment
@@ -149,6 +150,7 @@ words:
     - nopadding
     - notheme
     - notimed
+    - plists
     - precache
     - precached
     - RUNPATH
