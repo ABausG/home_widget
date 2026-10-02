@@ -189,6 +189,18 @@ abstract interface class HWDataWidget {
   Set<HWDataType<dynamic>> get dataDependencies;
 }
 
+/// The values of [data] a widget reading them depends on.
+///
+/// A fixed value is written into the widget and is not one, unless it owns a
+/// resource: see [HWDataType.isDataDependency].
+Set<HWDataType<dynamic>> _dataDependenciesOf(
+  Iterable<HWDataType<dynamic>> data,
+) =>
+    {
+      for (final value in data)
+        if (value.isDataDependency) value,
+    };
+
 /// A widget that renders in a font file of its own.
 mixin HWFontWidget {
   /// The font file this one widget renders with, or null when it renders in

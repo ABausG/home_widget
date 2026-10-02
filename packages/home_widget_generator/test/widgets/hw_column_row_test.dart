@@ -4,7 +4,9 @@ import 'package:test/test.dart';
 void main() {
   group('HWColumn', () {
     test('const constructor', () {
-      const col = HWColumn(children: [HWText.fixed('a'), HWText.fixed('b')]);
+      const col = HWColumn(
+        children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
+      );
       expect(col, isA<HWColumn>());
       expect(col, isA<HWWidget>());
       expect(col.children, hasLength(2));
@@ -18,7 +20,7 @@ void main() {
 
   group('HWRow', () {
     test('const constructor', () {
-      const row = HWRow(children: [HWText.fixed('x')]);
+      const row = HWRow(children: [HWText(HWString.fixed('x'))]);
       expect(row, isA<HWRow>());
       expect(row, isA<HWWidget>());
       expect(row.children, hasLength(1));
@@ -29,7 +31,7 @@ void main() {
     test('Column in Row', () {
       const widget = HWRow(
         children: [
-          HWColumn(children: [HWText.fixed('nested')]),
+          HWColumn(children: [HWText(HWString.fixed('nested'))]),
         ],
       );
       expect(widget.children.first, isA<HWColumn>());
@@ -38,7 +40,7 @@ void main() {
     test('Row in Column', () {
       const widget = HWColumn(
         children: [
-          HWRow(children: [HWText.fixed('x')]),
+          HWRow(children: [HWText(HWString.fixed('x'))]),
         ],
       );
       expect(widget.children.first, isA<HWRow>());
@@ -49,7 +51,7 @@ void main() {
         children: [
           HWRow(
             children: [
-              HWColumn(children: [HWText.fixed('deep')]),
+              HWColumn(children: [HWText(HWString.fixed('deep'))]),
             ],
           ),
         ],
@@ -62,8 +64,8 @@ void main() {
     test('mixed children types', () {
       const widget = HWRow(
         children: [
-          HWText.fixed('a'),
-          HWColumn(children: [HWText.fixed('b')]),
+          HWText(HWString.fixed('a')),
+          HWColumn(children: [HWText(HWString.fixed('b'))]),
         ],
       );
       expect(widget.children[0], isA<HWText>());
@@ -88,8 +90,8 @@ void main() {
     test('Column from HWColumn', () {
       final node = HWColumn(
         children: [
-          HWText.fixed('a'),
-          HWText.fixed('b'),
+          HWText(HWString.fixed('a')),
+          HWText(HWString.fixed('b')),
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -101,7 +103,7 @@ void main() {
     test('Row from HWRow', () {
       final node = HWRow(
         children: [
-          HWText.fixed('x'),
+          HWText(HWString.fixed('x')),
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -112,8 +114,8 @@ void main() {
     test('nested Column/Row', () {
       final node = HWColumn(
         children: [
-          HWRow(children: [HWText.fixed('x')]),
-          HWText.fixed('y'),
+          HWRow(children: [HWText(HWString.fixed('x'))]),
+          HWText(HWString.fixed('y')),
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -147,7 +149,7 @@ void main() {
     test('layout indentation', () {
       final node = HWColumn(
         children: [
-          HWRow(children: [HWText.fixed('x')]),
+          HWRow(children: [HWText(HWString.fixed('x'))]),
         ],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -158,7 +160,7 @@ void main() {
 
     test('Column with .center alignment', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -172,7 +174,7 @@ void main() {
 
     test('Row with .start alignment', () {
       final node = HWRow(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.start,
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -181,7 +183,7 @@ void main() {
 
     test('no alignment centers on the cross axis', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
       );
       final result = node.toKotlin(0, dataExpr: 'data');
       expect(result, contains(kotlinColumn));
@@ -191,7 +193,7 @@ void main() {
         'Column with .center emits Spacer before and after (mainAxisAlignment)',
         () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
       final result = node.toKotlin(0, dataExpr: 'data');
@@ -215,8 +217,8 @@ void main() {
     test('Row with .spaceBetween emits Spacer between children', () {
       final node = HWRow(
         children: [
-          HWText.fixed('a'),
-          HWText.fixed('b'),
+          HWText(HWString.fixed('a')),
+          HWText(HWString.fixed('b')),
         ],
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
@@ -241,7 +243,7 @@ void main() {
 
     test('Column with both cross and main alignment', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.center,
         mainAxisAlignment: HWMainAxisAlignment.end,
       );
@@ -270,8 +272,8 @@ void main() {
     test('VStack from HWColumn', () {
       final node = HWColumn(
         children: [
-          HWText.fixed('a'),
-          HWText.fixed('b'),
+          HWText(HWString.fixed('a')),
+          HWText(HWString.fixed('b')),
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -283,7 +285,7 @@ void main() {
     test('HStack from HWRow', () {
       final node = HWRow(
         children: [
-          HWText.fixed('x'),
+          HWText(HWString.fixed('x')),
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -294,8 +296,8 @@ void main() {
     test('nested VStack/HStack', () {
       final node = HWColumn(
         children: [
-          HWRow(children: [HWText.fixed('x')]),
-          HWText.fixed('y'),
+          HWRow(children: [HWText(HWString.fixed('x'))]),
+          HWText(HWString.fixed('y')),
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -329,7 +331,7 @@ void main() {
     test('layout indentation', () {
       final node = HWColumn(
         children: [
-          HWRow(children: [HWText.fixed('x')]),
+          HWRow(children: [HWText(HWString.fixed('x'))]),
         ],
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -340,7 +342,7 @@ void main() {
 
     test('Column with .start alignment', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.start,
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -349,7 +351,7 @@ void main() {
 
     test('Row with .end alignment', () {
       final node = HWRow(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.end,
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -358,7 +360,7 @@ void main() {
 
     test('Column with .center alignment', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -367,7 +369,7 @@ void main() {
 
     test('no alignment centers on the cross axis', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
       );
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains(swiftColumn));
@@ -377,7 +379,7 @@ void main() {
         'Column with .center emits Spacer before and after (mainAxisAlignment)',
         () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -389,7 +391,7 @@ void main() {
 
     test('Column with .end emits Spacer before children', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         mainAxisAlignment: HWMainAxisAlignment.end,
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -401,8 +403,8 @@ void main() {
     test('Row with .spaceBetween emits Spacer between children', () {
       final node = HWRow(
         children: [
-          HWText.fixed('a'),
-          HWText.fixed('b'),
+          HWText(HWString.fixed('a')),
+          HWText(HWString.fixed('b')),
         ],
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
@@ -417,8 +419,8 @@ void main() {
     test('Column with .spaceEvenly emits Spacer around all children', () {
       final node = HWColumn(
         children: [
-          HWText.fixed('a'),
-          HWText.fixed('b'),
+          HWText(HWString.fixed('a')),
+          HWText(HWString.fixed('b')),
         ],
         mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
       );
@@ -428,7 +430,7 @@ void main() {
 
     test('Column with .start emits no spacers', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         mainAxisAlignment: HWMainAxisAlignment.start,
       );
       final result = node.toSwift(0, dataExpr: 'data');
@@ -438,8 +440,8 @@ void main() {
     group('fills the main axis as Glance does', () {
       const rowFrame = '.frame(maxWidth: .infinity, alignment: .leading)';
       const columnFrame = '.frame(maxHeight: .infinity, alignment: .top)';
-      const a = HWText.fixed('a');
-      const b = HWText.fixed('b');
+      const a = HWText(HWString.fixed('a'));
+      const b = HWText(HWString.fixed('b'));
 
       test('where spaceBetween has fewer than two children to spread', () {
         expect(
@@ -542,8 +544,8 @@ $rowFrame''',
   });
 
   group('spacing', () {
-    const a = HWText.fixed('a');
-    const b = HWText.fixed('b');
+    const a = HWText(HWString.fixed('a'));
+    const b = HWText(HWString.fixed('b'));
     const green = HWFixedColor(0xFF00FF00);
     const kotlinA =
         'Text(text = "a", style = TextStyle(color = GlanceTheme.colors.onSurface))';
@@ -1235,7 +1237,7 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
             a,
             HWImage(HWImageData('avatar'), width: 8),
             HWImage(HWImageData('avatar')),
-            HWImage.asset('assets/logo.png', height: 8),
+            HWImage(HWImageData.asset('assets/logo.png'), height: 8),
           ],
         );
         expect(row.toKotlin(0, dataExpr: 'data'), '''
@@ -1328,11 +1330,11 @@ Row(verticalAlignment = Alignment.Top) {
           spacing: 4,
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
           children: [
-            HWText.fixed(
-              '50',
+            HWText(
+              HWString.fixed('50'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
-            HWText.fixed('Points'),
+            HWText(HWString.fixed('Points')),
           ],
         );
         final r = row.toKotlin(0, dataExpr: 'data');
@@ -1344,7 +1346,7 @@ Row(verticalAlignment = Alignment.Top) {
 
   group('list builders', () {
     const label = HWText(HWItemData(HWString('label')));
-    const empty = HWText.fixed('Nothing yet');
+    const empty = HWText(HWString.fixed('Nothing yet'));
     const green = HWFixedColor(0xFF00FF00);
     const kotlinLabel = 'Text(text = hwItem.label ?: "", '
         'style = TextStyle(color = GlanceTheme.colors.onSurface))';
@@ -1666,7 +1668,9 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Cent
           ).firstWhere((line) => line.startsWith('hwItems.forEachIndexed'));
 
       expect(
-        header(const HWRow.builder('tags', item: HWText.fixed('tag'))),
+        header(
+          const HWRow.builder('tags', item: HWText(HWString.fixed('tag'))),
+        ),
         'hwItems.forEachIndexed { _, _ ->',
       );
       expect(
@@ -1674,7 +1678,7 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Cent
           const HWRow.builder(
             'tags',
             mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
-            item: HWText.fixed('tag'),
+            item: HWText(HWString.fixed('tag')),
           ),
         ),
         'hwItems.forEachIndexed { hwIndex, _ ->',
@@ -1688,18 +1692,18 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Cent
         'hwItems.forEachIndexed { _, hwItem ->',
       );
       expect(
-        const HWRow.builder('tags', item: HWText.fixed('tag'))
+        const HWRow.builder('tags', item: HWText(HWString.fixed('tag')))
             .toSwift(0, dataExpr: 'data'),
         contains('{ hwIndex, hwItem in'),
       );
     });
 
     group('names the index of a loop', () {
-      const bitmap = HWText.fixed(
-        'tag',
+      const bitmap = HWText(
+        HWString.fixed('tag'),
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16),
       );
-      const plain = HWText.fixed('tag');
+      const plain = HWText(HWString.fixed('tag'));
 
       String header(HWWidget stack) => lines(
             stack.toKotlin(0, dataExpr: 'data'),
@@ -1770,7 +1774,8 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Cent
           item: HWBoolConditional(
             data: HWItemData(HWBool('big', defaultValue: false)),
             whenTrue: bitmap,
-            whenFalse: HWText.fixed('tag', style: HWTextStyle(fontSize: 14)),
+            whenFalse:
+                HWText(HWString.fixed('tag'), style: HWTextStyle(fontSize: 14)),
           ),
         );
 
@@ -1924,14 +1929,14 @@ Row(verticalAlignment = Alignment.CenterVertically) {
           spacing: 8,
           item: HWRow(
             mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
-            children: [label, HWText.fixed('x')],
+            children: [label, HWText(HWString.fixed('x'))],
           ),
         );
         const row = HWRow.builder(
           'columns',
           item: HWColumn(
             mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
-            children: [label, HWText.fixed('x')],
+            children: [label, HWText(HWString.fixed('x'))],
           ),
         );
         const weighted = HWColumn.builder(
@@ -1992,7 +1997,10 @@ Row(verticalAlignment = Alignment.CenterVertically) {
       test('are emitted in the context the stack was handed', () {
         const row = HWRow.builder(
           'tags',
-          item: HWSizeAdaptive(small: label, large: HWText.fixed('large')),
+          item: HWSizeAdaptive(
+            small: label,
+            large: HWText(HWString.fixed('large')),
+          ),
         );
         const context =
             HWEmitContext(reachableFamilies: {HWWidgetFamily.systemSmall});
@@ -2052,8 +2060,8 @@ VStack(alignment: .center, spacing: 0) {
   });
 
   group('HWDataOnly in a stack', () {
-    const a = HWText.fixed('a');
-    const b = HWText.fixed('b');
+    const a = HWText(HWString.fixed('a'));
+    const b = HWText(HWString.fixed('b'));
     const dataOnly = HWDataOnly([HWString('id')]);
 
     test('gets no spacers of its own', () {
@@ -2116,14 +2124,14 @@ HStack(alignment: .center, spacing: 0) {
   });
 
   group('a weighted child makes the stack fill its main axis (Glance)', () {
-    const fixed = HWText.fixed('fixed');
+    const fixed = HWText(HWString.fixed('fixed'));
     const wide = HWSizedBox(
       width: double.infinity,
-      child: HWText.fixed('w'),
+      child: HWText(HWString.fixed('w')),
     );
     const tall = HWSizedBox(
       height: double.infinity,
-      child: HWText.fixed('t'),
+      child: HWText(HWString.fixed('t')),
     );
     const textW = 'Text(modifier = GlanceModifier.defaultWeight(), '
         'text = "w", style = TextStyle(color = GlanceTheme.colors.onSurface))';
@@ -2169,7 +2177,7 @@ HStack(alignment: .center, spacing: 0) {
       expect(room.weight, isTrue);
       expect(room.fillsWidth, isFalse);
       expect(
-        const HWRow(children: [row, HWText.fixed('b')])
+        const HWRow(children: [row, HWText(HWString.fixed('b'))])
             .toKotlin(0, dataExpr: 'data'),
         contains('    Row(modifier = GlanceModifier.defaultWeight(), '),
       );
@@ -2202,7 +2210,7 @@ HStack(alignment: .center, spacing: 0) {
     });
 
     test('a stack without a weighted child is unchanged', () {
-      const row = HWRow(children: [fixed, HWText.fixed('b')]);
+      const row = HWRow(children: [fixed, HWText(HWString.fixed('b'))]);
       expect(
         row.toKotlin(0, dataExpr: 'data'),
         'Row(verticalAlignment = Alignment.CenterVertically) {\n'
@@ -2226,7 +2234,7 @@ HStack(alignment: .center, spacing: 0) {
             color: HWColor.fixed(0xFF3366FF),
             border: HWBoxBorder(thickness: 1, color: HWColor.fixed(0)),
           ),
-          child: HWText.fixed('w'),
+          child: HWText(HWString.fixed('w')),
         ),
       );
       final spaced = const HWRow(spacing: 8, children: [fixed, bordered])
@@ -2244,7 +2252,7 @@ HStack(alignment: .center, spacing: 0) {
       const conditional = HWBoolConditional(
         data: HWBool('flag', defaultValue: false),
         whenTrue: wide,
-        whenFalse: HWText.fixed('off'),
+        whenFalse: HWText(HWString.fixed('off')),
       );
       expect(
         const HWRow(children: [fixed, conditional])

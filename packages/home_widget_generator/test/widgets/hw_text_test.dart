@@ -8,8 +8,8 @@ const defaultStyleArg =
 void main() {
   group('HWText', () {
     group('model', () {
-      test('fixed constructor is const', () {
-        const text = HWText.fixed('Hello');
+      test('fixed string is const', () {
+        const text = HWText(HWString.fixed('Hello'));
         expect(text, isA<HWText>());
         expect(text, isA<HWWidget>());
       });
@@ -20,20 +20,25 @@ void main() {
         expect(text, isA<HWWidget>());
       });
 
-      test('localized constructor holds the raw locale map', () {
-        const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
+      test('a localized fixed string holds the locale map', () {
+        const text = HWText(
+          HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'}),
+        );
         expect(text, isA<HWWidget>());
-        expect(text.fixedContent, isNull);
-        // The map cannot be wrapped by a const constructor, so it stays raw.
-        expect(text.dataType, isNull);
-        expect(text.localizedContent, {'en': 'Hello', 'de': 'Hallo'});
+        final data = text.dataType as HWLocalizedString;
+        expect(data.isFixed, isTrue);
+        expect(data.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
       });
 
-      test('an unparsed localized map contributes no data dependency', () {
-        // The raw map is inert; the parser is what turns it into a bound
-        // HWLocalizedString, and only then does it become a dependency.
-        const text = HWText.localized({'en': 'Hello', 'de': 'Hallo'});
-        expect(text.dataDependencies, isEmpty);
+      test('a localized fixed string stays a data dependency', () {
+        // It owns a platform string resource, which the generator finds
+        // through the dependencies.
+        const text = HWText(
+          HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'}),
+        );
+        expect(text.dataDependencies, {
+          const HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'}),
+        });
       });
 
       test('the bound data type is the data dependency', () {
@@ -42,8 +47,9 @@ void main() {
       });
 
       test('fixed text has no data dependency', () {
-        const text = HWText.fixed('Hello');
-        expect(text.dataType, isNull);
+        const text = HWText(HWString.fixed('Hello'));
+        expect((text.dataType as HWString).fixedValue, 'Hello');
+        expect(text.dataType.isFixed, isTrue);
         expect(text.dataDependencies, isEmpty);
       });
     });
@@ -142,7 +148,7 @@ void main() {
 
     group('iOS (SwiftUI)', () {
       test('emits fixed text', () {
-        final node = HWText.fixed('Hello');
+        final node = HWText(HWString.fixed('Hello'));
         final result = node.toSwift(0, dataExpr: 'data');
         expect(result, 'Text("Hello")');
       });
@@ -205,33 +211,36 @@ void main() {
       });
 
       test('escapes strings', () {
-        final node = HWText.fixed('He said "Hi"');
+        final node = HWText(HWString.fixed('He said "Hi"'));
         final result = node.toSwift(0, dataExpr: 'data');
         expect(result, 'Text("He said \\"Hi\\"")');
       });
 
       test('respects indent', () {
-        final node = HWText.fixed('Hello');
+        final node = HWText(HWString.fixed('Hello'));
         final result = node.toSwift(1, dataExpr: 'data');
         expect(result, '    Text("Hello")');
       });
 
       test('swiftViewModifiers: empty without style', () {
-        expect(HWText.fixed('x').swiftViewModifiers, isEmpty);
+        expect(HWText(HWString.fixed('x')).swiftViewModifiers, isEmpty);
       });
 
       test(
           'swiftViewModifiers: empty for role text (font chain is in toSwift only)',
           () {
-        final node = HWText.fixed('a', style: HWRoleTextStyle.headline());
+        final node = HWText(
+          HWString.fixed('a'),
+          style: HWRoleTextStyle.headline(),
+        );
         expect(node.swiftViewModifiers, isEmpty);
       });
 
       test(
         'swiftViewModifiers: include colorScheme when color is HWThemedColor',
         () {
-          final node = HWText.fixed(
-            'Hi',
+          final node = HWText(
+            HWString.fixed('Hi'),
             style: const HWTextStyle(
               color: HWThemedColor(
                 light: HWFixedColor(0xFF000000),
@@ -247,8 +256,8 @@ void main() {
       );
 
       test('with style, Text uses view modifiers in output', () {
-        final node = HWText.fixed(
-          'Styled',
+        final node = HWText(
+          HWString.fixed('Styled'),
           style: HWTextStyle(
             fontSize: 24,
             fontWeight: HWFontWeight.bold,
@@ -273,14 +282,17 @@ void main() {
       });
 
       test('textAlign justify maps to leading in Swift (LTR fallback)', () {
-        const node = HWText.fixed('J', textAlign: HWTextAlign.justify);
+        const node = HWText(
+          HWString.fixed('J'),
+          textAlign: HWTextAlign.justify,
+        );
         final r = node.toSwift(0, dataExpr: 'd');
         expect(r, contains('.multilineTextAlignment(.leading)'));
       });
 
       test('strikethrough in Swift from lineThrough', () {
-        final node = HWText.fixed(
-          'S',
+        final node = HWText(
+          HWString.fixed('S'),
           style: const HWTextStyle(lineThrough: true),
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -288,8 +300,8 @@ void main() {
       });
 
       test('HWRoleTextStyle adds fontWeight when set with role', () {
-        final node = HWText.fixed(
-          'R',
+        final node = HWText(
+          HWString.fixed('R'),
           style: HWRoleTextStyle.headline(
             fontWeight: HWFontWeight.w700,
           ),
@@ -300,8 +312,8 @@ void main() {
       });
 
       test('only fontWeight without size or role in Swift', () {
-        const node = HWText.fixed(
-          'W',
+        const node = HWText(
+          HWString.fixed('W'),
           style: HWTextStyle(fontWeight: HWFontWeight.w500),
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -311,36 +323,39 @@ void main() {
 
       test('HWRoleTextStyle body, callout, caption, captionSmall in Swift', () {
         expect(
-          HWText.fixed('X', style: HWRoleTextStyle.body())
+          HWText(HWString.fixed('X'), style: HWRoleTextStyle.body())
               .toSwift(0, dataExpr: 'data'),
           contains('.font(.body)'),
         );
         expect(
-          HWText.fixed('X', style: HWRoleTextStyle.callout())
+          HWText(HWString.fixed('X'), style: HWRoleTextStyle.callout())
               .toSwift(0, dataExpr: 'data'),
           contains('.font(.callout)'),
         );
         expect(
-          HWText.fixed('X', style: HWRoleTextStyle.caption())
+          HWText(HWString.fixed('X'), style: HWRoleTextStyle.caption())
               .toSwift(0, dataExpr: 'data'),
           contains('.font(.caption)'),
         );
         expect(
-          HWText.fixed('X', style: HWRoleTextStyle.captionSmall())
+          HWText(HWString.fixed('X'), style: HWRoleTextStyle.captionSmall())
               .toSwift(0, dataExpr: 'data'),
           contains('.font(.caption2)'),
         );
       });
 
       test('HWRoleTextStyle emits semantic font', () {
-        final node = HWText.fixed('Role', style: HWRoleTextStyle.headline());
+        final node = HWText(
+          HWString.fixed('Role'),
+          style: HWRoleTextStyle.headline(),
+        );
         final result = node.toSwift(0, dataExpr: 'data');
         expect(result, contains('.font(.headline)'));
       });
 
       test('HWRoleTextStyle overridden by explicit size', () {
-        final node = HWText.fixed(
-          'Role Override',
+        final node = HWText(
+          HWString.fixed('Role Override'),
           style: HWRoleTextStyle.headline(fontSize: 30),
         );
         final result = node.toSwift(0, dataExpr: 'data');
@@ -348,8 +363,8 @@ void main() {
       });
 
       test('HWTextStyle baseStyle resolution', () {
-        final node = HWText.fixed(
-          'Base Base',
+        final node = HWText(
+          HWString.fixed('Base Base'),
           style: HWTextStyle(
             color: HWFixedColor(0xFF00FF00),
             baseStyle: HWRoleTextStyle.title(
@@ -382,7 +397,10 @@ void main() {
       });
 
       test('kotlinImports include TextAlign when textAlign is set', () {
-        final w = HWText.fixed('x', textAlign: HWTextAlign.end);
+        final w = HWText(
+          HWString.fixed('x'),
+          textAlign: HWTextAlign.end,
+        );
         expect(
           w.kotlinImports,
           contains('import androidx.glance.text.TextAlign'),
@@ -391,7 +409,10 @@ void main() {
 
       test('textAlign only, no style: the default color joins it in Kotlin',
           () {
-        const node = HWText.fixed('Hi', textAlign: HWTextAlign.end);
+        const node = HWText(
+          HWString.fixed('Hi'),
+          textAlign: HWTextAlign.end,
+        );
         final r = node.toKotlin(0, dataExpr: 'd');
         expect(
           r,
@@ -404,7 +425,10 @@ void main() {
       });
 
       test('textAlign justify uses Start in Kotlin (fallback)', () {
-        const node = HWText.fixed('J', textAlign: HWTextAlign.justify);
+        const node = HWText(
+          HWString.fixed('J'),
+          textAlign: HWTextAlign.justify,
+        );
         final r = node.toKotlin(0, dataExpr: 'd');
         expect(
           r,
@@ -414,8 +438,8 @@ void main() {
 
       test('textAlign is appended after a color that brings its own parens',
           () {
-        const node = HWText.fixed(
-          'C',
+        const node = HWText(
+          HWString.fixed('C'),
           style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
           textAlign: HWTextAlign.center,
         );
@@ -428,7 +452,7 @@ void main() {
       });
 
       test('kotlinImports include Text', () {
-        final w = HWText.fixed('x');
+        final w = HWText(HWString.fixed('x'));
         expect(w.kotlinImports, contains('import androidx.glance.text.Text'));
         expect(
           w.kotlinImports,
@@ -437,7 +461,7 @@ void main() {
       });
 
       test('emits fixed text', () {
-        final node = HWText.fixed('Hello');
+        final node = HWText(HWString.fixed('Hello'));
         final result = node.toKotlin(0, dataExpr: 'data');
         expect(result, 'Text(text = "Hello", $defaultStyleArg)');
       });
@@ -505,20 +529,20 @@ void main() {
       });
 
       test('escapes strings', () {
-        final node = HWText.fixed('Price: \$5');
+        final node = HWText(HWString.fixed('Price: \$5'));
         final result = node.toKotlin(0, dataExpr: 'data');
         expect(result, 'Text(text = "Price: \\\$5", $defaultStyleArg)');
       });
 
       test('respects indent', () {
-        final node = HWText.fixed('Hello');
+        final node = HWText(HWString.fixed('Hello'));
         final result = node.toKotlin(1, dataExpr: 'data');
         expect(result, '    Text(text = "Hello", $defaultStyleArg)');
       });
 
       test('style and textAlign in Glance output', () {
-        final node = HWText.fixed(
-          'Styled',
+        final node = HWText(
+          HWString.fixed('Styled'),
           style: HWTextStyle(
             fontSize: 24,
             fontWeight: HWFontWeight.bold,
@@ -537,8 +561,8 @@ void main() {
       });
 
       test('strikethrough in Kotlin from lineThrough only', () {
-        const node = HWText.fixed(
-          'S',
+        const node = HWText(
+          HWString.fixed('S'),
           style: HWTextStyle(lineThrough: true),
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -549,8 +573,8 @@ void main() {
       });
 
       test('combines Underline and LineThrough in Kotlin', () {
-        const node = HWText.fixed(
-          'B',
+        const node = HWText(
+          HWString.fixed('B'),
           style: HWTextStyle(
             underline: true,
             lineThrough: true,
@@ -576,8 +600,10 @@ void main() {
           (12, HWRoleTextStyle.caption()),
           (11, HWRoleTextStyle.captionSmall()),
         ]) {
-          final r =
-              HWText.fixed('X', style: entry.$2).toKotlin(0, dataExpr: 'data');
+          final r = HWText(
+            HWString.fixed('X'),
+            style: entry.$2,
+          ).toKotlin(0, dataExpr: 'data');
           expect(
             r,
             contains('fontSize = ${entry.$1}.sp'),
@@ -587,15 +613,18 @@ void main() {
       });
 
       test('HWRoleTextStyle emits default metrics when unprovided', () {
-        final node = HWText.fixed('Role', style: HWRoleTextStyle.headline());
+        final node = HWText(
+          HWString.fixed('Role'),
+          style: HWRoleTextStyle.headline(),
+        );
         final result = node.toKotlin(0, dataExpr: 'data');
         expect(result, contains('fontSize = 18.sp'));
         expect(result, contains('fontWeight = FontWeight.Medium'));
       });
 
       test('HWTextStyle baseStyle resolution', () {
-        final node = HWText.fixed(
-          'Base Base',
+        final node = HWText(
+          HWString.fixed('Base Base'),
           style: HWTextStyle(
             color: HWFixedColor(0xFF00FF00),
             baseStyle: HWRoleTextStyle.title(
@@ -620,7 +649,6 @@ void main() {
       expect(text.dataType, const HWInt('steps'));
       expect(text.numberFormat, const HWNumberFormat.compact());
       expect(text.dateFormat, isNull);
-      expect(text.fixedNumber, isNull);
       expect(text.formatsNumber, isTrue);
       expect(text.formatsDate, isFalse);
       expect(text.dataDependencies, {const HWInt('steps')});
@@ -632,7 +660,7 @@ void main() {
       expect(const HWText(HWTimedData(HWInt('c'))).formatsNumber, isTrue);
       expect(const HWText(HWJson('p', HWDouble('c'))).formatsNumber, isTrue);
       expect(const HWText(HWString('c')).formatsNumber, isFalse);
-      expect(const HWText.fixed('c').formatsNumber, isFalse);
+      expect(const HWText(HWString.fixed('c')).formatsNumber, isFalse);
     });
 
     test('decimal with explicit digits and grouping off', () {
@@ -835,17 +863,17 @@ void main() {
     });
   });
 
-  group('HWText.fixedNumber', () {
+  group('HWText.number with a fixed number', () {
     test('model: carries the value and no data dependency', () {
-      const text = HWText.fixedNumber(1234);
-      expect(text.fixedNumber, 1234);
-      expect(text.dataType, isNull);
+      const text = HWText.number(HWInt.fixed(1234));
+      expect((text.dataType as HWInt).fixedValue, 1234);
+      expect(text.dataType.isFixed, isTrue);
       expect(text.dataDependencies, isEmpty);
       expect(text.formatsNumber, isTrue);
     });
 
     test('an int is emitted as a floating point literal on both platforms', () {
-      const text = HWText.fixedNumber(1234);
+      const text = HWText.number(HWInt.fixed(1234));
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
         'Text(hwFormatDecimal(NSNumber(value: 1234.0), minFraction: nil, '
@@ -859,7 +887,10 @@ void main() {
     });
 
     test('a double keeps its own literal', () {
-      const text = HWText.fixedNumber(12.5, format: HWNumberFormat.compact());
+      const text = HWText.number(
+        HWDouble.fixed(12.5),
+        format: HWNumberFormat.compact(),
+      );
       expect(
         text.toSwift(0, dataExpr: 'd'),
         'Text(hwFormatCompact(NSNumber(value: 12.5)))',
@@ -872,8 +903,8 @@ void main() {
     });
 
     test('a data-bound currency is still a dependency', () {
-      const text = HWText.fixedNumber(
-        9.99,
+      const text = HWText.number(
+        HWDouble.fixed(9.99),
         format: HWNumberFormat.currency(
           currency: HWCurrency.data(HWString('cur')),
         ),
@@ -1060,7 +1091,7 @@ void main() {
   group('HWText multi-line content', () {
     // Regression: the escapers used to leave newlines raw, which produced an
     // unterminated string literal in both languages.
-    const text = HWText.fixed('line1\nline2\ttabbed');
+    const text = HWText(HWString.fixed('line1\nline2\ttabbed'));
 
     test('escapes newlines and tabs in Kotlin', () {
       final kotlin = text.toKotlin(0, dataExpr: 'null');
@@ -1319,7 +1350,7 @@ void main() {
         widget.nativeHelpers.map((h) => h.name).toSet();
 
     test('a text with no formatting needs none', () {
-      expect(namesOf(const HWText.fixed('hi')), isEmpty);
+      expect(namesOf(const HWText(HWString.fixed('hi'))), isEmpty);
       expect(namesOf(const HWText(HWString('label'))), isEmpty);
     });
 
@@ -1345,7 +1376,12 @@ void main() {
         {'hwFormatCompact'},
       );
       expect(
-        namesOf(const HWText.fixedNumber(1, format: HWNumberFormat.percent())),
+        namesOf(
+          const HWText.number(
+            HWInt.fixed(1),
+            format: HWNumberFormat.percent(),
+          ),
+        ),
         {'hwFormatPercent'},
       );
     });
@@ -1392,8 +1428,8 @@ void main() {
     test('a date nobody displays still needs the parser', () {
       const tree = HWDataExists(
         data: HWDateTime('when'),
-        whenPresent: HWText.fixed('yes'),
-        whenAbsent: HWText.fixed('no'),
+        whenPresent: HWText(HWString.fixed('yes')),
+        whenAbsent: HWText(HWString.fixed('no')),
       );
       expect(namesOf(tree), {'hwParseIsoDate'});
     });

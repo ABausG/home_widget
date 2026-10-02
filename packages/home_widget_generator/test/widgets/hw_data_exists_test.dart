@@ -5,8 +5,8 @@ void main() {
   group('HWDataExists', () {
     const dataExists = HWDataExists(
       data: HWString('myKey'),
-      whenPresent: HWText.fixed('Present'),
-      whenAbsent: HWText.fixed('Absent'),
+      whenPresent: HWText(HWString.fixed('Present')),
+      whenAbsent: HWText(HWString.fixed('Absent')),
     );
 
     group('model', () {
@@ -63,8 +63,8 @@ void main() {
       test('supports JSON child existence checks', () {
         const jsonExists = HWDataExists(
           data: HWJson('profile', HWString('name')),
-          whenPresent: HWText.fixed('Present'),
-          whenAbsent: HWText.fixed('Absent'),
+          whenPresent: HWText(HWString.fixed('Present')),
+          whenAbsent: HWText(HWString.fixed('Absent')),
         );
 
         expect(
@@ -80,8 +80,8 @@ void main() {
       test('an image is checked through the existence helper', () {
         const imageExists = HWDataExists(
           data: HWImageData('avatar'),
-          whenPresent: HWText.fixed('Present'),
-          whenAbsent: HWText.fixed('Absent'),
+          whenPresent: HWText(HWString.fixed('Present')),
+          whenAbsent: HWText(HWString.fixed('Absent')),
         );
 
         expect(
@@ -101,8 +101,8 @@ void main() {
       test('a wrapped image field is checked the same way', () {
         const timedJsonImage = HWDataExists(
           data: HWTimedData(HWJson('slot', HWImageData('picture'))),
-          whenPresent: HWText.fixed('Present'),
-          whenAbsent: HWText.fixed('Absent'),
+          whenPresent: HWText(HWString.fixed('Present')),
+          whenAbsent: HWText(HWString.fixed('Absent')),
         );
 
         expect(
@@ -129,8 +129,8 @@ void main() {
         );
         const itemImage = HWDataExists(
           data: HWItemData(HWImageData('avatar')),
-          whenPresent: HWText.fixed('Present'),
-          whenAbsent: HWText.fixed('Absent'),
+          whenPresent: HWText(HWString.fixed('Present')),
+          whenAbsent: HWText(HWString.fixed('Absent')),
         );
 
         expect(

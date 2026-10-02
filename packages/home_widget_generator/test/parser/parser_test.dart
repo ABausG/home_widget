@@ -106,8 +106,8 @@ $code
   name: 'TestWidget',
   widget: HWColumn(
     children: [
-      HWText.fixed('Hello'),
-      HWText.fixed('World'),
+      HWText(HWString.fixed('Hello')),
+      HWText(HWString.fixed('World')),
     ],
     mainAxisAlignment: HWMainAxisAlignment.center,
   ),
@@ -135,7 +135,10 @@ class TestWidget {}
 @HomeWidget(
   name: 'TestRow',
   widget: HWRow(
-    children: [HWText.fixed('L'), HWText.fixed('R')],
+    children: [
+      HWText(HWString.fixed('L')),
+      HWText(HWString.fixed('R')),
+    ],
     crossAxisAlignment: HWCrossAxisAlignment.end,
     mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
   ),
@@ -158,7 +161,10 @@ class TestRowWidget {}
 @HomeWidget(
   name: 'BaselineRow',
   widget: HWRow(
-    children: [HWText.fixed('34'), HWText.fixed('kg')],
+    children: [
+      HWText(HWString.fixed('34')),
+      HWText(HWString.fixed('kg')),
+    ],
     crossAxisAlignment: HWCrossAxisAlignment.baseline,
   ),
 )
@@ -182,7 +188,7 @@ class BaselineRowWidget {}
 @HomeWidget(
   name: 'BaselineColumn',
   widget: HWColumn(
-    children: [HWText.fixed('a')],
+    children: [HWText(HWString.fixed('a'))],
     crossAxisAlignment: HWCrossAxisAlignment.baseline,
   ),
 )
@@ -201,8 +207,11 @@ class BaselineColumnWidget {}
   widget: HWColumn(
     spacing: 8,
     children: [
-      HWRow(spacing: 12.5, children: [HWText.fixed('a'), HWText.fixed('b')]),
-      HWRow(children: [HWText.fixed('c')]),
+      HWRow(spacing: 12.5, children: [
+        HWText(HWString.fixed('a')),
+        HWText(HWString.fixed('b')),
+      ]),
+      HWRow(children: [HWText(HWString.fixed('c'))]),
     ],
   ),
 )
@@ -218,7 +227,7 @@ class SpacedWidget {}
       final code = '''
 @HomeWidget(
   name: 'NegativeRow',
-  widget: HWRow(spacing: -4, children: [HWText.fixed('a')]),
+  widget: HWRow(spacing: -4, children: [HWText(HWString.fixed('a'))]),
 )
 class NegativeRowWidget {}
 ''';
@@ -230,7 +239,7 @@ class NegativeRowWidget {}
       final code = '''
 @HomeWidget(
   name: 'NegativeColumn',
-  widget: HWColumn(spacing: -2.5, children: [HWText.fixed('a')]),
+  widget: HWColumn(spacing: -2.5, children: [HWText(HWString.fixed('a'))]),
 )
 class NegativeColumnWidget {}
 ''';
@@ -263,7 +272,7 @@ class TestWidget {}
       light: HWFixedColor(0xFFFF0000),
       dark: HWFixedColor(0xFF00FF00),
     ),
-    child: HWText.fixed('Colored'),
+    child: HWText(HWString.fixed('Colored')),
   ),
 )
 class TestWidget {}
@@ -279,14 +288,20 @@ class TestWidget {}
       expect((themedColor.dark as HWFixedColor).value, 0xFF00FF00);
 
       expect(box.child, isA<HWText>());
-      expect((box.child as HWText).fixedContent, 'Colored');
+      expect(
+        ((box.child as HWText).dataType as HWString).fixedValue,
+        'Colored',
+      );
     });
 
     test('parses HWText with HWTextStyle', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWText.fixed('Styled', style: HWTextStyle(color: HWFixedColor(0xFF0000FF))),
+  widget: HWText(
+    HWString.fixed('Styled'),
+    style: HWTextStyle(color: HWFixedColor(0xFF0000FF)),
+  ),
 )
 class TestWidget {}
 ''';
@@ -304,7 +319,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWColoredBox(
     color: HWDefaultColor(HWColorRole.contentPrimary),
-    child: HWText.fixed('DefaultColor'),
+    child: HWText(HWString.fixed('DefaultColor')),
   ),
 )
 class TestWidget {}
@@ -330,7 +345,7 @@ class TestWidget {}
         color: HWFixedColor(0xFF000000),
       ),
     ),
-    child: HWText.fixed('Decorated'),
+    child: HWText(HWString.fixed('Decorated')),
   ),
 )
 class TestWidget {}
@@ -345,7 +360,10 @@ class TestWidget {}
       expect(box.decoration.border!.thickness, 2.0);
       expect(box.decoration.border!.color, isA<HWFixedColor>());
       expect((box.decoration.border!.color as HWFixedColor).value, 0xFF000000);
-      expect((box.child as HWText).fixedContent, 'Decorated');
+      expect(
+        ((box.child as HWText).dataType as HWString).fixedValue,
+        'Decorated',
+      );
     });
 
     test('parses an HWBoxDecoration without a border radius', () async {
@@ -354,7 +372,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDecoratedBox(
     decoration: HWBoxDecoration(color: HWFixedColor(0xFFFFFFFF)),
-    child: HWText.fixed('Decorated'),
+    child: HWText(HWString.fixed('Decorated')),
   ),
 )
 class TestWidget {}
@@ -370,7 +388,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDecoratedBox(
     decoration: HWBoxDecoration(borderRadius: HWBorderRadius.circular(-4)),
-    child: HWText.fixed('Decorated'),
+    child: HWText(HWString.fixed('Decorated')),
   ),
 )
 class TestWidget {}
@@ -387,7 +405,7 @@ class TestWidget {}
     decoration: HWBoxDecoration(
       borderRadius: HWBorderRadius.circular(double.infinity),
     ),
-    child: HWText.fixed('Pill'),
+    child: HWText(HWString.fixed('Pill')),
   ),
 )
 class TestWidget {}
@@ -400,7 +418,7 @@ class TestWidget {}
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWText.fixed('Complex', 
+  widget: HWText(HWString.fixed('Complex'),
     textAlign: HWTextAlign.center,
     style: HWTextStyle(
       fontSize: 24,
@@ -431,7 +449,7 @@ class TestWidget {}
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWText.fixed('Serif',
+  widget: HWText(HWString.fixed('Serif'),
     style: HWTextStyle(
       fontFamily: 'Chewy',
       androidFont: HWAndroidFont.serif,
@@ -451,7 +469,7 @@ class TestWidget {}
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWText.fixed('Casual',
+  widget: HWText(HWString.fixed('Casual'),
     style: HWTextStyle(androidFont: HWAndroidFont.family('casual'))
   ),
 )
@@ -468,13 +486,13 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWRow(
     children: [
-      HWText.fixed('System',
+      HWText(HWString.fixed('System'),
         style: HWTextStyle(
           fontFamily: 'Chewy',
           androidFont: HWAndroidFont.system,
         )
       ),
-      HWText.fixed('Custom',
+      HWText(HWString.fixed('Custom'),
         style: HWTextStyle(
           fontFamily: 'Chewy',
           androidFont: HWAndroidFont.custom,
@@ -497,7 +515,7 @@ class TestWidget {}
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWText.fixed('Role',
+  widget: HWText(HWString.fixed('Role'),
     style: HWRoleTextStyle.caption(
       fontFamily: 'Chewy',
       androidFont: HWAndroidFont.monospace,
@@ -516,7 +534,7 @@ class TestWidget {}
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWText.fixed('Role',
+  widget: HWText(HWString.fixed('Role'),
     style: HWTextStyle(
       color: HWFixedColor(0xFF000000),
       baseStyle: HWRoleTextStyle.headline(
@@ -545,7 +563,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWPadding(
     padding: HWEdgeInsets.all(12),
-    child: HWText.fixed('Pad'),
+    child: HWText(HWString.fixed('Pad')),
   ),
 )
 class TestWidget {}
@@ -557,7 +575,10 @@ class TestWidget {}
       expect(pad.padding.bottom, 12.0);
       expect(pad.padding.left, 12.0);
       expect(pad.padding.right, 12.0);
-      expect((pad.child as HWText).fixedContent, 'Pad');
+      expect(
+        ((pad.child as HWText).dataType as HWString).fixedValue,
+        'Pad',
+      );
     });
 
     test('parses HWPadding with HWEdgeInsets.symmetric', () async {
@@ -566,7 +587,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWPadding(
     padding: HWEdgeInsets.symmetric(vertical: 4, horizontal: 8),
-    child: HWText.fixed('x'),
+    child: HWText(HWString.fixed('x')),
   ),
 )
 class TestWidget {}
@@ -585,7 +606,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWPadding(
     padding: HWEdgeInsets.only(left: 1, top: 2, right: 3, bottom: 4),
-    child: HWText.fixed('y'),
+    child: HWText(HWString.fixed('y')),
   ),
 )
 class TestWidget {}
@@ -604,8 +625,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDataExists(
     data: HWString('k'),
-    whenPresent: HWText.fixed('yes'),
-    whenAbsent: HWText.fixed('no'),
+    whenPresent: HWText(HWString.fixed('yes')),
+    whenAbsent: HWText(HWString.fixed('no')),
   ),
 )
 class TestWidget {}
@@ -614,8 +635,14 @@ class TestWidget {}
       expect(widget, isA<HWDataExists>());
       final cond = widget as HWDataExists;
       expect(cond.data, const HWString('k'));
-      expect((cond.whenPresent as HWText).fixedContent, 'yes');
-      expect((cond.whenAbsent as HWText).fixedContent, 'no');
+      expect(
+        ((cond.whenPresent as HWText).dataType as HWString).fixedValue,
+        'yes',
+      );
+      expect(
+        ((cond.whenAbsent as HWText).dataType as HWString).fixedValue,
+        'no',
+      );
     });
 
     test('parses HWBoolConditional', () async {
@@ -624,8 +651,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWBoolConditional(
     data: HWBool('flag', defaultValue: false),
-    whenTrue: HWText.fixed('T'),
-    whenFalse: HWText.fixed('F'),
+    whenTrue: HWText(HWString.fixed('T')),
+    whenFalse: HWText(HWString.fixed('F')),
   ),
 )
 class TestWidget {}
@@ -634,8 +661,14 @@ class TestWidget {}
       expect(widget, isA<HWBoolConditional>());
       final cond = widget as HWBoolConditional;
       expect(cond.data, const HWBool('flag', defaultValue: false));
-      expect((cond.whenTrue as HWText).fixedContent, 'T');
-      expect((cond.whenFalse as HWText).fixedContent, 'F');
+      expect(
+        ((cond.whenTrue as HWText).dataType as HWString).fixedValue,
+        'T',
+      );
+      expect(
+        ((cond.whenFalse as HWText).dataType as HWString).fixedValue,
+        'F',
+      );
     });
 
     test('parses HWBoolConditional with HWJson child bool', () async {
@@ -644,8 +677,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWBoolConditional(
     data: HWJson('profile', HWBool('isActive', defaultValue: false)),
-    whenTrue: HWText.fixed('T'),
-    whenFalse: HWText.fixed('F'),
+    whenTrue: HWText(HWString.fixed('T')),
+    whenFalse: HWText(HWString.fixed('F')),
   ),
 )
 class TestWidget {}
@@ -677,7 +710,7 @@ class TestWidget {}
       );
       // A JSON child is a legal leaf wrapper, so the path keeps descending.
       expect(
-        (text.dataType! as HWJson).pathSegments,
+        (text.dataType as HWJson).pathSegments,
         ['address', 'city'],
       );
     });
@@ -704,7 +737,7 @@ class TestWidget {}
 class TestWidget {}
 ''';
       final widget = await parseCode(code);
-      final json = (widget as HWText).dataType! as HWJson;
+      final json = (widget as HWText).dataType as HWJson;
       final leaf = json.leafType as HWLocalizedString;
 
       expect(json.pathSegments, ['name']);
@@ -734,7 +767,7 @@ class TestWidget {}
 class TestWidget {}
 ''';
       final widget = await parseCode(code);
-      final timed = (widget as HWText).dataType! as HWTimedData;
+      final timed = (widget as HWText).dataType as HWTimedData;
       final inner = timed.unwrapped as HWLocalizedString;
 
       expect(inner.key, 'greeting');
@@ -765,7 +798,7 @@ class TestWidget {}
 class TestWidget {}
 ''';
       final widget = await parseCode(code);
-      final timed = (widget as HWText).dataType! as HWTimedData;
+      final timed = (widget as HWText).dataType as HWTimedData;
       final json = timed.unwrapped as HWJson;
       final leaf = json.leafType as HWLocalizedString;
 
@@ -843,7 +876,7 @@ class TestWidget {}
 class TestWidget {}
 ''';
       final widget = await parseCode(code);
-      final localized = (widget as HWText).dataType! as HWLocalizedString;
+      final localized = (widget as HWText).dataType as HWLocalizedString;
       expect(localized.defaultTranslations, {'en': 'Hello'});
       expect(localized.previewTranslations, {'en': 'Sample'});
     });
@@ -932,14 +965,14 @@ class TestWidget {}
       );
     });
 
-    test('parses HWText.fixedNumber, int and double', () async {
+    test('parses HWText.number over HWInt.fixed and HWDouble.fixed', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
   widget: HWColumn(
     children: [
-      HWText.fixedNumber(1234),
-      HWText.fixedNumber(12.5, format: HWNumberFormat.compact()),
+      HWText.number(HWInt.fixed(1234)),
+      HWText.number(HWDouble.fixed(12.5), format: HWNumberFormat.compact()),
     ],
   ),
 )
@@ -947,9 +980,9 @@ class TestWidget {}
 ''';
       final widget = await parseCode(code);
       final texts = (widget as HWColumn).children.cast<HWText>();
-      expect(texts[0].fixedNumber, 1234);
+      expect((texts[0].dataType as HWInt).fixedValue, 1234);
       expect(texts[0].numberFormat, const HWNumberFormat.decimal());
-      expect(texts[1].fixedNumber, 12.5);
+      expect((texts[1].dataType as HWDouble).fixedValue, 12.5);
       expect(texts[1].numberFormat, const HWNumberFormat.compact());
       expect(
         texts[0].toKotlin(0, dataExpr: 'd'),
@@ -1097,8 +1130,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDataExists(
     data: HWTimedData(HWTimedData(HWString('label'))),
-    whenPresent: HWText.fixed('yes'),
-    whenAbsent: HWText.fixed('no'),
+    whenPresent: HWText(HWString.fixed('yes')),
+    whenAbsent: HWText(HWString.fixed('no')),
   ),
 )
 class TestWidget {}
@@ -1112,8 +1145,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDataExists(
     data: HWJson('weather', HWTimedData(HWString('condition'))),
-    whenPresent: HWText.fixed('yes'),
-    whenAbsent: HWText.fixed('no'),
+    whenPresent: HWText(HWString.fixed('yes')),
+    whenAbsent: HWText(HWString.fixed('no')),
   ),
 )
 class TestWidget {}
@@ -1131,8 +1164,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDataExists(
     data: HWJson('profile'),
-    whenPresent: HWText.fixed('yes'),
-    whenAbsent: HWText.fixed('no'),
+    whenPresent: HWText(HWString.fixed('yes')),
+    whenAbsent: HWText(HWString.fixed('no')),
   ),
 )
 class TestWidget {}
@@ -1172,12 +1205,12 @@ const umbrella = IconData(0xe6d2, fontFamily: 'MaterialIcons');
             HWText(HWString('unit')),
           ],
         ),
-        whenEmpty: HWText.fixed('No forecast yet'),
+        whenEmpty: HWText(HWString.fixed('No forecast yet')),
       ),
       HWColumn.builder(
         'events',
         crossAxisAlignment: HWCrossAxisAlignment.start,
-        item: HWText.fixed('event'),
+        item: HWText(HWString.fixed('event')),
       ),
     ],
   ),
@@ -1311,8 +1344,8 @@ $icons''') as HWRow;
         ),
         HWBoolConditional(
           data: HWItemData(HWBool('done', defaultValue: false)),
-          whenTrue: HWText.fixed('done'),
-          whenFalse: HWText.fixed('open'),
+          whenTrue: HWText(HWString.fixed('done')),
+          whenFalse: HWText(HWString.fixed('open')),
         ),
       ],
     ),
@@ -1374,7 +1407,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWRow.builder(
     'days',
-    item: HWColumn.builder('hours', item: HWText.fixed('hour')),
+    item: HWColumn.builder('hours', item: HWText(HWString.fixed('hour'))),
   ),
 )
 class TestWidget {}
@@ -1399,8 +1432,8 @@ class TestWidget {}
         children: [
           HWDataExists(
             data: HWItemData(HWString('note')),
-            whenPresent: HWText.fixed('note'),
-            whenAbsent: HWRow.builder('hours', item: HWText.fixed('hour')),
+            whenPresent: HWText(HWString.fixed('note')),
+            whenAbsent: HWRow.builder('hours', item: HWText(HWString.fixed('hour'))),
           ),
         ],
       ),
@@ -1420,7 +1453,7 @@ class TestWidget {}
         final e = await expectParseError('''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWRow.builder('forecast', maxItems: 0, item: HWText.fixed('a')),
+  widget: HWRow.builder('forecast', maxItems: 0, item: HWText(HWString.fixed('a'))),
 )
 class TestWidget {}
 ''');
@@ -1434,7 +1467,7 @@ class TestWidget {}
         final e = await expectParseError('''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWColumn.builder('events', spacing: -4, item: HWText.fixed('a')),
+  widget: HWColumn.builder('events', spacing: -4, item: HWText(HWString.fixed('a'))),
 )
 class TestWidget {}
 ''');
@@ -1452,7 +1485,7 @@ class TestWidget {}
   widget: HWColumn.builder(
     'events',
     crossAxisAlignment: HWCrossAxisAlignment.baseline,
-    item: HWText.fixed('a'),
+    item: HWText(HWString.fixed('a')),
   ),
 )
 class TestWidget {}
@@ -1480,7 +1513,7 @@ class TestWidget {}
           "HWImageData.asset('assets/logo.png')",
           'HWItemData cannot wrap the asset image "assets/logo.png". An asset '
               'ships with the app, so there is nothing to store per item; '
-              'show it with HWImage.asset instead.',
+              'show it with HWImage(HWImageData.asset(...)) instead.',
         ),
       ]) {
         test('rejects HWItemData($wrapped)', () async {
@@ -1523,8 +1556,8 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWDataExists(
     data: HWItemData(),
-    whenPresent: HWText.fixed('yes'),
-    whenAbsent: HWText.fixed('no'),
+    whenPresent: HWText(HWString.fixed('yes')),
+    whenAbsent: HWText(HWString.fixed('no')),
   ),
 )
 class TestWidget {}
@@ -1611,7 +1644,7 @@ $icons''');
 @HomeWidget(
   name: 'TestWidget',
   widget: HWSizedBox.expand(
-    child: HWText.fixed('fill'),
+    child: HWText(HWString.fixed('fill')),
   ),
 )
 class TestWidget {}
@@ -1621,7 +1654,10 @@ class TestWidget {}
       final box = widget as HWSizedBox;
       expect(box.width, double.infinity);
       expect(box.height, double.infinity);
-      expect((box.child as HWText).fixedContent, 'fill');
+      expect(
+        ((box.child as HWText).dataType as HWString).fixedValue,
+        'fill',
+      );
     });
 
     test('parses HWSizedBox dimensions written as int and double', () async {
@@ -1689,8 +1725,8 @@ class TestWidget {}
     alignment: HWAlignment.bottomEnd,
     fit: HWStackFit.expand,
     children: [
-      HWText.fixed('back'),
-      HWText.fixed('front'),
+      HWText(HWString.fixed('back')),
+      HWText(HWString.fixed('front')),
     ],
   ),
 )
@@ -1702,14 +1738,17 @@ class TestWidget {}
       expect(stack.alignment, HWAlignment.bottomEnd);
       expect(stack.fit, HWStackFit.expand);
       expect(stack.children, hasLength(2));
-      expect((stack.children.first as HWText).fixedContent, 'back');
+      expect(
+        ((stack.children.first as HWText).dataType as HWString).fixedValue,
+        'back',
+      );
     });
 
     test('parses an HWStack left at its defaults', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWStack(children: [HWText.fixed('only')]),
+  widget: HWStack(children: [HWText(HWString.fixed('only'))]),
 )
 class TestWidget {}
 ''';
@@ -1724,7 +1763,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWAlign(
     alignment: HWAlignment.centerEnd,
-    child: HWText.fixed('placed'),
+    child: HWText(HWString.fixed('placed')),
   ),
 )
 class TestWidget {}
@@ -1733,14 +1772,17 @@ class TestWidget {}
       expect(widget, isA<HWAlign>());
       final align = widget as HWAlign;
       expect(align.alignment, HWAlignment.centerEnd);
-      expect((align.child as HWText).fixedContent, 'placed');
+      expect(
+        ((align.child as HWText).dataType as HWString).fixedValue,
+        'placed',
+      );
     });
 
     test('parses an HWAlign left at its default', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWAlign(child: HWText.fixed('placed')),
+  widget: HWAlign(child: HWText(HWString.fixed('placed'))),
 )
 class TestWidget {}
 ''';
@@ -1825,12 +1867,12 @@ class TestWidget {}
       expect(error.message, contains('HWImage requires an HWImageData'));
     });
 
-    test('parses HWImage.asset and derives the key', () async {
+    test('parses HWImageData.asset and derives the key', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWImage.asset(
-    'assets/images/logo.png',
+  widget: HWImage(
+    HWImageData.asset('assets/images/logo.png'),
     width: 100,
     height: 50,
     fit: HWImageFit.cover,
@@ -1855,17 +1897,16 @@ class TestWidget {}
       expect(swift, contains('.accessibilityLabel("Logo")'));
     });
 
-    test('parses HWImage.asset with a package', () async {
+    test('parses HWImageData.asset with a package', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
-  widget: HWImage.asset('assets/logo.png', package: 'my_icons'),
+  widget: HWImage(HWImageData.asset('assets/logo.png', package: 'my_icons')),
 )
 class TestWidget {}
 ''';
       final widget = await parseCode(code);
       final image = widget as HWImage;
-      expect(image.assetPackage, 'my_icons');
       expect(image.imageData.assetPath, 'assets/logo.png');
       expect(image.imageData.package, 'my_icons');
       expect(
@@ -1919,7 +1960,7 @@ class TestWidget {}
   name: 'TestWidget',
   widget: HWColumn(
     children: [
-      HWText.fixed('Title'),
+      HWText(HWString.fixed('Title')),
       HWImage(HWImageData('avatar'), fit: HWImageFit.fill),
     ],
   ),
@@ -1946,7 +1987,7 @@ class TestWidget {}
 String n = "N";
 @HomeWidget(
   name: n,
-  widget: HWText.fixed("a"),
+  widget: HWText(HWString.fixed("a")),
 )
 class BadConst {}
 ''');
@@ -1996,7 +2037,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 const aNull = null;
 @HomeWidget(
   name: "A",
-  widget: HWText.fixed("a"),
+  widget: HWText(HWString.fixed("a")),
 )
 class C {}
 ''');

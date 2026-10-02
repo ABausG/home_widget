@@ -5,8 +5,8 @@ void main() {
   group('HWBoolConditional', () {
     const boolConditional = HWBoolConditional(
       data: HWBool('myBool', defaultValue: true),
-      whenTrue: HWText.fixed('True'),
-      whenFalse: HWText.fixed('False'),
+      whenTrue: HWText(HWString.fixed('True')),
+      whenFalse: HWText(HWString.fixed('False')),
     );
 
     group('model', () {
@@ -14,8 +14,8 @@ void main() {
           () {
         final invalidConditional = HWBoolConditional(
           data: const HWBool('x'),
-          whenTrue: const HWText.fixed('True'),
-          whenFalse: const HWText.fixed('False'),
+          whenTrue: const HWText(HWString.fixed('True')),
+          whenFalse: const HWText(HWString.fixed('False')),
         );
         expect(
           () => invalidConditional.toSwift(0, dataExpr: 'entry.data'),
@@ -25,6 +25,39 @@ void main() {
           () => invalidConditional.toKotlin(0, dataExpr: 'widgetData'),
           throwsA(isA<ArgumentError>()),
         );
+      });
+
+      test('throws GeneratorError on a fixed flag during generation', () {
+        for (final data in const <HWDataType<dynamic>>[
+          HWBool.fixed(true),
+          HWJson('group', HWBool.fixed(true)),
+          HWTimedData(HWBool.fixed(true)),
+        ]) {
+          final conditional = HWBoolConditional(
+            data: data,
+            whenTrue: const HWText(HWString.fixed('True')),
+            whenFalse: const HWText(HWString.fixed('False')),
+          );
+          final rejection = throwsA(
+            isA<GeneratorError>().having(
+              (error) => error.message,
+              'message',
+              'HWBoolConditional cannot test HWBool.fixed(true). A fixed '
+                  'value never changes, so only one of the two branches is '
+                  'ever rendered. Render that branch directly, or test a '
+                  'stored HWBool("key").',
+            ),
+          );
+
+          expect(
+            () => conditional.toSwift(0, dataExpr: 'entry.data'),
+            rejection,
+          );
+          expect(
+            () => conditional.toKotlin(0, dataExpr: 'widgetData'),
+            rejection,
+          );
+        }
       });
 
       test('dataDependencies include HWBool', () {
@@ -71,8 +104,8 @@ void main() {
       test('supports JSON child bool conditions', () {
         const jsonConditional = HWBoolConditional(
           data: HWJson('profile', HWBool('isActive', defaultValue: false)),
-          whenTrue: HWText.fixed('True'),
-          whenFalse: HWText.fixed('False'),
+          whenTrue: HWText(HWString.fixed('True')),
+          whenFalse: HWText(HWString.fixed('False')),
         );
 
         expect(
@@ -92,7 +125,7 @@ void main() {
         ]) {
           final conditional = HWBoolConditional(
             data: data,
-            whenTrue: const HWText.fixed('True'),
+            whenTrue: const HWText(HWString.fixed('True')),
             whenFalse: const HWText(HWString('status')),
           );
 
@@ -114,8 +147,8 @@ void main() {
       test('still needs a default on an item field', () {
         const conditional = HWBoolConditional(
           data: HWItemData(HWBool('done')),
-          whenTrue: HWText.fixed('True'),
-          whenFalse: HWText.fixed('False'),
+          whenTrue: HWText(HWString.fixed('True')),
+          whenFalse: HWText(HWString.fixed('False')),
         );
 
         expect(
@@ -130,8 +163,8 @@ void main() {
             'profile',
             HWJson('user', HWBool('isActive', defaultValue: false)),
           ),
-          whenTrue: HWText.fixed('True'),
-          whenFalse: HWText.fixed('False'),
+          whenTrue: HWText(HWString.fixed('True')),
+          whenFalse: HWText(HWString.fixed('False')),
         );
 
         expect(

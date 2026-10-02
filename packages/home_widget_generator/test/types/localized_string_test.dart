@@ -345,17 +345,18 @@ class Greeting {}
     final text = widget as HWText;
     final data = text.dataType;
     expect(data, isA<HWLocalizedString>());
-    final localized = data! as HWLocalizedString;
+    final localized = data as HWLocalizedString;
     expect(localized.key, 'greeting');
     expect(localized.isConstant, isFalse);
     expect(localized.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
   });
 
-  test('HWText.localized decodes to a constant localized string', () async {
+  test('HWString.localizedFixed decodes to a constant localized string',
+      () async {
     final widget = await parseCode('''
 @HomeWidget(
   name: 'Greeting',
-  widget: HWText.localized({'en': 'Hello', 'de': 'Hallo'}),
+  widget: HWText(HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'})),
 )
 class Greeting {}
 ''');
@@ -363,7 +364,7 @@ class Greeting {}
     final text = widget as HWText;
     final data = text.dataType;
     expect(data, isA<HWLocalizedString>());
-    final localized = data! as HWLocalizedString;
+    final localized = data as HWLocalizedString;
     expect(localized.isConstant, isTrue);
     expect(localized.defaultTranslations, {'en': 'Hello', 'de': 'Hallo'});
   });

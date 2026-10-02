@@ -48,7 +48,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             HWText(HWString('unit', defaultValue: '°C')),
           ],
         ),
-        whenEmpty: HWText.fixed('No forecast yet'),
+        whenEmpty: HWText(HWString.fixed('No forecast yet')),
       ),
     ],
   ),
@@ -100,7 +100,7 @@ Fixed children and items don't share a stack. To put a header above the items, n
 ```dart
 HWColumn(
   children: [
-    HWText.fixed('Today'),
+    HWText(HWString.fixed('Today')),
     HWColumn.builder(
       'events',
       maxItems: 4,
@@ -256,7 +256,7 @@ An item saved without a field renders the field's applicable default — `defaul
 item: HWDataExists(
   data: HWItemData(HWDateTime('day')),
   whenPresent: HWText.dateTime(HWItemData(HWDateTime('day')), format: HWDateFormat.skeleton('E')),
-  whenAbsent: HWText.fixed('–'),
+  whenAbsent: HWText(HWString.fixed('–')),
 ),
 ```
 
@@ -275,7 +275,7 @@ HWText.number(HWItemData(HWInt('temperature', defaultValue: 0), previewValues: [
 Each entry is written the way the field's own `previewValue` is:
 
 - a `String`, `int`, `double` or `bool` for text, numbers and booleans
-- an ISO 8601 string for an `HWDateTime`
+- an ISO 8601 string for an `HWDateTime`, spelled `yyyy-MM-ddTHH:mm:ss` with an optional fraction and `Z` or an offset, e.g. `2026-09-22T10:00:00Z`
 - an `IconData` from the field's `icons` for an `HWIconData`
 - the path of a Flutter asset for a runtime `HWImageData`, like its `previewAsset`
 - plain text for an `HWString.localized`
@@ -357,7 +357,7 @@ await TeamHomeWidget.updateWidget();
 - In the gallery, sample item `i` shows the field's `previewValues[i]`, else its `previewAsset`. Each is read in place from the app bundle, like the [`previewAsset`](/generator/previews#preview-assets) of a root field, and a dependency's asset is spelled `packages/<package>/<path>`. Where the preview reads live data, a saved list replaces the sample items entirely.
 - Every one of those asset paths is checked at generation, like any `previewAsset`: a file that is missing, or not declared under `flutter: assets:`, fails generation, see [Sample values](#sample-values).
 
-`HWItemData(HWImageData.asset(...))` fails generation: a bundled image is the same in every item, so show it with `HWImage.asset`.
+`HWItemData(HWImageData.asset(...))` fails generation: a bundled image is the same in every item, so show it with `HWImage(HWImageData.asset(...))`. Likewise, no other fixed value (`HWString.fixed`, `HWInt.fixed`, ...) can be wrapped in `HWItemData`.
 
 ## Time-based lists
 
@@ -368,7 +368,7 @@ HWColumn.builder(
   'hourly',
   maxItems: 4,
   item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
-  whenEmpty: HWText.fixed('No forecast yet'),
+  whenEmpty: HWText(HWString.fixed('No forecast yet')),
 )
 ```
 
@@ -459,7 +459,7 @@ Every error below stops generation before any file is written; the warnings at t
   ```
   Remove the inner `HWItemData`.
 - ```
-  HWItemData cannot wrap the asset image "<path>". An asset ships with the app, so there is nothing to store per item; show it with HWImage.asset instead.
+  HWItemData cannot wrap the asset image "<path>". An asset ships with the app, so there is nothing to store per item; show it with HWImage(HWImageData.asset(...)) instead.
   ```
   Only a runtime `HWImageData('key')` can be an item field.
 - ```

@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('HWPadding', () {
     const padding = HWPadding(
-      child: HWText.fixed('Hi'),
+      child: HWText(HWString.fixed('Hi')),
       padding: HWEdgeInsets.only(left: 1, top: 2, right: 3, bottom: 4),
     );
 
@@ -91,7 +91,7 @@ void main() {
           padding: HWEdgeInsets.all(8),
           child: HWColoredBox(
             color: HWColor.fixed(0xFF000000),
-            child: HWText.fixed('a'),
+            child: HWText(HWString.fixed('a')),
           ),
         );
 
@@ -121,7 +121,7 @@ void main() {
               color: HWColor.fixed(0xFF000000),
               child: HWSizedBox(
                 width: double.infinity,
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ),
           );
@@ -149,7 +149,7 @@ void main() {
               color: HWColor.fixed(0xFF000000),
               child: HWPadding(
                 padding: HWEdgeInsets.all(8),
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toKotlin(0, dataExpr: 'data'),
             'Text(modifier = GlanceModifier.background($black).$pad, $text',
@@ -164,7 +164,7 @@ void main() {
                 decoration: HWBoxDecoration(
                   borderRadius: HWBorderRadius.circular(8),
                 ),
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toKotlin(0, dataExpr: 'data'),
             'Text(modifier = GlanceModifier.$pad, $text',

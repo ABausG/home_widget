@@ -3,35 +3,23 @@ part of 'hw_widget.dart';
 /// A text widget for use in widgetBuilder.
 ///
 /// Const constructors:
-/// - `HWText.fixed('Hello')` -- hardcoded string literal
-/// - `HWText.localized({...})` -- hardcoded string, translated at build time
 /// - `HWText(HWString('key'))` -- data-bound via HWDataType
 /// - `HWText.number(HWInt('key'), format: ...)` -- data-bound number, formatted
 ///   natively in the device's locale
-/// - `HWText.fixedNumber(1234, format: ...)` -- hardcoded number, formatted the
-///   same way
 /// - `HWText.dateTime(HWDateTime('key'), format: ...)` -- data-bound date,
 ///   formatted in the device's locale and time zone
+///
+/// Each takes a constant just as well: `HWText(HWString.fixed('Hello'))`,
+/// `HWText(HWString.localizedFixed({...}))`,
+/// `HWText.number(HWInt.fixed(1234), format: ...)`.
 class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
-  final String? fixedContent;
+  final HWDataType<dynamic> dataType;
 
-  final HWDataType<dynamic>? dataType;
-
-  /// Raw locale map from [HWText.localized], as written in the annotation.
-  ///
-  /// Only ever set on the const instance living inside the annotation: the
-  /// parser reads it and hands back an [HWText] bound to a locale-resolved
-  /// [HWLocalizedString] instead, so a parsed tree always carries [dataType].
-  final Map<String, String>? localizedContent;
-
-  /// How a number renders, from [HWText.number] or [HWText.fixedNumber].
+  /// How a number renders, from [HWText.number].
   final HWNumberFormat? numberFormat;
 
   /// How a date renders, from [HWText.dateTime].
   final HWDateFormat? dateFormat;
-
-  /// The hardcoded number from [HWText.fixedNumber].
-  final num? fixedNumber;
 
   /// The zone a date is displayed in, from [HWText.dateTime].
   final HWTimeZone timeZone;
@@ -45,33 +33,23 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
   /// text is the only place it is named, so it has to be surfaced here or the
   /// generated data class would never carry it.
   @override
-  Set<HWDataType<dynamic>> get dataDependencies {
-    final data = dataType;
-    return {
-      if (data != null) data,
-      if (numberFormat?.dataField case final currency?) currency,
-      if (timeZone.dataField case final zone?) zone,
-    };
-  }
+  Set<HWDataType<dynamic>> get dataDependencies => _dataDependenciesOf([
+        dataType,
+        if (numberFormat?.dataField case final currency?) currency,
+        if (timeZone.dataField case final zone?) zone,
+      ]);
 
   /// Whether rendering this text goes through the native number-formatting
   /// helper.
   ///
-  /// True for [HWText.number] and [HWText.fixedNumber], and for any number
-  /// bound to a plain [HWText.new] -- those render in the default decimal
-  /// format rather than as a raw `toString`.
-  bool get formatsNumber {
-    if (fixedNumber != null) return true;
-    final data = dataType;
-    return data != null && numberLeafOf(data) != null;
-  }
+  /// True for [HWText.number], and for any number bound to a plain
+  /// [HWText.new] -- those render in the default decimal format rather than as
+  /// a raw `toString`.
+  bool get formatsNumber => numberLeafOf(dataType) != null;
 
   /// Whether rendering this text goes through the native date-formatting
   /// helper.
-  bool get formatsDate {
-    final data = dataType;
-    return data != null && dateTimeLeafOf(data) != null;
-  }
+  bool get formatsDate => dateTimeLeafOf(dataType) != null;
 
   /// The number format this text actually renders with, or null when it
   /// renders no number.
@@ -104,7 +82,7 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
           ...timeZone.helpers,
         ],
         if (fontVariant != null) HWNativeHelper.hwFont,
-        ...?dataType?.renderHelpers,
+        ...dataType.renderHelpers,
       };
 
   /// The font file this text renders with, or null when it renders in the
@@ -143,43 +121,10 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     return modifiers;
   }
 
-  /// Static/hardcoded text content.
-  const HWText.fixed(String content, {this.style, this.textAlign})
-      : fixedContent = content,
-        dataType = null,
-        localizedContent = null,
-        numberFormat = null,
-        dateFormat = null,
-        fixedNumber = null,
-        timeZone = HWTimeZone.local;
-
-  /// Static text translated at build time.
-  ///
-  /// [content] maps locale tag to text and must include the widget's
-  /// `defaultLocale`. Unlike [HWText.new] with [HWString.localized], this
-  /// creates no data field and cannot be overridden at runtime.
-  ///
-  /// The map is held raw: a const constructor cannot build an
-  /// [HWLocalizedString] from a parameter, so [fromDartObject] wraps it.
-  const HWText.localized(
-    Map<String, String> content, {
-    this.style,
-    this.textAlign,
-  })  : fixedContent = null,
-        dataType = null,
-        localizedContent = content,
-        numberFormat = null,
-        dateFormat = null,
-        fixedNumber = null,
-        timeZone = HWTimeZone.local;
-
   const HWText(HWDataType<dynamic> data, {this.style, this.textAlign})
-      : fixedContent = null,
-        dataType = data,
-        localizedContent = null,
+      : dataType = data,
         numberFormat = null,
         dateFormat = null,
-        fixedNumber = null,
         timeZone = HWTimeZone.local;
 
   /// A number from [data], rendered natively in the device's current locale.
@@ -193,29 +138,9 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     HWNumberFormat format = const HWNumberFormat.decimal(),
     this.style,
     this.textAlign,
-  })  : fixedContent = null,
-        dataType = data,
-        localizedContent = null,
+  })  : dataType = data,
         numberFormat = format,
         dateFormat = null,
-        fixedNumber = null,
-        timeZone = HWTimeZone.local;
-
-  /// A hardcoded number, rendered natively in the device's current locale.
-  ///
-  /// Unlike [HWText.fixed] with a pre-rendered string, this follows a language
-  /// or region change on the device.
-  const HWText.fixedNumber(
-    num value, {
-    HWNumberFormat format = const HWNumberFormat.decimal(),
-    this.style,
-    this.textAlign,
-  })  : fixedContent = null,
-        dataType = null,
-        localizedContent = null,
-        numberFormat = format,
-        dateFormat = null,
-        fixedNumber = value,
         timeZone = HWTimeZone.local;
 
   /// A date from [data], rendered in the device's current locale and, by
@@ -232,12 +157,9 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     this.timeZone = HWTimeZone.local,
     this.style,
     this.textAlign,
-  })  : fixedContent = null,
-        dataType = data,
-        localizedContent = null,
+  })  : dataType = data,
         numberFormat = null,
-        dateFormat = format,
-        fixedNumber = null;
+        dateFormat = format;
 
   /// The shape [fromDartObject] rebuilds a decoded text in.
   ///
@@ -252,10 +174,7 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     this.timeZone = HWTimeZone.local,
     this.style,
     this.textAlign,
-  })  : fixedContent = null,
-        dataType = data,
-        localizedContent = null,
-        fixedNumber = null;
+  }) : dataType = data;
 
   static HWText fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     var style = WidgetValueDecoder.decodeTextStyle(obj.getField('style'));
@@ -275,43 +194,6 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
       resourcePrefix: decoder.resourcePrefix,
     );
 
-    // Check for a hardcoded number (HWText.fixedNumber)
-    final fixedNumberField = obj.getField('fixedNumber');
-    final fixedNumber =
-        fixedNumberField?.toIntValue() ?? fixedNumberField?.toDoubleValue();
-    if (fixedNumber != null) {
-      return HWText.fixedNumber(
-        fixedNumber,
-        format: numberFormat ?? const HWNumberFormat.decimal(),
-        style: style,
-        textAlign: textAlign,
-      );
-    }
-
-    // Check for fixed content
-    final fixedContent = obj.getField('fixedContent')?.toStringValue();
-    if (fixedContent != null) {
-      return HWText.fixed(fixedContent, style: style, textAlign: textAlign);
-    }
-
-    // Check for an inline locale map (HWText.localized)
-    final localizedContent =
-        WidgetValueDecoder.decodeStringMap(obj.getField('localizedContent'));
-    if (localizedContent != null) {
-      return HWText(
-        HWLocalizedString.resolved(
-          '',
-          defaultTranslations: localizedContent,
-          isConstant: true,
-          defaultLocale: decoder.defaultLocale,
-          resourcePrefix: decoder.resourcePrefix,
-        ),
-        style: style,
-        textAlign: textAlign,
-      );
-    }
-
-    // Check for data type
     final dataTypeObj = obj.getField('dataType');
     final dataType = WidgetValueDecoder.decodeDataType(
       dataTypeObj,
@@ -341,30 +223,13 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
 
     // coverage:ignore-start
     throw GeneratorError(
-      'Could not decode HWText. Fields: fixedContent=$fixedContent, dataType=${obj.getField('dataType')}, dataTypeType=${obj.getField('dataType')?.type?.element?.name}',
+      'Could not decode HWText. Fields: dataType=$dataTypeObj, dataTypeType=${dataTypeObj?.type?.element?.name}',
     );
     // coverage:ignore-end
   }
 
-  /// The Swift expression `Text(...)` is handed, or null when this text renders
-  /// nothing.
-  String? _swiftTextValue(String dataExpr) {
-    final fixedContent = this.fixedContent;
-    if (fixedContent != null) {
-      return '"${escapeSwiftStringLiteral(fixedContent)}"';
-    }
-
-    final numberFormat = this.numberFormat;
-    final fixedNumber = this.fixedNumber;
-    if (fixedNumber != null) {
-      return numberFormat!.swiftCall(
-        'NSNumber(value: ${_nativeDoubleLiteral(fixedNumber)})',
-        dataExpr: dataExpr,
-      );
-    }
-
-    final dataType = this.dataType;
-    if (dataType == null) return null;
+  /// The Swift expression `Text(...)` is handed.
+  String _swiftTextValue(String dataExpr) {
     final bound = dataType.unwrapped;
 
     final effectiveNumberFormat = this.effectiveNumberFormat;
@@ -395,25 +260,8 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     return bound.iosToString(outerValue: outerValue, innerValue: innerValue);
   }
 
-  /// The Kotlin expression the Glance `Text(text = ...)` argument is set to, or
-  /// null when this text renders nothing.
-  String? _kotlinTextValue(String dataExpr) {
-    final fixedContent = this.fixedContent;
-    if (fixedContent != null) {
-      return '"${escapeKotlinStringLiteral(fixedContent)}"';
-    }
-
-    final numberFormat = this.numberFormat;
-    final fixedNumber = this.fixedNumber;
-    if (fixedNumber != null) {
-      return numberFormat!.kotlinCall(
-        _nativeDoubleLiteral(fixedNumber),
-        dataExpr: dataExpr,
-      );
-    }
-
-    final dataType = this.dataType;
-    if (dataType == null) return null;
+  /// The Kotlin expression the Glance `Text(text = ...)` argument is set to.
+  String _kotlinTextValue(String dataExpr) {
     final bound = dataType.unwrapped;
 
     final effectiveNumberFormat = this.effectiveNumberFormat;
@@ -469,11 +317,6 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     return leaf;
   }
 
-  /// [value] as a literal both Swift and Kotlin read as a floating point
-  /// number, which Kotlin needs spelled out for whole numbers.
-  static String _nativeDoubleLiteral(num value) =>
-      value is int ? '$value.0' : '$value';
-
   @override
   String toSwift(
     int indent, {
@@ -481,21 +324,17 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     HWEmitContext? context,
   }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level to match tests
-    final textValue = _swiftTextValue(dataExpr);
+    var viewCall = '${pad}Text(${_swiftTextValue(dataExpr)})';
 
-    var viewCall = textValue == null ? '' : '${pad}Text($textValue)';
-
-    if (viewCall.isNotEmpty) {
-      if (style != null) {
-        final styleCode = style!.toSwift(indent, dataExpr: dataExpr);
-        if (styleCode.isNotEmpty) {
-          viewCall += '\n$pad    $styleCode';
-        }
+    if (style != null) {
+      final styleCode = style!.toSwift(indent, dataExpr: dataExpr);
+      if (styleCode.isNotEmpty) {
+        viewCall += '\n$pad    $styleCode';
       }
-      if (textAlign != null) {
-        viewCall +=
-            '\n$pad    .multilineTextAlignment(${_swiftTextAlign(textAlign!)})';
-      }
+    }
+    if (textAlign != null) {
+      viewCall +=
+          '\n$pad    .multilineTextAlignment(${_swiftTextAlign(textAlign!)})';
     }
 
     return viewCall;
@@ -506,17 +345,13 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     int indent, {
     required String dataExpr,
     HWEmitContext? context,
-  }) {
-    final textValue = _kotlinTextValue(dataExpr);
-    if (textValue == null) return '';
-
-    return _kotlinRenderer.toKotlin(
-      indent,
-      dataExpr: dataExpr,
-      text: textValue,
-      itemList: context?.itemList,
-    );
-  }
+  }) =>
+      _kotlinRenderer.toKotlin(
+        indent,
+        dataExpr: dataExpr,
+        text: _kotlinTextValue(dataExpr),
+        itemList: context?.itemList,
+      );
 
   String _swiftTextAlign(HWTextAlign align) {
     switch (align) {

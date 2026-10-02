@@ -7,9 +7,9 @@ import 'package:yaml/yaml.dart';
 import '../models/widget_spec.dart';
 import '../util/package_config.dart';
 
-/// Verifies that every `HWImage.asset` / `HWImageData.asset` in [spec] points at
-/// an asset that will actually be bundled, so a typo fails at generate time
-/// instead of silently rendering nothing on the home screen.
+/// Verifies that every `HWImageData.asset` in [spec] points at an asset that
+/// will actually be bundled, so a typo fails at generate time instead of
+/// silently rendering nothing on the home screen.
 ///
 /// App assets (no package) must exist on disk under [projectRoot] **and** be
 /// covered by the `flutter: assets:` section of the app's `pubspec.yaml`.
@@ -84,11 +84,11 @@ class _AssetReference {
         package: package,
         path: image.assetPath!,
         effectiveKey: effectiveKey,
-        origin: 'HWImage.asset(...)',
+        origin: 'HWImageData.asset(...)',
       );
     }
 
-    return _AssetReference.of(effectiveKey, origin: 'HWImage.asset(...)');
+    return _AssetReference.of(effectiveKey, origin: 'HWImageData.asset(...)');
   }
 
   /// The asset a runtime image previews with, which has no `package:`
