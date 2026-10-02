@@ -104,6 +104,19 @@ void main() {
         expect(type.kotlinAccess('data'), '2.5');
       });
 
+      test('HWDouble in exponent form is a literal Swift and Kotlin read', () {
+        for (final (value, literal) in [
+          (1e21, '1e+21'),
+          (1e-7, '1e-7'),
+          (-2.5e-10, '-2.5e-10'),
+        ]) {
+          final type = HWDouble.fixed(value);
+
+          expect(type.swiftAccess('entry.data'), literal);
+          expect(type.kotlinAccess('data'), literal);
+        }
+      });
+
       test('HWBool', () {
         const type = HWBool.fixed(false);
 
