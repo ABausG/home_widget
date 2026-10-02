@@ -143,6 +143,25 @@ $indent$literal,
     }
   }
 
+  /// Sets the reference field [field] of [objectId] to the id [value], titled
+  /// [comment], replacing what it holds; a new field goes where Xcode sorts it.
+  void setReferenceField(
+    String objectId,
+    String field,
+    String value, {
+    required String comment,
+  }) {
+    final object = project.object(objectId);
+    if (object == null) return;
+    final literal = '${pbxLiteral(value)} /* $comment */';
+    final existing = object.fields.entry(field);
+    if (existing == null) {
+      _insertEntry(object.fields, field, (_) => '$field = $literal;');
+    } else {
+      _replace(existing.start, existing.end, '$field = $literal;');
+    }
+  }
+
   /// Rewrites the elements of the array field [field] of [objectId] to
   /// [literals], in that order.
   void setArrayItems(String objectId, String field, List<String> literals) {

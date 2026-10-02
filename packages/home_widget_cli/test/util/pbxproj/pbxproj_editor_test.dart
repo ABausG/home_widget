@@ -474,6 +474,65 @@ void main() {
     });
   });
 
+  group('setReferenceField', () {
+    test('creates a missing field in sorted order after isa', () {
+      final editor = PbxprojEditor(_project)
+        ..setReferenceField(
+          'CONFIG',
+          'baseConfigurationReference',
+          'XCCONFIG',
+          comment: 'Widget.xcconfig',
+        );
+
+      expect(
+        editor.text,
+        contains(
+          '\t\t\tisa = XCBuildConfiguration;\n'
+          '\t\t\tbaseConfigurationReference = XCCONFIG /* Widget.xcconfig */;\n'
+          '\t\t\tbuildSettings = {\n',
+        ),
+      );
+    });
+
+    test('replaces the reference a field holds', () {
+      final editor = PbxprojEditor(_project)
+        ..setReferenceField(
+          'CONFIG',
+          'baseConfigurationReference',
+          'XCCONFIG',
+          comment: 'Widget.xcconfig',
+        )
+        ..setReferenceField(
+          'CONFIG',
+          'baseConfigurationReference',
+          'OTHER',
+          comment: 'Other.xcconfig',
+        );
+
+      expect(
+        editor.text,
+        contains(
+          '\t\t\tisa = XCBuildConfiguration;\n'
+          '\t\t\tbaseConfigurationReference = OTHER /* Other.xcconfig */;\n'
+          '\t\t\tbuildSettings = {\n',
+        ),
+      );
+      expect(editor.text, isNot(contains('XCCONFIG')));
+    });
+
+    test('leaves the project alone without the object', () {
+      final editor = PbxprojEditor(_project)
+        ..setReferenceField(
+          'MISSING',
+          'baseConfigurationReference',
+          'XCCONFIG',
+          comment: 'Widget.xcconfig',
+        );
+
+      expect(editor.text, _project);
+    });
+  });
+
   group('setArrayItems', () {
     test('rewrites the elements in the given order', () {
       final editor = PbxprojEditor(_project)

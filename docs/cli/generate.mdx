@@ -30,6 +30,16 @@ dart run home_widget_cli generate [options]
 - The `home_widget` package is automatically added to your `pubspec.yaml` if it isn't already listed as a dependency.
 - Flavored projects need no extra flags — a single `generate` run wires every declared flavor on both platforms. See [Flavors](/generator/flavors).
 
+## App version (iOS)
+
+The widget extension has the same `CFBundleShortVersionString` and `CFBundleVersion` as the app, so App Store Connect does not warn about a mismatch. `generate` writes `ios/Flutter/HomeWidget.xcconfig`, which defaults `FLUTTER_BUILD_NAME` and `FLUTTER_BUILD_NUMBER` and then includes the `Generated.xcconfig` Flutter writes on every build. Every build configuration of the extension is based on that file, with `MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)"` and `CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)"`. `flutter build ios --build-name` and `--build-number` reach the extension that way.
+
+A configuration that is based on another `.xcconfig` keeps it. It gets the two version settings only when that file, with what it includes, defines both variables, as `Flutter/Debug.xcconfig` does through `Generated.xcconfig` once Flutter has written it. Otherwise its version settings stay as they are and `generate` warns; include `Generated.xcconfig` in that file to fix it. See [Sync CFBundleVersion](/setup/ios#bonus) to set this up by hand.
+
+- `ios/Flutter/HomeWidget.xcconfig` belongs to `generate`, which rewrites it on every run. Commit it, and keep settings of your own in another file.
+- A widget extension target you created in Xcode keeps the version settings and the configuration file it has.
+- CocoaPods does not replace a configuration file a target already has. If you add the widget extension target to your `Podfile`, base its configurations on a file of your own that includes both the target's Pods `.xcconfig` and `Generated.xcconfig`, the way `Flutter/Debug.xcconfig` and `Flutter/Release.xcconfig` do for the app.
+
 ## Manual signing (iOS)
 
 Every build configuration of the widget extension signs the way the app target's configuration of the same name does. The generator copies `DEVELOPMENT_TEAM`, `CODE_SIGN_STYLE` and `CODE_SIGN_IDENTITY` from it, conditional variants such as `DEVELOPMENT_TEAM[sdk=iphoneos*]` included. It reads them the way Xcode does, from the target, the project level and the `.xcconfig` the configuration is based on. A typical release setup that signs manually for devices only:

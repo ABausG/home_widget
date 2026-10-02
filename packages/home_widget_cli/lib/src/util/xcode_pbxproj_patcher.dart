@@ -86,6 +86,15 @@ Future<Pbxproj> checkWidgetExtensionTargetInXcodeProject({
 /// creates signs automatically. A profile name that ends up on configurations
 /// with different extension bundle ids is a warning as well.
 ///
+/// Each extension configuration takes the app's version: it is based on
+/// [versionXcconfigPath], which this writes and which includes the
+/// `Generated.xcconfig` Flutter keeps `FLUTTER_BUILD_NAME` and
+/// `FLUTTER_BUILD_NUMBER` in, and sets `MARKETING_VERSION` and
+/// `CURRENT_PROJECT_VERSION` to those. A configuration based on another
+/// `.xcconfig` keeps it, and gets the version settings only when that file
+/// defines both variables; otherwise they are left as they are, with a
+/// warning. A target created in Xcode keeps the version it has.
+///
 /// Returns what the manual-signing export options plists should list for the
 /// extension, keyed by the app bundle id of each `Release` / `Release-<flavor>`
 /// configuration: the profile it signs a device build with where a
@@ -115,6 +124,7 @@ Future<Map<String, String?>> ensureWidgetExtensionTargetInXcodeProject({
   var runnerConfigs = const <_RunnerBuildConfiguration>[];
   var configs = const <_ExtensionBuildConfiguration>[];
   var appTarget = 'Runner';
+  var syncsVersion = false;
   final wrote = await _updateXcodeProject(pbxprojFile, (editor) {
     final project = editor.project;
     appTarget = _appTargetName(project, projectName);
@@ -139,6 +149,8 @@ Future<Map<String, String?>> ensureWidgetExtensionTargetInXcodeProject({
     final ownTarget = existing == null || existing.id == ids.targetId;
     final anchors = _projectAnchors(project, projectName).anchors;
     if (ownTarget && anchors != null) {
+      syncsVersion = true;
+      _ensureVersionXcconfigReference(editor, anchors.mainGroupId);
       _ensureWidgetExtensionObjects(
         editor,
         ids: ids,
@@ -156,6 +168,7 @@ Future<Map<String, String?>> ensureWidgetExtensionTargetInXcodeProject({
       configs: configs,
       ownTarget: ownTarget,
       appTarget: appTarget,
+      projectDir: projectDir,
     );
     _syncRunnerEmbedExclusions(
       editor,
@@ -172,6 +185,7 @@ Future<Map<String, String?>> ensureWidgetExtensionTargetInXcodeProject({
             '$appTarget.';
   });
 
+  if (syncsVersion) await _writeVersionXcconfig(projectDir);
   _reportManualSigning(
     configs,
     appTarget: appTarget,
@@ -189,6 +203,71 @@ Future<Map<String, String?>> ensureWidgetExtensionTargetInXcodeProject({
     pbxprojFile: pbxprojFile,
   );
   return exportProfiles;
+}
+
+/// The `.xcconfig` the extension configurations are based on, relative to
+/// `ios/`.
+const versionXcconfigPath = 'Flutter/HomeWidget.xcconfig';
+
+const _versionXcconfigName = 'HomeWidget.xcconfig';
+const _buildNameKey = 'FLUTTER_BUILD_NAME';
+const _buildNumberKey = 'FLUTTER_BUILD_NUMBER';
+const _marketingVersionKey = 'MARKETING_VERSION';
+const _projectVersionKey = 'CURRENT_PROJECT_VERSION';
+const _marketingVersionValue = '\$($_buildNameKey)';
+const _projectVersionValue = '\$($_buildNumberKey)';
+
+final _versionXcconfigId = xcodeObjectId('fileref:$_versionXcconfigName');
+
+/// The content of [versionXcconfigPath]. The defaults come first so a project
+/// that was never built still has a version, and the include overrides them.
+const _versionXcconfigContent = '''
+$_buildNameKey = 1.0
+$_buildNumberKey = 1
+#include? "Generated.xcconfig"
+''';
+
+Future<void> _writeVersionXcconfig(Directory projectDir) async {
+  final file = File(p.join(projectDir.path, versionXcconfigPath));
+  if (file.existsSync() &&
+      await file.readAsString() == _versionXcconfigContent) {
+    return;
+  }
+  await file.parent.create(recursive: true);
+  await file.writeAsString(_versionXcconfigContent);
+  logger.detail('Generated: ${file.path}');
+}
+
+/// Adds the file reference of [versionXcconfigPath] to the project, into the
+/// `Flutter` group when the main group has one and the main group otherwise.
+void _ensureVersionXcconfigReference(PbxprojEditor editor, String mainGroupId) {
+  final project = editor.project;
+  final flutterGroup = [
+    for (final id
+        in project.object(mainGroupId)?.strings('children') ?? const <String>[])
+      if (project.objectOfIsa(id, 'PBXGroup') case final group?)
+        if ((group.string('path') ?? group.string('name')) == 'Flutter') group,
+  ].firstOrNull;
+  final groupId = flutterGroup?.id ?? mainGroupId;
+
+  if (project.object(_versionXcconfigId) == null) {
+    final location = flutterGroup?.string('path') == null
+        ? 'name = $_versionXcconfigName; path = $versionXcconfigPath;'
+        : 'path = $_versionXcconfigName;';
+    editor.insertObjects('PBXFileReference', '''
+\t\t$_versionXcconfigId /* $_versionXcconfigName */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; $location sourceTree = "<group>"; };
+''');
+  }
+  final grouped = editor.project.objects.values
+      .any((object) => object.strings('children').contains(_versionXcconfigId));
+  if (!grouped) {
+    editor.addArrayEntry(
+      groupId,
+      'children',
+      _versionXcconfigId,
+      comment: _versionXcconfigName,
+    );
+  }
 }
 
 /// Warns about the configurations the app signs manually that the extension
@@ -1407,12 +1486,26 @@ void _ensureWidgetExtensionObjects(
   );
 }
 
-String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
+/// [config] as a project object. With [syncVersion] it is based on
+/// [versionXcconfigPath] and takes the app's version, otherwise it has a fixed
+/// one.
+String _renderExtensionBuildConfiguration(
+  _ExtensionBuildConfiguration config, {
+  bool syncVersion = true,
+}) {
   final signing = config.signing;
   final conditions = config.compilationConditions;
   final buffer = StringBuffer()..write('''
 \t\t${config.id} /* ${config.name} */ = {
 \t\t\tisa = XCBuildConfiguration;
+''');
+  if (syncVersion) {
+    buffer.writeln(
+      '\t\t\tbaseConfigurationReference = $_versionXcconfigId '
+      '/* $_versionXcconfigName */;',
+    );
+  }
+  buffer.write('''
 \t\t\tbuildSettings = {
 \t\t\t\tAPPLICATION_EXTENSION_API_ONLY = YES;
 ''');
@@ -1432,7 +1525,10 @@ String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
   );
   writeSettings(signing.identity);
   writeSettings(signing.style);
-  buffer.writeln('\t\t\t\tCURRENT_PROJECT_VERSION = 1;');
+  buffer.writeln(
+    '\t\t\t\t$_projectVersionKey = '
+    '${pbxLiteral(syncVersion ? _projectVersionValue : '1')};',
+  );
   writeSettings(signing.team);
   if (!config.embedded) {
     buffer.writeln(
@@ -1450,7 +1546,7 @@ String _renderExtensionBuildConfiguration(_ExtensionBuildConfiguration config) {
 \t\t\t\t\t"@executable_path/Frameworks",
 \t\t\t\t\t"@executable_path/../../Frameworks",
 \t\t\t\t);
-\t\t\t\tMARKETING_VERSION = 1.0;
+\t\t\t\t$_marketingVersionKey = ${pbxLiteral(syncVersion ? _marketingVersionValue : '1.0')};
 \t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = ${pbxLiteral(config.bundleId)};
 \t\t\t\tPRODUCT_NAME = "\$(TARGET_NAME)";
 ''');
@@ -1487,10 +1583,13 @@ void _syncExtensionBuildConfigurations(
   required List<_ExtensionBuildConfiguration> configs,
   required bool ownTarget,
   required String appTarget,
+  required Directory projectDir,
 }) {
   final listId = editor.project
       .nativeTargetNamed(widgetClassName)
       ?.string('buildConfigurationList');
+  final syncVersion =
+      ownTarget && editor.project.object(_versionXcconfigId) != null;
   final missing = <_ExtensionBuildConfiguration>[];
 
   for (final config in configs) {
@@ -1511,6 +1610,8 @@ void _syncExtensionBuildConfigurations(
       config,
       ownTarget: ownTarget,
       appTarget: appTarget,
+      syncVersion: syncVersion,
+      projectDir: projectDir,
     );
     if (listId != null) {
       editor.addArrayEntry(
@@ -1525,7 +1626,10 @@ void _syncExtensionBuildConfigurations(
   if (missing.isNotEmpty && editor.project.object(listId) != null) {
     editor.insertObjects(
       'XCBuildConfiguration',
-      missing.map(_renderExtensionBuildConfiguration).join(),
+      [
+        for (final config in missing)
+          _renderExtensionBuildConfiguration(config, syncVersion: syncVersion),
+      ].join(),
     );
     for (final config in missing) {
       editor.addArrayEntry(
@@ -1544,6 +1648,8 @@ void _applyExtensionBuildSettings(
   _ExtensionBuildConfiguration config, {
   required bool ownTarget,
   required String appTarget,
+  required bool syncVersion,
+  required Directory projectDir,
 }) {
   PbxDictEntry? setting(String key) => editor.project
       .object(configurationId)
@@ -1588,6 +1694,40 @@ void _applyExtensionBuildSettings(
     ownedVariants(_styleKey, config.signing.style);
     ownedVariants(_identityKey, config.signing.identity);
     ownedVariants(_profileKey, config.signing.profile);
+  }
+
+  if (syncVersion) {
+    final object = editor.project.object(configurationId)!;
+    final base = object.string('baseConfigurationReference');
+    final foreignBase = base != null && base != _versionXcconfigId ||
+        object.string('baseConfigurationReferenceAnchor') != null;
+    if (!foreignBase && base == null) {
+      editor.setReferenceField(
+        configurationId,
+        'baseConfigurationReference',
+        _versionXcconfigId,
+        comment: _versionXcconfigName,
+      );
+    }
+    final definesVersion = !foreignBase ||
+        _xcconfigSettings(
+          object,
+          projectDir,
+          _fileReferencePaths(editor.project),
+        ).keys.toSet().containsAll({_buildNameKey, _buildNumberKey});
+    if (definesVersion) {
+      owned(_projectVersionKey, _projectVersionValue);
+      owned(_marketingVersionKey, _marketingVersionValue);
+    } else {
+      logger.warn(
+        'Warning: The "${config.name}" configuration of '
+        '${config.widgetClassName} is based on an .xcconfig file that '
+        'does not define both $_buildNameKey and $_buildNumberKey, so its '
+        'version is not synced with $appTarget. Include '
+        '"Generated.xcconfig" in that file, or base the configuration on '
+        '$versionXcconfigPath.',
+      );
+    }
   }
 
   if (config.embedded) {

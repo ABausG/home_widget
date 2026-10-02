@@ -957,7 +957,9 @@ void main() {
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('pbxproj_test');
-    pbxprojFile = File('${tempDir.path}/project.pbxproj');
+    Directory('${tempDir.path}/ios/Runner.xcodeproj')
+        .createSync(recursive: true);
+    pbxprojFile = File('${tempDir.path}/ios/Runner.xcodeproj/project.pbxproj');
   });
 
   tearDown(() {
@@ -1555,7 +1557,7 @@ void main() {
       expect(
         _extensionConfig(result, 'Debug'),
         contains(
-          '\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
+          '\t\t\t\tCURRENT_PROJECT_VERSION = "\$(FLUTTER_BUILD_NUMBER)";\n'
           '\t\t\t\tDEVELOPMENT_TEAM = TEAM123;\n'
           '\t\t\t\tGENERATE_INFOPLIST_FILE = YES;',
         ),
@@ -2532,7 +2534,7 @@ void main() {
           '\t\t\t\tCODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;\n'
           '\t\t\t\t"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Distribution";\n'
           '\t\t\t\tCODE_SIGN_STYLE = Manual;\n'
-          '\t\t\t\tCURRENT_PROJECT_VERSION = 1;\n'
+          '\t\t\t\tCURRENT_PROJECT_VERSION = "\$(FLUTTER_BUILD_NUMBER)";\n'
           '\t\t\t\tDEVELOPMENT_TEAM = "";\n'
           '\t\t\t\t"DEVELOPMENT_TEAM[sdk=iphoneos*]" = ABCDE12345;\n',
         ),
@@ -4851,6 +4853,302 @@ void main() {
             .allMatches(pbxprojFile.readAsStringSync()),
         hasLength(3),
       );
+    });
+  });
+
+  group('app version', () {
+    const versionSettings = [
+      r'CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";',
+      r'MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";',
+    ];
+    final xcconfigId = xcodeObjectId('fileref:HomeWidget.xcconfig');
+    final baseReference =
+        'baseConfigurationReference = $xcconfigId /* HomeWidget.xcconfig */;';
+
+    late File versionXcconfig;
+
+    Future<String> patch() async {
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+      return pbxprojFile.readAsStringSync();
+    }
+
+    String withFixedVersion(String pbxproj) => pbxproj
+        .replaceAll('\t\t\t$baseReference\n', '')
+        .replaceAll(versionSettings[0], 'CURRENT_PROJECT_VERSION = 1;')
+        .replaceAll(versionSettings[1], 'MARKETING_VERSION = 1.0;');
+
+    String basedOn(String pbxproj, String fileName) => (PbxprojEditor(
+          pbxproj.replaceAll(
+            baseReference,
+            'baseConfigurationReference = AB00000000000000000000CC '
+            '/* $fileName */;',
+          ),
+        )
+              ..insertObjects('PBXFileReference', '''
+\t\tAB00000000000000000000CC /* $fileName */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Flutter/$fileName; sourceTree = "<group>"; };
+''')
+              ..addArrayEntry(
+                '97C146E51CF9000F007C117D',
+                'children',
+                'AB00000000000000000000CC',
+                comment: fileName,
+              ))
+            .text;
+
+    setUp(() {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: [_dev]));
+      versionXcconfig = File(
+        '${pbxprojFile.parent.parent.path}/$versionXcconfigPath',
+      );
+      versionXcconfig.parent.createSync();
+    });
+
+    test('bases every extension configuration on the version xcconfig',
+        () async {
+      final result = await patch();
+
+      for (final name in [
+        ..._baseConfigNames,
+        for (final name in _baseConfigNames) '$name-dev',
+      ]) {
+        final config = _extensionConfig(result, name);
+        expect(config, contains(baseReference), reason: name);
+        for (final setting in versionSettings) {
+          expect(config, contains(setting), reason: name);
+        }
+      }
+      expect(
+        RegExp('$xcconfigId /\\* HomeWidget.xcconfig \\*/ = \\{isa')
+            .allMatches(result),
+        hasLength(1),
+      );
+    });
+
+    test('gives the configurations of a flavor added later the app version',
+        () async {
+      pbxprojFile.writeAsStringSync(_addRunnerFlavor(await patch(), _stg));
+
+      final result = await patch();
+
+      for (final name in _baseConfigNames) {
+        final config = _extensionConfig(result, '$name-stg');
+        expect(config, contains(baseReference), reason: name);
+        for (final setting in versionSettings) {
+          expect(config, contains(setting), reason: name);
+        }
+      }
+    });
+
+    test('names the xcconfig by its file name in a Flutter group with a path',
+        () async {
+      pbxprojFile.writeAsStringSync(
+        (PbxprojEditor(pbxprojFile.readAsStringSync())
+              ..insertObjects('PBXGroup', '''
+\t\tAB00000000000000000000DD /* Flutter */ = {
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+\t\t\t);
+\t\t\tpath = Flutter;
+\t\t\tsourceTree = "<group>";
+\t\t};
+''')
+              ..addArrayEntry(
+                '97C146E51CF9000F007C117D',
+                'children',
+                'AB00000000000000000000DD',
+                comment: 'Flutter',
+              ))
+            .text,
+      );
+
+      final result = await patch();
+
+      expect(
+        result,
+        contains(
+          '$xcconfigId /* HomeWidget.xcconfig */ = {isa = PBXFileReference; '
+          'lastKnownFileType = text.xcconfig; path = HomeWidget.xcconfig; '
+          'sourceTree = "<group>"; };',
+        ),
+      );
+      expect(
+        _configObjectWithId(result, 'AB00000000000000000000DD'),
+        contains('$xcconfigId /* HomeWidget.xcconfig */,'),
+      );
+    });
+
+    test('writes an xcconfig that includes the generated one', () async {
+      await patch();
+
+      expect(versionXcconfig.readAsStringSync(), '''
+FLUTTER_BUILD_NAME = 1.0
+FLUTTER_BUILD_NUMBER = 1
+#include? "Generated.xcconfig"
+''');
+    });
+
+    test('changes nothing on a second run', () async {
+      final first = await patch();
+      final modified = versionXcconfig.lastModifiedSync();
+
+      expect(await patch(), first);
+      expect(versionXcconfig.lastModifiedSync(), modified);
+    });
+
+    test('moves an extension with a fixed version to the app version',
+        () async {
+      pbxprojFile.writeAsStringSync(withFixedVersion(await patch()));
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      for (final name in _baseConfigNames) {
+        final config = _extensionConfig(result, name);
+        expect(config, contains(baseReference), reason: name);
+        for (final setting in versionSettings) {
+          expect(config, contains(setting), reason: name);
+        }
+      }
+      verify(
+        () => mock.info(
+          any(
+            that: contains(
+              'Reset CURRENT_PROJECT_VERSION, MARKETING_VERSION on the "Debug"',
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('leaves the version of a target created in Xcode alone', () async {
+      final foreign = withFixedVersion(await patch()).replaceAll(
+        xcodeObjectId('target:GreetingHomeWidget'),
+        'AB00000000000000000000FF',
+      );
+      pbxprojFile.writeAsStringSync(foreign);
+      versionXcconfig.deleteSync();
+
+      final result = await patch();
+
+      final config = _extensionConfig(result, 'Debug');
+      expect(config, isNot(contains('baseConfigurationReference')));
+      expect(config, contains('CURRENT_PROJECT_VERSION = 1;'));
+      expect(config, contains('MARKETING_VERSION = 1.0;'));
+      expect(versionXcconfig.existsSync(), isFalse);
+    });
+
+    test('keeps another base xcconfig that defines the Flutter version',
+        () async {
+      File('${versionXcconfig.parent.path}/Widget.xcconfig')
+          .writeAsStringSync('''
+FLUTTER_BUILD_NAME = 2.0
+FLUTTER_BUILD_NUMBER = 2
+''');
+      pbxprojFile.writeAsStringSync(
+        withFixedVersion(basedOn(await patch(), 'Widget.xcconfig')),
+      );
+
+      final result = await patch();
+
+      final config = _extensionConfig(result, 'Debug');
+      expect(config, contains('/* Widget.xcconfig */;'));
+      expect(config, isNot(contains(baseReference)));
+      for (final setting in versionSettings) {
+        expect(config, contains(setting));
+      }
+    });
+
+    test('follows the includes of another base xcconfig', () async {
+      File('${versionXcconfig.parent.path}/Generated.xcconfig')
+          .writeAsStringSync('''
+FLUTTER_BUILD_NAME=2.0
+FLUTTER_BUILD_NUMBER=2
+''');
+      File('${versionXcconfig.parent.path}/Widget.xcconfig')
+          .writeAsStringSync('''
+#include? "Pods/Target Support Files/Pods-Widget/Pods-Widget.debug.xcconfig"
+#include "Generated.xcconfig"
+''');
+      pbxprojFile.writeAsStringSync(
+        withFixedVersion(basedOn(await patch(), 'Widget.xcconfig')),
+      );
+
+      final config = _extensionConfig(await patch(), 'Debug');
+
+      expect(config, contains('/* Widget.xcconfig */;'));
+      for (final setting in versionSettings) {
+        expect(config, contains(setting));
+      }
+    });
+
+    test('leaves the version alone under a base xcconfig without it', () async {
+      File('${versionXcconfig.parent.path}/Widget.xcconfig')
+          .writeAsStringSync('SWIFT_VERSION = 5.0\n');
+      final fixed = withFixedVersion(basedOn(await patch(), 'Widget.xcconfig'));
+      pbxprojFile.writeAsStringSync(fixed);
+      final mock = useMockLogger();
+
+      final result = await patch();
+
+      expect(result, fixed);
+      verify(
+        () => mock.warn(
+          any(
+            that: allOf(
+              contains('"Debug" configuration of GreetingHomeWidget'),
+              contains('its version is not synced with Runner'),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+  });
+
+  group('app version under a base xcconfig that lost the variables', () {
+    test('warns although the settings already name them', () async {
+      pbxprojFile.writeAsStringSync(_buildFlavoredPbxproj(flavors: const []));
+      final flutterDir = Directory('${pbxprojFile.parent.parent.path}/Flutter')
+        ..createSync();
+      File('${flutterDir.path}/Widget.xcconfig')
+          .writeAsStringSync('FLUTTER_BUILD_NAME = 2.0\n');
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+      final rebased = (PbxprojEditor(
+        pbxprojFile.readAsStringSync().replaceAll(
+              '${xcodeObjectId('fileref:HomeWidget.xcconfig')} '
+                  '/* HomeWidget.xcconfig */;',
+              'AB00000000000000000000CC /* Widget.xcconfig */;',
+            ),
+      )
+            ..insertObjects('PBXFileReference', '''
+\t\tAB00000000000000000000CC /* Widget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Flutter/Widget.xcconfig; sourceTree = "<group>"; };
+''')
+            ..addArrayEntry(
+              '97C146E51CF9000F007C117D',
+              'children',
+              'AB00000000000000000000CC',
+              comment: 'Widget.xcconfig',
+            ))
+          .text;
+      pbxprojFile.writeAsStringSync(rebased);
+      final mock = useMockLogger();
+
+      await ensureWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: pbxprojFile,
+        widgetClassName: 'GreetingHomeWidget',
+      );
+
+      expect(pbxprojFile.readAsStringSync(), rebased);
+      verify(
+        () => mock.warn(
+          any(that: contains('does not define both FLUTTER_BUILD_NAME')),
+        ),
+      ).called(3);
     });
   });
 

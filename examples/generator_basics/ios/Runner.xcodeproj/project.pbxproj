@@ -497,6 +497,7 @@
 		FBA84B14C3AA561D0CACF26A /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
 		9E4F6FE975993F30472D7BD3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		48E482D2C90E8D752FBD2A30 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
+		68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = HomeWidget.xcconfig; path = Flutter/HomeWidget.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -695,6 +696,7 @@
 				9740EEB21CF90195004384FC /* Debug.xcconfig */,
 				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
 				9740EEB31CF90195004384FC /* Generated.xcconfig */,
+				68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */,
 			);
 			name = Flutter;
 			sourceTree = "<group>";
@@ -1728,11 +1730,12 @@
 /* Begin XCBuildConfiguration section */
 		006487515921998498CC5753 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ThemedCounterHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ThemedCounterHomeWidget/Info.plist;
@@ -1743,7 +1746,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ThemedCounterHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1754,11 +1757,12 @@
 		};
 		15026C9153CB8920BB035127 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = BasicCreationHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BasicCreationHomeWidget/Info.plist;
@@ -1769,7 +1773,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.BasicCreationHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1780,11 +1784,12 @@
 		};
 		2272D33B1B42DC82754238B1 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ThemedCounterHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ThemedCounterHomeWidget/Info.plist;
@@ -1796,7 +1801,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ThemedCounterHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1883,11 +1888,12 @@
 		};
 		25FC1248EF5DA5BD375BBE9E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ConditionalStatusHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ConditionalStatusHomeWidget/Info.plist;
@@ -1898,7 +1904,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ConditionalStatusHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1959,11 +1965,12 @@
 		};
 		38907BF7875322FCA2B91DC1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = AdaptiveGreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AdaptiveGreetingHomeWidget/Info.plist;
@@ -1974,7 +1981,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.AdaptiveGreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1985,11 +1992,12 @@
 		};
 		3F3599629E10E525FCFC3D5C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SimpleDataHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SimpleDataHomeWidget/Info.plist;
@@ -2000,7 +2008,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SimpleDataHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2011,11 +2019,12 @@
 		};
 		4DED1C2E66AC4595CB7BFF64 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SimpleDataHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SimpleDataHomeWidget/Info.plist;
@@ -2027,7 +2036,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SimpleDataHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2038,11 +2047,12 @@
 		};
 		586F77AF791B05D2674BFB89 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ThemedCounterHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ThemedCounterHomeWidget/Info.plist;
@@ -2053,7 +2063,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ThemedCounterHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2064,11 +2074,12 @@
 		};
 		6253C104FC0540CF46F1C106 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SimpleDataHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SimpleDataHomeWidget/Info.plist;
@@ -2079,7 +2090,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SimpleDataHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2090,11 +2101,12 @@
 		};
 		70F3C0241842CEEDB6186936 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ConditionalStatusHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ConditionalStatusHomeWidget/Info.plist;
@@ -2106,7 +2118,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ConditionalStatusHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2117,11 +2129,12 @@
 		};
 		8C306F8D3BDE7A706FF56C6F /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = BasicCreationHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BasicCreationHomeWidget/Info.plist;
@@ -2133,7 +2146,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.BasicCreationHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2304,11 +2317,12 @@
 		};
 		A2ACA6F5222953D2CCC7EE4F /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = AdaptiveGreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AdaptiveGreetingHomeWidget/Info.plist;
@@ -2319,7 +2333,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.AdaptiveGreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2330,11 +2344,12 @@
 		};
 		A870018FF5739BF618AAF505 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = BasicCreationHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BasicCreationHomeWidget/Info.plist;
@@ -2345,7 +2360,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.BasicCreationHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2356,11 +2371,12 @@
 		};
 		AFE91469322CB442E0D2A3D7 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = AdaptiveGreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = AdaptiveGreetingHomeWidget/Info.plist;
@@ -2372,7 +2388,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.AdaptiveGreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2383,11 +2399,12 @@
 		};
 		E6489FD68167EE2B17FB46CC /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ConditionalStatusHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ConditionalStatusHomeWidget/Info.plist;
@@ -2398,7 +2415,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ConditionalStatusHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2409,11 +2426,12 @@
 		};
 		7BAFEDCD32B300C6C40DB6BB /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GreetingHomeWidget/Info.plist;
@@ -2424,7 +2442,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.GreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2435,11 +2453,12 @@
 		};
 		C8BF0A7FF964F988686C9035 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GreetingHomeWidget/Info.plist;
@@ -2450,7 +2469,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.GreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2461,11 +2480,12 @@
 		};
 		E16DE2D35B4569D8EA8DCA6D /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = GreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = GreetingHomeWidget/Info.plist;
@@ -2477,7 +2497,7 @@
 					"@executable_path/../../Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.GreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2488,11 +2508,12 @@
 		};
 		21CCD82C05C5428191205E6A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = LocalizedGreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LocalizedGreetingHomeWidget/Info.plist;
@@ -2503,7 +2524,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.LocalizedGreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2514,11 +2535,12 @@
 		};
 		79435C62CF69F9376DC6A6A8 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = LocalizedGreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LocalizedGreetingHomeWidget/Info.plist;
@@ -2529,7 +2551,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.LocalizedGreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2540,11 +2562,12 @@
 		};
 		AE334A008735B3915703D242 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = LocalizedGreetingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LocalizedGreetingHomeWidget/Info.plist;
@@ -2555,7 +2578,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.LocalizedGreetingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2566,12 +2589,13 @@
 		};
 		12742C4BD693E004F7E1BC5D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ForecastHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = ForecastHomeWidget/Info.plist;
@@ -2581,7 +2605,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ForecastHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2592,12 +2616,13 @@
 		};
 		1FB73F31B898E19281243C23 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ForecastHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = ForecastHomeWidget/Info.plist;
@@ -2607,7 +2632,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ForecastHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2618,12 +2643,13 @@
 		};
 		83F0A9853310940280C81D6B /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ForecastHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = ForecastHomeWidget/Info.plist;
@@ -2633,7 +2659,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ForecastHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2644,12 +2670,13 @@
 		};
 		AC2C62209574F1D9BA1C947A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ImageShowcaseHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = ImageShowcaseHomeWidget/Info.plist;
@@ -2659,7 +2686,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ImageShowcaseHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2670,12 +2697,13 @@
 		};
 		260CA4864D5398474A010878 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ImageShowcaseHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = ImageShowcaseHomeWidget/Info.plist;
@@ -2685,7 +2713,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ImageShowcaseHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2696,12 +2724,13 @@
 		};
 		B7E7682289CE9ED759F32B80 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = ImageShowcaseHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = ImageShowcaseHomeWidget/Info.plist;
@@ -2711,7 +2740,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.ImageShowcaseHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2722,12 +2751,13 @@
 		};
 		20367F4A80BFCB39CE4450A8 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = WidgetLinkHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = WidgetLinkHomeWidget/Info.plist;
@@ -2737,7 +2767,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WidgetLinkHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2748,12 +2778,13 @@
 		};
 		839068F440894EDB8552FE82 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = WidgetLinkHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = WidgetLinkHomeWidget/Info.plist;
@@ -2763,7 +2794,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WidgetLinkHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2774,12 +2805,13 @@
 		};
 		0DB02C104F43406B05D16C2A /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = WidgetLinkHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = WidgetLinkHomeWidget/Info.plist;
@@ -2789,7 +2821,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WidgetLinkHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2800,12 +2832,13 @@
 		};
 		06BB332C1CA1C5CF5A4441FA /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = NumberDateFormattingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = NumberDateFormattingHomeWidget/Info.plist;
@@ -2815,7 +2848,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.NumberDateFormattingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2826,12 +2859,13 @@
 		};
 		00E973EE5F5FE6B1E7CA6F54 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = NumberDateFormattingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = NumberDateFormattingHomeWidget/Info.plist;
@@ -2841,7 +2875,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.NumberDateFormattingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2852,12 +2886,13 @@
 		};
 		10E931129EEBF28154EFD34C /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = NumberDateFormattingHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = T3PND82A9W;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				INFOPLIST_FILE = NumberDateFormattingHomeWidget/Info.plist;
@@ -2867,7 +2902,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.NumberDateFormattingHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2878,11 +2913,12 @@
 		};
 		B9DF01EE9C76B915CB78CD8C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = FontAndIconsHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -2893,7 +2929,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.FontAndIconsHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2904,11 +2940,12 @@
 		};
 		63747890B361520765737316 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = FontAndIconsHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -2919,7 +2956,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.FontAndIconsHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2930,11 +2967,12 @@
 		};
 		7B00078499FDC0570E87110E /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = FontAndIconsHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -2945,7 +2983,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.FontAndIconsHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2956,11 +2994,12 @@
 		};
 		BAF4C491E405D74C6D331017 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SizeAdaptiveDashboardHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -2971,7 +3010,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SizeAdaptiveDashboardHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -2982,11 +3021,12 @@
 		};
 		E96564C3204965FECA04F659 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SizeAdaptiveDashboardHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -2997,7 +3037,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SizeAdaptiveDashboardHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -3008,11 +3048,12 @@
 		};
 		FFE3716FE4B78F8E2B936531 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = SizeAdaptiveDashboardHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -3023,7 +3064,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.SizeAdaptiveDashboardHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -3034,11 +3075,12 @@
 		};
 		D431EC7BFF007110D0A6A08D /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = WeekForecastHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -3049,7 +3091,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WeekForecastHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -3060,11 +3102,12 @@
 		};
 		3945E319B7FDE2AEB7144203 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = WeekForecastHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -3075,7 +3118,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WeekForecastHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -3086,11 +3129,12 @@
 		};
 		DCAE2E250CCE70FEB60FFB5B /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
 			buildSettings = {
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CODE_SIGN_ENTITLEMENTS = WeekForecastHomeWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = T3PND82A9W;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -3101,7 +3145,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.WeekForecastHomeWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
