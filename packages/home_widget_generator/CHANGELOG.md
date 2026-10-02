@@ -1,3 +1,9 @@
+## 0.4.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Mirror the app's signing setup on the iOS widget extension ([#471](https://github.com/abausg/home_widget/issues/471)). ([aae149a6](https://github.com/abausg/home_widget/commit/aae149a670a4e5d9f4930d22e99a4777c0b8e7f6))
+
 ## 0.3.0
 
 > Note: This release has breaking changes.

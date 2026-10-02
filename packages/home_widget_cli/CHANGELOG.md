@@ -1,3 +1,10 @@
+## 0.4.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Sync the iOS widget extension version with the app ([#472](https://github.com/abausg/home_widget/issues/472)). ([89173001](https://github.com/abausg/home_widget/commit/89173001c92b7162a1c65f0f5b84f984809d3624))
+ - **BREAKING** **FEAT**: Mirror the app's signing setup on the iOS widget extension ([#471](https://github.com/abausg/home_widget/issues/471)). ([aae149a6](https://github.com/abausg/home_widget/commit/aae149a670a4e5d9f4930d22e99a4777c0b8e7f6))
+
 ## 0.3.0
 
 > Note: This release has breaking changes.
