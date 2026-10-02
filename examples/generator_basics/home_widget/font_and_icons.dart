@@ -18,7 +18,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///   would give it the platform's own font the same way. The row lines the two
 ///   up on their shared baseline, which on Android means measuring the bitmap
 ///   and the serif typeface against each other.
-/// - `HWIcon.fixed(Icons.favorite)` renders one hardcoded Material icon. Icon
+/// - `HWIconData.fixed(Icons.favorite)` renders one hardcoded Material icon. Icon
 ///   fonts are the exception to the above: Flutter tree-shakes them out of
 ///   `flutter_assets`, so the CLI copies the font next to the widget and
 ///   subsets it down to the glyphs this schema names.
@@ -45,12 +45,14 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     crossAxisAlignment: HWCrossAxisAlignment.center,
     spacing: 4,
     children: [
-      HWText.fixed(
-        'Chewy',
+      HWText(
+        HWString.fixed('Chewy'),
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 24),
       ),
-      HWText.fixed(
-        'The same family again, wrapping to the room the label leaves it.',
+      HWText(
+        HWString.fixed(
+          'The same family again, wrapping to the room the label leaves it.',
+        ),
         textAlign: HWTextAlign.center,
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 14),
       ),
@@ -58,12 +60,12 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         mainAxisAlignment: HWMainAxisAlignment.center,
         crossAxisAlignment: HWCrossAxisAlignment.baseline,
         children: [
-          HWText.fixed(
-            'Chewy',
+          HWText(
+            HWString.fixed('Chewy'),
             style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20),
           ),
-          HWText.fixed(
-            'serif on Android',
+          HWText(
+            HWString.fixed('serif on Android'),
             style: HWTextStyle(
               fontFamily: 'Chewy',
               fontSize: 11,
@@ -77,25 +79,25 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         crossAxisAlignment: HWCrossAxisAlignment.center,
         spacing: 8,
         children: [
-          HWIcon.fixed(
-            Icons.favorite,
+          HWIcon(
+            HWIconData.fixed(Icons.favorite),
             size: 24,
             color: HWFixedColor(0xFFE53935),
           ),
-          HWIcon.fixed(
-            CupertinoIcons.sun_max,
+          HWIcon(
+            HWIconData.fixed(CupertinoIcons.sun_max),
             size: 24,
             color: HWFixedColor(0xFFFB8C00),
           ),
-          HWIcon.fixed(
-            FontAwesomeIcons.solidHeart,
+          HWIcon(
+            HWIconData.fixed(FontAwesomeIcons.solidHeart),
             size: 24,
             color: HWFixedColor(0xFF8E24AA),
           ),
         ],
       ),
-      HWText.fixed(
-        'three icons, three fonts',
+      HWText(
+        HWString.fixed('three icons, three fonts'),
         style: HWRoleTextStyle(role: HWTextStyleRole.caption),
       ),
       HWIcon(

@@ -1195,8 +1195,8 @@ void main() {
       );
       const tree = HWDataExists(
         data: localized,
-        whenPresent: HWText.fixed('present'),
-        whenAbsent: HWText.fixed('absent'),
+        whenPresent: HWText(HWString.fixed('present')),
+        whenAbsent: HWText(HWString.fixed('absent')),
       );
       final spec = WidgetSpec(
         data: const HomeWidget(
@@ -1236,8 +1236,8 @@ void main() {
       const timed = HWTimedData(localized);
       const tree = HWDataExists(
         data: timed,
-        whenPresent: HWText.fixed('present'),
-        whenAbsent: HWText.fixed('absent'),
+        whenPresent: HWText(HWString.fixed('present')),
+        whenAbsent: HWText(HWString.fixed('absent')),
       );
       final spec = WidgetSpec(
         data: const HomeWidget(
@@ -1276,13 +1276,13 @@ void main() {
       );
       const tree = HWColumn(
         children: [
-          HWText.fixed('header'),
+          HWText(HWString.fixed('header')),
           HWPadding(
             padding: HWEdgeInsets.all(4),
             child: HWDataExists(
               data: localized,
-              whenPresent: HWText.fixed('present'),
-              whenAbsent: HWText.fixed('absent'),
+              whenPresent: HWText(HWString.fixed('present')),
+              whenAbsent: HWText(HWString.fixed('absent')),
             ),
           ),
         ],
@@ -1409,8 +1409,8 @@ void main() {
       const asset = HWImageData.asset('assets/logo.png');
       const tree = HWDataExists(
         data: asset,
-        whenPresent: HWImage.asset('assets/logo.png'),
-        whenAbsent: HWText.fixed('absent'),
+        whenPresent: HWImage(HWImageData.asset('assets/logo.png')),
+        whenAbsent: HWText(HWString.fixed('absent')),
       );
       final spec = WidgetSpec(
         data: const HomeWidget(name: 'T', widget: tree),
@@ -1428,7 +1428,7 @@ void main() {
             allOf(
               contains('HWDataExists cannot test HWImageData.asset'),
               contains('assets/logo.png'),
-              contains('HWImage.asset'),
+              contains('Render HWImage(HWImageData.asset(...)) directly'),
             ),
           ),
         ),
@@ -1439,7 +1439,7 @@ void main() {
       const tree = HWDataExists(
         data: HWImageData('avatar'),
         whenPresent: HWImage(HWImageData('avatar')),
-        whenAbsent: HWText.fixed('absent'),
+        whenAbsent: HWText(HWString.fixed('absent')),
       );
       final spec = WidgetSpec(
         data: const HomeWidget(name: 'T', widget: tree),
@@ -1454,8 +1454,8 @@ void main() {
     test('allows HWDataExists over a plain HWString', () {
       const tree = HWDataExists(
         data: HWString('greeting'),
-        whenPresent: HWText.fixed('present'),
-        whenAbsent: HWText.fixed('absent'),
+        whenPresent: HWText(HWString.fixed('present')),
+        whenAbsent: HWText(HWString.fixed('absent')),
       );
       final spec = WidgetSpec(
         data: const HomeWidget(name: 'T', widget: tree),
@@ -1590,8 +1590,8 @@ void main() {
       expect(
         () => validateWidgetData(
           _spec(
-            const HWText.fixedNumber(
-              1,
+            const HWText.number(
+              HWInt.fixed(1),
               format: HWNumberFormat.decimal(
                 minimumFractionDigits: 3,
                 maximumFractionDigits: 2,
@@ -1610,8 +1610,8 @@ void main() {
       expect(
         () => validateWidgetData(
           _spec(
-            const HWText.fixedNumber(
-              1,
+            const HWText.number(
+              HWInt.fixed(1),
               format: HWNumberFormat.decimal(
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
@@ -2014,7 +2014,8 @@ void main() {
       );
     });
 
-    test('names HWText.localized when a constant map misses a locale', () {
+    test('names HWString.localizedFixed when a constant map misses a locale',
+        () {
       expect(
         () => validateWidgetData(
           _declaring(
@@ -2032,7 +2033,7 @@ void main() {
         ),
         _throwsMessage(
           allOf(
-            contains('HWText.localized in "T"'),
+            contains('HWString.localizedFixed in "T"'),
             contains('de'),
           ),
         ),
@@ -2490,6 +2491,125 @@ void main() {
       );
     });
 
+    group('a preview instant the widget cannot read', () {
+      List<String> warningsFor(List<HWDataType<dynamic>> fields) {
+        final mock = useMockLogger();
+        validateWidgetData(_declaring(fields));
+        return [
+          for (final call in verify(() => mock.warn(captureAny())).captured)
+            call as String,
+        ];
+      }
+
+      test('warns with the spelling to write instead', () {
+        const fixes = {
+          '2026-09-22T10:00Z': '2026-09-22T10:00:00Z',
+          '2026-09-22 10:00:00Z': '2026-09-22T10:00:00Z',
+          '20260922T100000Z': '2026-09-22T10:00:00Z',
+          '2026-09-22T10:00:00,5Z': '2026-09-22T10:00:00.500Z',
+          '2026-09-22': '2026-09-22T00:00:00Z',
+          '2026-09-22T10:00': '2026-09-22T10:00:00Z',
+          '2026-09-22T10:00+02:00': '2026-09-22T08:00:00Z',
+          '2026-02-30T10:00:00Z': '2026-03-02T10:00:00Z',
+        };
+        for (final MapEntry(key: written, value: fix) in fixes.entries) {
+          expect(
+            warningsFor([HWDateTime('updated', previewValue: written)]),
+            [
+              'Warning: Widget "T": HWDateTime("updated") has previewValue '
+                  '"$written", which the widget cannot read, so the preview '
+                  'shows no date. Write it as $fix.',
+            ],
+          );
+        }
+      });
+
+      test('warns with an example where the instant has no such spelling', () {
+        expect(
+          warningsFor(const [
+            HWDateTime('updated', previewValue: '12026-09-22T10:00:00Z'),
+          ]),
+          [
+            'Warning: Widget "T": HWDateTime("updated") has previewValue '
+                '"12026-09-22T10:00:00Z", which the widget cannot read, so '
+                'the preview shows no date. Write the instant as e.g. '
+                '"2024-03-08T09:41:00Z".',
+          ],
+        );
+      });
+
+      test('warns at a JSON leaf and inside a timed field too', () {
+        const nested = <HWDataType<dynamic>>[
+          HWJson('event', HWDateTime('at', previewValue: '2026-09-22T10:00Z')),
+          HWTimedData(HWDateTime('at', previewValue: '2026-09-22T10:00Z')),
+        ];
+        for (final field in nested) {
+          expect(
+            warningsFor([field]),
+            [
+              'Warning: Widget "T": HWDateTime("at") has previewValue '
+                  '"2026-09-22T10:00Z", which the widget cannot read, so the '
+                  'preview shows no date. Write it as 2026-09-22T10:00:00Z.',
+            ],
+            reason: '$field',
+          );
+        }
+      });
+
+      test('stays quiet for a spelling the widget reads', () {
+        const readable = [
+          '2026-09-22T10:00:00Z',
+          '2026-09-22T10:00:00z',
+          '2026-09-22T10:00:00.5Z',
+          '2026-09-22T10:00:00.123456Z',
+          '2026-09-22T10:00:00+02:00',
+          '2026-09-22T10:00:00+0200',
+          '2026-09-22T10:00:00+02',
+          '2026-09-22T10:00:00-05:30',
+          '2026-09-22T10:00:00',
+        ];
+        final mock = useMockLogger();
+        for (final written in readable) {
+          validateWidgetData(
+            _declaring([
+              HWDateTime('updated', previewValue: written),
+              HWJson('event', HWDateTime('at', previewValue: written)),
+              HWTimedData(HWDateTime('due', previewValue: written)),
+            ]),
+          );
+        }
+        validateWidgetData(_declaring(const [HWDateTime('updated')]));
+        verifyNever(() => mock.warn(any()));
+      });
+
+      test('stays quiet for a fixed instant', () {
+        final mock = useMockLogger();
+        validateWidgetData(
+          _spec(
+            const HWText.dateTime(HWDateTime.fixed('2026-09-22 10:00Z')),
+          ),
+        );
+        verifyNever(() => mock.warn(any()));
+      });
+
+      test('leaves a text that is no date an error', () {
+        final mock = useMockLogger();
+        expect(
+          () => validateWidgetData(
+            _declaring(
+              const [HWDateTime('startsAt', previewValue: 'tomorrow')],
+            ),
+          ),
+          _throwsMessage(
+            'Widget "T": HWDateTime("startsAt") has previewValue "tomorrow", '
+            'which is not an ISO 8601 date. Write the instant as e.g. '
+            '"2024-03-08T09:41:00Z".',
+          ),
+        );
+        verifyNever(() => mock.warn(any()));
+      });
+    });
+
     test('requires previewTranslations to cover every supported locale', () {
       expect(
         () => validateWidgetData(
@@ -2613,7 +2733,8 @@ void main() {
         className: 'T',
         widgetTree: HWColumn(
           children: [
-            for (var index = 0; index < 11; index++) HWText.fixed('$index'),
+            for (var index = 0; index < 11; index++)
+              HWText(HWString.fixed('$index')),
           ],
         ),
       );
@@ -2668,7 +2789,7 @@ void main() {
       final trees = <HWWidget, String>{
         const HWRow.builder(
           'forecast',
-          item: HWText.fixed('item'),
+          item: HWText(HWString.fixed('item')),
           whenEmpty: HWText.number(HWItemData(HWInt('count'))),
         ): "HWItemData(HWInt('count'))",
         HWDataOnly([
@@ -2755,7 +2876,9 @@ void main() {
     test('validates a list key like a data key', () {
       expect(
         () => validateWidgetData(
-          _spec(const HWRow.builder('class', item: HWText.fixed('x'))),
+          _spec(
+            const HWRow.builder('class', item: HWText(HWString.fixed('x'))),
+          ),
         ),
         _throwsMessage(
           'Invalid data name "class" (list "class"): reserved keyword in '
@@ -2764,7 +2887,9 @@ void main() {
       );
       expect(
         () => validateWidgetData(
-          _spec(const HWRow.builder('my-list', item: HWText.fixed('x'))),
+          _spec(
+            const HWRow.builder('my-list', item: HWText(HWString.fixed('x'))),
+          ),
         ),
         _throwsMessage(
           'Invalid data name "my-list" (list "my-list"): use ASCII letters and '
@@ -2777,7 +2902,7 @@ void main() {
       for (final key in ['toJson', 'hashCode']) {
         expect(
           () => validateWidgetData(
-            _spec(HWRow.builder(key, item: const HWText.fixed('x'))),
+            _spec(HWRow.builder(key, item: const HWText(HWString.fixed('x')))),
           ),
           _throwsMessage(
             'Invalid data name "$key" (list "$key"): the generated data '
@@ -2789,7 +2914,9 @@ void main() {
 
       expect(
         () => validateWidgetData(
-          _spec(const HWRow.builder('forecast', item: HWText.fixed('x'))),
+          _spec(
+            const HWRow.builder('forecast', item: HWText(HWString.fixed('x'))),
+          ),
         ),
         returnsNormally,
       );
@@ -2879,7 +3006,7 @@ void main() {
             const HWColumn(
               children: [
                 HWText(HWString('forecast')),
-                HWRow.builder('forecast', item: HWText.fixed('x')),
+                HWRow.builder('forecast', item: HWText(HWString.fixed('x'))),
               ],
             ),
           ),
@@ -2902,7 +3029,10 @@ void main() {
               HWColumn(
                 children: [
                   HWText(field),
-                  const HWColumn.builder('forecast', item: HWText.fixed('x')),
+                  const HWColumn.builder(
+                    'forecast',
+                    item: HWText(HWString.fixed('x')),
+                  ),
                 ],
               ),
             ),
@@ -2923,7 +3053,7 @@ void main() {
             const HWColumn(
               children: [
                 HWText.number(HWTimedData(HWInt('score'))),
-                HWRow.builder('timedData', item: HWText.fixed('x')),
+                HWRow.builder('timedData', item: HWText(HWString.fixed('x'))),
               ],
             ),
           ),
@@ -2935,7 +3065,9 @@ void main() {
       );
       expect(
         () => validateWidgetData(
-          _spec(const HWRow.builder('timedData', item: HWText.fixed('x'))),
+          _spec(
+            const HWRow.builder('timedData', item: HWText(HWString.fixed('x'))),
+          ),
         ),
         returnsNormally,
       );
@@ -2969,8 +3101,8 @@ void main() {
           _spec(
             const HWColumn(
               children: [
-                HWRow.builder('forecast', item: HWText.fixed('x')),
-                HWRow.builder('Forecast', item: HWText.fixed('y')),
+                HWRow.builder('forecast', item: HWText(HWString.fixed('x'))),
+                HWRow.builder('Forecast', item: HWText(HWString.fixed('y'))),
               ],
             ),
           ),
@@ -3118,6 +3250,51 @@ void main() {
         ),
         returnsNormally,
       );
+    });
+
+    test('warns about an item preview instant the widget cannot read', () {
+      final mock = useMockLogger();
+      validateWidgetData(
+        _spec(
+          const HWRow.builder(
+            'forecast',
+            item: HWText.dateTime(
+              HWItemData(
+                HWDateTime('day', previewValue: '2026-09-20'),
+                previewValues: ['2026-09-21T12:00:00Z', '2026-09-22 12:00:00Z'],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(verify(() => mock.warn(captureAny())).captured, [
+        'Warning: Widget "T": HWDateTime("day") of list "forecast" has '
+            'previewValue "2026-09-20", which the widget cannot read, so the '
+            'preview shows no date. Write it as 2026-09-20T00:00:00Z.',
+        'Warning: Widget "T": previewValues[1] of HWItemData "day" in list '
+            '"forecast" is "2026-09-22 12:00:00Z", which the widget cannot '
+            'read, so the preview shows no date. Write it as '
+            '2026-09-22T12:00:00Z.',
+      ]);
+    });
+
+    test('stays quiet for item preview instants the widget reads', () {
+      final mock = useMockLogger();
+      validateWidgetData(
+        _spec(
+          const HWRow.builder(
+            'forecast',
+            item: HWText.dateTime(
+              HWItemData(
+                HWDateTime('day', previewValue: '2026-09-20T12:00:00+02:00'),
+                previewValues: ['2026-09-21T12:00:00Z', '2026-09-22T12:00:00'],
+              ),
+            ),
+          ),
+        ),
+      );
+      verifyNever(() => mock.warn(any()));
     });
 
     group('previewValues of different lengths', () {
@@ -3310,8 +3487,8 @@ void main() {
                     defaultTranslations: const {'en': 'Day'},
                   ),
                 ),
-                whenPresent: const HWText.fixed('present'),
-                whenAbsent: const HWText.fixed('absent'),
+                whenPresent: const HWText(HWString.fixed('present')),
+                whenAbsent: const HWText(HWString.fixed('absent')),
               ),
             ),
             localization: const HomeWidgetLocalization(

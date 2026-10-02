@@ -204,7 +204,7 @@ class HWDataExists extends HWConditional {
 
   @override
   Set<HWDataType<dynamic>> get dataDependencies => {
-        data,
+        ..._dataDependenciesOf([data]),
         ...super.dataDependencies,
       };
 
@@ -266,7 +266,8 @@ class HWBoolConditional extends HWConditional {
       throw GeneratorError('HWBoolConditional requires data');
       // coverage:ignore-end
     }
-    if (_boolDefaultValue(data) == null) {
+    // A fixed flag is left for the validator, which says why it is rejected.
+    if (!data.leaf.isFixed && _boolDefaultValue(data) == null) {
       // coverage:ignore-start
       throw GeneratorError(
         'HWBool must have a non-null defaultValue for HWBoolConditional',
@@ -296,28 +297,39 @@ class HWBoolConditional extends HWConditional {
 
   @override
   Set<HWDataType<dynamic>> get dataDependencies => {
-        data,
+        ..._dataDependenciesOf([data]),
         ...super.dataDependencies,
       };
 
   @override
   String conditionSwift({required String dataExpr}) {
-    if (_boolDefaultValue(data) == null) {
-      throw ArgumentError(
-        'HWBoolConditional requires a defaultValue to be set on its data type.',
-      );
-    }
+    _checkTestable();
     return '${data.swiftReadExpr(dataExpr)} == true';
   }
 
   @override
   String conditionKotlin({required String dataExpr}) {
+    _checkTestable();
+    return '${data.kotlinReadExpr(dataExpr)} == true';
+  }
+
+  /// Rejects a flag no condition can be emitted for: a fixed one, and a
+  /// stored one without a default.
+  void _checkTestable() {
+    final leaf = data.leaf;
+    if (leaf is HWBool && leaf.isFixed) {
+      throw GeneratorError(
+        'HWBoolConditional cannot test HWBool.fixed(${leaf.fixedValue}). A '
+        'fixed value never changes, so only one of the two branches is ever '
+        'rendered. Render that branch directly, or test a stored '
+        'HWBool("key").',
+      );
+    }
     if (_boolDefaultValue(data) == null) {
       throw ArgumentError(
         'HWBoolConditional requires a defaultValue to be set on its data type.',
       );
     }
-    return '${data.kotlinReadExpr(dataExpr)} == true';
   }
 
   static bool _isSupportedBoolData(HWDataType<dynamic> data) =>

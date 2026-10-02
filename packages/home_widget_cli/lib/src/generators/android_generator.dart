@@ -963,7 +963,7 @@ class AndroidGenerator {
         ...spec.jsonImageFields,
         ...spec.timedJsonImageFields,
       ])
-        if (!field.image.isAsset)
+        if (!field.image.isFixed)
           '$dataExpr.${field.rootKey}?.${field.path.join('?.')}',
     ];
     final lists = [

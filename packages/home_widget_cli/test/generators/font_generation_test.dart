@@ -123,8 +123,8 @@ void main() {
     test('the text calls the constant helper, which is in the file', () async {
       final swift = await generateSwift(
         _spec(
-          widget: const HWText.fixed(
-            'plain',
+          widget: const HWText(
+            HWString.fixed('plain'),
             style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20),
           ),
         ),
@@ -142,7 +142,7 @@ void main() {
 
     test('is left out of a widget that renders in the system font', () async {
       final swift = await generateSwift(
-        _spec(widget: const HWText.fixed('plain')),
+        _spec(widget: const HWText(HWString.fixed('plain'))),
       );
 
       expect(swift, isNot(contains('func hwFont(')));
@@ -152,8 +152,8 @@ void main() {
         () async {
       final swift = await generateSwift(
         _spec(
-          widget: const HWText.fixed(
-            'plain',
+          widget: const HWText(
+            HWString.fixed('plain'),
             style: HWTextStyle(fontFamily: 'Chewy'),
           ),
         ),
@@ -173,8 +173,8 @@ void main() {
     test('the text asks the core plugin for the family', () async {
       final kotlin = await generateKotlin(
         _spec(
-          widget: const HWText.fixed(
-            'plain',
+          widget: const HWText(
+            HWString.fixed('plain'),
             style: HWTextStyle(fontFamily: 'Chewy'),
           ),
         ),
@@ -191,8 +191,8 @@ void main() {
     test('the Swift-only font helpers leave no empty bodies behind', () async {
       final kotlin = await generateKotlin(
         _spec(
-          widget: const HWText.fixed(
-            'plain',
+          widget: const HWText(
+            HWString.fixed('plain'),
             style: HWTextStyle(fontFamily: 'Chewy'),
           ),
         ),
@@ -377,7 +377,7 @@ void main() {
     });
 
     test('is left out of a widget with no icon field', () async {
-      final spec = _spec(widget: const HWText.fixed('plain'));
+      final spec = _spec(widget: const HWText(HWString.fixed('plain')));
 
       expect(await generateKotlin(spec), isNot(contains('hwMirroredIcons')));
       expect(await generateSwift(spec), isNot(contains('hwMirroredIcons')));

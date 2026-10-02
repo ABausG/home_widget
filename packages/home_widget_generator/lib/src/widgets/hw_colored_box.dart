@@ -73,11 +73,13 @@ class HWColoredBox extends HWSingleChildWidget {
       // coverage:ignore-end
     }
 
-    return HWColoredBox(
-      child:
-          child ?? const HWText.fixed(''), // Fallback if no child is provided
-      color: color,
-    );
+    if (child == null) {
+      // coverage:ignore-start
+      throw GeneratorError('HWColoredBox requires a non-null child property');
+      // coverage:ignore-end
+    }
+
+    return HWColoredBox(child: child, color: color);
   }
 
   @override

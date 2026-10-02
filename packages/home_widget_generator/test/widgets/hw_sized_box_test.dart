@@ -65,7 +65,7 @@ void main() {
     group('iOS (SwiftUI)', () {
       test('a fixed width frames only that axis', () {
         expect(
-          const HWSizedBox(width: 80, child: HWText.fixed('a'))
+          const HWSizedBox(width: 80, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(width: 80.0, alignment: .topLeading)',
         );
@@ -73,7 +73,7 @@ void main() {
 
       test('a fixed height frames only that axis', () {
         expect(
-          const HWSizedBox(height: 40, child: HWText.fixed('a'))
+          const HWSizedBox(height: 40, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(height: 40.0, alignment: .topLeading)',
         );
@@ -81,8 +81,11 @@ void main() {
 
       test('both axes end up in one frame', () {
         expect(
-          const HWSizedBox(width: 80, height: 40.5, child: HWText.fixed('a'))
-              .toSwift(0, dataExpr: 'data'),
+          const HWSizedBox(
+            width: 80,
+            height: 40.5,
+            child: HWText(HWString.fixed('a')),
+          ).toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(width: 80.0, height: 40.5, '
           'alignment: .topLeading)',
         );
@@ -90,20 +93,24 @@ void main() {
 
       test('an infinite axis becomes a max frame', () {
         expect(
-          const HWSizedBox(width: double.infinity, child: HWText.fixed('a'))
-              .toSwift(0, dataExpr: 'data'),
+          const HWSizedBox(
+            width: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(maxWidth: .infinity, alignment: .topLeading)',
         );
         expect(
-          const HWSizedBox(height: double.infinity, child: HWText.fixed('a'))
-              .toSwift(0, dataExpr: 'data'),
+          const HWSizedBox(
+            height: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(maxHeight: .infinity, alignment: .topLeading)',
         );
       });
 
       test('expand asks for both axes in one frame', () {
         expect(
-          const HWSizedBox.expand(child: HWText.fixed('a'))
+          const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .topLeading)',
@@ -115,7 +122,7 @@ void main() {
           const HWSizedBox(
             width: 80,
             height: double.infinity,
-            child: HWText.fixed('a'),
+            child: HWText(HWString.fixed('a')),
           ).toSwift(0, dataExpr: 'data'),
           'Text("a")\n'
           '.frame(width: 80.0, alignment: .topLeading)\n'
@@ -125,13 +132,13 @@ void main() {
 
       test('shrink frames the child to nothing and cuts it off', () {
         expect(
-          const HWSizedBox.shrink(child: HWText.fixed('a'))
+          const HWSizedBox.shrink(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(width: 0.0, height: 0.0, alignment: .topLeading)'
           '\n.clipped()',
         );
         expect(
-          const HWSizedBox(width: 0, child: HWText.fixed('a'))
+          const HWSizedBox(width: 0, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           'Text("a")\n.frame(width: 0.0, alignment: .topLeading)\n.clipped()',
         );
@@ -141,7 +148,7 @@ void main() {
         expect(
           const HWSizedBox.expand(
             child: HWColumn(
-              children: [HWText.fixed('a')],
+              children: [HWText(HWString.fixed('a'))],
               crossAxisAlignment: HWCrossAxisAlignment.center,
               mainAxisAlignment: HWMainAxisAlignment.center,
             ),
@@ -154,7 +161,7 @@ void main() {
         expect(
           const HWSizedBox.expand(
             child: HWColumn(
-              children: [HWText.fixed('a')],
+              children: [HWText(HWString.fixed('a'))],
               crossAxisAlignment: HWCrossAxisAlignment.end,
             ),
           ).toSwift(0, dataExpr: 'data'),
@@ -163,7 +170,7 @@ void main() {
         expect(
           const HWSizedBox.expand(
             child: HWRow(
-              children: [HWText.fixed('a')],
+              children: [HWText(HWString.fixed('a'))],
               crossAxisAlignment: HWCrossAxisAlignment.center,
             ),
           ).toSwift(0, dataExpr: 'data'),
@@ -195,7 +202,7 @@ void main() {
           const HWSizedBox.expand(
             child: HWPadding(
               padding: HWEdgeInsets.all(4),
-              child: HWColumn(children: [HWText.fixed('a')]),
+              child: HWColumn(children: [HWText(HWString.fixed('a'))]),
             ),
           ).toSwift(0, dataExpr: 'data'),
           endsWith('alignment: .top)'),
@@ -205,7 +212,7 @@ void main() {
             width: 8,
             child: HWSizedBox(
               child: HWColumn(
-                children: [HWText.fixed('a')],
+                children: [HWText(HWString.fixed('a'))],
                 crossAxisAlignment: HWCrossAxisAlignment.center,
               ),
             ),
@@ -220,8 +227,8 @@ void main() {
           const HWSizedBox.expand(
             child: HWDataExists(
               data: HWBool('flag'),
-              whenPresent: HWColumn(children: [HWText.fixed('on')]),
-              whenAbsent: HWText.fixed('off'),
+              whenPresent: HWColumn(children: [HWText(HWString.fixed('on'))]),
+              whenAbsent: HWText(HWString.fixed('off')),
             ),
           ).toSwift(0, dataExpr: 'data'),
           endsWith('alignment: .topLeading)'),
@@ -256,7 +263,7 @@ void main() {
             height: 40,
             child: HWPadding(
               padding: HWEdgeInsets.all(4),
-              child: HWStack(children: [HWText.fixed('a')]),
+              child: HWStack(children: [HWText(HWString.fixed('a'))]),
             ),
           ).toSwift(0, dataExpr: 'data'),
           endsWith(
@@ -267,7 +274,7 @@ void main() {
       });
 
       group('a child picked at runtime', () {
-        const stack = HWStack(children: [HWText.fixed('a')]);
+        const stack = HWStack(children: [HWText(HWString.fixed('a'))]);
         const bordered = HWDecoratedBox(
           decoration: HWBoxDecoration(
             border: HWBoxBorder(
@@ -275,7 +282,7 @@ void main() {
               color: HWColor.fixed(0xFF000000),
             ),
           ),
-          child: HWText.fixed('b'),
+          child: HWText(HWString.fixed('b')),
         );
         const frame =
             '.frame(width: 64.0, height: 64.0, alignment: .topLeading)';
@@ -290,7 +297,7 @@ void main() {
               const HWBoolConditional(
                 data: HWBool('flag', defaultValue: false),
                 whenTrue: stack,
-                whenFalse: HWText.fixed('b'),
+                whenFalse: HWText(HWString.fixed('b')),
               ),
             ),
             endsWith('$frame\n.clipped()'),
@@ -337,7 +344,7 @@ void main() {
                 color: HWColor.fixed(0xFF000000),
               ),
             ),
-            child: HWStack(children: [HWText.fixed('a')]),
+            child: HWStack(children: [HWText(HWString.fixed('a'))]),
           ),
         ).toSwift(0, dataExpr: 'data');
         expect(
@@ -374,7 +381,7 @@ void main() {
               width: double.infinity,
               child: HWDecoratedBox(
                 decoration: rounded,
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toSwift(0, dataExpr: 'data'),
             'Text("a")\n$wide\n$fill\n$stroke',
@@ -386,14 +393,14 @@ void main() {
             decoration: rounded,
             child: HWSizedBox(
               width: double.infinity,
-              child: HWText.fixed('a'),
+              child: HWText(HWString.fixed('a')),
             ),
           );
           const outside = HWSizedBox(
             width: double.infinity,
             child: HWDecoratedBox(
               decoration: rounded,
-              child: HWText.fixed('a'),
+              child: HWText(HWString.fixed('a')),
             ),
           );
           for (final stack in [
@@ -418,7 +425,7 @@ void main() {
               height: 40,
               child: HWColoredBox(
                 color: HWColor.fixed(0xFF3366FF),
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toSwift(0, dataExpr: 'data'),
             'Text("a")\n'
@@ -435,7 +442,7 @@ void main() {
                 color: HWColor.fixed(0xFF000000),
                 child: HWDecoratedBox(
                   decoration: rounded,
-                  child: HWText.fixed('a'),
+                  child: HWText(HWString.fixed('a')),
                 ),
               ),
             ).toSwift(0, dataExpr: 'data'),
@@ -454,7 +461,7 @@ void main() {
               color: HWColor.fixed(0xFF3366FF),
               borderRadius: HWBorderRadius.circular(16),
             ),
-            child: HWText.fixed('a'),
+            child: HWText(HWString.fixed('a')),
           );
 
           test('is framed inside the padding along an infinite axis', () {
@@ -525,7 +532,7 @@ void main() {
                 width: 80,
                 child: HWPadding(
                   padding: HWEdgeInsets.all(8),
-                  child: HWText.fixed('a'),
+                  child: HWText(HWString.fixed('a')),
                 ),
               ).toSwift(0, dataExpr: 'data'),
               'Text("a")\n$pad8\n.frame(width: 80.0, alignment: .topLeading)',
@@ -551,7 +558,7 @@ void main() {
       test('an infinite axis is no bound to cut the child off at', () {
         final result = const HWSizedBox(
           width: double.infinity,
-          child: HWStack(children: [HWText.fixed('a')]),
+          child: HWStack(children: [HWText(HWString.fixed('a'))]),
         ).toSwift(0, dataExpr: 'data');
         expect(
           result,
@@ -563,19 +570,19 @@ void main() {
       test('a box sized to zero around such a child clips once', () {
         final result = const HWSizedBox(
           width: 0,
-          child: HWStack(children: [HWText.fixed('a')]),
+          child: HWStack(children: [HWText(HWString.fixed('a'))]),
         ).toSwift(0, dataExpr: 'data');
         expect('.clipped()'.allMatches(result), hasLength(2));
       });
 
       test('a box with room for its child does not clip', () {
         expect(
-          const HWSizedBox(width: 80, child: HWText.fixed('a'))
+          const HWSizedBox(width: 80, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           isNot(contains('.clipped()')),
         );
         expect(
-          const HWSizedBox.expand(child: HWText.fixed('a'))
+          const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           isNot(contains('.clipped()')),
         );
@@ -583,7 +590,7 @@ void main() {
 
       test('a box without a dimension leaves the child alone', () {
         expect(
-          const HWSizedBox(child: HWText.fixed('a'))
+          const HWSizedBox(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
           'Text("a")',
         );
@@ -640,7 +647,7 @@ void main() {
             children: [
               HWBoolConditional(
                 data: HWBool('flag', defaultValue: false),
-                whenTrue: HWText.fixed('on'),
+                whenTrue: HWText(HWString.fixed('on')),
                 whenFalse: HWSizedBox.shrink(),
               ),
             ],
@@ -657,7 +664,7 @@ void main() {
 
       test('respects the indent it is emitted at', () {
         expect(
-          const HWSizedBox(width: 8, child: HWText.fixed('a'))
+          const HWSizedBox(width: 8, child: HWText(HWString.fixed('a')))
               .toSwift(1, dataExpr: 'data'),
           '    Text("a")\n    .frame(width: 8.0, alignment: .topLeading)',
         );
@@ -671,8 +678,8 @@ void main() {
         const box = HWSizedBox.expand(
           child: HWDataExists(
             data: HWBool('flag'),
-            whenPresent: HWText.fixed('on'),
-            whenAbsent: HWText.fixed('off'),
+            whenPresent: HWText(HWString.fixed('on')),
+            whenAbsent: HWText(HWString.fixed('off')),
           ),
         );
         final result = box.toSwift(0, dataExpr: 'data');
@@ -691,20 +698,23 @@ void main() {
     group('Android (Glance)', () {
       test('a fixed dimension becomes width/height in dp', () {
         expect(
-          const HWSizedBox(width: 80, child: HWText.fixed('a'))
+          const HWSizedBox(width: 80, child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data'),
           'Text(modifier = GlanceModifier.width(80.0.dp), text = "a", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         );
         expect(
-          const HWSizedBox(height: 40, child: HWText.fixed('a'))
+          const HWSizedBox(height: 40, child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data'),
           'Text(modifier = GlanceModifier.height(40.0.dp), text = "a", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         );
         expect(
-          const HWSizedBox(width: 80, height: 40, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data'),
+          const HWSizedBox(
+            width: 80,
+            height: 40,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data'),
           'Text(modifier = GlanceModifier.width(80.0.dp).height(40.0.dp), '
           'text = "a", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
@@ -713,17 +723,21 @@ void main() {
 
       test('an infinite axis fills outside a linear layout', () {
         expect(
-          const HWSizedBox(width: double.infinity, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data'),
+          const HWSizedBox(
+            width: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data'),
           contains('GlanceModifier.fillMaxWidth()'),
         );
         expect(
-          const HWSizedBox(height: double.infinity, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data'),
+          const HWSizedBox(
+            height: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data'),
           contains('GlanceModifier.fillMaxHeight()'),
         );
         expect(
-          const HWSizedBox.expand(child: HWText.fixed('a'))
+          const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data'),
           'Text(modifier = GlanceModifier.fillMaxSize(), text = "a", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
@@ -732,17 +746,21 @@ void main() {
 
       test('the main axis of an enclosing Row is taken by weight', () {
         expect(
-          const HWSizedBox(width: double.infinity, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data', context: inRow),
+          const HWSizedBox(
+            width: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data', context: inRow),
           contains('GlanceModifier.defaultWeight()'),
         );
         expect(
-          const HWSizedBox(height: double.infinity, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data', context: inRow),
+          const HWSizedBox(
+            height: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data', context: inRow),
           contains('GlanceModifier.fillMaxHeight()'),
         );
         expect(
-          const HWSizedBox.expand(child: HWText.fixed('a'))
+          const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data', context: inRow),
           contains('GlanceModifier.defaultWeight().fillMaxHeight()'),
         );
@@ -750,17 +768,21 @@ void main() {
 
       test('the main axis of an enclosing Column is taken by weight', () {
         expect(
-          const HWSizedBox(height: double.infinity, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data', context: inColumn),
+          const HWSizedBox(
+            height: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data', context: inColumn),
           contains('GlanceModifier.defaultWeight()'),
         );
         expect(
-          const HWSizedBox(width: double.infinity, child: HWText.fixed('a'))
-              .toKotlin(0, dataExpr: 'data', context: inColumn),
+          const HWSizedBox(
+            width: double.infinity,
+            child: HWText(HWString.fixed('a')),
+          ).toKotlin(0, dataExpr: 'data', context: inColumn),
           contains('GlanceModifier.fillMaxWidth()'),
         );
         expect(
-          const HWSizedBox.expand(child: HWText.fixed('a'))
+          const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data', context: inColumn),
           contains('GlanceModifier.fillMaxWidth().defaultWeight()'),
         );
@@ -769,7 +791,7 @@ void main() {
       test('a weight takes over the fill the child asked for', () {
         const box = HWSizedBox.expand(
           child: HWColumn(
-            children: [HWText.fixed('a')],
+            children: [HWText(HWString.fixed('a'))],
             mainAxisAlignment: HWMainAxisAlignment.center,
           ),
         );
@@ -787,14 +809,14 @@ void main() {
         expect(
           const HWSizedBox(
             width: 80,
-            child: HWSizedBox.expand(child: HWText.fixed('a')),
+            child: HWSizedBox.expand(child: HWText(HWString.fixed('a'))),
           ).toKotlin(0, dataExpr: 'data'),
           contains('GlanceModifier.width(80.0.dp).fillMaxHeight()'),
         );
 
         final nested = const HWSizedBox(
           width: 80,
-          child: HWSizedBox(width: 100, child: HWText.fixed('a')),
+          child: HWSizedBox(width: 100, child: HWText(HWString.fixed('a'))),
         ).toKotlin(0, dataExpr: 'data');
         expect(nested, contains('width(80.0.dp)'));
         expect(nested, isNot(contains('width(100.0.dp)')));
@@ -803,7 +825,7 @@ void main() {
           width: 80,
           child: HWColoredBox(
             color: HWColor.fixed(0xFF0000FF),
-            child: HWSizedBox.expand(child: HWText.fixed('a')),
+            child: HWSizedBox.expand(child: HWText(HWString.fixed('a'))),
           ),
         ).toKotlin(0, dataExpr: 'data');
         expect(colored, contains('GlanceModifier.width(80.0.dp).background('));
@@ -828,7 +850,7 @@ void main() {
         expect(
           const HWSizedBox(
             width: double.infinity,
-            child: HWSizedBox.expand(child: HWText.fixed('a')),
+            child: HWSizedBox.expand(child: HWText(HWString.fixed('a'))),
           ).toKotlin(0, dataExpr: 'data', context: inRow),
           contains('GlanceModifier.defaultWeight().fillMaxHeight(),'),
         );
@@ -866,14 +888,14 @@ void main() {
           width: double.infinity,
           child: HWDecoratedBox(
             decoration: rounded,
-            child: HWText.fixed('a'),
+            child: HWText(HWString.fixed('a')),
           ),
         );
         const inside = HWDecoratedBox(
           decoration: rounded,
           child: HWSizedBox(
             width: double.infinity,
-            child: HWText.fixed('a'),
+            child: HWText(HWString.fixed('a')),
           ),
         );
 
@@ -920,7 +942,7 @@ void main() {
           }
           for (final box in const <HWWidget>[outside, inside]) {
             expect(
-              HWRow(children: [box, const HWText.fixed('b')])
+              HWRow(children: [box, const HWText(HWString.fixed('b'))])
                   .toKotlin(0, dataExpr: 'data'),
               contains('    Box(\n'
                   '        modifier = GlanceModifier.defaultWeight().'),
@@ -935,7 +957,7 @@ void main() {
               height: 40,
               child: HWDecoratedBox(
                 decoration: rounded,
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toKotlin(0, dataExpr: 'data'),
             card('width(80.0.dp).height(40.0.dp).', 'fillMaxSize()'),
@@ -948,7 +970,7 @@ void main() {
               width: 80,
               child: HWDecoratedBox(
                 decoration: rounded,
-                child: HWSizedBox.expand(child: HWText.fixed('a')),
+                child: HWSizedBox.expand(child: HWText(HWString.fixed('a'))),
               ),
             ).toKotlin(0, dataExpr: 'data', context: inColumn),
             startsWith(
@@ -967,7 +989,7 @@ void main() {
                   color: HWColor.fixed(0xFF3366FF),
                   child: HWDecoratedBox(
                     decoration: rounded,
-                    child: HWText.fixed('a'),
+                    child: HWText(HWString.fixed('a')),
                   ),
                 ),
               ),
@@ -997,7 +1019,7 @@ void main() {
                     color: HWColor.fixed(0xFF000000),
                   ),
                 ),
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toKotlin(0, dataExpr: 'data', context: inRow),
             'Box(\n'
@@ -1014,12 +1036,12 @@ void main() {
             const HWSizedBox(
               child: HWDecoratedBox(
                 decoration: rounded,
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toKotlin(0, dataExpr: 'data'),
             const HWDecoratedBox(
               decoration: rounded,
-              child: HWText.fixed('a'),
+              child: HWText(HWString.fixed('a')),
             ).toKotlin(0, dataExpr: 'data'),
           );
         });
@@ -1037,7 +1059,7 @@ void main() {
             color: HWColor.fixed(0xFF3366FF),
             borderRadius: HWBorderRadius.circular(16),
           ),
-          child: HWText.fixed('a'),
+          child: HWText(HWString.fixed('a')),
         );
         const wide = HWSizedBox(
           width: double.infinity,
@@ -1075,7 +1097,7 @@ void main() {
         test('takes a weight along a row', () {
           expect(wide.kotlinRoomIn(HWAxis.horizontal).weight, isTrue);
           expect(
-            const HWRow(children: [wide, HWText.fixed('b')])
+            const HWRow(children: [wide, HWText(HWString.fixed('b'))])
                 .toKotlin(0, dataExpr: 'data'),
             contains(
               padded('defaultWeight().', 'fillMaxWidth()', indent: '    '),
@@ -1131,7 +1153,7 @@ void main() {
               width: 80,
               child: HWPadding(
                 padding: HWEdgeInsets.all(8),
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ).toKotlin(0, dataExpr: 'data'),
             'Text(modifier = GlanceModifier.width(80.0.dp).$pad, $text',
@@ -1149,7 +1171,7 @@ void main() {
                 padding: HWEdgeInsets.all(8),
                 child: HWSizedBox(
                   width: double.infinity,
-                  child: HWText.fixed('a'),
+                  child: HWText(HWString.fixed('a')),
                 ),
               ),
             ).toKotlin(0, dataExpr: 'data', context: inRow),
@@ -1164,7 +1186,7 @@ void main() {
             width: double.infinity,
             child: HWDecoratedBox(
               decoration: HWBoxDecoration(color: HWColor.fixed(0xFF3366FF)),
-              child: HWText.fixed('a'),
+              child: HWText(HWString.fixed('a')),
             ),
           ).toKotlin(0, dataExpr: 'data', context: inRow),
           'Text(modifier = GlanceModifier.defaultWeight()'
@@ -1176,7 +1198,7 @@ void main() {
 
       test('shrink sizes both axes to zero', () {
         expect(
-          const HWSizedBox.shrink(child: HWText.fixed('a'))
+          const HWSizedBox.shrink(child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data'),
           contains('GlanceModifier.width(0.0.dp).height(0.0.dp)'),
         );
@@ -1184,7 +1206,7 @@ void main() {
 
       test('a box without a dimension leaves the child alone', () {
         expect(
-          const HWSizedBox(child: HWText.fixed('a'))
+          const HWSizedBox(child: HWText(HWString.fixed('a')))
               .toKotlin(0, dataExpr: 'data'),
           'Text(text = "a", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
@@ -1239,7 +1261,8 @@ void main() {
 
       test('kotlinImports follow what is emitted', () {
         expect(
-          const HWSizedBox(width: 8, child: HWText.fixed('a')).kotlinImports,
+          const HWSizedBox(width: 8, child: HWText(HWString.fixed('a')))
+              .kotlinImports,
           containsAll(<String>[
             'import androidx.glance.GlanceModifier',
             'import androidx.glance.layout.width',
@@ -1248,7 +1271,8 @@ void main() {
           ]),
         );
         expect(
-          const HWSizedBox.expand(child: HWText.fixed('a')).kotlinImports,
+          const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
+              .kotlinImports,
           contains('import androidx.glance.layout.fillMaxSize'),
         );
         expect(
@@ -1259,7 +1283,7 @@ void main() {
           ),
         );
         expect(
-          const HWSizedBox(child: HWText.fixed('a')).kotlinImports,
+          const HWSizedBox(child: HWText(HWString.fixed('a'))).kotlinImports,
           isNot(contains('import androidx.glance.GlanceModifier')),
         );
       });
@@ -1268,11 +1292,11 @@ void main() {
         const column = HWColumn(
           spacing: 8,
           children: [
-            HWText.fixed('a'),
+            HWText(HWString.fixed('a')),
             HWSizedBox.expand(
               child: HWDataExists(
                 data: HWString('flag'),
-                whenPresent: HWText.fixed('on'),
+                whenPresent: HWText(HWString.fixed('on')),
                 whenAbsent: HWImage(HWImageData('avatar')),
               ),
             ),
@@ -1289,8 +1313,10 @@ void main() {
       });
 
       test('an axis left open asks for the room the child asks for there', () {
-        const box =
-            HWSizedBox(width: 50, child: HWAlign(child: HWText.fixed('b')));
+        const box = HWSizedBox(
+          width: 50,
+          child: HWAlign(child: HWText(HWString.fixed('b'))),
+        );
         expect(box.kotlinRoomIn(HWAxis.horizontal).modifiers, [
           'fillMaxHeight()',
         ]);
@@ -1302,7 +1328,7 @@ void main() {
           const HWSizedBox(
             width: 50,
             height: 20,
-            child: HWAlign(child: HWText.fixed('b')),
+            child: HWAlign(child: HWText(HWString.fixed('b'))),
           ).kotlinRoomIn(HWAxis.vertical).modifiers,
           isEmpty,
         );
@@ -1312,12 +1338,12 @@ void main() {
         expect(
           const HWRow(
             children: [
-              HWText.fixed('a'),
+              HWText(HWString.fixed('a')),
               HWStack(
                 children: [
                   HWSizedBox(
                     width: 50,
-                    child: HWAlign(child: HWText.fixed('b')),
+                    child: HWAlign(child: HWText(HWString.fixed('b'))),
                   ),
                 ],
               ),
@@ -1335,8 +1361,11 @@ void main() {
           const HWColumn(
             spacing: 8,
             children: [
-              HWText.fixed('a'),
-              HWSizedBox(width: 50, child: HWAlign(child: HWText.fixed('b'))),
+              HWText(HWString.fixed('a')),
+              HWSizedBox(
+                width: 50,
+                child: HWAlign(child: HWText(HWString.fixed('b'))),
+              ),
             ],
           ).toKotlin(0, dataExpr: 'data'),
           contains(
@@ -1347,7 +1376,7 @@ void main() {
       });
 
       test('kotlinImportsIn swaps the fill for a weight', () {
-        const box = HWSizedBox.expand(child: HWText.fixed('a'));
+        const box = HWSizedBox.expand(child: HWText(HWString.fixed('a')));
         expect(
           box.kotlinImportsIn(HWAxis.horizontal),
           allOf(
@@ -1368,7 +1397,7 @@ void main() {
 
     group('emit context', () {
       const row = HWRow(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
 
@@ -1376,7 +1405,7 @@ void main() {
         const node = HWRow(
           children: [
             HWSizedBox(width: 100, child: row),
-            HWText.fixed('b'),
+            HWText(HWString.fixed('b')),
           ],
         );
         // The inner row asks for its width as a fill rather than a weight, and
@@ -1398,7 +1427,7 @@ void main() {
         const node = HWRow(
           children: [
             HWSizedBox(height: 40, child: row),
-            HWText.fixed('b'),
+            HWText(HWString.fixed('b')),
           ],
         );
         expect(
@@ -1416,7 +1445,8 @@ void main() {
     });
 
     group('baseline', () {
-      const text = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
+      const text =
+          HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21));
 
       test('a box without a height keeps the child baseline text', () {
         expect(
@@ -1478,14 +1508,16 @@ void main() {
           'opacity: 1.0))';
       const wide = '.frame(maxWidth: .infinity, alignment: .topLeading)';
       const text = 'style = TextStyle(color = GlanceTheme.colors.onSurface))';
-      const blueA = HWColoredBox(color: blue, child: HWText.fixed('a'));
-      const blackB = HWColoredBox(color: black, child: HWText.fixed('b'));
+      const blueA =
+          HWColoredBox(color: blue, child: HWText(HWString.fixed('a')));
+      const blackB =
+          HWColoredBox(color: black, child: HWText(HWString.fixed('b')));
       const bordered = HWDecoratedBox(
         decoration: HWBoxDecoration(
           color: blue,
           border: HWBoxBorder(thickness: 1, color: black),
         ),
-        child: HWText.fixed('a'),
+        child: HWText(HWString.fixed('a')),
       );
 
       group('through a widget picked at runtime', () {
@@ -1532,7 +1564,7 @@ if data.flag == true {
               child: HWDataExists(
                 data: HWString('title'),
                 whenPresent: blueA,
-                whenAbsent: HWText.fixed('none'),
+                whenAbsent: HWText(HWString.fixed('none')),
               ),
             ).toSwift(0, dataExpr: 'data'),
             contains('} else {\n    Text("none")\n    $wide\n}'),
@@ -1545,8 +1577,8 @@ if data.flag == true {
               width: double.infinity,
               child: HWBoolConditional(
                 data: HWBool('flag', defaultValue: false),
-                whenTrue: HWText.fixed('a'),
-                whenFalse: HWText.fixed('b'),
+                whenTrue: HWText(HWString.fixed('a')),
+                whenFalse: HWText(HWString.fixed('b')),
               ),
             ).toSwift(0, dataExpr: 'data'),
             allOf(startsWith('Group {\n'), endsWith('}\n$wide')),
@@ -1556,7 +1588,10 @@ if data.flag == true {
         test('frames every slot of a size adaptive', () {
           final swift = const HWSizedBox(
             width: double.infinity,
-            child: HWSizeAdaptive(small: blueA, large: HWText.fixed('b')),
+            child: HWSizeAdaptive(
+              small: blueA,
+              large: HWText(HWString.fixed('b')),
+            ),
           ).toSwift(0, dataExpr: 'data');
           expect(swift, contains('    Text("a")\n    $wide\n    $swiftBlue\n'));
           expect(swift, contains('    Text("b")\n    $wide\n'));
@@ -1567,21 +1602,24 @@ if data.flag == true {
           expect(
             const HWSizedBox(
               width: double.infinity,
-              child: HWAdaptive(ios: blueA, android: HWText.fixed('b')),
+              child:
+                  HWAdaptive(ios: blueA, android: HWText(HWString.fixed('b'))),
             ).toSwift(0, dataExpr: 'data'),
             'Text("a")\n$wide\n$swiftBlue',
           );
           expect(
             const HWSizedBox(
               width: double.infinity,
-              child: HWAdaptive(ios: HWText.fixed('a'), android: blueA),
+              child:
+                  HWAdaptive(ios: HWText(HWString.fixed('a')), android: blueA),
             ).toSwift(0, dataExpr: 'data'),
             'Text("a")\n$wide',
           );
           expect(
             const HWSizedBox(
               width: double.infinity,
-              child: HWAdaptive(ios: HWText.fixed('a'), android: blueA),
+              child:
+                  HWAdaptive(ios: HWText(HWString.fixed('a')), android: blueA),
             ).toKotlin(0, dataExpr: 'data'),
             startsWith('Text(modifier = GlanceModifier.fillMaxWidth()'
                 '.background('),
@@ -1680,7 +1718,7 @@ if data.flag == true {
               width: 40,
               child: HWDecoratedBox(
                 decoration: HWBoxDecoration(),
-                child: HWText.fixed('a'),
+                child: HWText(HWString.fixed('a')),
               ),
             ),
           ).toKotlin(0, dataExpr: 'data'),

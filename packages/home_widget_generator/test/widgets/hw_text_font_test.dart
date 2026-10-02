@@ -143,15 +143,16 @@ void main() {
 
     test('iOS calls the generated font switch instead of .system', () {
       expect(
-        const HWText.fixed('Hello', style: style).toSwift(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hello'), style: style)
+            .toSwift(0, dataExpr: 'data'),
         'Text("Hello")\n'
         '    .font(hwFont("Chewy", 400, false, 16))',
       );
     });
 
     test('iOS bakes weight and slant into the file rather than the view', () {
-      final swift = const HWText.fixed(
-        'Hello',
+      final swift = const HWText(
+        HWString.fixed('Hello'),
         style: HWTextStyle(
           fontFamily: 'Chewy',
           fontWeight: HWFontWeight.bold,
@@ -170,8 +171,8 @@ void main() {
 
     test('iOS namespaces a package family the way Flutter does', () {
       expect(
-        const HWText.fixed(
-          'Hello',
+        const HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(fontFamily: 'Chewy', package: 'my_fonts'),
         ).toSwift(0, dataExpr: 'data'),
         contains('.font(hwFont("packages/my_fonts/Chewy", 400, false, 16))'),
@@ -180,7 +181,8 @@ void main() {
 
     test('Android draws the glyphs into a tinted bitmap', () {
       expect(
-        const HWText.fixed('Hello', style: style).toKotlin(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hello'), style: style)
+            .toKotlin(0, dataExpr: 'data'),
         'Image(\n'
         '    modifier = GlanceModifier,\n'
         '    provider = ImageProvider(\n'
@@ -206,8 +208,8 @@ void main() {
 
     test('Android carries slant, decorations, alignment and colour', () {
       expect(
-        const HWText.fixed(
-          'Hello',
+        const HWText(
+          HWString.fixed('Hello'),
           textAlign: HWTextAlign.center,
           style: HWTextStyle(
             fontFamily: 'Chewy',
@@ -248,8 +250,8 @@ void main() {
 
     test('the slant only picks the file', () {
       const italic = HWTextStyle(fontFamily: 'Chewy', italic: true);
-      final kotlin =
-          const HWText.fixed('Hello', style: italic).toKotlin(0, dataExpr: 'd');
+      final kotlin = const HWText(HWString.fixed('Hello'), style: italic)
+          .toKotlin(0, dataExpr: 'd');
       expect(
         kotlin,
         contains('HomeWidgetFonts.typeface(context, "Chewy", 400, true)'),
@@ -272,14 +274,15 @@ void main() {
 
     test('Android keeps the indentation of its level', () {
       expect(
-        const HWText.fixed('Hello', style: style).toKotlin(2, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hello'), style: style)
+            .toKotlin(2, dataExpr: 'data'),
         startsWith('        Image(\n            modifier = GlanceModifier,'),
       );
     });
 
     test('imports the bitmap image instead of the Glance text', () {
-      final imports = const HWText.fixed(
-        'Hello',
+      final imports = const HWText(
+        HWString.fixed('Hello'),
         textAlign: HWTextAlign.center,
         style: style,
       ).kotlinImports;
@@ -324,7 +327,7 @@ void main() {
 
     test('leaves out the text alignment import when nothing aligns', () {
       expect(
-        const HWText.fixed('Hello', style: style).kotlinImports,
+        const HWText(HWString.fixed('Hello'), style: style).kotlinImports,
         isNot(contains('import androidx.glance.text.TextAlign')),
       );
     });
@@ -354,7 +357,8 @@ void main() {
     test('takes an injected modifier at depth', () {
       expect(
         injectGlanceModifier(
-          const HWText.fixed('Hello', style: style).toKotlin(2, dataExpr: 'd'),
+          const HWText(HWString.fixed('Hello'), style: style)
+              .toKotlin(2, dataExpr: 'd'),
           'fillMaxWidth()',
         ),
         startsWith(
@@ -365,7 +369,8 @@ void main() {
     });
 
     test('a text in the platform font is untouched', () {
-      const plain = HWText.fixed('Hello', style: HWTextStyle(fontSize: 16));
+      const plain =
+          HWText(HWString.fixed('Hello'), style: HWTextStyle(fontSize: 16));
       expect(
         plain.toKotlin(0, dataExpr: 'data'),
         'Text(text = "Hello", style = TextStyle('
@@ -384,7 +389,7 @@ void main() {
 
   group('the room a bitmap text is drawn in', () {
     const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 16);
-    const text = HWText.fixed('Hello', style: style);
+    const text = HWText(HWString.fixed('Hello'), style: style);
 
     test('is looked up under one key against the size composed against', () {
       final kotlin = text.toKotlin(0, dataExpr: 'data');
@@ -446,7 +451,7 @@ void main() {
     });
 
     test('is keyed apart from the room another text asks for', () {
-      const other = HWText.fixed('Goodbye', style: style);
+      const other = HWText(HWString.fixed('Goodbye'), style: style);
 
       expect(
         _boundsKeysIn(text.toKotlin(0, dataExpr: 'data')),
@@ -464,57 +469,57 @@ void main() {
 
     test('tells the size and the decorations of a text apart', () {
       const keyed = <String, HWText>{
-        'plain': HWText.fixed('Hello', style: style),
-        'larger': HWText.fixed(
-          'Hello',
+        'plain': HWText(HWString.fixed('Hello'), style: style),
+        'larger': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(fontFamily: 'Chewy', fontSize: 24),
         ),
-        'other family': HWText.fixed(
-          'Hello',
+        'other family': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(fontFamily: 'Roboto Mono', fontSize: 16),
         ),
-        'packaged': HWText.fixed(
-          'Hello',
+        'packaged': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(
             fontFamily: 'Chewy',
             package: 'my_fonts',
             fontSize: 16,
           ),
         ),
-        'bold': HWText.fixed(
-          'Hello',
+        'bold': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(
             fontFamily: 'Chewy',
             fontSize: 16,
             fontWeight: HWFontWeight.bold,
           ),
         ),
-        'italic': HWText.fixed(
-          'Hello',
+        'italic': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(
             fontFamily: 'Chewy',
             fontSize: 16,
             italic: true,
           ),
         ),
-        'underlined': HWText.fixed(
-          'Hello',
+        'underlined': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(
             fontFamily: 'Chewy',
             fontSize: 16,
             underline: true,
           ),
         ),
-        'struck through': HWText.fixed(
-          'Hello',
+        'struck through': HWText(
+          HWString.fixed('Hello'),
           style: HWTextStyle(
             fontFamily: 'Chewy',
             fontSize: 16,
             lineThrough: true,
           ),
         ),
-        'centered': HWText.fixed(
-          'Hello',
+        'centered': HWText(
+          HWString.fixed('Hello'),
           style: style,
           textAlign: HWTextAlign.center,
         ),
@@ -531,8 +536,8 @@ void main() {
 
     test('is keyed by the expression the text is read out of, not its tint',
         () {
-      const tinted = HWText.fixed(
-        'Hello',
+      const tinted = HWText(
+        HWString.fixed('Hello'),
         style: HWTextStyle(
           fontFamily: 'Chewy',
           fontSize: 16,
@@ -603,7 +608,7 @@ void main() {
       final outside = hint.toKotlin(0, dataExpr: 'data');
       final whenEmpty = const HWRow.builder(
         'events',
-        item: HWText.fixed('event'),
+        item: HWText(HWString.fixed('event')),
         whenEmpty: hint,
       ).toKotlin(0, dataExpr: 'data');
 
@@ -623,8 +628,11 @@ void main() {
 
     test('fills the width it has so an end aligned line can move', () {
       expect(
-        const HWText.fixed('Hello', style: style, textAlign: HWTextAlign.end)
-            .toKotlin(0, dataExpr: 'data'),
+        const HWText(
+          HWString.fixed('Hello'),
+          style: style,
+          textAlign: HWTextAlign.end,
+        ).toKotlin(0, dataExpr: 'data'),
         contains('fillWidth = true,'),
       );
     });
@@ -632,14 +640,15 @@ void main() {
     test('keeps the tight crop for a start aligned line', () {
       for (final align in [HWTextAlign.start, HWTextAlign.justify]) {
         expect(
-          HWText.fixed('Hello', style: style, textAlign: align)
+          HWText(HWString.fixed('Hello'), style: style, textAlign: align)
               .toKotlin(0, dataExpr: 'data'),
           isNot(contains('fillWidth')),
           reason: '$align',
         );
       }
       expect(
-        const HWText.fixed('Hello', style: style).toKotlin(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hello'), style: style)
+            .toKotlin(0, dataExpr: 'data'),
         isNot(contains('fillWidth')),
       );
     });
@@ -650,7 +659,8 @@ void main() {
 
     test('is escaped into the Kotlin literal', () {
       expect(
-        const HWText.fixed('Hi', style: style).toKotlin(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hi'), style: style)
+            .toKotlin(0, dataExpr: 'data'),
         contains(
           r'HomeWidgetFonts.typeface(context, "A \"\$weird\" \\name", 400, '
           'false)',
@@ -660,7 +670,8 @@ void main() {
 
     test('is escaped into the Swift literal', () {
       expect(
-        const HWText.fixed('Hi', style: style).toSwift(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hi'), style: style)
+            .toSwift(0, dataExpr: 'data'),
         contains(r'hwFont("A \"$weird\" \\name", 400, false, 16)'),
       );
     });
@@ -668,8 +679,8 @@ void main() {
 
   group('native helpers', () {
     test('a custom family pulls in the family lookup and what it calls', () {
-      const text = HWText.fixed(
-        'Hello',
+      const text = HWText(
+        HWString.fixed('Hello'),
         style: HWTextStyle(fontFamily: 'Chewy'),
       );
 
@@ -690,7 +701,7 @@ void main() {
     });
 
     test('a text in the platform font pulls in none of them', () {
-      const text = HWText.fixed('Hello');
+      const text = HWText(HWString.fixed('Hello'));
       expect(text.nativeHelpers, isNot(contains(HWNativeHelper.hwFont)));
       expect(
         text.nativeHelpers,
@@ -753,18 +764,21 @@ void main() {
     test('collects every file a tree renders with, once', () {
       const tree = HWColumn(
         children: [
-          HWText.fixed('a', style: HWTextStyle(fontFamily: 'Chewy')),
+          HWText(HWString.fixed('a'), style: HWTextStyle(fontFamily: 'Chewy')),
           HWRow(
             children: [
-              HWText.fixed('b', style: HWTextStyle(fontFamily: 'Chewy')),
-              HWText.fixed(
-                'c',
+              HWText(
+                HWString.fixed('b'),
+                style: HWTextStyle(fontFamily: 'Chewy'),
+              ),
+              HWText(
+                HWString.fixed('c'),
                 style: HWTextStyle(
                   fontFamily: 'Chewy',
                   fontWeight: HWFontWeight.bold,
                 ),
               ),
-              HWText.fixed('d'),
+              HWText(HWString.fixed('d')),
             ],
           ),
         ],
@@ -778,13 +792,14 @@ void main() {
 
     test('is empty for a tree in the platform font', () {
       expect(
-        const HWColumn(children: [HWText.fixed('a')]).fontVariants,
+        const HWColumn(children: [HWText(HWString.fixed('a'))]).fontVariants,
         isEmpty,
       );
     });
 
     test('reads the widgets carrying a font rather than the texts', () {
-      const text = HWText.fixed('a', style: HWTextStyle(fontFamily: 'Chewy'));
+      const text =
+          HWText(HWString.fixed('a'), style: HWTextStyle(fontFamily: 'Chewy'));
       expect(text, isA<HWFontWidget>());
       expect(
         const HWIcon.glyph(0xE88A, font: HWIconFont(family: 'M')),

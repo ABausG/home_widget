@@ -182,7 +182,10 @@ void main() {
       widgetTree: const HWColumn(
         children: [
           HWImage(HWImageData('avatar'), width: 100, height: 100),
-          HWImage.asset('assets/logo.png', fit: HWImageFit.cover),
+          HWImage(
+            HWImageData.asset('assets/logo.png'),
+            fit: HWImageFit.cover,
+          ),
         ],
       ),
     );
@@ -243,7 +246,7 @@ void main() {
       ),
       className: 'UnrenderedImage',
       dataFields: const [HWImageData('avatar')],
-      widgetTree: const HWText.fixed('no image here'),
+      widgetTree: const HWText(HWString.fixed('no image here')),
     );
 
     await IosGenerator(spec: spec, projectRoot: tempDir).generate();
@@ -334,7 +337,9 @@ void main() {
       dataFields: const [
         HWImageData.asset('assets/logo.png', package: 'my_icons'),
       ],
-      widgetTree: const HWImage.asset('assets/logo.png', package: 'my_icons'),
+      widgetTree: const HWImage(
+        HWImageData.asset('assets/logo.png', package: 'my_icons'),
+      ),
     );
 
     await IosGenerator(spec: spec, projectRoot: tempDir).generate();
@@ -364,8 +369,8 @@ void main() {
       ],
       widgetTree: const HWBoolConditional(
         data: HWJson('fileKey', HWBool('enabled', defaultValue: false)),
-        whenTrue: HWText.fixed('Enabled'),
-        whenFalse: HWText.fixed('Disabled'),
+        whenTrue: HWText(HWString.fixed('Enabled')),
+        whenFalse: HWText(HWString.fixed('Disabled')),
       ),
     );
 
@@ -420,8 +425,8 @@ void main() {
           'fileKey',
           HWJson('user', HWBool('enabled', defaultValue: true)),
         ),
-        whenTrue: HWText.fixed('Enabled'),
-        whenFalse: HWText.fixed('Disabled'),
+        whenTrue: HWText(HWString.fixed('Enabled')),
+        whenFalse: HWText(HWString.fixed('Disabled')),
       ),
     );
 
@@ -1349,8 +1354,8 @@ void main() {
       dataFields: const [HWDateTime('when')],
       widgetTree: const HWDataExists(
         data: HWDateTime('when'),
-        whenPresent: HWText.fixed('yes'),
-        whenAbsent: HWText.fixed('no'),
+        whenPresent: HWText(HWString.fixed('yes')),
+        whenAbsent: HWText(HWString.fixed('no')),
       ),
     );
 
@@ -2632,7 +2637,7 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
 
     test('appends every family newer than the deployment target', () async {
       final content = await generate(
-        HWText.fixed('S'),
+        HWText(HWString.fixed('S')),
         families: HWWidgetFamily.values,
       );
 
@@ -2663,7 +2668,7 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
 
     test('keeps a plain literal when no family needs a gate', () async {
       final content = await generate(
-        HWText.fixed('S'),
+        HWText(HWString.fixed('S')),
         families: const [
           HWWidgetFamily.systemSmall,
           HWWidgetFamily.systemLarge,
@@ -2680,8 +2685,8 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
     test('wraps a root switch in a Group before the modifier', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
       );
 
@@ -2708,8 +2713,8 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
     test('collapses to one layout when only one family is reachable', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
         families: const [HWWidgetFamily.systemSmall],
       );
@@ -2724,8 +2729,8 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
         'reachable', () async {
       final content = await generate(
         HWSizeAdaptive(
-          accessoryCircular: HWText.fixed('C'),
-          accessoryRectangular: HWText.fixed('R'),
+          accessoryCircular: HWText(HWString.fixed('C')),
+          accessoryRectangular: HWText(HWString.fixed('R')),
         ),
         families: const [
           HWWidgetFamily.accessoryCircular,
@@ -2979,7 +2984,11 @@ struct WeatherForecastItem {
 
     test('maps every element of a list whose item reads no field', () async {
       final content = await generate(
-        const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+        const HWRow.builder(
+          'dots',
+          maxItems: 3,
+          item: HWText(HWString.fixed('.')),
+        ),
       );
 
       expect(
@@ -3059,7 +3068,7 @@ struct WeatherData {
           'hourly',
           maxItems: 4,
           item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
-          whenEmpty: HWText.fixed('No forecast'),
+          whenEmpty: HWText(HWString.fixed('No forecast')),
         ),
       );
 
@@ -3154,7 +3163,7 @@ struct WeatherData {
           item: HWDataExists(
             data: HWItemData(HWImageData('avatar')),
             whenPresent: HWImage(HWItemData(HWImageData('avatar')), width: 24),
-            whenAbsent: HWText.fixed('?'),
+            whenAbsent: HWText(HWString.fixed('?')),
           ),
         ),
       );
@@ -3200,8 +3209,8 @@ const _forecastItem = HWColumn(
     HWText.number(HWItemData(HWDouble('rain'))),
     HWBoolConditional(
       data: HWItemData(HWBool('windy', defaultValue: false)),
-      whenTrue: HWText.fixed('windy'),
-      whenFalse: HWText.fixed('calm'),
+      whenTrue: HWText(HWString.fixed('windy')),
+      whenFalse: HWText(HWString.fixed('calm')),
     ),
     HWText(HWItemData(HWString('note'))),
   ],

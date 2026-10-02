@@ -348,6 +348,80 @@ void main() {
       expect(kotlinOf(helper), contains('catch'));
     });
 
+    group('isNativeIsoDate', () {
+      test('accepts the spellings both platforms read', () {
+        const readable = [
+          '2026-09-22T10:00:00Z',
+          '2026-09-22T10:00:00z',
+          '2026-09-22T10:00:00.5Z',
+          '2026-09-22T10:00:00.123456Z',
+          '2026-09-22T10:00:00+02:00',
+          '2026-09-22T10:00:00+0200',
+          '2026-09-22T10:00:00+02',
+          '2026-09-22T10:00:00-05:30',
+          '2026-09-22T10:00:00.250-0530',
+          '2026-09-22T10:00:00',
+          '2026-09-22T10:00:00.5',
+          '2026-09-22T10:00:00+14:00',
+          '2026-09-22T10:00:00-13',
+          '2026-09-22T10:00:00-00:00',
+          '2024-02-29T10:00:00Z',
+          '0001-01-01T00:00:00Z',
+          '9999-12-31T23:59:59Z',
+        ];
+        for (final iso in readable) {
+          expect(isNativeIsoDate(iso), isTrue, reason: iso);
+        }
+      });
+
+      test('rejects the other spellings Dart parses', () {
+        const unreadable = [
+          '2026-09-22T10:00Z',
+          '2026-09-22T10:00',
+          '2026-09-22T10Z',
+          '2026-09-22 10:00:00Z',
+          '20260922T100000Z',
+          '2026-09-22T100000Z',
+          '2026-09-22T10:00:00,5Z',
+          '2026-09-22',
+          '2026-09-22T10:00:00 Z',
+          '2026-09-22T10:00:00 +02:00',
+          '+002026-09-22T10:00:00Z',
+          '-2026-09-22T10:00:00Z',
+          '12026-09-22T10:00:00Z',
+        ];
+        for (final iso in unreadable) {
+          expect(DateTime.tryParse(iso), isNotNull, reason: iso);
+          expect(isNativeIsoDate(iso), isFalse, reason: iso);
+        }
+      });
+
+      test('rejects a field only one platform rolls over', () {
+        const unreadable = [
+          '0000-01-01T00:00:00Z',
+          '2026-13-22T10:00:00Z',
+          '2026-02-30T10:00:00Z',
+          '2026-02-29T10:00:00Z',
+          '2026-09-22T24:00:00Z',
+          '2026-09-22T10:60:00Z',
+          '2026-09-22T10:00:60Z',
+          '2026-09-22T10:00:00+14:01',
+          '2026-09-22T10:00:00+15',
+          '2026-09-22T10:00:00-13:01',
+          '2026-09-22T10:00:00+02:60',
+        ];
+        for (final iso in unreadable) {
+          expect(isNativeIsoDate(iso), isFalse, reason: iso);
+        }
+      });
+
+      test('rejects what is no date at all', () {
+        for (final iso in ['', 'tomorrow', '2026-09-22t10:00:00Z']) {
+          expect(isNativeIsoDate(iso), isFalse, reason: iso);
+        }
+      });
+    });
+
     test('depends on nothing', () {
       expect(helper.dependencies, isEmpty);
     });

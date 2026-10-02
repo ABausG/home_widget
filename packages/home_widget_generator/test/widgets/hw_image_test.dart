@@ -18,7 +18,8 @@ void main() {
           '.center',
         );
         expect(
-          const HWImage.asset('assets/logo.png').swiftFrameAlignment,
+          const HWImage(HWImageData.asset('assets/logo.png'))
+              .swiftFrameAlignment,
           '.center',
         );
       });
@@ -47,16 +48,17 @@ void main() {
         );
       });
 
-      test('asset constructor derives the key', () {
-        const image = HWImage.asset('assets/images/logo.png');
+      test('asset data derives the key', () {
+        const image = HWImage(HWImageData.asset('assets/images/logo.png'));
         expect(image.imageData.key, 'assetsImagesLogoPng');
         expect(image.imageData.isAsset, isTrue);
         expect(image.imageData.assetPath, 'assets/images/logo.png');
       });
 
-      test('asset constructor forwards the package to the data type', () {
-        const image = HWImage.asset('assets/logo.png', package: 'my_icons');
-        expect(image.assetPackage, 'my_icons');
+      test('asset data carries the package', () {
+        const image = HWImage(
+          HWImageData.asset('assets/logo.png', package: 'my_icons'),
+        );
         expect(image.imageData.package, 'my_icons');
         expect(image.imageData.assetPath, 'assets/logo.png');
         expect(
@@ -72,7 +74,7 @@ void main() {
       test('names the decode helper wherever the image comes from', () {
         for (final image in const [
           HWImage(HWImageData('avatar')),
-          HWImage.asset('assets/logo.png'),
+          HWImage(HWImageData.asset('assets/logo.png')),
           HWImage(HWTimedData(HWImageData('slide'))),
           HWImage(HWJson('contact', HWImageData('avatar'))),
         ]) {
@@ -81,13 +83,15 @@ void main() {
         }
       });
 
-      test('assetPackage is null for the data constructor', () {
-        expect(const HWImage(HWImageData('avatar')).assetPackage, isNull);
-        expect(const HWImage.asset('assets/logo.png').assetPackage, isNull);
+      test('the package is null unless the asset names one', () {
+        expect(const HWImageData('avatar').package, isNull);
+        expect(const HWImageData.asset('assets/logo.png').package, isNull);
       });
 
       test('package assets read the prefixed bundle path', () {
-        const image = HWImage.asset('assets/logo.png', package: 'my_icons');
+        const image = HWImage(
+          HWImageData.asset('assets/logo.png', package: 'my_icons'),
+        );
         expect(
           image.toSwift(0, dataExpr: 'data'),
           contains('hwDecodeImage("packages/my_icons/assets/logo.png"'),
@@ -101,10 +105,9 @@ void main() {
         );
       });
 
-      test('asset constructor equals the explicit data constructor', () {
-        const asset = HWImage.asset('assets/logo.png');
-        const explicit = HWImage(HWImageData.asset('assets/logo.png'));
-        expect(asset.dataType, explicit.dataType);
+      test('asset data is the image data of the widget', () {
+        const image = HWImage(HWImageData.asset('assets/logo.png'));
+        expect(image.dataType, const HWImageData.asset('assets/logo.png'));
       });
 
       test('defaults', () {
@@ -121,7 +124,7 @@ void main() {
       });
 
       test('dataDependencies for an asset uses the derived key', () {
-        const image = HWImage.asset('assets/logo.png');
+        const image = HWImage(HWImageData.asset('assets/logo.png'));
         expect(image.dataDependencies.single.key, 'assetsLogoPng');
       });
 
@@ -172,7 +175,7 @@ void main() {
       });
 
       test('reads an asset image through the decode helper', () {
-        const node = HWImage.asset('assets/logo.png');
+        const node = HWImage(HWImageData.asset('assets/logo.png'));
         expect(
           node.toSwift(0, dataExpr: 'entry.widgetData'),
           contains(
@@ -331,7 +334,7 @@ void main() {
       });
 
       test('reads an asset image from the APK', () {
-        const node = HWImage.asset('assets/logo.png');
+        const node = HWImage(HWImageData.asset('assets/logo.png'));
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           startsWith(
@@ -393,7 +396,7 @@ void main() {
           ),
         );
         expect(
-          const HWImage.asset('assets/logo.png', width: 24)
+          const HWImage(HWImageData.asset('assets/logo.png'), width: 24)
               .toKotlin(0, dataExpr: 'data'),
           startsWith(
             'hwDecodeImage(context, "assets/logo.png", 24.0, null)',

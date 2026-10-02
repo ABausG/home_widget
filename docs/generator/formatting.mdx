@@ -70,16 +70,16 @@ HWText.number(
 )
 ```
 
-### HWText.fixedNumber
+### Fixed numbers
 
-`const HWText.fixedNumber(num value, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
-
-The same thing for a hardcoded number. The value is baked into the generated
+Pass `HWInt.fixed` or `HWDouble.fixed` for a hardcoded number. The value is baked into the generated
 native code, but the *formatting* still happens on the device, so a fixed
-`10000` renders as `10,000` or `10.000` depending on where the phone is.
+`10000` renders as `10,000` or `10.000` depending on where the phone is. A fixed number creates no
+stored field — see [Fixed values](/generator/data#fixed-values).
 
 ```dart
-HWText.fixedNumber(10000)
+HWText.number(HWInt.fixed(10000))
+HWText.number(HWDouble.fixed(2.5), format: HWNumberFormat.percent())
 ```
 
 ### HWNumberFormat
@@ -203,7 +203,7 @@ A new [data type](/generator/data) holding a point in time. It has no
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
   widget: HWColumn(
     children: [
-      HWText.fixed('Last sync'),
+      HWText(HWString.fixed('Last sync')),
       HWText.dateTime(HWDateTime('lastSync'), format: HWDateFormat.yMMMdjm),
     ],
   ),
@@ -229,9 +229,11 @@ UTC, e.g. `2026-03-02T13:05:09.000Z`. That is what lands in
 `SharedPreferences` / `UserDefaults`, and what native code reading the key
 directly will find. The generated getter parses it back and returns a **UTC**
 `DateTime`; call `.toLocal()` if you want the local one. Both platforms' parsers
-also accept an ISO string with no fractional seconds, with one to three
-fractional digits, and with a `±hh:mm` offset instead of `Z`, so a value written
-by native code or a backend still reads correctly.
+also accept an ISO string with no fractional seconds, with any number of
+fractional digits (read to the millisecond), and with a `±hh:mm`, `±hhmm` or
+`±hh` offset instead of `Z`, so a value written by native code or a backend
+still reads correctly. The date and time themselves must be spelled
+`yyyy-MM-ddTHH:mm:ss`; anything else reads as no date.
 
 The **display** defaults to the device's current time zone: an instant saved
 at `13:05` UTC shows as `14:05` on a phone in Berlin, and follows the phone if
@@ -239,9 +241,13 @@ the user travels. `HWText.dateTime` can render a different zone instead — see
 [Time zones](#time-zones) below.
 
 <Info>
-There is no `HWDateTime.fixed` and no relative ("3 minutes ago") or self-ticking
-date. A date is always a data field, and the text only changes when the widget
-re-renders.
+A date that never changes can be fixed:
+`HWText.dateTime(HWDateTime.fixed('2026-09-22T10:00:00Z'))`. It takes an ISO 8601
+string that names its zone — `Z`, or an explicit offset such as `+02:00` — creates
+no stored field, and is formatted on the device like a saved date. A string that
+does not parse, or that names no zone, is a generation error. There is
+no relative ("3 minutes ago") or self-ticking date, and the text only changes when
+the widget re-renders.
 </Info>
 
 ### HWText.dateTime
@@ -471,7 +477,7 @@ To show a placeholder instead of empty text, guard the field with
 HWDataExists(
   data: HWDateTime('lastSync'),
   whenPresent: HWText.dateTime(HWDateTime('lastSync')),
-  whenAbsent: HWText.fixed('Never synced'),
+  whenAbsent: HWText(HWString.fixed('Never synced')),
 )
 ```
 

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
+import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
@@ -281,7 +282,7 @@ void main() {
           widget: HWColumn(
             children: [
               HWImage(HWImageData('img')),
-              HWImage.asset('assets/logo.png'),
+              HWImage(HWImageData.asset('assets/logo.png')),
             ],
           ),
         )
@@ -746,6 +747,252 @@ void main() {
       expect(spec.androidUsesLiveDataInPreview, isTrue);
       expect(spec.androidAutoUpdatePreview, isFalse);
       expect(spec.iosUsesLiveDataInPreview, isFalse);
+    });
+
+    group('fixed data', () {
+      /// A schema class `GreetingWidget` rendering [children] in a column.
+      String schema(String children) => '''
+        import 'package:flutter/material.dart';
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Greeting',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.greeting'),
+          localization: HomeWidgetLocalization(
+            defaultLocale: 'en',
+            supportedLocales: ['en', 'de'],
+          ),
+          widget: HWColumn(children: [$children]),
+        )
+        class GreetingWidget {}
+      ''';
+
+      test('parses fixed values into the body, not into stored fields',
+          () async {
+        final spec = await parseSourceInTempFile(
+          schema('''
+            HWText(HWString.fixed('Hi')),
+            HWText.number(HWInt.fixed(3), format: HWNumberFormat.percent()),
+            HWText.number(HWDouble.fixed(2.5)),
+            HWText(HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'})),
+            HWIcon(HWIconData.fixed(Icons.favorite), size: 32),
+            HWIcon(HWIconData.fixed(Icons.arrow_back)),
+            HWImage(HWImageData.asset('assets/logo.png')),
+            HWText(HWString('label')),
+          '''),
+        );
+
+        // ignore: invalid_use_of_internal_member
+        const localized = HWLocalizedString.resolved(
+          '',
+          defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+          isConstant: true,
+          defaultLocale: 'en',
+          resourcePrefix: 'home_widget_greeting_widget',
+        );
+        const asset = HWImageData.asset('assets/logo.png');
+        expect(spec!.dataFields, [localized, asset, const HWString('label')]);
+        expect(spec.primitiveDataFields, [const HWString('label')]);
+        expect(spec.constantLocalizedStrings, [localized]);
+        expect(spec.assetImageFields, [asset]);
+
+        expect(
+          spec.effectiveWidgetTree.toSwift(
+            0,
+            dataExpr: 'entry.data',
+            context: spec.iosEmitContext,
+          ),
+          '''
+VStack(alignment: .center, spacing: 0) {
+    Text("Hi")
+    Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, maxFraction: nil))
+    Text(hwFormatDecimal(NSNumber(value: 2.5), minFraction: nil, maxFraction: nil, grouping: true))
+    Text(NSLocalizedString("home_widget_greeting_widget_t_50bb5ce3", comment: ""))
+    Text(String(UnicodeScalar(UInt32(0xE25B))!))
+        .font(hwBundledFont("hw_font_icons_materialicons", size: 32))
+        .frame(width: 32, height: 32)
+        .foregroundColor(Color.primary)
+        .accessibilityHidden(true)
+    Text(String(UnicodeScalar(UInt32(0xE092))!))
+        .font(hwBundledFont("hw_font_icons_materialicons", size: 24))
+        .frame(width: 24, height: 24)
+        .foregroundColor(Color.primary)
+        .accessibilityHidden(true)
+        .scaleEffect(x: layoutDirection == .rightToLeft ? -1 : 1, y: 1)
+    if let uiImage = hwDecodeImage("assets/logo.png", nil, nil) {
+        Image(uiImage: uiImage)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+    }
+    Text(entry.data.label ?? "")
+}''',
+        );
+        expect(
+          spec.effectiveWidgetTree.toKotlin(
+            0,
+            dataExpr: 'data',
+            context: spec.androidEmitContext,
+          ),
+          allOf([
+            contains('Text(text = "Hi", '),
+            contains(
+              'hwFormatPercent(3.0, null, null, hwFormatLocale(context))',
+            ),
+            contains(
+              'hwFormatDecimal(2.5, null, null, true, hwFormatLocale(context))',
+            ),
+            contains(
+              'context.getString('
+              'R.string.home_widget_greeting_widget_t_50bb5ce3)',
+            ),
+            contains('0xE25B, 32f)'),
+            contains('0xE092, 24f, matchTextDirection = true)'),
+            contains('hwDecodeImage(context, "assets/logo.png", null, null)'),
+            contains('Text(text = data.label ?: "", '),
+          ]),
+        );
+        expect(
+          spec.nativeHelpers,
+          containsAll([
+            HWNativeHelper.hwFormatPercent,
+            HWNativeHelper.hwFormatDecimal,
+            HWNativeHelper.hwBundledFont,
+            HWNativeHelper.hwDecodeImage,
+          ]),
+        );
+        expect(
+          spec.nativeHelpers,
+          isNot(contains(HWNativeHelper.hwParseIsoDate)),
+        );
+        expect(spec.iconCodePoints.values.single, hasLength(2));
+        expect(spec.mirroredIconCodePoints, isEmpty);
+        expect(
+          spec.effectiveWidgetTree.swiftViewModifiers,
+          {r'@Environment(\.layoutDirection) var layoutDirection'},
+        );
+
+        final helper = DartHelperGenerator(spec).generate();
+        expect(
+          RegExp(r'^\s+(?:required )?\S+ (\w+),$', multiLine: true)
+              .allMatches(helper)
+              .map((match) => match.group(1))
+              .toSet(),
+          {'label'},
+        );
+      });
+
+      test('a schema of only fixed values declares no stored field', () async {
+        final spec = await parseSourceInTempFile(
+          schema('''
+            HWText(HWString.fixed('Hello world!')),
+            HWText(HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'})),
+            HWText(HWInt.fixed(3)),
+            HWText(HWDouble.fixed(2.5)),
+            HWText(HWBool.fixed(true)),
+            HWText.dateTime(HWDateTime.fixed('2026-09-22T10:00:00Z')),
+            HWIcon(HWIconData.fixed(Icons.favorite)),
+          '''),
+        );
+
+        expect(spec!.primitiveDataFields, isEmpty);
+        expect(spec.timedDataFields, isEmpty);
+        expect(spec.iconFields, isEmpty);
+        expect(spec.iconEnums, isEmpty);
+        expect(spec.keyedLocalizedStrings, isEmpty);
+        expect(spec.constantLocalizedStrings, hasLength(1));
+
+        final helper = DartHelperGenerator(spec).generate();
+        expect(helper, isNot(contains('saveWidgetData')));
+        expect(helper, isNot(contains('getWidgetData')));
+        expect(helper, isNot(contains('enum ')));
+      });
+
+      test('rejects a fixed value a wrapper cannot hold', () async {
+        await expectLater(
+          parseSourceInTempFile(
+            schema("HWText(HWTimedData(HWString.fixed('Hi'))),"),
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('HWTimedData cannot wrap HWString.fixed("Hi")'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a conditional on a fixed flag', () async {
+        await expectLater(
+          parseSourceInTempFile(
+            schema('''
+              HWBoolConditional(
+                data: HWBool.fixed(true),
+                whenTrue: HWText(HWString.fixed('yes')),
+                whenFalse: HWText(HWString.fixed('no')),
+              ),
+            '''),
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('HWBoolConditional cannot test HWBool.fixed(true)'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects a conditional on a wrapped fixed flag for the wrapper',
+          () async {
+        Future<void> expectRejected(String data, String message) => expectLater(
+              parseSourceInTempFile(
+                schema('''
+                  HWBoolConditional(
+                    data: $data,
+                    whenTrue: HWText(HWString.fixed('yes')),
+                    whenFalse: HWText(HWString.fixed('no')),
+                  ),
+                '''),
+              ),
+              throwsA(
+                isA<GeneratorError>().having(
+                  (e) => e.message,
+                  'message',
+                  message,
+                ),
+              ),
+            );
+
+        await expectRejected(
+          "HWJson('g', HWBool.fixed(true))",
+          'HWJson cannot carry HWBool.fixed(true) (in "g"): a fixed value is '
+              'written into the widget, so there is nothing to read out of the '
+              'group. Use it without HWJson, or nest a stored field.',
+        );
+        await expectRejected(
+          'HWTimedData(HWBool.fixed(true))',
+          'HWTimedData cannot wrap HWBool.fixed(true): a fixed value never '
+              'changes, so there is nothing for a timeline to switch between. '
+              'Use it without HWTimedData, or wrap a stored field.',
+        );
+      });
+
+      test('rejects an HWIconData.fixed that is not an icon', () async {
+        await expectLater(
+          parseSourceInTempFile(
+            schema("HWIcon(HWIconData.fixed('Icons.favorite')),"),
+          ),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              contains('Could not decode HWIconData.fixed'),
+            ),
+          ),
+        );
+      });
     });
   });
 }

@@ -9,15 +9,18 @@ description: Render different widget content per widget family and size.
 
 ```dart
 HWSizeAdaptive(
-  small: HWText.fixed('42'),
+  small: HWText(HWString.fixed('42')),
   medium: HWRow(
-    children: [HWText.fixed('42'), HWText.fixed('steps')],
+    children: [HWText(HWString.fixed('42')), HWText(HWString.fixed('steps'))],
   ),
   large: HWColumn(
-    children: [HWText.fixed('42'), HWText.fixed('steps today')],
+    children: [
+      HWText(HWString.fixed('42')),
+      HWText(HWString.fixed('steps today')),
+    ],
   ),
-  accessoryCircular: HWText.fixed('42'),
-  accessoryInline: HWText.fixed('42 steps'),
+  accessoryCircular: HWText(HWString.fixed('42')),
+  accessoryInline: HWText(HWString.fixed('42 steps')),
 )
 ```
 
@@ -138,8 +141,15 @@ The table above is a mapping from iOS-style cell counts, not every widget's own 
 
 ```dart
 HWSizeAdaptive(
-  medium: HWRow(children: [HWText.fixed('42'), HWText.fixed('steps')]),
-  large: HWColumn(children: [HWText.fixed('42'), HWText.fixed('steps today')]),
+  medium: HWRow(
+    children: [HWText(HWString.fixed('42')), HWText(HWString.fixed('steps'))],
+  ),
+  large: HWColumn(
+    children: [
+      HWText(HWString.fixed('42')),
+      HWText(HWString.fixed('steps today')),
+    ],
+  ),
   androidSizes: {
     HWWidgetFamily.systemMedium: HWSize(200, 100),
     HWWidgetFamily.systemLarge: HWSize(200, 200),

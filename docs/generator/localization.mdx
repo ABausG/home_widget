@@ -32,7 +32,13 @@ resolves to, and the locale set the generated Dart class is built from:
   ),
   widget: HWColumn(
     children: [
-      HWText.localized({'en': 'Greeting', 'de': 'Begrüßung', 'pt-BR': 'Saudação'}),
+      HWText(
+        HWString.localizedFixed({
+          'en': 'Greeting',
+          'de': 'Begrüßung',
+          'pt-BR': 'Saudação',
+        }),
+      ),
       HWText(
         HWString.localized(
           'greeting',
@@ -49,8 +55,12 @@ class LocalizedGreeting {}
 
 ## Two kinds of localized text
 
-**`HWText.localized({...})`** is fixed at build time — no data field, not
-changeable from Dart. It ships as a platform string resource (an Android
+Both forms live on `HWString`, so they sit together in autocomplete.
+
+**`HWString.localizedFixed({...})`** is fixed at build time — no data field, not
+changeable from Dart. It is a [fixed value](/generator/data#fixed-values): it
+takes no key, no default and no preview, and the map must include the default
+locale. It ships as a platform string resource (an Android
 `<string>` resource, a `Localizable.xcstrings` entry on iOS) and is resolved by
 the OS like any other app string, against the user's full preferred-language
 list.
@@ -108,7 +118,7 @@ since both declarations would generate the same property.
 
 ## How a locale is matched
 
-`HWText.localized` and the gallery entry are platform string resources, so the
+`HWString.localizedFixed` and the gallery entry are platform string resources, so the
 OS matches them. Everything the widget resolves itself — keyed strings and
 localized JSON leaves — runs the same chain on Android, iOS and in the generated
 Dart `resolve(tag)`:
@@ -194,7 +204,7 @@ Note where the base text lives, since it differs by kind:
 | | Base text | Map contains |
 |---|---|---|
 | `name` / `description` | `map[defaultLocale]` when present, otherwise the top-level annotation field | every other supported locale; the default locale optionally |
-| `HWText.localized` / `HWString.localized` | — | **every** locale, including the default |
+| `HWString.localizedFixed` / `HWString.localized` | — | **every** locale, including the default |
 
 Supplying a gallery map with neither a default-locale entry nor the matching
 top-level field is an error — there would be nothing to show outside the
@@ -239,7 +249,7 @@ Reserved words are suffixed, so Icelandic (`is`) becomes `is_`.
 
 ## Where translations end up
 
-| | Fixed (`HWText.localized`) | Runtime-overridable (`HWString.localized`) | Gallery name & description |
+| | Fixed (`HWString.localizedFixed`) | Runtime-overridable (`HWString.localized`) | Gallery name & description |
 |---|---|---|---|
 | **Android** | `res/values[-<qualifier>]/home_widget_<snake_widget>.xml` (`home_widget_<snake_widget>_t_<hash>`) | one SharedPreferences key holding the JSON blob | `res/values[-<qualifier>]/home_widget_<snake_widget>.xml` (`home_widget_<snake_widget>_label` / `_description`) |
 | **iOS** | `Localizable.xcstrings` (`home_widget_<snake_widget>_t_<hash>`) | one UserDefaults key holding the same JSON blob | `Localizable.xcstrings` when translated, otherwise a plain string literal |

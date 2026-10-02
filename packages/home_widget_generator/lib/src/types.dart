@@ -22,6 +22,25 @@ sealed class HWDataType<T> {
   /// [defaultValue] as before.
   T? get previewValue;
 
+  /// Whether this is a constant written into the schema rather than a value
+  /// the app stores.
+  ///
+  /// A fixed value has no key, default or preview value, and its
+  /// [swiftAccess] and [kotlinAccess] are the literal itself.
+  bool get isFixed => false;
+
+  /// Whether a widget reading this value depends on it as data.
+  ///
+  /// False for a fixed value, save the ones that own a resource generated
+  /// alongside the widget.
+  bool get isDataDependency => !isFixed;
+
+  /// The constant a fixed value of a plain type holds, which [operator ==]
+  /// tells two fixed values apart by.
+  ///
+  /// Every type that keeps this class's [operator ==] overrides it.
+  Object? get _fixedContent => null; // coverage:ignore-line
+
   /// The Dart type string.
   String get dartType;
 
@@ -188,8 +207,11 @@ sealed class HWDataType<T> {
   ///
   /// Two declarations of a key are compatible when they are the same kind of
   /// field and every optional value they both set agrees; a value set on one
-  /// side only is carried over by [mergedWith].
+  /// side only is carried over by [mergedWith]. A fixed value has no key to
+  /// share, so it is compatible with nothing.
   bool isCompatibleWith(HWDataType<dynamic> other) =>
+      !isFixed &&
+      !other.isFixed &&
       runtimeType == other.runtimeType &&
       key == other.key &&
       _mergeable(defaultValue, other.defaultValue) &&
@@ -221,10 +243,12 @@ sealed class HWDataType<T> {
           runtimeType == other.runtimeType &&
           key == other.key &&
           defaultValue == other.defaultValue &&
-          previewValue == other.previewValue;
+          previewValue == other.previewValue &&
+          _fixedContent == other._fixedContent;
 
   @override
-  int get hashCode => Object.hash(key, defaultValue, previewValue);
+  int get hashCode =>
+      Object.hash(key, defaultValue, previewValue, _fixedContent);
 }
 
 /// Whether two declarations of the same optional value can be merged: they
@@ -238,7 +262,21 @@ class HWString extends HWDataType<String> {
   @override
   final String? previewValue;
 
-  const HWString(super.key, {this.defaultValue, this.previewValue});
+  /// The text of [HWString.fixed], or null for a stored string.
+  final String? fixedValue;
+
+  const HWString(super.key, {this.defaultValue, this.previewValue})
+      : fixedValue = null;
+
+  /// Constant text, rendered exactly as written.
+  ///
+  /// Creates no data field: there is nothing to save, and it previews as
+  /// itself.
+  const HWString.fixed(String value)
+      : fixedValue = value,
+        defaultValue = null,
+        previewValue = null,
+        super('');
 
   /// A string whose shipped value differs per locale, and which can additionally
   /// be overridden per locale at runtime via the generated `saveData`.
@@ -258,6 +296,38 @@ class HWString extends HWDataType<String> {
     required Map<String, String> defaultTranslations,
     Map<String, String>? previewTranslations,
   }) = HWLocalizedString;
+
+  /// Constant text translated at build time.
+  ///
+  /// [translations] maps locale tag to text and must include the widget's
+  /// `defaultLocale`. Unlike [HWString.localized], this creates no data field
+  /// and cannot be overridden at runtime.
+  const factory HWString.localizedFixed(Map<String, String> translations) =
+      HWLocalizedString.fixed;
+
+  @override
+  bool get isFixed => fixedValue != null;
+
+  @override
+  Object? get _fixedContent => fixedValue;
+
+  @override
+  String swiftAccess(String dataExpr) {
+    final fixed = fixedValue;
+    return fixed == null ? super.swiftAccess(dataExpr) : _swiftLiteral(fixed);
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    final fixed = fixedValue;
+    return fixed == null ? super.kotlinAccess(dataExpr) : _kotlinLiteral(fixed);
+  }
+
+  static String _kotlinLiteral(String value) =>
+      '"${escapeKotlinStringLiteral(value)}"';
+
+  static String _swiftLiteral(String value) =>
+      '"${escapeSwiftStringLiteral(value)}"';
 
   @override
   String get dartType => 'String';
@@ -295,11 +365,14 @@ class HWString extends HWDataType<String> {
     required String outerValue,
     required String innerValue,
   }) {
+    // A literal is never null; an elvis on top of it makes Kotlin warn.
+    if (isFixed) return outerValue;
     return '$outerValue ?: ""';
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
+    if (isFixed) return outerValue;
     return '$outerValue ?? ""';
   }
 
@@ -307,28 +380,28 @@ class HWString extends HWDataType<String> {
   String? codegenKotlinDefaultLiteral() {
     final d = defaultValue;
     if (d == null) return null;
-    return '"${escapeKotlinStringLiteral(d)}"';
+    return _kotlinLiteral(d);
   }
 
   @override
   String? codegenSwiftDefaultLiteral() {
     final d = defaultValue;
     if (d == null) return null;
-    return '"${escapeSwiftStringLiteral(d)}"';
+    return _swiftLiteral(d);
   }
 
   @override
   String? codegenKotlinPreviewLiteral() {
     final p = previewValue;
     if (p == null) return null;
-    return '"${escapeKotlinStringLiteral(p)}"';
+    return _kotlinLiteral(p);
   }
 
   @override
   String? codegenSwiftPreviewLiteral() {
     final p = previewValue;
     if (p == null) return null;
-    return '"${escapeSwiftStringLiteral(p)}"';
+    return _swiftLiteral(p);
   }
 
   @override
@@ -347,8 +420,8 @@ class HWString extends HWDataType<String> {
 /// Two flavours, distinguished by [isConstant]: **keyed**
 /// (`HWString.localized`) is a real data field whose compiled
 /// [defaultTranslations] can be overridden at runtime via `saveData`;
-/// **constant** (`HWText.localized`) ships as a platform string resource keyed
-/// by [resourceName] and never reaches the data class.
+/// **constant** (`HWString.localizedFixed`) ships as a platform string resource
+/// keyed by [resourceName] and never reaches the data class.
 ///
 /// [defaultLocale] and [resourcePrefix] are stamped on by the parser, not
 /// written by the annotation author.
@@ -381,6 +454,22 @@ class HWLocalizedString extends HWString {
   })  : isConstant = false,
         defaultLocale = null,
         resourcePrefix = null;
+
+  /// The target of [HWString.localizedFixed], which is the spelling to use.
+  const HWLocalizedString.fixed(Map<String, String> translations)
+      : defaultTranslations = translations,
+        previewTranslations = null,
+        isConstant = true,
+        defaultLocale = null,
+        resourcePrefix = null,
+        super('');
+
+  @override
+  bool get isFixed => isConstant;
+
+  /// A constant localized string still owns its platform string resource.
+  @override
+  bool get isDataDependency => true;
 
   /// Rebuilt by the parser with [defaultLocale] and [resourcePrefix] resolved.
   @internal
@@ -714,18 +803,57 @@ class HWLocalizedString extends HWString {
 sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
   const HWNumericDataType(super.key);
 
+  /// The number of a `.fixed` constructor, or null for a stored number.
+  T? get fixedValue;
+
+  @override
+  bool get isFixed => fixedValue != null;
+
+  @override
+  Object? get _fixedContent => fixedValue;
+
+  /// [value] as a Kotlin literal of [kotlinType].
+  String _kotlinLiteral(T value);
+
+  /// [value] as a Swift literal of [swiftType].
+  String _swiftLiteral(T value);
+
+  @override
+  String swiftAccess(String dataExpr) {
+    final fixed = fixedValue;
+    return fixed == null ? super.swiftAccess(dataExpr) : _swiftLiteral(fixed);
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    final fixed = fixedValue;
+    return fixed == null ? super.kotlinAccess(dataExpr) : _kotlinLiteral(fixed);
+  }
+
+  /// [value] as a literal both Swift and Kotlin read as a floating point
+  /// number, which Kotlin needs spelled out for whole numbers.
+  static String _doubleLiteral(num value) =>
+      value is int ? '$value.0' : '$value';
+
   /// Swift expression rendering [outerValue] — the nullable access expression
   /// for this value — with [format].
   ///
   /// A missing value formats this type's own [defaultValue], and renders as
-  /// empty text when there is none. [dataExpr] is the expression the data
-  /// class is reached through, which a data-bound currency reads its code
-  /// from.
+  /// empty text when there is none. A fixed value formats its own number.
+  /// [dataExpr] is the expression the data class is reached through, which a
+  /// data-bound currency reads its code from.
   String iosFormattedValue(
     String outerValue,
     HWNumberFormat format, {
     required String dataExpr,
   }) {
+    final fixed = fixedValue;
+    if (fixed != null) {
+      return format.swiftCall(
+        'NSNumber(value: ${_doubleLiteral(fixed)})',
+        dataExpr: dataExpr,
+      );
+    }
     final fallback = codegenSwiftDefaultLiteral();
     if (fallback != null) {
       return format.swiftCall(
@@ -743,6 +871,10 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
     HWNumberFormat format, {
     required String dataExpr,
   }) {
+    final fixed = fixedValue;
+    if (fixed != null) {
+      return format.kotlinCall(_doubleLiteral(fixed), dataExpr: dataExpr);
+    }
     final fallback = codegenKotlinDefaultLiteral();
     if (fallback != null) {
       return format.kotlinCall(
@@ -762,11 +894,13 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
     required String outerValue,
     required String innerValue,
   }) {
+    if (isFixed) return '($outerValue).toString()';
     return '($outerValue?.toString() ?: "")';
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
+    if (isFixed) return '"\\($outerValue)"';
     return '$outerValue != nil ? "\\($innerValue)" : ""';
   }
 }
@@ -778,7 +912,27 @@ class HWInt extends HWNumericDataType<int> {
   @override
   final int? previewValue;
 
-  const HWInt(super.key, {this.defaultValue, this.previewValue});
+  @override
+  final int? fixedValue;
+
+  const HWInt(super.key, {this.defaultValue, this.previewValue})
+      : fixedValue = null;
+
+  /// A constant whole number, formatted on the device like a stored one.
+  ///
+  /// Creates no data field: there is nothing to save, and it previews as
+  /// itself.
+  const HWInt.fixed(int value)
+      : fixedValue = value,
+        defaultValue = null,
+        previewValue = null,
+        super('');
+
+  @override
+  String _kotlinLiteral(int value) => '${value}L';
+
+  @override
+  String _swiftLiteral(int value) => '$value';
 
   @override
   String get dartType => 'int';
@@ -818,19 +972,19 @@ class HWInt extends HWNumericDataType<int> {
 
   @override
   String? codegenKotlinDefaultLiteral() =>
-      defaultValue == null ? null : '${defaultValue!}L';
+      defaultValue == null ? null : _kotlinLiteral(defaultValue!);
 
   @override
   String? codegenSwiftDefaultLiteral() =>
-      defaultValue == null ? null : '${defaultValue!}';
+      defaultValue == null ? null : _swiftLiteral(defaultValue!);
 
   @override
   String? codegenKotlinPreviewLiteral() =>
-      previewValue == null ? null : '${previewValue!}L';
+      previewValue == null ? null : _kotlinLiteral(previewValue!);
 
   @override
   String? codegenSwiftPreviewLiteral() =>
-      previewValue == null ? null : '${previewValue!}';
+      previewValue == null ? null : _swiftLiteral(previewValue!);
 
   @override
   HWInt _merged(HWDataType<dynamic> other) {
@@ -850,7 +1004,27 @@ class HWDouble extends HWNumericDataType<double> {
   @override
   final double? previewValue;
 
-  const HWDouble(super.key, {this.defaultValue, this.previewValue});
+  @override
+  final double? fixedValue;
+
+  const HWDouble(super.key, {this.defaultValue, this.previewValue})
+      : fixedValue = null;
+
+  /// A constant number, formatted on the device like a stored one.
+  ///
+  /// Creates no data field: there is nothing to save, and it previews as
+  /// itself.
+  const HWDouble.fixed(double value)
+      : fixedValue = value,
+        defaultValue = null,
+        previewValue = null,
+        super('');
+
+  @override
+  String _kotlinLiteral(double value) => value.toString();
+
+  @override
+  String _swiftLiteral(double value) => value.toString();
 
   @override
   String get dartType => 'double';
@@ -915,7 +1089,39 @@ class HWBool extends HWDataType<bool> {
   @override
   final bool? previewValue;
 
-  const HWBool(super.key, {this.defaultValue, this.previewValue});
+  /// The flag of [HWBool.fixed], or null for a stored flag.
+  final bool? fixedValue;
+
+  const HWBool(super.key, {this.defaultValue, this.previewValue})
+      : fixedValue = null;
+
+  /// A constant flag.
+  ///
+  /// Creates no data field: there is nothing to save, and it previews as
+  /// itself.
+  const HWBool.fixed(bool value)
+      : fixedValue = value,
+        defaultValue = null,
+        previewValue = null,
+        super('');
+
+  @override
+  bool get isFixed => fixedValue != null;
+
+  @override
+  Object? get _fixedContent => fixedValue;
+
+  @override
+  String swiftAccess(String dataExpr) {
+    final fixed = fixedValue;
+    return fixed == null ? super.swiftAccess(dataExpr) : '$fixed';
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    final fixed = fixedValue;
+    return fixed == null ? super.kotlinAccess(dataExpr) : '$fixed';
+  }
 
   @override
   String get dartType => 'bool';
@@ -953,11 +1159,13 @@ class HWBool extends HWDataType<bool> {
     required String outerValue,
     required String innerValue,
   }) {
+    if (isFixed) return '"$fixedValue"';
     return '($outerValue?.toString() ?: "false")';
   }
 
   @override
   String iosToString({required String outerValue, required String innerValue}) {
+    if (isFixed) return '"$fixedValue"';
     return '$outerValue != nil ? "\\($innerValue)" : "false"';
   }
 
@@ -996,20 +1204,76 @@ class HWBool extends HWDataType<bool> {
 /// own time zone and locale, so the same stored value follows a traveling
 /// device without the app writing anything new.
 ///
-/// There is no fixed variant and no default value: a widget with no date yet
-/// renders empty text rather than a stand-in moment.
+/// There is no default value: a widget with no date yet renders empty text
+/// rather than a stand-in moment.
 ///
-/// A preview instant is written as an ISO 8601 string, since [DateTime] has no
-/// const constructor to put in an annotation.
+/// A preview or fixed instant is written as an ISO 8601 string, since
+/// [DateTime] has no const constructor to put in an annotation.
 class HWDateTime extends HWDataType<DateTime> {
   /// The `previewValue` argument exactly as written, unparsed.
   ///
   /// [previewValue] is this text parsed; the CLI validator rejects a spelling
-  /// that does not parse.
+  /// that does not parse. The widget reads it as written, so the CLI warns
+  /// about one that is not `yyyy-MM-ddTHH:mm:ss` with an optional fraction
+  /// and `Z` or an offset ([isNativeIsoDate]): its preview shows no date.
   final String? previewIso;
 
+  /// The argument of [HWDateTime.fixed] exactly as written, unparsed, or null
+  /// for a stored date.
+  ///
+  /// The CLI validator rejects a spelling that does not parse or names no
+  /// zone.
+  final String? fixedIso;
+
   const HWDateTime(super.key, {String? previewValue})
-      : previewIso = previewValue;
+      : previewIso = previewValue,
+        fixedIso = null;
+
+  /// A constant instant, written as an ISO 8601 string that names its zone:
+  /// `Z` as in `2026-09-22T10:00:00Z`, or an explicit offset such as
+  /// `+02:00`.
+  ///
+  /// Creates no data field. It is still formatted on the device, in its
+  /// locale and time zone.
+  const HWDateTime.fixed(String iso)
+      : fixedIso = iso,
+        previewIso = null,
+        super('');
+
+  @override
+  bool get isFixed => fixedIso != null;
+
+  /// [fixedIso] parsed, or null when it is unset or not a valid ISO 8601
+  /// string.
+  DateTime? get fixedDateTime =>
+      fixedIso == null ? null : DateTime.tryParse(fixedIso!);
+
+  /// The text native code parses a fixed instant from, or null for a stored
+  /// date.
+  ///
+  /// The instant in UTC, in the one spelling `saveData` stores a date in,
+  /// whichever ISO 8601 spelling [fixedIso] uses. A [fixedIso] the CLI
+  /// validator rejects stays as written.
+  String? get fixedNativeIso {
+    final parsed = fixedDateTime;
+    if (parsed == null || !parsed.isUtc) return fixedIso;
+    return parsed.toIso8601String();
+  }
+
+  /// A fixed instant goes through the same parse a stored one is read with.
+  @override
+  String swiftAccess(String dataExpr) {
+    final iso = fixedNativeIso;
+    if (iso == null) return super.swiftAccess(dataExpr);
+    return 'hwParseIsoDate("${escapeSwiftStringLiteral(iso)}")';
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    final iso = fixedNativeIso;
+    if (iso == null) return super.kotlinAccess(dataExpr);
+    return 'hwParseIsoDate("${escapeKotlinStringLiteral(iso)}")';
+  }
 
   @override
   DateTime? get defaultValue => null;
@@ -1034,6 +1298,11 @@ class HWDateTime extends HWDataType<DateTime> {
   @override
   List<HWNativeHelper> get nativeHelpers =>
       const [HWNativeHelper.hwParseIsoDate];
+
+  /// A fixed instant is parsed where it is displayed, not where it is read.
+  @override
+  Set<HWNativeHelper> get renderHelpers =>
+      isFixed ? const {HWNativeHelper.hwParseIsoDate} : const {};
 
   /// The ISO text a read parses when nothing is stored: [previewIso] in a
   /// [preview] that has one, and the empty string — which parses to no date —
@@ -1169,6 +1438,8 @@ class HWDateTime extends HWDataType<DateTime> {
   @override
   bool isCompatibleWith(HWDataType<dynamic> other) =>
       other is HWDateTime &&
+      !isFixed &&
+      !other.isFixed &&
       key == other.key &&
       _mergeable(previewIso, other.previewIso);
 
@@ -1181,10 +1452,13 @@ class HWDateTime extends HWDataType<DateTime> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is HWDateTime && key == other.key && previewIso == other.previewIso;
+      other is HWDateTime &&
+          key == other.key &&
+          previewIso == other.previewIso &&
+          fixedIso == other.fixedIso;
 
   @override
-  int get hashCode => Object.hash(key, previewIso);
+  int get hashCode => Object.hash(key, previewIso, fixedIso);
 }
 
 /// An image rendered by [HWImage].
@@ -1236,6 +1510,14 @@ class HWImageData extends HWDataType<String> {
 
   /// Whether this image is a Flutter asset read from the app bundle.
   bool get isAsset => assetPath != null;
+
+  /// An asset is the constant form of an image.
+  @override
+  bool get isFixed => isAsset;
+
+  /// An asset still owns its bundled file.
+  @override
+  bool get isDataDependency => true;
 
   /// The full asset key Flutter resolves this image with, or null for runtime
   /// images.
@@ -1512,6 +1794,21 @@ class HWIconData extends HWDataType<int> {
 
   final int? _previewCodePoint;
 
+  /// The icon passed to [HWIconData.fixed] exactly as written, null otherwise.
+  ///
+  /// Only ever set on the const instance living inside the annotation: the
+  /// decoder reads its codepoint and font and hands back an instance carrying
+  /// [fixedCodePoint] instead.
+  final Object? fixedIcon;
+
+  /// The glyph of a decoded [HWIconData.fixed], or null for a stored icon and
+  /// in annotation space.
+  final int? fixedCodePoint;
+
+  /// Whether the glyph of a decoded [HWIconData.fixed] mirrors in a
+  /// right-to-left layout, as its `IconData.matchTextDirection` declares.
+  final bool fixedMatchTextDirection;
+
   /// An icon chosen at runtime out of [icons].
   ///
   /// [defaultValue] and [previewValue] must be members of [icons].
@@ -1525,7 +1822,27 @@ class HWIconData extends HWDataType<int> {
         entries = const [],
         iconFont = null,
         _defaultCodePoint = null,
-        _previewCodePoint = null;
+        _previewCodePoint = null,
+        fixedIcon = null,
+        fixedCodePoint = null,
+        fixedMatchTextDirection = false;
+
+  /// The constant Flutter [icon], e.g. `Icons.favorite`.
+  ///
+  /// Creates no data field and no enum: there is nothing to save, and it
+  /// previews as itself.
+  const HWIconData.fixed(Object icon)
+      : fixedIcon = icon,
+        icons = const [],
+        defaultIcon = null,
+        previewIcon = null,
+        entries = const [],
+        iconFont = null,
+        _defaultCodePoint = null,
+        _previewCodePoint = null,
+        fixedCodePoint = null,
+        fixedMatchTextDirection = false,
+        super('');
 
   /// Rebuilt by the parser with every icon resolved to its name, codepoint and
   /// font.
@@ -1541,7 +1858,32 @@ class HWIconData extends HWDataType<int> {
         defaultIcon = null,
         previewIcon = null,
         _defaultCodePoint = defaultValue,
-        _previewCodePoint = previewValue;
+        _previewCodePoint = previewValue,
+        fixedIcon = null,
+        fixedCodePoint = null,
+        fixedMatchTextDirection = false;
+
+  /// [HWIconData.fixed] rebuilt by the parser with its glyph and font
+  /// resolved.
+  ///
+  /// Codegen-internal; see [HWIconData.resolved].
+  const HWIconData.resolvedFixed(
+    int codePoint, {
+    required HWIconFont this.iconFont,
+    bool matchTextDirection = false,
+  })  : fixedCodePoint = codePoint,
+        fixedMatchTextDirection = matchTextDirection,
+        fixedIcon = null,
+        icons = const [],
+        defaultIcon = null,
+        previewIcon = null,
+        entries = const [],
+        _defaultCodePoint = null,
+        _previewCodePoint = null,
+        super('');
+
+  @override
+  bool get isFixed => fixedIcon != null || fixedCodePoint != null;
 
   @override
   int? get defaultValue => _defaultCodePoint;
@@ -1550,7 +1892,10 @@ class HWIconData extends HWDataType<int> {
   int? get previewValue => _previewCodePoint;
 
   /// Every glyph this field may hold, which is what its font is subset to.
-  Set<int> get codePoints => {for (final entry in entries) entry.codePoint};
+  Set<int> get codePoints => {
+        for (final entry in entries) entry.codePoint,
+        if (fixedCodePoint case final codePoint?) codePoint,
+      };
 
   /// The glyphs of [entries] that mirror in a right-to-left layout.
   ///
@@ -1558,7 +1903,27 @@ class HWIconData extends HWDataType<int> {
   Set<int> get mirroredCodePoints => {
         for (final entry in entries)
           if (entry.matchTextDirection) entry.codePoint,
+        if (fixedCodePoint case final codePoint? when fixedMatchTextDirection)
+          codePoint,
       };
+
+  /// A decoded fixed icon is its codepoint literal; a stored one is read off
+  /// the data class.
+  @override
+  String swiftAccess(String dataExpr) {
+    final codePoint = fixedCodePoint;
+    return codePoint == null
+        ? super.swiftAccess(dataExpr)
+        : hwCodePointLiteral(codePoint);
+  }
+
+  @override
+  String kotlinAccess(String dataExpr) {
+    final codePoint = fixedCodePoint;
+    return codePoint == null
+        ? super.kotlinAccess(dataExpr)
+        : hwCodePointLiteral(codePoint);
+  }
 
   /// What the generated Dart enum's name ends in, e.g. `ConditionIcon` for the
   /// key `condition`.
@@ -1579,8 +1944,10 @@ class HWIconData extends HWDataType<int> {
   ///
   /// Answers for a decoded instance: that it names at least one icon, that no
   /// two of them ended up with the same enum value name or the same glyph, and
-  /// that the default and preview icons are among them.
+  /// that the default and preview icons are among them. A fixed icon has no
+  /// set to check.
   void validate() {
+    if (isFixed) return;
     if (entries.isEmpty) {
       throw GeneratorError(
         'HWIconData "$key" needs at least one icon.',
@@ -1734,6 +2101,8 @@ class HWIconData extends HWDataType<int> {
   @override
   bool isCompatibleWith(HWDataType<dynamic> other) =>
       other is HWIconData &&
+      !isFixed &&
+      !other.isFixed &&
       key == other.key &&
       iconFont == other.iconFont &&
       _listEquals(entries, other.entries) &&
@@ -1762,7 +2131,10 @@ class HWIconData extends HWDataType<int> {
           _listEquals(entries, other.entries) &&
           _listEquals(icons, other.icons) &&
           _defaultCodePoint == other._defaultCodePoint &&
-          _previewCodePoint == other._previewCodePoint;
+          _previewCodePoint == other._previewCodePoint &&
+          fixedIcon == other.fixedIcon &&
+          fixedCodePoint == other.fixedCodePoint &&
+          fixedMatchTextDirection == other.fixedMatchTextDirection;
 
   @override
   int get hashCode => Object.hash(
@@ -1772,6 +2144,9 @@ class HWIconData extends HWDataType<int> {
         Object.hashAll(icons),
         _defaultCodePoint,
         _previewCodePoint,
+        fixedIcon,
+        fixedCodePoint,
+        fixedMatchTextDirection,
       );
 }
 

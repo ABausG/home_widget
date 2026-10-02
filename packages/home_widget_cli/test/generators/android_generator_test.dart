@@ -317,7 +317,7 @@ void main() {
       widgetTree: const HWColumn(
         children: [
           HWImage(HWImageData('avatar'), width: 100, height: 100),
-          HWImage.asset('assets/logo.png', fit: HWImageFit.cover),
+          HWImage(HWImageData.asset('assets/logo.png'), fit: HWImageFit.cover),
         ],
       ),
     );
@@ -422,7 +422,7 @@ void main() {
       ),
       className: 'AssetOnly',
       dataFields: const [HWImageData.asset('assets/logo.png')],
-      widgetTree: const HWImage.asset('assets/logo.png'),
+      widgetTree: const HWImage(HWImageData.asset('assets/logo.png')),
     );
 
     await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
@@ -445,7 +445,7 @@ void main() {
       ),
       className: 'UnrenderedImage',
       dataFields: const [HWImageData('avatar')],
-      widgetTree: const HWText.fixed('no image here'),
+      widgetTree: const HWText(HWString.fixed('no image here')),
     );
 
     await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
@@ -556,7 +556,9 @@ void main() {
       dataFields: const [
         HWImageData.asset('assets/logo.png', package: 'my_icons'),
       ],
-      widgetTree: const HWImage.asset('assets/logo.png', package: 'my_icons'),
+      widgetTree: const HWImage(
+        HWImageData.asset('assets/logo.png', package: 'my_icons'),
+      ),
     );
 
     await AndroidGenerator(spec: spec, projectRoot: tempDir).generate();
@@ -712,8 +714,8 @@ void main() {
       ],
       widgetTree: const HWBoolConditional(
         data: HWJson('fileKey', HWBool('enabled', defaultValue: false)),
-        whenTrue: HWText.fixed('Enabled'),
-        whenFalse: HWText.fixed('Disabled'),
+        whenTrue: HWText(HWString.fixed('Enabled')),
+        whenFalse: HWText(HWString.fixed('Disabled')),
       ),
     );
 
@@ -771,8 +773,8 @@ void main() {
           'fileKey',
           HWJson('user', HWBool('enabled', defaultValue: true)),
         ),
-        whenTrue: HWText.fixed('Enabled'),
-        whenFalse: HWText.fixed('Disabled'),
+        whenTrue: HWText(HWString.fixed('Enabled')),
+        whenFalse: HWText(HWString.fixed('Disabled')),
       ),
     );
 
@@ -1336,7 +1338,10 @@ void main() {
 
     test('composes against the size the launcher actually gave', () async {
       final content = await generate(
-        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+        const HWText(
+          HWString.fixed('Hi'),
+          style: HWTextStyle(fontFamily: 'Chewy'),
+        ),
       );
 
       expect(
@@ -1348,7 +1353,10 @@ void main() {
 
     test('measures the room its text takes before it renders', () async {
       final content = await generate(
-        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+        const HWText(
+          HWString.fixed('Hi'),
+          style: HWTextStyle(fontFamily: 'Chewy'),
+        ),
       );
 
       expect(
@@ -1404,7 +1412,10 @@ void main() {
 
     test('draws the gallery preview against no measured room', () async {
       final content = await generate(
-        const HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+        const HWText(
+          HWString.fixed('Hi'),
+          style: HWTextStyle(fontFamily: 'Chewy'),
+        ),
       );
 
       expect(
@@ -1556,7 +1567,7 @@ void main() {
     });
 
     test('leaves the size mode alone for a widget without one', () async {
-      final content = await generate(const HWText.fixed('Hi'));
+      final content = await generate(const HWText(HWString.fixed('Hi')));
 
       expect(content, isNot(contains('sizeMode')));
       expect(content, isNot(contains('SizeMode')));
@@ -1570,8 +1581,8 @@ void main() {
 
     test('measures nothing when the text opts out of the bitmap', () async {
       final content = await generate(
-        const HWText.fixed(
-          'Hi',
+        const HWText(
+          HWString.fixed('Hi'),
           style: HWTextStyle(
             fontFamily: 'Chewy',
             androidFont: HWAndroidFont.serif,
@@ -1754,8 +1765,8 @@ void main() {
       dataFields: [HWBool('flag')],
       widgetTree: HWDataExists(
         data: HWBool('flag'),
-        whenPresent: HWText.fixed('Yes'),
-        whenAbsent: HWText.fixed('No'),
+        whenPresent: HWText(HWString.fixed('Yes')),
+        whenAbsent: HWText(HWString.fixed('No')),
       ),
     );
 
@@ -2201,8 +2212,8 @@ void main() {
           dataFields: const [HWDateTime('syncedAt')],
           widgetTree: const HWDataExists(
             data: HWDateTime('syncedAt'),
-            whenPresent: HWText.fixed('synced'),
-            whenAbsent: HWText.fixed('never'),
+            whenPresent: HWText(HWString.fixed('synced')),
+            whenAbsent: HWText(HWString.fixed('never')),
           ),
         ),
       );
@@ -2631,8 +2642,8 @@ dependencies {
     test('declares the size of every reachable family', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
       );
 
@@ -2658,8 +2669,8 @@ dependencies {
     test('declares the same set for the gallery preview', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
       );
 
@@ -2671,18 +2682,18 @@ dependencies {
         () async {
       final content = await generate(
         const HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
-          large: HWText.fixed('L'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
+          large: HWText(HWString.fixed('L')),
           androidSizeRanges: [
             HWAndroidSizeRange(
               maxHeight: 120,
-              child: HWText.fixed('Strip'),
+              child: HWText(HWString.fixed('Strip')),
             ),
             HWAndroidSizeRange(
               minWidth: 400,
               minHeight: 200,
-              child: HWText.fixed('Dash'),
+              child: HWText(HWString.fixed('Dash')),
             ),
           ],
         ),
@@ -2713,18 +2724,18 @@ dependencies {
       const style = HWTextStyle(fontFamily: 'Chewy');
       final content = await generate(
         const HWSizeAdaptive(
-          small: HWText.fixed('S', style: style),
-          medium: HWText.fixed('M', style: style),
-          large: HWText.fixed('L', style: style),
+          small: HWText(HWString.fixed('S'), style: style),
+          medium: HWText(HWString.fixed('M'), style: style),
+          large: HWText(HWString.fixed('L'), style: style),
           androidSizeRanges: [
             HWAndroidSizeRange(
               maxHeight: 120,
-              child: HWText.fixed('Strip', style: style),
+              child: HWText(HWString.fixed('Strip'), style: style),
             ),
             HWAndroidSizeRange(
               minWidth: 400,
               minHeight: 200,
-              child: HWText.fixed('Dash', style: style),
+              child: HWText(HWString.fixed('Dash'), style: style),
             ),
           ],
         ),
@@ -2751,9 +2762,9 @@ dependencies {
     test('lists only the sizes the configuration can reach', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
-          large: HWText.fixed('L'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
+          large: HWText(HWString.fixed('L')),
         ),
         android: const HomeWidgetAndroidConfiguration(
           packageName: 'com.example',
@@ -2777,7 +2788,7 @@ dependencies {
     });
 
     test('declares no sizeMode without an HWSizeAdaptive', () async {
-      final content = await generate(HWText.fixed('plain'));
+      final content = await generate(HWText(HWString.fixed('plain')));
 
       expect(content, isNot(contains('sizeMode')));
       expect(content, isNot(contains('SizeMode.Responsive')));
@@ -2786,8 +2797,8 @@ dependencies {
     test('declares no sizeMode when the branches collapse', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
         android: const HomeWidgetAndroidConfiguration(
           packageName: 'com.example',
@@ -2805,8 +2816,8 @@ dependencies {
     test('wraps the branching root in the full-size Box', () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
       );
 
@@ -2827,8 +2838,8 @@ dependencies {
         () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: HWText.fixed('S'),
-          medium: HWText.fixed('M'),
+          small: HWText(HWString.fixed('S')),
+          medium: HWText(HWString.fixed('M')),
         ),
         android: const HomeWidgetAndroidConfiguration(
           packageName: 'com.example',
@@ -2861,12 +2872,12 @@ dependencies {
         () async {
       final content = await generate(
         HWSizeAdaptive(
-          small: const HWText.fixed(
-            'S',
+          small: const HWText(
+            HWString.fixed('S'),
             style: HWTextStyle(fontFamily: 'Chewy'),
           ),
-          medium: const HWText.fixed(
-            'M',
+          medium: const HWText(
+            HWString.fixed('M'),
             style: HWTextStyle(fontFamily: 'Chewy'),
           ),
         ),
@@ -3121,7 +3132,11 @@ data class WeatherForecastItem(
     test('spells out what a data class would for an item holding no field',
         () async {
       final content = await generate(
-        const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+        const HWRow.builder(
+          'dots',
+          maxItems: 3,
+          item: HWText(HWString.fixed('.')),
+        ),
       );
 
       expect(
@@ -3245,7 +3260,7 @@ data class WeatherData(
           item: HWDataExists(
             data: HWItemData(HWImageData('avatar')),
             whenPresent: HWImage(HWItemData(HWImageData('avatar')), width: 24),
-            whenAbsent: HWText.fixed('?'),
+            whenAbsent: HWText(HWString.fixed('?')),
           ),
         ),
       );
@@ -3301,8 +3316,8 @@ const _forecastItem = HWColumn(
     HWText.number(HWItemData(HWDouble('rain'))),
     HWBoolConditional(
       data: HWItemData(HWBool('windy', defaultValue: false)),
-      whenTrue: HWText.fixed('windy'),
-      whenFalse: HWText.fixed('calm'),
+      whenTrue: HWText(HWString.fixed('windy')),
+      whenFalse: HWText(HWString.fixed('calm')),
     ),
     HWText(HWItemData(HWString('note'))),
   ],

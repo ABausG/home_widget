@@ -23,8 +23,8 @@ description: Text styling for HWText — font size, weight, color, decorations, 
 | `baseStyle` | `HWTextStyle?` | `null` | A style to inherit from. See [Inheritance](#inheritance). |
 
 ```dart
-HWText.fixed(
-  'kWh',
+HWText(
+  HWString.fixed('kWh'),
   style: HWTextStyle(
     fontSize: 16.0,
     color: HWDefaultColor(HWColorRole.contentSecondary),
@@ -48,8 +48,8 @@ Use `HWRoleTextStyle` when you want to follow the system's typographic hierarchy
 `HWRoleTextStyle` exposes a named constructor per role: `.title`, `.headline`, `.body`, `.callout`, `.caption`, `.captionSmall`.
 
 ```dart
-HWText.fixed(
-  '46',
+HWText(
+  HWString.fixed('46'),
   style: HWRoleTextStyle(
     role: HWTextStyleRole.title,
     color: HWDefaultColor(HWColorRole.contentPrimary),
@@ -68,7 +68,10 @@ Set `fontFamily` to render text in a font your Flutter app bundles, declared und
 in `pubspec.yaml` exactly as for a regular Flutter `TextStyle`:
 
 ```dart
-HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
+HWText(
+  HWString.fixed('kWh'),
+  style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16),
+)
 ```
 
 Pass `package` for a font that ships inside a dependency rather than your app. Both fields resolve
@@ -96,8 +99,8 @@ in as a fixed size too, so on iOS it stops following the system's text-size sett
 | `HWAndroidFont.family('...')` | A Glance `Text` in any Android system family, e.g. `sans-serif-condensed`. |
 
 ```dart
-HWText.fixed(
-  'Serif on Android',
+HWText(
+  HWString.fixed('Serif on Android'),
   style: HWTextStyle(
     fontFamily: 'Chewy',
     fontSize: 14,

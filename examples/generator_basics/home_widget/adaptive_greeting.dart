@@ -12,12 +12,12 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     supportedFamilies: [HWWidgetFamily.systemSmall],
   ),
   widget: HWAdaptive(
-    ios: HWText.fixed(
-      'Hello iOS',
+    ios: HWText(
+      HWString.fixed('Hello iOS'),
       style: HWRoleTextStyle(role: HWTextStyleRole.headline),
     ),
-    android: HWText.fixed(
-      'Hello Android',
+    android: HWText(
+      HWString.fixed('Hello Android'),
       style: HWRoleTextStyle(role: HWTextStyleRole.headline),
     ),
   ),
