@@ -27,8 +27,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       mainAxisAlignment: HWMainAxisAlignment.center,
       crossAxisAlignment: HWCrossAxisAlignment.center,
       children: [
-        HWText.fixed(
-          'Counter',
+        HWText(
+          HWString.fixed('Counter'),
           style: HWRoleTextStyle(
             role: HWTextStyleRole.caption,
             color: HWDefaultColor(HWColorRole.contentSecondary),

@@ -10,8 +10,8 @@ import 'package:path/path.dart' as p;
 void main() {
   group('HWAdaptive', () {
     const simpleAdaptive = HWAdaptive(
-      ios: HWText.fixed('ios only'),
-      android: HWText.fixed('android only'),
+      ios: HWText(HWString.fixed('ios only')),
+      android: HWText(HWString.fixed('android only')),
     );
 
     group('model', () {
@@ -31,10 +31,10 @@ void main() {
       test('swiftFrameAlignment is the one of the ios branch', () {
         const adaptive = HWAdaptive(
           ios: HWColumn(
-            children: [HWText.fixed('ios only')],
+            children: [HWText(HWString.fixed('ios only'))],
             crossAxisAlignment: HWCrossAxisAlignment.center,
           ),
-          android: HWText.fixed('android only'),
+          android: HWText(HWString.fixed('android only')),
         );
         expect(adaptive.swiftFrameAlignment, '.top');
         expect(simpleAdaptive.swiftFrameAlignment, '.topLeading');
@@ -48,8 +48,8 @@ void main() {
 
       test('toSwift includes styling from ios when present', () {
         const withStyle = HWAdaptive(
-          ios: HWText.fixed('a', style: HWRoleTextStyle.headline()),
-          android: HWText.fixed('b'),
+          ios: HWText(HWString.fixed('a'), style: HWRoleTextStyle.headline()),
+          android: HWText(HWString.fixed('b')),
         );
         expect(
           withStyle.toSwift(0, dataExpr: 'd'),
@@ -57,8 +57,8 @@ void main() {
         );
         expect(
           const HWAdaptive(
-            ios: HWText.fixed('a'),
-            android: HWText.fixed('b'),
+            ios: HWText(HWString.fixed('a')),
+            android: HWText(HWString.fixed('b')),
           ).toSwift(0, dataExpr: 'd'),
           isNot(contains('.font(')),
         );
@@ -68,8 +68,8 @@ void main() {
         'swiftViewModifiers propagate from ios when themed color needs colorScheme',
         () {
           const adaptive = HWAdaptive(
-            ios: HWText.fixed(
-              'x',
+            ios: HWText(
+              HWString.fixed('x'),
               style: HWTextStyle(
                 color: HWThemedColor(
                   light: HWFixedColor(0xFF000000),
@@ -77,7 +77,7 @@ void main() {
                 ),
               ),
             ),
-            android: HWText.fixed('y'),
+            android: HWText(HWString.fixed('y')),
           );
           expect(
             adaptive.swiftViewModifiers,
@@ -96,8 +96,9 @@ void main() {
 
       test('kotlinImports from android child', () {
         const adaptive = HWAdaptive(
-          ios: HWText.fixed('a'),
-          android: HWText.fixed('b', style: HWTextStyle(italic: true)),
+          ios: HWText(HWString.fixed('a')),
+          android:
+              HWText(HWString.fixed('b'), style: HWTextStyle(italic: true)),
         );
         expect(
           adaptive.kotlinImports,
@@ -108,9 +109,10 @@ void main() {
       test('answers for the layout as its Android side does', () {
         const spread = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.center,
-          children: [HWText.fixed('b')],
+          children: [HWText(HWString.fixed('b'))],
         );
-        const adaptive = HWAdaptive(ios: HWText.fixed('a'), android: spread);
+        const adaptive =
+            HWAdaptive(ios: HWText(HWString.fixed('a')), android: spread);
         expect(
           adaptive.kotlinImportsIn(HWAxis.vertical),
           spread.kotlinImportsIn(HWAxis.vertical),
@@ -121,7 +123,7 @@ void main() {
         );
         expect(adaptive.kotlinReportsBaseline, isFalse);
         expect(
-          const HWAdaptive(ios: spread, android: HWText.fixed('a'))
+          const HWAdaptive(ios: spread, android: HWText(HWString.fixed('a')))
               .kotlinReportsBaseline,
           isTrue,
         );
@@ -132,12 +134,12 @@ void main() {
           spacing: 4,
           crossAxisAlignment: HWCrossAxisAlignment.start,
           children: [
-            HWText.fixed('a'),
+            HWText(HWString.fixed('a')),
             HWAdaptive(
-              ios: HWText.fixed('ios'),
+              ios: HWText(HWString.fixed('ios')),
               android: HWDataExists(
                 data: HWString('maybe'),
-                whenPresent: HWText.fixed('b'),
+                whenPresent: HWText(HWString.fixed('b')),
                 whenAbsent: HWDataOnly([HWString('id')]),
               ),
             ),
@@ -161,8 +163,8 @@ void main() {
 @HomeWidget(
   name: 'AdaptiveWidget',
   widget: HWAdaptive(
-    ios: HWColumn(children: [HWText.fixed('iOS Text')]),
-    android: HWColumn(children: [HWText.fixed('Android Text')]),
+    ios: HWColumn(children: [HWText(HWString.fixed('iOS Text'))]),
+    android: HWColumn(children: [HWText(HWString.fixed('Android Text'))]),
   ),
 )
 class AdaptiveWidget {}
@@ -205,13 +207,16 @@ $code
 
           expect(adaptive.ios, isA<HWColumn>());
           expect(
-            ((adaptive.ios as HWColumn).children.first as HWText).fixedContent,
+            (((adaptive.ios as HWColumn).children.first as HWText).dataType
+                    as HWString)
+                .fixedValue,
             'iOS Text',
           );
           expect(adaptive.android, isA<HWColumn>());
           expect(
-            ((adaptive.android as HWColumn).children.first as HWText)
-                .fixedContent,
+            (((adaptive.android as HWColumn).children.first as HWText).dataType
+                    as HWString)
+                .fixedValue,
             'Android Text',
           );
 

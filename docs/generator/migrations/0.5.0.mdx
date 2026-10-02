@@ -1,0 +1,81 @@
+---
+title: Migration to 0.5.0
+description: Breaking changes and migration guide for home_widget_generator 0.5.0
+---
+
+# Migration to 0.5.0
+
+Regenerate your widgets, then check the changes below.
+
+A constant value is now a [data type](/generator/data#fixed-values) instead of a widget constructor. The constructors `HWText.fixed`, `HWText.fixedNumber`, `HWText.localized`, `HWIcon.fixed` and `HWImage.asset` are removed. The rewrite is mechanical, and the rendered widgets do not change: the regenerated Swift and Kotlin is identical.
+
+| Removed | Replacement |
+| --- | --- |
+| `HWText.fixed('Hi')` | `HWText(HWString.fixed('Hi'))` |
+| `HWText.fixedNumber(3)` | `HWText.number(HWInt.fixed(3))` |
+| `HWText.fixedNumber(2.5)` | `HWText.number(HWDouble.fixed(2.5))` |
+| `HWText.localized({...})` | `HWText(HWString.localizedFixed({...}))` |
+| `HWIcon.fixed(Icons.add)` | `HWIcon(HWIconData.fixed(Icons.add))` |
+| `HWImage.asset('a.png')` | `HWImage(HWImageData.asset('a.png'))` |
+
+Parameters such as `style`, `textAlign`, `format`, `size`, `color`, `semanticLabel`, `width`, `height` and `fit` stay on the widget.
+
+## HWText.fixed Became HWString.fixed
+
+Wrap the text in an `HWString.fixed`:
+
+```dart
+HWText.fixed('Hello', style: HWRoleTextStyle.headline()) // [!code --]
+HWText(HWString.fixed('Hello'), style: HWRoleTextStyle.headline()) // [!code ++]
+```
+
+## HWText.fixedNumber Became HWInt.fixed and HWDouble.fixed
+
+Use `HWInt.fixed` for an integer and `HWDouble.fixed` for a number with a decimal part. The number is still formatted on the device:
+
+```dart
+HWText.fixedNumber(10000) // [!code --]
+HWText.number(HWInt.fixed(10000)) // [!code ++]
+```
+
+```dart
+HWText.fixedNumber(0.5, format: HWNumberFormat.percent()) // [!code --]
+HWText.number(HWDouble.fixed(0.5), format: HWNumberFormat.percent()) // [!code ++]
+```
+
+## HWText.localized Became HWString.localizedFixed
+
+The locale map is unchanged and follows the same rules: it includes the default locale and has no placeholders.
+
+```dart
+HWText.localized({'en': 'Hello', 'de': 'Hallo'}) // [!code --]
+HWText(HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'})) // [!code ++]
+```
+
+See [Localization](/generator/localization#two-kinds-of-localized-text) for how it differs from the stored `HWString.localized`.
+
+## HWIcon.fixed Became HWIconData.fixed
+
+```dart
+HWIcon.fixed(Icons.favorite, size: 24) // [!code --]
+HWIcon(HWIconData.fixed(Icons.favorite), size: 24) // [!code ++]
+```
+
+## HWImage.asset Became HWImageData.asset
+
+`package` moves along with the path:
+
+```dart
+HWImage.asset('assets/logo.png', package: 'my_icons', width: 32) // [!code --]
+HWImage(HWImageData.asset('assets/logo.png', package: 'my_icons'), width: 32) // [!code ++]
+```
+
+## Fixed Values Create No Stored Field
+
+A `.fixed` value adds no `saveData` or `getData` parameter, no default and no preview value. It cannot be wrapped in `HWJson`, `HWTimedData` or `HWItemData`, used in `HWDataOnly`, or used as the condition of `HWBoolConditional` or `HWDataExists`. Each of these fails generation. See [Fixed values](/generator/data#fixed-values).
+
+`HWBool.fixed` and `HWDateTime.fixed` are new. A fixed date takes an ISO 8601 string that names its zone, `Z` or an explicit offset such as `+02:00`, as in `HWText.dateTime(HWDateTime.fixed('2026-09-22T10:00:00Z'))`. A string without a zone fails generation.
+
+## A Mistyped Key Points to HWString.fixed
+
+Text passed to `HWString('...')` is a storage key. When it is not a valid key, such as `HWString('Hello world')`, the "Invalid data name" error now suggests `HWString.fixed`. The suggestion appears only for an `HWString` used on its own, not for one wrapped in `HWJson`, `HWTimedData` or `HWItemData`, and not for any other type.

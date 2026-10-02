@@ -36,6 +36,7 @@ const String reservedTimedDataName = 'timedData';
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
   validateLists(spec);
+  _validateFixedData(spec);
 
   // `timedData` only collides with generated API surface when the spec
   // actually has time-based data (the `saveData(timedData: ...)` parameter,
@@ -242,7 +243,79 @@ String _describeImage(HWImageData image) {
   return 'asset "${image.assetPath}" of package "$package"';
 }
 
-void _validateDataTypeKeys(HWDataType<dynamic> type) {
+/// [value], a fixed value, the way a schema writes it.
+String _spellFixed(HWDataType<dynamic> value) => switch (value) {
+      HWLocalizedString() => 'HWString.localizedFixed',
+      HWString(:final fixedValue) => 'HWString.fixed("$fixedValue")',
+      HWDateTime(:final fixedIso) => 'HWDateTime.fixed("$fixedIso")',
+      HWImageData(:final assetPath) => 'HWImageData.asset("$assetPath")',
+      HWIconData() => 'HWIconData.fixed',
+      HWInt(:final fixedValue) => 'HWInt.fixed($fixedValue)',
+      HWDouble(:final fixedValue) => 'HWDouble.fixed($fixedValue)',
+      HWBool(:final fixedValue) => 'HWBool.fixed($fixedValue)',
+      // Never fixed: a wrapper has no constant form.
+      // coverage:ignore-start
+      HWJson() || HWTimedData() || HWItemData() => '${value.runtimeType}',
+      // coverage:ignore-end
+    };
+
+/// Rejects a fixed value that declares nothing where it stands, and one whose
+/// content cannot be rendered.
+///
+/// A fixed value is no data dependency, so these go by the tree instead of
+/// the spec's data fields.
+void _validateFixedData(WidgetSpec spec) {
+  final tree = spec.widgetTree;
+  if (tree == null) return;
+
+  for (final widget in tree.descendants) {
+    if (widget is HWDataOnly) {
+      for (final data in widget.data) {
+        if (!data.isFixed) continue;
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWDataOnly cannot declare '
+          '${_spellFixed(data)}. A fixed value is written into the widget and '
+          'never stored, so there is nothing for HWDataOnly to declare. Remove '
+          'it, or declare a stored field.',
+        );
+      }
+    }
+
+    if (widget is! HWText) continue;
+    final field = widget.dataType;
+    if (field is HWDouble) {
+      final value = field.fixedValue;
+      if (value != null && !value.isFinite) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWDouble.fixed($value) is not a finite '
+          'number, so there is no literal to write into the widget. Use a '
+          'finite value.',
+        );
+      }
+    }
+    if (field is! HWDateTime) continue;
+    final iso = field.fixedIso;
+    if (iso == null) continue;
+    final parsed = field.fixedDateTime;
+    if (parsed == null) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWDateTime.fixed("$iso") is not an ISO '
+        '8601 date. $_isoDateExample',
+      );
+    }
+    if (!parsed.isUtc) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWDateTime.fixed("$iso") names no time '
+        'zone, so which instant it means would depend on where it is read. '
+        'End it in Z or an offset such as +02:00. $_isoDateExample',
+      );
+    }
+  }
+}
+
+/// Validates the key of [type] and of everything it wraps; [wrapped] is set
+/// for a type reached through a wrapper.
+void _validateDataTypeKeys(HWDataType<dynamic> type, {bool wrapped = false}) {
   // Constant localized strings are inlined and never named in generated APIs,
   // so they deliberately carry an empty key.
   if (type is HWLocalizedString && type.isConstant) return;
@@ -258,10 +331,21 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
         'conditional.',
       );
     }
-    _validateDataTypeKeys(inner);
+    if (inner.isFixed) {
+      throw GeneratorError(
+        'HWTimedData cannot wrap ${_spellFixed(inner)}: a fixed value never '
+        'changes, so there is nothing for a timeline to switch between. Use '
+        'it without HWTimedData, or wrap a stored field.',
+      );
+    }
+    _validateDataTypeKeys(inner, wrapped: true);
     return;
   }
-  _validateAsciiIdentifier(type.key, descriptor: _describeLeafContext(type));
+  _validateAsciiIdentifier(
+    type.key,
+    descriptor: _describeLeafContext(type),
+    keysPlainString: !wrapped && type is HWString && type is! HWLocalizedString,
+  );
   if (type is HWJson) {
     if (type.child is HWTimedData) {
       throw GeneratorError(
@@ -274,11 +358,19 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
       throw GeneratorError(
         'HWJson cannot carry HWImageData.asset("${leaf.assetPath}") (in '
         '"${type.key}"): an asset is read straight out of the app bundle, so '
-        'there is nothing for the group\'s blob to carry. Use HWImage.asset '
-        'directly, or a runtime HWImageData("key") leaf.',
+        'there is nothing for the group\'s blob to carry. Use '
+        'HWImage(HWImageData.asset(...)) directly, or a runtime '
+        'HWImageData("key") leaf.',
       );
     }
-    _validateDataTypeKeys(type.child);
+    if (leaf.isFixed) {
+      throw GeneratorError(
+        'HWJson cannot carry ${_spellFixed(leaf)} (in "${type.key}"): a fixed '
+        'value is written into the widget, so there is nothing to read out of '
+        'the group. Use it without HWJson, or nest a stored field.',
+      );
+    }
+    _validateDataTypeKeys(type.child, wrapped: true);
   }
 }
 
@@ -289,6 +381,14 @@ void _validateDataTypeKeys(HWDataType<dynamic> type) {
 /// decoding, so a localized string can never reach it.
 void _validateConditionalData(WidgetSpec spec) {
   for (final widget in spec.effectiveWidgetTree.descendants) {
+    if (widget is HWBoolConditional && widget.data.isFixed) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWBoolConditional cannot test '
+        '${_spellFixed(widget.data)}. A fixed value never changes, so only one '
+        'of the two branches is ever rendered. Render that branch directly, '
+        'or test a stored HWBool("key").',
+      );
+    }
     if (widget is! HWDataExists) continue;
     final data = widget.data.unwrapped;
 
@@ -298,16 +398,25 @@ void _validateConditionalData(WidgetSpec spec) {
         'HWImageData.asset("${data.assetPath}"). An asset ships with the app '
         'and is read straight out of the bundle, so it stores no value to '
         'check — the check is always true and the whenAbsent branch is never '
-        'rendered. Render HWImage.asset directly, or use a runtime '
-        'HWImageData("key") if you want to switch on whether an image was '
-        'saved.',
+        'rendered. Render HWImage(HWImageData.asset(...)) directly, or use a '
+        'runtime HWImageData("key") if you want to switch on whether an image '
+        'was saved.',
+      );
+    }
+
+    if (data.isFixed && data is! HWLocalizedString) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWDataExists cannot test '
+        '${_spellFixed(data)}. A fixed value is always there, so the check is '
+        'always true and the whenAbsent branch is never rendered. Render the '
+        'whenPresent branch directly, or test a stored field.',
       );
     }
 
     if (data is! HWLocalizedString) continue;
 
     final descriptor = data.isConstant
-        ? 'HWText.localized'
+        ? 'HWString.localizedFixed'
         : 'HWString.localized("${data.key}")';
     throw GeneratorError(
       'Widget "${spec.data.name}": HWDataExists cannot test $descriptor. '
@@ -331,7 +440,7 @@ void _validateTextFormats(WidgetSpec spec) {
 
     final dateFormat = widget.dateFormat;
     if (dateFormat != null) {
-      if (data != null && dateTimeLeafOf(data) == null) {
+      if (dateTimeLeafOf(data) == null) {
         // coverage:ignore-start
         throw GeneratorError(
           'Widget "${spec.data.name}": HWText.dateTime needs an HWDateTime, '
@@ -346,7 +455,7 @@ void _validateTextFormats(WidgetSpec spec) {
 
     final numberFormat = widget.numberFormat;
     if (numberFormat != null) {
-      if (data != null && numberLeafOf(data) == null) {
+      if (numberLeafOf(data) == null) {
         // coverage:ignore-start
         throw GeneratorError(
           'Widget "${spec.data.name}": HWText.number needs an HWInt or '
@@ -417,6 +526,7 @@ void _validateCurrency(WidgetSpec spec, HWCurrency currency) {
         data,
         descriptor: 'HWCurrency.data',
         subject: 'An ISO 4217 code',
+        constant: 'HWCurrency.code',
       );
   }
 }
@@ -465,6 +575,7 @@ void _validateTimeZone(WidgetSpec spec, HWTimeZone timeZone) {
         data,
         descriptor: 'HWTimeZone.data',
         subject: 'An IANA zone id',
+        constant: 'HWTimeZone.named',
       );
     case HWLocalTimeZone():
       break;
@@ -474,13 +585,22 @@ void _validateTimeZone(WidgetSpec spec, HWTimeZone timeZone) {
 /// Rejects a format-level data field that is not a plain string.
 ///
 /// [descriptor] names the construct reading it and [subject] what it holds, so
-/// the message says why the value cannot be translated or numeric.
+/// the message says why the value cannot be translated or numeric. [constant]
+/// names the constructor a fixed value is pointed to instead.
 void _validatePlainStringData(
   WidgetSpec spec,
   HWDataType<dynamic> data, {
   required String descriptor,
   required String subject,
+  required String constant,
 }) {
+  if (data.isFixed) {
+    throw GeneratorError(
+      'Widget "${spec.data.name}": $descriptor reads ${_spellFixed(data)}. '
+      '$descriptor reads a stored field; write a constant with $constant '
+      'instead.',
+    );
+  }
   final leaf = data.leaf;
   if (leaf is HWLocalizedString) {
     throw GeneratorError(
@@ -601,7 +721,7 @@ void validateLocalization(WidgetSpec spec) {
   // Body strings carry no separate base field, so their map must be complete.
   for (final field in localized) {
     final descriptor = field.isConstant
-        ? 'HWText.localized in "${spec.data.name}"'
+        ? 'HWString.localizedFixed in "${spec.data.name}"'
         : 'HWString.localized("${field.key}")';
     _validateLocaleMap(
       field.defaultTranslations,
@@ -724,7 +844,7 @@ void _validateLocaleMap(
 void _validateNoConflictingKeys(WidgetSpec spec) {
   final seen = <String, HWDataType<dynamic>>{};
   for (final field in spec.declaredDataFields) {
-    if (field is HWLocalizedString && field.isConstant) continue;
+    if (field.isFixed) continue;
 
     final existing = seen[field.key];
     if (existing == null) {
@@ -820,7 +940,8 @@ bool _sameTranslations(Map<String, String> a, Map<String, String> b) {
   return true;
 }
 
-/// Rejects a preview instant that is not an ISO 8601 date.
+/// Rejects a preview instant that is not an ISO 8601 date, and warns about
+/// one the widget cannot read.
 ///
 /// [HWDateTime] keeps the text it was written with, because [DateTime] has no
 /// const constructor an annotation could carry; a typo there would otherwise
@@ -829,17 +950,51 @@ void _validatePreviewDates(WidgetSpec spec) {
   for (final leaf in spec.dataLeaves) {
     if (leaf is! HWDateTime) continue;
     final iso = leaf.previewIso;
-    if (iso == null || leaf.previewDateTime != null) continue;
-    throw GeneratorError(
-      'Widget "${spec.data.name}": HWDateTime("${leaf.key}") has previewValue '
-      '"$iso", which is not an ISO 8601 date. $_isoDateExample',
-    );
+    if (iso == null) continue;
+    final subject = 'Widget "${spec.data.name}": HWDateTime("${leaf.key}") has '
+        'previewValue "$iso"';
+    if (leaf.previewDateTime == null) {
+      throw GeneratorError(
+        '$subject, which is not an ISO 8601 date. $_isoDateExample',
+      );
+    }
+    _warnAboutUnreadablePreviewDate(iso, subject: subject);
   }
 }
 
 /// How a preview instant is written, which every rejection of one ends with.
 const String _isoDateExample =
     'Write the instant as e.g. "2024-03-08T09:41:00Z".';
+
+/// Warns about [iso], a preview instant Dart parses, when the generated
+/// `hwParseIsoDate` does not read it; [subject] starts the message.
+///
+/// The widget parses the text as written, so such a preview renders without
+/// its date.
+void _warnAboutUnreadablePreviewDate(String iso, {required String subject}) {
+  if (isNativeIsoDate(iso)) return;
+
+  final spelling = _nativeIsoSpelling(iso);
+  final fix =
+      isNativeIsoDate(spelling) ? 'Write it as $spelling.' : _isoDateExample;
+  logger.warn(
+    'Warning: $subject, which the widget cannot read, so the preview shows no '
+    'date. $fix',
+  );
+}
+
+/// The instant [iso] names, which [DateTime.tryParse] reads, in the spelling
+/// the widget reads.
+///
+/// Without a zone the fields are taken as UTC, as the widget takes them.
+String _nativeIsoSpelling(String iso) {
+  var instant = DateTime.parse(iso);
+  if (!instant.isUtc) {
+    instant =
+        DateTime.tryParse('${iso}Z') ?? DateTime.parse('${iso}T00:00:00Z');
+  }
+  return instant.toIso8601String().replaceFirst('.000Z', 'Z');
+}
 
 /// Rejects keys that are declared both time-based and regular, because both
 /// would map onto the same storage key and the same generated parameter name.
@@ -887,11 +1042,14 @@ const Set<String> _reservedMemberNames = {
 ///
 /// [membersClass] is set where [name] becomes a member of a generated class —
 /// a list key, an item field, a JSON path segment — and rejects the names
-/// that class already has.
+/// that class already has. [keysPlainString] is set where [name] is the key
+/// of an `HWString` used on its own, the one place constant text may have
+/// been written for a key.
 void _validateAsciiIdentifier(
   String name, {
   required String descriptor,
   bool membersClass = false,
+  bool keysPlainString = false,
 }) {
   if (name.isEmpty) {
     throw GeneratorError('Invalid data name for $descriptor: name is empty.');
@@ -899,7 +1057,8 @@ void _validateAsciiIdentifier(
   if (!asciiDataNamePattern.hasMatch(name)) {
     throw GeneratorError(
       'Invalid data name "$name" ($descriptor): '
-      'use ASCII letters and digits only; must start with a letter.',
+      'use ASCII letters and digits only; must start with a letter.'
+      '${keysPlainString ? ' For constant text, use HWString.fixed(...).' : ''}',
     );
   }
   if (membersClass && _reservedMemberNames.contains(name)) {

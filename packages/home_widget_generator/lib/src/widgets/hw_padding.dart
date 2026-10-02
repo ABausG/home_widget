@@ -99,11 +99,13 @@ class HWPadding extends HWSingleChildWidget {
       // coverage:ignore-end
     }
 
-    return HWPadding(
-      child:
-          child ?? const HWText.fixed(''), // Fallback if no child is provided
-      padding: padding,
-    );
+    if (child == null) {
+      // coverage:ignore-start
+      throw GeneratorError('HWPadding requires a non-null child property');
+      // coverage:ignore-end
+    }
+
+    return HWPadding(child: child, padding: padding);
   }
 
   @override

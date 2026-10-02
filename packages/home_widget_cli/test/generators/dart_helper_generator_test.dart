@@ -2492,7 +2492,11 @@ class WeatherForecastItem {
     test('gives an item that reads no field a class without members', () {
       final output = DartHelperGenerator(
         _listSpec(
-          const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+          const HWRow.builder(
+            'dots',
+            maxItems: 3,
+            item: HWText(HWString.fixed('.')),
+          ),
         ),
       ).generate();
 
@@ -2780,7 +2784,11 @@ class WeatherTimedData {
       final output = await _runHelper(
         DartHelperGenerator(
           _listSpec(
-            const HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+            const HWRow.builder(
+              'dots',
+              maxItems: 3,
+              item: HWText(HWString.fixed('.')),
+            ),
           ),
         ).generate(),
         r'''
@@ -3819,8 +3827,8 @@ const _forecastItem = HWColumn(
     HWText.number(HWItemData(HWDouble('rain'))),
     HWBoolConditional(
       data: HWItemData(HWBool('windy', defaultValue: false)),
-      whenTrue: HWText.fixed('windy'),
-      whenFalse: HWText.fixed('calm'),
+      whenTrue: HWText(HWString.fixed('windy')),
+      whenFalse: HWText(HWString.fixed('calm')),
     ),
     HWText(HWItemData(HWString('note'))),
   ],

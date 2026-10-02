@@ -5,7 +5,12 @@ void main() {
   group('HWColumn', () {
     group('model', () {
       test('const constructor', () {
-        const col = HWColumn(children: [HWText.fixed('a'), HWText.fixed('b')]);
+        const col = HWColumn(
+          children: [
+            HWText(HWString.fixed('a')),
+            HWText(HWString.fixed('b')),
+          ],
+        );
         expect(col, isA<HWColumn>());
         expect(col, isA<HWWidget>());
         expect(col.children, hasLength(2));
@@ -19,7 +24,7 @@ void main() {
       test('Row in Column', () {
         const widget = HWColumn(
           children: [
-            HWRow(children: [HWText.fixed('x')]),
+            HWRow(children: [HWText(HWString.fixed('x'))]),
           ],
         );
         expect(widget.children.first, isA<HWRow>());
@@ -30,7 +35,7 @@ void main() {
           children: [
             HWRow(
               children: [
-                HWColumn(children: [HWText.fixed('deep')]),
+                HWColumn(children: [HWText(HWString.fixed('deep'))]),
               ],
             ),
           ],
@@ -51,7 +56,7 @@ void main() {
 
       test('kotlinImports add Alignment and Spacer when set', () {
         final w = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.start,
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
@@ -66,7 +71,7 @@ void main() {
       });
 
       test('kotlinImports carry Alignment without a cross-axis alignment', () {
-        final w = HWColumn(children: [HWText.fixed('a')]);
+        final w = HWColumn(children: [HWText(HWString.fixed('a'))]);
         expect(
           w.kotlinImports,
           contains('import androidx.glance.layout.Alignment'),
@@ -87,8 +92,8 @@ void main() {
           'events',
           maxItems: 3,
           spacing: 4,
-          item: HWText.fixed('event'),
-          whenEmpty: HWText.fixed('none'),
+          item: HWText(HWString.fixed('event')),
+          whenEmpty: HWText(HWString.fixed('none')),
         );
         expect(col.list, 'events');
         expect(col.maxItems, 3);
@@ -129,7 +134,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
     group('iOS (SwiftUI)', () {
       test('swiftFrameAlignment keeps the cross axis, never the main one', () {
-        const children = [HWText.fixed('a')];
+        const children = [HWText(HWString.fixed('a'))];
         expect(
           const HWColumn(
             children: children,
@@ -164,7 +169,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('VStack with children', () {
         final node = HWColumn(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
@@ -175,8 +180,8 @@ Column(horizontalAlignment = Alignment.Start) {
       test('nested VStack and HStack', () {
         final node = HWColumn(
           children: [
-            HWRow(children: [HWText.fixed('x')]),
-            HWText.fixed('y'),
+            HWRow(children: [HWText(HWString.fixed('x'))]),
+            HWText(HWString.fixed('y')),
           ],
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -202,7 +207,7 @@ Column(horizontalAlignment = Alignment.Start) {
       test('indentation with nested HStack', () {
         final node = HWColumn(
           children: [
-            HWRow(children: [HWText.fixed('x')]),
+            HWRow(children: [HWText(HWString.fixed('x'))]),
           ],
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -213,7 +218,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('crossAxis .start → leading', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -222,7 +227,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('crossAxis .center', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -230,14 +235,14 @@ Column(horizontalAlignment = Alignment.Start) {
       });
 
       test('no alignment defaults to center', () {
-        final node = HWColumn(children: [HWText.fixed('a')]);
+        final node = HWColumn(children: [HWText(HWString.fixed('a'))]);
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
       });
 
       test('crossAxis .baseline falls back to center', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -246,7 +251,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .center uses Spacer', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -258,7 +263,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .end uses leading Spacer', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.end,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -269,7 +274,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .spaceEvenly', () {
         final node = HWColumn(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -278,7 +283,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .spaceBetween and Spacer', () {
         final node = HWColumn(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -289,7 +294,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('crossAxis .end → trailing', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -298,7 +303,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .start has no Spacer', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.start,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -312,7 +317,7 @@ Column(horizontalAlignment = Alignment.Start) {
       const kotlinRow = 'Row(verticalAlignment = Alignment.CenterVertically) {';
 
       test('kotlinImports include Column', () {
-        final w = HWColumn(children: [HWText.fixed('a')]);
+        final w = HWColumn(children: [HWText(HWString.fixed('a'))]);
         expect(
           w.kotlinImports,
           contains('import androidx.glance.layout.Column'),
@@ -321,7 +326,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('Column with children', () {
         final node = HWColumn(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains(kotlinColumn));
@@ -332,8 +337,8 @@ Column(horizontalAlignment = Alignment.Start) {
       test('nested Column and Row', () {
         final node = HWColumn(
           children: [
-            HWRow(children: [HWText.fixed('x')]),
-            HWText.fixed('y'),
+            HWRow(children: [HWText(HWString.fixed('x'))]),
+            HWText(HWString.fixed('y')),
           ],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -359,7 +364,7 @@ Column(horizontalAlignment = Alignment.Start) {
       test('indentation', () {
         final node = HWColumn(
           children: [
-            HWRow(children: [HWText.fixed('x')]),
+            HWRow(children: [HWText(HWString.fixed('x'))]),
           ],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -370,7 +375,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('crossAxis .center', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -383,14 +388,14 @@ Column(horizontalAlignment = Alignment.Start) {
       });
 
       test('no cross-axis alignment → CenterHorizontally', () {
-        final node = HWColumn(children: [HWText.fixed('a')]);
+        final node = HWColumn(children: [HWText(HWString.fixed('a'))]);
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(r, contains(kotlinColumn));
       });
 
       test('crossAxis .baseline falls back to CenterHorizontally', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -399,7 +404,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .center and Spacer', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -424,7 +429,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('cross and main alignment together', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
           mainAxisAlignment: HWMainAxisAlignment.end,
         );
@@ -447,7 +452,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('crossAxis .start → Start', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -459,7 +464,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('crossAxis .end → End', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -471,7 +476,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .spaceBetween with weighted Spacers in Kotlin', () {
         final node = HWColumn(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -487,7 +492,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .spaceEvenly with weighted Spacers in Kotlin', () {
         final node = HWColumn(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -509,7 +514,10 @@ Column(horizontalAlignment = Alignment.Start) {
       ]) {
         test('mainAxis .${alignment.name} fills the height', () {
           final node = HWColumn(
-            children: [HWText.fixed('a'), HWText.fixed('b')],
+            children: [
+              HWText(HWString.fixed('a')),
+              HWText(HWString.fixed('b')),
+            ],
             mainAxisAlignment: alignment,
           );
           expect(
@@ -525,7 +533,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('mainAxis .start does not fill the height', () {
         final node = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.start,
         );
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('fillMax')));
@@ -536,7 +544,7 @@ Column(horizontalAlignment = Alignment.Start) {
       });
 
       test('no mainAxis alignment does not fill the height', () {
-        final node = HWColumn(children: [HWText.fixed('a')]);
+        final node = HWColumn(children: [HWText(HWString.fixed('a'))]);
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('fillMax')));
         expect(
           node.kotlinImports,
@@ -546,10 +554,10 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('a column in a column takes a weight rather than the height', () {
         const inner = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
-        const node = HWColumn(children: [inner, HWText.fixed('b')]);
+        const node = HWColumn(children: [inner, HWText(HWString.fixed('b'))]);
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
           r,
@@ -568,7 +576,7 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('a column in a row still fills the height', () {
         const inner = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         const node = HWRow(children: [inner]);
@@ -584,11 +592,11 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('a wrapper keeping the column passes the axis through', () {
         const inner = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         const padded = HWPadding(padding: HWEdgeInsets.all(4), child: inner);
-        const node = HWColumn(children: [padded, HWText.fixed('b')]);
+        const node = HWColumn(children: [padded, HWText(HWString.fixed('b'))]);
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains('.defaultWeight(),'),
@@ -601,11 +609,13 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('an adaptive passes the axis on to its Android side', () {
         const inner = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
-        const adaptive = HWAdaptive(ios: HWText.fixed('a'), android: inner);
-        const node = HWColumn(children: [adaptive, HWText.fixed('b')]);
+        const adaptive =
+            HWAdaptive(ios: HWText(HWString.fixed('a')), android: inner);
+        const node =
+            HWColumn(children: [adaptive, HWText(HWString.fixed('b'))]);
         expect(
           node.toKotlin(0, dataExpr: 'data'),
           contains('Column(modifier = GlanceModifier.defaultWeight(), '),
@@ -618,11 +628,14 @@ Column(horizontalAlignment = Alignment.Start) {
 
       test('a sized box in between gives the column its height back', () {
         const inner = HWColumn(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         const node = HWColumn(
-          children: [HWSizedBox.expand(child: inner), HWText.fixed('b')],
+          children: [
+            HWSizedBox.expand(child: inner),
+            HWText(HWString.fixed('b')),
+          ],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(

@@ -9,14 +9,13 @@ Renders one glyph out of an icon font — either a fixed `IconData` baked in at 
 picked at runtime from a declared set. See [Icons](/generator/icons) for how the
 underlying icon font gets onto the device and the constraints on the icon list.
 
-## Constructors
-
-### HWIcon (runtime)
+## Constructor
 
 `const HWIcon(HWDataType<dynamic> icon, {double size = 24, HWColor? color, String? semanticLabel})`
 
-Displays an icon chosen at runtime. `icon` is an `HWIconData`, or an `HWJson` / `HWTimedData`
-wrapping one.
+`icon` is an `HWIconData`, or an `HWJson` / `HWTimedData` wrapping one. A stored `HWIconData` displays an icon chosen at runtime; `HWIconData.fixed` displays a constant icon.
+
+### Runtime icon
 
 ```dart
 HWIcon(
@@ -31,24 +30,26 @@ HWIcon(
 )
 ```
 
-### HWIcon.fixed
+### Fixed icon
 
-`const HWIcon.fixed(IconData icon, {double size = 24, HWColor? color, String? semanticLabel})`
+`const HWIconData.fixed(Object icon)`
 
 Displays a constant icon, known at generation time. `icon` can be a `Icons.*` constant, a
-`CupertinoIcons.*` constant, or a constant from any other icon font package.
+`CupertinoIcons.*` constant, or a constant from any other icon font package. It creates no data
+field, so the generated helper gains no parameter for it.
 
 ```dart
-HWIcon.fixed(Icons.favorite, size: 24, color: HWColor.fixed(0xFFE91E63))
-HWIcon.fixed(CupertinoIcons.heart_fill, size: 20)
+HWIcon(HWIconData.fixed(Icons.favorite), size: 24, color: HWColor.fixed(0xFFE91E63))
+HWIcon(HWIconData.fixed(CupertinoIcons.heart_fill), size: 20)
 ```
+
+A value that is not an `IconData` is a generation error. A fixed icon cannot be wrapped in `HWJson` or `HWTimedData`, since it has nothing to look up or schedule. See [Fixed values](/generator/data#fixed-values).
 
 ## Parameters
 
 | Name            | Type                  | Default              | Description                                                              |
 | --------------- | --------------------- | --------------------- | ------------------------------------------------------------------------ |
-| `icon`          | `HWDataType<dynamic>` | **required** _(default ctor)_ | `HWIconData`, or an `HWJson` / `HWTimedData` wrapping one, naming the icon to render. |
-| `icon`          | `IconData`            | **required** _(`.fixed`)_ | The icon constant to render.                                          |
+| `icon`          | `HWDataType<dynamic>` | **required** | `HWIconData` or `HWIconData.fixed`, or an `HWJson` / `HWTimedData` wrapping a stored one, naming the icon to render. |
 | `size`          | `double`              | `24`                  | Glyph size in logical pixels.                                            |
 | `color`         | `HWColor?`            | `null`                | Tint applied to the glyph. `null` uses the platform's primary text color. See [HWColor](/generator/styling/hw-color). |
 | `semanticLabel` | `String?`             | `null`                | Accessibility description, or `null` for a decorative icon.              |
@@ -80,7 +81,7 @@ Both follow the same rules as a top-level `HWIconData` — see [Data Types](/gen
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
   widget: HWRow(
     children: [
-      HWIcon.fixed(Icons.favorite, size: 24),
+      HWIcon(HWIconData.fixed(Icons.favorite), size: 24),
       HWIcon(
         HWIconData(
           'mood',

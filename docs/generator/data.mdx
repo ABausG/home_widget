@@ -34,6 +34,13 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWDouble`  | `HWDouble(key, {defaultValue, previewValue})` | `double`            | Double / float value.                                                                        |
 | `HWBool`    | `HWBool(key, {defaultValue, previewValue})` | `bool`               | Boolean value.                                                                               |
 | `HWDateTime`| `HWDateTime(key, {previewValue})`          | `DateTime`            | A point in time, stored as an ISO-8601 UTC string. Rendered in the device's locale and time zone — see [Formatting](/generator/formatting). |
+| `HWString.fixed` | `HWString.fixed(value)` | none | Constant text written into the widget. No stored field. See [Fixed values](#fixed-values). |
+| `HWString.localizedFixed` | `HWString.localizedFixed(translations)` | none | Constant text translated at build time, one entry per supported locale. No stored field. See [Fixed values](#fixed-values). |
+| `HWInt.fixed` | `HWInt.fixed(value)` | none | Constant integer. No stored field. |
+| `HWDouble.fixed` | `HWDouble.fixed(value)` | none | Constant double. No stored field. |
+| `HWBool.fixed` | `HWBool.fixed(value)` | none | Constant boolean. No stored field. |
+| `HWDateTime.fixed` | `HWDateTime.fixed(isoString)` | none | Constant point in time, given as an ISO 8601 string that names its zone. No stored field. |
+| `HWIconData.fixed` | `HWIconData.fixed(icon)` | none | Constant icon. No stored field. |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
 | `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 | `HWIconData` | `HWIconData(key, {required icons, defaultValue, previewValue})` | generated icon enum | An icon chosen from a fixed set, rendered with [`HWIcon`](/generator/widgets/hw-icon). See [Icon data](#icon-data) below. |
@@ -43,7 +50,45 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 
 `HWInt` is typed `int` in Dart, `Int` in the generated Swift and `Long` in the generated Kotlin — a Dart `int` is 64-bit, so the Android side reads it as a `Long` rather than truncating it to an `Int`.
 
-`HWDateTime` is typed `DateTime` in Dart, `Date` in the generated Swift and `java.util.Date` in the generated Kotlin. Storage is a plain string: `saveData` writes `value.toUtc().toIso8601String()`, and `getData()` parses it back into a **UTC** `DateTime` — call `.toLocal()` if you want the local one. The widget always displays it in the device's current time zone. See [Dates](/generator/formatting#dates).
+`HWDateTime` is typed `DateTime` in Dart, `Date` in the generated Swift and `java.util.Date` in the generated Kotlin. Storage is a plain string: `saveData` writes `value.toUtc().toIso8601String()`, and `getData()` parses it back into a **UTC** `DateTime` — call `.toLocal()` if you want the local one. The widget always displays it in the device's current time zone. See [Dates](/generator/formatting#dates). Its `previewValue` is a string the widget reads as written: spell it `yyyy-MM-ddTHH:mm:ss` with an optional fraction and `Z` or an offset, e.g. `2026-09-22T10:00:00Z`. Other ISO 8601 spellings generate with a warning and the preview shows no date.
+
+## Fixed values
+
+Every data type except the wrappers has a `.fixed` form for a value that never changes. Pass it to a widget in place of a stored type:
+
+```dart
+HWText(HWString.fixed('Last sync'))
+HWText.number(HWInt.fixed(3))
+HWText.number(HWDouble.fixed(2.5))
+HWText.dateTime(HWDateTime.fixed('2026-09-22T10:00:00Z'))
+HWIcon(HWIconData.fixed(Icons.favorite))
+HWImage(HWImageData.asset('assets/logo.png'))
+```
+
+A fixed value is written into the generated native code. It creates no stored field: no `saveData` or `getData` parameter, no storage key, no default and no preview value. In the widget gallery it previews as itself. Rendering is the same as for a stored field holding that value, so `HWText(HWInt.fixed(3))` renders what `HWText(HWInt('n'))` renders with `3` saved.
+
+| Type | Fixed form | Notes |
+| --- | --- | --- |
+| `HWString` | `HWString.fixed('Hello')` | Plain text. |
+| `HWString` | `HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'})` | Translated at build time. Needs a `localization:` block and must include the default locale. See [Localization](/generator/localization). |
+| `HWInt` | `HWInt.fixed(3)` | Formatted on the device when shown with `HWText.number`. |
+| `HWDouble` | `HWDouble.fixed(2.5)` | Formatted on the device when shown with `HWText.number`. A value that is not finite (`double.infinity`, `double.nan`) is a generation error. |
+| `HWBool` | `HWBool.fixed(true)` | Accepted wherever a stored `HWBool` is. |
+| `HWDateTime` | `HWDateTime.fixed('2026-09-22T10:00:00Z')` | An ISO 8601 string that names its zone: `Z`, or an explicit offset such as `+02:00`. Formatted on the device, in its locale and the `timeZone` of `HWText.dateTime`. A string that does not parse, or names no zone, is a generation error. |
+| `HWIconData` | `HWIconData.fixed(Icons.favorite)` | Takes any `IconData` constant. Anything else is a generation error. |
+| `HWImageData` | `HWImageData.asset('assets/logo.png', package: ...)` | A bundled Flutter asset. See [Image data](#image-data). |
+
+A fixed value has nothing to look up, vary over time or iterate, so these are generation errors:
+
+- Wrapping it in `HWJson`, `HWTimedData` or `HWItemData`.
+- Using it in [`HWDataOnly`](/generator/widgets/hw-data-only), which declares stored fields and would declare nothing.
+- Using it as the condition of `HWBoolConditional` or `HWDataExists`, because one branch could never render. To pin a branch while you work on a layout, give the stored `HWBool` a `defaultValue` and `previewValue`.
+
+Fixed values carry no key, and two of them are never merged with each other or with a stored field.
+
+<Info>
+`HWString('Hello')` and `HWString.fixed('Hello')` both compile, but the first one names a stored field called `Hello`. A key must start with a letter and contain only letters and digits, so text such as `HWString('Hello world')` fails generation with an error that points you to `HWString.fixed`. A single word passes as a key and renders empty until a value is saved.
+</Info>
 
 ## Defaults
 
@@ -59,12 +104,12 @@ A missing **number** follows the same rule: with no `defaultValue`, an `HWInt` o
 
 `HWImageData` describes an image slot rendered with [`HWImage`](/generator/widgets/hw-image). Supply runtime images through the generated `saveData(...)`, which takes an `ImageProvider` for each of them. `getData()` hands a top-level image back as the `String?` file path `saveData` wrote it to; only images nested in an `HWJson` group or in a timed entry come back from `getData()` as an `ImageProvider?`.
 
-There are two constructors, matching the two `HWImage` constructors:
+There are two forms:
 
 - `HWImageData('key')` — a **runtime** image. Your app supplies it by passing an `ImageProvider` to the generated `saveData`.
 - `HWImageData.asset('assets/logo.png')` — a **bundled** image. The native widget reads the Flutter asset straight out of the installed app bundle when it renders, so there is nothing to call at runtime and the image is there before the app has ever been launched. Asset images get no `saveData`, `deleteData` or `getData` entry. Pass `package:` to use an asset from a dependency: `HWImageData.asset('assets/logo.png', package: 'my_icons')`, mirroring `Image.asset`.
 
-An asset image takes no key: two asset images in one widget that would be indistinguishable are reported as a generation error, and combining `package:` with a manual `packages/<package>/` path is one too.
+`HWImageData.asset` is the fixed form of an image and has no separate `.fixed` constructor. An asset image takes no key: two asset images in one widget that would be indistinguishable are reported as a generation error, and combining `package:` with a manual `packages/<package>/` path is one too.
 
 Asset paths are checked when you run `home_widget generate`: app assets must exist and be declared under `flutter.assets`, and package assets must exist inside the resolved dependency — package assets are only checked once the dependency is resolved in `.dart_tool/package_config.json` (i.e. after `pub get`); if it isn't resolved yet, the check is skipped.
 
@@ -108,6 +153,8 @@ and another under `HWJson('tomorrow', ...)` — share one enum holding the union
 An `HWIconData` value is stored as the icon's Unicode code point. A field with no stored value and
 no `defaultValue` renders nothing, exactly like a missing `HWImageData`. It works nested inside
 `HWJson` and `HWTimedData`, the same as any other data type.
+
+For a constant icon, use `HWIconData.fixed(Icons.favorite)`. It creates no field and generates no enum. See [Fixed values](#fixed-values).
 
 ## Nested JSON
 

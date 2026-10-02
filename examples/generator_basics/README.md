@@ -20,7 +20,7 @@ small and each one demonstrates a different feature of the generator:
 - `conditional_status.dart` – a widget that branches on whether data is present
   using `HWDataExists` and `HWBoolConditional`.
 - `localized_greeting.dart` – translated body text and gallery entry via
-  `HWText.localized` and `HWString.localized`, with `previewTranslations` for
+  `HWString.localizedFixed` and `HWString.localized`, with `previewTranslations` for
   the widget gallery.
 - `forecast.dart` – time-based content via `HWTimedData`: the widget swaps its
   own values at the times passed to `saveData(timedData: {...})`. Every field
@@ -32,7 +32,7 @@ small and each one demonstrates a different feature of the generator:
   wrapped in `HWItemData` read the day being rendered, while the unwrapped
   `unit` reads the widget's own data. `previewValues` give the widget gallery
   five sample days.
-- `image_showcase.dart` – a bundled asset image (`HWImage.asset`), a runtime
+- `image_showcase.dart` – a bundled asset image (`HWImageData.asset`), a runtime
   image (`HWImage`) wrapped in `HWDataExists` for a placeholder, a time-based
   image (`HWImage(HWTimedData(HWImageData(...)))`) that alternates between two
   pictures on a schedule, and an image read out of a JSON group
@@ -42,13 +42,13 @@ small and each one demonstrates a different feature of the generator:
 - `number_date_formatting.dart` – locale-aware formatting: `HWText.number` with
   `HWNumberFormat.decimal` / `.percent` / `.compact`, a currency whose ISO code
   comes from data (`HWCurrency.data(HWString('currency'))`), a hardcoded but
-  still localized `HWText.fixedNumber`, a plain `HWText(HWInt(...))` on the
+  still localized `HWInt.fixed`, a plain `HWText(HWInt(...))` on the
   default decimal format, and `HWText.dateTime` with a named skeleton
   (`HWDateFormat.yMMMd`) plus a data-bound display zone
   (`HWTimeZone.data(HWString('deliveryZone'))`).
 - `font_and_icons.dart` – a custom font and icons: `HWTextStyle(fontFamily:
   'Chewy')` renders text in a font declared under `flutter: fonts:` and read in
-  place out of `flutter_assets`, `HWIcon.fixed(Icons.favorite)` draws one
+  place out of `flutter_assets`, `HWIconData.fixed(Icons.favorite)` draws one
   hardcoded Material icon, and `HWIcon(HWIconData('mood', icons: [...]))` draws
   one of ten icons the app picks at runtime through the generated
   `FontAndIconsMoodIcon` enum. The icon font is copied next to the widget and

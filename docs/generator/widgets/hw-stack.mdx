@@ -14,8 +14,12 @@ HWSizedBox(
   child: HWStack(
     alignment: HWAlignment.bottomEnd,
     children: [
-      HWImage.asset('assets/avatar.png', width: 64, height: 64),
-      HWIcon.fixed(Icons.check_circle, size: 20),
+      HWImage(
+        HWImageData.asset('assets/avatar.png'),
+        width: 64,
+        height: 64,
+      ),
+      HWIcon(HWIconData.fixed(Icons.check_circle), size: 20),
     ],
   ),
 )

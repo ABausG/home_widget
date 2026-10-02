@@ -95,6 +95,14 @@ void _validateItemFields(WidgetSpec spec, ListDataGroup group) {
   for (final declaration in group.declarations) {
     for (final read in declaration.reads) {
       final field = read.unwrapped as HWItemData<dynamic>;
+      if (field.data.isFixed) {
+        throw GeneratorError(
+          'Widget "${spec.data.name}": HWItemData cannot wrap '
+          '${_spellFixed(field.data)} (in list "${group.key}"). A fixed value '
+          'is the same for every item, so there is nothing to store per item. '
+          'Use it without HWItemData, or wrap a stored field.',
+        );
+      }
       _validateAsciiIdentifier(
         field.key,
         descriptor: 'item field "${field.key}" of list "${group.key}"',
@@ -143,30 +151,36 @@ String _describeItemField(HWItemData<dynamic> field) {
 }
 
 /// Rejects a preview instant of an item date that is not an ISO 8601 date,
-/// its own preview value and each of its `previewValues` alike.
+/// and warns about one the widget cannot read, its own preview value and each
+/// of its `previewValues` alike.
 void _validateItemPreviewDates(WidgetSpec spec, ListDataGroup group) {
   for (final field in group.fields) {
     final date = field.data;
     if (date is! HWDateTime) continue;
 
     final iso = date.previewIso;
-    if (iso != null && date.previewDateTime == null) {
-      throw GeneratorError(
-        'Widget "${spec.data.name}": HWDateTime("${date.key}") of list '
-        '"${group.key}" has previewValue "$iso", which is not an ISO 8601 '
-        'date. $_isoDateExample',
-      );
+    if (iso != null) {
+      final subject = 'Widget "${spec.data.name}": HWDateTime("${date.key}") '
+          'of list "${group.key}" has previewValue "$iso"';
+      if (date.previewDateTime == null) {
+        throw GeneratorError(
+          '$subject, which is not an ISO 8601 date. $_isoDateExample',
+        );
+      }
+      _warnAboutUnreadablePreviewDate(iso, subject: subject);
     }
 
     final values = field.previewValues ?? const <Object>[];
     for (var index = 0; index < values.length; index++) {
       final value = values[index];
-      if (value is String && DateTime.tryParse(value) != null) continue;
-      throw GeneratorError(
-        'Widget "${spec.data.name}": previewValues[$index] of HWItemData '
-        '"${date.key}" in list "${group.key}" is "$value", which is not an '
-        'ISO 8601 date. $_isoDateExample',
-      );
+      final subject = 'Widget "${spec.data.name}": previewValues[$index] of '
+          'HWItemData "${date.key}" in list "${group.key}" is "$value"';
+      if (value is! String || DateTime.tryParse(value) == null) {
+        throw GeneratorError(
+          '$subject, which is not an ISO 8601 date. $_isoDateExample',
+        );
+      }
+      _warnAboutUnreadablePreviewDate(value, subject: subject);
     }
   }
 }
@@ -177,7 +191,7 @@ void _validateListCollisions(WidgetSpec spec, List<ListDataGroup> groups) {
   final itemClasses = <String, ListDataGroup>{};
   for (final group in groups) {
     for (final field in spec.declaredDataFields) {
-      if (field is HWLocalizedString && field.isConstant) continue;
+      if (field.isFixed) continue;
       if (field.key != group.key) continue;
       throw GeneratorError(
         'Widget "${spec.data.name}": the key "${group.key}" is declared as '

@@ -7,7 +7,7 @@ void main() {
       test('HWFixedColor: background on Text', () {
         final node = HWColoredBox(
           color: HWFixedColor(0xFFFF0000),
-          child: HWText.fixed('x'),
+          child: HWText(HWString.fixed('x')),
         );
         final result = node.toSwift(0, dataExpr: 'data');
         expect(result, contains('Text("x")'));
@@ -21,7 +21,7 @@ void main() {
             light: HWFixedColor(0xFF0000FF),
             dark: HWFixedColor(0xFFFF00FF),
           ),
-          child: HWText.fixed('y'),
+          child: HWText(HWString.fixed('y')),
         );
         final result = node.toSwift(0, dataExpr: 'data');
         expect(result, contains('colorScheme == .dark'));
@@ -40,7 +40,7 @@ void main() {
         expect(node.swiftRendersNothing, isTrue);
         expect(node.toSwift(0, dataExpr: 'data'), isEmpty);
         expect(
-          const HWColumn(children: [node, HWText.fixed('x')])
+          const HWColumn(children: [node, HWText(HWString.fixed('x'))])
               .toSwift(0, dataExpr: 'data'),
           isNot(contains('.background(')),
         );
@@ -49,7 +49,7 @@ void main() {
       test('HWDefaultColor: semantic Color.secondary', () {
         final node = HWColoredBox(
           color: HWDefaultColor(HWColorRole.contentSecondary),
-          child: HWText.fixed('z'),
+          child: HWText(HWString.fixed('z')),
         );
         final result = node.toSwift(0, dataExpr: 'data');
         expect(result, contains('.background(Color.secondary'));
@@ -60,7 +60,7 @@ void main() {
       test('kotlinImports include background and Box', () {
         final node = HWColoredBox(
           color: HWFixedColor(0xFF000000),
-          child: HWText.fixed('a'),
+          child: HWText(HWString.fixed('a')),
         );
         expect(
           node.kotlinImports,
@@ -79,7 +79,7 @@ void main() {
       test('HWFixedColor: background(…) with ColorProvider in output', () {
         final node = HWColoredBox(
           color: HWFixedColor(0xFFFF0000),
-          child: HWText.fixed('x'),
+          child: HWText(HWString.fixed('x')),
         );
         final result = node.toKotlin(0, dataExpr: 'data');
         expect(result, contains('background('));
@@ -93,7 +93,7 @@ void main() {
             light: HWFixedColor(0xFF111111),
             dark: HWFixedColor(0xFFEEEEEE),
           ),
-          child: HWText.fixed('t'),
+          child: HWText(HWString.fixed('t')),
         );
         final result = node.toKotlin(0, dataExpr: 'data');
         expect(result, contains('ColorProvider'));
@@ -123,7 +123,7 @@ void main() {
               color: HWFixedColor(0xFF00FF00),
               child: HWDataOnly([HWString('hidden')]),
             ),
-            HWText.fixed('x'),
+            HWText(HWString.fixed('x')),
           ],
         );
 
@@ -139,7 +139,7 @@ void main() {
       test('HWDefaultColor: GlanceTheme in output', () {
         final node = HWColoredBox(
           color: HWDefaultColor(HWColorRole.contentPrimary),
-          child: HWText.fixed('d'),
+          child: HWText(HWString.fixed('d')),
         );
         final result = node.toKotlin(0, dataExpr: 'data');
         expect(result, contains('GlanceTheme.colors.onSurface'));

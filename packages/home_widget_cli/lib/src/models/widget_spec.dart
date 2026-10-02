@@ -402,7 +402,7 @@ class WidgetSpec {
 
     return HWColumn(
       children: [
-        HWText.fixed(galleryName),
+        HWText(HWString.fixed(galleryName)),
         for (final field in [...primitiveDataFields, ...timedDataFields])
           if (imageLeafOf(field) != null)
             HWImage(field)
@@ -411,7 +411,7 @@ class WidgetSpec {
           else
             HWRow(
               children: [
-                HWText.fixed('${field.key}: '),
+                HWText(HWString.fixed('${field.key}: ')),
                 HWText(field),
               ],
             ),
@@ -815,15 +815,13 @@ class WidgetSpec {
   /// Includes runtime [HWImageData], whose stored value is the nullable path
   /// string that native code reads from UserDefaults / SharedPreferences.
   ///
-  /// Constant localized strings are excluded: they are inlined into the widget
-  /// body and must never reach the data class, preferences or `saveData`.
-  /// Asset images are excluded too: native code reads them straight out of the
-  /// app bundle, so they are never stored. So is an [HWItemData], which only
-  /// the item of a list reads.
+  /// Fixed values are excluded: they are inlined into the widget body or, for
+  /// an asset image, read straight out of the app bundle, and must never
+  /// reach the data class, preferences or `saveData`. So is an [HWItemData],
+  /// which only the item of a list reads.
   List<HWDataType<dynamic>> get primitiveDataFields => dataFields
       .where((f) => f is! HWJson && f is! HWTimedData && f is! HWItemData)
-      .where((f) => !(f is HWLocalizedString && f.isConstant))
-      .where((f) => !(f is HWImageData && f.isAsset))
+      .where((f) => !f.isFixed)
       .toList();
 
   /// Every localized string declared as a top-level data field, excluding
@@ -879,7 +877,7 @@ class WidgetSpec {
   /// inside the timed data file, keyed by timestamp, so reading their own key
   /// would only ever find nothing.
   List<HWLocalizedString> get keyedLocalizedStrings =>
-      localizedStrings.where((f) => !f.isConstant).toList();
+      localizedStrings.where((f) => !f.isFixed).toList();
 
   /// Localized strings fixed at build time, one entry per platform resource.
   ///
@@ -1455,7 +1453,7 @@ class WidgetSpec {
 
   /// Image fields supplied at runtime through the generated `saveData`.
   List<HWImageData> get runtimeImageFields =>
-      imageDataFields.where((f) => !f.isAsset).toList();
+      imageDataFields.where((f) => !f.isFixed).toList();
 
   /// Flutter asset images, read in place from the app bundle by native code.
   List<HWImageData> get assetImageFields =>

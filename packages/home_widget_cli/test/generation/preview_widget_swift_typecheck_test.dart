@@ -94,8 +94,8 @@ const _lists = HWColumn(
           HWText.number(HWItemData(HWDouble('rain', previewValue: 0.5))),
           HWBoolConditional(
             data: HWItemData(HWBool('windy', defaultValue: false)),
-            whenTrue: HWText.fixed('windy'),
-            whenFalse: HWText.fixed('calm'),
+            whenTrue: HWText(HWString.fixed('windy')),
+            whenFalse: HWText(HWString.fixed('calm')),
           ),
           HWText(
             HWItemData(
@@ -118,18 +118,18 @@ const _lists = HWColumn(
               ),
               width: 16,
             ),
-            whenAbsent: HWText.fixed('-'),
+            whenAbsent: HWText(HWString.fixed('-')),
           ),
         ],
       ),
-      whenEmpty: HWText.fixed('No forecast yet'),
+      whenEmpty: HWText(HWString.fixed('No forecast yet')),
     ),
     HWColumn.builder(
       'notes',
       maxItems: 2,
       item: HWText(HWItemData(HWString('text', previewValue: 'Note'))),
     ),
-    HWRow.builder('dots', maxItems: 3, item: HWText.fixed('.')),
+    HWRow.builder('dots', maxItems: 3, item: HWText(HWString.fixed('.'))),
   ],
 );
 
@@ -171,7 +171,7 @@ const _timedLists = HWColumn(
               ),
               width: 16,
             ),
-            whenAbsent: HWText.fixed('-'),
+            whenAbsent: HWText(HWString.fixed('-')),
           ),
           HWText.number(
             HWTimedData(
@@ -194,7 +194,7 @@ const _timedLists = HWColumn(
           ),
         ],
       ),
-      whenEmpty: HWText.fixed('No hourly forecast'),
+      whenEmpty: HWText(HWString.fixed('No hourly forecast')),
     ),
     HWColumn.builder(
       'notes',

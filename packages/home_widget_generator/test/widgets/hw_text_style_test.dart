@@ -44,8 +44,8 @@ void main() {
           () {
             final t = _roleTextStyleFor(role);
             final n = expectedSwiftTextStyleRoleName(role);
-            final out =
-                HWText.fixed('R', style: t).toSwift(0, dataExpr: 'data');
+            final out = HWText(HWString.fixed('R'), style: t)
+                .toSwift(0, dataExpr: 'data');
             expect(out, contains('.font(.$n)'), reason: 'role $role');
           },
         );
@@ -59,7 +59,8 @@ void main() {
           '"fontSize = ${expectedAndroidTextStyleFontSizeSp(role)}.sp"',
           () {
             final t = _roleTextStyleFor(role);
-            final out = HWText.fixed('R', style: t).toKotlin(0, dataExpr: 'd');
+            final out = HWText(HWString.fixed('R'), style: t)
+                .toKotlin(0, dataExpr: 'd');
             final n = expectedAndroidTextStyleFontSizeSp(role);
             expect(out, contains('fontSize = $n.sp'), reason: 'role $role');
           },

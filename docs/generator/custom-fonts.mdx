@@ -10,7 +10,10 @@ or an Android `res/` folder. Declare the font the same way you would for a Flutt
 `home_widget_generator` and `home_widget_cli` do the rest at generation time.
 
 ```dart
-HWText.fixed('Hello', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20))
+HWText(
+  HWString.fixed('Hello'),
+  style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20),
+)
 ```
 
 <Info>
@@ -40,7 +43,10 @@ Then reference the family by name from `HWTextStyle`, mirroring Flutter's own
 `TextStyle(fontFamily:, package:)`:
 
 ```dart
-HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
+HWText(
+  HWString.fixed('kWh'),
+  style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16),
+)
 ```
 
 `fontFamily` (and `package`) are also available on every `HWRoleTextStyle` constructor, and resolve

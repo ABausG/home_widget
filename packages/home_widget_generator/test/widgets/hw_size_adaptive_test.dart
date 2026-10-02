@@ -7,14 +7,17 @@ import 'package:home_widget_generator/src/parser/widget_tree_parser.dart';
 import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
 
-const _small = HWText.fixed('s');
-const _medium = HWText.fixed('m');
-const _large = HWText.fixed('l');
-const _extraLarge = HWText.fixed('xl');
-const _portrait = HWText.fixed('xlp');
-const _circular = HWText.fixed('c');
-const _rectangular = HWText.fixed('r');
-const _inline = HWText.fixed('i');
+const _small = HWText(HWString.fixed('s'));
+const _medium = HWText(HWString.fixed('m'));
+const _large = HWText(HWString.fixed('l'));
+const _extraLarge = HWText(HWString.fixed('xl'));
+const _portrait = HWText(HWString.fixed('xlp'));
+const _circular = HWText(HWString.fixed('c'));
+const _rectangular = HWText(HWString.fixed('r'));
+const _inline = HWText(HWString.fixed('i'));
+
+String? _fixedText(HWWidget? widget) =>
+    ((widget! as HWText).dataType as HWString).fixedValue;
 
 const _allSystem = {
   HWWidgetFamily.systemSmall,
@@ -281,8 +284,8 @@ void main() {
 
       test('slot modifiers and imports are unioned in', () {
         const adaptive = HWSizeAdaptive(
-          small: HWText.fixed(
-            'x',
+          small: HWText(
+            HWString.fixed('x'),
             style: HWTextStyle(
               color: HWThemedColor(
                 light: HWFixedColor(0xFF000000),
@@ -887,8 +890,8 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
     });
 
     group('Android size ranges', () {
-      const strip = HWText.fixed('strip');
-      const dashboard = HWText.fixed('dashboard');
+      const strip = HWText(HWString.fixed('strip'));
+      const dashboard = HWText(HWString.fixed('dashboard'));
       const stripRange = HWAndroidSizeRange(maxHeight: 120, child: strip);
       const dashboardRange = HWAndroidSizeRange(
         minWidth: 400,
@@ -1218,36 +1221,27 @@ when (LocalSize.current) {
 @HomeWidget(
   name: 'SizeAdaptiveWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
-    medium: HWText.fixed('medium'),
-    large: HWColumn(children: [HWText.fixed('large')]),
-    extraLarge: HWText.fixed('extraLarge'),
-    extraLargePortrait: HWText.fixed('portrait'),
-    accessoryCircular: HWText.fixed('circular'),
-    accessoryRectangular: HWText.fixed('rectangular'),
-    accessoryInline: HWText.fixed('inline'),
+    small: HWText(HWString.fixed('small')),
+    medium: HWText(HWString.fixed('medium')),
+    large: HWColumn(children: [HWText(HWString.fixed('large'))]),
+    extraLarge: HWText(HWString.fixed('extraLarge')),
+    extraLargePortrait: HWText(HWString.fixed('portrait')),
+    accessoryCircular: HWText(HWString.fixed('circular')),
+    accessoryRectangular: HWText(HWString.fixed('rectangular')),
+    accessoryInline: HWText(HWString.fixed('inline')),
   ),
 )''');
 
         expect(widget, isA<HWSizeAdaptive>());
         final adaptive = widget as HWSizeAdaptive;
-        expect((adaptive.small! as HWText).fixedContent, 'small');
-        expect((adaptive.medium! as HWText).fixedContent, 'medium');
+        expect(_fixedText(adaptive.small), 'small');
+        expect(_fixedText(adaptive.medium), 'medium');
         expect(adaptive.large, isA<HWColumn>());
-        expect((adaptive.extraLarge! as HWText).fixedContent, 'extraLarge');
-        expect(
-          (adaptive.extraLargePortrait! as HWText).fixedContent,
-          'portrait',
-        );
-        expect(
-          (adaptive.accessoryCircular! as HWText).fixedContent,
-          'circular',
-        );
-        expect(
-          (adaptive.accessoryRectangular! as HWText).fixedContent,
-          'rectangular',
-        );
-        expect((adaptive.accessoryInline! as HWText).fixedContent, 'inline');
+        expect(_fixedText(adaptive.extraLarge), 'extraLarge');
+        expect(_fixedText(adaptive.extraLargePortrait), 'portrait');
+        expect(_fixedText(adaptive.accessoryCircular), 'circular');
+        expect(_fixedText(adaptive.accessoryRectangular), 'rectangular');
+        expect(_fixedText(adaptive.accessoryInline), 'inline');
         expect(adaptive.androidSizes, isNull);
       });
 
@@ -1256,8 +1250,8 @@ when (LocalSize.current) {
 @HomeWidget(
   name: 'SizeAdaptiveSizesWidget',
   widget: HWSizeAdaptive(
-    medium: HWText.fixed('medium'),
-    large: HWText.fixed('large'),
+    medium: HWText(HWString.fixed('medium')),
+    large: HWText(HWString.fixed('large')),
     androidSizes: {
       HWWidgetFamily.systemMedium: HWSize(200, 100),
       HWWidgetFamily.systemLarge: HWSize(200.5, 200),
@@ -1277,7 +1271,7 @@ when (LocalSize.current) {
 @HomeWidget(
   name: 'SizeAdaptiveNamedKeyWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizes: {HWWidgetFamily.systemExtraLargePortrait: HWSize(250, 530)},
   ),
 )''');
@@ -1293,7 +1287,7 @@ when (LocalSize.current) {
 @HomeWidget(
   name: 'SizeAdaptiveBadSizeWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizes: {HWWidgetFamily.systemMedium: null},
   ),
 )'''),
@@ -1314,7 +1308,7 @@ when (LocalSize.current) {
 @HomeWidget(
   name: 'SizeAdaptiveBadKeyWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizes: {null: HWSize(200, 100)},
   ),
 )'''),
@@ -1333,7 +1327,7 @@ when (LocalSize.current) {
 @HomeWidget(
   name: 'SizeAdaptiveEmptySizesWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizes: {},
   ),
 )''');
