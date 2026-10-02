@@ -5,7 +5,13 @@ description: Behavior changes and migration guide for home_widget_cli 0.4.0
 
 # Migration to 0.4.0
 
-Only iOS projects whose app target signs manually in some build configurations are affected. Regenerate, then check the changes below.
+Every iOS project is affected by the version change below; the signing changes only affect projects whose app target signs manually in some build configurations. Regenerate, then check the changes below.
+
+## The extension takes the app's version (iOS)
+
+The widget extension used to have `CURRENT_PROJECT_VERSION = 1` and `MARKETING_VERSION = 1.0` in every build configuration, so App Store Connect warned that its version did not match the app's. The next `generate` writes `ios/Flutter/HomeWidget.xcconfig`, bases every extension configuration on it and sets both settings to the app's `$(FLUTTER_BUILD_NUMBER)` and `$(FLUTTER_BUILD_NAME)`. See [App version](/cli/generate#app-version-ios) for the details. Commit the new file along with `project.pbxproj`.
+
+If you synced the version with a Run Script phase on the Runner target that edits the extension's `Info.plist`, remove that phase and restore the `Info.plist` it changed: the extension reads its version from the build settings now. A configuration you based on another `.xcconfig` keeps it; `generate` warns unless that file defines both `FLUTTER_BUILD_NAME` and `FLUTTER_BUILD_NUMBER`. A widget extension target you created in Xcode is left as it is.
 
 ## The extension signs manually where the app does (iOS)
 
