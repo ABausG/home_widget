@@ -10,6 +10,7 @@ class HomeWidgetBackgroundReceiver : BroadcastReceiver() {
     val flutterLoader = FlutterInjector.instance().flutterLoader()
     flutterLoader.startInitialization(context)
     flutterLoader.ensureInitializationComplete(context, null)
-    HomeWidgetBackgroundWorker.enqueueWork(context, intent)
+    val expedited = intent.getBooleanExtra(HomeWidgetBackgroundIntent.EXTRA_IS_EXPEDITED, false)
+    HomeWidgetBackgroundWorker.enqueueWork(context, intent, expedited)
   }
 }
