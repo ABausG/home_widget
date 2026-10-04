@@ -335,6 +335,15 @@ sealed class HWWidget implements HWGeneratable {
   }) =>
       null;
 
+  /// This widget with every picture Glance draws where it sits filling the
+  /// axes asked for, or null when it draws none that can.
+  ///
+  /// SwiftUI resizes a picture to the frame it is given, while a Glance
+  /// `Image` keeps the size of its bitmap until it is told to fill. The
+  /// picture is emitted inside the check for its bitmap, where a size injected
+  /// from outside does not reach, so it takes the fill itself.
+  HWWidget? _kotlinFilling({required bool width, required bool height}) => null;
+
   /// Whether a padding put on this widget's outermost Glance composable adds
   /// room around what it draws.
   ///

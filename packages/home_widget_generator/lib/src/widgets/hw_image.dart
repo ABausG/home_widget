@@ -67,6 +67,12 @@ class HWImage extends HWWidget implements HWDataWidget {
   /// Accessibility description of the image, or null for a decorative image.
   final String? semanticLabel;
 
+  /// Whether the Glance `Image` fills the width of the `Box` around it.
+  final bool _kotlinFillsWidth;
+
+  /// Whether the Glance `Image` fills the height of the `Box` around it.
+  final bool _kotlinFillsHeight;
+
   /// Renders the image stored under [image].
   ///
   /// [image] is an [HWImageData], optionally wrapped in an [HWJson] to read it
@@ -80,7 +86,9 @@ class HWImage extends HWWidget implements HWDataWidget {
     this.semanticLabel,
   })  : data = image,
         assetPath = null,
-        assetPackage = null;
+        assetPackage = null,
+        _kotlinFillsWidth = false,
+        _kotlinFillsHeight = false;
 
   /// Renders the Flutter asset at [path].
   ///
@@ -97,7 +105,24 @@ class HWImage extends HWWidget implements HWDataWidget {
     this.semanticLabel,
   })  : data = null,
         assetPath = path,
-        assetPackage = package;
+        assetPackage = package,
+        _kotlinFillsWidth = false,
+        _kotlinFillsHeight = false;
+
+  /// [image], its Glance `Image` filling the axes named.
+  HWImage._kotlinFilling(
+    HWImage image, {
+    required bool width,
+    required bool height,
+  })  : data = image.data,
+        assetPath = image.assetPath,
+        assetPackage = image.assetPackage,
+        width = image.width,
+        height = image.height,
+        fit = image.fit,
+        semanticLabel = image.semanticLabel,
+        _kotlinFillsWidth = width,
+        _kotlinFillsHeight = height;
 
   /// The data field this widget renders, for either constructor.
   ///
@@ -138,18 +163,55 @@ class HWImage extends HWWidget implements HWDataWidget {
       'import androidx.glance.ImageProvider',
       'import androidx.glance.layout.ContentScale',
     };
-    if (width != null || height != null) {
-      imports.add('import androidx.compose.ui.unit.dp');
+    final modifiers = _kotlinModifiers;
+    if (modifiers.isNotEmpty) {
       imports.add('import androidx.glance.GlanceModifier');
     }
-    if (width != null) {
-      imports.add('import androidx.glance.layout.width');
-    }
-    if (height != null) {
-      imports.add('import androidx.glance.layout.height');
+    for (final modifier in modifiers) {
+      imports.addAll(HWSizedBox._kotlinModifierImports(modifier));
     }
     return imports;
   }
+
+  /// The Glance modifiers sizing the `Image`: its own size along an axis that
+  /// has one, a fill along an open axis asked to.
+  List<String> get _kotlinModifiers {
+    if (_kotlinFillsWidth && _kotlinFillsHeight) return const ['fillMaxSize()'];
+    return [
+      if (width != null)
+        'width($width.dp)'
+      else if (_kotlinFillsWidth)
+        'fillMaxWidth()',
+      if (height != null)
+        'height($height.dp)'
+      else if (_kotlinFillsHeight)
+        'fillMaxHeight()',
+    ];
+  }
+
+  /// A picture fills each axis it leaves open, the way SwiftUI resizes it to
+  /// the frame of the box; an axis it sizes itself stays as it is.
+  @override
+  HWWidget? _kotlinFilling({required bool width, required bool height}) {
+    final fillsWidth = (width || _kotlinFillsWidth) && this.width == null;
+    final fillsHeight = (height || _kotlinFillsHeight) && this.height == null;
+    if (fillsWidth == _kotlinFillsWidth && fillsHeight == _kotlinFillsHeight) {
+      return null;
+    }
+    return HWImage._kotlinFilling(this, width: fillsWidth, height: fillsHeight);
+  }
+
+  /// Only on Glance, as [_kotlinFilling]: SwiftUI's frame already resizes the
+  /// picture.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) =>
+      glance
+          ? _kotlinFilling(width: width != null, height: height != null)
+          : null;
 
   /// Decodes an [HWImage] from an analyzer constant.
   static HWImage fromDartObject(DartObject obj) {
@@ -350,10 +412,7 @@ class HWImage extends HWWidget implements HWDataWidget {
     buffer.writeln('$pad    contentDescription = $description,');
     buffer.writeln('$pad    contentScale = ${_kotlinContentScale()},');
 
-    final modifiers = <String>[
-      if (width != null) 'width($width.dp)',
-      if (height != null) 'height($height.dp)',
-    ];
+    final modifiers = _kotlinModifiers;
     if (modifiers.isNotEmpty) {
       buffer.writeln(
         '$pad    modifier = GlanceModifier.${modifiers.join('.')},',

@@ -83,7 +83,8 @@ class HWSizedBox extends HWWidget {
   /// [child] as Glance lays it out: the size is injected into the outermost
   /// composable, and the child of each `Box` a decoration or a padding puts in
   /// between fills each axis this box sizes, the way Flutter's tight
-  /// constraints make a decoration paint the whole box.
+  /// constraints make a decoration paint the whole box. A picture fills them
+  /// too, in whichever branch of a child picked where it sits.
   HWWidget? get _kotlinChild {
     final child = this.child;
     if (child == null || (width == null && height == null)) return child;
@@ -92,6 +93,7 @@ class HWSizedBox extends HWWidget {
           height == null ? null : double.infinity,
           glance: true,
         ) ??
+        child._kotlinFilling(width: width != null, height: height != null) ??
         child;
   }
 

@@ -522,5 +522,246 @@ void main() {
         );
       });
     });
+
+    group('filling the box around it (Glance)', () {
+      const cover = HWImage(HWImageData('mascot'), fit: HWImageFit.cover);
+      const timed = HWImage(
+        HWTimedData(HWImageData('mascot')),
+        fit: HWImageFit.cover,
+      );
+
+      String kotlin(HWWidget widget) => widget.toKotlin(0, dataExpr: 'data');
+
+      test('an expanding box fills a runtime picture out to itself', () {
+        expect(
+          kotlin(const HWSizedBox.expand(child: cover)),
+          '''
+Box(modifier = GlanceModifier.fillMaxSize()) {
+    data.mascot?.let { path -> hwDecodeImage(context, path, null, null) }
+        ?.let { bitmap ->
+            Image(
+                provider = ImageProvider(bitmap),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = GlanceModifier.fillMaxSize(),
+            )
+        }
+}''',
+        );
+      });
+
+      test('a timed picture fills the same way', () {
+        expect(
+          kotlin(const HWSizedBox.expand(child: timed)),
+          kotlin(const HWSizedBox.expand(child: cover)),
+        );
+      });
+
+      test('an asset picture fills the same way', () {
+        expect(
+          kotlin(
+            const HWSizedBox.expand(child: HWImage.asset('assets/logo.png')),
+          ),
+          '''
+Box(modifier = GlanceModifier.fillMaxSize()) {
+    hwDecodeImage(context, "assets/logo.png", null, null)?.let { bitmap ->
+        Image(
+            provider = ImageProvider(bitmap),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = GlanceModifier.fillMaxSize(),
+        )
+    }
+}''',
+        );
+      });
+
+      test('every fit fills, scaled by its own ContentScale', () {
+        for (final (fit, scale) in [
+          (HWImageFit.contain, 'Fit'),
+          (HWImageFit.cover, 'Crop'),
+          (HWImageFit.fill, 'FillBounds'),
+        ]) {
+          final code = kotlin(
+            HWSizedBox.expand(child: HWImage(const HWImageData('a'), fit: fit)),
+          );
+          expect(code, contains('contentScale = ContentScale.$scale,'));
+          expect(code, contains('modifier = GlanceModifier.fillMaxSize(),'));
+        }
+      });
+
+      test('a box sizing one axis fills that axis alone', () {
+        expect(
+          kotlin(const HWSizedBox(width: double.infinity, child: cover)),
+          allOf(
+            startsWith('Box(modifier = GlanceModifier.fillMaxWidth()) {'),
+            contains('modifier = GlanceModifier.fillMaxWidth(),'),
+          ),
+        );
+        expect(
+          kotlin(const HWSizedBox(height: 40, child: cover)),
+          allOf(
+            startsWith('Box(modifier = GlanceModifier.height(40.0.dp)) {'),
+            contains('modifier = GlanceModifier.fillMaxHeight(),'),
+          ),
+        );
+      });
+
+      test('a box of a fixed size is filled too', () {
+        expect(
+          kotlin(const HWSizedBox(width: 80, height: 40, child: cover)),
+          allOf(
+            startsWith(
+              'Box(modifier = GlanceModifier.width(80.0.dp).height(40.0.dp)) {',
+            ),
+            contains('modifier = GlanceModifier.fillMaxSize(),'),
+          ),
+        );
+      });
+
+      test('a weight along the stack is filled along that axis', () {
+        expect(
+          const HWSizedBox(height: double.infinity, child: cover).toKotlin(
+            0,
+            dataExpr: 'data',
+            context: const HWEmitContext(enclosingLinearAxis: HWAxis.vertical),
+          ),
+          allOf(
+            startsWith('Box(modifier = GlanceModifier.defaultWeight()) {'),
+            contains('modifier = GlanceModifier.fillMaxHeight(),'),
+          ),
+        );
+      });
+
+      test('an axis the picture sizes itself keeps its size', () {
+        expect(
+          kotlin(
+            const HWSizedBox.expand(
+              child: HWImage(HWImageData('a'), width: 48, height: 48),
+            ),
+          ),
+          contains(
+            'modifier = GlanceModifier.width(48.0.dp).height(48.0.dp),',
+          ),
+        );
+        expect(
+          kotlin(
+            const HWSizedBox.expand(
+                child: HWImage(HWImageData('a'), width: 48)),
+          ),
+          contains('modifier = GlanceModifier.width(48.0.dp).fillMaxHeight(),'),
+        );
+      });
+
+      test('the fill reaches the picture through a padding and a color', () {
+        final padded = kotlin(
+          const HWSizedBox.expand(
+            child: HWPadding(padding: HWEdgeInsets.all(8), child: cover),
+          ),
+        );
+        expect(
+          padded,
+          startsWith('Box(modifier = GlanceModifier.fillMaxSize().padding('),
+        );
+        expect(padded, contains('modifier = GlanceModifier.fillMaxSize(),'));
+
+        final colored = kotlin(
+          const HWSizedBox.expand(
+            child: HWColoredBox(color: HWColor.fixed(0xFF000000), child: cover),
+          ),
+        );
+        expect(
+          colored,
+          startsWith('Box(modifier = GlanceModifier.fillMaxSize().background('),
+        );
+        expect(colored, contains('modifier = GlanceModifier.fillMaxSize(),'));
+      });
+
+      test('the fill reaches the picture in a branch picked at runtime', () {
+        const exists = HWDataExists(
+          data: HWImageData('mascot'),
+          whenPresent: cover,
+          whenAbsent: HWText.fixed('none'),
+        );
+        expect(
+          kotlin(const HWSizedBox.expand(child: exists)),
+          contains('modifier = GlanceModifier.fillMaxSize(),\n'),
+        );
+        expect(
+          kotlin(
+            const HWSizedBox.expand(
+              child: HWAdaptive(ios: HWText.fixed('i'), android: cover),
+            ),
+          ),
+          kotlin(const HWSizedBox.expand(child: cover)),
+        );
+      });
+
+      test('the fill reaches a wrapped picture in a branch', () {
+        for (final wrapped in const <HWWidget>[
+          HWPadding(padding: HWEdgeInsets.all(8), child: cover),
+          HWColoredBox(color: HWColor.fixed(0xFF000000), child: cover),
+        ]) {
+          final exists = HWDataExists(
+            data: const HWImageData('mascot'),
+            whenPresent: wrapped,
+            whenAbsent: const HWText.fixed('none'),
+          );
+          expect(
+            kotlin(HWSizedBox.expand(child: exists)),
+            contains('modifier = GlanceModifier.fillMaxSize(),\n'),
+          );
+          expect(
+            kotlin(
+              HWStack(fit: HWStackFit.expand, children: [exists]),
+            ),
+            contains('modifier = GlanceModifier.fillMaxSize(),\n'),
+          );
+        }
+      });
+
+      test('the imports cover the fill', () {
+        expect(
+          const HWSizedBox.expand(child: cover).kotlinImports,
+          containsAll(<String>[
+            'import androidx.glance.GlanceModifier',
+            'import androidx.glance.layout.Box',
+            'import androidx.glance.layout.fillMaxSize',
+          ]),
+        );
+        expect(
+          const HWSizedBox.expand(child: HWImage(HWImageData('a'), width: 48))
+              .kotlinImports,
+          containsAll(<String>[
+            'import androidx.glance.layout.width',
+            'import androidx.glance.layout.fillMaxHeight',
+          ]),
+        );
+      });
+
+      test('a picture on its own, or in an HWAlign, keeps its own size', () {
+        expect(kotlin(cover), isNot(contains('modifier =')));
+        expect(
+          kotlin(const HWAlign(child: cover)),
+          isNot(contains('modifier = GlanceModifier.fillMaxSize(),\n')),
+        );
+      });
+
+      test('SwiftUI is left to the frame, which resizes the picture', () {
+        expect(
+          const HWSizedBox.expand(child: cover).toSwift(0, dataExpr: 'data'),
+          '''
+Group {
+    if let path = data.mascot, let uiImage = hwDecodeImage(path, nil, nil) {
+        Image(uiImage: uiImage)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .clipped()
+    }
+}
+.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)''',
+        );
+      });
+    });
   });
 }
