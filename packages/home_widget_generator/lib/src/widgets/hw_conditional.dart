@@ -81,6 +81,15 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
     );
   }
 
+  /// Each branch on its own, while either draws a picture.
+  @override
+  HWWidget? _kotlinFilling({required bool width, required bool height}) {
+    final first = firstBranch._kotlinFilling(width: width, height: height);
+    final second = secondBranch._kotlinFilling(width: width, height: height);
+    if (first == null && second == null) return null;
+    return _withBranches(first ?? firstBranch, second ?? secondBranch);
+  }
+
   /// The branch taken is only known at runtime, so a stack lays out each of
   /// them by what it needs itself.
   @override

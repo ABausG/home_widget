@@ -96,6 +96,13 @@ class HWAdaptive extends HWWidget {
     return sized == null ? null : HWAdaptive(ios: sized, android: android);
   }
 
+  /// The Android side's, the only one Glance draws.
+  @override
+  HWWidget? _kotlinFilling({required bool width, required bool height}) {
+    final filling = android._kotlinFilling(width: width, height: height);
+    return filling == null ? null : HWAdaptive(ios: ios, android: filling);
+  }
+
   @override
   Set<String> get swiftViewModifiers => ios.swiftViewModifiers;
 

@@ -41,12 +41,19 @@ class HWStack extends HWMultiChildWidget {
   /// A child filling both axes already emits the same fill and frame, so it is
   /// left as it is. [childWidgets] stays the children as written, so a walker
   /// sees the tree the schema declares.
-  HWWidget _placing(HWWidget child) {
+  ///
+  /// With [glance] a picture fills the bounds along each axis it leaves open,
+  /// which the frame SwiftUI puts around it already makes it do.
+  HWWidget _placing(HWWidget child, {bool glance = false}) {
     if (fit == HWStackFit.loose) return child;
     final room = child.kotlinRoomIn(null);
-    return room.fillsWidth && room.fillsHeight
-        ? child
-        : HWAlign(alignment: alignment, child: child);
+    if (room.fillsWidth && room.fillsHeight) return child;
+    return HWAlign(
+      alignment: alignment,
+      child: glance
+          ? child._kotlinFilling(width: true, height: true) ?? child
+          : child,
+    );
   }
 
   /// Every pixel offered under [HWStackFit.expand]; loosely, whatever the
@@ -93,7 +100,7 @@ class HWStack extends HWMultiChildWidget {
       ...room.kotlinImports,
       for (final child in children)
         if (!child.kotlinRendersNothing)
-          ..._placing(child).kotlinImportsIn(null),
+          ..._placing(child, glance: true).kotlinImportsIn(null),
     };
   }
 
@@ -189,7 +196,7 @@ class HWStack extends HWMultiChildWidget {
     for (final child in children) {
       if (child.kotlinRendersNothing) continue;
       buffer.writeln(
-        _placing(child)
+        _placing(child, glance: true)
             .toKotlin(indent + 1, dataExpr: dataExpr, context: childContext),
       );
     }
