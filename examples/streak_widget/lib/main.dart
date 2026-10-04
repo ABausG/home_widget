@@ -42,6 +42,7 @@ class _StreakPageState extends State<StreakPage> with WidgetsBindingObserver {
   StreakStatus _status = StreakStatus.pending;
   Map<DateTime, StreakTimedData> _schedule = const {};
   bool _savingSchedule = false;
+  bool _restored = false;
   bool _canPin = false;
   Timer? _slotTimer;
   Timer? _streakDebounce;
@@ -66,7 +67,7 @@ class _StreakPageState extends State<StreakPage> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed && _restored) {
       unawaited(_saveSchedule(_status));
     }
   }
@@ -81,6 +82,7 @@ class _StreakPageState extends State<StreakPage> with WidgetsBindingObserver {
         : StreakStatus.pending;
     setState(() => _streak = data.streak ?? 0);
     await _saveSchedule(status);
+    _restored = true;
   }
 
   Future<void> _checkPinSupport() async {
