@@ -71,6 +71,23 @@ Asset paths are validated when you run `home_widget generate`: an app asset must
 
 `HWImageFit` has three values: `contain` (scale down to fit, preserving aspect ratio), `cover` (fill the bounds, preserving aspect ratio and clipping the overflow), and `fill` (stretch to the bounds, ignoring aspect ratio).
 
+## Filling a box
+
+An image inside an [`HWSizedBox`](/generator/widgets/hw-sized-box) fills every axis the box sizes, scaled by `fit`, on both platforms. That makes a full-bleed background one line:
+
+```dart
+HWSizedBox.expand(
+  child: HWImage(HWImageData('cover'), fit: HWImageFit.cover),
+)
+```
+
+- `cover` fills the box and crops the overflow around the center, `contain` fits the whole image inside the box and centers it, `fill` stretches it.
+- The same holds for a box of a fixed size, for a box sizing one axis only, and when an [`HWPadding`](/generator/widgets/hw-padding), a colored decoration or a conditional sits between the box and the image.
+- An image placed directly in an [`HWStack`](/generator/widgets/hw-stack) with `fit: HWStackFit.expand` fills the stack the same way.
+- An axis the image sizes itself through `width` / `height` keeps that size.
+
+Without a box around it, an image without `width` / `height` takes the size of its bitmap on Android, while on iOS it grows to the room it is offered, so give an image either its own size or a box to fill.
+
 ## Getting an image onto the widget
 
 The two kinds of image take completely different routes:

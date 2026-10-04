@@ -528,6 +528,105 @@ void main() {
           ),
         );
       });
+
+      group('a picture under expand', () {
+        const cover = HWImage(HWImageData('mascot'), fit: HWImageFit.cover);
+
+        test('fills the stack', () {
+          expect(
+            const HWStack(fit: HWStackFit.expand, children: [cover])
+                .toKotlin(0, dataExpr: 'data'),
+            '''
+Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+    Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopStart) {
+        data.mascot?.let { path -> hwDecodeImage(context, path, null, null) }
+            ?.let { bitmap ->
+                Image(
+                    provider = ImageProvider(bitmap),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = GlanceModifier.fillMaxSize(),
+                )
+            }
+    }
+}''',
+          );
+        });
+
+        test('keeps the size it sets itself, placed by the alignment', () {
+          expect(
+            const HWStack(
+              fit: HWStackFit.expand,
+              alignment: HWAlignment.bottomEnd,
+              children: [HWImage(HWImageData('badge'), width: 24, height: 24)],
+            ).toKotlin(0, dataExpr: 'data'),
+            allOf(
+              contains(
+                  'contentAlignment = Alignment.BottomEnd) {\n        data'),
+              contains(
+                'modifier = GlanceModifier.width(24.0.dp).height(24.0.dp),',
+              ),
+            ),
+          );
+        });
+
+        test('fills in a branch picked at runtime', () {
+          expect(
+            const HWStack(
+              fit: HWStackFit.expand,
+              children: [
+                HWDataExists(
+                  data: HWImageData('mascot'),
+                  whenPresent: cover,
+                  whenAbsent: _a,
+                ),
+              ],
+            ).toKotlin(0, dataExpr: 'data'),
+            allOf(
+              contains('modifier = GlanceModifier.fillMaxSize(),\n'),
+              contains('            ${_text('a')}'),
+            ),
+          );
+        });
+
+        test('imports the fill', () {
+          expect(
+            const HWStack(
+              fit: HWStackFit.expand,
+              children: [HWImage(HWImageData('a'), width: 24)],
+            ).kotlinImports,
+            contains('import androidx.glance.layout.fillMaxHeight'),
+          );
+        });
+
+        test('is left as it is in a loose stack', () {
+          expect(
+            const HWStack(children: [cover]).toKotlin(0, dataExpr: 'data'),
+            isNot(contains('modifier = GlanceModifier.fillMaxSize(),\n')),
+          );
+        });
+
+        test('is resized by the frame SwiftUI aligns it in', () {
+          expect(
+            const HWStack(fit: HWStackFit.expand, children: [cover])
+                .toSwift(0, dataExpr: 'data'),
+            '''
+ZStack(alignment: .topLeading) {
+    Group {
+        if let path = data.mascot, let uiImage = hwDecodeImage(path, nil, nil) {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .clipped()
+        }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+}
+.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+.clipped()''',
+          );
+        });
+      });
     });
 
     group('baseline', () {
