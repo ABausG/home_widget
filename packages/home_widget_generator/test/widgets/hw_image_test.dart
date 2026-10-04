@@ -697,6 +697,29 @@ Box(modifier = GlanceModifier.fillMaxSize()) {
         );
       });
 
+      test('the fill reaches a wrapped picture in a branch', () {
+        for (final wrapped in const <HWWidget>[
+          HWPadding(padding: HWEdgeInsets.all(8), child: cover),
+          HWColoredBox(color: HWColor.fixed(0xFF000000), child: cover),
+        ]) {
+          final exists = HWDataExists(
+            data: const HWImageData('mascot'),
+            whenPresent: wrapped,
+            whenAbsent: const HWText.fixed('none'),
+          );
+          expect(
+            kotlin(HWSizedBox.expand(child: exists)),
+            contains('modifier = GlanceModifier.fillMaxSize(),\n'),
+          );
+          expect(
+            kotlin(
+              HWStack(fit: HWStackFit.expand, children: [exists]),
+            ),
+            contains('modifier = GlanceModifier.fillMaxSize(),\n'),
+          );
+        }
+      });
+
       test('the imports cover the fill', () {
         expect(
           const HWSizedBox.expand(child: cover).kotlinImports,
