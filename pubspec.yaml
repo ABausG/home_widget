@@ -13,6 +13,7 @@ workspace:
   - examples/lockscreen_widgets
   - examples/file_and_images
   - examples/generator_basics
+  - examples/streak_widget
 
 dev_dependencies:
   melos: ^7.0.0
