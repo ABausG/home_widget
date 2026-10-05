@@ -21,8 +21,8 @@ void main() {
       test('unions swiftViewModifiers from themed child', () {
         const row = HWRow(
           children: [
-            HWText.fixed(
-              'x',
+            HWText(
+              HWString.fixed('x'),
               style: HWTextStyle(
                 color: HWThemedColor(
                   light: HWFixedColor(0xFF000000),
@@ -30,7 +30,7 @@ void main() {
                 ),
               ),
             ),
-            HWText.fixed('y'),
+            HWText(HWString.fixed('y')),
           ],
         );
         expect(
@@ -42,7 +42,7 @@ void main() {
       });
 
       test('const constructor', () {
-        const row = HWRow(children: [HWText.fixed('x')]);
+        const row = HWRow(children: [HWText(HWString.fixed('x'))]);
         expect(row, isA<HWRow>());
         expect(row, isA<HWWidget>());
         expect(row.children, hasLength(1));
@@ -51,7 +51,7 @@ void main() {
       test('Column in Row', () {
         const widget = HWRow(
           children: [
-            HWColumn(children: [HWText.fixed('nested')]),
+            HWColumn(children: [HWText(HWString.fixed('nested'))]),
           ],
         );
         expect(widget.children.first, isA<HWColumn>());
@@ -60,8 +60,8 @@ void main() {
       test('mixed children (text and column)', () {
         const widget = HWRow(
           children: [
-            HWText.fixed('a'),
-            HWColumn(children: [HWText.fixed('b')]),
+            HWText(HWString.fixed('a')),
+            HWColumn(children: [HWText(HWString.fixed('b'))]),
           ],
         );
         expect(widget.children[0], isA<HWText>());
@@ -71,7 +71,7 @@ void main() {
 
     group('iOS (SwiftUI)', () {
       test('swiftFrameAlignment keeps the cross axis, never the main one', () {
-        const children = [HWText.fixed('a')];
+        const children = [HWText(HWString.fixed('a'))];
         expect(
           const HWRow(
             children: children,
@@ -105,7 +105,7 @@ void main() {
       });
 
       test('HStack with children defaults to center', () {
-        final node = HWRow(children: [HWText.fixed('x')]);
+        final node = HWRow(children: [HWText(HWString.fixed('x'))]);
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Text("x")'));
@@ -113,7 +113,7 @@ void main() {
 
       test('crossAxis .start → top', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -122,7 +122,7 @@ void main() {
 
       test('crossAxis .center → center', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -131,7 +131,7 @@ void main() {
 
       test('crossAxis .end → bottom', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -140,7 +140,7 @@ void main() {
 
       test('crossAxis .baseline → firstTextBaseline', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -152,7 +152,7 @@ void main() {
 
       test('mainAxis .spaceBetween and Spacer', () {
         final node = HWRow(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
         final r = node.toSwift(0, dataExpr: 'data');
@@ -166,7 +166,7 @@ void main() {
       test('mainAxis .center wraps with Spacer', () {
         final node = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.center,
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 2);
@@ -177,7 +177,7 @@ void main() {
       test('mainAxis .end leads with Spacer', () {
         final node = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.end,
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
@@ -187,7 +187,7 @@ void main() {
       test('mainAxis .spaceEvenly has Spacer between and around', () {
         final node = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 3);
@@ -199,7 +199,7 @@ void main() {
     group('Android (Glance)', () {
       test('kotlinImports add Alignment and Spacer when set', () {
         final w = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
           mainAxisAlignment: HWMainAxisAlignment.end,
         );
@@ -215,12 +215,12 @@ void main() {
       });
 
       test('kotlinImports include Row', () {
-        final w = HWRow(children: [HWText.fixed('a')]);
+        final w = HWRow(children: [HWText(HWString.fixed('a'))]);
         expect(w.kotlinImports, contains('import androidx.glance.layout.Row'));
       });
 
       test('Row with child defaults to CenterVertically', () {
-        final node = HWRow(children: [HWText.fixed('x')]);
+        final node = HWRow(children: [HWText(HWString.fixed('x'))]);
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
           r,
@@ -231,7 +231,7 @@ void main() {
 
       test('crossAxis .start → Top', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -240,7 +240,7 @@ void main() {
 
       test('crossAxis .end → Bottom', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -249,7 +249,7 @@ void main() {
 
       test('crossAxis .baseline → Top, one text lining nothing up', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -264,7 +264,7 @@ void main() {
 
       test('crossAxis .center → CenterVertically', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -276,7 +276,7 @@ void main() {
 
       test('mainAxis .spaceBetween and Spacer', () {
         final node = HWRow(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
         final r = node.toKotlin(0, dataExpr: 'data');
@@ -304,7 +304,7 @@ void main() {
       test('mainAxis .center wraps with weighted Spacer', () {
         final node = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.center,
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
@@ -320,7 +320,7 @@ void main() {
       test('mainAxis .end leads with weighted Spacer', () {
         final node = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.end,
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
@@ -335,7 +335,7 @@ void main() {
       test('mainAxis .spaceEvenly with weighted Spacers', () {
         final node = HWRow(
           mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         );
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
@@ -356,7 +356,10 @@ void main() {
       ]) {
         test('mainAxis .${alignment.name} fills the width', () {
           final node = HWRow(
-            children: [HWText.fixed('a'), HWText.fixed('b')],
+            children: [
+              HWText(HWString.fixed('a')),
+              HWText(HWString.fixed('b')),
+            ],
             mainAxisAlignment: alignment,
           );
           expect(
@@ -372,7 +375,7 @@ void main() {
 
       test('mainAxis .start does not fill the width', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.start,
         );
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('fillMax')));
@@ -383,7 +386,7 @@ void main() {
       });
 
       test('no mainAxis alignment does not fill the width', () {
-        final node = HWRow(children: [HWText.fixed('a')]);
+        final node = HWRow(children: [HWText(HWString.fixed('a'))]);
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('fillMax')));
         expect(
           node.kotlinImports,
@@ -393,10 +396,10 @@ void main() {
 
       test('a row in a row takes a weight rather than the width', () {
         const inner = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
-        const node = HWRow(children: [inner, HWText.fixed('b')]);
+        const node = HWRow(children: [inner, HWText(HWString.fixed('b'))]);
         final r = node.toKotlin(0, dataExpr: 'data');
         expect(
           r,
@@ -415,7 +418,7 @@ void main() {
 
       test('a row in a column still fills the width', () {
         const inner = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           mainAxisAlignment: HWMainAxisAlignment.center,
         );
         const node = HWColumn(children: [inner]);
@@ -437,7 +440,7 @@ void main() {
       ]) {
         test('crossAxis .${alignment.name} wraps a text child in a Box', () {
           final node = HWRow(
-            children: [HWText.fixed('a')],
+            children: [HWText(HWString.fixed('a'))],
             crossAxisAlignment: alignment,
           );
           expect(
@@ -458,7 +461,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
 
       test('crossAxis .center leaves the baselines alone', () {
         final node = HWRow(
-          children: [HWText.fixed('a')],
+          children: [HWText(HWString.fixed('a'))],
           crossAxisAlignment: HWCrossAxisAlignment.center,
         );
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('Box {')));
@@ -469,7 +472,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
       });
 
       test('no alignment leaves the baselines alone', () {
-        final node = HWRow(children: [HWText.fixed('a')]);
+        final node = HWRow(children: [HWText(HWString.fixed('a'))]);
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('Box {')));
       });
 
@@ -477,7 +480,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
         final node = HWRow(
           children: [
             HWImage(HWImageData('avatar'), width: 24),
-            HWRow(children: [HWText.fixed('inner')]),
+            HWRow(children: [HWText(HWString.fixed('inner'))]),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.start,
         );
@@ -491,7 +494,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
 
       test('a Spacer is never wrapped', () {
         final node = HWRow(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           crossAxisAlignment: HWCrossAxisAlignment.start,
           mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
         );
@@ -506,18 +509,21 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
       test('text kept by a wrapper is still wrapped', () {
         final node = HWRow(
           children: [
-            HWPadding(padding: HWEdgeInsets.all(4), child: HWText.fixed('a')),
+            HWPadding(
+              padding: HWEdgeInsets.all(4),
+              child: HWText(HWString.fixed('a')),
+            ),
             HWColoredBox(
               color: HWColor.fixed(0xFF00FF00),
-              child: HWText.fixed('b'),
+              child: HWText(HWString.fixed('b')),
             ),
             HWDecoratedBox(
               decoration: HWBoxDecoration(color: HWColor.fixed(0xFF0000FF)),
-              child: HWText.fixed('c'),
+              child: HWText(HWString.fixed('c')),
             ),
             HWDataExists(
               data: HWString('maybe'),
-              whenPresent: HWText.fixed('d'),
+              whenPresent: HWText(HWString.fixed('d')),
               whenAbsent: HWImage(HWImageData('avatar'), width: 8),
             ),
           ],
@@ -534,9 +540,9 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
               decoration: HWBoxDecoration(
                 border: HWBoxBorder(thickness: 1, color: HWColor.fixed(0)),
               ),
-              child: HWText.fixed('a'),
+              child: HWText(HWString.fixed('a')),
             ),
-            HWSizedBox.expand(child: HWText.fixed('b')),
+            HWSizedBox.expand(child: HWText(HWString.fixed('b'))),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.end,
         );
@@ -549,10 +555,10 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
           children: [
             HWAdaptive(
               ios: HWImage(HWImageData('avatar'), width: 8),
-              android: HWText.fixed('a'),
+              android: HWText(HWString.fixed('a')),
             ),
             HWAdaptive(
-              ios: HWText.fixed('b'),
+              ios: HWText(HWString.fixed('b')),
               android: HWImage(HWImageData('avatar'), width: 8),
             ),
           ],
@@ -564,8 +570,8 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
 
       test('a size-adaptive child wraps each slot that is text', () {
         const textSlot = HWSizeAdaptive(
-          small: HWText.fixed('a'),
-          large: HWText.fixed('b'),
+          small: HWText(HWString.fixed('a')),
+          large: HWText(HWString.fixed('b')),
         );
         final imageSlot = HWSizeAdaptive(
           small: HWImage(HWImageData('avatar'), width: 8),
@@ -596,7 +602,7 @@ Row(verticalAlignment = Alignment.${alignment == HWCrossAxisAlignment.start ? 'T
                 mainAxisAlignment: HWMainAxisAlignment.center,
                 children: [HWText(HWString('title'))],
               ),
-              whenAbsent: HWText.fixed('none'),
+              whenAbsent: HWText(HWString.fixed('none')),
             ),
           ],
         );
@@ -621,8 +627,8 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top)
       });
 
       test('a bitmap text carries no baseline', () {
-        const text = HWText.fixed(
-          'a',
+        const text = HWText(
+          HWString.fixed('a'),
           style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
         );
         expect(text.kotlinReportsBaseline, isFalse);
@@ -637,11 +643,11 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top)
           () {
         const node = HWRow(
           children: [
-            HWText.fixed('a'),
+            HWText(HWString.fixed('a')),
             HWColoredBox(
               color: HWColor.fixed(0xFF00FF00),
               child: HWRow(
-                children: [HWText.fixed('b')],
+                children: [HWText(HWString.fixed('b'))],
                 mainAxisAlignment: HWMainAxisAlignment.center,
               ),
             ),
@@ -651,11 +657,11 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top)
         );
         const slots = HWRow(
           children: [
-            HWText.fixed('a'),
+            HWText(HWString.fixed('a')),
             HWSizeAdaptive(
-              small: HWText.fixed('a'),
+              small: HWText(HWString.fixed('a')),
               large: HWRow(
-                children: [HWText.fixed('b')],
+                children: [HWText(HWString.fixed('b'))],
                 mainAxisAlignment: HWMainAxisAlignment.center,
               ),
             ),
@@ -695,7 +701,7 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top)
 
       test('crossAxis .baseline leaves the baselines alone', () {
         final node = HWRow(
-          children: [HWText.fixed('a'), HWText.fixed('b')],
+          children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
         expect(node.toKotlin(0, dataExpr: 'data'), isNot(contains('Box')));
@@ -710,8 +716,8 @@ Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Top)
       test('two plain texts are left to the layout', () {
         final node = HWRow(
           children: [
-            HWText.fixed('50', style: HWTextStyle(fontSize: 28)),
-            HWText.fixed('Points'),
+            HWText(HWString.fixed('50'), style: HWTextStyle(fontSize: 28)),
+            HWText(HWString.fixed('Points')),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
@@ -732,11 +738,11 @@ Row(verticalAlignment = Alignment.Top) {
       test('a bitmap text beside a plain one is padded to the baseline', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              '50',
+            HWText(
+              HWString.fixed('50'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
-            HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+            HWText(HWString.fixed('Points'), style: HWTextStyle(fontSize: 14)),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
@@ -766,8 +772,8 @@ Row(verticalAlignment = Alignment.Top) {
         const style = HWTextStyle(fontFamily: 'Chewy', fontSize: 28);
         final node = HWRow(
           children: [
-            HWText.fixed('50', style: style),
-            HWText.fixed('Points', style: style),
+            HWText(HWString.fixed('50'), style: style),
+            HWText(HWString.fixed('Points'), style: style),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
@@ -778,9 +784,9 @@ Row(verticalAlignment = Alignment.Top) {
       test('a plain text with no size of its own is measured open', () {
         final node = HWRow(
           children: [
-            HWText.fixed('a'),
-            HWText.fixed(
-              'b',
+            HWText(HWString.fixed('a')),
+            HWText(
+              HWString.fixed('b'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
           ],
@@ -798,16 +804,16 @@ Row(verticalAlignment = Alignment.Top) {
       test('the ascent follows the style size, weight and slant', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(
                 fontSize: 13.5,
                 fontWeight: HWFontWeight.bold,
                 italic: true,
               ),
             ),
-            HWText.fixed(
-              'b',
+            HWText(
+              HWString.fixed('b'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
           ],
@@ -825,12 +831,12 @@ Row(verticalAlignment = Alignment.Top) {
       test('a medium weight is measured at the weight Glance draws', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(fontSize: 12, fontWeight: HWFontWeight.w600),
             ),
-            HWText.fixed(
-              'b',
+            HWText(
+              HWString.fixed('b'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
           ],
@@ -850,8 +856,8 @@ Row(verticalAlignment = Alignment.Top) {
       test('one text beside a picture lines nothing up', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
             HWImage(HWImageData('avatar'), width: 8),
@@ -866,8 +872,8 @@ Row(verticalAlignment = Alignment.Top) {
       test('a child rendering no text is left at the top', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
             HWIcon.resolvedGlyph(
@@ -875,7 +881,7 @@ Row(verticalAlignment = Alignment.Top) {
               font: HWIconFont(family: 'Fonts'),
               fontResourcePrefix: 'hw_font_demo',
             ),
-            HWText.fixed('b'),
+            HWText(HWString.fixed('b')),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
@@ -888,13 +894,16 @@ Row(verticalAlignment = Alignment.Top) {
       test('a text kept by a wrapper is what the row goes by', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              '50',
+            HWText(
+              HWString.fixed('50'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
             HWPadding(
               padding: HWEdgeInsets.only(left: 6),
-              child: HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+              child: HWText(
+                HWString.fixed('Points'),
+                style: HWTextStyle(fontSize: 14),
+              ),
             ),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
@@ -911,13 +920,16 @@ Row(verticalAlignment = Alignment.Top) {
       test('room above a text keeps the row from lining it up', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              '50',
+            HWText(
+              HWString.fixed('50'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
             HWPadding(
               padding: HWEdgeInsets.only(top: 6),
-              child: HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+              child: HWText(
+                HWString.fixed('Points'),
+                style: HWTextStyle(fontSize: 14),
+              ),
             ),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
@@ -931,11 +943,11 @@ Row(verticalAlignment = Alignment.Top) {
       test('the spacers of a main-axis alignment keep their place', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
-            HWText.fixed('b'),
+            HWText(HWString.fixed('b')),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
           mainAxisAlignment: HWMainAxisAlignment.center,
@@ -960,11 +972,11 @@ Row(verticalAlignment = Alignment.Top) {
       test('imports what the padded boxes need', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
-            HWText.fixed('b'),
+            HWText(HWString.fixed('b')),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
@@ -981,11 +993,11 @@ Row(verticalAlignment = Alignment.Top) {
       test('a padded row still takes the modifiers put on it', () {
         const row = HWRow(
           children: [
-            HWText.fixed(
-              'a',
+            HWText(
+              HWString.fixed('a'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 12),
             ),
-            HWText.fixed('b'),
+            HWText(HWString.fixed('b')),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
         );
@@ -1013,8 +1025,10 @@ Row(verticalAlignment = Alignment.Top) {
         const small = 'HomeWidgetFonts.textAscentPx(context, null, 12f, '
             'weight = 400, italic = false)';
         const red = HWFixedColor(0xFFFF0000);
-        const degrees = HWText.fixed('42', style: HWTextStyle(fontSize: 32));
-        const unit = HWText.fixed('°C', style: HWTextStyle(fontSize: 12));
+        const degrees =
+            HWText(HWString.fixed('42'), style: HWTextStyle(fontSize: 32));
+        const unit =
+            HWText(HWString.fixed('°C'), style: HWTextStyle(fontSize: 12));
 
         test('places every text, as it has no baseline in the Box', () {
           const node = HWRow(
@@ -1333,15 +1347,16 @@ Row(verticalAlignment = Alignment.Top) {
 
     group('kotlinBaselineText', () {
       test('a plain text answers with the size it renders at', () {
-        const text = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
+        const text =
+            HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21));
         final baseline = text.kotlinBaselineText()!;
         expect(baseline.isBitmap, isFalse);
         expect(baseline.ascent('data'), contains('21f'));
       });
 
       test('a custom font text answers with its own typeface', () {
-        const text = HWText.fixed(
-          'a',
+        const text = HWText(
+          HWString.fixed('a'),
           style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
         );
         final baseline = text.kotlinBaselineText()!;
@@ -1355,17 +1370,17 @@ Row(verticalAlignment = Alignment.Top) {
       test('a wrapper keeping the text answers with it', () {
         const padded = HWPadding(
           padding: HWEdgeInsets.only(left: 4),
-          child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+          child: HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
         );
         expect(padded.kotlinBaselineText()?.ascent('data'), contains('21f'));
         const colored = HWColoredBox(
           color: HWFixedColor(0xFF00FF00),
-          child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+          child: HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
         );
         expect(colored.kotlinBaselineText()?.ascent('data'), contains('21f'));
         const decorated = HWDecoratedBox(
           decoration: HWBoxDecoration(color: HWFixedColor(0xFF00FF00)),
-          child: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+          child: HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
         );
         expect(decorated.kotlinBaselineText()?.ascent('data'), contains('21f'));
       });
@@ -1373,17 +1388,17 @@ Row(verticalAlignment = Alignment.Top) {
       test('a wrapper putting room above the text answers null', () {
         const padded = HWPadding(
           padding: HWEdgeInsets.all(4),
-          child: HWText.fixed('a'),
+          child: HWText(HWString.fixed('a')),
         );
         expect(padded.kotlinBaselineText(), isNull);
         const bordered = HWDecoratedBox(
           decoration: HWBoxDecoration(
             border: HWBoxBorder(thickness: 1, color: HWFixedColor(0)),
           ),
-          child: HWText.fixed('a'),
+          child: HWText(HWString.fixed('a')),
         );
         expect(bordered.kotlinBaselineText(), isNull);
-        const filled = HWSizedBox.expand(child: HWText.fixed('a'));
+        const filled = HWSizedBox.expand(child: HWText(HWString.fixed('a')));
         expect(filled.kotlinBaselineText(), isNull);
       });
 
@@ -1391,22 +1406,23 @@ Row(verticalAlignment = Alignment.Top) {
         const column = HWColumn(
           children: [
             HWImage(HWImageData('avatar'), width: 8),
-            HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+            HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
           ],
         );
         expect(column.kotlinBaselineText(), isNull);
-        const row = HWRow(children: [HWText.fixed('a')]);
+        const row = HWRow(children: [HWText(HWString.fixed('a'))]);
         expect(row.kotlinBaselineText(), isNull);
       });
 
       test('an adaptive answers with its Android side', () {
         const adaptive = HWAdaptive(
-          ios: HWText.fixed('a', style: HWTextStyle(fontSize: 11)),
-          android: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
+          ios: HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 11)),
+          android:
+              HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
         );
         expect(adaptive.kotlinBaselineText()?.ascent('data'), contains('21f'));
         const textless = HWAdaptive(
-          ios: HWText.fixed('a'),
+          ios: HWText(HWString.fixed('a')),
           android: HWImage(HWImageData('avatar'), width: 8),
         );
         expect(textless.kotlinBaselineText(), isNull);
@@ -1415,9 +1431,10 @@ Row(verticalAlignment = Alignment.Top) {
       test('a conditional answers with both of its branches', () {
         const conditional = HWDataExists(
           data: HWString('maybe'),
-          whenPresent: HWText.fixed('a', style: HWTextStyle(fontSize: 19)),
-          whenAbsent: HWText.fixed(
-            'b',
+          whenPresent:
+              HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 19)),
+          whenAbsent: HWText(
+            HWString.fixed('b'),
             style: HWTextStyle(fontFamily: 'Chewy', fontSize: 11),
           ),
         );
@@ -1432,8 +1449,10 @@ Row(verticalAlignment = Alignment.Top) {
       });
 
       test('a conditional reads the item only where an item is read', () {
-        const plain = HWText.fixed('a', style: HWTextStyle(fontSize: 21));
-        const other = HWText.fixed('b', style: HWTextStyle(fontSize: 11));
+        const plain =
+            HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21));
+        const other =
+            HWText(HWString.fixed('b'), style: HWTextStyle(fontSize: 11));
         expect(plain.kotlinBaselineText()?.readsItem, isFalse);
 
         const onItem = HWBoolConditional(
@@ -1469,15 +1488,15 @@ Row(verticalAlignment = Alignment.Top) {
         const textless = HWDataExists(
           data: HWString('maybe'),
           whenPresent: HWImage(HWImageData('avatar'), width: 8),
-          whenAbsent: HWText.fixed('b'),
+          whenAbsent: HWText(HWString.fixed('b')),
         );
         expect(textless.kotlinBaselineText(), isNull);
       });
 
       test('a size-adaptive answers when every slot agrees', () {
         const adaptive = HWSizeAdaptive(
-          small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
-          large: HWText.fixed('b', style: HWTextStyle(fontSize: 21)),
+          small: HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
+          large: HWText(HWString.fixed('b'), style: HWTextStyle(fontSize: 21)),
         );
         expect(adaptive.kotlinBaselineText()?.ascent('data'), contains('21f'));
       });
@@ -1485,7 +1504,7 @@ Row(verticalAlignment = Alignment.Top) {
       test('a size-adaptive rendering no text at all answers null', () {
         const adaptive = HWSizeAdaptive(
           small: HWImage(HWImageData('avatar'), width: 8),
-          accessoryInline: HWText.fixed('a'),
+          accessoryInline: HWText(HWString.fixed('a')),
         );
         expect(adaptive.kotlinBaselineText(), isNull);
       });
@@ -1505,7 +1524,7 @@ Row(verticalAlignment = Alignment.Top) {
           ),
         );
         const partial = HWSizeAdaptive(
-          small: HWText.fixed('a'),
+          small: HWText(HWString.fixed('a')),
           large: HWImage(HWImageData('avatar'), width: 8),
         );
         expect(
@@ -1547,13 +1566,13 @@ Row(verticalAlignment = Alignment.Top) {
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
           children: [
             HWSizeAdaptive(
-              small: HWText.fixed('a'),
-              large: HWText.fixed(
-                'b',
+              small: HWText(HWString.fixed('a')),
+              large: HWText(
+                HWString.fixed('b'),
                 style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
               ),
             ),
-            HWText.fixed('c'),
+            HWText(HWString.fixed('c')),
           ],
         );
         const context = HWEmitContext(
@@ -1583,8 +1602,8 @@ Row(verticalAlignment = Alignment.Top) {
 
 /// A size-adaptive whose two slots render text of a different size.
 const _differingSlots = HWSizeAdaptive(
-  small: HWText.fixed('a', style: HWTextStyle(fontSize: 21)),
-  large: HWText.fixed('b', style: HWTextStyle(fontSize: 11)),
+  small: HWText(HWString.fixed('a'), style: HWTextStyle(fontSize: 21)),
+  large: HWText(HWString.fixed('b'), style: HWTextStyle(fontSize: 11)),
 );
 
 /// A baseline row of [child] beside a bitmap text, which is what makes the row
@@ -1593,8 +1612,8 @@ HWRow _baselineRow(HWWidget child) => HWRow(
       crossAxisAlignment: HWCrossAxisAlignment.baseline,
       children: [
         child,
-        const HWText.fixed(
-          'c',
+        const HWText(
+          HWString.fixed('c'),
           style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
         ),
       ],

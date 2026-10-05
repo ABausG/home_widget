@@ -38,7 +38,7 @@ enum HWFormatStyle {
   String get kotlinStyle => 'java.text.DateFormat.${name.toUpperCase()}';
 }
 
-/// How a number is rendered by [HWText.number] and [HWText.fixedNumber].
+/// How a number is rendered by [HWText.number].
 ///
 /// Every variant is const, so it can live inside a `@HomeWidget(...)`
 /// annotation. Formatting happens natively at render time in the device's

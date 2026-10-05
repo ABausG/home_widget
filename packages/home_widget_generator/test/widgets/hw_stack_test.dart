@@ -1,8 +1,8 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
-const _a = HWText.fixed('a');
-const _b = HWText.fixed('b');
+const _a = HWText(HWString.fixed('a'));
+const _b = HWText(HWString.fixed('b'));
 const _hidden = HWDataOnly([HWString('hidden')]);
 
 String _text(String content) => 'Text(text = "$content", '
@@ -639,11 +639,11 @@ ZStack(alignment: .topLeading) {
       test('a baseline row leaves it at the top', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              '50',
+            HWText(
+              HWString.fixed('50'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
-            HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+            HWText(HWString.fixed('Points'), style: HWTextStyle(fontSize: 14)),
             const HWStack(children: [_a]),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,

@@ -11,9 +11,9 @@ void main() {
 
     group('model', () {
       test('centers its child by default', () {
-        const align = HWAlign(child: HWText.fixed('a'));
+        const align = HWAlign(child: HWText(HWString.fixed('a')));
         expect(align.alignment, HWAlignment.center);
-        expect(align.childWidgets, [const HWText.fixed('a')]);
+        expect(align.childWidgets, [const HWText(HWString.fixed('a'))]);
       });
 
       test('passes the child questions on', () {
@@ -81,7 +81,7 @@ void main() {
             height: 40,
             child: HWAlign(
               alignment: HWAlignment.centerEnd,
-              child: HWText.fixed('a'),
+              child: HWText(HWString.fixed('a')),
             ),
           ).toSwift(0, dataExpr: 'data'),
           endsWith('.frame(width: 80.0, height: 40.0, alignment: .trailing)'),
@@ -105,8 +105,8 @@ void main() {
           alignment: HWAlignment.bottomEnd,
           child: HWBoolConditional(
             data: HWBool('flag', defaultValue: false),
-            whenTrue: HWText.fixed('on'),
-            whenFalse: HWText.fixed('off'),
+            whenTrue: HWText(HWString.fixed('on')),
+            whenFalse: HWText(HWString.fixed('off')),
           ),
         );
         final result = align.toSwift(0, dataExpr: 'data');
@@ -188,8 +188,8 @@ void main() {
           const HWAlign(
             child: HWBoolConditional(
               data: HWBool('flag', defaultValue: false),
-              whenTrue: HWText.fixed('on'),
-              whenFalse: HWText.fixed('off'),
+              whenTrue: HWText(HWString.fixed('on')),
+              whenFalse: HWText(HWString.fixed('off')),
             ),
           ).toKotlin(0, dataExpr: 'data'),
           contains('    if (data.flag == true) {'),
@@ -231,11 +231,11 @@ void main() {
       test('a baseline row leaves it at the top', () {
         final node = HWRow(
           children: [
-            HWText.fixed(
-              '50',
+            HWText(
+              HWString.fixed('50'),
               style: HWTextStyle(fontFamily: 'Chewy', fontSize: 28),
             ),
-            HWText.fixed('Points', style: HWTextStyle(fontSize: 14)),
+            HWText(HWString.fixed('Points'), style: HWTextStyle(fontSize: 14)),
             const HWAlign(child: _child),
           ],
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
@@ -266,4 +266,4 @@ void main() {
   });
 }
 
-const _child = HWText.fixed('a');
+const _child = HWText(HWString.fixed('a'));

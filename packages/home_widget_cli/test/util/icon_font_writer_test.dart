@@ -165,7 +165,7 @@ void main() {
       await writeAndroidIconFonts(
         spec: _spec(
           className: 'Weather',
-          widget: const HWText.fixed('no icons'),
+          widget: const HWText(HWString.fixed('no icons')),
         ),
         projectRoot: tempDir,
         fonts: fonts,
@@ -177,7 +177,7 @@ void main() {
       await writeAndroidIconFonts(
         spec: _spec(
           className: 'WeatherIcons',
-          widget: const HWText.fixed('no icons'),
+          widget: const HWText(HWString.fixed('no icons')),
         ),
         projectRoot: tempDir,
         fonts: fonts,
@@ -194,7 +194,7 @@ void main() {
       );
 
       final result = await writeAndroidIconFonts(
-        spec: _spec(widget: const HWText.fixed('no icons')),
+        spec: _spec(widget: const HWText(HWString.fixed('no icons'))),
         projectRoot: tempDir,
         fonts: fonts,
       );
@@ -218,7 +218,7 @@ void main() {
         fonts: fonts,
       );
       await writeAndroidIconFonts(
-        spec: _spec(widget: const HWText.fixed('no icons')),
+        spec: _spec(widget: const HWText(HWString.fixed('no icons'))),
         projectRoot: tempDir,
         fonts: fonts,
       );

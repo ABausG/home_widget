@@ -37,23 +37,16 @@ enum HWImageFit {
 /// validator at generation time: an asset ships with the app, so there is
 /// nothing to store and nothing to vary.
 ///
-/// Two const constructors:
+/// Two kinds of image data:
 /// - `HWImage(HWImageData('avatar'))` -- runtime image, saved by the app
-/// - `HWImage.asset('assets/logo.png')` -- Flutter asset, read from the bundle
+/// - `HWImage(HWImageData.asset('assets/logo.png'))` -- Flutter asset, read
+///   from the bundle
 class HWImage extends HWWidget implements HWDataWidget {
-  /// The image data passed to the default constructor, null for
-  /// [HWImage.asset].
+  /// The image data this widget renders.
   ///
-  /// An [HWImageData], or an [HWJson] / [HWTimedData] (or both) wrapping one.
-  /// Prefer [dataType], which is non-null for both constructors, or
-  /// [imageData] for the [HWImageData] itself.
-  final HWDataType<dynamic>? data;
-
-  /// The Flutter asset path passed to [HWImage.asset], null otherwise.
-  final String? assetPath;
-
-  /// The `package` passed to [HWImage.asset], null for app assets.
-  final String? assetPackage;
+  /// An [HWImageData], or an [HWJson] / [HWTimedData] (or both) wrapping one;
+  /// [imageData] is the [HWImageData] itself.
+  final HWDataType<dynamic> data;
 
   /// Fixed width in logical pixels, or null to size from the layout.
   final double? width;
@@ -85,27 +78,6 @@ class HWImage extends HWWidget implements HWDataWidget {
     this.fit = HWImageFit.contain,
     this.semanticLabel,
   })  : data = image,
-        assetPath = null,
-        assetPackage = null,
-        _kotlinFillsWidth = false,
-        _kotlinFillsHeight = false;
-
-  /// Renders the Flutter asset at [path].
-  ///
-  /// Set [package] to load the asset from a dependency instead of the app,
-  /// exactly like `Image.asset(path, package: ...)`.
-  ///
-  /// Equivalent to `HWImage(HWImageData.asset(path, package: package))`.
-  const HWImage.asset(
-    String path, {
-    String? package,
-    this.width,
-    this.height,
-    this.fit = HWImageFit.contain,
-    this.semanticLabel,
-  })  : data = null,
-        assetPath = path,
-        assetPackage = package,
         _kotlinFillsWidth = false,
         _kotlinFillsHeight = false;
 
@@ -115,8 +87,6 @@ class HWImage extends HWWidget implements HWDataWidget {
     required bool width,
     required bool height,
   })  : data = image.data,
-        assetPath = image.assetPath,
-        assetPackage = image.assetPackage,
         width = image.width,
         height = image.height,
         fit = image.fit,
@@ -124,13 +94,12 @@ class HWImage extends HWWidget implements HWDataWidget {
         _kotlinFillsWidth = width,
         _kotlinFillsHeight = height;
 
-  /// The data field this widget renders, for either constructor.
+  /// The data field this widget renders.
   ///
   /// Keeps the [HWTimedData] and [HWJson] wrappers, so the field is registered
   /// as time-based / as part of its group and the access expressions come out
   /// right; [imageData] strips them.
-  HWDataType<dynamic> get dataType =>
-      data ?? HWImageData.asset(assetPath!, package: assetPackage);
+  HWDataType<dynamic> get dataType => data;
 
   /// The image itself, with any [HWTimedData] and [HWJson] wrappers removed.
   ///
@@ -224,21 +193,6 @@ class HWImage extends HWWidget implements HWDataWidget {
         HWImageFit.contain;
     final semanticLabel =
         WidgetValueDecoder.getField(obj, 'semanticLabel')?.toStringValue();
-
-    // HWImage.asset stores the raw path; the storage key is derived from it.
-    final assetPath =
-        WidgetValueDecoder.getField(obj, 'assetPath')?.toStringValue();
-    if (assetPath != null) {
-      return HWImage.asset(
-        assetPath,
-        package:
-            WidgetValueDecoder.getField(obj, 'assetPackage')?.toStringValue(),
-        width: width,
-        height: height,
-        fit: fit,
-        semanticLabel: semanticLabel,
-      );
-    }
 
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
     final data = WidgetValueDecoder.decodeDataType(dataObj);

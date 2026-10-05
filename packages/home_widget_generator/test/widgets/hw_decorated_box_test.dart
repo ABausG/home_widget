@@ -9,7 +9,7 @@ void main() {
           decoration: HWBoxDecoration(
             color: HWFixedColor(0xFFFF0000),
           ),
-          child: HWText.fixed('x'),
+          child: HWText(HWString.fixed('x')),
         );
 
         final result = node.toSwift(0, dataExpr: 'data');
@@ -28,7 +28,7 @@ void main() {
               color: HWFixedColor(0xFF000000),
             ),
           ),
-          child: HWText.fixed('Decorated'),
+          child: HWText(HWString.fixed('Decorated')),
         );
 
         final result = node.toSwift(0, dataExpr: 'data');
@@ -55,7 +55,7 @@ void main() {
         expect(node.swiftRendersNothing, isTrue);
         expect(node.toSwift(0, dataExpr: 'data'), isEmpty);
         expect(
-          const HWColumn(children: [node, HWText.fixed('x')])
+          const HWColumn(children: [node, HWText(HWString.fixed('x'))])
               .toSwift(0, dataExpr: 'data'),
           isNot(contains('.overlay(')),
         );
@@ -72,7 +72,7 @@ void main() {
                 color: HWFixedColor(0xFF0000FF),
                 borderRadius: HWBorderRadius.circular(16),
               ),
-              child: HWText.fixed('x'),
+              child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
             'Text("x")\n'
             '.background(RoundedRectangle(cornerRadius: 16.0).fill($blue))',
@@ -89,7 +89,7 @@ void main() {
                   color: HWFixedColor(0xFF000000),
                 ),
               ),
-              child: HWText.fixed('x'),
+              child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
             'Text("x")\n'
             '.overlay(RoundedRectangle(cornerRadius: 16.0)'
@@ -104,7 +104,7 @@ void main() {
                 color: HWFixedColor(0xFF0000FF),
                 borderRadius: HWBorderRadius.circular(0),
               ),
-              child: HWText.fixed('x'),
+              child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
             'Text("x")\n.background($blue)',
           );
@@ -115,7 +115,7 @@ void main() {
             decoration: HWBoxDecoration(
               borderRadius: HWBorderRadius.circular(16),
             ),
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           );
           expect(node.toSwift(0, dataExpr: 'data'), 'Text("x")');
           expect(
@@ -124,7 +124,7 @@ void main() {
                 color: HWFixedColor(0xFF0000FF),
                 borderRadius: HWBorderRadius.circular(16),
               ),
-              child: HWText.fixed('x'),
+              child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
             isNot(contains('clip')),
           );
@@ -141,11 +141,15 @@ void main() {
               color: HWFixedColor(0xFF000000),
             ),
           ),
-          child: HWSizedBox(width: double.infinity, child: HWText.fixed('x')),
+          child: HWSizedBox(
+            width: double.infinity,
+            child: HWText(HWString.fixed('x')),
+          ),
         );
 
-        final result = const HWRow(children: [node, HWText.fixed('y')])
-            .toSwift(0, dataExpr: 'data');
+        final result =
+            const HWRow(children: [node, HWText(HWString.fixed('y'))])
+                .toSwift(0, dataExpr: 'data');
         expect(
           result,
           contains('    Text("x")\n'
@@ -169,7 +173,7 @@ void main() {
               ),
             ),
           ),
-          child: HWText.fixed('Theme'),
+          child: HWText(HWString.fixed('Theme')),
         );
 
         expect(
@@ -185,7 +189,7 @@ void main() {
           decoration: HWBoxDecoration(
             color: HWFixedColor(0xFFFF0000),
           ),
-          child: HWText.fixed('x'),
+          child: HWText(HWString.fixed('x')),
         );
 
         final result = node.toKotlin(0, dataExpr: 'data');
@@ -204,7 +208,7 @@ void main() {
               color: HWFixedColor(0xFF000000),
             ),
           ),
-          child: HWText.fixed('Decorated'),
+          child: HWText(HWString.fixed('Decorated')),
         );
 
         final result = node.toKotlin(0, dataExpr: 'data');
@@ -225,7 +229,7 @@ void main() {
               color: HWFixedColor(0xFF000000),
             ),
           ),
-          child: HWText.fixed('Decorated'),
+          child: HWText(HWString.fixed('Decorated')),
         );
 
         final result = node.toKotlin(0, dataExpr: 'data');
@@ -251,7 +255,7 @@ void main() {
               color: HWFixedColor(0xFF0000FF),
               borderRadius: HWBorderRadius.circular(16),
             ),
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           );
           expect(
             node.toKotlin(0, dataExpr: 'data'),
@@ -274,7 +278,7 @@ void main() {
         test('square corners and no color need no cornerRadius', () {
           const square = HWDecoratedBox(
             decoration: HWBoxDecoration(color: HWFixedColor(0xFF0000FF)),
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           );
           expect(
             square.toKotlin(0, dataExpr: 'data'),
@@ -289,7 +293,7 @@ void main() {
             decoration: HWBoxDecoration(
               borderRadius: HWBorderRadius.circular(16),
             ),
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           );
           expect(
             uncolored.toKotlin(0, dataExpr: 'data'),
@@ -311,7 +315,7 @@ void main() {
                 color: HWFixedColor(0xFF000000),
               ),
             ),
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           ).toKotlin(0, dataExpr: 'data');
           expect(result, contains('.cornerRadius(1.0.dp).padding(2.0.dp)'));
           expect(
@@ -334,7 +338,7 @@ void main() {
           decoration: decoration,
           child: HWSizedBox(
             height: double.infinity,
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           ),
         );
 
@@ -343,8 +347,9 @@ void main() {
           expect(room.weight, isTrue);
           expect(room.fillsHeight, isFalse);
 
-          final result = const HWColumn(children: [tall, HWText.fixed('y')])
-              .toKotlin(0, dataExpr: 'data');
+          final result =
+              const HWColumn(children: [tall, HWText(HWString.fixed('y'))])
+                  .toKotlin(0, dataExpr: 'data');
           expect(
             result,
             contains('    Box(\n'
@@ -396,7 +401,7 @@ void main() {
         test('and none while the child hugs its content', () {
           const hugging = HWDecoratedBox(
             decoration: decoration,
-            child: HWText.fixed('x'),
+            child: HWText(HWString.fixed('x')),
           );
           expect(hugging.kotlinRoomIn(HWAxis.vertical).modifiers, isEmpty);
           expect(
@@ -440,7 +445,7 @@ void main() {
               ),
               child: HWDataOnly([HWString('hidden')]),
             ),
-            HWText.fixed('x'),
+            HWText(HWString.fixed('x')),
           ],
         );
 
@@ -463,7 +468,7 @@ void main() {
               color: HWFixedColor(0xFF000000),
             ),
           ),
-          child: HWText.fixed('Imports'),
+          child: HWText(HWString.fixed('Imports')),
         );
 
         expect(

@@ -27,7 +27,7 @@ WidgetSpec _spec(
 const _lonelyBaselineRow = HWRow(
   crossAxisAlignment: HWCrossAxisAlignment.baseline,
   children: [
-    HWText.fixed('34'),
+    HWText(HWString.fixed('34')),
     HWImage(HWImageData('avatar'), width: 8),
   ],
 );
@@ -53,7 +53,7 @@ void main() {
             HWRow(
               crossAxisAlignment: HWCrossAxisAlignment.baseline,
               children: [
-                HWText.fixed('34'),
+                HWText(HWString.fixed('34')),
                 HWImage(HWImageData('avatar'), width: 8),
               ],
             ),
@@ -95,7 +95,10 @@ void main() {
       _spec(
         const HWRow(
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
-          children: [HWText.fixed('34'), HWText.fixed('kg')],
+          children: [
+            HWText(HWString.fixed('34')),
+            HWText(HWString.fixed('kg')),
+          ],
         ),
       ),
     );
@@ -108,7 +111,7 @@ void main() {
         const HWRow(
           crossAxisAlignment: HWCrossAxisAlignment.end,
           children: [
-            HWText.fixed('34'),
+            HWText(HWString.fixed('34')),
             HWImage(HWImageData('avatar'), width: 8),
           ],
         ),
@@ -120,7 +123,10 @@ void main() {
   test('stays quiet for a baseline row only iOS renders', () {
     validateBaselineRows(
       _spec(
-        const HWAdaptive(ios: _lonelyBaselineRow, android: HWText.fixed('34')),
+        const HWAdaptive(
+          ios: _lonelyBaselineRow,
+          android: HWText(HWString.fixed('34')),
+        ),
       ),
     );
     verifyNever(() => mockLogger.warn(any()));
@@ -129,7 +135,10 @@ void main() {
   test('warns about a baseline row on the Android side of an adaptive', () {
     validateBaselineRows(
       _spec(
-        const HWAdaptive(ios: HWText.fixed('34'), android: _lonelyBaselineRow),
+        const HWAdaptive(
+          ios: HWText(HWString.fixed('34')),
+          android: _lonelyBaselineRow,
+        ),
       ),
     );
     verify(() => mockLogger.warn(captureAny())).captured.single;
@@ -139,7 +148,7 @@ void main() {
     validateBaselineRows(
       _spec(
         const HWSizeAdaptive(
-          small: HWText.fixed('34'),
+          small: HWText(HWString.fixed('34')),
           accessoryInline: _lonelyBaselineRow,
         ),
       ),
@@ -160,7 +169,7 @@ void main() {
         const HWRow(
           crossAxisAlignment: HWCrossAxisAlignment.baseline,
           children: [
-            HWText.fixed('34'),
+            HWText(HWString.fixed('34')),
             HWImage(HWImageData('avatar'), width: 8),
           ],
         ),

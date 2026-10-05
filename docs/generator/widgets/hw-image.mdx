@@ -7,13 +7,15 @@ description: Display a PNG saved at runtime or a bundled Flutter asset.
 
 Renders an image — either one your app saves at runtime, or a Flutter asset the native widget reads straight out of the installed app bundle. A runtime image renders nothing until your app has saved one, so pair it with [`HWDataExists`](/generator/widgets/hw-conditional) if you want a placeholder; an asset image is there from the moment the app is installed.
 
-## Constructors
-
-### HWImage (runtime)
+## Constructor
 
 `const HWImage(HWDataType<dynamic> image, {double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
 
-Displays an image your app saves at runtime, e.g. a profile photo or a downloaded cover image. `image` is an `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one — see [Images inside a JSON group](#images-inside-a-json-group) and [Time-based images](#time-based-images).
+`image` is an `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one. A stored `HWImageData('key')` shows a picture your app saves at runtime; `HWImageData.asset` shows a Flutter asset.
+
+### Runtime image
+
+Displays an image your app saves at runtime, e.g. a profile photo or a downloaded cover image. See [Images inside a JSON group](#images-inside-a-json-group) and [Time-based images](#time-based-images).
 
 ```dart
 HWImage(
@@ -26,18 +28,18 @@ HWImage(
 ```
 
 `HWImageData` also takes a `previewAsset`: a Flutter asset shown in the widget gallery until the app
-has saved a real picture, validated exactly like an `HWImage.asset` path. See
+has saved a real picture, validated exactly like an `HWImageData.asset` path. See
 [Preview assets](/generator/previews#preview-assets).
 
-### HWImage.asset
+### Asset image
 
-`const HWImage.asset(String path, {String? package, double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
+`const HWImageData.asset(String path, {String? package})`
 
-Displays a Flutter asset. The native widget reads it from the app bundle at render time, so there is nothing to save and nothing to call. Equivalent to `HWImage(HWImageData.asset(path, package: package))`.
+Displays a Flutter asset. The native widget reads it from the app bundle at render time, so there is nothing to save and nothing to call.
 
 ```dart
-HWImage.asset(
-  'assets/logo.png',
+HWImage(
+  HWImageData.asset('assets/logo.png'),
   width: 32,
   height: 32,
 )
@@ -48,10 +50,10 @@ The asset must be declared under `flutter.assets` in the app's `pubspec.yaml`.
 Set `package` to use an asset that ships with a dependency instead of your app, exactly like `Image.asset(path, package: ...)`:
 
 ```dart
-HWImage.asset('assets/logo.png', package: 'my_icons')
+HWImage(HWImageData.asset('assets/logo.png', package: 'my_icons'))
 ```
 
-A package asset can also be addressed with the manual `packages/<package>/<path>` convention — `HWImage.asset('packages/my_icons/assets/logo.png')` is the same image — but do not combine the two spellings, which would resolve to `packages/my_icons/packages/my_icons/...`.
+A package asset can also be addressed with the manual `packages/<package>/<path>` convention — `HWImageData.asset('packages/my_icons/assets/logo.png')` is the same image — but do not combine the two spellings, which would resolve to `packages/my_icons/packages/my_icons/...`.
 
 <Info>
 Asset paths are validated when you run `home_widget generate`: an app asset must exist on disk and be declared under `flutter.assets`, and a package asset must exist in the dependency (its declaration is that package's responsibility) — the package-asset check only runs once the dependency is resolved in `.dart_tool/package_config.json` (i.e. after `pub get`), and is skipped otherwise.
@@ -61,9 +63,7 @@ Asset paths are validated when you run `home_widget generate`: an app asset must
 
 | Name            | Type          | Default              | Description                                                     |
 | --------------- | ------------- | --------------------- | ----------------------------------------------------------------|
-| `image`         | `HWDataType<dynamic>` | **required** _(default ctor)_ | `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one, naming the runtime image to render. |
-| `path`          | `String`      | **required** _(`.asset`)_ | Flutter asset path, e.g. `assets/logo.png`.                  |
-| `package`       | `String?`     | `null` _(`.asset`)_   | Package that owns the asset; `null` means the app's own assets. |
+| `image`         | `HWDataType<dynamic>` | **required** | `HWImageData` or `HWImageData.asset`, or an `HWJson` / `HWTimedData` wrapping a stored one, naming the image to render. |
 | `width`         | `double?`     | `null`                | Fixed width in logical pixels, or size from the layout.         |
 | `height`        | `double?`     | `null`                | Fixed height in logical pixels, or size from the layout.        |
 | `fit`           | `HWImageFit`  | `HWImageFit.contain`  | How the image is inscribed into its bounds.                     |
@@ -90,7 +90,7 @@ Without a box around it, an image without `width` / `height` takes the size of i
 
 ## Getting an image onto the widget
 
-The two constructors take completely different routes:
+The two kinds of image take completely different routes:
 
 - **Runtime image** (`HWImage(HWImageData('key'))`): the generated helper's `saveData(...)` method gains a nullable `ImageProvider? key` parameter. Hand it any `ImageProvider` — `NetworkImage`, `FileImage`, `MemoryImage`, `AssetImage`, … — and the widget shows that picture. `deleteData(key: true)` removes it. A top-level image like this one is saved as a PNG your app writes to disk, so `getData()` hands back the `String?` file path rather than an `ImageProvider` — and that path may point to a file that no longer exists. An image nested in a JSON group or a timed entry comes back from `getData()` as an `ImageProvider?` instead — see below.
 
@@ -101,7 +101,7 @@ The two constructors take completely different routes:
   await MyWidgetHomeWidget.updateWidget();
   ```
 
-- **Asset image** (`HWImage.asset('assets/logo.png')`): nothing to call, and nothing stored. The native widget reads the asset out of the installed app bundle every time it renders, so the image is on screen as soon as the widget is placed — the Flutter app never has to have been launched. Asset images do not appear in `saveData`, `deleteData` or `getData`.
+- **Asset image** (`HWImage(HWImageData.asset('assets/logo.png'))`): nothing to call, and nothing stored. The native widget reads the asset out of the installed app bundle every time it renders, so the image is on screen as soon as the widget is placed — the Flutter app never has to have been launched. Asset images do not appear in `saveData`, `deleteData` or `getData`.
 
 <Info>
 A runtime image renders nothing until it has been saved at least once, so wrap it in [`HWDataExists`](/generator/widgets/hw-conditional) to show a placeholder in the meantime. An asset image needs no such guard.
@@ -176,7 +176,7 @@ One `saveData` call persists the whole group, images included. Passing the group
 A group with a timed image (`HWTimedData(HWJson('slot', HWImageData('picture')))`) follows the timed rules instead — each entry carries its own picture, and the schedule's images are kept in step for you as described above.
 
 <Warning>
-`HWImageData.asset(...)` at a JSON leaf is a generation error: an asset is read straight out of the app bundle, so there is nothing for the group to carry. Use `HWImage.asset` directly.
+`HWImageData.asset(...)` at a JSON leaf is a generation error: an asset is read straight out of the app bundle, so there is nothing for the group to carry. Pass `HWImageData.asset` to `HWImage` directly.
 </Warning>
 
 ## Platform mapping

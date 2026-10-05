@@ -78,9 +78,10 @@ private fun hwResolveTimeZone(id: String?): TimeZone {
   ///
   /// The generated Dart writes `toUtc().toIso8601String()` — six fractional
   /// digits and `Z` — but hand-written or older payloads may carry no fraction,
-  /// one to three digits, or a `+hh:mm` offset. Both platforms normalize the
-  /// fraction to the three digits their parser accepts, and treat a missing
-  /// zone as UTC. Unparseable input is null, never a throw at render time.
+  /// any number of fractional digits, or a `±hh:mm`, `±hhmm` or `±hh` offset.
+  /// Both platforms normalize the fraction to the three digits their parser
+  /// accepts, and treat a missing zone as UTC. Unparseable input is null, never
+  /// a throw at render time. [isNativeIsoDate] mirrors what is read.
   hwParseIsoDate(
     swift: r'''
 func hwParseIsoDate(_ value: String) -> Date? {
@@ -1191,6 +1192,42 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
   /// both arguments are ignored.
   @override
   String toKotlin(int indent, {required String dataExpr}) => kotlin ?? '';
+}
+
+final RegExp _nativeIsoDatePattern = RegExp(
+  r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?'
+  r'(?:[Zz]|([+-])(\d{2})(?::?(\d{2}))?)?$',
+);
+
+/// Whether the generated `hwParseIsoDate` reads [iso] on both platforms;
+/// mirrors [HWNativeHelper.hwParseIsoDate].
+///
+/// Narrower than [DateTime.tryParse]: `yyyy-MM-ddTHH:mm:ss` in full, an
+/// optional `.` fraction, and an optional `Z` or `±hh`, `±hhmm`, `±hh:mm`
+/// offset from `-13:00` to `+14:00`. A field out of range — a 30th of
+/// February, an hour 24 — is not read, since only iOS rolls it over.
+bool isNativeIsoDate(String iso) {
+  final match = _nativeIsoDatePattern.firstMatch(iso);
+  if (match == null) return false;
+
+  final fields = [
+    for (var group = 1; group <= 6; group++) int.parse(match.group(group)!),
+  ];
+  final [year, month, day, hour, minute, second] = fields;
+  if (year < 1) return false;
+  final date = DateTime.utc(year, month, day, hour, minute, second);
+  final rolledOver = date.month != month ||
+      date.day != day ||
+      date.hour != hour ||
+      date.minute != minute ||
+      date.second != second;
+  if (rolledOver) return false;
+
+  final sign = match.group(7);
+  if (sign == null) return true;
+  final offsetMinutes = int.parse(match.group(9) ?? '0');
+  final offset = int.parse(match.group(8)!) * 60 + offsetMinutes;
+  return offsetMinutes < 60 && offset <= (sign == '+' ? 14 : 13) * 60;
 }
 
 /// The ones of [helpers] Android has a body for, in the order they come in.
