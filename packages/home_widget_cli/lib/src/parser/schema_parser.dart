@@ -3,6 +3,7 @@ import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/diagnostic/diagnostic.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
@@ -31,6 +32,8 @@ Future<List<WidgetSpec>> parseSchemaFile(
     // coverage:ignore-end
   }
 
+  _rejectBrokenAnnotations(result, filePath);
+
   final specs = <WidgetSpec>[];
   for (final element in result.libraryElement.classes) {
     if (_hasHomeWidgetAnnotation(element)) {
@@ -41,6 +44,52 @@ Future<List<WidgetSpec>> parseSchemaFile(
     }
   }
   return specs;
+}
+
+/// Where the migration guides of `home_widget_generator` start.
+const String generatorMigrationGuideUrl =
+    'https://docs.page/ABausG/home_widget/generator/migrations/0.5.0';
+
+/// Fails when the analyzer reports an error inside a `@HomeWidget(...)`
+/// annotation of [result]: a parameter, constructor or widget that does not
+/// exist, or a value that is no constant.
+///
+/// The analyzer still evaluates such an annotation, leaving out what it could
+/// not resolve, so the widget would be generated from something other than
+/// what the schema says. Errors anywhere else in the file are left alone: a
+/// schema may sit next to code that only compiles once the helpers exist.
+void _rejectBrokenAnnotations(ResolvedUnitResult result, String filePath) {
+  for (final declaration in result.unit.declarations) {
+    for (final annotation in declaration.metadata) {
+      if (annotation.name.name.split('.').last != 'HomeWidget') continue;
+
+      final problems = [
+        for (final diagnostic in result.diagnostics)
+          if (diagnostic.severity == Severity.error &&
+              diagnostic.offset >= annotation.offset &&
+              diagnostic.offset < annotation.end)
+            diagnostic,
+      ];
+      if (problems.isEmpty) continue;
+
+      final lines = [
+        for (final problem in problems)
+          () {
+            final location = result.lineInfo.getLocation(problem.offset);
+            return '  ${location.lineNumber}:${location.columnNumber}: '
+                '${problem.message}';
+          }(),
+      ];
+      throw GeneratorError(
+        '$filePath: the @HomeWidget annotation does not compile, so no widget '
+        'can be generated from it:\n'
+        '${lines.join('\n')}\n'
+        'A parameter, constructor or widget that a newer '
+        'home_widget_generator removed is listed with its replacement in the '
+        'migration guides: $generatorMigrationGuideUrl',
+      );
+    }
+  }
 }
 
 bool _isHomeWidgetAnnotation(ElementAnnotation meta) {

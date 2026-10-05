@@ -1006,7 +1006,8 @@ void main() {
         message,
         allOf(
           contains(
-              'WeatherHistoryLink ("myapp://history") of widget "Weather"'),
+            'WeatherHistoryLink ("myapp://history") of widget "Weather"',
+          ),
           contains(
             'CounterHistoryLink ("myApp://history?tab=1") of widget "Counter"',
           ),
