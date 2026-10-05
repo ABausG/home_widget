@@ -103,8 +103,10 @@ class WidgetLinkHomeWidget {
 
   /// Every tap on this widget that opens the app.
   ///
-  /// Emits the tap that started the app first, if one did, then every tap
-  /// while it runs. A tap on any other widget is not reported.
+  /// Emits the tap that started the app, if one did and no listener was handed
+  /// it yet, then every tap while the app runs. A tap is told by its URL: one
+  /// opening a URL this widget does not open is not reported, and another
+  /// widget opening the same URL is reported here too.
   static Stream<WidgetLinkLaunch> launches() => HomeWidget.launches(WidgetLinkLaunch.fromUri);
 }
 
@@ -113,9 +115,11 @@ sealed class WidgetLinkLaunch {
   const WidgetLinkLaunch();
 
   /// The launch [uri] stands for, or null when it is not a URL this widget
-  /// opens the app with.
+  /// opens the app with, or is malformed.
   ///
-  /// Query parameters the launch does not know are ignored.
+  /// Of two launches whose URLs differ in their query parameters alone, the
+  /// one writing more of them is matched first. Query parameters the launch
+  /// does not know are ignored.
   static WidgetLinkLaunch? fromUri(Uri uri) => WidgetLinkWidgetTap._$fromUri(uri) ?? WidgetLinkTopicLink._$fromUri(uri) ?? WidgetLinkSettingsLink._$fromUri(uri);
 
   /// The URL the widget opens the app with for this launch.
@@ -129,8 +133,14 @@ final class WidgetLinkWidgetTap extends WidgetLinkLaunch {
   static final Uri _$url = Uri.parse('generatorBasics://link?homeWidget');
 
   static WidgetLinkWidgetTap? _$fromUri(Uri uri) {
-    if (!_$matchesPayloadUrl(uri, _$url)) return null;
-    return const WidgetLinkWidgetTap();
+    try {
+      if (!_$matchesPayloadUrl(uri, _$url)) return null;
+      return const WidgetLinkWidgetTap();
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
   }
 
   @override
@@ -156,9 +166,15 @@ final class WidgetLinkTopicLink extends WidgetLinkLaunch {
   static final Uri _$url = Uri.parse('generatorBasics://topic?homeWidget');
 
   static WidgetLinkTopicLink? _$fromUri(Uri uri) {
-    if (!_$matchesPayloadUrl(uri, _$url)) return null;
-    final query = uri.queryParameters;
-    return WidgetLinkTopicLink(topic: query['topic'] ?? 'Widgets', position: _$payloadInt(query['position']) ?? 1);
+    try {
+      if (!_$matchesPayloadUrl(uri, _$url)) return null;
+      final query = uri.queryParameters;
+      return WidgetLinkTopicLink(topic: query['topic'] ?? 'Widgets', position: _$payloadInt(query['position']) ?? 1);
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
   }
 
   @override
@@ -168,7 +184,7 @@ final class WidgetLinkTopicLink extends WidgetLinkLaunch {
   bool operator ==(Object other) => other is WidgetLinkTopicLink && other.topic == this.topic && other.position == this.position;
 
   @override
-  int get hashCode => Object.hashAll([WidgetLinkTopicLink, topic, position]);
+  int get hashCode => Object.hashAll([WidgetLinkTopicLink, this.topic, this.position]);
 
   @override
   String toString() => 'WidgetLinkTopicLink(topic: $topic, position: $position)';
@@ -181,8 +197,14 @@ final class WidgetLinkSettingsLink extends WidgetLinkLaunch {
   static final Uri _$url = Uri.parse('generatorBasics://settings?homeWidget');
 
   static WidgetLinkSettingsLink? _$fromUri(Uri uri) {
-    if (!_$matchesPayloadUrl(uri, _$url)) return null;
-    return const WidgetLinkSettingsLink();
+    try {
+      if (!_$matchesPayloadUrl(uri, _$url)) return null;
+      return const WidgetLinkSettingsLink();
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
   }
 
   @override
