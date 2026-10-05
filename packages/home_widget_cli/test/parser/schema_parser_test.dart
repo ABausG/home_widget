@@ -236,6 +236,135 @@ void main() {
       ]);
     });
 
+    group('an annotation the analyzer reports an error in', () {
+      Matcher throwsBroken(String fragment) => throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('the @HomeWidget annotation does not compile'),
+                contains('.dart: '),
+                contains(fragment),
+                contains(generatorMigrationGuideUrl),
+                matches(RegExp(r'\n  \d+:\d+: ')),
+              ),
+            ),
+          );
+
+      test('fails for the removed Android widgetUrl', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Removed Android Url',
+            widgetUrl: 'myapp://shared',
+            android: HomeWidgetAndroidConfiguration(
+              widgetUrl: 'myapp://android',
+            ),
+          )
+          class RemovedAndroidUrl {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken("'widgetUrl'"),
+        );
+      });
+
+      test('fails for the removed iOS widgetUrl', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Removed iOS Url',
+            iOS: HomeWidgetIOSConfiguration(
+              groupId: 'group.url',
+              widgetUrl: 'myapp://ios',
+            ),
+          )
+          class RemovedIosUrl {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken("'widgetUrl'"),
+        );
+      });
+
+      test('fails for a removed constructor', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Removed Constructor',
+            widget: HWText.fixed('Hi'),
+          )
+          class RemovedConstructor {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('fixed'),
+        );
+      });
+
+      test('fails for a widget that does not exist', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Unknown Widget',
+            widget: HWColumn(children: [HWCarousel(items: 3)]),
+          )
+          class UnknownWidget {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('HWCarousel'),
+        );
+      });
+
+      test('fails through an import prefix too', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart' as hw;
+
+          @hw.HomeWidget(name: 'Prefixed', widget: hw.HWText.fixed('Hi'))
+          class Prefixed {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('fixed'),
+        );
+      });
+
+      test('leaves errors outside the annotation alone', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          import 'not_generated_yet.home_widget.dart';
+
+          @Deprecated(unknown: 1)
+          @HomeWidget(
+            name: 'Before First Generation',
+            widget: HWText(HWString('label')),
+          )
+          class BeforeFirstGeneration {
+            Future<void> save() =>
+                BeforeFirstGenerationHomeWidget.saveData(label: 'Hi');
+          }
+
+          final NotGeneratedYet broken = missing();
+        ''';
+
+        final spec = await parseSourceInTempFile(source);
+        expect(spec, isNotNull);
+        expect(spec!.data.name, 'Before First Generation');
+        expect(spec.dataFields.single.key, 'label');
+      });
+    });
+
     test('collects the data an HWLink sends', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
