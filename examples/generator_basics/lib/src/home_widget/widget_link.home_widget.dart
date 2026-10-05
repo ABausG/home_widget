@@ -106,29 +106,6 @@ class WidgetLinkHomeWidget {
   /// Emits the tap that started the app first, if one did, then every tap
   /// while it runs. A tap on any other widget is not reported.
   static Stream<WidgetLinkLaunch> launches() => HomeWidget.launches(WidgetLinkLaunch.fromUri);
-
-  /// The URL a tap on the widget opens the app with while it sends no data
-  /// along, as the app will receive it.
-  @Deprecated('Use launches() and initialLaunch() instead.')
-  static final Uri widgetUrl = Uri.parse('generatorBasics://link?homeWidget');
-
-  /// The URL the app was launched with by a tap on the widget, or null
-  /// when it was started any other way.
-  @Deprecated('Use launches() and initialLaunch() instead.')
-  static Future<Uri?> initiallyLaunchedFromWidget() => HomeWidget.initialLaunch(_$widgetTapUri);
-
-  /// The URL of every tap on the widget while the app is running.
-  @Deprecated('Use launches() and initialLaunch() instead.')
-  static Stream<Uri> get widgetClicked =>
-      HomeWidget.widgetClicked
-          .where((uri) => uri != null && _$widgetTapUri(uri) != null)
-          .cast<Uri>();
-
-  /// Every tap on the widget, launch included.
-  @Deprecated('Use launches() and initialLaunch() instead.')
-  static Stream<Uri> launchedFromWidget() => HomeWidget.launches(_$widgetTapUri);
-
-  static Uri? _$widgetTapUri(Uri uri) => WidgetLinkWidgetTap._$fromUri(uri) == null ? null : uri;
 }
 
 /// A tap on the Widget Link widget that opened the app.

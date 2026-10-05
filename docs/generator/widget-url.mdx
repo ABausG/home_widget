@@ -207,4 +207,4 @@ The Android click action targets the activity your manifest declares with the `M
 
 ## Uri helpers
 
-Before 0.5.0 the generated helper class reported taps as plain `Uri`s, through a static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`. They are still generated for a widget that sets `widgetUrl`, but deprecated in favor of `initialLaunch()` and `launches()`. They report a tap on the widget itself and never one on an `HWLink`, and the `widgetUrl` field is the URL without the values of `widgetUrlData`. See [Migration to 0.5.0](/generator/migrations/0.5.0#uri-launch-helpers-deprecated) for the replacement of each one.
+Before 0.5.0 the generated helper class reported taps as plain `Uri`s, through a static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`. They were removed in 0.5.0 in favor of `initialLaunch()` and `launches()`. See [Migration to 0.5.0](/generator/migrations/0.5.0#uri-launch-helpers-removed) for the replacement of each one.

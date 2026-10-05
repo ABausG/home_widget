@@ -111,7 +111,6 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
       buffer,
       launchTargets.isNotEmpty ? _launchHelpers() : null,
     );
-    _appendSection(buffer, spec.hasWidgetUrl ? _uriLaunchHelpers() : null);
     _appendSection(
       buffer,
       spec.hasRuntimeImages ? _runtimeImageHelpers() : null,
@@ -1378,42 +1377,6 @@ ${_flavorGuard('Future.value()')}    return HomeWidget.requestPinWidget(
   /// Emits the tap that started the app first, if one did, then every tap
   /// while it runs. A tap on any other widget is not reported.
   static Stream<$launch> launches() => HomeWidget.launches($launch.fromUri);
-''';
-  }
-
-  /// Emits the Uri-based launch helpers the typed ones replace, each
-  /// deprecated.
-  ///
-  /// Emitted only for specs configuring a widget URL: they report a tap on
-  /// the widget itself, never one on an [HWLink].
-  String _uriLaunchHelpers() {
-    final tap = spec.launchTargets.first.className;
-    final url = escapeDartStringLiteral(spec.widgetUrl!.staticUrl);
-    const deprecation =
-        "@Deprecated('Use launches() and initialLaunch() instead.')";
-    return '''
-  /// The URL a tap on the widget opens the app with while it sends no data
-  /// along, as the app will receive it.
-  $deprecation
-  static final Uri widgetUrl = Uri.parse('$url');
-
-  /// The URL the app was launched with by a tap on the widget, or null
-  /// when it was started any other way.
-  $deprecation
-  static Future<Uri?> initiallyLaunchedFromWidget() => HomeWidget.initialLaunch(_\$widgetTapUri);
-
-  /// The URL of every tap on the widget while the app is running.
-  $deprecation
-  static Stream<Uri> get widgetClicked =>
-      HomeWidget.widgetClicked
-          .where((uri) => uri != null && _\$widgetTapUri(uri) != null)
-          .cast<Uri>();
-
-  /// Every tap on the widget, launch included.
-  $deprecation
-  static Stream<Uri> launchedFromWidget() => HomeWidget.launches(_\$widgetTapUri);
-
-  static Uri? _\$widgetTapUri(Uri uri) => $tap._\$fromUri(uri) == null ? null : uri;
 ''';
   }
 
