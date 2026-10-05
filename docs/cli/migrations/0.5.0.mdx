@@ -27,7 +27,7 @@ A path, git or workspace dependency is not checked.
 
 ## The helper reports taps as typed launches
 
-The generated helper class gains `initialLaunch()` and `launches()`, which report a tap as a subclass of the generated sealed class `<Name>Launch`. The `Uri` helpers it had before, the static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`, are deprecated. See [Uri Launch Helpers Deprecated](/generator/migrations/0.5.0#uri-launch-helpers-deprecated) for the replacement of each one.
+The generated helper class gains `initialLaunch()` and `launches()`, which report a tap as a subclass of the generated sealed class `<Name>Launch`. The `Uri` helpers it had before, the static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`, are no longer generated, so code calling them stops compiling after the next `generate`. See [Uri Launch Helpers Removed](/generator/migrations/0.5.0#uri-launch-helpers-removed) for the replacement of each one.
 
 ## One widget URL for both platforms
 

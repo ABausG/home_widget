@@ -24,7 +24,7 @@ Taps that open the app are now reported as typed launches, which also covers the
 
 - [Per-platform widget URLs are removed](#per-platform-widget-urls-removed).
 - [The launch helpers need home_widget 0.10.1](#launch-helpers-need-a-plugin-update).
-- [The Uri launch helpers are deprecated](#uri-launch-helpers-deprecated).
+- [The Uri launch helpers are removed](#uri-launch-helpers-removed).
 
 ## HWText.fixed Became HWString.fixed
 
@@ -145,11 +145,11 @@ dependencies:
   home_widget: ^0.10.1 # [!code ++]
 ```
 
-## Uri Launch Helpers Deprecated
+## Uri Launch Helpers Removed
 
-The static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()` of the generated helper class are deprecated and will be removed in a later release. A tap now arrives as a subclass of the generated sealed class `<Name>Launch`, through `initialLaunch()` and `launches()`. See [Widget Clicks](/generator/widget-url#the-generated-launch-model).
+The generated helper class no longer reports taps as a `Uri`. The static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()` are removed. A tap now arrives as a subclass of the generated sealed class `<Name>Launch`, through `initialLaunch()` and `launches()`. See [Widget Clicks](/generator/widget-url#the-generated-launch-model).
 
-| Deprecated | Replacement |
+| Removed | Replacement |
 | --- | --- |
 | `WeatherHomeWidget.launchedFromWidget()` | `WeatherHomeWidget.launches()` |
 | `WeatherHomeWidget.initiallyLaunchedFromWidget()` | `WeatherHomeWidget.initialLaunch()` |

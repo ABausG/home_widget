@@ -207,65 +207,17 @@ void main() {
   });
 
   group('Uri launch helpers', () {
-    test('are deprecated wrappers around the tap on the widget', () {
+    test('are no longer generated', () {
       final output = _generate(
         widgetUrl: 'myApp://weather',
         tree: _history,
       );
 
-      const deprecated =
-          "  @Deprecated('Use launches() and initialLaunch() instead.')\n";
-      expect(
-        output,
-        contains(
-          '$deprecated'
-          '  static final Uri widgetUrl = '
-          "Uri.parse('myApp://weather?homeWidget');",
-        ),
-      );
-      expect(
-        output,
-        contains(
-          '$deprecated'
-          '  static Future<Uri?> initiallyLaunchedFromWidget() => '
-          'HomeWidget.initialLaunch(_\$widgetTapUri);',
-        ),
-      );
-      expect(
-        output,
-        contains(
-          '$deprecated'
-          '  static Stream<Uri> get widgetClicked =>\n'
-          '      HomeWidget.widgetClicked\n'
-          '          .where((uri) => uri != null && '
-          '_\$widgetTapUri(uri) != null)\n'
-          '          .cast<Uri>();',
-        ),
-      );
-      expect(
-        output,
-        contains(
-          '$deprecated'
-          '  static Stream<Uri> launchedFromWidget() => '
-          'HomeWidget.launches(_\$widgetTapUri);',
-        ),
-      );
-      expect(
-        output,
-        contains(
-          '  static Uri? _\$widgetTapUri(Uri uri) => '
-          'WeatherWidgetTap._\$fromUri(uri) == null ? null : uri;',
-        ),
-      );
-    });
-
-    test('are left out for a widget that only has links', () {
-      final output = _generate(tree: _history);
-
       expect(output, isNot(contains('initiallyLaunchedFromWidget')));
       expect(output, isNot(contains('widgetClicked')));
       expect(output, isNot(contains('launchedFromWidget')));
       expect(output, isNot(contains('static final Uri widgetUrl')));
+      expect(output, isNot(contains('@Deprecated')));
     });
   });
 }
