@@ -167,31 +167,32 @@ List<_LinkSite> _linkSites(WidgetSpec spec, String widget) {
 /// target: only one of them can ever render, and both open the same URL with
 /// the same payload.
 void _validateLinkIds(WidgetSpec spec, List<_LinkSite> sites, String widget) {
-  final seen = <String, _LinkSite>{};
+  final seen = <String, List<_LinkSite>>{};
   for (final site in sites) {
     final link = site.link;
-    final existing = seen.putIfAbsent(spec.linkClassName(link), () => site);
-    if (identical(existing, site)) continue;
-
-    final other = existing.link;
-    final ids = other.id == link.id
-        ? "HWLink('${link.id}') is declared twice"
-        : "HWLink('${other.id}') and HWLink('${link.id}') both generate "
-            '${spec.linkClassName(link)}';
-    if (!existing.excludes(site)) {
-      throw GeneratorError(
-        '$widget: $ids. A link id is unique within a widget; it may only '
-        'repeat across the branches of a conditional or the slots of an '
-        'HWSizeAdaptive, where one of them renders at a time.',
-      );
+    final earlier = seen.putIfAbsent(spec.linkClassName(link), () => []);
+    for (final existing in earlier) {
+      final other = existing.link;
+      final ids = other.id == link.id
+          ? "HWLink('${link.id}') is declared twice"
+          : "HWLink('${other.id}') and HWLink('${link.id}') both generate "
+              '${spec.linkClassName(link)}';
+      if (!existing.excludes(site)) {
+        throw GeneratorError(
+          '$widget: $ids. A link id is unique within a widget; it may only '
+          'repeat across the branches of a conditional or the slots of an '
+          'HWSizeAdaptive, where one of them renders at a time.',
+        );
+      }
+      if (!_sameLaunch(other.payloadUrl, link.payloadUrl)) {
+        throw GeneratorError(
+          '$widget: $ids, but with a different url or data. Both reach the '
+          'app as the same launch class, so give them the same url and the '
+          'same data, or different ids.',
+        );
+      }
     }
-    if (!_sameLaunch(other.payloadUrl, link.payloadUrl)) {
-      throw GeneratorError(
-        '$widget: $ids, but with a different url or data. Both reach the app '
-        'as the same launch class, so give them the same url and the same '
-        'data, or different ids.',
-      );
-    }
+    earlier.add(site);
   }
 }
 

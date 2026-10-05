@@ -355,6 +355,30 @@ void main() {
       expect(() => validateWidgetData(spec), returnsNormally);
     });
 
+    test('are checked against every earlier link, not only the first', () {
+      final spec = _spec(
+        HWDataExists(
+          data: const HWString('s'),
+          whenPresent: _link('a'),
+          whenAbsent: HWRow(
+            children: [
+              _link('a'),
+              HWDataExists(
+                data: const HWString('q'),
+                whenPresent: _link('a'),
+                whenAbsent: _label,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        _throwsMessage(contains("HWLink('a') is declared twice")),
+      );
+    });
+
     test('one link written into two slots is one link', () {
       final shared = _link('open');
       final spec = _spec(
