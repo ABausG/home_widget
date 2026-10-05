@@ -10,5 +10,9 @@ String spellFixedValue(HWDataType<dynamic> value) => switch (value) {
       HWInt(:final fixedValue) => 'HWInt.fixed($fixedValue)',
       HWDouble(:final fixedValue) => 'HWDouble.fixed($fixedValue)',
       HWBool(:final fixedValue) => 'HWBool.fixed($fixedValue)',
-      HWJson() || HWTimedData() || HWItemData() => '${value.runtimeType}',
+      HWJson() ||
+      HWTimedData() ||
+      HWItemData() ||
+      HWPayload() =>
+        '${value.runtimeType}',
     };

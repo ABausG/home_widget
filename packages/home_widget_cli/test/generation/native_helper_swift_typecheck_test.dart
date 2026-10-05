@@ -56,6 +56,21 @@ func hwHelperSmokeDriver() {
   print(hwImageExists(""))
   print(hwImageExists("/tmp/hw-does-not-exist.png"))
   print(hwImageExists("assets/logo.png"))
+
+  let city: String? = "New York"
+  let count: Int = 3
+  let ratio: Double? = 0.5
+  let done: Bool = true
+  let url = hwPayloadUrl(
+    "myapp://forecast?tab=today",
+    [
+      ("city", hwPayloadValue(city)), ("count", hwPayloadValue(count)),
+      ("ratio", hwPayloadValue(ratio)), ("done", hwPayloadValue(done)),
+      ("at", hwPayloadValue(date)), ("days", "7"),
+    ], "homeWidget", "#top")
+  print(url as Any)
+  _ = hwLink(url) { Text("Forecast") }
+  _ = hwLink(URL(string: "myapp://history?homeWidget")) { Text("History") }
 }
 ''';
 

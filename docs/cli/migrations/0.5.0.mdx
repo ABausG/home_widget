@@ -1,0 +1,34 @@
+---
+title: Migration to 0.5.0
+description: Behavior changes and migration guide for home_widget_cli 0.5.0
+---
+
+# Migration to 0.5.0
+
+Only widgets that set a `widgetUrl` are affected. Regenerate them, then check the changes below. The schema changes of this release are in the [generator migration guide](/generator/migrations/0.5.0).
+
+## Launch helpers need home_widget 0.10.1
+
+The generated launch helpers call `HomeWidget.initialLaunch` and `HomeWidget.launches`, which `home_widget` has from 0.10.1. `generate` now fails for a widget that sets `widgetUrl` or contains an [`HWLink`](/generator/widgets/hw-link) when `pubspec.lock` resolves an older hosted `home_widget`:
+
+```text
+Widget "Weather": this widget opens the app with a URL, which needs home_widget 0.10.1 or newer; pubspec.lock resolves home_widget 0.10.0. Raise the home_widget constraint in pubspec.yaml and run `flutter pub get`.
+```
+
+Raise the constraint and run `flutter pub get`:
+
+```yaml
+dependencies:
+  home_widget: ^0.10.0 # [!code --]
+  home_widget: ^0.10.1 # [!code ++]
+```
+
+A path, git or workspace dependency is not checked.
+
+## The helper reports taps as typed launches
+
+The generated helper class gains `initialLaunch()` and `launches()`, which report a tap as a subclass of the generated sealed class `<Name>Launch`. The `Uri` helpers it had before, the static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`, are deprecated. See [Uri Launch Helpers Deprecated](/generator/migrations/0.5.0#uri-launch-helpers-deprecated) for the replacement of each one.
+
+## One widget URL for both platforms
+
+The `androidWidgetUrl` and `iosWidgetUrl` fields of the generated helper class are gone, together with the per-platform `widgetUrl` settings they came from. See [Per-Platform Widget URLs Removed](/generator/migrations/0.5.0#per-platform-widget-urls-removed).

@@ -1,5 +1,6 @@
 import '../annotations.dart';
 import 'hw_size.dart';
+import 'hw_widget.dart';
 
 /// The axis a Glance `Column` or `Row` lays its children out along.
 enum HWAxis { vertical, horizontal }
@@ -95,12 +96,28 @@ class HWEmitContext {
   /// the item's index into the key.
   final String? itemList;
 
+  /// The class name of the activity a tap target opens on Android, or null
+  /// when a tap opens nothing: the widget opted out of opening the app, or no
+  /// launcher activity was found.
+  ///
+  /// Always null on iOS.
+  final String? androidLaunchActivity;
+
+  /// The [HWLink]s that are the whole layout of a family with a single tap
+  /// area, by identity, which iOS opens through `.widgetURL` rather than a
+  /// `Link`.
+  ///
+  /// Always empty on Android.
+  final List<HWLink> swiftWidgetUrlLinks;
+
   const HWEmitContext({
     this.reachableFamilies,
     this.androidSizeTable,
     this.declaredAndroidSizes,
     this.enclosingLinearAxis,
     this.itemList,
+    this.androidLaunchActivity,
+    this.swiftWidgetUrlLinks = const [],
   });
 
   /// This context, for a widget the Glance `Column` or `Row` running along
@@ -111,6 +128,8 @@ class HWEmitContext {
         declaredAndroidSizes: declaredAndroidSizes,
         enclosingLinearAxis: axis,
         itemList: itemList,
+        androidLaunchActivity: androidLaunchActivity,
+        swiftWidgetUrlLinks: swiftWidgetUrlLinks,
       );
 
   /// This context, for the item of the builder over [list].
@@ -120,5 +139,18 @@ class HWEmitContext {
         declaredAndroidSizes: declaredAndroidSizes,
         enclosingLinearAxis: enclosingLinearAxis,
         itemList: list,
+        androidLaunchActivity: androidLaunchActivity,
+        swiftWidgetUrlLinks: swiftWidgetUrlLinks,
+      );
+
+  /// This context, with a tap target opening [activity] on Android.
+  HWEmitContext launching(String? activity) => HWEmitContext(
+        reachableFamilies: reachableFamilies,
+        androidSizeTable: androidSizeTable,
+        declaredAndroidSizes: declaredAndroidSizes,
+        enclosingLinearAxis: enclosingLinearAxis,
+        itemList: itemList,
+        androidLaunchActivity: activity,
+        swiftWidgetUrlLinks: swiftWidgetUrlLinks,
       );
 }

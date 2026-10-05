@@ -49,20 +49,31 @@ class _HomePageState extends State<_HomePage> {
   int _streak = 0;
   String _currency = 'EUR';
   String _deliveryZone = '';
-  Uri? _widgetLinkUri;
-  StreamSubscription<Uri>? _widgetLinkSubscription;
+  int _topic = 0;
+  WidgetLinkLaunch? _widgetLinkLaunch;
+  StreamSubscription<WidgetLinkLaunch>? _widgetLinkSubscription;
 
   @override
   void initState() {
     super.initState();
-    // launchedFromWidget() yields the launch Uri first when a tap on the
-    // widget started the app, then every tap while it keeps running. Only
-    // this widget's own URL is reported — WidgetLinkHomeWidget.widgetUrl.
-    _widgetLinkSubscription = WidgetLinkHomeWidget.launchedFromWidget().listen(
-      (uri) => setState(() => _widgetLinkUri = uri),
+    // launches() yields the launch first when a tap on the widget started the
+    // app, then every tap while it keeps running, each as the class of what
+    // was tapped. Only this widget's own taps are reported.
+    _widgetLinkSubscription = WidgetLinkHomeWidget.launches().listen(
+      (launch) => setState(() => _widgetLinkLaunch = launch),
     );
     unawaited(_loadDashboard());
   }
+
+  /// What was tapped, exhaustively: a link added to the schema does not
+  /// compile here until it is handled.
+  String _describeLaunch(WidgetLinkLaunch? launch) => switch (launch) {
+    null => 'Not launched from the widget yet',
+    WidgetLinkWidgetTap() => 'Tapped the widget',
+    WidgetLinkTopicLink(:final topic, :final position) =>
+      'Tapped the topic "$topic" at position $position',
+    WidgetLinkSettingsLink() => 'Tapped Settings',
+  };
 
   Future<void> _loadDashboard() async {
     final data = await SizeAdaptiveDashboardHomeWidget.getData();
@@ -809,29 +820,40 @@ class _HomePageState extends State<_HomePage> {
         ),
 
         // -------------------------------------------------------------------
-        // Widget Link: widgetUrl, so a tap on the widget opens the app with a
-        // Uri the generated launch helpers report back.
+        // Widget Link: widgetUrl and two HWLinks, so a tap opens the app and
+        // the generated launch helpers report what was tapped.
         // -------------------------------------------------------------------
         WidgetSection(
           title: 'Widget Link',
           description:
-              'The schema sets widgetUrl, so tapping the widget opens the app '
-              'with generatorBasics://link?homeWidget — the generator appends '
-              'the homeWidget parameter and wires the Android intent-filter.',
+              'The schema sets widgetUrl and wraps two regions in an HWLink. '
+              'A tap opens the app, and launches() reports it as a typed '
+              'launch: the widget itself, the topic link with the data it '
+              'sends, or the settings link.',
           isInstalled: WidgetLinkHomeWidget.isInstalled,
           isRequestPinWidgetSupported:
               WidgetLinkHomeWidget.isRequestPinWidgetSupported,
           requestPinWidget: WidgetLinkHomeWidget.requestPinWidget,
           children: [
             ListTile(
-              title: Text(
-                _widgetLinkUri?.toString() ??
-                    'Not launched from the widget yet',
-              ),
-              subtitle: const Text(
-                'launchedFromWidget() — launch Uri plus every later tap',
+              title: Text(_describeLaunch(_widgetLinkLaunch)),
+              subtitle: Text(
+                _widgetLinkLaunch?.toUri().toString() ??
+                    'launches() — the launch plus every later tap',
               ),
               leading: const Icon(Icons.link),
+            ),
+            ListTile(
+              title: const Text('Change the topic'),
+              subtitle: Text(
+                'saveData(topic: "${_topics[_topic]}") + updateWidget()',
+              ),
+              trailing: const Icon(Icons.edit),
+              onTap: () async {
+                setState(() => _topic = (_topic + 1) % _topics.length);
+                await WidgetLinkHomeWidget.saveData(topic: _topics[_topic]);
+                await WidgetLinkHomeWidget.updateWidget();
+              },
             ),
           ],
         ),
@@ -871,6 +893,8 @@ class _HomePageState extends State<_HomePage> {
     );
     await WeekForecastHomeWidget.updateWidget();
   }
+
+  static const _topics = ['Widgets', 'Links', 'Launches'];
 
   static const _weekForecast = [
     (WeekForecastConditionIcon.wbSunny, 21),

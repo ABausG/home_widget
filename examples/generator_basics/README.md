@@ -55,8 +55,9 @@ small and each one demonstrates a different feature of the generator:
   subset down to those glyphs. One of the ten, `Icons.arrow_forward`, declares
   `matchTextDirection`, so picking it shows the arrow mirrored in a
   right-to-left layout.
-- `widget_link.dart` – a `widgetUrl`, so tapping the widget opens the app with
-  that URL and the generated `launchedFromWidget()` helper reports it back.
+- `widget_link.dart` – a `widgetUrl` and two `HWLink`s, so tapping the widget
+  opens the app and the generated `launches()` helper reports what was tapped:
+  the widget itself, or one of the links with the `data` it sends.
 
 ## Generating the native code
 
@@ -76,7 +77,7 @@ also registers
 in `android/app/src/main/AndroidManifest.xml` — that is what delivers the
 scheduled content swaps on Android.
 
-Because `widget_link.dart` sets `widgetUrl`, the CLI also adds the
-`es.antonborri.home_widget.action.LAUNCH` intent-filter to the launcher activity
-in that same manifest — that is what hands the URL to the app when the widget is
-tapped.
+Because `widget_link.dart` sets `widgetUrl` and uses `HWLink`, the CLI also adds
+the `es.antonborri.home_widget.action.LAUNCH` intent-filter to the launcher
+activity in that same manifest — that is what hands the URL to the app when the
+widget is tapped.

@@ -75,6 +75,114 @@ private fun hwResolveTimeZone(id: String?): TimeZone {
     localeDependent: false,
   ),
 
+  /// A payload value as the text a URL carries it as, or null for a value
+  /// that is not there.
+  ///
+  /// The generated Dart reads exactly these spellings back: a number as Dart
+  /// prints it, `true` or `false`, and a date as its milliseconds since the
+  /// epoch.
+  hwPayloadValue(
+    swift: r'''
+func hwPayloadValue(_ value: String?) -> String? {
+  return value
+}
+
+func hwPayloadValue(_ value: Int?) -> String? {
+  return value.map { String($0) }
+}
+
+func hwPayloadValue(_ value: Double?) -> String? {
+  return value.map {
+    $0.isNaN ? "NaN" : $0.isInfinite ? ($0 < 0 ? "-Infinity" : "Infinity") : String($0)
+  }
+}
+
+func hwPayloadValue(_ value: Bool?) -> String? {
+  return value.map { $0 ? "true" : "false" }
+}
+
+func hwPayloadValue(_ value: Date?) -> String? {
+  return value.map { String(Int64(($0.timeIntervalSince1970 * 1000).rounded())) }
+}''',
+    kotlin: '''
+private fun hwPayloadValue(value: Any?): String? =
+    when (value) {
+        null -> null
+        is Date -> value.time.toString()
+        else -> value.toString()
+    }''',
+    kotlinImports: {'import java.util.Date'},
+    localeDependent: false,
+  ),
+
+  /// The URL a tap opens: `head` with every payload value that is there
+  /// appended as a percent-encoded query parameter, then `marker` and
+  /// `fragment`.
+  ///
+  /// Every character outside the unreserved set is encoded, a space as `%20`
+  /// and a `+` as `%2B`, which is what Dart's `Uri.queryParameters` decodes.
+  hwPayloadUrl(
+    swift: r'''
+func hwPayloadUrl(
+  _ head: String, _ payload: [(String, String?)], _ marker: String, _ fragment: String
+) -> URL? {
+  let unreserved = CharacterSet(
+    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+  var url = head
+  var separator = head.contains("?") ? "&" : "?"
+  for (name, value) in payload {
+    guard let value = value,
+      let encoded = value.addingPercentEncoding(withAllowedCharacters: unreserved)
+    else { continue }
+    url += separator + name + "=" + encoded
+    separator = "&"
+  }
+  if !marker.isEmpty {
+    url += separator + marker
+  }
+  return URL(string: url + fragment)
+}''',
+    kotlin: '''
+private fun hwPayloadUrl(
+    head: String,
+    payload: List<Pair<String, String?>>,
+    marker: String,
+    fragment: String,
+): Uri {
+    val url = StringBuilder(head)
+    var separator = if (head.contains('?')) '&' else '?'
+    for ((name, value) in payload) {
+        if (value == null) continue
+        url.append(separator).append(name).append('=').append(Uri.encode(value))
+        separator = '&'
+    }
+    if (marker.isNotEmpty()) url.append(separator).append(marker)
+    return Uri.parse(url.append(fragment).toString())
+}''',
+    kotlinImports: {'import android.net.Uri'},
+    localeDependent: false,
+  ),
+
+  /// A region of the widget whose tap opens the app with `url`, or the bare
+  /// content when there is no URL to open.
+  ///
+  /// The plain button style keeps the content in its own colors.
+  hwLink(
+    swift: '''
+func hwLink<Content: View>(_ url: URL?, @ViewBuilder content: () -> Content) -> some View {
+  return Group {
+    if let url = url {
+      Link(destination: url, label: content)
+        .buttonStyle(.plain)
+    } else {
+      content()
+    }
+  }
+}''',
+    swiftImports: {'import SwiftUI'},
+    localeDependent: false,
+  ),
+
   /// Parses the ISO 8601 string a date field is stored as.
   ///
   /// The generated Dart writes `toUtc().toIso8601String()` — six fractional

@@ -199,35 +199,64 @@ void main() {
       final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.widgetUrl, 'myapp://widget');
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.data.widgetUrlData, isEmpty);
+      expect(spec.androidWidgetUrl?.url, 'myapp://widget');
+      expect(spec.iosWidgetUrl?.url, 'myapp://widget');
     });
 
-    test('parses the per-platform widgetUrl overrides', () async {
+    test('parses widgetUrlData and stores what it sends', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
 
         @HomeWidget(
-          name: 'Url Override Test',
-          widgetUrl: 'myapp://shared',
-          android: const HomeWidgetAndroidConfiguration(
-            widgetUrl: 'myapp://android',
-          ),
-          iOS: const HomeWidgetIOSConfiguration(
-            groupId: 'group.url',
-            widgetUrl: 'myapp://ios',
-          ),
+          name: 'Url Data Test',
+          widgetUrl: 'myapp://widget',
+          widgetUrlData: [
+            HWString('label'),
+            HWPayload('town', HWString('city', defaultValue: 'Berlin')),
+            HWPayload('days', HWInt.fixed(7)),
+          ],
+          android: const HomeWidgetAndroidConfiguration(),
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.url'),
+          widget: HWText(HWString('label')),
         )
-        class UrlOverrideWidget {}
+        class UrlDataWidget {}
       ''';
 
       final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
-      expect(spec!.data.widgetUrl, 'myapp://shared');
-      expect(spec.data.android?.widgetUrl, 'myapp://android');
-      expect(spec.data.iOS?.widgetUrl, 'myapp://ios');
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://ios');
+      expect(spec!.data.widgetUrlData, const [
+        HWString('label'),
+        HWPayload('town', HWString('city', defaultValue: 'Berlin')),
+        HWPayload('days', HWInt.fixed(7)),
+      ]);
+      expect(spec.declaredDataFields, const [
+        HWString('label'),
+        HWString('city', defaultValue: 'Berlin'),
+      ]);
+    });
+
+    test('collects the data an HWLink sends', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Link Data Test',
+          android: const HomeWidgetAndroidConfiguration(),
+          widget: HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWPayload('town', HWString('city'))],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+        )
+        class LinkDataWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.dataFields, const [HWString('city')]);
+      expect(spec.links.single.id, 'forecast');
     });
 
     test('collects data fields from widget tree (HWText HWString)', () async {

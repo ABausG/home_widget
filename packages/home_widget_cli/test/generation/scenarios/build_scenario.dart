@@ -12,6 +12,7 @@ class BuildScenario {
     this.expectsScheduledUpdateWiring = false,
     this.expectedAndroidWidgetUrl,
     this.expectedIosWidgetUrl,
+    this.hasLinks = false,
     this.assetPaths = const [],
     this.fontFamilies = const {},
   });
@@ -37,8 +38,13 @@ class BuildScenario {
   ///
   /// A scenario setting this also expects the CLI to have declared the
   /// plugin's launch intent-filter on the app's launcher activity; one leaving
-  /// it null expects the plain open-app click and no manifest change.
+  /// it null expects the plain open-app click and, without [hasLinks], no
+  /// manifest change.
   final String? expectedAndroidWidgetUrl;
+
+  /// Whether [widgetSource] contains an `HWLink`, which needs the launch
+  /// intent-filter whether or not the widget sets a URL.
+  final bool hasLinks;
 
   /// The URL, `homeWidget` parameter included, the generated iOS widget is
   /// expected to carry as its `widgetURL`, or null when it should carry none.
