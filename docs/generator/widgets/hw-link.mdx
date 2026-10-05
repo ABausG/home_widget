@@ -77,6 +77,10 @@ A value the widget reads only for a payload is a stored field like any other. It
 
 The values are the ones the widget was **rendered with**. That is right for identity, such as which row was tapped. For state that changes while the widget is on screen, read the current value in the app.
 
+An `HWDateTime` is sent as an instant with millisecond precision and arrives as a UTC `DateTime`.
+
+Two widgets that contain a link with the same `url` both report a tap on it, because a tap is told by its URL. `generate` warns about that; give each widget URLs of its own.
+
 See [Payloads](/generator/data#payloads) for the allowed types, the naming rules and the nullability of the generated fields.
 
 ## Links in list rows
@@ -134,7 +138,7 @@ WeatherHomeWidget.launches().listen((launch) => switch (launch) {
 });
 ```
 
-The link's URL and `widgetUrl` have to differ in scheme, host, path, fragment or the query parameters written into them. Otherwise the app could not tell the two taps apart, and generation fails.
+The link's URL and `widgetUrl` have to differ in scheme, host, path, fragment or the query parameters written into them. Otherwise the app could not tell the two taps apart, and generation fails. One may extend the other with a query parameter, such as `myapp://home` and `myapp://home?tab=settings`: the URL with more query parameters is matched first.
 
 ## Small widgets on iOS
 
@@ -179,10 +183,10 @@ An `HWLink` that **is** the whole layout of such a family works: the root of the
 Each of these fails generation:
 
 - An `id` that is not ASCII letters and digits starting with a letter.
-- A `url` that is empty or has no scheme.
+- A `url` that is empty, has no scheme, or holds a character a URL cannot hold unescaped, such as a space, a quote or a brace. Percent-encode it.
 - An `HWLink` inside another `HWLink`.
 - Two links with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `url` and the same `data`.
-- Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path and fragment, with the query parameters written into one all carried by the other.
+- Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one that can produce a query parameter written into the other.
 - An `HWLink` that is the whole layout of an iOS single-tap family in a widget that also sets `widgetUrl`.
 - A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.
 

@@ -1027,7 +1027,7 @@ class WidgetSpec {
     if (hasWidgetUrl) {
       targets.add(
         LaunchTarget(
-          className: '${className}WidgetTap',
+          className: widgetTapClassName,
           url: widgetUrl!,
           description: 'A tap on the ${data.name} widget itself.',
         ),
@@ -1052,6 +1052,32 @@ class WidgetSpec {
   /// The class a tap on [link] reaches the app as: `<WidgetClass><Id>Link`,
   /// e.g. `WeatherForecastLink`.
   String linkClassName(HWLink link) => '$className${toPascalCase(link.id)}Link';
+
+  /// The class a tap on the widget itself reaches the app as:
+  /// `<WidgetClass>WidgetTap`.
+  String get widgetTapClassName => '${className}WidgetTap';
+
+  /// [launchTargets] in the order a URL is matched against them: the more
+  /// query parameters a target writes into its URL, the earlier, so
+  /// `myapp://home?tab=settings` is tried before `myapp://home`. Targets
+  /// writing equally many keep their order.
+  List<LaunchTarget> get launchTargetsByMatchOrder {
+    final targets = launchTargets;
+    final specificity = {
+      for (final target in targets)
+        target: target.url.staticQuery.values
+            .fold<int>(0, (count, values) => count + values.length),
+    };
+    return [
+      for (final (_, target) in targets.indexed.toList()
+        ..sort((a, b) {
+          final bySpecificity =
+              specificity[b.$2]!.compareTo(specificity[a.$2]!);
+          return bySpecificity != 0 ? bySpecificity : a.$1.compareTo(b.$1);
+        }))
+        target,
+    ];
+  }
 
   /// The class every [launchTargets] entry extends: `<WidgetClass>Launch`.
   String get launchClassName => '${className}Launch';

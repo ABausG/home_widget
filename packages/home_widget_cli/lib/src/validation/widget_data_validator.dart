@@ -1,5 +1,6 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 
+import '../generators/payload_dart_emitter.dart';
 import '../models/widget_spec.dart';
 import '../util/logger.dart';
 import '../util/naming.dart';

@@ -141,7 +141,7 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
     buffer.writeln('}');
 
     if (launchTargets.isNotEmpty) {
-      _appendSection(buffer, _launchClass(launchTargets));
+      _appendSection(buffer, _launchClass());
       for (final target in launchTargets) {
         _appendSection(
           buffer,
@@ -1374,26 +1374,30 @@ ${_flavorGuard('Future.value()')}    return HomeWidget.requestPinWidget(
 
   /// Every tap on this widget that opens the app.
   ///
-  /// Emits the tap that started the app first, if one did, then every tap
-  /// while it runs. A tap on any other widget is not reported.
+  /// Emits the tap that started the app, if one did and no listener was handed
+  /// it yet, then every tap while the app runs. A tap is told by its URL: one
+  /// opening a URL this widget does not open is not reported, and another
+  /// widget opening the same URL is reported here too.
   static Stream<$launch> launches() => HomeWidget.launches($launch.fromUri);
 ''';
   }
 
   /// Emits the sealed class every launch of this widget extends.
-  String _launchClass(List<LaunchTarget> targets) {
+  String _launchClass() {
     final launch = spec.launchClassName;
-    final decoders =
-        targets.map((target) => '${target.className}._\$fromUri(uri)');
+    final decoders = spec.launchTargetsByMatchOrder
+        .map((target) => '${target.className}._\$fromUri(uri)');
     return '''
 /// A tap on the ${spec.data.name} widget that opened the app.
 sealed class $launch {
   const $launch();
 
   /// The launch [uri] stands for, or null when it is not a URL this widget
-  /// opens the app with.
+  /// opens the app with, or is malformed.
   ///
-  /// Query parameters the launch does not know are ignored.
+  /// Of two launches whose URLs differ in their query parameters alone, the
+  /// one writing more of them is matched first. Query parameters the launch
+  /// does not know are ignored.
   static $launch? fromUri(Uri uri) => ${decoders.join(' ?? ')};
 
   /// The URL the widget opens the app with for this launch.

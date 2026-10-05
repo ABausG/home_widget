@@ -1,27 +1,18 @@
 part of 'widget_data_validator.dart';
 
-/// The members every class generated around a payload already has, which a
-/// payload name would redeclare.
-const Set<String> _reservedPayloadNames = {
-  'fromUri',
-  'hashCode',
-  'noSuchMethod',
-  'runtimeType',
-  'toString',
-  'toUri',
-};
-
 /// Validates [payload], the values a tap target sends to the app.
 ///
 /// [owner] names what sends them, the way an error spells it, e.g.
 /// `HWLink('forecast')`. [inItem] is whether it sits in the item of a list
-/// builder, the only place an [HWItemData] has an item to read. [reserved]
-/// maps every name the payload cannot use to the reason, which completes the
-/// sentence "... is ".
+/// builder, the only place an [HWItemData] has an item to read. [className]
+/// is the class generated to hold the values, when the caller knows it.
+/// [reserved] maps every name the payload cannot use to the reason, which
+/// completes the sentence "... is ".
 void validatePayload(
   List<HWPayloadEntry> payload, {
   required String owner,
   required bool inItem,
+  String? className,
   Map<String, String> reserved = const {},
 }) {
   final seen = <String>{};
@@ -52,10 +43,19 @@ void validatePayload(
     final name = entry.name;
     final descriptor = 'payload name of $owner';
     _validateAsciiIdentifier(name, descriptor: descriptor);
-    if (_reservedPayloadNames.contains(name)) {
+    if (PayloadDartEmitter.memberNames.contains(name)) {
       throw GeneratorError(
         'Invalid data name "$name" ($descriptor): the generated class already '
         'has a member named "$name". Rename it with HWPayload("other", ...).',
+      );
+    }
+    if (name == className ||
+        PayloadDartEmitter.referencedNames.contains(name)) {
+      throw GeneratorError(
+        'Invalid data name "$name" ($descriptor): a field of that name would '
+        'hide ${name == className ? 'the generated class' : 'the Dart name'} '
+        '"$name" inside the generated class. Rename it with '
+        'HWPayload("other", ...).',
       );
     }
     if (reserved[name] case final reason?) {

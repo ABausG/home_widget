@@ -41,7 +41,11 @@ void validateLaunches(WidgetSpec spec) {
       );
     }
   } else {
-    _validateUrlPayload(widgetUrl, owner: '$widget: widgetUrlData');
+    _validateUrlPayload(
+      widgetUrl,
+      owner: '$widget: widgetUrlData',
+      className: spec.widgetTapClassName,
+    );
   }
 
   final sites = _linkSites(spec, widget);
@@ -56,7 +60,12 @@ void validateLaunches(WidgetSpec spec) {
       );
     }
     _validateLaunchUrl(link.url, where: '$owner url');
-    _validateUrlPayload(link.payloadUrl, owner: owner, inItem: site.inItem);
+    _validateUrlPayload(
+      link.payloadUrl,
+      owner: owner,
+      className: spec.linkClassName(link),
+      inItem: site.inItem,
+    );
   }
 
   _validateLinkIds(spec, sites, widget);
@@ -81,19 +90,36 @@ void _validateLaunchUrl(String? url, {required String where}) {
       'a scheme, e.g. myapp://details.',
     );
   }
+  final illegal = _illegalUrlCharacter.firstMatch(url);
+  if (illegal != null) {
+    final character = illegal[0] == ' ' ? 'a space' : '"${illegal[0]}"';
+    throw GeneratorError(
+      '$where "$url" contains $character, which a URL cannot hold as it is: '
+      'iOS opens nothing for such a URL. Percent-encode it, e.g. a space as '
+      '%20.',
+    );
+  }
 }
 
+/// What RFC 3986 does not let a URL hold unescaped, and a `%` that starts no
+/// escape.
+final RegExp _illegalUrlCharacter = RegExp(
+  r"[^A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]|%(?![0-9A-Fa-f]{2})",
+);
+
 /// Validates the payload [url] carries, whose names share the query of the
-/// URL with its own parameters.
+/// URL with its own parameters, as the fields of [className].
 void _validateUrlPayload(
   HWPayloadUrl url, {
   required String owner,
+  required String className,
   bool inItem = false,
 }) {
   validatePayload(
     url.payload,
     owner: owner,
     inItem: inItem,
+    className: className,
     reserved: {
       HWPayloadUrl.marker: 'the query parameter marking a tap on a widget',
       for (final name in url.staticQuery.keys)
@@ -207,19 +233,59 @@ bool _sameLaunch(HWPayloadUrl a, HWPayloadUrl b) {
 }
 
 /// Rejects two launch targets whose URLs the app could not tell apart.
+///
+/// The target with more query parameters written into its URL is matched
+/// first, so one URL extending another with a parameter is fine. What is left
+/// are two URLs that only differ in their data, and a value one sends that
+/// can turn its URL into the other.
 void _validateLaunchUrlCollisions(WidgetSpec spec, String widget) {
   final targets = spec.launchTargets;
   for (var index = 0; index < targets.length; index++) {
     for (var other = 0; other < index; other++) {
       final a = targets[other];
       final b = targets[index];
-      if (!a.url.collidesWith(b.url)) continue;
-      throw GeneratorError(
-        '$widget: ${a.className} ("${a.url.url}") and ${b.className} '
-        '("${b.url.url}") open URLs the app cannot tell apart. A tap is '
-        'matched by scheme, host, path, fragment and the query parameters '
-        'written into the URL, so make one of those differ.',
-      );
+      final pair = '$widget: ${a.className} ("${a.url.url}") and '
+          '${b.className} ("${b.url.url}")';
+      if (a.url.hasSameStaticUrlAs(b.url)) {
+        throw GeneratorError(
+          '$pair open the same URL, so the app cannot tell the two taps '
+          'apart. The data a tap sends does not count: make the scheme, '
+          'host, path, fragment or a query parameter written into the URL '
+          'differ.',
+        );
+      }
+      for (final (fixed, sender) in [(a, b), (b, a)]) {
+        final name = fixed.url.payloadNameMatching(sender.url);
+        if (name == null) continue;
+        throw GeneratorError(
+          '$pair cannot be told apart: ${sender.className} sends a value '
+          'named "$name", which can equal the query parameter "$name" '
+          'written into the URL of ${fixed.className}. Rename the value '
+          'with HWPayload("other", ...), or change one of the URLs.',
+        );
+      }
+    }
+  }
+}
+
+/// Warns about launch targets of different widgets that can match the same
+/// URL: each widget matches on its own, so both report such a tap.
+void warnAboutSharedLaunchUrls(List<WidgetSpec> specs) {
+  for (var index = 0; index < specs.length; index++) {
+    for (var other = 0; other < index; other++) {
+      for (final a in specs[other].launchTargets) {
+        for (final b in specs[index].launchTargets) {
+          if (!a.url.overlaps(b.url)) continue;
+          logger.warn(
+            'Warning: ${a.className} ("${a.url.url}") of widget '
+            '"${specs[other].data.name}" and ${b.className} '
+            '("${b.url.url}") of widget "${specs[index].data.name}" can '
+            'match the same URL. Each widget reports the taps its own URLs '
+            'match, so launches() of both report such a tap. Give the '
+            'widgets URLs of their own to tell them apart.',
+          );
+        }
+      }
     }
   }
 }

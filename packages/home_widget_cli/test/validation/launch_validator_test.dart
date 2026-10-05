@@ -446,12 +446,16 @@ void main() {
   });
 
   group('launch URLs', () {
-    test('of two links must be told apart', () {
+    test('of two links must differ in more than their data', () {
       final spec = _spec(
         HWColumn(
           children: [
-            _link('first', url: 'myapp://open'),
-            _link('second', url: 'myApp://open?tab=1'),
+            _link('first', url: 'myapp://open?tab=1'),
+            _link(
+              'second',
+              url: 'myApp://open?tab=1',
+              data: const [HWString('city')],
+            ),
           ],
         ),
       );
@@ -460,12 +464,69 @@ void main() {
         () => validateWidgetData(spec),
         _throwsMessage(
           allOf(
-            contains('WeatherFirstLink ("myapp://open")'),
+            contains('WeatherFirstLink ("myapp://open?tab=1")'),
             contains('WeatherSecondLink ("myApp://open?tab=1")'),
-            contains('cannot tell apart'),
+            contains('open the same URL'),
+            contains('The data a tap sends does not count'),
           ),
         ),
       );
+    });
+
+    test('one URL may extend another with a query parameter', () {
+      final spec = _spec(
+        HWColumn(
+          children: [
+            _link('home', url: 'myapp://home'),
+            _link('settings', url: 'myapp://home?tab=settings'),
+            _link('profile', url: 'myapp://home?tab=settings&page=profile'),
+          ],
+        ),
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect(
+        spec.launchTargetsByMatchOrder.map((target) => target.className),
+        ['WeatherProfileLink', 'WeatherSettingsLink', 'WeatherHomeLink'],
+      );
+    });
+
+    test('the widget URL may be extended by a link', () {
+      final spec = _spec(
+        HWColumn(children: [_link('settings', url: 'myapp://home?tab=1')]),
+        widgetUrl: 'myapp://home',
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      expect(
+        spec.launchTargetsByMatchOrder.map((target) => target.className),
+        ['WeatherSettingsLink', 'WeatherWidgetTap'],
+      );
+    });
+
+    test('a value that can produce the parameter of another URL is rejected',
+        () {
+      for (final children in [
+        [
+          _link('home', url: 'myapp://home', data: const [HWString('tab')]),
+          _link('settings', url: 'myapp://home?tab=settings'),
+        ],
+        [
+          _link('settings', url: 'myapp://home?tab=settings'),
+          _link('home', url: 'myapp://home', data: const [HWString('tab')]),
+        ],
+      ]) {
+        expect(
+          () => validateWidgetData(_spec(HWColumn(children: children))),
+          _throwsMessage(
+            allOf(
+              contains('cannot be told apart'),
+              contains('WeatherHomeLink sends a value named "tab"'),
+              contains('written into the URL of WeatherSettingsLink'),
+            ),
+          ),
+        );
+      }
     });
 
     test('of a link and the widget must be told apart', () {
@@ -764,6 +825,203 @@ void main() {
         ]),
         returnsNormally,
       );
+    });
+  });
+
+  group('URL characters', () {
+    test('accepts everything RFC 3986 lets a URL hold', () {
+      for (final url in const [
+        'myapp://weather',
+        'myApp://Weather/Path?city=1&tab=a#today',
+        'https://user@example.com:8080/a-b_c.d~e/?q=New%20York&x=%C3%A9',
+        "myapp://a/!\$&'()*+,;=:@?k=[v]",
+        'cliTest://widget?section=main&homeWidget',
+        'generatorBasics://link',
+      ]) {
+        expect(
+          () => validateWidgetData(_spec(_label, widgetUrl: url)),
+          returnsNormally,
+          reason: url,
+        );
+        expect(
+          () => validateWidgetData(_spec(_link('open', url: url))),
+          returnsNormally,
+          reason: url,
+        );
+      }
+    });
+
+    test('rejects what has to be percent-encoded', () {
+      for (final (url, character) in const [
+        ('myapp://x y', 'a space'),
+        ('myapp://x?q="a"', '"""'),
+        (r'myapp://x\y', r'"\"'),
+        ('myapp://x/{id}', '"{"'),
+        (r'myapp://x?city=${city}', '"{"'),
+        ('myapp://x?q=é', '"é"'),
+        ('myapp://x?q=<a>', '"<"'),
+        ('myapp://x?q=50%', '"%"'),
+        ('myapp://x?q=%zz', '"%"'),
+        ('myapp://x|y', '"|"'),
+        ('myapp://x^y', '"^"'),
+        ('myapp://x`y', '"`"'),
+      ]) {
+        final matcher = _throwsMessage(
+          allOf(
+            contains('contains $character'),
+            contains('Percent-encode it'),
+          ),
+        );
+        expect(
+          () => validateWidgetData(_spec(_label, widgetUrl: url)),
+          matcher,
+          reason: url,
+        );
+        expect(
+          () => validateWidgetData(_spec(_link('open', url: url))),
+          matcher,
+          reason: url,
+        );
+      }
+    });
+  });
+
+  group('payload names the generated class cannot carry', () {
+    test('are the Dart names its body refers to', () {
+      for (final name in const [
+        'String',
+        'int',
+        'double',
+        'bool',
+        'DateTime',
+        'Uri',
+        'Object',
+        'FormatException',
+        'ArgumentError',
+        'override',
+      ]) {
+        final spec = _spec(
+          _link('open', data: [HWPayload(name, const HWString('city'))]),
+        );
+        expect(
+          () => validateWidgetData(spec),
+          _throwsMessage(
+            allOf(
+              contains('Invalid data name "$name"'),
+              // A name that is a keyword of a platform is reported as one.
+              anyOf(
+                contains('would hide the Dart name "$name"'),
+                contains('reserved keyword'),
+              ),
+            ),
+          ),
+          reason: name,
+        );
+      }
+      expect(
+        () => validateWidgetData(
+          _spec(
+            _link('open', data: const [HWPayload('String', HWString('c'))]),
+          ),
+        ),
+        _throwsMessage(contains('would hide the Dart name "String"')),
+      );
+    });
+
+    test('include the name of the class itself', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            _link(
+              'open',
+              data: const [HWPayload('WeatherOpenLink', HWString('city'))],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          contains('would hide the generated class "WeatherOpenLink"'),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            _label,
+            widgetUrl: 'myapp://weather',
+            widgetUrlData: const [
+              HWPayload('WeatherWidgetTap', HWString('city')),
+            ],
+          ),
+        ),
+        _throwsMessage(
+          contains('would hide the generated class "WeatherWidgetTap"'),
+        ),
+      );
+    });
+
+    test('leave the names of other classes free', () {
+      final spec = _spec(
+        _link(
+          'open',
+          data: const [
+            HWPayload('WeatherWidgetTap', HWString('city')),
+            HWPayload('uri', HWString('a')),
+            HWPayload('query', HWString('b')),
+            HWPayload('other', HWString('c')),
+            HWPayload('url', HWString('d')),
+            HWPayload('Int', HWInt('e')),
+          ],
+        ),
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+  });
+
+  group('warnAboutSharedLaunchUrls', () {
+    WidgetSpec named(String name, HWWidget tree, {String? widgetUrl}) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: name,
+            widgetUrl: widgetUrl,
+            android: const HomeWidgetAndroidConfiguration(),
+          ),
+          className: name,
+          widgetTree: tree,
+        );
+
+    test('warns about a URL two widgets open', () {
+      warnAboutSharedLaunchUrls([
+        named('Weather', _link('history', url: 'myapp://history')),
+        named('Plain', _label),
+        named(
+          'Counter',
+          _link('history', url: 'myApp://history?tab=1'),
+          widgetUrl: 'myapp://counter',
+        ),
+      ]);
+
+      final message =
+          verify(() => mockLogger.warn(captureAny())).captured.single as String;
+      expect(
+        message,
+        allOf(
+          contains(
+              'WeatherHistoryLink ("myapp://history") of widget "Weather"'),
+          contains(
+            'CounterHistoryLink ("myApp://history?tab=1") of widget "Counter"',
+          ),
+          contains('launches() of both report such a tap'),
+        ),
+      );
+    });
+
+    test('is silent for widgets with URLs of their own', () {
+      warnAboutSharedLaunchUrls([
+        named('Weather', _link('history'), widgetUrl: 'myapp://weather'),
+        named('Counter', _link('history', url: 'myapp://counter/history')),
+      ]);
+
+      verifyNever(() => mockLogger.warn(any()));
     });
   });
 
