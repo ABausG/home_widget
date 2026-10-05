@@ -1,6 +1,8 @@
 // ignore_for_file: deprecated_member_use
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/diagnostic/diagnostic.dart';
@@ -32,7 +34,7 @@ Future<List<WidgetSpec>> parseSchemaFile(
     // coverage:ignore-end
   }
 
-  _rejectBrokenAnnotations(result, filePath);
+  await _rejectBrokenAnnotations(result, filePath);
 
   final specs = <WidgetSpec>[];
   for (final element in result.libraryElement.classes) {
@@ -56,30 +58,24 @@ const String generatorMigrationGuideUrl =
 ///
 /// The analyzer still evaluates such an annotation, leaving out what it could
 /// not resolve, so the widget would be generated from something other than
-/// what the schema says. Errors anywhere else in the file are left alone: a
-/// schema may sit next to code that only compiles once the helpers exist.
-void _rejectBrokenAnnotations(ResolvedUnitResult result, String filePath) {
+/// what the schema says. The same goes for a `const` variable of the project
+/// the annotation refers to, and for the ones that refers to in turn. Errors
+/// anywhere else are left alone: a schema may sit next to code that only
+/// compiles once the helpers exist.
+Future<void> _rejectBrokenAnnotations(
+  ResolvedUnitResult result,
+  String filePath,
+) async {
   for (final declaration in result.unit.declarations) {
     for (final annotation in declaration.metadata) {
       if (annotation.name.name.split('.').last != 'HomeWidget') continue;
 
-      final problems = [
-        for (final diagnostic in result.diagnostics)
-          if (diagnostic.severity == Severity.error &&
-              diagnostic.offset >= annotation.offset &&
-              diagnostic.offset < annotation.end)
-            diagnostic,
-      ];
-      if (problems.isEmpty) continue;
-
       final lines = [
-        for (final problem in problems)
-          () {
-            final location = result.lineInfo.getLocation(problem.offset);
-            return '  ${location.lineNumber}:${location.columnNumber}: '
-                '${problem.message}';
-          }(),
+        ..._problemsIn(annotation, result),
+        ...await _problemsInReferencedConstants(annotation, result),
       ];
+      if (lines.isEmpty) continue;
+
       throw GeneratorError(
         '$filePath: the @HomeWidget annotation does not compile, so no widget '
         'can be generated from it:\n'
@@ -89,6 +85,108 @@ void _rejectBrokenAnnotations(ResolvedUnitResult result, String filePath) {
         'migration guides: $generatorMigrationGuideUrl',
       );
     }
+  }
+}
+
+/// The errors the analyzer reports inside [node], a node of [unit], one line
+/// each, located by line and column and by [origin] where given.
+List<String> _problemsIn(
+  AstNode node,
+  ResolvedUnitResult unit, {
+  String origin = '',
+}) =>
+    [
+      for (final diagnostic in unit.diagnostics)
+        if (diagnostic.severity == Severity.error &&
+            diagnostic.offset >= node.offset &&
+            diagnostic.offset < node.end)
+          () {
+            final location = unit.lineInfo.getLocation(diagnostic.offset);
+            return '  $origin${location.lineNumber}:${location.columnNumber}: '
+                '${diagnostic.message}';
+          }(),
+    ];
+
+/// The errors inside the declaration of every `const` variable [root], a node
+/// of [unit], refers to, directly or through another such variable.
+///
+/// Only variables declared in a file of the project are looked at: one of a
+/// package is not the schema author's to fix.
+Future<List<String>> _problemsInReferencedConstants(
+  AstNode root,
+  ResolvedUnitResult unit,
+) async {
+  final lines = <String>[];
+  final seen = <PropertyInducingElement>{};
+  final units = <String, ResolvedUnitResult?>{unit.path: unit};
+  final pending = <AstNode>[root];
+
+  while (pending.isNotEmpty) {
+    final references = _ConstantReferences();
+    pending.removeLast().accept(references);
+
+    for (final variable in references.variables) {
+      if (!seen.add(variable)) continue;
+      final path = variable.firstFragment.libraryFragment.source.fullName;
+      if (!units.containsKey(path)) {
+        final context = unit.session.analysisContext;
+        final resolved = context.contextRoot.isAnalyzed(path)
+            ? await unit.session.getResolvedUnit(path)
+            : null;
+        units[path] = resolved is ResolvedUnitResult ? resolved : null;
+      }
+      final declaring = units[path];
+      if (declaring == null) continue;
+
+      final finder = _VariableDeclarationFinder(variable);
+      declaring.unit.accept(finder);
+      final declaration = finder.declaration;
+      // An enum value is no variable declaration.
+      if (declaration == null) continue; // coverage:ignore-line
+
+      final file = path == unit.path ? '' : '$path:';
+      lines.addAll(
+        _problemsIn(
+          declaration,
+          declaring,
+          origin: 'const ${variable.name}, $file',
+        ),
+      );
+      pending.add(declaration);
+    }
+  }
+  return lines;
+}
+
+/// Collects the top-level and static `const` variables a node refers to.
+class _ConstantReferences extends RecursiveAstVisitor<void> {
+  final List<PropertyInducingElement> variables = [];
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    final element = node.element;
+    if (element is GetterElement) {
+      final variable = element.variable;
+      final shared = variable is TopLevelVariableElement ||
+          (variable is FieldElement && variable.isStatic);
+      if (variable.isConst && shared) variables.add(variable);
+    }
+    super.visitSimpleIdentifier(node);
+  }
+}
+
+/// Finds the declaration of [variable] in the unit it visits.
+class _VariableDeclarationFinder extends RecursiveAstVisitor<void> {
+  final PropertyInducingElement variable;
+
+  VariableDeclaration? declaration;
+
+  _VariableDeclarationFinder(this.variable);
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    if (node.declaredFragment?.element == variable) declaration = node;
+    super.visitVariableDeclaration(node);
   }
 }
 
