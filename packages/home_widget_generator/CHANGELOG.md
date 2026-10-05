@@ -1,3 +1,7 @@
+## 0.4.0+1
+
+ - **FIX**: Make images fill a sized box or expanding stack on Android ([#475](https://github.com/abausg/home_widget/issues/475)). ([cf76cd07](https://github.com/abausg/home_widget/commit/cf76cd07aad7cc9d468a64465f98d85f319b5a10))
+
 ## 0.4.0
 
 > Note: This release has breaking changes.

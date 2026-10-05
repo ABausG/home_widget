@@ -239,3 +239,7 @@ ignoreWords:
     # generator formatting docs (German sample output)
     - Montag
     - März
+    # streak_widget example
+    - Dasholingo
+    - Duolingo
+    - Nunito
