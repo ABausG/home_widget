@@ -120,6 +120,7 @@
         { "title": "HWDecoratedBox", "href": "/generator/widgets/hw-decorated-box" },
         { "title": "HWIcon", "href": "/generator/widgets/hw-icon" },
         { "title": "HWImage", "href": "/generator/widgets/hw-image" },
+        { "title": "HWLink", "href": "/generator/widgets/hw-link" },
         { "title": "HWPadding", "href": "/generator/widgets/hw-padding" },
         { "title": "HWRow", "href": "/generator/widgets/hw-row" },
         { "title": "HWSizeAdaptive", "href": "/generator/widgets/hw-size-adaptive" },
@@ -164,6 +165,7 @@
         {
           "group": "Migrations",
           "pages": [
+            { "title": "0.5.0", "href": "/cli/migrations/0.5.0" },
             { "title": "0.4.0", "href": "/cli/migrations/0.4.0" },
             { "title": "0.3.0", "href": "/cli/migrations/0.3.0" },
             { "title": "0.1.0", "href": "/cli/migrations/0.1.0" }

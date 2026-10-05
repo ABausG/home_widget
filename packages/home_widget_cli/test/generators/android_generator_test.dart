@@ -1885,25 +1885,213 @@ void main() {
       );
     });
 
-    test('prefers the Android URL over the top-level one', () async {
+    test('builds the URL from widgetUrlData at composition time', () async {
       writeManifest();
       final content = await generateFor(
         WidgetSpec(
           data: HomeWidget(
-            name: 'Override',
-            widgetUrl: 'myapp://shared',
-            android: HomeWidgetAndroidConfiguration(
-              packageName: 'com.urls',
-              widgetUrl: 'myapp://android',
-            ),
+            name: 'Payload',
+            widgetUrl: 'myapp://weather',
+            widgetUrlData: const [
+              HWString('city'),
+              HWPayload('days', HWInt.fixed(7)),
+            ],
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
           ),
-          className: 'Override',
+          className: 'Payload',
+          dataFields: const [HWString('city')],
         ),
         'com/urls',
       );
 
-      expect(content, contains('Uri.parse("myapp://android?homeWidget")'));
-      expect(content, isNot(contains('myapp://shared')));
+      expect(
+        content,
+        contains(
+          'clickable(onClick = actionStartActivity<MainActivity>(context, '
+          'hwPayloadUrl("myapp://weather", '
+          'listOf("city" to hwPayloadValue(widgetData.city), "days" to "7"), '
+          '"homeWidget", "")))',
+        ),
+      );
+      expect(content, contains('private fun hwPayloadUrl('));
+      expect(content, contains('private fun hwPayloadValue(value: Any?)'));
+      expect(content, contains('import android.net.Uri'));
+      expect(content, contains('import java.util.Date'));
+    });
+
+    group('HWLink', () {
+      const links = HWRow(
+        children: [
+          HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWString('city')],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+          HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+        ],
+      );
+
+      WidgetSpec linkSpec({
+        String? widgetUrl,
+        bool openAppOnTap = true,
+        String packageName = 'com.urls',
+      }) =>
+          WidgetSpec(
+            data: HomeWidget(
+              name: 'Links',
+              widgetUrl: widgetUrl,
+              android: HomeWidgetAndroidConfiguration(
+                packageName: packageName,
+                openAppOnTap: openAppOnTap,
+              ),
+            ),
+            className: 'Links',
+            dataFields: const [HWString('city')],
+            widgetTree: links,
+          );
+
+      File manifest() => File(
+            p.join(
+              tempDir.path,
+              'android',
+              'app',
+              'src',
+              'main',
+              'AndroidManifest.xml',
+            ),
+          );
+
+      test('makes every link clickable next to a plain root tap', () async {
+        writeManifest();
+        final content = await generateFor(linkSpec(), 'com/urls');
+
+        expect(
+          content,
+          contains(
+            'clickable(onClick = actionStartActivity<MainActivity>(context, '
+            'hwPayloadUrl("myapp://forecast", '
+            'listOf("city" to hwPayloadValue(widgetData.city)), '
+            '"homeWidget", "")))',
+          ),
+        );
+        expect(
+          content,
+          contains(
+            'clickable(onClick = actionStartActivity<MainActivity>(context, '
+            'Uri.parse("myapp://history?homeWidget")))',
+          ),
+        );
+        expect(
+          content,
+          contains('clickable(onClick = actionStartActivity<MainActivity>())'),
+        );
+        expect(
+          content,
+          contains('import androidx.glance.action.actionStartActivity'),
+        );
+        expect(
+          content,
+          contains('import es.antonborri.home_widget.actionStartActivity'),
+        );
+        expect(
+          manifest().readAsStringSync(),
+          contains(
+            '<action android:name="es.antonborri.home_widget.action.LAUNCH" />',
+          ),
+        );
+      });
+
+      test('keeps the links next to a root tap with a URL', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(widgetUrl: 'myapp://weather'),
+          'com/urls',
+        );
+
+        expect(content, contains('Uri.parse("myapp://weather?homeWidget")'));
+        expect(content, contains('Uri.parse("myapp://history?homeWidget")'));
+        expect(
+          content,
+          isNot(contains('import androidx.glance.action.actionStartActivity')),
+        );
+      });
+
+      test('imports a launcher activity of another package', () async {
+        writeManifest(activityName: 'com.other.HostActivity');
+        final content = await generateFor(linkSpec(), 'com/urls');
+
+        expect(content, contains('import com.other.HostActivity'));
+        expect(
+          content,
+          contains('actionStartActivity<HostActivity>(context, Uri.parse('),
+        );
+      });
+
+      test('leaves the links inert when openAppOnTap is false', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(openAppOnTap: false),
+          'com/urls',
+        );
+
+        expect(content, isNot(contains('clickable(')));
+        expect(content, isNot(contains('myapp://history')));
+        expect(content, contains('text = "History"'));
+        expect(
+          manifest().readAsStringSync(),
+          isNot(contains('es.antonborri.home_widget.action.LAUNCH')),
+        );
+      });
+
+      test('leaves the links inert when no launcher activity is found',
+          () async {
+        final content = await generateFor(linkSpec(), 'com/urls');
+
+        expect(content, isNot(contains('clickable(')));
+        expect(content, contains('text = "History"'));
+        verify(
+          () => mockLogger.warn(
+            any(that: contains('Could not detect the launcher activity')),
+          ),
+        ).called(1);
+      });
+
+      test('sends an item field per row of a builder', () async {
+        writeManifest();
+        final content = await generateFor(
+          WidgetSpec(
+            data: HomeWidget(
+              name: 'Todos',
+              android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+            ),
+            className: 'Todos',
+            widgetTree: const HWColumn.builder(
+              'todos',
+              item: HWLink(
+                'open',
+                url: 'myapp://todo',
+                data: [HWItemData(HWString('id'))],
+                child: HWText(HWItemData(HWString('title'))),
+              ),
+            ),
+          ),
+          'com/urls',
+        );
+
+        expect(content, contains('forEachIndexed { _, hwItem ->'));
+        expect(
+          content,
+          contains(
+            'hwPayloadUrl("myapp://todo", '
+            'listOf("id" to hwPayloadValue(hwItem.id)), "homeWidget", "")',
+          ),
+        );
+      });
     });
 
     test('imports the launcher activity when it lives in another package',

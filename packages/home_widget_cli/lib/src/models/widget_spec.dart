@@ -291,6 +291,26 @@ class ListPreviewAsset {
   });
 }
 
+/// Something a tap on a widget opens the app with, which the generated Dart
+/// hands the app as a class of its own.
+class LaunchTarget {
+  /// The generated class, e.g. `WeatherWidgetTap` or `WeatherForecastLink`.
+  final String className;
+
+  /// The URL the tap opens, with the payload the class carries.
+  final HWPayloadUrl url;
+
+  /// The sentence documenting the generated class.
+  final String description;
+
+  /// Creates a [LaunchTarget].
+  const LaunchTarget({
+    required this.className,
+    required this.url,
+    required this.description,
+  });
+}
+
 /// Whether Android draws [widget] as text into a bitmap, which the room of
 /// has to be measured before it is drawn.
 bool androidMeasuresText(HWWidget widget) => widget.kotlinRendersBitmapText;
@@ -794,8 +814,10 @@ class WidgetSpec {
   }
 
   /// What the iOS emitters switch over.
-  HWEmitContext get iosEmitContext =>
-      HWEmitContext(reachableFamilies: iosReachableFamilies);
+  HWEmitContext get iosEmitContext => HWEmitContext(
+        reachableFamilies: iosReachableFamilies,
+        swiftWidgetUrlLinks: iosWidgetUrlLinks,
+      );
 
   /// What the Android emitters switch over, and the sizes they compare against.
   ///
@@ -959,44 +981,143 @@ class WidgetSpec {
       _flavor(flavor)?.iOS?.provisioningProfile ??
       data.iOS!.provisioningProfile;
 
-  /// The URL configured for Android, where the platform value wins over the
-  /// top-level [HomeWidget.widgetUrl].
-  ///
-  /// A widget without an Android configuration has no Android widget generated
-  /// for it, and so opens no URL there.
-  String? get effectiveAndroidWidgetUrl =>
-      data.android == null ? null : data.android!.widgetUrl ?? data.widgetUrl;
-
-  /// The URL configured for iOS, where the platform value wins over the
-  /// top-level [HomeWidget.widgetUrl].
-  ///
-  /// A widget without an iOS configuration has no iOS widget generated for it,
-  /// and so opens no URL there.
-  String? get effectiveIosWidgetUrl =>
-      data.iOS == null ? null : data.iOS!.widgetUrl ?? data.widgetUrl;
+  /// [HomeWidget.widgetUrl] with the payload of [HomeWidget.widgetUrlData],
+  /// or null for a widget that sets no URL.
+  HWPayloadUrl? get widgetUrl {
+    final url = data.widgetUrl;
+    return url == null ? null : HWPayloadUrl.of(url, data.widgetUrlData);
+  }
 
   /// Whether a tap on the widget opens the app on Android at all.
   ///
-  /// A widget that opts out is not made clickable, so a configured URL never
-  /// reaches the app.
+  /// A widget that opts out is not made clickable, so neither its URL nor
+  /// that of an [HWLink] ever reaches the app.
   bool get androidOpensAppOnTap => data.android?.openAppOnTap ?? true;
 
-  /// [effectiveAndroidWidgetUrl] as the native code opens it.
-  String? get androidWidgetUrl => androidOpensAppOnTap
-      ? _withHomeWidgetParam(effectiveAndroidWidgetUrl)
-      : null;
+  /// The URL a tap on the widget opens the app with on Android, or null where
+  /// it opens none.
+  ///
+  /// A widget without an Android configuration has no Android widget
+  /// generated for it, and so opens no URL there.
+  HWPayloadUrl? get androidWidgetUrl =>
+      data.android != null && androidOpensAppOnTap ? widgetUrl : null;
 
-  /// [effectiveIosWidgetUrl] as the native code opens it.
-  String? get iosWidgetUrl => _withHomeWidgetParam(effectiveIosWidgetUrl);
+  /// The URL a tap on the widget opens the app with on iOS, or null where it
+  /// opens none.
+  ///
+  /// A widget without an iOS configuration has no iOS widget generated for
+  /// it, and so opens no URL there.
+  HWPayloadUrl? get iosWidgetUrl => data.iOS != null ? widgetUrl : null;
 
-  /// Whether tapping the widget opens the app on Android.
-  bool get hasAndroidWidgetUrl => androidWidgetUrl != null;
+  /// Whether tapping the widget opens the app with its URL on either
+  /// platform.
+  bool get hasWidgetUrl => androidWidgetUrl != null || iosWidgetUrl != null;
 
-  /// Whether tapping the widget opens the app on iOS.
-  bool get hasIosWidgetUrl => effectiveIosWidgetUrl != null;
+  /// Every [HWLink] in the tree, in document order, both platforms' included.
+  List<HWLink> get links =>
+      effectiveWidgetTree.descendants.whereType<HWLink>().toList();
 
-  /// Whether tapping the widget opens the app on either platform.
-  bool get hasWidgetUrl => hasAndroidWidgetUrl || hasIosWidgetUrl;
+  /// Everything a tap can open the app with: the widget's own URL first, then
+  /// one target per [HWLink] id in document order.
+  ///
+  /// Links sharing an id are one target; `validateWidgetData` makes sure they
+  /// open the same URL with the same payload.
+  List<LaunchTarget> get launchTargets {
+    final targets = <LaunchTarget>[];
+    if (hasWidgetUrl) {
+      targets.add(
+        LaunchTarget(
+          className: '${className}WidgetTap',
+          url: widgetUrl!,
+          description: 'A tap on the ${data.name} widget itself.',
+        ),
+      );
+    }
+    final seen = <String>{};
+    for (final link in links) {
+      final name = linkClassName(link);
+      if (!seen.add(name)) continue;
+      targets.add(
+        LaunchTarget(
+          className: name,
+          url: link.payloadUrl,
+          description: "A tap on the `${link.id}` link of the ${data.name} "
+              'widget.',
+        ),
+      );
+    }
+    return targets;
+  }
+
+  /// The class a tap on [link] reaches the app as: `<WidgetClass><Id>Link`,
+  /// e.g. `WeatherForecastLink`.
+  String linkClassName(HWLink link) => '$className${toPascalCase(link.id)}Link';
+
+  /// The class every [launchTargets] entry extends: `<WidgetClass>Launch`.
+  String get launchClassName => '${className}Launch';
+
+  /// The families iOS renders as one tap area, where a `Link` does nothing.
+  static const Set<HWWidgetFamily> iosSingleTapFamilies = {
+    HWWidgetFamily.systemSmall,
+    HWWidgetFamily.accessoryCircular,
+    HWWidgetFamily.accessoryInline,
+  };
+
+  /// The [HWLink]s iOS opens through `.widgetURL`: each is the whole layout
+  /// of a family in [iosSingleTapFamilies] the widget can be shown in.
+  ///
+  /// That is the root of the tree, or the slot such a family resolves to in an
+  /// [HWSizeAdaptive] at the root.
+  List<HWLink> get iosWidgetUrlLinks {
+    final singleTap = iosReachableFamilies.intersection(iosSingleTapFamilies);
+    if (singleTap.isEmpty) return const [];
+
+    final root = effectiveWidgetTree;
+    if (root is HWLink) return [root];
+    if (root is! HWSizeAdaptive) return const [];
+
+    final links = <HWLink>[];
+    for (final family in singleTap) {
+      final slot = root.resolve(family);
+      if (slot is! HWLink) continue;
+      if (links.any((other) => identical(other, slot))) continue;
+      links.add(slot);
+    }
+    return links;
+  }
+
+  /// The [HWLink]s a family in [iosSingleTapFamilies] renders as part of a
+  /// larger layout, where iOS ignores them, in document order.
+  List<HWLink> get iosIgnoredLinks {
+    final ignored = <HWLink>[];
+    final wholeWidget = iosWidgetUrlLinks;
+
+    void walk(HWWidget widget, Set<HWWidgetFamily> visible) {
+      if (visible.intersection(iosSingleTapFamilies).isEmpty) return;
+      switch (widget) {
+        case HWAdaptive():
+          walk(widget.ios, visible);
+        case HWSizeAdaptive():
+          final walked = <HWWidget>[];
+          for (final slot in widget.providedSlots) {
+            if (walked.any((other) => identical(other, slot))) continue;
+            walked.add(slot);
+            walk(slot, widget.familiesResolvingTo(slot, visible));
+          }
+        default:
+          if (widget is HWLink &&
+              !wholeWidget.any((other) => identical(other, widget))) {
+            ignored.add(widget);
+          }
+          for (final child in widget.childWidgets) {
+            walk(child, visible);
+          }
+      }
+    }
+
+    walk(effectiveWidgetTree, iosReachableFamilies);
+    return ignored;
+  }
 
   /// Whether the Android gallery preview reads the widget's stored data, where
   /// the platform value wins over the top-level
@@ -1147,33 +1268,6 @@ class WidgetSpec {
     if (values == null) return '-';
     return values.map((v) => '${v.runtimeType}:$v').join(_hashSeparator);
   }
-
-  /// [value] carrying the `homeWidget` query parameter.
-  ///
-  /// The plugin's iOS side only reports a click whose URL has that parameter,
-  /// so it is appended on both platforms to keep the [Uri] the app sees
-  /// identical. A value that already carries the parameter is left as it is.
-  ///
-  /// The parameter is spliced into the text rather than through
-  /// [Uri.replace], which normalizes what it re-serializes — a `myApp://`
-  /// scheme would come back lowercased, no longer matching what the author
-  /// wrote and matches against.
-  static String? _withHomeWidgetParam(String? value) {
-    if (value == null) return null;
-    final uri = Uri.tryParse(value);
-    if (uri == null) return value;
-    if (uri.queryParametersAll.containsKey(_homeWidgetQueryParam)) return value;
-
-    final fragmentStart = value.indexOf('#');
-    final base =
-        fragmentStart == -1 ? value : value.substring(0, fragmentStart);
-    final fragment = fragmentStart == -1 ? '' : value.substring(fragmentStart);
-    final separator = base.contains('?') ? '&' : '?';
-    return '$base$separator$_homeWidgetQueryParam$fragment';
-  }
-
-  /// Query parameter marking a URL as coming from a widget click.
-  static const String _homeWidgetQueryParam = 'homeWidget';
 
   /// Namespace for every platform resource this widget owns.
   String get resourcePrefix => widgetResourcePrefix(className);
@@ -1471,6 +1565,7 @@ class WidgetSpec {
   List<HWNativeHelper> get nativeHelpers => resolveNativeHelpers([
         ...effectiveWidgetTree.nativeHelpers,
         for (final field in dataFields) ...field.nativeHelpers,
+        if (hasWidgetUrl) ...widgetUrl!.nativeHelpers,
       ]);
 
   /// Image leaves of the untimed JSON groups.

@@ -88,12 +88,25 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
     ).decode();
   }
 
+  final widgetUrlData = WidgetValueDecoder.decodePayload(
+    constantValue.getField('widgetUrlData'),
+    owner: 'widgetUrlData',
+    defaultLocale: localization?.defaultLocale,
+    resourcePrefix: widgetResourcePrefix(generatedClassName),
+  );
+
   // Data fields
   final dataFields = <HWDataType<dynamic>>[];
   if (widgetTree != null) {
     final dependencies = widgetTree.dataDependencies;
     for (final dep in dependencies) {
       dataFields.add(dep);
+    }
+  }
+  // The widget reads what its URL sends along, shown or not.
+  for (final entry in HWPayloadEntry.listOf(widgetUrlData)) {
+    if (entry.value.isDataDependency && !dataFields.contains(entry.value)) {
+      dataFields.add(entry.value);
     }
   }
 
@@ -109,6 +122,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       iOS: iosConfig,
       localization: localization,
       widgetUrl: constantValue.getField('widgetUrl')?.toStringValue(),
+      widgetUrlData: widgetUrlData,
       flavors: _extractFlavors(constantValue.getField('flavors')),
       useLiveDataInPreview:
           constantValue.getField('useLiveDataInPreview')?.toBoolValue() ?? true,
@@ -171,7 +185,6 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
-    widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
     openAppOnTap: obj.getField('openAppOnTap')?.toBoolValue() ?? true,
     // Nullable on purpose: unset inherits the top-level value.
     useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
@@ -199,7 +212,6 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     ),
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
-    widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
     useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
     provisioningProfile: obj.getField('provisioningProfile')?.toStringValue(),
   );

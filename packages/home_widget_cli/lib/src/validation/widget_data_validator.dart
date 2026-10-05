@@ -11,7 +11,9 @@ import 'size_validator.dart';
 
 part 'dart_keywords.dart';
 part 'kotlin_keywords.dart';
+part 'launch_validator.dart';
 part 'list_validator.dart';
+part 'payload_validator.dart';
 part 'swift_keywords.dart';
 
 /// ASCII identifier shape safe for codegen across Dart, Kotlin, and Swift.
@@ -35,6 +37,7 @@ const String reservedTimedDataName = 'timedData';
 
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
+  validateLaunches(spec);
   validateLists(spec);
   _validateFixedData(spec);
 
@@ -55,7 +58,6 @@ void validateWidgetData(WidgetSpec spec) {
     }
   }
 
-  _validateWidgetUrls(spec);
   _validateProvisioningProfile(spec);
   _validateFlavors(spec);
   _validateImageKeys(spec);
@@ -92,38 +94,6 @@ void validateWidgetData(WidgetSpec spec) {
 void _validateIconEnums(WidgetSpec spec) {
   for (final icons in spec.iconEnums.values) {
     icons.validate();
-  }
-}
-
-/// Rejects a widget URL that is not an absolute [Uri] with a scheme.
-void _validateWidgetUrls(WidgetSpec spec) {
-  _validateWidgetUrl(spec, spec.data.widgetUrl, platform: null);
-  _validateWidgetUrl(spec, spec.data.android?.widgetUrl, platform: 'Android');
-  _validateWidgetUrl(spec, spec.data.iOS?.widgetUrl, platform: 'iOS');
-}
-
-void _validateWidgetUrl(
-  WidgetSpec spec,
-  String? url, {
-  required String? platform,
-}) {
-  if (url == null) return;
-
-  final where = platform == null ? 'widgetUrl' : '$platform widgetUrl';
-
-  if (url.trim().isEmpty) {
-    throw GeneratorError(
-      'Widget "${spec.data.name}": $where is empty. Omit it to keep the widget '
-      'from opening the app when tapped.',
-    );
-  }
-  final uri = Uri.tryParse(url);
-  if (uri == null || !uri.hasScheme) {
-    throw GeneratorError(
-      'Widget "${spec.data.name}": $where "$url" is not a valid URL. A '
-      'widgetUrl must be an absolute URI including a scheme, e.g. '
-      'myapp://details.',
-    );
   }
 }
 
@@ -255,7 +225,11 @@ String _spellFixed(HWDataType<dynamic> value) => switch (value) {
       HWBool(:final fixedValue) => 'HWBool.fixed($fixedValue)',
       // Never fixed: a wrapper has no constant form.
       // coverage:ignore-start
-      HWJson() || HWTimedData() || HWItemData() => '${value.runtimeType}',
+      HWJson() ||
+      HWTimedData() ||
+      HWItemData() ||
+      HWPayload() =>
+        '${value.runtimeType}',
       // coverage:ignore-end
     };
 

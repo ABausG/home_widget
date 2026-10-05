@@ -20,7 +20,8 @@ void main() {
         if (helper.swift != null) {
           expect(
             swiftOf(helper),
-            contains('func ${helper.name}('),
+            // A generic helper names its type parameters before the list.
+            contains(RegExp('func ${helper.name}[(<]')),
             reason: '${helper.name} Swift body',
           );
         }
@@ -255,6 +256,9 @@ void main() {
         HWNativeHelper.hwAssetFont,
         HWNativeHelper.hwBundledFont,
         HWNativeHelper.hwFont,
+        HWNativeHelper.hwPayloadValue,
+        HWNativeHelper.hwPayloadUrl,
+        HWNativeHelper.hwLink,
       };
       for (final helper in HWNativeHelper.values) {
         expect(

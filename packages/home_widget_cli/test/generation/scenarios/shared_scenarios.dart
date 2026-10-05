@@ -266,25 +266,76 @@ class SharedUrl {}
     expectedIosWidgetUrl: 'cliTest://widget?homeWidget',
   ),
   BuildScenario(
-    description: 'lets each platform override the widget URL',
-    className: 'PlatformUrl',
+    description: 'opens links with a payload next to the widget URL',
+    className: 'LinkedUrl',
     widgetSource: '''
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 @HomeWidget(
-  name: 'Platform Url',
-  widgetUrl: 'cliTest://shared',
-  android: HomeWidgetAndroidConfiguration(widgetUrl: 'cliTest://android'),
+  name: 'Linked Url',
+  widgetUrl: 'cliTest://widget',
+  android: HomeWidgetAndroidConfiguration(),
   iOS: HomeWidgetIOSConfiguration(
     groupId: 'group.com.example.cliTest',
-    widgetUrl: 'cliTest://ios',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
   ),
-  widget: HWText(HWString.fixed('Tap me')),
+  widget: HWColumn(
+    children: [
+      HWLink(
+        'summary',
+        url: 'cliTest://summary?tab=today',
+        data: [
+          HWString('city'),
+          HWInt('count', defaultValue: 0),
+          HWDouble('ratio'),
+          HWBool('done'),
+          HWDateTime('updatedAt'),
+          HWPayload('name', HWJson('user', HWString('name'))),
+          HWPayload('days', HWInt.fixed(7)),
+        ],
+        child: HWText(HWString('city')),
+      ),
+      HWColumn.builder(
+        'todos',
+        maxItems: 3,
+        item: HWLink(
+          'todo',
+          url: 'cliTest://todo',
+          data: [HWItemData(HWString('id'))],
+          child: HWText(HWItemData(HWString('title'))),
+        ),
+      ),
+    ],
+  ),
 )
-class PlatformUrl {}
+class LinkedUrl {}
 ''',
-    expectedAndroidWidgetUrl: 'cliTest://android?homeWidget',
-    expectedIosWidgetUrl: 'cliTest://ios?homeWidget',
+    expectedAndroidWidgetUrl: 'cliTest://widget?homeWidget',
+    expectedIosWidgetUrl: 'cliTest://widget?homeWidget',
+    hasLinks: true,
+  ),
+  BuildScenario(
+    description: 'opens links next to a tap without a URL',
+    className: 'LinksOnly',
+    widgetSource: '''
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Links Only',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.cliTest',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
+  ),
+  widget: HWLink(
+    'details',
+    url: 'cliTest://details',
+    child: HWText(HWString.fixed('Details')),
+  ),
+)
+class LinksOnly {}
+''',
+    hasLinks: true,
   ),
   BuildScenario(
     description: 'keeps a widget URL that already carries homeWidget',
