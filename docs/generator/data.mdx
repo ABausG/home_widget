@@ -137,13 +137,16 @@ A name is the query parameter and the field of the generated class, so it has to
 - consist of ASCII letters and digits and start with a letter,
 - be unique within one link or `widgetUrlData`,
 - differ from `homeWidget` and from every query parameter already written into the URL,
-- differ from the members the generated class has: `toUri`, `fromUri`, `hashCode`, `toString`, `runtimeType` and `noSuchMethod`.
+- differ from the members the generated class has: `toUri`, `fromUri`, `hashCode`, `toString`, `runtimeType` and `noSuchMethod`,
+- differ from the Dart names the generated class refers to, such as `String`, `int`, `double`, `bool`, `DateTime`, `Uri` and `Object`, and from the name of the generated class itself.
 
 `HWPayload` is only valid as a direct entry of a `data` list or of `widgetUrlData`. Passing it to a widget such as `HWText`, or wrapping it in `HWJson`, `HWTimedData` or `HWItemData`, is a generation error.
 
 ### Generated fields
 
-Each entry becomes one field of the launch class, typed `String`, `int`, `double`, `bool` or `DateTime`. A `DateTime` is in UTC.
+Each entry becomes one field of the launch class, typed `String`, `int`, `double`, `bool` or `DateTime`.
+
+A date in a payload is an instant with millisecond precision: it arrives as a UTC `DateTime`, whatever zone it was saved in, and anything finer than a millisecond is dropped. Two launches are equal when their dates name the same millisecond, so a launch built with a local `DateTime` equals the one read back from its URL.
 
 | Entry | Field |
 | --- | --- |

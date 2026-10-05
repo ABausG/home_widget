@@ -218,22 +218,63 @@ class HWPayloadUrl {
   /// The imports [toKotlin] needs beyond those of [nativeHelpers].
   static const Set<String> kotlinImports = {'import android.net.Uri'};
 
-  /// Whether a URL this one opens could also be one [other] opens, so the app
-  /// could not tell the two apart.
-  ///
-  /// They share scheme, authority, path and fragment, and the static query
-  /// parameters of one are all carried by the other, either as its own static
-  /// parameters or as a payload value that may happen to match.
-  bool collidesWith(HWPayloadUrl other) {
+  /// Whether this URL and [other] share scheme, authority, path and fragment,
+  /// which leaves the query to tell them apart.
+  bool hasSameBaseAs(HWPayloadUrl other) {
     final a = parsed;
     final b = other.parsed;
     if (a == null || b == null) return false;
-    final sameBase = a.scheme == b.scheme &&
+    return a.scheme == b.scheme &&
         a.authority == b.authority &&
         a.path == b.path &&
         a.fragment == b.fragment;
-    return sameBase && (_coveredBy(other) || other._coveredBy(this));
   }
+
+  /// Whether this URL and [other] are the same once their payloads are left
+  /// out: the same base, with the same static query parameters.
+  bool hasSameStaticUrlAs(HWPayloadUrl other) {
+    if (!hasSameBaseAs(other)) return false;
+    final mine = staticQuery;
+    final theirs = other.staticQuery;
+    return mine.length == theirs.length &&
+        mine.entries.every((entry) {
+          final values = theirs[entry.key];
+          return values != null && _sameValues(values, entry.value);
+        });
+  }
+
+  /// The payload value of [other] that can make a URL [other] opens look like
+  /// this one, by name, or null when none can.
+  ///
+  /// That takes the same base, and every static query parameter of this URL
+  /// being one [other] writes too or one its payload can produce.
+  String? payloadNameMatching(HWPayloadUrl other) {
+    if (!hasSameBaseAs(other)) return null;
+    final theirs = other.staticQuery;
+    final names = {for (final entry in other.payload) entry.name};
+    String? produced;
+    for (final entry in staticQuery.entries) {
+      final values = theirs[entry.key];
+      if (values != null) {
+        if (!_sameValues(values, entry.value)) return null;
+      } else if (names.contains(entry.key)) {
+        produced ??= entry.key;
+      } else {
+        return null;
+      }
+    }
+    return produced;
+  }
+
+  /// Whether a URL one of the two opens can be read as the other, when each
+  /// is matched on its own: the same base, and the static query parameters of
+  /// one all written or producible by the other.
+  ///
+  /// Within one widget the more specific URL is matched first, which tells
+  /// `myapp://home` and `myapp://home?tab=settings` apart; two widgets each
+  /// match on their own, and both report such a tap.
+  bool overlaps(HWPayloadUrl other) =>
+      hasSameBaseAs(other) && (_coveredBy(other) || other._coveredBy(this));
 
   /// Whether every URL [other] opens can carry all of this one's static query
   /// parameters.

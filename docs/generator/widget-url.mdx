@@ -75,7 +75,7 @@ final class WeatherForecastLink extends WeatherLaunch { ... }
 
 - `<Name>WidgetTap` carries one field per `widgetUrlData` entry and has no fields without it.
 - `<Name><Id>Link` carries one field per entry of the link's `data`.
-- The fields are typed `String`, `int`, `double`, `bool` or `DateTime` (in UTC). A field is nullable unless its value is fixed or its data type declares a `defaultValue`. See [Payloads](/generator/data#generated-fields).
+- The fields are typed `String`, `int`, `double`, `bool` or `DateTime`. A date travels as an instant in UTC with millisecond precision, and two launches compare their dates that way. A field is nullable unless its value is fixed or its data type declares a `defaultValue`. See [Payloads](/generator/data#generated-fields).
 - Every class has value equality and a readable `toString`.
 
 ## Reading taps in the app
@@ -135,13 +135,33 @@ A URL belongs to a launch when all of these match the URL written in the schema:
 - the fragment,
 - every query parameter written into the URL itself.
 
-The remaining query parameters are the payload. A payload value that is missing or cannot be read decodes to `null`, or to the field's default. Query parameters the launch does not know are ignored.
+The remaining query parameters are the payload. A payload value that is missing or cannot be read decodes to `null`, or to the field's default. Query parameters the launch does not know are ignored. A URL with malformed percent-encoding is no launch at all: `fromUri` answers `null` for it.
 
-Because a tap is matched this way, two things that can be tapped in one widget need URLs that differ in one of those parts. Generation fails otherwise.
+One URL can extend another with a query parameter. The launch that writes more query parameters into its URL is matched first, so `myapp://home?tab=settings` is tried before `myapp://home`:
+
+```dart
+@HomeWidget(
+  name: 'Weather',
+  widgetUrl: 'myapp://home',
+  widget: HWLink(
+    'settings',
+    url: 'myapp://home?tab=settings',
+    child: HWText(HWString.fixed('Settings')),
+  ),
+  // ...
+)
+class Weather {}
+```
+
+Two things that can be tapped in one widget still need URLs the app can tell apart. Generation fails when two URLs differ only in the data they send, and when a value one of them sends can produce a query parameter written into the other, such as `data: [HWString('tab')]` on `myapp://home` next to `myapp://home?tab=settings`.
+
+A URL has to be written the way it is opened: characters that are not allowed in a URL, such as a space, a quote or a brace, have to be percent-encoded, and generation fails for one that is not.
 
 ### Filtering
 
-Both helpers report **only this widget's own taps**. Taps on your other widgets never reach them, and a URL that matches none of the widget's launches is skipped, which is why the stream is a `Stream<WeatherLaunch>` without nulls.
+Both helpers report **only taps whose URL is one this widget opens**. A URL that matches none of the widget's launches is skipped, which is why the stream is a `Stream<WeatherLaunch>` without nulls. A tap is told by its URL alone, so give every widget URLs of its own: when two widgets open the same URL, both report the tap, and `generate` warns about it.
+
+The tap that started the app is delivered once per run of the app. After one `launches()` listener has received it, a stream listened to later, such as one a rebuilt widget subscribes to, starts with the taps that follow. `initialLaunch()` keeps answering it.
 
 To handle the taps of several widgets in one place, call `fromUri` of each widget on the `Uri` from [`HomeWidget.initiallyLaunchedFromHomeWidget()` and `HomeWidget.widgetClicked`](/features/detect-clicks), or merge their `launches()` streams.
 

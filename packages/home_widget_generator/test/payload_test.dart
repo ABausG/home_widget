@@ -392,10 +392,115 @@ void main() {
       expect(HWPayloadUrl.kotlinImports, {'import android.net.Uri'});
     });
 
-    group('collidesWith', () {
+    group('hasSameStaticUrlAs', () {
+      test('ignores the payload and the casing parsing drops', () {
+        expect(
+          const HWPayloadUrl('myapp://a?tab=1').hasSameStaticUrlAs(
+            HWPayloadUrl.of('myApp://a?tab=1', const [HWString('city')]),
+          ),
+          isTrue,
+        );
+        expect(
+          const HWPayloadUrl('myapp://a')
+              .hasSameStaticUrlAs(const HWPayloadUrl('myapp://a')),
+          isTrue,
+        );
+      });
+
+      test('tells URLs apart by base and by static query', () {
+        const base = HWPayloadUrl('myapp://a?tab=1');
+        for (final other in const [
+          'myapp://b?tab=1',
+          'myapp://a',
+          'myapp://a?tab=2',
+          'myapp://a?tab=1&tab=2',
+          'myapp://a?tab=1&page=2',
+          'myapp://a?page=1',
+          'http://[::1',
+        ]) {
+          expect(
+            base.hasSameStaticUrlAs(HWPayloadUrl(other)),
+            isFalse,
+            reason: other,
+          );
+          expect(
+            HWPayloadUrl(other).hasSameStaticUrlAs(base),
+            isFalse,
+            reason: other,
+          );
+        }
+      });
+    });
+
+    group('payloadNameMatching', () {
+      const settings = HWPayloadUrl('myapp://home?tab=settings&page=1');
+
+      test('names the value that can produce a static parameter', () {
+        expect(
+          settings.payloadNameMatching(
+            HWPayloadUrl.of('myapp://home?page=1', const [HWString('tab')]),
+          ),
+          'tab',
+        );
+        expect(
+          settings.payloadNameMatching(
+            HWPayloadUrl.of(
+              'myapp://home',
+              const [HWInt('page'), HWString('tab')],
+            ),
+          ),
+          'tab',
+        );
+      });
+
+      test('is null when a static parameter cannot be produced', () {
+        expect(
+          settings.payloadNameMatching(const HWPayloadUrl('myapp://home')),
+          isNull,
+        );
+        expect(
+          settings.payloadNameMatching(
+            HWPayloadUrl.of('myapp://home', const [HWString('tab')]),
+          ),
+          isNull,
+        );
+        expect(
+          settings.payloadNameMatching(
+            HWPayloadUrl.of('myapp://home?page=2', const [HWString('tab')]),
+          ),
+          isNull,
+        );
+        expect(
+          settings.payloadNameMatching(
+            HWPayloadUrl.of('myapp://other', const [HWString('tab')]),
+          ),
+          isNull,
+        );
+      });
+
+      test('is null when nothing is left for a payload to produce', () {
+        expect(
+          settings.payloadNameMatching(
+            HWPayloadUrl.of(
+              'myapp://home?tab=settings&page=1&x=1',
+              const [HWString('city')],
+            ),
+          ),
+          isNull,
+        );
+        expect(
+          const HWPayloadUrl('myapp://home').payloadNameMatching(
+            HWPayloadUrl.of('myapp://home', const [HWString('tab')]),
+          ),
+          isNull,
+        );
+      });
+    });
+
+    group('overlaps', () {
       bool collide(HWPayloadUrl a, HWPayloadUrl b) {
-        expect(a.collidesWith(b), b.collidesWith(a));
-        return a.collidesWith(b);
+        expect(a.overlaps(b), b.overlaps(a));
+        return a.overlaps(b);
       }
 
       test('the same URL collides with itself', () {

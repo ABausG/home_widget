@@ -18,6 +18,7 @@ import '../util/logger.dart';
 import '../validation/asset_validator.dart';
 import '../validation/font_validator.dart';
 import '../validation/home_widget_version.dart';
+import '../validation/widget_data_validator.dart';
 
 /// Command that generates native widget code from annotated Dart schemas.
 class GenerateCommand extends Command<int> {
@@ -116,6 +117,8 @@ class GenerateCommand extends Command<int> {
       logger.info('No @HomeWidget annotated classes found.');
       return ExitCodes.success;
     }
+
+    warnAboutSharedLaunchUrls([for (final item in specs) item.spec]);
 
     // Asset images are resolved against the project on disk, so this can only
     // run once the whole project root is known (unlike validateWidgetData,

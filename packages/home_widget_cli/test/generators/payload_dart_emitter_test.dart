@@ -30,6 +30,20 @@ void main() {
     ],
   );
   const plain = HWPayloadUrl('myapp://plain');
+  final borderline = HWPayloadUrl.of(
+    'myapp://borderline',
+    const [
+      HWPayload('uri', HWString('a')),
+      HWPayload('query', HWInt('b')),
+      HWPayload('other', HWBool('c')),
+      HWPayload('url', HWDouble('d')),
+      HWPayload('Int', HWDateTime('e')),
+      HWPayload('PlainTap', HWString('f')),
+      HWPayload('value', HWString('g')),
+      HWPayload('millis', HWString('h')),
+      HWPayload('head', HWString('i')),
+    ],
+  );
 
   group('classDeclaration', () {
     test('documents and names the class', () {
@@ -56,8 +70,14 @@ void main() {
         code,
         contains(
           '  static PlainTap? _\$fromUri(Uri uri) {\n'
-          '    if (!_\$matchesPayloadUrl(uri, _\$url)) return null;\n'
-          '    return const PlainTap();\n'
+          '    try {\n'
+          '      if (!_\$matchesPayloadUrl(uri, _\$url)) return null;\n'
+          '      return const PlainTap();\n'
+          '    } on FormatException {\n'
+          '      return null;\n'
+          '    } on ArgumentError {\n'
+          '      return null;\n'
+          '    }\n'
           '  }',
         ),
       );
@@ -146,9 +166,48 @@ void main() {
       expect(code, contains('other.other == this.other'));
       expect(
         code,
-        contains('int get hashCode => Object.hashAll([ForecastLink, city, '),
+        contains(
+          'int get hashCode => Object.hashAll([ForecastLink, this.city, ',
+        ),
       );
       expect(code, contains("'ForecastLink(city: \$city, town: \$town, "));
+    });
+
+    test('compares a date by the millisecond it travels as', () {
+      final code = _declare(forecast, 'ForecastLink');
+
+      expect(
+        code,
+        contains(
+          'other.at?.millisecondsSinceEpoch == '
+          'this.at?.millisecondsSinceEpoch',
+        ),
+      );
+      expect(
+        code,
+        contains(
+          'other.since.millisecondsSinceEpoch == '
+          'this.since.millisecondsSinceEpoch',
+        ),
+      );
+      expect(
+        code,
+        contains(
+          'this.at?.millisecondsSinceEpoch, '
+          'this.since.millisecondsSinceEpoch, this.other]);',
+        ),
+      );
+    });
+
+    test('names what a payload name cannot be', () {
+      expect(
+        PayloadDartEmitter.memberNames,
+        containsAll(['toUri', 'fromUri', 'hashCode', 'toString']),
+      );
+      final code = _declare(forecast, 'ForecastLink');
+      for (final name in PayloadDartEmitter.referencedNames) {
+        expect(code, contains(RegExp('\\b$name\\b')), reason: name);
+      }
     });
 
     test('appends no marker to a URL already carrying it', () {
@@ -217,7 +276,8 @@ sealed class Launch {
 
 ${_declare(forecast, 'ForecastLink')}
 ${_declare(plain, 'PlainTap')}
-${PayloadDartEmitter.helpers([forecast, plain])}
+${_declare(borderline, 'BorderlineLink')}
+${PayloadDartEmitter.helpers([forecast, plain, borderline])}
 
 final since = DateTime.utc(2026, 9, 22, 10);
 
@@ -302,6 +362,55 @@ void main() {
         'since: 2026-09-22 10:00:00.000Z, other: null)',
       );
       expect(results[10], 'true');
+    });
+
+    test('answers null for malformed percent-encoding', () {
+      final results = evaluate([
+        "PlainTap._\$fromUri(Uri.parse('myapp://plain?homeWidget=1&city=%FF'))",
+        "ForecastLink._\$fromUri(Uri.parse('myapp://forecast?tab=today&city=%FF#top'))",
+        "ForecastLink._\$fromUri(Uri.parse('myapp://forecast?tab=%FF#top'))",
+        "ForecastLink._\$fromUri(Uri.parse('myapp://forecast?tab=today&city=ok#top'))?.city",
+      ]);
+
+      expect(results, ['null', 'null', 'null', 'ok']);
+    });
+
+    test('treats a date as an instant with millisecond precision', () {
+      final results = evaluate([
+        'ForecastLink(at: DateTime(2026, 9, 22, 10, 0, 0, 5, 7), since: since) == '
+            'ForecastLink._\$fromUri(ForecastLink(at: DateTime(2026, 9, 22, '
+            '10, 0, 0, 5, 7), since: since).toUri())',
+        'ForecastLink(at: DateTime(2026, 9, 22, 10, 0, 0, 5, 7), since: since).hashCode == '
+            'ForecastLink._\$fromUri(ForecastLink(at: DateTime(2026, 9, 22, '
+            '10, 0, 0, 5, 7), since: since).toUri()).hashCode',
+        'ForecastLink(since: since.toLocal()) == ForecastLink(since: since)',
+        'ForecastLink(at: DateTime.utc(2026), since: since) == '
+            'ForecastLink(at: DateTime.utc(2026, 1, 1, 0, 0, 0, 1), since: since)',
+        'ForecastLink(at: DateTime.utc(2026), since: since) == '
+            'ForecastLink(since: since)',
+        "ForecastLink._\$fromUri(ForecastLink(at: DateTime(2026), "
+            'since: since).toUri())!.at!.isUtc',
+      ]);
+
+      expect(results, ['true', 'true', 'true', 'false', 'false', 'true']);
+    });
+
+    test('compiles with names its own code uses for locals', () {
+      final results = evaluate([
+        "BorderlineLink._\$fromUri(BorderlineLink(uri: 'u', query: 2, "
+            "other: true, url: 1.5, Int: DateTime.utc(2026), PlainTap: 'p', "
+            "value: 'v', millis: 'm', head: 'h').toUri())",
+        "BorderlineLink(uri: 'u') == BorderlineLink(uri: 'u')",
+        "BorderlineLink(uri: 'u') == BorderlineLink(uri: 'x')",
+      ]);
+
+      expect(
+        results[0],
+        'BorderlineLink(uri: u, query: 2, other: true, url: 1.5, '
+        'Int: 2026-01-01 00:00:00.000Z, PlainTap: p, value: v, millis: m, '
+        'head: h)',
+      );
+      expect(results.sublist(1), ['true', 'false']);
     });
 
     test('only matches the URL the class stands for', () {

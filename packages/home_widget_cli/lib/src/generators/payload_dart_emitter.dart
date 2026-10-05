@@ -20,6 +20,32 @@ class PayloadDartEmitter {
   /// The function writing a payload into a URL.
   static const String writer = r'_$payloadUri';
 
+  /// The members every class [classDeclaration] writes has, which a field of
+  /// the same name would redeclare.
+  static const Set<String> memberNames = {
+    'fromUri',
+    'hashCode',
+    'noSuchMethod',
+    'runtimeType',
+    'toString',
+    'toUri',
+  };
+
+  /// The names the body of a class [classDeclaration] writes refers to, which
+  /// a field of the same name would hide. The name of the class is one more.
+  static const Set<String> referencedNames = {
+    'ArgumentError',
+    'DateTime',
+    'FormatException',
+    'Object',
+    'String',
+    'Uri',
+    'bool',
+    'double',
+    'int',
+    'override',
+  };
+
   /// The class [className] extending [superClass], which holds the payload
   /// and is [description] in its doc comment.
   ///
@@ -50,17 +76,23 @@ final class $className extends $superClass {
   static final Uri _\$url = Uri.parse('${escapeDartStringLiteral(url.staticUrl)}');
 
   static $className? _\$fromUri(Uri uri) {
-    if (!$matcher(uri, _\$url)) return null;
+    try {
+      if (!$matcher(uri, _\$url)) return null;
 ''');
     if (payload.isEmpty) {
-      buffer.writeln('    return const $className();');
+      buffer.writeln('      return const $className();');
     } else {
       buffer.write('''
-    final query = uri.queryParameters;
-    return $className($arguments);
+      final query = uri.queryParameters;
+      return $className($arguments);
 ''');
     }
     buffer.write('''
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
   }
 
   @override
@@ -235,16 +267,24 @@ DateTime? _\$payloadDateTime(String? value) {
         "'${escapeDartStringLiteral(url.fragment)}')";
   }
 
+  /// What two instances compare [entry] by, read off [owner]: the value, and
+  /// for a date the millisecond it travels as, which is all `toUri` keeps.
+  String _identity(HWPayloadEntry entry, String owner) {
+    final field = '$owner.${entry.name}';
+    if (entry.type != HWPayloadType.dateTime) return field;
+    return '$field${entry.isNullable ? '?' : ''}.millisecondsSinceEpoch';
+  }
+
   String _equality(String className) => [
         'other is $className',
         for (final entry in url.payload)
-          'other.${entry.name} == this.${entry.name}',
+          '${_identity(entry, 'other')} == ${_identity(entry, 'this')}',
       ].join(' && ');
 
   String _hashCode(String className) {
     final payload = url.payload;
     if (payload.isEmpty) return '($className).hashCode';
-    final fields = payload.map((entry) => entry.name).join(', ');
+    final fields = payload.map((entry) => _identity(entry, 'this')).join(', ');
     return 'Object.hashAll([$className, $fields])';
   }
 

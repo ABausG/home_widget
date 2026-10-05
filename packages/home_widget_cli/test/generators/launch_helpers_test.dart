@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:home_widget_cli/src/generators/dart_helper_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
 const _history = HWLink(
@@ -203,6 +207,94 @@ void main() {
 
       expect(output, contains('String? city,'));
       expect(output, isNot(contains('int? days')));
+    });
+  });
+
+  group('URLs extending one another', () {
+    const tree = HWColumn(
+      children: [
+        HWLink(
+          'home',
+          url: 'myapp://home',
+          data: [HWString('city')],
+          child: HWText(HWString.fixed('Home')),
+        ),
+        HWLink(
+          'profile',
+          url: 'myapp://home?tab=settings&page=profile',
+          child: HWText(HWString.fixed('Profile')),
+        ),
+        HWLink(
+          'settings',
+          url: 'myapp://home?tab=settings',
+          child: HWText(HWString.fixed('Settings')),
+        ),
+      ],
+    );
+
+    test('are matched most specific first', () {
+      expect(
+        _generate(tree: tree),
+        contains(
+          '  static WeatherLaunch? fromUri(Uri uri) => '
+          'WeatherProfileLink._\$fromUri(uri) ?? '
+          'WeatherSettingsLink._\$fromUri(uri) ?? '
+          'WeatherHomeLink._\$fromUri(uri);',
+        ),
+      );
+    });
+
+    test('each decode to their own class and back', () {
+      final output = _generate(tree: tree);
+      final model = output.substring(
+        output.indexOf('/// A tap on the Weather widget that opened the app.'),
+      );
+      final tempDir = Directory.systemTemp.createTempSync('launch_model');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      final script = File(p.join(tempDir.path, 'launch.dart'))
+        ..writeAsStringSync('''
+import 'dart:convert';
+
+$model
+
+void main() {
+  final launches = <WeatherLaunch>[
+    const WeatherHomeLink(),
+    const WeatherHomeLink(city: 'Berlin'),
+    const WeatherSettingsLink(),
+    const WeatherProfileLink(),
+  ];
+  print(jsonEncode([
+    for (final launch in launches) '\${launch.toUri()}',
+    for (final launch in launches)
+      '\${WeatherLaunch.fromUri(launch.toUri()) == launch}',
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://home?tab=other&homeWidget'))}',
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://home?page=profile&tab=settings'))}',
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://home?tab=settings&city=%FF'))}',
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://elsewhere'))}',
+  ]));
+}
+''');
+
+      final result = Process.runSync(
+        Platform.resolvedExecutable,
+        ['run', script.path],
+      );
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+      expect(jsonDecode((result.stdout as String).trim().split('\n').last), [
+        'myapp://home?homeWidget',
+        'myapp://home?city=Berlin&homeWidget',
+        'myapp://home?tab=settings&homeWidget',
+        'myapp://home?tab=settings&page=profile&homeWidget',
+        'true',
+        'true',
+        'true',
+        'true',
+        'WeatherHomeLink(city: null)',
+        'WeatherProfileLink()',
+        'null',
+        'null',
+      ]);
     });
   });
 
