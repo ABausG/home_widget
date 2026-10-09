@@ -2,7 +2,6 @@ group 'es.antonborri.home_widget'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.9.0'
     repositories {
         google()
         mavenCentral()
@@ -10,7 +9,6 @@ buildscript {
 
     dependencies {
         classpath 'com.android.tools.build:gradle:8.1.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
@@ -21,15 +19,7 @@ rootProject.allprojects {
     }
 }
 
-def isAgp9OrAbove = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger() >= 9
-def builtInKotlinProperty = project.findProperty('android.builtInKotlin') ?: rootProject.findProperty('android.builtInKotlin')
-// AGP 9+ enables built-in Kotlin by default; Flutter sets android.builtInKotlin=false during migration.
-def useBuiltInKotlin = isAgp9OrAbove && (builtInKotlinProperty == null ? true : builtInKotlinProperty.toString().toBoolean())
-
 apply plugin: 'com.android.library'
-if (!useBuiltInKotlin) {
-    apply plugin: 'kotlin-android'
-}
 
 android {
     // Conditional for compatibility with AGP <4.2.
@@ -51,15 +41,15 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
         sourceCompatibility JavaVersion.VERSION_1_8
     }
-    if (!useBuiltInKotlin) {
-        kotlinOptions {
-            jvmTarget = "1.8"
-        }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
     }
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     api "androidx.glance:glance-appwidget:1.2.0"
     // TypedValueCompat.spToPx, which follows the non-linear font scaling of
     // Android 14 and newer the way a TextView does.
