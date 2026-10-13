@@ -65,7 +65,7 @@ class WeekForecastHomeWidget : GlanceAppWidget() {
     val hwLocales = hwCurrentLocales(context)
     val hwPreviewData = WeekForecastData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "ba15c5a5",
+            "8188872c",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -125,9 +125,7 @@ class WeekForecastHomeWidget : GlanceAppWidget() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                   Text(
-                      text =
-                          hwItem.day?.let { hwFormatDateSkeleton(it, "E", hwFormatLocale(context)) }
-                              ?: "",
+                      text = hwItem.day?.let { hwFormatDateSkeleton(it, "E", context) } ?: "",
                       style =
                           TextStyle(
                               color = GlanceTheme.colors.onSurfaceVariant,
@@ -367,10 +365,12 @@ private fun hwResolveTimeZone(id: String?): TimeZone {
 private fun hwFormatDateSkeleton(
     date: Date,
     skeleton: String,
-    locale: Locale,
+    context: Context,
     timeZoneId: String? = null,
 ): String {
-  val pattern = AndroidDateFormat.getBestDateTimePattern(locale, skeleton)
+  val locale = hwFormatLocale(context)
+  val hour = if (AndroidDateFormat.is24HourFormat(context)) 'H' else 'h'
+  val pattern = AndroidDateFormat.getBestDateTimePattern(locale, skeleton.replace('j', hour))
   val formatter = SimpleDateFormat(pattern, locale)
   formatter.timeZone = hwResolveTimeZone(timeZoneId)
   return formatter.format(date)
