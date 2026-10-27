@@ -84,3 +84,24 @@ The Dash illustrations in `assets/dash/` are generated artwork of the Flutter
 mascot. Nunito is licensed under the
 [SIL Open Font License](assets/fonts/OFL.txt). Dasholingo is a parody and is
 not affiliated with Duolingo.
+
+## macOS
+
+Run `flutter run -d macos`. This example requires macOS 14 or later.
+Open `macos/Runner.xcworkspace` in Xcode and select your signing team for Runner
+and each Widget Extension. Use your own bundle identifiers, keeping each
+extension identifier prefixed by the host identifier.
+
+Enable the same App Group for the host and all extensions. Replace the sample
+group in the Debug/Release entitlements and the widget sources; it must match
+the group used by the Dart code. Then run the signed app and add the widgets
+from your Mac's widget gallery.
+
+The macOS Xcode project is maintained manually. `home_widget_cli` still
+scaffolds Android/iOS projects; running it does not create or update macOS
+targets. The Dart helpers use the existing `iOSName` alias for macOS Widget kinds.
+
+The macOS widget uses AppKit image decoding and the Mac app's Flutter asset
+paths. Keep its native source in sync with the streak schema when regenerating
+the Android/iOS widget. Save a streak and status in the app to update the widget;
+its timeline advances through the same scheduled entries.

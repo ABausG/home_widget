@@ -1444,7 +1444,9 @@ $filterDoc
       buffer.writeln('    if (Platform.isAndroid) return $androidField;');
     }
     if (iosField != null) {
-      buffer.writeln('    if (Platform.isIOS) return $iosField;');
+      buffer.writeln(
+        '    if (Platform.isIOS || Platform.isMacOS) return $iosField;',
+      );
     }
     buffer.writeln('    return null;');
 

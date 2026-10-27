@@ -52,3 +52,19 @@ override suspend fun providePreview(context: Context, widgetCategory: Int) {
 The receiver's `previewFingerprint` includes the saved path and its `lastModified()`, so rewriting the file re-registers the preview.
 
 On iOS the same fallback lives in `getSnapshot`, which WidgetKit calls with `context.isPreview`.
+
+## macOS
+
+Run `flutter run -d macos`. This example requires macOS 14 or later.
+Open `macos/Runner.xcworkspace` in Xcode and select your signing team for Runner
+and each Widget Extension. Use your own bundle identifiers, keeping each
+extension identifier prefixed by the host identifier.
+
+Enable the same App Group for the host and all extensions. Replace the sample
+group in the Debug/Release entitlements and the widget sources; it must match
+the group used by the Dart code. Then run the signed app and add the widgets
+from your Mac's widget gallery.
+
+Save an image or JSON file in the app, then add ImageWidgetHomeWidget and
+FileWidgetHomeWidget. The macOS widgets read the saved App Group file paths
+using AppKit and Foundation. Gallery preview updates are Android only.

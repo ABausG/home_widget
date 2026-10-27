@@ -75,7 +75,7 @@ private struct HomeWidgetView: View {
         Text(entry.token ?? "").font(.caption2).lineLimit(1)
       } else {
         Image(systemName: "rectangle.3.group").font(.title)
-        Text("Ready")
+        Text(entry.group == nil ? "Configure App Group" : "Ready")
       }
       if #available(macOS 14.0, *), let group = entry.group {
         Button(

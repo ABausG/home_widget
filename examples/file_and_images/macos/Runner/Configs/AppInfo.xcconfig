@@ -1,0 +1,3 @@
+PRODUCT_NAME = file_and_images
+PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.fileandimages.macos
+PRODUCT_COPYRIGHT = Copyright © 2026

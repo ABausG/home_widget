@@ -147,7 +147,7 @@ class WidgetLinkHomeWidget {
   /// null where it opens none.
   static Uri? get _$platformWidgetUrl {
     if (Platform.isAndroid) return widgetUrl;
-    if (Platform.isIOS) return widgetUrl;
+    if (Platform.isIOS || Platform.isMacOS) return widgetUrl;
     return null;
   }
 

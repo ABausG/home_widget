@@ -1,4 +1,2 @@
+#include? "../Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "ephemeral/Flutter-Generated.xcconfig"
-
-// Keep the macOS entry independent of mobile background initialization.
-FLUTTER_TARGET = lib/main_macos.dart

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/adaptive_greeting.home_widget.dart';
@@ -114,8 +115,8 @@ class _HomePageState extends State<_HomePage> {
           title: 'Adaptive Greeting',
           description:
               'HWAdaptive picks a different child per platform: "Hello iOS" on '
-              'iOS, "Hello Android" on Android. Neither branch depends on '
-              'data, so no saveData call is needed.',
+              'iOS, "Hello macOS" on macOS, and "Hello Android" on Android. '
+              'No saveData call is needed.',
           isInstalled: AdaptiveGreetingHomeWidget.isInstalled,
           isRequestPinWidgetSupported:
               AdaptiveGreetingHomeWidget.isRequestPinWidgetSupported,
@@ -333,15 +334,16 @@ class _HomePageState extends State<_HomePage> {
                 await ForecastHomeWidget.updateWidget();
               },
             ),
-            ListTile(
-              title: const Text('Refresh the gallery preview'),
-              subtitle: const Text(
-                'updatePreview() — Android 15+ only, rate-limited to about '
-                'twice per hour and widget.',
+            if (Platform.isAndroid)
+              ListTile(
+                title: const Text('Refresh the gallery preview'),
+                subtitle: const Text(
+                  'updatePreview() — Android 15+ only, rate-limited to about '
+                  'twice per hour and widget.',
+                ),
+                trailing: const Icon(Icons.wallpaper_outlined),
+                onTap: ForecastHomeWidget.updatePreview,
               ),
-              trailing: const Icon(Icons.wallpaper_outlined),
-              onTap: ForecastHomeWidget.updatePreview,
-            ),
           ],
         ),
 
@@ -400,15 +402,16 @@ class _HomePageState extends State<_HomePage> {
                 await WeekForecastHomeWidget.updateWidget();
               },
             ),
-            ListTile(
-              title: const Text('Refresh the gallery preview'),
-              subtitle: const Text(
-                'updatePreview() — Android 15+ only, rate-limited to about '
-                'twice per hour and widget.',
+            if (Platform.isAndroid)
+              ListTile(
+                title: const Text('Refresh the gallery preview'),
+                subtitle: const Text(
+                  'updatePreview() — Android 15+ only, rate-limited to about '
+                  'twice per hour and widget.',
+                ),
+                trailing: const Icon(Icons.wallpaper_outlined),
+                onTap: WeekForecastHomeWidget.updatePreview,
               ),
-              trailing: const Icon(Icons.wallpaper_outlined),
-              onTap: WeekForecastHomeWidget.updatePreview,
-            ),
           ],
         ),
 

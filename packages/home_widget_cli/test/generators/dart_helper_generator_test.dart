@@ -1569,7 +1569,7 @@ void main() {
         contains(
           'static Uri? get _\$platformWidgetUrl {\n'
           '    if (Platform.isAndroid) return widgetUrl;\n'
-          '    if (Platform.isIOS) return widgetUrl;\n'
+          '    if (Platform.isIOS || Platform.isMacOS) return widgetUrl;\n'
           '    return null;\n'
           '  }',
         ),
@@ -1620,7 +1620,7 @@ void main() {
         contains(
           'static Uri? get _\$platformWidgetUrl {\n'
           '    if (Platform.isAndroid) return androidWidgetUrl;\n'
-          '    if (Platform.isIOS) return iosWidgetUrl;\n'
+          '    if (Platform.isIOS || Platform.isMacOS) return iosWidgetUrl;\n'
           '    return null;\n'
           '  }',
         ),
@@ -1757,7 +1757,7 @@ void main() {
         output,
         contains(
           'static Uri? get _\$platformWidgetUrl {\n'
-          '    if (Platform.isIOS) return iosWidgetUrl;\n'
+          '    if (Platform.isIOS || Platform.isMacOS) return iosWidgetUrl;\n'
           '    return null;\n'
           '  }',
         ),
@@ -1768,6 +1768,62 @@ void main() {
           '/// Nothing is ever reported on Android, where the widget opens',
         ),
       );
+    });
+
+    group('generated launch helpers execute', () {
+      final scenarios = <String, HomeWidget>{
+        'shared': HomeWidget(
+          name: 'Linked',
+          widgetUrl: 'myapp://shared',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        'split': HomeWidget(
+          name: 'Linked',
+          widgetUrl: 'myapp://shared',
+          android: HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://android'),
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.example',
+            widgetUrl: 'myapp://ios',
+          ),
+        ),
+        'android only': HomeWidget(
+          name: 'Linked',
+          widgetUrl: 'myapp://shared',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        'iOS only': HomeWidget(
+          name: 'Linked',
+          widgetUrl: 'myapp://shared',
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+        'Android tap disabled': HomeWidget(
+          name: 'Linked',
+          widgetUrl: 'myapp://shared',
+          android: HomeWidgetAndroidConfiguration(openAppOnTap: false),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
+        ),
+      };
+      for (final entry in scenarios.entries) {
+        for (final platform in ['macos', 'ios', 'android', 'linux']) {
+          test('${entry.key} on $platform', () async {
+            final spec = WidgetSpec(data: entry.value, className: 'Linked');
+            final expected = switch (platform) {
+              'macos' || 'ios' => spec.iosWidgetUrl,
+              'android' => spec.androidWidgetUrl,
+              _ => null,
+            };
+            final output = await _runHelper(
+              DartHelperGenerator(spec).generate(),
+              '  final expected = ${jsonEncode(expected)};\n$_launchBehavior',
+              // Use the real dart:io Platform for the macOS host case.
+              platform:
+                  platform == 'macos' && Platform.isMacOS ? null : platform,
+            );
+            expect(output, 'launch behavior passed');
+          });
+        }
+      }
     });
 
     test('omits the launch helpers without a widget URL', () {
@@ -3920,7 +3976,7 @@ Future<String> _runGenerated(
 ///
 /// [body] runs with `HomeWidget.directory`, where the stub writes files, set
 /// to a fresh directory.
-Future<String> _runHelper(String dart, String body) async {
+Future<String> _runHelper(String dart, String body, {String? platform}) async {
   final dir = await Directory.systemTemp.createTemp('hw_helper_run_');
   addTearDown(() {
     if (dir.existsSync()) dir.deleteSync(recursive: true);
@@ -3932,9 +3988,17 @@ Future<String> _runHelper(String dart, String body) async {
   await file.writeAsString('''
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io'${platform == null ? '' : ' hide Platform'};
 import 'dart:typed_data';
 
+${platform == null ? '' : '''
+// Only the non-host platform cases use this stand-in.
+class Platform {
+  static bool get isIOS => '$platform' == 'ios';
+  static bool get isMacOS => '$platform' == 'macos';
+  static bool get isAndroid => '$platform' == 'android';
+}
+'''}
 $generated
 $_pluginStub
 Future<void> main() async {
@@ -4024,6 +4088,10 @@ class HomeWidgetInfo {
 }
 
 class HomeWidget {
+  static Future<Uri?> initialUri = Future.value(null);
+  static StreamController<Uri?> clicks = StreamController.broadcast(sync: true);
+  static Future<Uri?> initiallyLaunchedFromHomeWidget() => initialUri;
+  static Stream<Uri?> get widgetClicked => clicks.stream;
   static final data = <String, Object?>{};
   static late Directory directory;
   static List<DateTime>? schedule;
@@ -4107,6 +4175,59 @@ class HomeWidget {
     return true;
   }
 
+  static Future<bool?> updateWidgetPreview({String? androidName}) async => false;
+  static Future<bool?> isRequestPinWidgetSupported() async => false;
+  static Future<void> requestPinWidget({String? androidName}) async {}
+
   static Future<List<HomeWidgetInfo>> getInstalledWidgets() async => const [];
 }
+''';
+
+/// Executes the generated public APIs, including clicks arriving while the
+/// initial URI is pending. The plugin boundary supplies controlled events.
+const _launchBehavior = r'''
+  void check(bool value, String message) {
+    if (!value) throw StateError(message);
+  }
+  final matching = Uri.parse(expected ?? 'myapp://shared?homeWidget');
+  final wrong = Uri.parse('myapp://another?homeWidget');
+  HomeWidget.initialUri = Future.value(null);
+  check(await LinkedHomeWidget.initiallyLaunchedFromWidget() == null, 'null initial');
+  HomeWidget.initialUri = Future.value(wrong);
+  check(await LinkedHomeWidget.initiallyLaunchedFromWidget() == null, 'wrong initial');
+  HomeWidget.initialUri = Future.value(matching);
+  final initial = expected == null ? null : matching;
+  check(await LinkedHomeWidget.initiallyLaunchedFromWidget() == initial, 'matching initial');
+  check(await LinkedHomeWidget.initiallyLaunchedFromWidget() == initial, 'repeat initial');
+
+  final live = LinkedHomeWidget.widgetClicked.toList();
+  HomeWidget.clicks.add(null);
+  HomeWidget.clicks.add(wrong);
+  HomeWidget.clicks.add(matching.replace(query: ''));
+  HomeWidget.clicks.add(matching.replace(query: 'homeWidget&extra=1'));
+  HomeWidget.clicks.add(matching);
+  HomeWidget.clicks.add(matching);
+  await HomeWidget.clicks.close();
+  final liveValues = await live;
+  check(liveValues.length == (expected == null ? 0 : 2), 'live count: $liveValues');
+  check(liveValues.every((uri) => uri == matching), 'live filtering');
+
+  HomeWidget.clicks = StreamController.broadcast(sync: true);
+  final pending = Completer<Uri?>();
+  HomeWidget.initialUri = pending.future;
+  final combined = LinkedHomeWidget.launchedFromWidget().toList();
+  for (var i = 0; !HomeWidget.clicks.hasListener && i < 20; i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
+  check(HomeWidget.clicks.hasListener, 'subscribed before initial resolution');
+  HomeWidget.clicks.add(wrong);
+  HomeWidget.clicks.add(matching);
+  HomeWidget.clicks.add(matching);
+  pending.complete(matching);
+  await HomeWidget.clicks.close();
+  final combinedValues = await combined.timeout(const Duration(seconds: 3));
+  check(combinedValues.length == (expected == null ? 0 : 3), 'combined count: $combinedValues');
+  check(combinedValues.every((uri) => uri == matching), 'combined filtering');
+  check(!HomeWidget.clicks.hasListener, 'subscription cleanup');
+  print('launch behavior passed');
 ''';

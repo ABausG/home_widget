@@ -1,0 +1,3 @@
+PRODUCT_NAME = streak_widget
+PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.streakwidget.macos
+PRODUCT_COPYRIGHT = Copyright © 2026

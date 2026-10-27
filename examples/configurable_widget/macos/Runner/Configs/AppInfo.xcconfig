@@ -1,0 +1,3 @@
+PRODUCT_NAME = configurable_widget
+PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.configurablewidget.macos
+PRODUCT_COPYRIGHT = Copyright © 2026

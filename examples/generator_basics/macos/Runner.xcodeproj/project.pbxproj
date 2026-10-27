@@ -1,0 +1,2869 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXAggregateTarget section */
+		33CC111A2044C6BA0003C045 /* Flutter Assemble */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 33CC111B2044C6BA0003C045 /* Build configuration list for PBXAggregateTarget "Flutter Assemble" */;
+			buildPhases = (
+				33CC111E2044C6BF0003C045 /* ShellScript */,
+			);
+			dependencies = (
+			);
+			name = "Flutter Assemble";
+			productName = FLX;
+		};
+/* End PBXAggregateTarget section */
+
+/* Begin PBXBuildFile section */
+		00F7F6E0807761A2B104E76D /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05B6E734088A6393533D0730 /* WidgetBundle.swift */; };
+		0412F1A04F6D78A377A9AAC9 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E37239392DA983EAA0F4C92 /* WidgetBundle.swift */; };
+		0D8AE66D6FA3673689A2C8AE /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C049145C97172528618F6B /* Widget.swift */; };
+		0EFA241E5A12B48C41F56F52 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		15D3072D5B96F3A9A3F4680B /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3D16AC7B7C48BC5B96F92B0 /* Widget.swift */; };
+		15F52F7C1234FB6E8EED71CF /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E67D1293692FE2FD4A670D91 /* WidgetBundle.swift */; };
+		18510B0BBF522E984F71DA48 /* NumberDateFormattingHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = AE39E6A6EEE078EE8FB22F20 /* NumberDateFormattingHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		192B3FECEFA5EEBC6C65B77E /* AdaptiveGreetingHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BBA82BB25757DF9EA4FFBA1B /* AdaptiveGreetingHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1D0A9C8D4A48CEE43E3B51DE /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		1F384DCEB2ABD6994DEACF22 /* SimpleDataHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = EA87D75CC6DEB37B73C62C69 /* SimpleDataHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		232D043828F37771BEDB0568 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1BF798E6A3D4C4F1F75710 /* Widget.swift */; };
+		26AA3A5BF66C6ABE94888EF6 /* GreetingHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7E968CE67814B971824C5BC7 /* GreetingHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2A399CA6104A138E44046510 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 440B8B6D793ADB9218ECE52E /* Widget.swift */; };
+		2DDEADE22B573C6C89F94BD8 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86EFDAE8BCC0B1EF0CB021EE /* WidgetBundle.swift */; };
+		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
+		33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC10F02044A3C60003C045 /* AppDelegate.swift */; };
+		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
+		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
+		33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33CC11122044BFA00003C045 /* MainFlutterWindow.swift */; };
+		34E0373B11DF13FD0755F19D /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		369724EE1CFE9FB331C70CCA /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		3B0D4954CDD6A8A4256FE957 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82426B4803B014CCD4C15B0A /* Widget.swift */; };
+		3FF27A88D45DB24B8D7930D7 /* ForecastHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A09AF4285CAE43DE7BA3BD19 /* ForecastHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		41C8B23C2A91C1D2029F227C /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0A3FC6B3EDB716CA547F55 /* WidgetBundle.swift */; };
+		4292FA4237AFD9661229AFED /* BasicCreationHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 64308326A4F14F67A562C71B /* BasicCreationHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4855562F4563E3ECEBBBECF8 /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = DFE7D441E1625A864C6C713F /* hw_font_icons_materialicons.otf */; };
+		49641A730F693735EDDA9E14 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC3DCFAE28B152AAD78F74EE /* WidgetBundle.swift */; };
+		49D50C73F1B692BC8E308AD9 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5307BBE66D5DC7A718752566 /* WidgetBundle.swift */; };
+		4A19ACAB637E4E0B1EA544A2 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		4BD8A94EA82795DC0BA39894 /* ThemedCounterHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A9D4C11C6F72F77C5AD4B83F /* ThemedCounterHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4DE7FAA112C5ACCC8C69F2C1 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9205758B335A0A59D93AC9B /* WidgetBundle.swift */; };
+		4E37CF4305CFBE23C06428B5 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A25FFC28B3633E13E8283880 /* Widget.swift */; };
+		5390AC5EF4592CA14010D6C2 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3231791C98D97082A27FC37B /* Widget.swift */; };
+		53B9B48A104BF3275B404A4D /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F887750A9B06BD9C9CD98C /* Widget.swift */; };
+		56D53686CA617C38D999AC11 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 716F89E43FC67BCED19C8C79 /* Widget.swift */; };
+		58EB039A18EBE4365B7E9866 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB45726AB27C07A14B67DB3F /* Widget.swift */; };
+		5D7A71C1E7D444982BF7EE0F /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4E5117AE32500F660B782E3 /* WidgetBundle.swift */; };
+		629F720D9FAD2652F34ED262 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		643B9E73D524EE6514ED2A04 /* LocalizedGreetingHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 51D6101397A11A0989CAC69C /* LocalizedGreetingHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		654CDAB8F407F3988E216750 /* SizeAdaptiveDashboardHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 1451E74E419F9ACE70554655 /* SizeAdaptiveDashboardHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6D6E05F34B8ACADFF9910A6B /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		772710BB1C5462A9F520CFE0 /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = 41B62082E4A17A06E2555FD8 /* hw_font_icons_materialicons.otf */; };
+		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		863B7C25DDE0E6F1454BA515 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		889E17299DE184AFA958523F /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 8AD8C333548FD30824ADEA54 /* Localizable.xcstrings */; };
+		8F827542BB386A69BE1DDD77 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		94B787409A98B733EA25F0B0 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		95F6ED1E603FA013B7FD89B8 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		98552FBDA894240134A68167 /* WidgetLinkHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = DBE2CB96298977CFE7BA94F8 /* WidgetLinkHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A4B132BBE31B316C51DB3B39 /* ConditionalStatusHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 69DFAA62624B1D8BDF42322E /* ConditionalStatusHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A9EE92B52A5EA8980623B3AE /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		AD4BADFE88E3C2566024EB43 /* FontAndIconsHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 54A0555B92A9BD5EB849904B /* FontAndIconsHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AD6204BE7DBE0F697E506B4B /* WeekForecastHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = F125D7F6CDC8A7AB42BA1958 /* WeekForecastHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AE6D398BEB6425FA6321AE69 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0472207D4E796B5E5E42AF7E /* WidgetBundle.swift */; };
+		B8B0059E2C561F16D6F32233 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		C11119AB8F007A6521C15B98 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8725CF8BBB2132199A4C79EF /* Widget.swift */; };
+		C45359484E95954EC8BEBC87 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57171488621BF20AB5591A10 /* WidgetBundle.swift */; };
+		CCF9BD89E6E13BB756059D62 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = E68A2DDD91DDF3CF392448BA /* Widget.swift */; };
+		CDEF7191802FD1EAAABAD26D /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A42DD6DD2AD24E56D43DFA4 /* Widget.swift */; };
+		D21A88EB3A6F5582B1A69D17 /* ImageShowcaseHomeWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 0BBB47CFE6ADB286AC79D0CE /* ImageShowcaseHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D45F1A63B7703CCE89FA6D70 /* hw_font_icons_cupertinoicons__cupertino_icons.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9792FDED553159070FBC0EEB /* hw_font_icons_cupertinoicons__cupertino_icons.ttf */; };
+		D5F4143CDDC9A3320A5D58B8 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2FDBE0951D7A91DF7C9F9E /* WidgetBundle.swift */; };
+		DCE42FCA4ABE4EC23AFE4A45 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8DFCA0BB23B89C53524130D7 /* Cocoa.framework */; };
+		E69566F4A435E015A9FCDE57 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34EC2D3655F04C5B7E3F8E37 /* WidgetBundle.swift */; };
+		EA45E6C9D435489BE1050E19 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5A91BF9300132A677B9E71 /* WidgetBundle.swift */; };
+		EABDA4896F48254DCDE2DAFC /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf in Resources */ = {isa = PBXBuildFile; fileRef = 5A55A6A6630406D1E16BEE9C /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf */; };
+		F7E3A447FAC90DAB42FD1CEA /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F15590397EB1A557141D6BD /* Widget.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0C18B067F31C2D05F479C3E4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2C30A1213440F0ED92F09CB0;
+			remoteInfo = LocalizedGreetingHomeWidget;
+		};
+		11C941009D4359E74913CED3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2DBF7B4E03808EFDFCCDA258;
+			remoteInfo = ThemedCounterHomeWidget;
+		};
+		1466F2A7E689770768C8E99D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6BA3457A863BFA3EA42E3425;
+			remoteInfo = BasicCreationHomeWidget;
+		};
+		33CC111F2044C79F0003C045 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 33CC111A2044C6BA0003C045;
+			remoteInfo = FLX;
+		};
+		41DE0B25D0F9B49B057B3D83 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 34BFF810A5C85E287B51D7AD;
+			remoteInfo = WidgetLinkHomeWidget;
+		};
+		4C9121C16570DDED67FB3BEF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5514BBCB9360BC4D61221EA0;
+			remoteInfo = AdaptiveGreetingHomeWidget;
+		};
+		A591EEC96A72B15048787E47 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8646F9696361DC72E8731FA7;
+			remoteInfo = NumberDateFormattingHomeWidget;
+		};
+		ABE590B46B97857A54DE9A8D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0E5A62512AA90D5B3351ED38;
+			remoteInfo = FontAndIconsHomeWidget;
+		};
+		AEF3C20A84204A2D711900C8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D976A5DC49B0E7A76A0B36F5;
+			remoteInfo = ImageShowcaseHomeWidget;
+		};
+		B5B9A1EC69A8F1391DF61401 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 434B472A8DBB6C9B777A97DF;
+			remoteInfo = SimpleDataHomeWidget;
+		};
+		D6B2F37C10DC2495C3322AEA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = ADEA011021EC7442AE8FD282;
+			remoteInfo = SizeAdaptiveDashboardHomeWidget;
+		};
+		DB14E3B8BA1E92C05418929A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3B7299498B6363962AEB1CFA;
+			remoteInfo = ForecastHomeWidget;
+		};
+		E6E465BD4B436C20DD90CA61 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EE6DF2423F2E774660D4FD70;
+			remoteInfo = GreetingHomeWidget;
+		};
+		F0A8E618802DE7E266AC2196 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1099D1190954F227F18643D7;
+			remoteInfo = ConditionalStatusHomeWidget;
+		};
+		F4358CFA9E83AFD1E9665223 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2DED747F1D7C90E02F9168E1;
+			remoteInfo = WeekForecastHomeWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		33CC110E2044A8840003C045 /* Bundle Framework */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+			);
+			name = "Bundle Framework";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3B78B111CCB137A0CF663769 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				192B3FECEFA5EEBC6C65B77E /* AdaptiveGreetingHomeWidget.appex in Embed App Extensions */,
+				4292FA4237AFD9661229AFED /* BasicCreationHomeWidget.appex in Embed App Extensions */,
+				A4B132BBE31B316C51DB3B39 /* ConditionalStatusHomeWidget.appex in Embed App Extensions */,
+				AD4BADFE88E3C2566024EB43 /* FontAndIconsHomeWidget.appex in Embed App Extensions */,
+				3FF27A88D45DB24B8D7930D7 /* ForecastHomeWidget.appex in Embed App Extensions */,
+				26AA3A5BF66C6ABE94888EF6 /* GreetingHomeWidget.appex in Embed App Extensions */,
+				D21A88EB3A6F5582B1A69D17 /* ImageShowcaseHomeWidget.appex in Embed App Extensions */,
+				643B9E73D524EE6514ED2A04 /* LocalizedGreetingHomeWidget.appex in Embed App Extensions */,
+				18510B0BBF522E984F71DA48 /* NumberDateFormattingHomeWidget.appex in Embed App Extensions */,
+				1F384DCEB2ABD6994DEACF22 /* SimpleDataHomeWidget.appex in Embed App Extensions */,
+				654CDAB8F407F3988E216750 /* SizeAdaptiveDashboardHomeWidget.appex in Embed App Extensions */,
+				4BD8A94EA82795DC0BA39894 /* ThemedCounterHomeWidget.appex in Embed App Extensions */,
+				AD6204BE7DBE0F697E506B4B /* WeekForecastHomeWidget.appex in Embed App Extensions */,
+				98552FBDA894240134A68167 /* WidgetLinkHomeWidget.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0472207D4E796B5E5E42AF7E /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/SizeAdaptiveDashboardHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		05B6E734088A6393533D0730 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/BasicCreationHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		0BBB47CFE6ADB286AC79D0CE /* ImageShowcaseHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ImageShowcaseHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		1451E74E419F9ACE70554655 /* SizeAdaptiveDashboardHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SizeAdaptiveDashboardHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		16C049145C97172528618F6B /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/BasicCreationHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		1F15590397EB1A557141D6BD /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		3231791C98D97082A27FC37B /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/WeekForecastHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
+		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
+		33CC10ED2044A3C60003C045 /* generator_basics.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = generator_basics.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		33CC10F02044A3C60003C045 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		33CC10F22044A3C60003C045 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Runner/Assets.xcassets; sourceTree = "<group>"; };
+		33CC10F52044A3C60003C045 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		33CC10F72044A3C60003C045 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Runner/Info.plist; sourceTree = "<group>"; };
+		33CC11122044BFA00003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
+		33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Debug.xcconfig"; sourceTree = "<group>"; };
+		33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Release.xcconfig"; sourceTree = "<group>"; };
+		33CEB47722A0578A004F2AC0 /* Flutter-Generated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Flutter-Generated.xcconfig"; path = "ephemeral/Flutter-Generated.xcconfig"; sourceTree = "<group>"; };
+		33E51913231747F40026EE4D /* DebugProfile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DebugProfile.entitlements; sourceTree = "<group>"; };
+		33E51914231749380026EE4D /* Release.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = Release.entitlements; sourceTree = "<group>"; };
+		33E5194F232828860026EE4D /* AppInfo.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = AppInfo.xcconfig; sourceTree = "<group>"; };
+		34EC2D3655F04C5B7E3F8E37 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/LocalizedGreetingHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		3A42DD6DD2AD24E56D43DFA4 /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/SimpleDataHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		41B62082E4A17A06E2555FD8 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; includeInIndex = 1; path = ../ios/WeekForecastHomeWidget/hw_font_icons_materialicons.otf; sourceTree = SOURCE_ROOT; };
+		440B8B6D793ADB9218ECE52E /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ConditionalStatusHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		4E37239392DA983EAA0F4C92 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/WidgetLinkHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		51D6101397A11A0989CAC69C /* LocalizedGreetingHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LocalizedGreetingHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5307BBE66D5DC7A718752566 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/AdaptiveGreetingHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		54A0555B92A9BD5EB849904B /* FontAndIconsHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FontAndIconsHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		57171488621BF20AB5591A10 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ImageShowcaseHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		5A55A6A6630406D1E16BEE9C /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf */ = {isa = PBXFileReference; includeInIndex = 1; path = ../ios/FontAndIconsHomeWidget/hw_font_icons_fontawesomesolid__font_awesome_flutter.otf; sourceTree = SOURCE_ROOT; };
+		5E1BF798E6A3D4C4F1F75710 /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		64308326A4F14F67A562C71B /* BasicCreationHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BasicCreationHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		69DFAA62624B1D8BDF42322E /* ConditionalStatusHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ConditionalStatusHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E2FDBE0951D7A91DF7C9F9E /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/NumberDateFormattingHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		716F89E43FC67BCED19C8C79 /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
+		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		7B0A3FC6B3EDB716CA547F55 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/GreetingHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		7E968CE67814B971824C5BC7 /* GreetingHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GreetingHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		82426B4803B014CCD4C15B0A /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/NumberDateFormattingHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		86EFDAE8BCC0B1EF0CB021EE /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ForecastHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		8725CF8BBB2132199A4C79EF /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/WidgetLinkHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		8AD8C333548FD30824ADEA54 /* Localizable.xcstrings */ = {isa = PBXFileReference; includeInIndex = 1; path = ../ios/LocalizedGreetingHomeWidget/Localizable.xcstrings; sourceTree = SOURCE_ROOT; };
+		8DFCA0BB23B89C53524130D7 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		90F887750A9B06BD9C9CD98C /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/LocalizedGreetingHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		9792FDED553159070FBC0EEB /* hw_font_icons_cupertinoicons__cupertino_icons.ttf */ = {isa = PBXFileReference; includeInIndex = 1; path = ../ios/FontAndIconsHomeWidget/hw_font_icons_cupertinoicons__cupertino_icons.ttf; sourceTree = SOURCE_ROOT; };
+		A09AF4285CAE43DE7BA3BD19 /* ForecastHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ForecastHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A25FFC28B3633E13E8283880 /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/GreetingHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		A9D4C11C6F72F77C5AD4B83F /* ThemedCounterHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ThemedCounterHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE39E6A6EEE078EE8FB22F20 /* NumberDateFormattingHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NumberDateFormattingHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF5A91BF9300132A677B9E71 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/FontAndIconsHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		BB45726AB27C07A14B67DB3F /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		BBA82BB25757DF9EA4FFBA1B /* AdaptiveGreetingHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AdaptiveGreetingHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3D16AC7B7C48BC5B96F92B0 /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ThemedCounterHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		DBE2CB96298977CFE7BA94F8 /* WidgetLinkHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WidgetLinkHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		DFE7D441E1625A864C6C713F /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; includeInIndex = 1; path = ../ios/FontAndIconsHomeWidget/hw_font_icons_materialicons.otf; sourceTree = SOURCE_ROOT; };
+		E67D1293692FE2FD4A670D91 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/SimpleDataHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		E68A2DDD91DDF3CF392448BA /* Widget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ForecastHomeWidget/Widget.swift; sourceTree = SOURCE_ROOT; };
+		E9205758B335A0A59D93AC9B /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/WeekForecastHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		EA87D75CC6DEB37B73C62C69 /* SimpleDataHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SimpleDataHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC3DCFAE28B152AAD78F74EE /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ConditionalStatusHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+		F125D7F6CDC8A7AB42BA1958 /* WeekForecastHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WeekForecastHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F4E5117AE32500F660B782E3 /* WidgetBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../ios/ThemedCounterHomeWidget/WidgetBundle.swift; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		09A44EFD6EDD76E489C0598C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4A19ACAB637E4E0B1EA544A2 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		15B6213A0D791DF4ACEBC5F6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34E0373B11DF13FD0755F19D /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		28DC5CF0D0768C28CF14BBFF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				863B7C25DDE0E6F1454BA515 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		33CC10EA2044A3C60003C045 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3E642C46A7903D7E61B930D3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D0A9C8D4A48CEE43E3B51DE /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4E8A6A5726F269D0FCB9BF91 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DCE42FCA4ABE4EC23AFE4A45 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		523C9B7733AF1F5B2BC81051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6D6E05F34B8ACADFF9910A6B /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		759B88DE0BE8C525AA65FCF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				369724EE1CFE9FB331C70CCA /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7C17D18630E407E000BF4C51 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				629F720D9FAD2652F34ED262 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9255ABCF83F0AF4C4DA69D7A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A9EE92B52A5EA8980623B3AE /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		93BFB227662A1800151ACC95 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				95F6ED1E603FA013B7FD89B8 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B2115EEB4F9A29999608122E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0EFA241E5A12B48C41F56F52 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B3033F4F788E7F1D38DAF6FB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B8B0059E2C561F16D6F32233 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B6DCD1258F425D42CEACA23C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94B787409A98B733EA25F0B0 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E048177C77BDBEB93041AEBD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8F827542BB386A69BE1DDD77 /* Cocoa.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		11B55152AECB4D81A90C2CA1 /* Widgets */ = {
+			isa = PBXGroup;
+			children = (
+				FA54AEB4578CEF99A7804C6C /* AdaptiveGreetingHomeWidget */,
+				F236386C5054A5F21CEBE2C5 /* BasicCreationHomeWidget */,
+				477242EF273918457CE3820A /* ConditionalStatusHomeWidget */,
+				7FB4E9119272E08C0C315727 /* FontAndIconsHomeWidget */,
+				129ED0B27A110F3E6556ACAA /* ForecastHomeWidget */,
+				B456B1F717786AAB432650F5 /* GreetingHomeWidget */,
+				36F61CAD34C75662E62E59C7 /* ImageShowcaseHomeWidget */,
+				5225BA1DE366461C2346C09E /* LocalizedGreetingHomeWidget */,
+				4A60F1D77FDA19BAB47BB833 /* NumberDateFormattingHomeWidget */,
+				A6218FF631090BD7E75FA907 /* SimpleDataHomeWidget */,
+				5D1C2851F82CA78BA7EB3BD2 /* SizeAdaptiveDashboardHomeWidget */,
+				21B27A2EFCFFEFA11C042A5F /* ThemedCounterHomeWidget */,
+				136C09BF97535FDE20258A0D /* WeekForecastHomeWidget */,
+				C092E57679A95D2DBDB8CA58 /* WidgetLinkHomeWidget */,
+			);
+			name = Widgets;
+			path = Widgets;
+			sourceTree = "<group>";
+		};
+		129ED0B27A110F3E6556ACAA /* ForecastHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				E68A2DDD91DDF3CF392448BA /* Widget.swift */,
+				86EFDAE8BCC0B1EF0CB021EE /* WidgetBundle.swift */,
+			);
+			name = ForecastHomeWidget;
+			path = ForecastHomeWidget;
+			sourceTree = "<group>";
+		};
+		136C09BF97535FDE20258A0D /* WeekForecastHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				3231791C98D97082A27FC37B /* Widget.swift */,
+				E9205758B335A0A59D93AC9B /* WidgetBundle.swift */,
+				41B62082E4A17A06E2555FD8 /* hw_font_icons_materialicons.otf */,
+			);
+			name = WeekForecastHomeWidget;
+			path = WeekForecastHomeWidget;
+			sourceTree = "<group>";
+		};
+		21B27A2EFCFFEFA11C042A5F /* ThemedCounterHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				D3D16AC7B7C48BC5B96F92B0 /* Widget.swift */,
+				F4E5117AE32500F660B782E3 /* WidgetBundle.swift */,
+			);
+			name = ThemedCounterHomeWidget;
+			path = ThemedCounterHomeWidget;
+			sourceTree = "<group>";
+		};
+		33BA886A226E78AF003329D5 /* Configs */ = {
+			isa = PBXGroup;
+			children = (
+				33E5194F232828860026EE4D /* AppInfo.xcconfig */,
+				9740EEB21CF90195004384FC /* Debug.xcconfig */,
+				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
+				333000ED22D3DE5D00554162 /* Warnings.xcconfig */,
+			);
+			path = Configs;
+			sourceTree = "<group>";
+		};
+		33CC10E42044A3C60003C045 = {
+			isa = PBXGroup;
+			children = (
+				33FAB671232836740065AC1E /* Runner */,
+				33CEB47122A05771004F2AC0 /* Flutter */,
+				33CC10EE2044A3C60003C045 /* Products */,
+				D73912EC22F37F3D000D13A0 /* Frameworks */,
+				11B55152AECB4D81A90C2CA1 /* Widgets */,
+			);
+			sourceTree = "<group>";
+		};
+		33CC10EE2044A3C60003C045 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				33CC10ED2044A3C60003C045 /* generator_basics.app */,
+				BBA82BB25757DF9EA4FFBA1B /* AdaptiveGreetingHomeWidget.appex */,
+				64308326A4F14F67A562C71B /* BasicCreationHomeWidget.appex */,
+				69DFAA62624B1D8BDF42322E /* ConditionalStatusHomeWidget.appex */,
+				54A0555B92A9BD5EB849904B /* FontAndIconsHomeWidget.appex */,
+				A09AF4285CAE43DE7BA3BD19 /* ForecastHomeWidget.appex */,
+				7E968CE67814B971824C5BC7 /* GreetingHomeWidget.appex */,
+				0BBB47CFE6ADB286AC79D0CE /* ImageShowcaseHomeWidget.appex */,
+				51D6101397A11A0989CAC69C /* LocalizedGreetingHomeWidget.appex */,
+				AE39E6A6EEE078EE8FB22F20 /* NumberDateFormattingHomeWidget.appex */,
+				EA87D75CC6DEB37B73C62C69 /* SimpleDataHomeWidget.appex */,
+				1451E74E419F9ACE70554655 /* SizeAdaptiveDashboardHomeWidget.appex */,
+				A9D4C11C6F72F77C5AD4B83F /* ThemedCounterHomeWidget.appex */,
+				F125D7F6CDC8A7AB42BA1958 /* WeekForecastHomeWidget.appex */,
+				DBE2CB96298977CFE7BA94F8 /* WidgetLinkHomeWidget.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		33CC11242044D66E0003C045 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				33CC10F22044A3C60003C045 /* Assets.xcassets */,
+				33CC10F42044A3C60003C045 /* MainMenu.xib */,
+				33CC10F72044A3C60003C045 /* Info.plist */,
+			);
+			name = Resources;
+			path = ..;
+			sourceTree = "<group>";
+		};
+		33CEB47122A05771004F2AC0 /* Flutter */ = {
+			isa = PBXGroup;
+			children = (
+				78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */,
+				335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */,
+				33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */,
+				33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */,
+				33CEB47722A0578A004F2AC0 /* Flutter-Generated.xcconfig */,
+			);
+			path = Flutter;
+			sourceTree = "<group>";
+		};
+		33FAB671232836740065AC1E /* Runner */ = {
+			isa = PBXGroup;
+			children = (
+				33CC10F02044A3C60003C045 /* AppDelegate.swift */,
+				33CC11122044BFA00003C045 /* MainFlutterWindow.swift */,
+				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
+				33E51914231749380026EE4D /* Release.entitlements */,
+				33CC11242044D66E0003C045 /* Resources */,
+				33BA886A226E78AF003329D5 /* Configs */,
+			);
+			path = Runner;
+			sourceTree = "<group>";
+		};
+		36F61CAD34C75662E62E59C7 /* ImageShowcaseHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				5E1BF798E6A3D4C4F1F75710 /* Widget.swift */,
+				57171488621BF20AB5591A10 /* WidgetBundle.swift */,
+			);
+			name = ImageShowcaseHomeWidget;
+			path = ImageShowcaseHomeWidget;
+			sourceTree = "<group>";
+		};
+		477242EF273918457CE3820A /* ConditionalStatusHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				440B8B6D793ADB9218ECE52E /* Widget.swift */,
+				EC3DCFAE28B152AAD78F74EE /* WidgetBundle.swift */,
+			);
+			name = ConditionalStatusHomeWidget;
+			path = ConditionalStatusHomeWidget;
+			sourceTree = "<group>";
+		};
+		4A60F1D77FDA19BAB47BB833 /* NumberDateFormattingHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				82426B4803B014CCD4C15B0A /* Widget.swift */,
+				6E2FDBE0951D7A91DF7C9F9E /* WidgetBundle.swift */,
+			);
+			name = NumberDateFormattingHomeWidget;
+			path = NumberDateFormattingHomeWidget;
+			sourceTree = "<group>";
+		};
+		5225BA1DE366461C2346C09E /* LocalizedGreetingHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				8AD8C333548FD30824ADEA54 /* Localizable.xcstrings */,
+				90F887750A9B06BD9C9CD98C /* Widget.swift */,
+				34EC2D3655F04C5B7E3F8E37 /* WidgetBundle.swift */,
+			);
+			name = LocalizedGreetingHomeWidget;
+			path = LocalizedGreetingHomeWidget;
+			sourceTree = "<group>";
+		};
+		5D1C2851F82CA78BA7EB3BD2 /* SizeAdaptiveDashboardHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				716F89E43FC67BCED19C8C79 /* Widget.swift */,
+				0472207D4E796B5E5E42AF7E /* WidgetBundle.swift */,
+			);
+			name = SizeAdaptiveDashboardHomeWidget;
+			path = SizeAdaptiveDashboardHomeWidget;
+			sourceTree = "<group>";
+		};
+		7FB4E9119272E08C0C315727 /* FontAndIconsHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				BB45726AB27C07A14B67DB3F /* Widget.swift */,
+				AF5A91BF9300132A677B9E71 /* WidgetBundle.swift */,
+				9792FDED553159070FBC0EEB /* hw_font_icons_cupertinoicons__cupertino_icons.ttf */,
+				5A55A6A6630406D1E16BEE9C /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf */,
+				DFE7D441E1625A864C6C713F /* hw_font_icons_materialicons.otf */,
+			);
+			name = FontAndIconsHomeWidget;
+			path = FontAndIconsHomeWidget;
+			sourceTree = "<group>";
+		};
+		A6218FF631090BD7E75FA907 /* SimpleDataHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				3A42DD6DD2AD24E56D43DFA4 /* Widget.swift */,
+				E67D1293692FE2FD4A670D91 /* WidgetBundle.swift */,
+			);
+			name = SimpleDataHomeWidget;
+			path = SimpleDataHomeWidget;
+			sourceTree = "<group>";
+		};
+		B456B1F717786AAB432650F5 /* GreetingHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				A25FFC28B3633E13E8283880 /* Widget.swift */,
+				7B0A3FC6B3EDB716CA547F55 /* WidgetBundle.swift */,
+			);
+			name = GreetingHomeWidget;
+			path = GreetingHomeWidget;
+			sourceTree = "<group>";
+		};
+		C092E57679A95D2DBDB8CA58 /* WidgetLinkHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				8725CF8BBB2132199A4C79EF /* Widget.swift */,
+				4E37239392DA983EAA0F4C92 /* WidgetBundle.swift */,
+			);
+			name = WidgetLinkHomeWidget;
+			path = WidgetLinkHomeWidget;
+			sourceTree = "<group>";
+		};
+		D6E3D5AA869332DA1337984D /* OS X */ = {
+			isa = PBXGroup;
+			children = (
+				8DFCA0BB23B89C53524130D7 /* Cocoa.framework */,
+			);
+			name = "OS X";
+			sourceTree = "<group>";
+		};
+		D73912EC22F37F3D000D13A0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D6E3D5AA869332DA1337984D /* OS X */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		F236386C5054A5F21CEBE2C5 /* BasicCreationHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				16C049145C97172528618F6B /* Widget.swift */,
+				05B6E734088A6393533D0730 /* WidgetBundle.swift */,
+			);
+			name = BasicCreationHomeWidget;
+			path = BasicCreationHomeWidget;
+			sourceTree = "<group>";
+		};
+		FA54AEB4578CEF99A7804C6C /* AdaptiveGreetingHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				1F15590397EB1A557141D6BD /* Widget.swift */,
+				5307BBE66D5DC7A718752566 /* WidgetBundle.swift */,
+			);
+			name = AdaptiveGreetingHomeWidget;
+			path = AdaptiveGreetingHomeWidget;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0E5A62512AA90D5B3351ED38 /* FontAndIconsHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C76C3BEAA8EFE4FBC4FFABCF /* Build configuration list for PBXNativeTarget "FontAndIconsHomeWidget" */;
+			buildPhases = (
+				B07D487F9EB78B09D51E425B /* Sources */,
+				9255ABCF83F0AF4C4DA69D7A /* Frameworks */,
+				092FFDFD8BE7A1E533154822 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FontAndIconsHomeWidget;
+			productName = FontAndIconsHomeWidget;
+			productReference = 54A0555B92A9BD5EB849904B /* FontAndIconsHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		1099D1190954F227F18643D7 /* ConditionalStatusHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5040034A2F807C38616357AE /* Build configuration list for PBXNativeTarget "ConditionalStatusHomeWidget" */;
+			buildPhases = (
+				270E6BF3BCA97737A7084805 /* Sources */,
+				28DC5CF0D0768C28CF14BBFF /* Frameworks */,
+				287A934986B1814DA2655291 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ConditionalStatusHomeWidget;
+			productName = ConditionalStatusHomeWidget;
+			productReference = 69DFAA62624B1D8BDF42322E /* ConditionalStatusHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		2C30A1213440F0ED92F09CB0 /* LocalizedGreetingHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6604EA50BB190255DD32D6CF /* Build configuration list for PBXNativeTarget "LocalizedGreetingHomeWidget" */;
+			buildPhases = (
+				2A3221B354F7AF5254039FB2 /* Sources */,
+				7C17D18630E407E000BF4C51 /* Frameworks */,
+				A63472C3FFE3BE91BFEAAD5E /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LocalizedGreetingHomeWidget;
+			productName = LocalizedGreetingHomeWidget;
+			productReference = 51D6101397A11A0989CAC69C /* LocalizedGreetingHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		2DBF7B4E03808EFDFCCDA258 /* ThemedCounterHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 04132A78DADAEB8EDA2C8FF7 /* Build configuration list for PBXNativeTarget "ThemedCounterHomeWidget" */;
+			buildPhases = (
+				169E2CE90CAE9A871D8BD3DF /* Sources */,
+				B2115EEB4F9A29999608122E /* Frameworks */,
+				910500050923BEFD69F6C621 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ThemedCounterHomeWidget;
+			productName = ThemedCounterHomeWidget;
+			productReference = A9D4C11C6F72F77C5AD4B83F /* ThemedCounterHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		2DED747F1D7C90E02F9168E1 /* WeekForecastHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2995B19B5E5C13F3807A3E84 /* Build configuration list for PBXNativeTarget "WeekForecastHomeWidget" */;
+			buildPhases = (
+				1BB33F7BE3EB08179242D844 /* Sources */,
+				759B88DE0BE8C525AA65FCF3 /* Frameworks */,
+				C16CFEADB405C3D6B4A58745 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WeekForecastHomeWidget;
+			productName = WeekForecastHomeWidget;
+			productReference = F125D7F6CDC8A7AB42BA1958 /* WeekForecastHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		33CC10EC2044A3C60003C045 /* Runner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 33CC10FB2044A3C60003C045 /* Build configuration list for PBXNativeTarget "Runner" */;
+			buildPhases = (
+				33CC10E92044A3C60003C045 /* Sources */,
+				33CC10EA2044A3C60003C045 /* Frameworks */,
+				3B78B111CCB137A0CF663769 /* Embed App Extensions */,
+				33CC10EB2044A3C60003C045 /* Resources */,
+				33CC110E2044A8840003C045 /* Bundle Framework */,
+				3399D490228B24CF009A79C7 /* ShellScript */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				33CC11202044C79F0003C045 /* PBXTargetDependency */,
+				36A96CAD410FFBE6F8EE6C12 /* PBXTargetDependency */,
+				21AAD6D303D6E665EAE30EB5 /* PBXTargetDependency */,
+				F1272196A0B69979546EF622 /* PBXTargetDependency */,
+				61DADE7A7B43CD9BE2E5D609 /* PBXTargetDependency */,
+				0108F7ECFB973A6A913602FF /* PBXTargetDependency */,
+				1458232F423C3A15DD97CEE5 /* PBXTargetDependency */,
+				0E39D3820857743E467BBA0B /* PBXTargetDependency */,
+				D0A9FFE693A107A9F571D818 /* PBXTargetDependency */,
+				2DD54044E0EAD1D68FCAE710 /* PBXTargetDependency */,
+				9CF9342AE7CE109B54DB9252 /* PBXTargetDependency */,
+				024E1F0AE34DDA46230B24DE /* PBXTargetDependency */,
+				210DF4047F05FB4C9C656D4C /* PBXTargetDependency */,
+				5DE3781B6005FF7EEB7A3827 /* PBXTargetDependency */,
+				CE42858F24D0E12E486D7388 /* PBXTargetDependency */,
+			);
+			name = Runner;
+			packageProductDependencies = (
+				78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */,
+			);
+			productName = Runner;
+			productReference = 33CC10ED2044A3C60003C045 /* generator_basics.app */;
+			productType = "com.apple.product-type.application";
+		};
+		34BFF810A5C85E287B51D7AD /* WidgetLinkHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3DFDD3FC32D2C69BFC70172B /* Build configuration list for PBXNativeTarget "WidgetLinkHomeWidget" */;
+			buildPhases = (
+				2E4DB1469D5971602548178D /* Sources */,
+				B3033F4F788E7F1D38DAF6FB /* Frameworks */,
+				7D344793DF09D1729975E719 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = WidgetLinkHomeWidget;
+			productName = WidgetLinkHomeWidget;
+			productReference = DBE2CB96298977CFE7BA94F8 /* WidgetLinkHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		3B7299498B6363962AEB1CFA /* ForecastHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C4EA6A9C4D6D68B10675A063 /* Build configuration list for PBXNativeTarget "ForecastHomeWidget" */;
+			buildPhases = (
+				E59C974EFC2E284F394CAD92 /* Sources */,
+				15B6213A0D791DF4ACEBC5F6 /* Frameworks */,
+				9D94E087C64ED69CE82801A5 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ForecastHomeWidget;
+			productName = ForecastHomeWidget;
+			productReference = A09AF4285CAE43DE7BA3BD19 /* ForecastHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		434B472A8DBB6C9B777A97DF /* SimpleDataHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2E162CE62E8057219B750B55 /* Build configuration list for PBXNativeTarget "SimpleDataHomeWidget" */;
+			buildPhases = (
+				DE3D77F7E96D48418A917B43 /* Sources */,
+				E048177C77BDBEB93041AEBD /* Frameworks */,
+				1CE6DCFAAF2B4F02F4F80502 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SimpleDataHomeWidget;
+			productName = SimpleDataHomeWidget;
+			productReference = EA87D75CC6DEB37B73C62C69 /* SimpleDataHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		5514BBCB9360BC4D61221EA0 /* AdaptiveGreetingHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F2ADA5C94480D2C02BBE7EB1 /* Build configuration list for PBXNativeTarget "AdaptiveGreetingHomeWidget" */;
+			buildPhases = (
+				ACD45A663DCEF49284F3CE44 /* Sources */,
+				93BFB227662A1800151ACC95 /* Frameworks */,
+				FB7D76BC5FE4262E47498D60 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AdaptiveGreetingHomeWidget;
+			productName = AdaptiveGreetingHomeWidget;
+			productReference = BBA82BB25757DF9EA4FFBA1B /* AdaptiveGreetingHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		6BA3457A863BFA3EA42E3425 /* BasicCreationHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B1FBB192A19DB3F7D8BE373A /* Build configuration list for PBXNativeTarget "BasicCreationHomeWidget" */;
+			buildPhases = (
+				6D9D178CF49065A5DFE27010 /* Sources */,
+				3E642C46A7903D7E61B930D3 /* Frameworks */,
+				77265BA4A213E6551CD5ADB8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BasicCreationHomeWidget;
+			productName = BasicCreationHomeWidget;
+			productReference = 64308326A4F14F67A562C71B /* BasicCreationHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		8646F9696361DC72E8731FA7 /* NumberDateFormattingHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 418610E72C714A82BC1DC361 /* Build configuration list for PBXNativeTarget "NumberDateFormattingHomeWidget" */;
+			buildPhases = (
+				D7B9FA4F72476DDB6AB9CBE6 /* Sources */,
+				4E8A6A5726F269D0FCB9BF91 /* Frameworks */,
+				AC0E1A4D2563C6C610DA125F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NumberDateFormattingHomeWidget;
+			productName = NumberDateFormattingHomeWidget;
+			productReference = AE39E6A6EEE078EE8FB22F20 /* NumberDateFormattingHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		ADEA011021EC7442AE8FD282 /* SizeAdaptiveDashboardHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A61BA0D91E2978F35B92BA20 /* Build configuration list for PBXNativeTarget "SizeAdaptiveDashboardHomeWidget" */;
+			buildPhases = (
+				77D12AA80815E6C692F61C98 /* Sources */,
+				523C9B7733AF1F5B2BC81051 /* Frameworks */,
+				72D5C11FF600641EBA82972D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SizeAdaptiveDashboardHomeWidget;
+			productName = SizeAdaptiveDashboardHomeWidget;
+			productReference = 1451E74E419F9ACE70554655 /* SizeAdaptiveDashboardHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		D976A5DC49B0E7A76A0B36F5 /* ImageShowcaseHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 59096FDFB67732F33DDF0FD3 /* Build configuration list for PBXNativeTarget "ImageShowcaseHomeWidget" */;
+			buildPhases = (
+				01EA4CB6F2300EFB0F49FBD0 /* Sources */,
+				B6DCD1258F425D42CEACA23C /* Frameworks */,
+				A172EE441897ED3EE954C861 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ImageShowcaseHomeWidget;
+			productName = ImageShowcaseHomeWidget;
+			productReference = 0BBB47CFE6ADB286AC79D0CE /* ImageShowcaseHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		EE6DF2423F2E774660D4FD70 /* GreetingHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 07C24637770268B636BE2194 /* Build configuration list for PBXNativeTarget "GreetingHomeWidget" */;
+			buildPhases = (
+				3FE33AE37104A2C67D4E032A /* Sources */,
+				09A44EFD6EDD76E489C0598C /* Frameworks */,
+				BBDE3E786EBA1DDF46605B2A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GreetingHomeWidget;
+			productName = GreetingHomeWidget;
+			productReference = 7E968CE67814B971824C5BC7 /* GreetingHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		33CC10E52044A3C60003C045 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 0920;
+				LastUpgradeCheck = 1510;
+				ORGANIZATIONNAME = "";
+				TargetAttributes = {
+					33CC10EC2044A3C60003C045 = {
+						CreatedOnToolsVersion = 9.2;
+						LastSwiftMigration = 1100;
+						ProvisioningStyle = Automatic;
+						SystemCapabilities = {
+							com.apple.Sandbox = {
+								enabled = 1;
+							};
+						};
+					};
+					33CC111A2044C6BA0003C045 = {
+						CreatedOnToolsVersion = 9.2;
+						ProvisioningStyle = Manual;
+					};
+				};
+			};
+			buildConfigurationList = 33CC10E82044A3C60003C045 /* Build configuration list for PBXProject "Runner" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 33CC10E42044A3C60003C045;
+			packageReferences = (
+				781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */,
+			);
+			productRefGroup = 33CC10EE2044A3C60003C045 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				33CC10EC2044A3C60003C045 /* Runner */,
+				33CC111A2044C6BA0003C045 /* Flutter Assemble */,
+				5514BBCB9360BC4D61221EA0 /* AdaptiveGreetingHomeWidget */,
+				6BA3457A863BFA3EA42E3425 /* BasicCreationHomeWidget */,
+				1099D1190954F227F18643D7 /* ConditionalStatusHomeWidget */,
+				0E5A62512AA90D5B3351ED38 /* FontAndIconsHomeWidget */,
+				3B7299498B6363962AEB1CFA /* ForecastHomeWidget */,
+				EE6DF2423F2E774660D4FD70 /* GreetingHomeWidget */,
+				D976A5DC49B0E7A76A0B36F5 /* ImageShowcaseHomeWidget */,
+				2C30A1213440F0ED92F09CB0 /* LocalizedGreetingHomeWidget */,
+				8646F9696361DC72E8731FA7 /* NumberDateFormattingHomeWidget */,
+				434B472A8DBB6C9B777A97DF /* SimpleDataHomeWidget */,
+				ADEA011021EC7442AE8FD282 /* SizeAdaptiveDashboardHomeWidget */,
+				2DBF7B4E03808EFDFCCDA258 /* ThemedCounterHomeWidget */,
+				2DED747F1D7C90E02F9168E1 /* WeekForecastHomeWidget */,
+				34BFF810A5C85E287B51D7AD /* WidgetLinkHomeWidget */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		092FFDFD8BE7A1E533154822 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D45F1A63B7703CCE89FA6D70 /* hw_font_icons_cupertinoicons__cupertino_icons.ttf in Resources */,
+				EABDA4896F48254DCDE2DAFC /* hw_font_icons_fontawesomesolid__font_awesome_flutter.otf in Resources */,
+				4855562F4563E3ECEBBBECF8 /* hw_font_icons_materialicons.otf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1CE6DCFAAF2B4F02F4F80502 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		287A934986B1814DA2655291 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		33CC10EB2044A3C60003C045 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */,
+				33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		72D5C11FF600641EBA82972D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		77265BA4A213E6551CD5ADB8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7D344793DF09D1729975E719 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		910500050923BEFD69F6C621 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9D94E087C64ED69CE82801A5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A172EE441897ED3EE954C861 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A63472C3FFE3BE91BFEAAD5E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				889E17299DE184AFA958523F /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC0E1A4D2563C6C610DA125F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BBDE3E786EBA1DDF46605B2A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C16CFEADB405C3D6B4A58745 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				772710BB1C5462A9F520CFE0 /* hw_font_icons_materialicons.otf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FB7D76BC5FE4262E47498D60 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		3399D490228B24CF009A79C7 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "echo \"$PRODUCT_NAME.app\" > \"$PROJECT_DIR\"/Flutter/ephemeral/.app_filename && \"$FLUTTER_ROOT\"/packages/flutter_tools/bin/macos_assemble.sh embed\n";
+		};
+		33CC111E2044C6BF0003C045 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				Flutter/ephemeral/FlutterInputs.xcfilelist,
+			);
+			inputPaths = (
+				Flutter/ephemeral/tripwire,
+			);
+			outputFileListPaths = (
+				Flutter/ephemeral/FlutterOutputs.xcfilelist,
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$FLUTTER_ROOT\"/packages/flutter_tools/bin/macos_assemble.sh && touch Flutter/ephemeral/tripwire";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		01EA4CB6F2300EFB0F49FBD0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				232D043828F37771BEDB0568 /* Widget.swift in Sources */,
+				C45359484E95954EC8BEBC87 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		169E2CE90CAE9A871D8BD3DF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				15D3072D5B96F3A9A3F4680B /* Widget.swift in Sources */,
+				5D7A71C1E7D444982BF7EE0F /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1BB33F7BE3EB08179242D844 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5390AC5EF4592CA14010D6C2 /* Widget.swift in Sources */,
+				4DE7FAA112C5ACCC8C69F2C1 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		270E6BF3BCA97737A7084805 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2A399CA6104A138E44046510 /* Widget.swift in Sources */,
+				49641A730F693735EDDA9E14 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2A3221B354F7AF5254039FB2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				53B9B48A104BF3275B404A4D /* Widget.swift in Sources */,
+				E69566F4A435E015A9FCDE57 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2E4DB1469D5971602548178D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C11119AB8F007A6521C15B98 /* Widget.swift in Sources */,
+				0412F1A04F6D78A377A9AAC9 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		33CC10E92044A3C60003C045 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				33CC11132044BFA00003C045 /* MainFlutterWindow.swift in Sources */,
+				33CC10F12044A3C60003C045 /* AppDelegate.swift in Sources */,
+				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3FE33AE37104A2C67D4E032A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4E37CF4305CFBE23C06428B5 /* Widget.swift in Sources */,
+				41C8B23C2A91C1D2029F227C /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6D9D178CF49065A5DFE27010 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0D8AE66D6FA3673689A2C8AE /* Widget.swift in Sources */,
+				00F7F6E0807761A2B104E76D /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		77D12AA80815E6C692F61C98 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				56D53686CA617C38D999AC11 /* Widget.swift in Sources */,
+				AE6D398BEB6425FA6321AE69 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ACD45A663DCEF49284F3CE44 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F7E3A447FAC90DAB42FD1CEA /* Widget.swift in Sources */,
+				49D50C73F1B692BC8E308AD9 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B07D487F9EB78B09D51E425B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				58EB039A18EBE4365B7E9866 /* Widget.swift in Sources */,
+				EA45E6C9D435489BE1050E19 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D7B9FA4F72476DDB6AB9CBE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3B0D4954CDD6A8A4256FE957 /* Widget.swift in Sources */,
+				D5F4143CDDC9A3320A5D58B8 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DE3D77F7E96D48418A917B43 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CDEF7191802FD1EAAABAD26D /* Widget.swift in Sources */,
+				15F52F7C1234FB6E8EED71CF /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E59C974EFC2E284F394CAD92 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CCF9BD89E6E13BB756059D62 /* Widget.swift in Sources */,
+				2DDEADE22B573C6C89F94BD8 /* WidgetBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0108F7ECFB973A6A913602FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ForecastHomeWidget;
+			target = 3B7299498B6363962AEB1CFA /* ForecastHomeWidget */;
+			targetProxy = DB14E3B8BA1E92C05418929A /* PBXContainerItemProxy */;
+		};
+		024E1F0AE34DDA46230B24DE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = SizeAdaptiveDashboardHomeWidget;
+			target = ADEA011021EC7442AE8FD282 /* SizeAdaptiveDashboardHomeWidget */;
+			targetProxy = D6B2F37C10DC2495C3322AEA /* PBXContainerItemProxy */;
+		};
+		0E39D3820857743E467BBA0B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ImageShowcaseHomeWidget;
+			target = D976A5DC49B0E7A76A0B36F5 /* ImageShowcaseHomeWidget */;
+			targetProxy = AEF3C20A84204A2D711900C8 /* PBXContainerItemProxy */;
+		};
+		1458232F423C3A15DD97CEE5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = GreetingHomeWidget;
+			target = EE6DF2423F2E774660D4FD70 /* GreetingHomeWidget */;
+			targetProxy = E6E465BD4B436C20DD90CA61 /* PBXContainerItemProxy */;
+		};
+		210DF4047F05FB4C9C656D4C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ThemedCounterHomeWidget;
+			target = 2DBF7B4E03808EFDFCCDA258 /* ThemedCounterHomeWidget */;
+			targetProxy = 11C941009D4359E74913CED3 /* PBXContainerItemProxy */;
+		};
+		21AAD6D303D6E665EAE30EB5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = BasicCreationHomeWidget;
+			target = 6BA3457A863BFA3EA42E3425 /* BasicCreationHomeWidget */;
+			targetProxy = 1466F2A7E689770768C8E99D /* PBXContainerItemProxy */;
+		};
+		2DD54044E0EAD1D68FCAE710 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = NumberDateFormattingHomeWidget;
+			target = 8646F9696361DC72E8731FA7 /* NumberDateFormattingHomeWidget */;
+			targetProxy = A591EEC96A72B15048787E47 /* PBXContainerItemProxy */;
+		};
+		33CC11202044C79F0003C045 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 33CC111A2044C6BA0003C045 /* Flutter Assemble */;
+			targetProxy = 33CC111F2044C79F0003C045 /* PBXContainerItemProxy */;
+		};
+		36A96CAD410FFBE6F8EE6C12 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = AdaptiveGreetingHomeWidget;
+			target = 5514BBCB9360BC4D61221EA0 /* AdaptiveGreetingHomeWidget */;
+			targetProxy = 4C9121C16570DDED67FB3BEF /* PBXContainerItemProxy */;
+		};
+		5DE3781B6005FF7EEB7A3827 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = WeekForecastHomeWidget;
+			target = 2DED747F1D7C90E02F9168E1 /* WeekForecastHomeWidget */;
+			targetProxy = F4358CFA9E83AFD1E9665223 /* PBXContainerItemProxy */;
+		};
+		61DADE7A7B43CD9BE2E5D609 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = FontAndIconsHomeWidget;
+			target = 0E5A62512AA90D5B3351ED38 /* FontAndIconsHomeWidget */;
+			targetProxy = ABE590B46B97857A54DE9A8D /* PBXContainerItemProxy */;
+		};
+		9CF9342AE7CE109B54DB9252 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = SimpleDataHomeWidget;
+			target = 434B472A8DBB6C9B777A97DF /* SimpleDataHomeWidget */;
+			targetProxy = B5B9A1EC69A8F1391DF61401 /* PBXContainerItemProxy */;
+		};
+		CE42858F24D0E12E486D7388 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = WidgetLinkHomeWidget;
+			target = 34BFF810A5C85E287B51D7AD /* WidgetLinkHomeWidget */;
+			targetProxy = 41DE0B25D0F9B49B057B3D83 /* PBXContainerItemProxy */;
+		};
+		D0A9FFE693A107A9F571D818 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = LocalizedGreetingHomeWidget;
+			target = 2C30A1213440F0ED92F09CB0 /* LocalizedGreetingHomeWidget */;
+			targetProxy = 0C18B067F31C2D05F479C3E4 /* PBXContainerItemProxy */;
+		};
+		F1272196A0B69979546EF622 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = ConditionalStatusHomeWidget;
+			target = 1099D1190954F227F18643D7 /* ConditionalStatusHomeWidget */;
+			targetProxy = F0A8E618802DE7E266AC2196 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		33CC10F42044A3C60003C045 /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				33CC10F52044A3C60003C045 /* Base */,
+			);
+			name = MainMenu.xib;
+			path = Runner;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		0E2B6C1B4EA0D4B3AAA8A106 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.WidgetLinkHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		11488E357E46F7AF801E6DAA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.BasicCreationHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		15CD22F2FE579DB2A1CC69DA /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ThemedCounterHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		204441CDA4B092E1FA5B6D05 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.SimpleDataHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		338D0CE9231458BD00FA5F75 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Profile;
+		};
+		338D0CEA231458BD00FA5F75 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 33E5194F232828860026EE4D /* AppInfo.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/DebugProfile.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Runner/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		338D0CEB231458BD00FA5F75 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Profile;
+		};
+		33CC10F92044A3C60003C045 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		33CC10FA2044A3C60003C045 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		33CC10FC2044A3C60003C045 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 33E5194F232828860026EE4D /* AppInfo.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/DebugProfile.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Runner/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		33CC10FD2044A3C60003C045 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 33E5194F232828860026EE4D /* AppInfo.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = Runner/Release.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = Runner/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		33CC111C2044C6BA0003C045 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Manual;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		33CC111D2044C6BA0003C045 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		34E1ACFB1B627A383757F1AE /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.AdaptiveGreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		35BC01CFF49CB9FD871803EB /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		36002B2AEA120CB0265E6CBE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.GreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		42E85DBDFB117C1A70772DD5 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		483D08799BE584771BF63147 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.GreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		5718CF919BD122C075D6FF34 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.FontAndIconsHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		5AD4089721719871A39A4AE6 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.GreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		6B336E34D9602490816C6F13 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.AdaptiveGreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		706E9D8C137AFFE4D7F1629F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.WidgetLinkHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		74DA2CC4A4DF7F6E6F4E8F23 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ThemedCounterHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		77F5CAF7958913716706F3AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ConditionalStatusHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7E0B1AB41610E5E5E353C0A3 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ConditionalStatusHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		823CE358889952A328463450 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.SizeAdaptiveDashboardHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		89617C8533028EC96BE2D44A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.SimpleDataHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8E7A42D7374E674F356910A1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.SizeAdaptiveDashboardHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		912C9859A67EDBA3FD1C5246 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ImageShowcaseHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		9B8208C1D4F999254FA7923C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ImageShowcaseHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A07A29FF63BE638408EF3A75 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ThemedCounterHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A173E81AF0931D0AE23FC918 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A2CCCAE66DE3FAFAEEA5B01E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.AdaptiveGreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A4C46D65C3BD5D46E1EF4571 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.NumberDateFormattingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AD6BAA5C5812F3127189E844 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.WidgetLinkHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		B001BC4938DAA88CD60D3100 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.FontAndIconsHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BBBDEB27C04A95B5AD2B45B2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.SimpleDataHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		BCD32496EFCE3914488EB3FF /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.NumberDateFormattingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		C2A81D8AF97E7FB3D8AE08D9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ImageShowcaseHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D5D24205E2970FD796B514E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.LocalizedGreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D71A463FC35B28F51145BDBD /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.WeekForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		D877E18ED3ECF838A60781BE /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.LocalizedGreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		DD811E530C346C52835EA12E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.BasicCreationHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E3406F6DFC21BA2B158986BE /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.SizeAdaptiveDashboardHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		E44C9DED5FF0A3AB1C5A1DAE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.FontAndIconsHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E5A8B223856695497AA30F12 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.WeekForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E5B2DF7B3FA31A5D976FAA41 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.NumberDateFormattingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E6CC9C55C3C5F57F55D50472 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.BasicCreationHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
+		EBB22415C0650C23475790F3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.LocalizedGreetingHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F0154D2D4331C4687A785B5E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.WeekForecastHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		FA5814A9188B4BB51FC5D75D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Widgets/Widgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				INFOPLIST_FILE = Widgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				OTHER_LDFLAGS = "";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos.ConditionalStatusHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		04132A78DADAEB8EDA2C8FF7 /* Build configuration list for PBXNativeTarget "ThemedCounterHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A07A29FF63BE638408EF3A75 /* Release */,
+				74DA2CC4A4DF7F6E6F4E8F23 /* Debug */,
+				15CD22F2FE579DB2A1CC69DA /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		07C24637770268B636BE2194 /* Build configuration list for PBXNativeTarget "GreetingHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				36002B2AEA120CB0265E6CBE /* Release */,
+				483D08799BE584771BF63147 /* Debug */,
+				5AD4089721719871A39A4AE6 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2995B19B5E5C13F3807A3E84 /* Build configuration list for PBXNativeTarget "WeekForecastHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F0154D2D4331C4687A785B5E /* Release */,
+				E5A8B223856695497AA30F12 /* Debug */,
+				D71A463FC35B28F51145BDBD /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2E162CE62E8057219B750B55 /* Build configuration list for PBXNativeTarget "SimpleDataHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BBBDEB27C04A95B5AD2B45B2 /* Release */,
+				89617C8533028EC96BE2D44A /* Debug */,
+				204441CDA4B092E1FA5B6D05 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		33CC10E82044A3C60003C045 /* Build configuration list for PBXProject "Runner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				33CC10F92044A3C60003C045 /* Debug */,
+				33CC10FA2044A3C60003C045 /* Release */,
+				338D0CE9231458BD00FA5F75 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		33CC10FB2044A3C60003C045 /* Build configuration list for PBXNativeTarget "Runner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				33CC10FC2044A3C60003C045 /* Debug */,
+				33CC10FD2044A3C60003C045 /* Release */,
+				338D0CEA231458BD00FA5F75 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		33CC111B2044C6BA0003C045 /* Build configuration list for PBXAggregateTarget "Flutter Assemble" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				33CC111C2044C6BA0003C045 /* Debug */,
+				33CC111D2044C6BA0003C045 /* Release */,
+				338D0CEB231458BD00FA5F75 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3DFDD3FC32D2C69BFC70172B /* Build configuration list for PBXNativeTarget "WidgetLinkHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0E2B6C1B4EA0D4B3AAA8A106 /* Release */,
+				706E9D8C137AFFE4D7F1629F /* Debug */,
+				AD6BAA5C5812F3127189E844 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		418610E72C714A82BC1DC361 /* Build configuration list for PBXNativeTarget "NumberDateFormattingHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E5B2DF7B3FA31A5D976FAA41 /* Release */,
+				A4C46D65C3BD5D46E1EF4571 /* Debug */,
+				BCD32496EFCE3914488EB3FF /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5040034A2F807C38616357AE /* Build configuration list for PBXNativeTarget "ConditionalStatusHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FA5814A9188B4BB51FC5D75D /* Release */,
+				77F5CAF7958913716706F3AE /* Debug */,
+				7E0B1AB41610E5E5E353C0A3 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		59096FDFB67732F33DDF0FD3 /* Build configuration list for PBXNativeTarget "ImageShowcaseHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C2A81D8AF97E7FB3D8AE08D9 /* Release */,
+				9B8208C1D4F999254FA7923C /* Debug */,
+				912C9859A67EDBA3FD1C5246 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6604EA50BB190255DD32D6CF /* Build configuration list for PBXNativeTarget "LocalizedGreetingHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D5D24205E2970FD796B514E2 /* Release */,
+				EBB22415C0650C23475790F3 /* Debug */,
+				D877E18ED3ECF838A60781BE /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A61BA0D91E2978F35B92BA20 /* Build configuration list for PBXNativeTarget "SizeAdaptiveDashboardHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				823CE358889952A328463450 /* Release */,
+				8E7A42D7374E674F356910A1 /* Debug */,
+				E3406F6DFC21BA2B158986BE /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B1FBB192A19DB3F7D8BE373A /* Build configuration list for PBXNativeTarget "BasicCreationHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				11488E357E46F7AF801E6DAA /* Release */,
+				DD811E530C346C52835EA12E /* Debug */,
+				E6CC9C55C3C5F57F55D50472 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C4EA6A9C4D6D68B10675A063 /* Build configuration list for PBXNativeTarget "ForecastHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				35BC01CFF49CB9FD871803EB /* Release */,
+				A173E81AF0931D0AE23FC918 /* Debug */,
+				42E85DBDFB117C1A70772DD5 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C76C3BEAA8EFE4FBC4FFABCF /* Build configuration list for PBXNativeTarget "FontAndIconsHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B001BC4938DAA88CD60D3100 /* Release */,
+				E44C9DED5FF0A3AB1C5A1DAE /* Debug */,
+				5718CF919BD122C075D6FF34 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F2ADA5C94480D2C02BBE7EB1 /* Build configuration list for PBXNativeTarget "AdaptiveGreetingHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A2CCCAE66DE3FAFAEEA5B01E /* Release */,
+				6B336E34D9602490816C6F13 /* Debug */,
+				34E1ACFB1B627A383757F1AE /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		781AD8BC2B33823900A9FFBB /* XCLocalSwiftPackageReference "FlutterGeneratedPluginSwiftPackage" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlutterGeneratedPluginSwiftPackage;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 33CC10E52044A3C60003C045 /* Project object */;
+}

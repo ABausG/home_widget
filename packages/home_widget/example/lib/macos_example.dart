@@ -6,16 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 
-void main() => runApp(const MacOSExample());
-
-/// The macOS embedder resolves named entrypoints only in this root library.
-@pragma('vm:entry-point')
-Future<void> homeWidgetBackgroundMain() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await HomeWidget.registerInteractivityCallback(macOSBackgroundCallback);
-  await callbackDispatcher();
-}
-
 @pragma('vm:entry-point')
 Future<void> macOSBackgroundCallback(Uri? uri) async {
   if (uri?.host != 'increment') return;
@@ -187,6 +177,32 @@ class _MacOSExampleState extends State<MacOSExample> {
     }
   }
 
+  Future<void> _changeCounter({required bool reset}) async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      if (reset) {
+        await HomeWidget.saveWidgetData(
+          'example_counter',
+          0,
+          appGroupId: _group,
+        );
+        await _refreshMacOSWidgets();
+      } else {
+        await macOSBackgroundCallback(
+          Uri.parse('homewidget-macos://increment'),
+        );
+      }
+      await _readImages();
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _readWidgets() async {
     setState(() {
       _busy = true;
@@ -252,7 +268,7 @@ class _MacOSExampleState extends State<MacOSExample> {
                   if (_group == null && !_busy)
                     const Text(
                       'Configure one matching App Group for the app and widget '
-                      'to share images. See the example README.',
+                      'to share data and images. See the example README.',
                       textAlign: TextAlign.center,
                     ),
                   FilledButton(
@@ -264,6 +280,24 @@ class _MacOSExampleState extends State<MacOSExample> {
                     child: const Text('Read shared data'),
                   ),
                   Text('Widget counter: $_counter'),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilledButton.tonalIcon(
+                        onPressed: _busy || _group == null
+                            ? null
+                            : () => _changeCounter(reset: false),
+                        icon: const Icon(Icons.add),
+                        label: const Text('Increment counter'),
+                      ),
+                      TextButton(
+                        onPressed: _busy || _group == null
+                            ? null
+                            : () => _changeCounter(reset: true),
+                        child: const Text('Reset counter'),
+                      ),
+                    ],
+                  ),
                   TextButton(
                     onPressed: _busy ? null : _readWidgets,
                     child: const Text('Read widget configurations'),

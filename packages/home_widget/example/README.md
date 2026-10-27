@@ -4,21 +4,20 @@ Demonstrates how to use the home_widget plugin.
 
 ## macOS example
 
-Run this example with `flutter run -d macos --target lib/main_macos.dart`.
-The dedicated macOS entry starts without Workmanager. The macOS Xcode configurations select
-the same entry; keep `--target lib/main_macos.dart` when using Flutter CLI tools.
+Run this example with `flutter run -d macos`.
+All platforms use `lib/main.dart`. Workmanager is initialized only on Android and iOS.
 The embedded `HomeWidgetExampleExtension` displays shared data, PNG images and
 Flutter screenshots, handles Widget URLs and runs background counter buttons.
 The app reads shared data and installed widget configurations.
 
 Build a Release app with
-`flutter build macos --release --target lib/main_macos.dart`.
+`flutter build macos --release`.
 
 Open `macos/Runner.xcworkspace` in Xcode and select your signing team for the
 Runner and HomeWidgetExampleExtension targets. Use your own matching bundle
 identifiers (the extension identifier must start with the host identifier).
 Without an App Group, the app shows setup instructions and the widget displays
-Ready. To share images, add **one matching App Group** to both targets in
+**Configure App Group**. To share data and images, add **one matching App Group** to both targets in
 Signing & Capabilities. Ensure it is present in the host's Debug and Release
 entitlements and the Widget Extension's entitlements. The demo selects the first
 signed App Group in each process, so use just one group in this example; no
@@ -84,8 +83,13 @@ On macOS 14+, also add **HomeWidget macOS Configurable**. Open **Edit Widget**,
 change **Name**, then select **Read widget configurations** in the app. The
 configuration contains the edited name. Both widgets share the same images and
 counter; the original **HomeWidget macOS** remains a static configuration.
-Select **Read shared data** after using either Count button to update the app's
-copy of the counter.
+In the app, select **Increment counter** to add one or **Reset counter** to
+set the shared count to zero. Both actions refresh both widget kinds.
+Select **Read shared data** after using either widget's Count button to update
+the app's copy of the counter. These controls require a configured App Group.
+Without an App Group, the widget shows **Configure App Group** and hides its
+Count button. Counting is shared data; the configurable widget’s Name setting
+does not set the count.
 
 The example compiles [HomeWidgetConfiguration](macos/Runner/WidgetConfiguration.swift)
 into both the host and extension and registers its lookup in AppDelegate before
@@ -150,15 +154,17 @@ register the callback after `HomeWidget.setAppGroupId`. The host must also call
 engine. This example uses `RegisterGeneratedPlugins`.
 
 The macOS embedder resolves named Dart entrypoints in the selected root library.
-Keep this wrapper in `lib/main_macos.dart` (or your own build's root entry file),
+Keep this wrapper in `lib/main.dart` (or your own build's root entry file),
 with a top-level callback retained for Release:
 
 ```dart
+import 'package:home_widget/home_widget.dart' as home_widget;
+
 @pragma('vm:entry-point')
 Future<void> homeWidgetBackgroundMain() async {
   WidgetsFlutterBinding.ensureInitialized();
   await HomeWidget.registerInteractivityCallback(macOSBackgroundCallback);
-  await callbackDispatcher();
+  await home_widget.callbackDispatcher();
 }
 ```
 
