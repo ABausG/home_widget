@@ -60,6 +60,24 @@ melos:
       packageFilters:
         dirExists: ios
         ignore: home_widget
+    build:macos:examples:
+      description: Build macOS examples
+      exec: |
+        bash -euo pipefail -c '
+          target=lib/main.dart
+          if [[ -f lib/main_macos.dart ]]; then
+            target=lib/main_macos.dart
+          fi
+          flutter build macos --release --config-only --target="$target"
+          xcodebuild -workspace macos/Runner.xcworkspace \
+            -scheme Runner -configuration Release \
+            -destination "generic/platform=macOS" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= build
+        '
+      packageFilters:
+        dirExists: macos
+        ignore: home_widget
     test:
       description: Run all unit tests (excludes integration)
       steps:
