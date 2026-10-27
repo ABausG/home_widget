@@ -1,0 +1,155 @@
+---
+title: macOS Setup
+description: Setup home_widget on macOS for your Flutter App using WidgetKit
+---
+
+# macOS Setup
+
+To create a Widget on macOS, add a Widget Extension to your Flutter App and
+build its UI with SwiftUI. The following steps explain how to share data with
+the Widget, update it and add interactive buttons.
+
+The CLI and generator currently create Widgets for Android and iOS. For macOS,
+set up the native Widget Extension in Xcode.
+
+## Add a Widget to your App in Xcode
+
+Open `macos/Runner.xcworkspace` and add a target using
+<kbd>File</kbd> > <kbd>New</kbd> > <kbd>Target</kbd> > <kbd>Widget Extension</kbd>.
+Make sure the Extension is embedded in your Runner app.
+
+WidgetKit requires macOS 11. Interactive buttons and configuration with
+`WidgetConfigurationIntent` require macOS 14. Your Flutter version may require
+a higher deployment target; the example app uses macOS 12.
+
+<Info>
+For Swift Package Manager, use Flutter 3.44.0 or newer so Flutter can generate
+the required `FlutterFramework` package.
+</Info>
+
+Keep Flutter and `home_widget` in the Runner target. On macOS, the Widget
+Extension must not link `home_widget`, `FlutterMacOS` or your Flutter plugins.
+This applies to both CocoaPods and Swift Package Manager.
+
+The example in `packages/home_widget/example/macos` includes both a basic and
+a configurable Widget. To run it, use `lib/main_macos.dart` as the entry file:
+
+```bash
+flutter run -d macos --target lib/main_macos.dart
+```
+
+## App Groups
+
+home_widget uses App Groups to share data between your App and the Widget.
+Add the same App Group to Runner and the Widget Extension under
+<kbd>Signing & Capabilities</kbd> > <kbd>App Groups</kbd>.
+
+### Setup in Flutter
+
+Call `setAppGroupId` before reading or saving data:
+
+```dart
+await HomeWidget.setAppGroupId('YOUR_APP_GROUP');
+await HomeWidget.saveWidgetData<int>('counter', 1);
+await HomeWidget.updateWidget(name: 'YourWidgetKind');
+```
+
+Use the exact App Group value from your signed entitlements, including its
+prefix if present. Both targets need access to that group.
+
+### Read Data in the Widget
+
+Read the value in your Widget's timeline provider:
+
+```swift
+let prefs = UserDefaults(suiteName: "YOUR_APP_GROUP")
+let counter = prefs?.integer(forKey: "counter") ?? 0
+```
+
+Set `YourWidgetKind` to the Widget's `kind`. You can also use the existing
+`iOSName` argument on macOS; it takes priority over `name`.
+
+For files and images, see [Save files and images](/features/save-files).
+Use `appGroupId` on an individual data or file call to select another App Group
+without changing the default. Calls fail if the app does not have access to
+the group.
+
+## Configurable Widgets
+
+On macOS 14+, add the same `WidgetConfigurationIntent` source file to Runner
+and the Widget Extension. In your AppDelegate, import `home_widget` and register
+the configuration type before querying Widgets:
+
+```swift
+if #available(macOS 14.0, *) {
+  HomeWidgetPlugin.setConfigurationLookup(to: [
+    "YourWidgetKind": YourConfigurationIntent.self
+  ])
+}
+```
+
+Call `HomeWidget.getInstalledWidgets()` to read the configurations. Results use
+`iOSKind` and `iOSFamily` on macOS too. Register the matching lookup type to read
+a modern configuration's values. WidgetKit returns configurations by kind and
+family, so the list is not an exact count of Widgets on the desktop.
+
+## Detect Clicks
+
+Add your URL scheme to Runner's `CFBundleURLTypes`, then use it in the Widget:
+
+```swift
+.widgetURL(URL(string: "your-app://widget?homeWidget"))
+```
+
+Keep the `homeWidget` query parameter so the plugin can recognize the click.
+Use the URL forwarding from the example's `macos/Runner/AppDelegate.swift`:
+it keeps startup URLs until the plugin is registered and passes other URLs to
+Flutter's normal handlers. Keep the generated plugin registration in
+`MainFlutterWindow` as well.
+
+Listen to `HomeWidget.widgetClicked` for new clicks. Use
+`HomeWidget.initiallyLaunchedFromHomeWidget()` to read the URL that opened the
+app, including when your listener was added later. Listening does not replay
+past clicks, and reading the initial URL does not clear it.
+
+## Interactive Widgets
+
+Interactive buttons are supported on macOS 14 and newer. Use the example's
+`macos/Runner/BackgroundIntent.swift` in both Runner and the Widget Extension.
+Add `WIDGET_EXTENSION` to the Extension's **Swift Active Compilation Conditions**.
+The shared file only imports `home_widget` and adds `ForegroundContinuableIntent`
+in the host, where `HomeWidgetBackgroundWorker.run(url:appGroup:)` calls Dart.
+
+### Register Plugins
+
+Add this to your AppDelegate's `applicationWillFinishLaunching` method:
+
+```swift
+HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
+  RegisterGeneratedPlugins(registry: registry)
+}
+```
+
+### Register the Dart Callback
+
+Write a top-level callback and register it after setting your App Group, as in
+[Flutter Setup](/features/interactive-widgets#flutter-setup).
+Also add this entrypoint to the Dart file used to start your app:
+
+```dart
+@pragma('vm:entry-point')
+Future<void> homeWidgetBackgroundMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HomeWidget.registerInteractivityCallback(macOSBackgroundCallback);
+  await callbackDispatcher();
+}
+```
+
+Replace `macOSBackgroundCallback` with your callback and keep
+`@pragma('vm:entry-point')` on it too. Keep your normal `runApp` call in `main()`.
+Open the app once to register the callback, and register it again after changing
+the callback or installing a new build.
+
+The plugin waits for the Future returned by your callback. Handle concurrent
+updates in your own callback and make sure its Future completes. Keep background
+work short: macOS controls how long it can run and when the Widget refreshes.

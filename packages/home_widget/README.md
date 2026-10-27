@@ -9,7 +9,7 @@
 [![codecov](https://codecov.io/gh/ABausG/home_widget/branch/main/graph/badge.svg?token=ZXTZOL6KFO)](https://codecov.io/gh/ABausG/home_widget)
 [![GitHub-sponsors](https://img.shields.io/badge/Sponsor-30363D?style=flat&logo=GitHub-Sponsors&logoColor=#EA4AAA)](https://github.com/sponsors/abausg)
 
-HomeWidget is a plugin to make it easier to create HomeScreen Widgets on Android and iOS.
+HomeWidget is a plugin to make it easier to create HomeScreen Widgets on Android, iOS and native macOS.
 HomeWidget does **not** allow writing Widgets with Flutter itself. It still requires writing the Widgets with native code. However, it provides a unified interface for sending data, retrieving data, and updating the Widgets.
 
 | iOS                                                                                                            |  Android                                                                                                           |
@@ -24,6 +24,8 @@ HomeWidget does **not** allow writing Widgets with Flutter itself. It still requ
 
 ## Documentation
 Check out the [documentation](https://docs.page/abausg/home_widget) to learn how to setup home_widget and HomeScreen Widgets on your desired Platforms.
+
+To setup Widgets on macOS, follow the [macOS documentation](https://docs.page/abausg/home_widget/setup/macos).
 
 ## Usage
 Once you wrote your Widgets on the native side, it is super easy to send data to the Widget and update it.

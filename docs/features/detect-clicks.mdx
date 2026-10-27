@@ -31,6 +31,10 @@ which is a `Stream<Uri?>` that you can listen to to detect App Launches from the
 
 In the following section you can learn how to add the necessary configurations to your native Widgets in order for clicks to bet detectable by home_widget.title
 
+### macOS
+
+Add a URL scheme to your app and use it in the Widget's `widgetURL`, including the `homeWidget` query parameter. Follow the [macOS setup](/setup/macos#detect-clicks) to forward the URL to the plugin.
+
 ### iOS
 
 Add `.widgetUrl` to your WidgetComponent

@@ -114,3 +114,16 @@ imagePath?.let {
    Image(androidx.glance.ImageProvider(bitmap), null)
 }
 ```
+
+## macOS
+
+On macOS, load the saved image with `NSImage` and display it in your SwiftUI Widget:
+
+```swift
+if let image = NSImage(contentsOfFile: imagePath) {
+    Image(nsImage: image)
+}
+```
+
+Set up the [App Group](/setup/macos#app-groups) first so the Widget can read the file.
+Call `renderFlutterWidget` from an isolate with a Flutter view; it cannot render from a background isolate without one.

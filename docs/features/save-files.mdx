@@ -27,6 +27,7 @@ final path = await HomeWidget.saveFile(
 
 - The file is written as `{container}/home_widget/{key}.{extension}`.
 - On **iOS** the container is the [app group](/setup/ios) (call `setAppGroupId` first).
+- On **macOS** the container is the [App Group](/setup/macos#app-groups) too. Add the group to both targets and call `setAppGroupId` first.
 - On **Android** it is under the application support directory, in a `home_widget` subdirectory.
 
 `key` must be non-empty and must not contain `/`, `\`, `..`, or spaces. `extension` is normalized (e.g. `json` or `.json`); it must not contain path separators. These rules are enforced with **assertions** in debug builds.

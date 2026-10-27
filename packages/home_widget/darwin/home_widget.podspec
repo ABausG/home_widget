@@ -14,14 +14,17 @@ A new flutter plugin project.
   s.author           = { 'Your Company' => 'email@example.com' }
   s.source           = { :path => '.' }
   s.source_files = 'home_widget/Sources/home_widget/**/*'
-  s.dependency 'Flutter'
-  s.platform = :ios, '14.0'
+  s.ios.dependency 'Flutter'
+  s.osx.dependency 'FlutterMacOS'
+  s.ios.deployment_target = '14.0'
+  s.osx.deployment_target = '11.0'
 
   # Flutter.framework does not contain a i386 slice. Only x86_64 simulators are supported.
-  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'VALID_ARCHS[sdk=iphonesimulator*]' => 'x86_64' }
-  
+  s.ios.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES', 'VALID_ARCHS[sdk=iphonesimulator*]' => 'x86_64' }
+  s.osx.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES' }
+
   # Xcode 26 workaround: disable explicit modules for app targets that import home_widget
   # (e.g., widget extensions) to avoid "module 'Flutter' not found" errors
-  s.user_target_xcconfig = { 'SWIFT_ENABLE_EXPLICIT_MODULES' => 'NO' }
+  s.ios.user_target_xcconfig = { 'SWIFT_ENABLE_EXPLICIT_MODULES' => 'NO' }
   s.swift_version = '5.0'
 end

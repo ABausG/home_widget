@@ -35,8 +35,12 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
     // ignore: body_might_complete_normally_nullable
     .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      passedArguments.complete(methodCall.arguments);
+      if (methodCall.method != 'getWidgetContainerPath') {
+        passedArguments.complete(methodCall.arguments);
+      }
       switch (methodCall.method) {
+        case 'getWidgetContainerPath':
+          return 'app/directory';
         case 'saveWidgetData':
           return true;
         case 'getWidgetData':
@@ -836,6 +840,112 @@ void main() {
       );
     });
 
+    if (Platform.isIOS || Platform.isMacOS) {
+      test(
+        'uses the current native container before writing path metadata',
+        () async {
+          final calls = <MethodCall>[];
+          final events = <String>[];
+          var container = '/shared/first';
+          final file = MockFile();
+          when(() => file.exists()).thenAnswer((_) async => true);
+          when(() => file.writeAsBytes(any())).thenAnswer((_) async {
+            events.add('write');
+            return file;
+          });
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, (call) async {
+                calls.add(call);
+                if (call.method == 'getWidgetContainerPath') {
+                  events.add('container');
+                  return container;
+                }
+                expect(call.method, 'saveWidgetData');
+                events.add('metadata');
+                return true;
+              });
+
+          await IOOverrides.runZoned(() async {
+            expect(
+              await HomeWidget.saveFile('first', Uint8List.fromList([1])),
+              '/shared/first/home_widget/first.bin',
+            );
+            container = '/shared/second';
+            expect(
+              await HomeWidget.saveFile(
+                'second',
+                Uint8List.fromList([2]),
+                appGroupId: 'group.other',
+              ),
+              '/shared/second/home_widget/second.bin',
+            );
+          }, createFile: (_) => file);
+
+          expect(events, [
+            'container',
+            'write',
+            'metadata',
+            'container',
+            'write',
+            'metadata',
+          ]);
+          expect(calls[0].arguments, isEmpty);
+          expect(calls[2].arguments, {'appGroupId': 'group.other'});
+          expect(calls[3].arguments['appGroupId'], 'group.other');
+          expect(
+            calls[3].arguments['data'],
+            '/shared/second/home_widget/second.bin',
+          );
+        },
+      );
+
+      test('container failures never create a file or save metadata', () async {
+        for (final response in [null, '', PlatformException(code: '-9')]) {
+          final calls = <String>[];
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, (call) async {
+                calls.add(call.method);
+                if (response is PlatformException) throw response;
+                return response;
+              });
+          await IOOverrides.runZoned(() async {
+            await expectLater(
+              HomeWidget.saveFile('denied', Uint8List.fromList([1])),
+              throwsA(
+                isA<Exception>().having(
+                  (error) => error.toString(),
+                  'message',
+                  contains('Failed to save file to widget container'),
+                ),
+              ),
+            );
+          }, createFile: (_) => throw StateError('Must fail before file I/O'));
+          expect(calls, ['getWidgetContainerPath']);
+        }
+      });
+
+      test('write failure leaves existing path metadata unchanged', () async {
+        final calls = <String>[];
+        final file = MockFile();
+        when(() => file.exists()).thenAnswer((_) async => true);
+        when(
+          () => file.writeAsBytes(any()),
+        ).thenThrow(const FileSystemException('write denied'));
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              calls.add(call.method);
+              return '/shared/current';
+            });
+        await IOOverrides.runZoned(() async {
+          await expectLater(
+            HomeWidget.saveFile('existing', Uint8List.fromList([1])),
+            throwsException,
+          );
+        }, createFile: (_) => file);
+        expect(calls, ['getWidgetContainerPath']);
+      });
+    }
+
     test('rejects invalid key', () async {
       expect(() => HomeWidget.saveFile('', Uint8List(0)), throwsArgumentError);
       expect(
@@ -926,6 +1036,67 @@ void main() {
   });
 
   group('getInstalledWidgets', () {
+    test(
+      'preserves Darwin field names and optional configuration values',
+      () async {
+        final configuration = <String, dynamic>{
+          'name': 'Mac',
+          'enabled': true,
+          'count': 42,
+          'bytes': Uint8List.fromList([0, 127, 255]),
+          'nested': {
+            'items': ['one', 2],
+          },
+        };
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(
+              channel,
+              (_) async => [
+                {
+                  'family': 'systemMedium',
+                  'kind': 'DarwinConfiguredWidget',
+                  'configuration': configuration,
+                },
+                {'family': 'systemSmall', 'kind': 'DarwinStaticWidget'},
+              ],
+            );
+
+        final widgets = await HomeWidget.getInstalledWidgets();
+        expect(widgets, hasLength(2));
+        expect(widgets.first.iOSKind, 'DarwinConfiguredWidget');
+        expect(widgets.first.iOSFamily, 'systemMedium');
+        expect(widgets.first.configuration, configuration);
+        expect(widgets.first.androidWidgetId, isNull);
+        expect(widgets.last.configuration, isNull);
+      },
+    );
+
+    test('preserves an empty platform configuration list', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => []);
+      expect(await HomeWidget.getInstalledWidgets(), isEmpty);
+    });
+
+    test(
+      'propagates query errors instead of returning an empty list',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (_) async {
+              throw PlatformException(code: '-8', message: 'WidgetKit failed');
+            });
+        expect(
+          HomeWidget.getInstalledWidgets(),
+          throwsA(
+            isA<PlatformException>().having(
+              (error) => error.code,
+              'code',
+              '-8',
+            ),
+          ),
+        );
+      },
+    );
+
     test(
       'returns a list of HomeWidgetInfo objects when method channel provides data',
       () async {
