@@ -115,7 +115,7 @@ Once the dependency is present in your widget target, continue with the shared s
    @available(iOSApplicationExtension, unavailable)
    extension BackgroundIntent: ForegroundContinuableIntent {}
    ```
-   This code tells the system to always perform the Intent in the App and not in a process attached to the Widget. Note however that this will start your Flutter App using the normal main entrypoint meaning your full app might be run in the background. To counter this you should add checks in the very first Widget you build inside `runApp` to only perform necessary calls/setups while the App is launched in the background
+   This code tells the system to always perform the Intent in the App and not in a process attached to the Widget. Note however that this will start your Flutter App using the normal main entrypoint meaning your full app might be run in the background. To counter this you should add checks in the very first Widget you build inside `runApp` to only perform necessary calls/setups while the App is launched in the background. The plugin starts its background engine from the callback that was registered earlier, so the callback also runs when the App does not register it again during that launch
 
 
 
@@ -123,12 +123,9 @@ Once the dependency is present in your widget target, continue with the shared s
 
 1. Add the necessary Receiver to your `AndroidManifest.xml` file
     ```xml
-   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
-        <intent-filter>
-            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
-        </intent-filter>
-    </receiver>
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="false" />
     ```
+   The receiver does not have to be exported and needs no intent-filter: `HomeWidgetBackgroundIntent.getBroadcast` addresses it by its class, and the launcher sends that `PendingIntent` as your app. With `android:exported="true"` any app on the device can send it a broadcast and run your callback with a Uri of its choice, so change an existing entry to `false`.
 2. Create a custom Action
    ```kotlin
    class InteractiveAction : ActionCallback {
