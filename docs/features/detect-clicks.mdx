@@ -55,6 +55,8 @@ final subscription = HomeWidget.launches(decodeLaunch).listen((launch) {
 
 `launches` subscribes to `widgetClicked` before it reads the initial Uri, so a click arriving in between is not lost. A Uri `decode` returns `null` for is skipped, which makes the result a `Stream<T>` without nulls. The scheme of the Uri handed to `decode` is lower-cased.
 
+Any number of `launches` Streams can be listened to at once, each with a `decode` of its own. The initial launch is delivered once per run of the App: after one listener has decoded and received it, a Stream listened to later starts with clicks only. Call `initialLaunch` to read it again. An exception thrown by `decode` arrives as an error of the Stream, which keeps going.
+
 ## Platform Setup
 
 In the following section you can learn how to add the necessary configurations to your native Widgets in order for clicks to be detectable by home_widget.

@@ -287,11 +287,79 @@ class HomeWidget {
     return _channel.invokeMethod<void>('finishHomeWidgetConfigure');
   }
 
+  /// The click events of the platform, shared by every listener: the native
+  /// side has one event sink, which a second platform stream would take over
+  /// and tear down again when it is cancelled.
+  static final Stream<dynamic> _clickEvents = _eventChannel
+      .receiveBroadcastStream();
+
   /// Receives Updates if App Launched via the Widget
   static Stream<Uri?> get widgetClicked {
-    return _eventChannel.receiveBroadcastStream().map<Uri?>(
-      _handleReceivedData,
-    );
+    return _clickEvents.map<Uri?>(_handleReceivedData);
+  }
+
+  /// The clicks [launches] decodes, shared by all of its listeners.
+  ///
+  /// A click repeating the initial Uri while that Uri is first being read is
+  /// the same launch reported twice, and is dropped here once for everyone.
+  static final StreamController<Uri> _launchClicks =
+      StreamController<Uri>.broadcast(
+        onListen: () {
+          _launchClicksSubscription = widgetClicked.listen(
+            _addLaunchClick,
+            onError: _launchClicks.addError,
+          );
+        },
+        onCancel: () {
+          final subscription = _launchClicksSubscription;
+          _launchClicksSubscription = null;
+          unawaited(subscription?.cancel());
+        },
+      );
+
+  static StreamSubscription<Uri?>? _launchClicksSubscription;
+
+  /// The initial Uri as [launches] reads it, once per run of the App.
+  static Future<Uri?>? _launchInitialUri;
+
+  /// Whether the read of [_launchInitialUri] has completed.
+  static bool _launchInitialUriRead = false;
+
+  /// Whether a [launches] listener has been handed the initial launch.
+  static bool _initialLaunchDelivered = false;
+
+  /// The clicks still waiting for the initial Uri, in order.
+  static Future<void> _launchClickQueue = Future<void>.value();
+
+  static Future<Uri?> _readLaunchInitialUri() =>
+      _launchInitialUri ??= initiallyLaunchedFromHomeWidget().whenComplete(
+        () => _launchInitialUriRead = true,
+      );
+
+  static void _addLaunchClick(Uri? uri) {
+    if (uri == null) return;
+    if (_launchInitialUriRead) {
+      _launchClickQueue = _launchClickQueue.then((_) => _launchClicks.add(uri));
+      return;
+    }
+    _launchClickQueue = _launchClickQueue.then((_) async {
+      Uri? initial;
+      try {
+        initial = await _readLaunchInitialUri();
+      } on Object {
+        // Whoever listens to [launches] is told about the failed read.
+      }
+      if (uri != initial) _launchClicks.add(uri);
+    });
+  }
+
+  /// Forgets what [launches] remembers about the run of the App.
+  @visibleForTesting
+  static void debugResetLaunches() {
+    _launchInitialUri = null;
+    _launchInitialUriRead = false;
+    _initialLaunchDelivered = false;
+    _launchClickQueue = Future<void>.value();
   }
 
   /// The launch [decode] reads out of the Uri the App was started with by a
@@ -315,23 +383,46 @@ class HomeWidget {
   /// initial Uri is still being read are kept. A Uri [decode] returns `null`
   /// for is skipped, so the Stream only ever carries launches [decode] knows.
   ///
+  /// The initial launch is delivered once per run of the App: as soon as one
+  /// listener has decoded the initial Uri to a launch and received it, every
+  /// Stream listened to later starts with clicks only. A listener whose
+  /// [decode] does not know the initial Uri leaves it for another one. Use
+  /// [initialLaunch] to read it again.
+  ///
+  /// Any number of these Streams can be listened to at once, each with a
+  /// [decode] of its own. An exception [decode] throws arrives as an error of
+  /// the Stream, which keeps going.
+  ///
   /// The scheme of the Uri handed to [decode] is lower-cased, whatever casing
   /// the Widget wrote it with.
   static Stream<T> launches<T extends Object>(
     T? Function(Uri uri) decode,
   ) async* {
     final clicks = StreamController<T>();
-    final subscription = widgetClicked.listen(
-      (uri) {
-        final launch = uri == null ? null : decode(uri);
+    final subscription = _launchClicks.stream.listen((uri) {
+      try {
+        final launch = decode(uri);
         if (launch != null) clicks.add(launch);
-      },
-      onError: clicks.addError,
-      onDone: clicks.close,
-    );
+      } on Object catch (error, stackTrace) {
+        clicks.addError(error, stackTrace);
+      }
+    }, onError: clicks.addError);
     try {
-      final initial = await initialLaunch(decode);
-      if (initial != null) yield initial;
+      final uri = _initialLaunchDelivered
+          ? null
+          : await _readLaunchInitialUri();
+      if (uri != null && !_initialLaunchDelivered) {
+        T? initial;
+        try {
+          initial = decode(uri);
+        } on Object catch (error, stackTrace) {
+          yield* Stream<T>.error(error, stackTrace);
+        }
+        if (initial != null) {
+          _initialLaunchDelivered = true;
+          yield initial;
+        }
+      }
       yield* clicks.stream;
     } finally {
       await subscription.cancel();
