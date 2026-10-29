@@ -730,7 +730,9 @@ void main() {
 
     expect('.widgetURL('.allMatches(content), hasLength(1));
     expect(
-        content, contains('.widgetURL(URL(string: "app://home?homeWidget"))'));
+      content,
+      contains('.widgetURL(URL(string: "app://home?homeWidget"))'),
+    );
     expect(content, isNot(contains('app://promo')));
     expect(content, isNot(contains('hwLink(')));
   });
