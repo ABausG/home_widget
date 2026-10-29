@@ -74,13 +74,7 @@ object HomeWidgetBackgroundIntent {
       flags = flags or PendingIntent.FLAG_IMMUTABLE
     }
 
-    // Extras are not part of a PendingIntent's identity, so each key needs its own request code.
-    return PendingIntent.getBroadcast(
-        context,
-        key?.hashCode() ?: 0,
-        getIntent(context, uri, key),
-        flags,
-    )
+    return PendingIntent.getBroadcast(context, 0, getIntent(context, uri, key), flags)
   }
 
   internal fun getIntent(context: Context, uri: Uri?, key: String?): Intent {
@@ -89,9 +83,14 @@ object HomeWidgetBackgroundIntent {
     intent.action = HOME_WIDGET_BACKGROUND_ACTION
     if (key != null) {
       intent.putExtra(EXTRA_CALLBACK_KEY, key)
+      // Extras are not part of a PendingIntent's identity and a category is, so the key is one
+      // too: two keys sharing a Uri would otherwise share one PendingIntent and its extras.
+      intent.addCategory("$CALLBACK_KEY_CATEGORY$key")
     }
     return intent
   }
+
+  private const val CALLBACK_KEY_CATEGORY = "es.antonborri.home_widget.category.CALLBACK_KEY."
 }
 
 /**

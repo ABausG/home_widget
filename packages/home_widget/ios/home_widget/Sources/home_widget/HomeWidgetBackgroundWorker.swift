@@ -43,7 +43,8 @@ public struct HomeWidgetBackgroundWorker {
   /// earlier registration stored in the AppGroup.
   static public func run(url: URL?, appGroup: String, key: String?) async {
     let hasEngine = await MainActor.run { startEngineIfNeeded(appGroup: appGroup) }
-    guard hasEngine else {
+    let callback = callbackHandle(in: UserDefaults.init(suiteName: appGroup), key: key)
+    guard hasEngine, let callback = callback else {
       NSLog(
         "home_widget: No interactivity callback is registered in \(appGroup). "
           + "Call HomeWidget.registerInteractivityCallback in the app first.")
@@ -60,11 +61,7 @@ public struct HomeWidgetBackgroundWorker {
       }
     }
 
-    let preferences = UserDefaults.init(suiteName: appGroup)
-    let dispatcher = preferences?.object(forKey: dispatcherKey) as! Int64
-    NSLog("Dispatcher: \(dispatcher)")
-
-    await sendEvent(url: url, appGroup: appGroup, key: key)
+    await sendEvent(url: url, callback: callback)
   }
 
   static func callbackStorageKey(for key: String?) -> String {
@@ -112,19 +109,17 @@ public struct HomeWidgetBackgroundWorker {
     engine = backgroundEngine
 
     channel = FlutterMethodChannel(
-      name: "home_widget/background", binaryMessenger: engine!.binaryMessenger,
+      name: "home_widget/background", binaryMessenger: backgroundEngine.binaryMessenger,
       codec: FlutterStandardMethodCodec.sharedInstance()
     )
-    let callbackName = flutterCallbackInfo?.callbackName
-    let callbackLibrary = flutterCallbackInfo?.callbackLibraryPath
 
-    let started = engine?.run(
+    _ = backgroundEngine.run(
       withEntrypoint: flutterCallbackInfo?.callbackName,
       libraryURI: flutterCallbackInfo?.callbackLibraryPath)
-    if registerPlugins != nil {
-      registerPlugins?(engine!)
-    } else {
-      HomeWidgetPlugin.register(with: engine!.registrar(forPlugin: "home_widget")!)
+    if let registerPlugins = registerPlugins {
+      registerPlugins(backgroundEngine)
+    } else if let registrar = backgroundEngine.registrar(forPlugin: "home_widget") {
+      HomeWidgetPlugin.register(with: registrar)
     }
 
     channel?.setMethodCallHandler(handle)
@@ -145,17 +140,13 @@ public struct HomeWidgetBackgroundWorker {
     }
   }
 
-  static func sendEvent(url: URL?, appGroup: String, key: String? = nil) async {
+  static func sendEvent(url: URL?, callback: Int64) async {
     guard let _channel = channel else {
-      return
-    }
-    let preferences = UserDefaults.init(suiteName: appGroup)
-    guard let _callback = callbackHandle(in: preferences, key: key) else {
       return
     }
     await withCheckedContinuation { continuation in
       DispatchQueue.main.async {
-        _channel.invokeMethod("", arguments: [_callback, url?.absoluteString]) { _ in
+        _channel.invokeMethod("", arguments: [callback, url?.absoluteString]) { _ in
           continuation.resume()
         }
       }

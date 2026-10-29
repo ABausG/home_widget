@@ -130,14 +130,20 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     fun enqueueWork(context: Context, work: Intent) {
+      // WorkManager caps the input of a request at about 10 KB and throws beyond it.
       val data =
-          Data.Builder()
-              .putString(DATA_KEY, work.data?.toString() ?: "")
-              .putString(
-                  CALLBACK_KEY_KEY,
-                  work.getStringExtra(HomeWidgetBackgroundIntent.EXTRA_CALLBACK_KEY),
-              )
-              .build()
+          try {
+            Data.Builder()
+                .putString(DATA_KEY, work.data?.toString() ?: "")
+                .putString(
+                    CALLBACK_KEY_KEY,
+                    work.getStringExtra(HomeWidgetBackgroundIntent.EXTRA_CALLBACK_KEY),
+                )
+                .build()
+          } catch (e: IllegalStateException) {
+            Log.e(TAG, "Dropped an interaction whose Uri is too large to hand to WorkManager", e)
+            return
+          }
 
       val workRequest =
           OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>().setInputData(data).build()
