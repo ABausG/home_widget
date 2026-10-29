@@ -119,6 +119,40 @@ void main() {
         expect(node.toSwift(0, dataExpr: 'data'), isEmpty);
       });
 
+      test('an Android-only child leaves no widgetURL behind on iOS', () {
+        const node = HWLink(
+          'promo',
+          url: 'myapp://promo',
+          child: HWAdaptive(
+            ios: HWDataOnly([HWString('hidden')]),
+            android: HWText(HWString.fixed('Promo')),
+          ),
+        );
+
+        expect(node.swiftRendersNothing, isTrue);
+        expect(node.toSwift(0, dataExpr: 'data'), isEmpty);
+        expect(
+          node.toSwift(
+            0,
+            dataExpr: 'data',
+            context: const HWEmitContext(swiftWidgetUrlLinks: [node]),
+          ),
+          isEmpty,
+        );
+        expect(
+          const HWColumn(children: [node]).toSwift(0, dataExpr: 'data'),
+          allOf(isNot(contains('widgetURL')), isNot(contains('hwLink'))),
+        );
+        expect(
+          node.toKotlin(
+            0,
+            dataExpr: 'data',
+            context: const HWEmitContext(androidLaunchActivity: 'MainActivity'),
+          ),
+          contains('clickable('),
+        );
+      });
+
       test('a size around the link frames the child inside it', () {
         const sized = HWSizedBox(width: 40, height: 20, child: plain);
         final code = sized.toSwift(0, dataExpr: 'data');

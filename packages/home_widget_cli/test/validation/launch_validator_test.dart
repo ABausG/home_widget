@@ -601,6 +601,36 @@ void main() {
       verifyNever(() => mockLogger.warn(any()));
     });
 
+    test('a link iOS does not render is no concern of iOS', () {
+      final androidOnly = _link(
+        'promo',
+        child: const HWAdaptive(
+          ios: HWDataOnly([HWString('hidden')]),
+          android: _label,
+        ),
+      );
+
+      for (final tree in [
+        androidOnly,
+        HWColumn(children: [androidOnly, _label]),
+        HWSizeAdaptive(small: androidOnly, medium: _label),
+      ]) {
+        final spec = _spec(
+          tree,
+          widgetUrl: 'myapp://weather',
+          families: null,
+        );
+        expect(() => validateWidgetData(spec), returnsNormally);
+        expect(spec.iosWidgetUrlLinks, isEmpty);
+        expect(spec.iosIgnoredLinks, isEmpty);
+        expect(
+          spec.launchTargets.map((target) => target.className),
+          ['WeatherWidgetTap', 'WeatherPromoLink'],
+        );
+      }
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
     test('a link that is the whole small layout cannot join a widgetUrl', () {
       final spec = _spec(
         _link('open'),

@@ -126,11 +126,13 @@ class HWLink extends HWSingleChildWidget {
     required String dataExpr,
     HWEmitContext? context,
   }) {
+    // Nothing to tap: a `.widgetURL` here would compete with the widget's own.
+    if (child.swiftRendersNothing) return '';
     final url = payloadUrl.toSwift(dataExpr);
     final asWidgetUrl =
         context?.swiftWidgetUrlLinks.any((link) => identical(link, this)) ??
             false;
-    if (asWidgetUrl || child.swiftRendersNothing) {
+    if (asWidgetUrl) {
       final childCode =
           child.toSwift(indent, dataExpr: dataExpr, context: context);
       return applySwiftModifier(childCode, '.widgetURL($url)', indent);
