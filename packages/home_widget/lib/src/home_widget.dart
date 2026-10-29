@@ -267,6 +267,12 @@ class HomeWidget {
   }
 
   /// Checks if the App was initially launched via the Widget
+  ///
+  /// A click that reaches the App while nothing listens to [widgetClicked] is
+  /// answered here too, so it is not lost. That is how a click arrives when
+  /// Android restarts the process of an App whose task is still there: the
+  /// Activity comes back with the Intent it was first started with, and the
+  /// click follows before any Dart code listens.
   static Future<Uri?> initiallyLaunchedFromHomeWidget() {
     return _channel
         .invokeMethod<String>('initiallyLaunchedFromHomeWidget')
@@ -387,7 +393,9 @@ class HomeWidget {
   /// listener has decoded the initial Uri to a launch and received it, every
   /// Stream listened to later starts with clicks only. A listener whose
   /// [decode] does not know the initial Uri leaves it for another one. Use
-  /// [initialLaunch] to read it again.
+  /// [initialLaunch] to read it again. A click that reached the App before
+  /// anything listened counts as the initial launch, see
+  /// [initiallyLaunchedFromHomeWidget].
   ///
   /// Any number of these Streams can be listened to at once, each with a
   /// [decode] of its own. An exception [decode] throws arrives as an error of
