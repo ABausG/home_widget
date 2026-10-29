@@ -61,7 +61,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         NumberDateFormattingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "49472f57",
+            "f122fd67",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -125,9 +125,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
             )
             Text(
                 text =
-                    widgetData.placedAt?.let {
-                      hwFormatDateSkeleton(it, "yMMMd", hwFormatLocale(context))
-                    } ?: "",
+                    widgetData.placedAt?.let { hwFormatDateSkeleton(it, "yMMMd", context) } ?: "",
                 style =
                     TextStyle(
                         color = GlanceTheme.colors.onSurface,
@@ -189,12 +187,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
             Text(
                 text =
                     widgetData.deliveryAt?.let {
-                      hwFormatDateSkeleton(
-                          it,
-                          "jm",
-                          hwFormatLocale(context),
-                          widgetData.deliveryZone,
-                      )
+                      hwFormatDateSkeleton(it, "jm", context, widgetData.deliveryZone)
                     } ?: "",
                 style =
                     TextStyle(
@@ -494,10 +487,12 @@ private fun hwResolveTimeZone(id: String?): TimeZone {
 private fun hwFormatDateSkeleton(
     date: Date,
     skeleton: String,
-    locale: Locale,
+    context: Context,
     timeZoneId: String? = null,
 ): String {
-  val pattern = AndroidDateFormat.getBestDateTimePattern(locale, skeleton)
+  val locale = hwFormatLocale(context)
+  val hour = if (AndroidDateFormat.is24HourFormat(context)) 'H' else 'h'
+  val pattern = AndroidDateFormat.getBestDateTimePattern(locale, skeleton.replace('j', hour))
   val formatter = SimpleDateFormat(pattern, locale)
   formatter.timeZone = hwResolveTimeZone(timeZoneId)
   return formatter.format(date)

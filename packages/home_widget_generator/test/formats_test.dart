@@ -121,7 +121,7 @@ void main() {
       );
       expect(
         HWDateFormat.yMMMd.kotlinCall('date', dataExpr: 'widgetData'),
-        'hwFormatDateSkeleton(date, "yMMMd", hwFormatLocale(context))',
+        'hwFormatDateSkeleton(date, "yMMMd", context)',
       );
 
       const pattern = HWDateFormat.pattern('dd.MM.yyyy');
@@ -197,7 +197,7 @@ void main() {
       }
     });
 
-    test('the call carries the locale and an optional zone', () {
+    test('the call carries the context and an optional zone', () {
       expect(
         HWDateFormat.yMd.swiftCall('date', dataExpr: 'd'),
         'hwFormatDateSkeleton(date, "yMd")',
@@ -212,7 +212,7 @@ void main() {
       );
       expect(
         HWDateFormat.yMd.kotlinCall('date', dataExpr: 'd'),
-        'hwFormatDateSkeleton(date, "yMd", hwFormatLocale(context))',
+        'hwFormatDateSkeleton(date, "yMd", context)',
       );
       expect(
         HWDateFormat.yMd.kotlinCall(
@@ -220,7 +220,7 @@ void main() {
           timeZone: HWTimeZone.utc,
           dataExpr: 'd',
         ),
-        'hwFormatDateSkeleton(date, "yMd", hwFormatLocale(context), "UTC")',
+        'hwFormatDateSkeleton(date, "yMd", context, "UTC")',
       );
       expect(
         HWDateFormat.yMd.kotlinCall(
@@ -228,8 +228,24 @@ void main() {
           timeZone: const HWTimeZone.data(HWString('tz')),
           dataExpr: 'widgetData',
         ),
-        'hwFormatDateSkeleton(date, "yMd", hwFormatLocale(context), '
-        'widgetData.tz)',
+        'hwFormatDateSkeleton(date, "yMd", context, widgetData.tz)',
+      );
+    });
+
+    test('only a skeleton hands the helper the context', () {
+      expect(
+        HWDateFormat.jm.kotlinCall('date', dataExpr: 'd'),
+        'hwFormatDateSkeleton(date, "jm", context)',
+      );
+      expect(
+        const HWDateFormat.pattern('HH:mm').kotlinCall('date', dataExpr: 'd'),
+        'hwFormatDatePattern(date, "HH:mm", hwFormatLocale(context))',
+      );
+      expect(
+        const HWDateFormat.styled(time: HWFormatStyle.short)
+            .kotlinCall('date', dataExpr: 'd'),
+        'hwFormatDateStyled(date, null, java.text.DateFormat.SHORT, '
+        'hwFormatLocale(context))',
       );
     });
   });

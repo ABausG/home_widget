@@ -234,19 +234,40 @@ ${extraContent ?? ''}
 /// `ensureAndroidManifestReceiver` declares the intent-filter that gets the
 /// broadcast here.
 ///
+/// Glance does not handle `ACTION_TIME_CHANGED` and `AppWidgetProvider` ignores
+/// it, so [handleTimeChange] overrides `onReceive` for that one action and
+/// routes it into `onUpdate`, which makes the single `goAsync()` call. Every
+/// other action still goes to `super`.
+///
 /// [packageName]: The Android package name.
 /// [widgetClassName]: The class name of the widget.
 /// [previewFingerprint]: Whether the widget declares a `previewFingerprint`,
 ///                which the receiver forwards so the plugin can re-register the
 ///                gallery preview once it changed.
+/// [handleTimeChange]: Whether the widget re-renders on `ACTION_TIME_CHANGED`,
+///                which the system sends when the user changes the clock or
+///                its 12-/24-hour setting.
 /// [header]: Optional header comment. Defaults to "GENERATED CODE...".
 String androidGlanceReceiverTemplate({
   required String packageName,
   required String widgetClassName,
   bool previewFingerprint = false,
+  bool handleTimeChange = false,
   String? header,
 }) {
   final head = header ?? _defaultHeader;
+
+  final imports = {
+    if (previewFingerprint) 'import android.content.Context',
+    if (handleTimeChange) ...const [
+      'import android.appwidget.AppWidgetManager',
+      'import android.content.ComponentName',
+      'import android.content.Context',
+      'import android.content.Intent',
+    ],
+    'import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver',
+  }.toList()
+    ..sort();
 
   final buffer = StringBuffer();
   buffer.write('''
@@ -255,12 +276,9 @@ package $packageName
 
 ''');
 
-  if (previewFingerprint) {
-    buffer.writeln('import android.content.Context');
-  }
+  imports.forEach(buffer.writeln);
 
   buffer.write('''
-import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
 
 class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassName>() {
   override val glanceAppWidget = $widgetClassName()
@@ -271,6 +289,20 @@ class ${widgetClassName}Receiver : HomeWidgetGlanceWidgetReceiver<$widgetClassNa
 
   override fun previewFingerprint(context: Context): String =
       glanceAppWidget.previewFingerprint(context)
+''');
+  }
+
+  if (handleTimeChange) {
+    buffer.write('''
+
+  override fun onReceive(context: Context, intent: Intent) {
+    if (intent.action == Intent.ACTION_TIME_CHANGED) {
+      val manager = AppWidgetManager.getInstance(context)
+      onUpdate(context, manager, manager.getAppWidgetIds(ComponentName(context, javaClass)))
+      return
+    }
+    super.onReceive(context, intent)
+  }
 ''');
   }
 

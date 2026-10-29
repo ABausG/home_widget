@@ -935,7 +935,7 @@ void main() {
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
         'Text(text = widgetData.when?.let { hwFormatDateSkeleton(it, '
-        '"yMMMd", hwFormatLocale(context)) } ?: "", $defaultStyleArg)',
+        '"yMMMd", context) } ?: "", $defaultStyleArg)',
       );
     });
 
