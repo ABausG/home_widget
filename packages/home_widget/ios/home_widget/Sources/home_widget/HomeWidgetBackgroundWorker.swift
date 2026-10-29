@@ -37,10 +37,26 @@ public struct HomeWidgetBackgroundWorker {
   /// Invokes the callback that was registered with the given key in your Flutter App.
   /// Falls back to the callback registered without a key if the key is nil or nothing was
   /// registered for it.
+  ///
+  /// When the process runs no background engine yet, because the app was launched for this call
+  /// and has not registered a callback since, the engine is started from the dispatcher an
+  /// earlier registration stored in the AppGroup.
   static public func run(url: URL?, appGroup: String, key: String?) async {
-    if isSetupCompleted == false {
-      await withCheckedContinuation { continuation in
-        continuations.append(continuation)
+    let hasEngine = await MainActor.run { startEngineIfNeeded(appGroup: appGroup) }
+    guard hasEngine else {
+      NSLog(
+        "home_widget: No interactivity callback is registered in \(appGroup). "
+          + "Call HomeWidget.registerInteractivityCallback in the app first.")
+      return
+    }
+
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      DispatchQueue.main.async {
+        if isSetupCompleted {
+          continuation.resume()
+        } else {
+          continuations.append(continuation)
+        }
       }
     }
 
@@ -67,15 +83,38 @@ public struct HomeWidgetBackgroundWorker {
     return preferences?.object(forKey: callbackKey) as? Int64
   }
 
-  static func setupEngine(dispatcher: Int64) {
-    engine = FlutterEngine(
+  /// Whether a background engine is running, after starting one from the dispatcher stored in
+  /// the AppGroup if there was none. Must be called on the main thread.
+  static func startEngineIfNeeded(appGroup: String) -> Bool {
+    if engine != nil {
+      return true
+    }
+    guard
+      let dispatcher = UserDefaults.init(suiteName: appGroup)?.object(forKey: dispatcherKey)
+        as? Int64
+    else {
+      return false
+    }
+    return setupEngine(dispatcher: dispatcher, requiresCallback: true)
+  }
+
+  /// Starts the background engine at the dispatcher. With `requiresCallback` no engine is
+  /// started for a dispatcher the callback cache does not know, which would run the main
+  /// entrypoint of the app instead.
+  @discardableResult
+  static func setupEngine(dispatcher: Int64, requiresCallback: Bool = false) -> Bool {
+    let backgroundEngine = FlutterEngine(
       name: "home_widget_background", project: nil, allowHeadlessExecution: true)
+    let flutterCallbackInfo = FlutterCallbackCache.lookupCallbackInformation(dispatcher)
+    if requiresCallback && flutterCallbackInfo == nil {
+      return false
+    }
+    engine = backgroundEngine
 
     channel = FlutterMethodChannel(
       name: "home_widget/background", binaryMessenger: engine!.binaryMessenger,
       codec: FlutterStandardMethodCodec.sharedInstance()
     )
-    let flutterCallbackInfo = FlutterCallbackCache.lookupCallbackInformation(dispatcher)
     let callbackName = flutterCallbackInfo?.callbackName
     let callbackLibrary = flutterCallbackInfo?.callbackLibraryPath
 
@@ -89,6 +128,7 @@ public struct HomeWidgetBackgroundWorker {
     }
 
     channel?.setMethodCallHandler(handle)
+    return true
   }
 
   public static func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
