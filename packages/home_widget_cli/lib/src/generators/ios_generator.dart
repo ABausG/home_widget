@@ -12,6 +12,7 @@ import '../util/export_options.dart';
 import '../util/font_resolver.dart';
 import '../util/fs.dart';
 import '../util/icon_font_writer.dart';
+import '../util/ios_interactivity.dart';
 import '../util/ios_templates.dart';
 import '../util/naming.dart';
 import '../util/pbxproj/pbxproj_document.dart' show ownBuildSettings;
@@ -305,6 +306,13 @@ struct ${widgetClassName}Entry: TimelineEntry {
         'private let hwMirroredIcons: Set<Int> = '
             '[${_hexList(spec.mirroredIconCodePoints)}]',
       for (final helper in nativeHelpers) helper.swift!.trim(),
+      if (spec.hasInteractions)
+        iosButtonSwift(
+          function: HWButton.swiftFunction,
+          widgetClassName: widgetClassName,
+          intentName: spec.iosIntentName,
+          interactionKey: spec.interactionKey,
+        ),
     ];
     if (fileDeclarations.isNotEmpty) {
       extraContent = [
@@ -422,6 +430,8 @@ struct ${widgetClassName}Entry: TimelineEntry {
         // not re-export.
         extraImports: <String>{
           for (final helper in nativeHelpers) ...helper.swiftImports,
+          // `Button(intent:)` only exists where both frameworks are imported.
+          if (spec.hasInteractions) 'import AppIntents',
         }.toList(),
         entryDefinition: entryDefinition,
         getSnapshotBody: getSnapshotBody,
@@ -533,6 +543,12 @@ struct ${widgetClassName}Entry: TimelineEntry {
         removedFileNames: iconFonts.removed,
       );
     }
+    await _syncInteractivity(
+      iosDir: iosDir,
+      extensionDir: extensionDir,
+      xcodeproj: xcodeproj,
+      widgetClassName: widgetClassName,
+    );
     logger.detail('Updated: ${xcodeproj.path}');
 
     // Read back only now: the Runner configurations this looks at are the ones
@@ -545,6 +561,92 @@ struct ${widgetClassName}Entry: TimelineEntry {
       groupId: groupId,
       flavorAppGroupIds: flavorAppGroupIds,
     );
+  }
+
+  /// Writes the `AppIntent` the buttons of the widget perform and wires
+  /// everything it needs into the project, or takes all of it out again for a
+  /// widget without buttons.
+  ///
+  /// The intent is compiled into the app and the extension, the extension
+  /// links `home_widget` the way the project integrates plugins, and the app
+  /// delegate registers the app's plugins with the engine a tap runs Dart in.
+  /// The app delegate is the one thing left as it is when the last button
+  /// goes: other widgets, hand-written ones included, may rely on it.
+  Future<void> _syncInteractivity({
+    required Directory iosDir,
+    required Directory extensionDir,
+    required File xcodeproj,
+    required String widgetClassName,
+  }) async {
+    final interactive = spec.hasInteractions;
+    final intentFileName = '${spec.iosIntentName}.swift';
+    final intentFile = File(p.join(extensionDir.path, intentFileName));
+    final podfile = File(p.join(iosDir.path, 'Podfile'));
+
+    if (interactive) {
+      await intentFile.writeAsString(
+        iosIntentSwiftTemplate(
+          intentName: spec.iosIntentName,
+          widgetName: spec.data.name,
+        ),
+      );
+      logger.detail('Generated: ${intentFile.path}');
+    } else if (intentFile.existsSync()) {
+      await intentFile.delete();
+    }
+
+    final linkage = await syncWidgetInteractivityInXcodeProject(
+      pbxprojFile: xcodeproj,
+      widgetClassName: widgetClassName,
+      intentFileName: intentFileName,
+      interactive: interactive,
+      hasPodfile: podfile.existsSync(),
+      pluginInSwiftPackage: _pluginInSwiftPackage(iosDir),
+    );
+
+    if (linkage == WidgetPluginLinkage.cocoaPods) {
+      await ensurePodfileWidgetTarget(podfile, widgetClassName);
+    } else {
+      await removePodfileWidgetTarget(podfile, widgetClassName);
+    }
+    if (!interactive) return;
+
+    if (linkage == WidgetPluginLinkage.none) {
+      logger.warn(
+        'Warning: Could not link home_widget into $widgetClassName: the '
+        'Xcode project links no FlutterGeneratedPluginSwiftPackage and has '
+        'no Podfile. Build the app once and generate again, or link the '
+        'plugin by hand: '
+        'https://docs.page/abausg/home_widget/features/interactive-widgets',
+      );
+    }
+    await ensureAppDelegatePluginRegistrant(
+      iosDir,
+      appDirectories: [
+        'Runner',
+        if (xcodeProjectName(xcodeproj) case final name?) name,
+      ],
+    );
+  }
+
+  /// Whether the Swift package Flutter generates for the app's plugins holds
+  /// `home_widget`, or null while Flutter has not generated the package yet.
+  ///
+  /// With Swift Package Manager turned off the package is still there, and
+  /// still linked by the app, but empty: the plugins come through CocoaPods.
+  static bool? _pluginInSwiftPackage(Directory iosDir) {
+    final manifest = File(
+      p.join(
+        iosDir.path,
+        'Flutter',
+        'ephemeral',
+        'Packages',
+        'FlutterGeneratedPluginSwiftPackage',
+        'Package.swift',
+      ),
+    );
+    if (!manifest.existsSync()) return null;
+    return manifest.readAsStringSync().contains('"home_widget"');
   }
 
   /// Throws a [GeneratorError] when the Xcode project cannot take this widget,

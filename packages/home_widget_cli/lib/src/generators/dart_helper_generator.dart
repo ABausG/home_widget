@@ -36,6 +36,9 @@ class DartHelperGenerator {
     final iosName = _iosName;
 
     final launchTargets = spec.launchTargets;
+    final interactionTargets =
+        spec.hasInteractions ? spec.interactionTargets : <InteractionTarget>[];
+    final handler = spec.hasInteractions ? spec.interactionHandler : null;
 
     final imports = <String>[
       // Localized fields store their translations as a single JSON blob, so
@@ -47,13 +50,19 @@ class DartHelperGenerator {
       // written picture is evicted from the image cache by.
       if (storesFiles || hasTimedData || spec.hasRuntimeImages)
         "import 'dart:io';",
-      if (storesFiles && !hasTimedData && !spec.hasFlavors)
+      if (storesFiles && !hasTimedData && !spec.hasFlavors && handler == null)
         "import 'dart:typed_data';",
-      if (hasTimedData) "import 'package:flutter/foundation.dart';",
-      if (spec.hasFlavors) "import 'package:flutter/services.dart';",
+      // An interactive widget logs through `debugPrint` and catches the
+      // plugin's `PlatformException`.
+      if (hasTimedData || handler != null)
+        "import 'package:flutter/foundation.dart';",
+      if (spec.hasFlavors || handler != null)
+        "import 'package:flutter/services.dart';",
       if (spec.hasRuntimeImages || spec.iconEnums.isNotEmpty)
         "import 'package:flutter/widgets.dart';",
       "import 'package:home_widget/home_widget.dart';",
+      if (handler != null)
+        "import '${handler.libraryUri}' as $_interactionLibrary;",
     ];
 
     final buffer = StringBuffer();
@@ -83,14 +92,26 @@ class $className {
 
     if (_hasDataFields) {
       buffer.write(_dataMembers());
+    } else if (_registersWithAppGroupId) {
+      buffer.write(_appGroupIdDeclaration(spec.data.iOS!.groupId));
     }
 
-    buffer.write('''
+    if (handler == null) {
+      buffer.write('''
 
   static Future<bool?> updateWidget() {
 ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
       $_androidNameArg,
 ''');
+    } else {
+      buffer.write('''
+
+  static Future<bool?> updateWidget() {
+${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
+    return HomeWidget.updateWidget(
+      $_androidNameArg,
+''');
+    }
 
     if (iosName != null) {
       buffer.writeln("      iOSName: '$iosName',");
@@ -111,6 +132,7 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
       buffer,
       launchTargets.isNotEmpty ? _launchHelpers() : null,
     );
+    _appendSection(buffer, handler != null ? _interactionHelpers() : null);
     _appendSection(
       buffer,
       spec.hasRuntimeImages ? _runtimeImageHelpers() : null,
@@ -152,9 +174,30 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
           ),
         );
       }
+    }
+
+    if (handler != null) {
+      _appendSection(buffer, _interactionClass(interactionTargets));
+      for (final target in interactionTargets) {
+        _appendSection(
+          buffer,
+          PayloadDartEmitter(target.url).classDeclaration(
+            className: target.className,
+            superClass: spec.interactionClassName,
+            description: target.description,
+          ),
+        );
+      }
+      _appendSection(buffer, _interactionEntryPoint(handler));
+    }
+
+    if (launchTargets.isNotEmpty || interactionTargets.isNotEmpty) {
       _appendSection(
         buffer,
-        PayloadDartEmitter.helpers(launchTargets.map((target) => target.url)),
+        PayloadDartEmitter.helpers([
+          for (final target in launchTargets) target.url,
+          for (final target in interactionTargets) target.url,
+        ]),
       );
     }
 
@@ -515,7 +558,11 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
       if (hasTimedData) _timedDataSave(),
     ];
 
-    final prologue = _imageSnapshots();
+    final snapshots = _imageSnapshots();
+    final prologue = [
+      if (spec.hasInteractions) '    $_ensureInteractivity();',
+      ...snapshots,
+    ];
 
     final buffer = StringBuffer();
 
@@ -536,10 +583,15 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
       buffer.writeln(parameter);
     }
 
-    if (prologue.isEmpty) {
+    if (snapshots.isEmpty) {
       buffer.write('''
   }) {
-${_flavorGuard('Future.value()')}    return Future.wait([
+${_flavorGuard('Future.value()')}''');
+      for (final line in prologue) {
+        buffer.writeln(line);
+      }
+      buffer.write('''
+    return Future.wait([
 ''');
     } else {
       buffer.write('''
@@ -1402,6 +1454,133 @@ sealed class $launch {
 
   /// The URL the widget opens the app with for this launch.
   Uri toUri();
+}
+''';
+  }
+
+  /// The prefix the library of the interaction function is imported under.
+  static const String _interactionLibrary = r'_$interaction';
+
+  /// The generated function registering the interaction function once.
+  static const String _ensureInteractivity = r'_$ensureInteractivity';
+
+  /// Whether registering the interaction function names an App Group that no
+  /// data call declares.
+  bool get _registersWithAppGroupId =>
+      spec.hasInteractions && spec.data.iOS != null;
+
+  /// The function the plugin runs for a tap, which hands it on.
+  String get _interactionEntryPointName {
+    final name = spec.className;
+    return '_\$${name[0].toLowerCase()}${name.substring(1)}'
+        'InteractionEntryPoint';
+  }
+
+  /// Emits the helpers registering the widget's interaction function with
+  /// the plugin.
+  ///
+  /// Emitted only for specs with an [HWButton] and a function for it to
+  /// reach. Below iOS 17 the plugin answers with error `-5`, which is logged
+  /// and not thrown: the widget still renders there, its buttons do nothing.
+  String _interactionHelpers() {
+    final appGroupId =
+        spec.data.iOS != null ? '\n        appGroupId: _\$appGroupId,' : '';
+    final name = escapeDartStringLiteral(spec.data.name);
+    final implicit = _hasDataFields
+        ? '`saveData` and `updateWidget` do this themselves'
+        : '`updateWidget` does this itself';
+    return '''
+  static const String _\$interactionKey = '${escapeDartStringLiteral(spec.interactionKey)}';
+
+  static bool _\$interactivityRegistered = false;
+
+  static Future<void>? _\$implicitRegistration;
+
+  static bool _\$registrationFailureLogged = false;
+
+  /// Registers the function the buttons of this widget run with the plugin.
+  ///
+  /// $implicit, once per isolate.
+  /// That neither waits for this nor fails with it. Call it when the app
+  /// starts as well: a widget can be placed and tapped before the app updated
+  /// it, and its buttons do nothing until this ran once.
+  ///
+  /// Returns false below iOS 17, where a widget cannot run code on a tap.
+  /// Any other error of the plugin, such as a platform without interactive
+  /// widgets, is thrown.
+  static Future<bool?> registerInteractivity() async {
+${_flavorGuard('false')}    try {
+      final registered = await HomeWidget.registerInteractivityCallback(
+        $_interactionEntryPointName,
+        key: _\$interactionKey,$appGroupId
+      );
+      _\$interactivityRegistered = true;
+      return registered;
+    } on PlatformException catch (error) {
+      if (error.code != '-5') rethrow;
+      _\$interactivityRegistered = true;
+      debugPrint('The buttons of the $name widget need iOS 17 or newer: a tap on them does nothing on this device.');
+      return false;
+    }
+  }
+
+  /// Registers in the background, unless that succeeded or is underway.
+  ///
+  /// A failure is logged once and tried again on the next call: it may not
+  /// last, and the data is written either way.
+  static void $_ensureInteractivity() {
+    if (_\$interactivityRegistered || _\$implicitRegistration != null) return;
+    _\$implicitRegistration = registerInteractivity().then<void>(
+      (_) {},
+      onError: (Object error) {
+        if (_\$registrationFailureLogged) return;
+        _\$registrationFailureLogged = true;
+        debugPrint('The buttons of the $name widget will not work: registering them with home_widget failed: \$error');
+      },
+    ).whenComplete(() => _\$implicitRegistration = null);
+  }
+''';
+  }
+
+  /// Emits the sealed class every interaction of this widget extends.
+  String _interactionClass(List<InteractionTarget> targets) {
+    final interaction = spec.interactionClassName;
+    final decoders =
+        targets.map((target) => '${target.className}._\$fromUri(uri)');
+    return '''
+/// A tap on a button of the ${spec.data.name} widget.
+///
+/// The fields of an interaction hold the values the widget was rendered with
+/// when it was tapped, which may be older than what the app has stored since.
+sealed class $interaction {
+  const $interaction();
+
+  /// The interaction [uri] stands for, or null when it is not one a button of
+  /// this widget sends.
+  ///
+  /// Query parameters the interaction does not know are ignored.
+  static $interaction? fromUri(Uri uri) => ${decoders.join(' ?? ')};
+
+  /// The URL the widget sends for this interaction.
+  Uri toUri();
+}
+''';
+  }
+
+  /// Emits the function the plugin runs in the background for a tap, which
+  /// hands the interaction it decodes to [handler].
+  ///
+  /// It is the one function looked up by name, so it alone needs the
+  /// entry-point pragma. It only runs once the function is registered, so the
+  /// `saveData` and `updateWidget` of [handler] skip registering again.
+  String _interactionEntryPoint(InteractionHandler handler) {
+    final call = '$_interactionLibrary.${handler.reference}(interaction)';
+    return '''
+@pragma('vm:entry-point')
+Future<void> $_interactionEntryPointName(Uri? uri) async {
+  ${spec.className}HomeWidget._\$interactivityRegistered = true;
+  final interaction = uri == null ? null : ${spec.interactionClassName}.fromUri(uri);
+  if (interaction != null) ${handler.returnsFuture ? 'await ' : ''}$call;
 }
 ''';
   }

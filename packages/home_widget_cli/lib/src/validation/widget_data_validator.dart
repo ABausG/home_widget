@@ -13,11 +13,13 @@ import 'child_limit_validator.dart';
 import 'size_validator.dart';
 
 part 'dart_keywords.dart';
+part 'interaction_validator.dart';
 part 'kotlin_keywords.dart';
 part 'launch_validator.dart';
 part 'list_validator.dart';
 part 'payload_validator.dart';
 part 'swift_keywords.dart';
+part 'tap_sites.dart';
 
 /// ASCII identifier shape safe for codegen across Dart, Kotlin, and Swift.
 ///
@@ -41,6 +43,7 @@ const String reservedTimedDataName = 'timedData';
 /// Validates primitive / JSON identifiers and JSON path consistency before codegen.
 void validateWidgetData(WidgetSpec spec) {
   validateLaunches(spec);
+  validateInteractions(spec);
   validateLists(spec);
   _validateFixedData(spec);
   _validateFiniteDoubles(spec);

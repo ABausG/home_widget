@@ -533,6 +533,98 @@ Future<void> ensureAndroidManifestLaunchIntent(Directory projectRoot) async {
   }
 }
 
+/// Fully qualified name of the plugin receiver that runs the Dart function of
+/// a widget interaction in the background.
+const String backgroundReceiverFqcn =
+    'es.antonborri.home_widget.HomeWidgetBackgroundReceiver';
+
+/// Ensures the app manifest declares the plugin receiver a tap on an
+/// `HWButton` reaches, which the plugin ships but does not register itself.
+///
+/// The generated widget only ever sends it an explicit broadcast from inside
+/// the app, so it is not exported. Idempotent: a receiver that is already
+/// declared, by hand or by an earlier run, is left as it is, with a warning
+/// when it is exported. Only called for
+/// specs with a button, so manifests of other projects stay byte-identical;
+/// the entry stays when the last button goes, since a hand-written widget may
+/// use it too.
+Future<void> ensureAndroidManifestBackgroundReceiver(
+  Directory projectRoot,
+) async {
+  final manifestFile = File(
+    p.join(
+      projectRoot.path,
+      'android',
+      'app',
+      'src',
+      'main',
+      'AndroidManifest.xml',
+    ),
+  );
+  if (!manifestFile.existsSync()) {
+    logger.warn(
+      'Warning: android/app/src/main/AndroidManifest.xml not found; skipping '
+      'interactivity wiring. Tapping an HWButton will do nothing on Android '
+      'until the HomeWidgetBackgroundReceiver is registered.',
+    );
+    return;
+  }
+
+  final manifestXml = tryParseXmlFile(manifestFile);
+  if (manifestXml == null) {
+    logger.warn(
+      'Warning: Could not parse AndroidManifest.xml as XML; skipping '
+      'interactivity wiring.',
+    );
+    return;
+  }
+
+  final application = manifestXml.rootElement.childElements
+      .where((e) => e.localName == 'application')
+      .cast<XmlElement?>()
+      .firstWhere((e) => e != null, orElse: () => null);
+
+  if (application == null) {
+    logger.warn(
+      'Warning: Could not find <application> in AndroidManifest.xml; skipping '
+      'interactivity wiring.',
+    );
+    return;
+  }
+
+  final declared = application.childElements
+      .where((e) => e.localName == 'receiver')
+      .where((e) => e.getAttribute('android:name') == backgroundReceiverFqcn)
+      .firstOrNull;
+  if (declared != null) {
+    if (declared.getAttribute('android:exported') == 'true') {
+      logger.warn(
+        'Warning: AndroidManifest.xml declares HomeWidgetBackgroundReceiver '
+        'with android:exported="true", so any app on the device can send it '
+        'a broadcast and run the interaction callbacks with a Uri of its '
+        'choice. A widget only reaches it from inside the app: '
+        'android:exported="false" without an intent-filter is enough.',
+      );
+    }
+    return;
+  }
+
+  application.children.add(
+    XmlElement(
+      XmlName('receiver'),
+      [
+        XmlAttribute(XmlName('android:name'), backgroundReceiverFqcn),
+        XmlAttribute(XmlName('android:exported'), 'false'),
+      ],
+      const [],
+    ),
+  );
+
+  if (writeXmlFile(manifestFile, manifestXml)) {
+    logger.detail('Updated: ${manifestFile.path}');
+  }
+}
+
 /// Broadcast the system sends to manifest-declared receivers (API 31+) when
 /// `SCHEDULE_EXACT_ALARM` is granted, including re-granted after the user
 /// revoked it. Revoking the permission makes the system delete the app's
