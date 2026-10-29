@@ -3,15 +3,22 @@ import 'types.dart';
 import 'utils/string_literals.dart';
 import 'widgets/hw_generatable.dart';
 
-/// The Kotlin expression the generated Glance code passes as the formatting
-/// locale.
+/// The Kotlin expression the generated Glance code passes to a formatter that
+/// reads more of the context than its locale.
 ///
 /// `context` is a parameter of the generated `WidgetContent` composable, so the
 /// expression is only valid inside the widget body — which is the only place
 /// formatting happens.
 ///
 /// Codegen-internal: consumed by `home_widget_cli`, not by app code.
-const String kotlinFormatLocaleExpr = 'hwFormatLocale(context)';
+const String kotlinFormatContextExpr = 'context';
+
+/// The Kotlin expression the generated Glance code passes as the formatting
+/// locale, valid where [kotlinFormatContextExpr] is.
+///
+/// Codegen-internal: consumed by `home_widget_cli`, not by app code.
+const String kotlinFormatLocaleExpr =
+    'hwFormatLocale($kotlinFormatContextExpr)';
 
 /// Length preset for a formatted date or time component.
 enum HWFormatStyle {
@@ -580,7 +587,7 @@ class HWSkeletonDateFormat extends HWDateFormat {
 
   @override
   String _kotlinArguments() =>
-      '"${escapeKotlinStringLiteral(skeleton)}", context';
+      '"${escapeKotlinStringLiteral(skeleton)}", $kotlinFormatContextExpr';
 
   @override
   String toString() => 'HWDateFormat.skeleton($skeleton)';
