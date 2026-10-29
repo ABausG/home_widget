@@ -154,6 +154,89 @@ Once the dependency is present in your widget target, continue with the shared s
 ```
 </Accordion>
 
+## Several Callbacks
+
+Everything above uses one callback for the whole app. That is enough for most apps, because the Uri can tell the callback what was tapped.
+
+If your app has several interactive Widgets, each of them can have its own callback instead. Register every callback with a `key`, and pass the same key from the native Widget.
+
+```dart
+HomeWidget.registerInteractivityCallback(counterCallback, key: 'counter');
+HomeWidget.registerInteractivityCallback(todoCallback, key: 'todo');
+```
+
+- A callback registered without a `key` is the default callback. It receives every interaction that is sent without a key, and every interaction whose key has no callback registered.
+- Registering a second callback with the same key replaces the first one.
+- Each callback needs `@pragma('vm:entry-point')`, as before.
+
+### App Group
+
+On iOS the callbacks are stored in the App Group. By default that is the one set with `HomeWidget.setAppGroupId`. You can also name it per call with `appGroupId`, in the same way as for `saveWidgetData`. Registering then works without calling `setAppGroupId` first.
+
+```dart
+HomeWidget.registerInteractivityCallback(
+  counterCallback,
+  key: 'counter',
+  appGroupId: 'group.com.example.app',
+);
+```
+
+Pass the same App Group to `HomeWidgetBackgroundWorker.run` in your `AppIntent`. On Android `appGroupId` has no effect.
+
+<Info>
+  Below iOS 17 `registerInteractivityCallback` throws a `PlatformException` with code `-5`, with or without `key` and `appGroupId`, because Widgets cannot be interactive there. Without an App Group it throws one with code `-7`.
+</Info>
+
+### iOS
+
+Give your `AppIntent` a parameter for the key and pass it to `HomeWidgetBackgroundWorker.run(url:appGroup:key:)`:
+
+```swift
+@Parameter(title: "Callback Key")
+var key: String?
+
+public func perform() async throws -> some IntentResult {
+   await HomeWidgetBackgroundWorker.run(url: url, appGroup: appGroup!, key: key)
+
+   return .result()
+}
+```
+
+`run(url:appGroup:)` without a key keeps calling the default callback.
+
+### Android
+
+Pass the key as the third argument of `HomeWidgetBackgroundIntent.getBroadcast`:
+
+```kotlin
+val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(
+    context,
+    Uri.parse("homeWidgetExample://increment"),
+    "counter",
+)
+backgroundIntent.send()
+```
+
+In a Glance Widget you do not need an `ActionCallback` of your own for this. The plugin ships `HomeWidgetInteractivityAction`, which reads the Uri and the key from its `ActionParameters` and sends the broadcast:
+
+```kotlin
+Text(
+    "+",
+    modifier = GlanceModifier.clickable(
+        actionRunCallback<HomeWidgetInteractivityAction>(
+            HomeWidgetInteractivityAction.parameters(
+                Uri.parse("homeWidgetExample://increment"),
+                "counter",
+            )
+        )
+    ),
+)
+```
+
+The key is optional there too. Without it the action calls the default callback. If you build the `ActionParameters` yourself, use `HomeWidgetInteractivityAction.UriKey` and `HomeWidgetInteractivityAction.CallbackKey`.
+
+The `HomeWidgetBackgroundReceiver` entry in the `AndroidManifest.xml` is needed in both cases.
+
 ## Example Blog Article
 
 A more in depth guide on how to build Interactive Widgets can be found [here](https://medium.com/@ABausG/83cb0706a417)
