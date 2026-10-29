@@ -92,6 +92,15 @@
 		D1FF2A35979661D8E84EC2FF /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7B84DC9020A47DCEEC93A2 /* Widget.swift */; };
 		1386AA35AF380A18A19DF477 /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA84B14C3AA561D0CACF26A /* WidgetBundle.swift */; };
 		67BFE89D06FB7F5E4A7C1C2F /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = 48E482D2C90E8D752FBD2A30 /* hw_font_icons_materialicons.otf */; };
+		E5C5D760CC21104B4A0F250E /* InteractiveCounterHomeWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 63C8EF49162CB976D96B8343 /* InteractiveCounterHomeWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E84656E799D2C3B0F8F0ABC5 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0AB9CE54178EC4CFAD818A56 /* WidgetKit.framework */; };
+		A4A5FB74FA88E7979CFAC89A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 485C616B0D13126C3925CD25 /* SwiftUI.framework */; };
+		E892C3BC3A286C8DA38AF052 /* Widget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DD7C4513B27BC3460BE6C63 /* Widget.swift */; };
+		E1DE43BC9B8338CD9469851A /* WidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC024D9546108D4F8C6F77B /* WidgetBundle.swift */; };
+		623607548CEA470F9AC88A62 /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = A77294F389ED1DFCF0E72075 /* hw_font_icons_materialicons.otf */; };
+		5B04942F4B082DEA405D9701 /* InteractiveCounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */; };
+		2E5C2E2E3C6C98572E02A264 /* InteractiveCounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */; };
+		B8F8F2618B9DA8365205A6D7 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 9580C7F115C3866656818B8B /* FlutterGeneratedPluginSwiftPackage */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -199,6 +208,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 57F1CF5D65F5A06CF2DDA75B;
 			remoteInfo = WeekForecastHomeWidget;
+		};
+		06DFB973BAB7BC145C42EBA9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4FE35A146927E3416F6CC6FE;
+			remoteInfo = InteractiveCounterHomeWidget;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -367,6 +383,17 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FCFC1661E57154F4EAAF88D3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				E5C5D760CC21104B4A0F250E /* InteractiveCounterHomeWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -498,6 +525,15 @@
 		9E4F6FE975993F30472D7BD3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		48E482D2C90E8D752FBD2A30 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
 		68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = HomeWidget.xcconfig; path = Flutter/HomeWidget.xcconfig; sourceTree = "<group>"; };
+		63C8EF49162CB976D96B8343 /* InteractiveCounterHomeWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = InteractiveCounterHomeWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		0AB9CE54178EC4CFAD818A56 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		485C616B0D13126C3925CD25 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		168CD17AB37F909FFEB88920 /* InteractiveCounterHomeWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = InteractiveCounterHomeWidget.entitlements; sourceTree = "<group>"; };
+		7DD7C4513B27BC3460BE6C63 /* Widget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Widget.swift; sourceTree = "<group>"; };
+		1DC024D9546108D4F8C6F77B /* WidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBundle.swift; sourceTree = "<group>"; };
+		76BA50A0353A8D7523D42006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A77294F389ED1DFCF0E72075 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
+		00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveCounterHomeWidgetIntent.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -644,6 +680,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		93E8AAC55508B55CF3F79C7B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A4A5FB74FA88E7979CFAC89A /* SwiftUI.framework in Frameworks */,
+				E84656E799D2C3B0F8F0ABC5 /* WidgetKit.framework in Frameworks */,
+				B8F8F2618B9DA8365205A6D7 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -738,6 +784,8 @@
 				4587DE65D1FCC60C1B30E29F /* SizeAdaptiveDashboardHomeWidget */,
 				C5984D5721A5E08ECA0A8C69 /* WeekForecastHomeWidget.entitlements */,
 				CFBDA02F737EA0D0462F3215 /* WeekForecastHomeWidget */,
+				168CD17AB37F909FFEB88920 /* InteractiveCounterHomeWidget.entitlements */,
+				41DDEE62B0CC171561D8339C /* InteractiveCounterHomeWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -752,6 +800,7 @@
 				A7C38631850A9F36A61743A3 /* FontAndIconsHomeWidget.appex */,
 				3509E8302CA918795A76B7E2 /* SizeAdaptiveDashboardHomeWidget.appex */,
 				59900B64CDDE11E3C5C1FD02 /* WeekForecastHomeWidget.appex */,
+				63C8EF49162CB976D96B8343 /* InteractiveCounterHomeWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -906,6 +955,18 @@
 			path = WeekForecastHomeWidget;
 			sourceTree = "<group>";
 		};
+		41DDEE62B0CC171561D8339C /* InteractiveCounterHomeWidget */ = {
+			isa = PBXGroup;
+			children = (
+				7DD7C4513B27BC3460BE6C63 /* Widget.swift */,
+				1DC024D9546108D4F8C6F77B /* WidgetBundle.swift */,
+				76BA50A0353A8D7523D42006 /* Info.plist */,
+				A77294F389ED1DFCF0E72075 /* hw_font_icons_materialicons.otf */,
+				00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */,
+			);
+			path = InteractiveCounterHomeWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -969,6 +1030,7 @@
 				442A4419A9C6917C17F57913 /* Embed Foundation Extensions */,
 				A93764F82D6C64C774EDE512 /* Embed Foundation Extensions */,
 				BA9A0C8CA931AF3D0795F6B2 /* Embed Foundation Extensions */,
+				FCFC1661E57154F4EAAF88D3 /* Embed Foundation Extensions */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
 			buildRules = (
@@ -988,6 +1050,7 @@
 				CCC853E07EC583431A5E12B6 /* PBXTargetDependency */,
 				0C87629392D876027D7FBAF9 /* PBXTargetDependency */,
 				1E458529E7B5546263318563 /* PBXTargetDependency */,
+				35F946E0AC572A23324890F6 /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -1224,6 +1287,26 @@
 			productReference = 59900B64CDDE11E3C5C1FD02 /* WeekForecastHomeWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		4FE35A146927E3416F6CC6FE /* InteractiveCounterHomeWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 324A18F1825C47D24E6F8547 /* Build configuration list for PBXNativeTarget "InteractiveCounterHomeWidget" */;
+			buildPhases = (
+				DC0D0F5296DB92817FCA0B5C /* Sources */,
+				93E8AAC55508B55CF3F79C7B /* Frameworks */,
+				DBA9FBF3F82540E0EBC15389 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = InteractiveCounterHomeWidget;
+			packageProductDependencies = (
+				9580C7F115C3866656818B8B /* FlutterGeneratedPluginSwiftPackage */,
+			);
+			productName = InteractiveCounterHomeWidget;
+			productReference = 63C8EF49162CB976D96B8343 /* InteractiveCounterHomeWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1278,6 +1361,7 @@
 				EF67685C1BF69BB94B54BD0E /* FontAndIconsHomeWidget */,
 				15BFE5275F1D3B1883CDA931 /* SizeAdaptiveDashboardHomeWidget */,
 				57F1CF5D65F5A06CF2DDA75B /* WeekForecastHomeWidget */,
+				4FE35A146927E3416F6CC6FE /* InteractiveCounterHomeWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -1404,6 +1488,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DBA9FBF3F82540E0EBC15389 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				623607548CEA470F9AC88A62 /* hw_font_icons_materialicons.otf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -1526,6 +1618,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+				2E5C2E2E3C6C98572E02A264 /* InteractiveCounterHomeWidgetIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1628,6 +1721,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DC0D0F5296DB92817FCA0B5C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E892C3BC3A286C8DA38AF052 /* Widget.swift in Sources */,
+				E1DE43BC9B8338CD9469851A /* WidgetBundle.swift in Sources */,
+				5B04942F4B082DEA405D9701 /* InteractiveCounterHomeWidgetIntent.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -1705,6 +1808,11 @@
 			isa = PBXTargetDependency;
 			target = 57F1CF5D65F5A06CF2DDA75B /* WeekForecastHomeWidget */;
 			targetProxy = 0338EB522A75C15DA60FC1C4 /* PBXContainerItemProxy */;
+		};
+		35F946E0AC572A23324890F6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4FE35A146927E3416F6CC6FE /* InteractiveCounterHomeWidget */;
+			targetProxy = 06DFB973BAB7BC145C42EBA9 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -3154,6 +3262,87 @@
 			};
 			name = Profile;
 		};
+		94922E9E3B6F6D55BC26C024 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = InteractiveCounterHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = InteractiveCounterHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = InteractiveCounterHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.InteractiveCounterHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0FE00EB0AB2D2F3F0F30EB16 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = InteractiveCounterHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = InteractiveCounterHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = InteractiveCounterHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.InteractiveCounterHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		798D500CCD29392FBE6C7AFE /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 68EC8D0B1D2F26069F27AD05 /* HomeWidget.xcconfig */;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = InteractiveCounterHomeWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = T3PND82A9W;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				INFOPLIST_FILE = InteractiveCounterHomeWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = InteractiveCounterHomeWidget;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorBasics.InteractiveCounterHomeWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -3327,6 +3516,16 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		324A18F1825C47D24E6F8547 /* Build configuration list for PBXNativeTarget "InteractiveCounterHomeWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				94922E9E3B6F6D55BC26C024 /* Debug */,
+				0FE00EB0AB2D2F3F0F30EB16 /* Release */,
+				798D500CCD29392FBE6C7AFE /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -3338,6 +3537,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FlutterGeneratedPluginSwiftPackage;
+		};
+		9580C7F115C3866656818B8B /* FlutterGeneratedPluginSwiftPackage */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FlutterGeneratedPluginSwiftPackage;
 		};
