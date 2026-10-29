@@ -829,7 +829,7 @@ void main() {
       await subscription.cancel();
     });
 
-    test('keeps clicks when the initial Uri cannot be read', () async {
+    test('reports a failed initial read and keeps going with clicks', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
             channel,
@@ -838,20 +838,49 @@ void main() {
       emitClicksOnListen(['homeWidget://known/early']);
 
       final events = <Object>[];
-      final done = Completer<void>();
-      HomeWidget.launches(
+      var done = false;
+      final subscription = HomeWidget.launches(
         decodeHost,
-      ).listen(events.add, onError: events.add, onDone: done.complete);
-      await done.future;
-
-      expect(events.single, isA<PlatformException>());
-      final clicks = <Uri>[];
-      final subscription = HomeWidget.widgetClicked.listen(
-        (uri) => clicks.add(uri!),
-      );
+      ).listen(events.add, onError: events.add, onDone: () => done = true);
+      addTearDown(subscription.cancel);
       await pumpEventQueue();
-      expect(clicks.single.path, '/early');
-      await subscription.cancel();
+      click('homeWidget://known/later');
+      await pumpEventQueue();
+
+      expect(events, [isA<PlatformException>(), '/early', '/later']);
+      expect(done, isFalse);
+    });
+
+    test('reads the initial Uri again after a failed read', () async {
+      var reads = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) async {
+            reads++;
+            if (reads == 1) throw PlatformException(code: 'failed');
+            return 'homeWidget://known/initial';
+          });
+      emitClicksOnListen(const []);
+
+      final first = <Object>[];
+      final firstSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(first.add, onError: first.add);
+      addTearDown(firstSubscription.cancel);
+      await pumpEventQueue();
+      expect(first.single, isA<PlatformException>());
+
+      final second = <Object>[];
+      final secondSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(second.add, onError: second.add);
+      addTearDown(secondSubscription.cancel);
+      await pumpEventQueue();
+
+      expect(second, ['/initial']);
+      expect(reads, 2);
+      click('homeWidget://known/initial');
+      await pumpEventQueue();
+      expect(second, ['/initial', '/initial']);
     });
 
     test('reports an exception of decode and keeps going', () async {

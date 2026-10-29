@@ -337,9 +337,20 @@ class HomeWidget {
   /// The clicks still waiting for the initial Uri, in order.
   static Future<void> _launchClickQueue = Future<void>.value();
 
+  /// A read that fails is not kept, so the next [launches] listener reads
+  /// again. It still ends the window in which clicks repeating the initial Uri
+  /// are dropped.
   static Future<Uri?> _readLaunchInitialUri() =>
-      _launchInitialUri ??= initiallyLaunchedFromHomeWidget().whenComplete(
-        () => _launchInitialUriRead = true,
+      _launchInitialUri ??= initiallyLaunchedFromHomeWidget().then(
+        (uri) {
+          _launchInitialUriRead = true;
+          return uri;
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          _launchInitialUri = null;
+          _launchInitialUriRead = true;
+          Error.throwWithStackTrace(error, stackTrace);
+        },
       );
 
   static void _addLaunchClick(Uri? uri) {
@@ -398,8 +409,9 @@ class HomeWidget {
   /// [initiallyLaunchedFromHomeWidget].
   ///
   /// Any number of these Streams can be listened to at once, each with a
-  /// [decode] of its own. An exception [decode] throws arrives as an error of
-  /// the Stream, which keeps going.
+  /// [decode] of its own. An exception [decode] throws, and a failure to read
+  /// the initial Uri, arrive as an error of the Stream, which keeps going with
+  /// the clicks. A Stream listened to after a failed read reads it again.
   ///
   /// The scheme of the Uri handed to [decode] is lower-cased, whatever casing
   /// the Widget wrote it with.
@@ -416,9 +428,14 @@ class HomeWidget {
       }
     }, onError: clicks.addError);
     try {
-      final uri = _initialLaunchDelivered
-          ? null
-          : await _readLaunchInitialUri();
+      Uri? uri;
+      if (!_initialLaunchDelivered) {
+        try {
+          uri = await _readLaunchInitialUri();
+        } on Object catch (error, stackTrace) {
+          yield* Stream<T>.error(error, stackTrace);
+        }
+      }
       if (uri != null && !_initialLaunchDelivered) {
         T? initial;
         try {
