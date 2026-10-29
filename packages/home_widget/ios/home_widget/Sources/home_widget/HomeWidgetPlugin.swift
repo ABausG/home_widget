@@ -59,16 +59,14 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
   }
 
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let instance = HomeWidgetPlugin()
-
-    let channel = FlutterMethodChannel(name: "home_widget", binaryMessenger: registrar.messenger())
-    registrar.addMethodCallDelegate(instance, channel: channel)
-
-    let eventChannel = FlutterEventChannel(
-      name: "home_widget/updates", binaryMessenger: registrar.messenger())
-    eventChannel.setStreamHandler(instance)
+    let instance = registerChannels(with: registrar)
 
     guard !isRunningInAppExtension() else {
+      return
+    }
+    // The engine a widget interaction runs in only needs the channels: as an application delegate
+    // it would sit in the delegate chain next to the app's own instance.
+    if #available(iOS 17, *), HomeWidgetBackgroundWorker.isRegisteringPlugins {
       return
     }
 
@@ -81,6 +79,22 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     if registrar.responds(to: sceneDelegateSelector) {
       registrar.perform(sceneDelegateSelector, with: instance)
     }
+  }
+
+  /// Sets up the `home_widget` method channel and the `home_widget/updates` event channel on
+  /// the messenger of `registrar`, without adding the plugin as an application or scene delegate.
+  @discardableResult
+  public static func registerChannels(with registrar: FlutterPluginRegistrar) -> HomeWidgetPlugin {
+    let instance = HomeWidgetPlugin()
+
+    let channel = FlutterMethodChannel(name: "home_widget", binaryMessenger: registrar.messenger())
+    registrar.addMethodCallDelegate(instance, channel: channel)
+
+    let eventChannel = FlutterEventChannel(
+      name: "home_widget/updates", binaryMessenger: registrar.messenger())
+    eventChannel.setStreamHandler(instance)
+
+    return instance
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -212,18 +226,24 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
       result(initialUrl?.absoluteString)
     } else if call.method == "registerBackgroundCallback" {
-      if HomeWidgetPlugin.groupId == nil {
+      // [dispatcher, callback] or [dispatcher, callback, key, appGroupId]
+      let arguments = call.arguments as! [Any]
+      let key = arguments.count > 2 ? arguments[2] as? String : nil
+      let appGroupId = arguments.count > 3 ? arguments[3] as? String : nil
+      guard let resolvedGroupId = appGroupId ?? HomeWidgetPlugin.groupId else {
         result(notInitializedError)
         return
       }
       if #available(iOS 17.0, *) {
-        let callbackHandles = call.arguments as! [Int64]
-        let dispatcher = callbackHandles[0]
-        let callback = callbackHandles[1]
-        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
+        let dispatcher = arguments[0] as! Int64
+        let callback = arguments[1] as! Int64
+        let preferences = UserDefaults.init(suiteName: resolvedGroupId)
         preferences?.setValue(dispatcher, forKey: HomeWidgetBackgroundWorker.dispatcherKey)
-        preferences?.setValue(callback, forKey: HomeWidgetBackgroundWorker.callbackKey)
-        HomeWidgetBackgroundWorker.setupEngine(dispatcher: dispatcher)
+        preferences?.setValue(
+          callback, forKey: HomeWidgetBackgroundWorker.callbackStorageKey(for: key))
+        if HomeWidgetBackgroundWorker.engine == nil {
+          HomeWidgetBackgroundWorker.setupEngine(dispatcher: dispatcher)
+        }
 
         result(true)
         return
