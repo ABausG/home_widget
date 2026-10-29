@@ -698,6 +698,43 @@ void main() {
     expect(content, isNot(contains('func hwLink')));
   });
 
+  test('keeps a link iOS does not render out of the Swift', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PromoWidget',
+        widgetUrl: 'app://home',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.promo'),
+      ),
+      className: 'PromoWidget',
+      widgetTree: const HWColumn(
+        children: [
+          HWText(HWString.fixed('Home')),
+          HWLink(
+            'promo',
+            url: 'app://promo',
+            child: HWAdaptive(
+              ios: HWDataOnly([HWString('hidden')]),
+              android: HWText(HWString.fixed('Promo')),
+            ),
+          ),
+        ],
+      ),
+      dataFields: const [HWString('hidden')],
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/PromoWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect('.widgetURL('.allMatches(content), hasLength(1));
+    expect(
+        content, contains('.widgetURL(URL(string: "app://home?homeWidget"))'));
+    expect(content, isNot(contains('app://promo')));
+    expect(content, isNot(contains('hwLink(')));
+  });
+
   test('emits a Link per HWLink next to the widgetURL', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

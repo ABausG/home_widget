@@ -1099,13 +1099,13 @@ class WidgetSpec {
     if (singleTap.isEmpty) return const [];
 
     final root = effectiveWidgetTree;
-    if (root is HWLink) return [root];
+    if (root is HWLink) return root.swiftRendersNothing ? const [] : [root];
     if (root is! HWSizeAdaptive) return const [];
 
     final links = <HWLink>[];
     for (final family in singleTap) {
       final slot = root.resolve(family);
-      if (slot is! HWLink) continue;
+      if (slot is! HWLink || slot.swiftRendersNothing) continue;
       if (links.any((other) => identical(other, slot))) continue;
       links.add(slot);
     }
@@ -1132,6 +1132,7 @@ class WidgetSpec {
           }
         default:
           if (widget is HWLink &&
+              !widget.swiftRendersNothing &&
               !wholeWidget.any((other) => identical(other, widget))) {
             ignored.add(widget);
           }
