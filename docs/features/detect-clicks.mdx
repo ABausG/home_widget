@@ -23,13 +23,41 @@ When your App is already running all Widget clicks are broadcast to a Stream pro
 
 ```dart
 HomeWidget.widgetClicked;
-````
-which is a `Stream<Uri?>` that you can listen to to detect App Launches from the Widget.title
+```
+which is a `Stream<Uri?>` that you can listen to to detect App Launches from the Widget.
 
+## Decoding Launches
+
+`HomeWidget.initialLaunch<T>(decode)` and `HomeWidget.launches<T>(decode)` combine the two methods above and turn each Uri into a value of your own. `decode` receives the Uri and returns the launch it stands for, or `null` for a Uri it does not know:
+
+```dart
+enum WidgetLaunch { message, settings }
+
+WidgetLaunch? decodeLaunch(Uri uri) => switch (uri.host) {
+  'message' => WidgetLaunch.message,
+  'settings' => WidgetLaunch.settings,
+  _ => null,
+};
+
+// The launch the App was started with, or null.
+final initial = await HomeWidget.initialLaunch(decodeLaunch);
+
+// The initial launch first, if there was one, then every click while the App is running.
+final subscription = HomeWidget.launches(decodeLaunch).listen((launch) {
+  switch (launch) {
+    case WidgetLaunch.message:
+      // open the message
+    case WidgetLaunch.settings:
+      // open the settings
+  }
+});
+```
+
+`launches` subscribes to `widgetClicked` before it reads the initial Uri, so a click arriving in between is not lost. A Uri `decode` returns `null` for is skipped, which makes the result a `Stream<T>` without nulls. The scheme of the Uri handed to `decode` is lower-cased.
 
 ## Platform Setup
 
-In the following section you can learn how to add the necessary configurations to your native Widgets in order for clicks to bet detectable by home_widget.title
+In the following section you can learn how to add the necessary configurations to your native Widgets in order for clicks to be detectable by home_widget.
 
 ### iOS
 

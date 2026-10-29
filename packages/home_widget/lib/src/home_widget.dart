@@ -294,6 +294,52 @@ class HomeWidget {
     );
   }
 
+  /// The launch [decode] reads out of the Uri the App was started with by a
+  /// click on a HomeScreen Widget
+  ///
+  /// Returns `null` when the App was started any other way, and when [decode]
+  /// returns `null` because the Uri is not one it knows. The scheme of the Uri
+  /// handed to [decode] is lower-cased, whatever casing the Widget wrote it
+  /// with.
+  static Future<T?> initialLaunch<T extends Object>(
+    T? Function(Uri uri) decode,
+  ) async {
+    final uri = await initiallyLaunchedFromHomeWidget();
+    return uri == null ? null : decode(uri);
+  }
+
+  /// Every launch [decode] reads out of a click on a HomeScreen Widget
+  ///
+  /// Emits the launch the App was started with first, if there was one, then
+  /// one for every click while the App is running. Clicks arriving while the
+  /// initial Uri is still being read are kept. A Uri [decode] returns `null`
+  /// for is skipped, so the Stream only ever carries launches [decode] knows.
+  ///
+  /// The scheme of the Uri handed to [decode] is lower-cased, whatever casing
+  /// the Widget wrote it with.
+  static Stream<T> launches<T extends Object>(
+    T? Function(Uri uri) decode,
+  ) async* {
+    final clicks = StreamController<T>();
+    final subscription = widgetClicked.listen(
+      (uri) {
+        final launch = uri == null ? null : decode(uri);
+        if (launch != null) clicks.add(launch);
+      },
+      onError: clicks.addError,
+      onDone: clicks.close,
+    );
+    try {
+      final initial = await initialLaunch(decode);
+      if (initial != null) yield initial;
+      yield* clicks.stream;
+    } finally {
+      await subscription.cancel();
+      // Not awaited: a controller nobody listened to never reports done.
+      unawaited(clicks.close());
+    }
+  }
+
   static Uri? _handleReceivedData(dynamic value) {
     if (value != null) {
       if (value is String) {
