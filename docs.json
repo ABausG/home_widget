@@ -101,6 +101,7 @@
         { "title": "Icons", "href": "/generator/icons" },
         { "title": "Time-based Content", "href": "/generator/timed-data" },
         { "title": "Widget Clicks", "href": "/generator/widget-url" },
+        { "title": "Interactive Widgets", "href": "/generator/interactivity" },
         { "title": "Previews", "href": "/generator/previews" },
         { "title": "Pinning & Install Status", "href": "/generator/install-status" },
         { "title": "Flavors", "href": "/generator/flavors" }
@@ -113,6 +114,7 @@
         { "title": "Overview", "href": "/generator/widgets" },
         { "title": "HWAdaptive", "href": "/generator/widgets/hw-adaptive" },
         { "title": "HWAlign", "href": "/generator/widgets/hw-align" },
+        { "title": "HWButton", "href": "/generator/widgets/hw-button" },
         { "title": "HWColoredBox", "href": "/generator/widgets/hw-colored-box" },
         { "title": "HWColumn", "href": "/generator/widgets/hw-column" },
         { "title": "HWConditional", "href": "/generator/widgets/hw-conditional" },

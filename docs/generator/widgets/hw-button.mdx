@@ -1,0 +1,219 @@
+---
+title: HWButton
+description: Run Dart code in the background when one region of the widget is tapped, without opening the app.
+---
+
+# HWButton
+
+Makes its child a tap target that runs Dart code in the background. The app is not opened. A button defines behavior only and has no styling: it renders exactly what its child renders. For a tap that opens the app, use [`HWLink`](/generator/widgets/hw-link) or [`widgetUrl`](/generator/widget-url).
+
+```dart
+@HomeWidget(
+  name: 'Counter',
+  onInteraction: onCounterInteraction,
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWColumn(
+    children: [
+      HWText.number(HWInt('count', defaultValue: 0)),
+      HWRow(
+        spacing: 24,
+        children: [
+          HWButton('decrement', child: HWText(HWString.fixed('-'))),
+          HWButton('increment', child: HWText(HWString.fixed('+'))),
+        ],
+      ),
+    ],
+  ),
+)
+class Counter {}
+```
+
+A tap reaches the function that `onInteraction` names on the annotation. The function lives in a library under `lib/`:
+
+```dart
+Future<void> onCounterInteraction(CounterInteraction interaction) async {
+  final count = (await CounterHomeWidget.getData()).count ?? 0;
+  switch (interaction) {
+    case CounterIncrementInteraction():
+      await CounterHomeWidget.saveData(count: count + 1);
+    case CounterDecrementInteraction():
+      await CounterHomeWidget.saveData(count: count - 1);
+  }
+  await CounterHomeWidget.updateWidget();
+}
+```
+
+The `id` names the class the tap reaches the function as: `HWButton('increment', ...)` in the `Counter` widget generates `CounterIncrementInteraction`.
+
+See [Interactive Widgets](/generator/interactivity) for the full setup: where the function goes, how it is registered, what runs where, and what `generate` changes in the native projects.
+
+## The generated classes
+
+A widget with an `HWButton` gets a sealed class with one subclass per button id:
+
+```dart
+sealed class CounterInteraction {
+  /// The interaction [uri] stands for, or null when it is not one a button of
+  /// this widget sends.
+  static CounterInteraction? fromUri(Uri uri);
+
+  /// The URL the widget sends for this interaction.
+  Uri toUri();
+}
+
+/// A tap on HWButton('increment', ...). One class per button id.
+final class CounterIncrementInteraction extends CounterInteraction {
+  const CounterIncrementInteraction();
+}
+
+final class CounterDecrementInteraction extends CounterInteraction {
+  const CounterDecrementInteraction();
+}
+```
+
+- `<WidgetClass><Id>Interaction` carries one field per entry of the button's `data`. The id is written in PascalCase.
+- Every class has value equality and a readable `toString`.
+- `fromUri` and `toUri` are what the generated code uses to pass a tap from the native widget to Dart. The format of the URL is internal. They are useful in [tests](/generator/interactivity#testing).
+
+The class is sealed, so a `switch` over it is exhaustive: a button added to the widget later is a compile error until the function handles it.
+
+## Sending data
+
+`data` lists the values a tap sends along. Each entry becomes a typed field of the button's class:
+
+```dart
+HWButton(
+  'increment',
+  data: [HWPayload('step', HWInt.fixed(5))],
+  child: HWText(HWString.fixed('+5')),
+)
+```
+
+```dart
+final class CounterIncrementInteraction extends CounterInteraction {
+  const CounterIncrementInteraction({this.step = 5});
+
+  final int step;
+}
+```
+
+```dart
+case CounterIncrementInteraction(:final step):
+  await CounterHomeWidget.saveData(count: count + step);
+```
+
+`data` follows exactly the rules of the `data` of an `HWLink`: stored `HWString`, `HWInt`, `HWDouble`, `HWBool` and `HWDateTime` values, `HWJson` leaves, `HWTimedData`, `HWItemData` inside a builder item, and `HWPayload(name, value)` to name a fixed value or rename a stored one. The fields are typed and nullable the same way. See [Sending data](/generator/widgets/hw-link#sending-data) on the `HWLink` page and [Payloads](/generator/data#payloads) for the allowed types, the naming rules and the nullability of the generated fields.
+
+A value the widget reads only for a payload is a stored field like any other. It appears in `saveData` and `getData` even when nothing displays it.
+
+Keep the payload small. On Android a tap whose values add up to more than about 10 KB is dropped, with an error in the log. Send an id and read the rest in the function.
+
+### Rendered values, not current state
+
+The fields hold the values the widget was **rendered with** when it was tapped. They are not read from storage at the moment of the tap.
+
+That is right for identity: which row, which button, which step. It is wrong for state that the function itself changes, such as the current count. A widget can be tapped twice before it has rendered the first change, and both taps then send the same old value:
+
+```dart
+// Loses taps: both taps send the count the widget was showing.
+HWButton('increment', data: [HWInt('count')], child: ...)
+
+case CounterIncrementInteraction(:final count):
+  await CounterHomeWidget.saveData(count: (count ?? 0) + 1);
+```
+
+Read state from `getData()` inside the function instead, as the example at the top does.
+
+## Buttons in list rows
+
+Inside the item of an [`HWColumn.builder` or `HWRow.builder`](/generator/lists), `HWItemData` sends a value of the row that was tapped:
+
+```dart
+HWColumn.builder(
+  'todos',
+  maxItems: 5,
+  item: HWButton(
+    'toggle',
+    data: [HWItemData(HWString('id'))],
+    child: HWText(HWItemData(HWString('title'))),
+  ),
+)
+```
+
+Every row is its own tap target with its own payload, and all of them reach the function as one class. In a widget class `Todos`:
+
+```dart
+final class TodosToggleInteraction extends TodosInteraction {
+  const TodosToggleInteraction({this.id});
+
+  final String? id;
+}
+```
+
+To send an item value under another name, put the `HWItemData` inside the `HWPayload`: `HWPayload('id', HWItemData(HWString('uuid')))`.
+
+## No styling
+
+`HWButton` does not draw a background, a border or a pressed state. Style the child to make it look like something that can be tapped, for example with an [`HWDecoratedBox`](/generator/widgets/hw-decorated-box) and an [`HWPadding`](/generator/widgets/hw-padding):
+
+```dart
+HWButton(
+  'increment',
+  child: HWDecoratedBox(
+    decoration: HWBoxDecoration(
+      color: HWColor.fixed(0xFF2196F3),
+      borderRadius: HWBorderRadius.circular(12),
+    ),
+    child: HWPadding(
+      padding: HWEdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: HWText(HWString.fixed('+')),
+    ),
+  ),
+)
+```
+
+The tap area is the area of the child.
+
+## Together with links and `widgetUrl`
+
+A button can sit in a widget that also sets `widgetUrl` or contains `HWLink`s. A tap on the button runs the function and does not open the app. A tap on a link, or anywhere else on the widget, still opens the app as described in [Widget Clicks](/generator/widget-url).
+
+A button cannot contain a link or another button, and a link cannot contain a button. Each of these is a generation error.
+
+## iOS
+
+- **iOS 17.** Buttons need iOS 17. On iOS 15 and 16 the child renders, but a tap on it does not run the function. Generation does not warn about this.
+- **`accessoryInline`.** The inline Lock Screen family shows text only. The child renders without the button there, and `generate` warns when a button can be shown in that family. To silence the warning, put the button in an [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) slot of another family.
+- **Every other family gets the button**, including `systemSmall`, the Lock Screen families `accessoryCircular` and `accessoryRectangular`, and StandBy. On a locked device iOS asks to unlock before it runs the tap.
+
+## Android
+
+`HomeWidgetAndroidConfiguration(openAppOnTap: false)` does not affect buttons. They do not open the app, so they keep working.
+
+## Parameters
+
+| Name    | Type               | Default      | Description                                                                 |
+| ------- | ------------------ | ------------ | --------------------------------------------------------------------------- |
+| `id`    | `String`           | **required** | Positional. Names the generated interaction class, `<WidgetClass><Id>Interaction`. |
+| `data`  | `List<HWDataType>` | `const []`   | Values sent along as fields of that class. See [Payloads](/generator/data#payloads). |
+| `child` | `HWWidget`         | **required** | The widget that is rendered and tapped.                                     |
+
+## Validation
+
+Each of these fails generation:
+
+- An `HWButton` in a widget whose annotation sets no `onInteraction`.
+- An `id` that is not ASCII letters and digits starting with a letter.
+- An `HWButton` inside another `HWButton`.
+- An `HWButton` inside an `HWLink`, or an `HWLink` inside an `HWButton`.
+- Two buttons with the same `id`, or with ids that generate the same class name, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `data`.
+- A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.
+- An `onInteraction` function the generated code cannot call. See [The function](/generator/interactivity#the-function).
+
+`onInteraction` on a widget without any `HWButton` is a warning.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`Button(intent:)`](https://developer.apple.com/documentation/swiftui/button/init(intent:label:)) with `.buttonStyle(.plain)`, performing a generated [`AppIntent`](https://developer.apple.com/documentation/appintents/appintent). Below iOS 17 and in `accessoryInline`, the child alone.
+- **Android:** Glance [`GlanceModifier.clickable(...)`](https://developer.android.com/reference/kotlin/androidx/glance/action/package-summary) with `actionRunCallback` for the plugin's `HomeWidgetInteractivityAction`, put on the child's own composable.
