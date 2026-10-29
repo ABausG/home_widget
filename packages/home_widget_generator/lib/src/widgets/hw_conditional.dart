@@ -1,0 +1,347 @@
+part of 'hw_widget.dart';
+
+/// Abstract base class for conditional widgets.
+abstract class HWConditional extends HWWidget implements HWDataWidget {
+  const HWConditional();
+
+  /// The widget to render if the condition is met.
+  HWWidget get firstBranch;
+
+  /// The widget to render if the condition is not met.
+  HWWidget get secondBranch;
+
+  /// The field the condition reads.
+  HWDataType<dynamic> get data;
+
+  /// Returns the Swift condition expression.
+  String conditionSwift({required String dataExpr});
+
+  /// Returns the Kotlin condition expression.
+  String conditionKotlin({required String dataExpr});
+
+  @override
+  Set<HWDataType<dynamic>> get dataDependencies => {
+        ...firstBranch.dataDependencies,
+        ...secondBranch.dataDependencies,
+      };
+
+  @override
+  List<HWWidget> get childWidgets => [firstBranch, secondBranch];
+
+  @override
+  Set<String> get kotlinImports => kotlinImportsIn(null);
+
+  /// Whichever branch renders is emitted where the conditional sits, so both
+  /// are laid out by the enclosing layout.
+  @override
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
+        ...firstBranch.kotlinImportsIn(enclosingLinearAxis),
+        ...secondBranch.kotlinImportsIn(enclosingLinearAxis),
+      };
+
+  @override
+  Set<String> get swiftViewModifiers => {
+        ...firstBranch.swiftViewModifiers,
+        ...secondBranch.swiftViewModifiers,
+      };
+
+  @override
+  String get swiftFrameAlignment =>
+      _sharedSwiftFrameAlignment([firstBranch, secondBranch]);
+
+  /// Whether either branch asks the frame around the conditional to clip:
+  /// cutting the other one off at the room it was given is what Flutter lays
+  /// it out at anyway.
+  @override
+  bool get swiftClipsFrame =>
+      firstBranch.swiftClipsFrame || secondBranch.swiftClipsFrame;
+
+  /// This conditional picking between [first] and [second].
+  HWConditional _withBranches(HWWidget first, HWWidget second);
+
+  /// On SwiftUI each branch sized on its own, while either decorates: the one
+  /// frame around the conditional would come after the decoration. Glance
+  /// already sizes each branch it picks.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) {
+    if (glance) return null;
+    final branches = [firstBranch, secondBranch];
+    if (branches.every(
+      (branch) => branch._sizedInside(width, height, glance: false) == null,
+    )) {
+      return null;
+    }
+    return _withBranches(
+      HWSizedBox(width: width, height: height, child: firstBranch),
+      HWSizedBox(width: width, height: height, child: secondBranch),
+    );
+  }
+
+  /// Each branch on its own, while either draws a picture, also behind a
+  /// padding or a decoration the size passes through.
+  @override
+  HWWidget? _kotlinFilling({required bool width, required bool height}) {
+    HWWidget? filling(HWWidget branch) =>
+        branch._sizedInside(
+          width ? double.infinity : null,
+          height ? double.infinity : null,
+          glance: true,
+        ) ??
+        branch._kotlinFilling(width: width, height: height);
+    final first = filling(firstBranch);
+    final second = filling(secondBranch);
+    if (first == null && second == null) return null;
+    return _withBranches(first ?? firstBranch, second ?? secondBranch);
+  }
+
+  /// The branch taken is only known at runtime, so a stack lays out each of
+  /// them by what it needs itself.
+  @override
+  List<HWWidget> _kotlinChoices(HWEmitContext? context) =>
+      [firstBranch, secondBranch];
+
+  @override
+  String _kotlinChoice(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext? context,
+    required String Function(HWWidget widget, int indent) emit,
+  }) {
+    final pad = '    ' * indent;
+    return '''
+${pad}if (${conditionKotlin(dataExpr: dataExpr)}) {
+${emit(firstBranch, indent + 1)}
+$pad} else {
+${emit(secondBranch, indent + 1)}
+$pad}''';
+  }
+
+  /// The text of whichever branch renders, read through the same condition the
+  /// emitted `if` goes by; a branch rendering no text of its own leaves the
+  /// whole conditional with nothing to line up.
+  @override
+  HWKotlinBaselineText? kotlinBaselineText([HWEmitContext? context]) {
+    final first = firstBranch.kotlinBaselineText(context);
+    final second = secondBranch.kotlinBaselineText(context);
+    if (first == null || second == null) return null;
+    return HWKotlinBaselineText(
+      ascent: (dataExpr) => 'if (${conditionKotlin(dataExpr: dataExpr)}) '
+          '${first.ascent(dataExpr)} else ${second.ascent(dataExpr)}',
+      isBitmap: first.isBitmap || second.isBitmap,
+      readsItem:
+          data.unwrapped is HWItemData || first.readsItem || second.readsItem,
+      kotlinImports: {...first.kotlinImports, ...second.kotlinImports},
+      conflict: first.conflict ?? second.conflict,
+    );
+  }
+
+  @override
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    final spaces = '    ' * indent; // Use 4 spaces per indent level
+    final cond = conditionSwift(dataExpr: dataExpr);
+    final first =
+        firstBranch.toSwift(indent + 1, dataExpr: dataExpr, context: context);
+    final second =
+        secondBranch.toSwift(indent + 1, dataExpr: dataExpr, context: context);
+
+    return '${spaces}if $cond {\n$first\n$spaces} else {\n$second\n$spaces}';
+  }
+
+  @override
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) =>
+      _kotlinChoice(
+        indent,
+        dataExpr: dataExpr,
+        context: context,
+        emit: (widget, indent) =>
+            widget.toKotlin(indent, dataExpr: dataExpr, context: context),
+      );
+}
+
+/// Renders a widget depending on whether a data field exists in the preferences.
+class HWDataExists extends HWConditional {
+  @override
+  final HWDataType<dynamic> data;
+  final HWWidget whenPresent;
+  final HWWidget whenAbsent;
+
+  const HWDataExists({
+    required this.data,
+    required this.whenPresent,
+    required this.whenAbsent,
+  });
+
+  static HWDataExists fromDartObject(
+    DartObject obj,
+    WidgetValueDecoder decoder,
+  ) {
+    final dataObj = WidgetValueDecoder.getField(obj, 'data');
+    final data = WidgetValueDecoder.decodeDataType(
+      dataObj,
+      defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
+    );
+    if (data == null) {
+      // coverage:ignore-start
+      throw GeneratorError('HWDataExists requires data');
+      // coverage:ignore-end
+    }
+
+    final whenPresentObj = WidgetValueDecoder.getField(obj, 'whenPresent');
+    final whenAbsentObj = WidgetValueDecoder.getField(obj, 'whenAbsent');
+
+    return HWDataExists(
+      data: data,
+      whenPresent: decoder.decodeRecursive(whenPresentObj),
+      whenAbsent: decoder.decodeRecursive(whenAbsentObj),
+    );
+  }
+
+  @override
+  HWWidget get firstBranch => whenPresent;
+
+  @override
+  HWWidget get secondBranch => whenAbsent;
+
+  @override
+  HWDataExists _withBranches(HWWidget first, HWWidget second) =>
+      HWDataExists(data: data, whenPresent: first, whenAbsent: second);
+
+  @override
+  Set<HWDataType<dynamic>> get dataDependencies => {
+        data,
+        ...super.dataDependencies,
+      };
+
+  @override
+  Set<HWNativeHelper> get renderHelpers => imageLeafOf(data) == null
+      ? const {}
+      : const {HWNativeHelper.hwImageExists};
+
+  /// An image counts as present when there is an image to display for it:
+  /// a saved file still on disk, or an asset key that names an asset the app
+  /// shipped with. [HWNativeHelper.hwImageExists] decides, on the same routing
+  /// [HWNativeHelper.hwDecodeImage] renders through.
+  @override
+  String conditionSwift({required String dataExpr}) {
+    final access = data.swiftAccess(dataExpr);
+    if (imageLeafOf(data) != null) {
+      return '${HWNativeHelper.hwImageExists.name}($access)';
+    }
+    return '$access != nil';
+  }
+
+  /// [conditionSwift]'s rule, with the widget's `context` threaded in: the
+  /// Kotlin helper reaches the app's assets through it.
+  @override
+  String conditionKotlin({required String dataExpr}) {
+    final access = data.kotlinAccess(dataExpr);
+    if (imageLeafOf(data) != null) {
+      return '${HWNativeHelper.hwImageExists.name}(context, $access)';
+    }
+    return '$access != null';
+  }
+}
+
+/// Renders a widget depending on a boolean data field.
+/// The provided HWBool must have a default value.
+class HWBoolConditional extends HWConditional {
+  @override
+  final HWDataType<dynamic> data;
+  final HWWidget whenTrue;
+  final HWWidget whenFalse;
+
+  const HWBoolConditional({
+    required this.data,
+    required this.whenTrue,
+    required this.whenFalse,
+  });
+  static HWBoolConditional fromDartObject(
+    DartObject obj,
+    WidgetValueDecoder decoder,
+  ) {
+    final dataObj = WidgetValueDecoder.getField(obj, 'data');
+    final data = WidgetValueDecoder.decodeDataType(
+      dataObj,
+      defaultLocale: decoder.defaultLocale,
+      resourcePrefix: decoder.resourcePrefix,
+    );
+    if (data == null || !_isSupportedBoolData(data)) {
+      // coverage:ignore-start
+      throw GeneratorError('HWBoolConditional requires data');
+      // coverage:ignore-end
+    }
+    if (_boolDefaultValue(data) == null) {
+      // coverage:ignore-start
+      throw GeneratorError(
+        'HWBool must have a non-null defaultValue for HWBoolConditional',
+      );
+      // coverage:ignore-end
+    }
+
+    final whenTrueObj = WidgetValueDecoder.getField(obj, 'whenTrue');
+    final whenFalseObj = WidgetValueDecoder.getField(obj, 'whenFalse');
+
+    return HWBoolConditional(
+      data: data,
+      whenTrue: decoder.decodeRecursive(whenTrueObj),
+      whenFalse: decoder.decodeRecursive(whenFalseObj),
+    );
+  }
+
+  @override
+  HWWidget get firstBranch => whenTrue;
+
+  @override
+  HWWidget get secondBranch => whenFalse;
+
+  @override
+  HWBoolConditional _withBranches(HWWidget first, HWWidget second) =>
+      HWBoolConditional(data: data, whenTrue: first, whenFalse: second);
+
+  @override
+  Set<HWDataType<dynamic>> get dataDependencies => {
+        data,
+        ...super.dataDependencies,
+      };
+
+  @override
+  String conditionSwift({required String dataExpr}) {
+    if (_boolDefaultValue(data) == null) {
+      throw ArgumentError(
+        'HWBoolConditional requires a defaultValue to be set on its data type.',
+      );
+    }
+    return '${data.swiftReadExpr(dataExpr)} == true';
+  }
+
+  @override
+  String conditionKotlin({required String dataExpr}) {
+    if (_boolDefaultValue(data) == null) {
+      throw ArgumentError(
+        'HWBoolConditional requires a defaultValue to be set on its data type.',
+      );
+    }
+    return '${data.kotlinReadExpr(dataExpr)} == true';
+  }
+
+  static bool _isSupportedBoolData(HWDataType<dynamic> data) =>
+      data.leaf is HWBool;
+
+  static bool? _boolDefaultValue(HWDataType<dynamic> data) {
+    final leaf = data.leaf;
+    return leaf is HWBool ? leaf.defaultValue : null;
+  }
+}

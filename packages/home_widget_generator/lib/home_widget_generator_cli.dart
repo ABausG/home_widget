@@ -1,0 +1,15 @@
+/// Libraries exported exclusively for use by the `home_widget_cli` package.
+///
+/// These exports are considered internal implementation details of the
+/// `home_widget_generator` and are not subject to semantic versioning
+/// guarantees for general public use.
+library;
+
+export 'src/dart_reserved_words.dart';
+export 'src/generator_error.dart';
+export 'src/parser/widget_tree_parser.dart';
+export 'src/parser/widget_value_decoder.dart';
+export 'src/utils/apply_swift_modifier.dart';
+export 'src/utils/fnv_hash.dart';
+export 'src/utils/inject_glance_modifier.dart';
+export 'src/utils/string_literals.dart';

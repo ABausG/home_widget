@@ -1,0 +1,2994 @@
+import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:test/test.dart';
+
+WidgetSpec _spec({
+  String name = 'TestWidget',
+  List<HWDataType<dynamic>> dataFields = const [],
+  HWWidget? widgetTree,
+}) {
+  return WidgetSpec(
+    data: HomeWidget(name: name),
+    className: name,
+    dataFields: dataFields,
+    widgetTree: widgetTree,
+  );
+}
+
+void main() {
+  group('WidgetSpec.effectiveWidgetTree', () {
+    test('returns provided widgetTree when set and not HWDataOnly', () {
+      final tree = HWText.fixed('hello');
+      final spec = _spec(widgetTree: tree);
+      expect(identical(spec.effectiveWidgetTree, tree), isTrue);
+    });
+
+    test('builds default tree when widgetTree is null', () {
+      final spec = _spec(
+        name: 'MyWidget',
+        dataFields: const [HWString('label'), HWInt('count')],
+      );
+
+      final tree = spec.effectiveWidgetTree;
+      expect(tree, isA<HWColumn>());
+      final children = (tree as HWColumn).children;
+      expect(children.length, 3);
+      expect(children.first, isA<HWText>());
+      expect(children[1], isA<HWRow>());
+      expect(children[2], isA<HWRow>());
+    });
+
+    test('builds default tree when widgetTree is HWDataOnly', () {
+      final spec = _spec(
+        widgetTree: const HWDataOnly([]),
+        dataFields: const [HWString('label')],
+      );
+      expect(spec.effectiveWidgetTree, isA<HWColumn>());
+    });
+  });
+
+  group('WidgetSpec fonts and icons', () {
+    const brandIcons = HWIconFont(family: 'BrandIcons', package: 'brand_icons');
+    const mood = HWIconData.resolved(
+      'mood',
+      entries: [
+        HWIconEntry('happy', 0xE88A),
+        HWIconEntry('sad', 0xE25B),
+      ],
+      iconFont: brandIcons,
+    );
+
+    test('fontResourcePrefix namespaces by the widget class', () {
+      expect(_spec(name: 'MyWidget').fontResourcePrefix, 'hw_font_my_widget');
+    });
+
+    test('fontVariants collects every family, weight and slant in the tree',
+        () {
+      final spec = _spec(
+        widgetTree: const HWColumn(
+          children: [
+            HWText.fixed('a', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText.fixed(
+              'b',
+              style: HWTextStyle(
+                fontFamily: 'Chewy',
+                fontWeight: HWFontWeight.bold,
+              ),
+            ),
+            HWText.fixed('c', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText.fixed('d'),
+          ],
+        ),
+      );
+
+      expect(spec.fontVariants, {
+        const HWFontVariant(family: 'Chewy', weight: 400, italic: false),
+        const HWFontVariant(family: 'Chewy', weight: 700, italic: false),
+      });
+    });
+
+    test('fontVariants is empty for a widget in the platform font', () {
+      expect(_spec(widgetTree: const HWText.fixed('a')).fontVariants, isEmpty);
+    });
+
+    test('iconCodePoints unions the tree and every icon field', () {
+      final spec = _spec(
+        dataFields: const [mood],
+        widgetTree: const HWColumn(
+          children: [
+            HWIcon.glyph(0xE5CD, font: brandIcons),
+            HWIcon(mood),
+          ],
+        ),
+      );
+
+      expect(spec.iconCodePoints, {
+        brandIcons: {0xE5CD, 0xE88A, 0xE25B},
+      });
+    });
+
+    test('iconFields descends the timed and JSON wrappers', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('label'),
+          mood,
+          HWTimedData(mood),
+          HWJson('profile', mood),
+        ],
+        widgetTree: const HWText.fixed('a'),
+      );
+
+      expect(spec.iconFields, hasLength(3));
+      expect(spec.iconFields.every((f) => f.key == 'mood'), isTrue);
+      // A field the tree never renders still reaches the font, or `saveData`
+      // could store a glyph the copy does not carry.
+      expect(spec.iconCodePoints[brandIcons], {0xE88A, 0xE25B});
+    });
+
+    test('default tree renders icon fields with HWIcon', () {
+      final spec = _spec(
+        name: 'MyWidget',
+        widgetTree: const HWDataOnly([mood]),
+        dataFields: const [mood],
+      );
+
+      final children = (spec.effectiveWidgetTree as HWColumn).children;
+      expect(children.length, 2);
+      expect(children[1], isA<HWIcon>());
+      expect(
+        (children[1] as HWIcon).fontResourcePrefix,
+        'hw_font_my_widget',
+      );
+      expect(spec.previewContentHash, isNotEmpty);
+    });
+
+    test('iconEnums merges the fields landing on one enum name', () {
+      const today = HWJson('today', mood);
+      const tomorrow = HWJson(
+        'tomorrow',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('rainy', 0xE798)],
+          iconFont: brandIcons,
+        ),
+      );
+
+      final enums = _spec(
+        name: 'MyWidget',
+        dataFields: const [today, tomorrow],
+      ).iconEnums;
+
+      expect(enums.keys, ['MyWidgetMoodIcon']);
+      expect(
+        enums['MyWidgetMoodIcon']!.entries.map((e) => e.name),
+        ['happy', 'sad', 'rainy'],
+      );
+    });
+
+    test('the merged enum carries no default or preview of its own', () {
+      const tomorrow = HWJson(
+        'tomorrow',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('rainy', 0xE798)],
+          iconFont: brandIcons,
+        ),
+      );
+      const today = HWJson(
+        'today',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('happy', 0xE88A)],
+          iconFont: brandIcons,
+          defaultValue: 0xE88A,
+          previewValue: 0xE88A,
+        ),
+      );
+
+      final merged =
+          _spec(dataFields: const [today, tomorrow]).iconEnums.values.single;
+
+      expect(merged.defaultValue, isNull);
+      expect(merged.previewValue, isNull);
+    });
+
+    test('mirroredIconCodePoints covers every field, not just the rendered one',
+        () {
+      const today = HWJson(
+        'today',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('happy', 0xE88A)],
+          iconFont: brandIcons,
+        ),
+      );
+      const tomorrow = HWJson(
+        'tomorrow',
+        HWIconData.resolved(
+          'mood',
+          entries: [HWIconEntry('back', 0xE5C4, matchTextDirection: true)],
+          iconFont: brandIcons,
+        ),
+      );
+
+      final spec = _spec(
+        name: 'MyWidget',
+        dataFields: const [today, tomorrow],
+        widgetTree: const HWColumn(children: [HWIcon(today)]),
+      );
+
+      expect(spec.mirroredIconCodePoints, {0xE5C4});
+    });
+
+    test('mirroredIconCodePoints is empty without a directional glyph', () {
+      expect(
+        _spec(dataFields: const [mood]).mirroredIconCodePoints,
+        isEmpty,
+      );
+    });
+
+    test('iconEnums keeps one entry where two fields declare the same icon',
+        () {
+      final enums = _spec(
+        dataFields: const [HWJson('today', mood), HWJson('tomorrow', mood)],
+      ).iconEnums;
+
+      expect(
+        enums.values.single.entries.map((e) => e.name),
+        ['happy', 'sad'],
+      );
+    });
+
+    test('iconEnums rejects one name for two glyphs, naming both fields', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson('today', mood),
+            HWJson(
+              'tomorrow',
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('happy', 0xE111)],
+                iconFont: brandIcons,
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"tomorrow.mood"'),
+              contains('"happy"'),
+              contains('0xE88A'),
+              contains('0xE111'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('iconEnums rejects one glyph under two names, naming both fields', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson('today', mood),
+            HWTimedData(
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('cheerful', 0xE88A)],
+                iconFont: brandIcons,
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"mood"'),
+              contains('0xE88A'),
+              contains('"happy"'),
+              contains('"cheerful"'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test(
+        'iconEnums rejects one icon marked directional on one side but not '
+        'the other', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson(
+              'today',
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('back', 0xE5C4)],
+                iconFont: brandIcons,
+              ),
+            ),
+            HWJson(
+              'tomorrow',
+              HWIconData.resolved(
+                'mood',
+                entries: [
+                  HWIconEntry('back', 0xE5C4, matchTextDirection: true),
+                ],
+                iconFont: brandIcons,
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"tomorrow.mood"'),
+              contains('"back"'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('iconEnums rejects one enum name drawn out of two fonts', () {
+      expect(
+        () => _spec(
+          dataFields: const [
+            HWJson('today', mood),
+            HWJson(
+              'tomorrow',
+              HWIconData.resolved(
+                'mood',
+                entries: [HWIconEntry('rainy', 0xE798)],
+                iconFont: HWIconFont(family: 'MaterialIcons'),
+              ),
+            ),
+          ],
+        ).iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('"today.mood"'),
+              contains('"tomorrow.mood"'),
+              contains('different fonts'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('previewContentHash changes with the icons a field may hold', () {
+      String hashOf(HWIconData field) => _spec(
+            dataFields: [field],
+            widgetTree: HWIcon(field),
+          ).previewContentHash;
+
+      final base = hashOf(mood);
+      expect(
+        hashOf(
+          const HWIconData.resolved(
+            'mood',
+            entries: [
+              HWIconEntry('happy', 0xE88A),
+              HWIconEntry('sad', 0xE25B),
+            ],
+            iconFont: brandIcons,
+            previewValue: 0xE25B,
+          ),
+        ),
+        isNot(base),
+      );
+      expect(
+        hashOf(
+          const HWIconData.resolved(
+            'mood',
+            entries: [HWIconEntry('happy', 0xE88A)],
+            iconFont: brandIcons,
+          ),
+        ),
+        isNot(base),
+      );
+      expect(
+        hashOf(
+          const HWIconData.resolved(
+            'mood',
+            entries: [
+              HWIconEntry('happy', 0xE88A),
+              HWIconEntry('sad', 0xE25B),
+            ],
+            iconFont: HWIconFont(family: 'MaterialIcons'),
+          ),
+        ),
+        isNot(base),
+      );
+    });
+  });
+
+  group('WidgetSpec image fields', () {
+    test('default tree renders image fields with HWImage', () {
+      final spec = _spec(
+        dataFields: const [HWString('label'), HWImageData('avatar')],
+      );
+
+      final children = (spec.effectiveWidgetTree as HWColumn).children;
+      expect(children.length, 3);
+      expect(children[1], isA<HWRow>());
+      expect(children[2], isA<HWImage>());
+      expect((children[2] as HWImage).dataType.key, 'avatar');
+    });
+
+    test('collects image leaves of JSON groups with their storage keys', () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('contact', HWString('name')),
+          HWJson('contact', HWJson('photos', HWImageData('main'))),
+          HWTimedData(HWJson('slot', HWImageData('picture'))),
+        ],
+      );
+
+      expect(
+        spec.jsonImageFields.map((f) => f.storageKey).toList(),
+        ['contact.photos.main'],
+      );
+      expect(
+        spec.timedJsonImageFields.map((f) => f.storageKey).toList(),
+        ['slot.picture'],
+      );
+      // A JSON leaf is not a root-level image, but it still needs the
+      // ImageProvider plumbing in the generated Dart helper.
+      expect(spec.imageDataFields, isEmpty);
+      expect(spec.hasRuntimeImages, isTrue);
+    });
+
+    test('JSON image leaves compare by root key, storage key and image', () {
+      const image = HWImageData('main');
+      const field = JsonImageField(
+        rootKey: 'contact',
+        path: ['photos', 'main'],
+        image: image,
+      );
+      const same = JsonImageField(
+        rootKey: 'contact',
+        path: ['photos', 'main'],
+        image: image,
+      );
+      const otherPath = JsonImageField(
+        rootKey: 'contact',
+        path: ['avatars', 'main'],
+        image: image,
+      );
+      const otherRoot = JsonImageField(
+        rootKey: 'account',
+        path: ['photos', 'main'],
+        image: image,
+      );
+      const otherImage = JsonImageField(
+        rootKey: 'contact',
+        path: ['photos', 'main'],
+        image: HWImageData('main', previewAsset: 'assets/sample.png'),
+      );
+
+      expect(field, same);
+      expect(field.hashCode, same.hashCode);
+      expect(field, isNot(otherPath));
+      expect(field, isNot(otherRoot));
+      expect(field, isNot(otherImage));
+      expect(field, isNot(Object()));
+    });
+
+    test('default tree renders a timed image with HWImage', () {
+      final spec = _spec(
+        dataFields: const [HWTimedData(HWImageData('slide'))],
+      );
+
+      final children = (spec.effectiveWidgetTree as HWColumn).children;
+      final image = children[1] as HWImage;
+      expect(image.imageData, const HWImageData('slide'));
+      // The wrapper survives, so the field stays time-based.
+      expect(image.dataType, isA<HWTimedData<dynamic>>());
+    });
+
+    test('splits runtime and asset images, keeping assets out of storage', () {
+      const runtime = HWImageData('avatar');
+      const asset = HWImageData.asset('assets/logo.png');
+      final spec = _spec(
+        dataFields: const [HWString('label'), runtime, asset],
+      );
+
+      expect(spec.imageDataFields, equals([runtime, asset]));
+      expect(spec.runtimeImageFields, equals([runtime]));
+      expect(spec.assetImageFields, equals([asset]));
+      // Asset images are read from the app bundle, never stored.
+      expect(
+        spec.primitiveDataFields,
+        equals([const HWString('label'), runtime]),
+      );
+    });
+  });
+
+  group('WidgetSpec.primitiveDataFields', () {
+    test('filters out HWJson fields', () {
+      const string = HWString('label');
+      const int_ = HWInt('count');
+      const json = HWJson('root', HWString('inner'));
+      final spec = _spec(dataFields: const [string, int_, json]);
+
+      expect(spec.primitiveDataFields, equals([string, int_]));
+    });
+
+    test('returns empty when only HWJson fields are present', () {
+      const json = HWJson('root', HWString('inner'));
+      final spec = _spec(dataFields: const [json]);
+      expect(spec.primitiveDataFields, isEmpty);
+    });
+  });
+
+  group('WidgetSpec.jsonDataGroups', () {
+    test('returns empty when no HWJson fields', () {
+      final spec = _spec(dataFields: const [HWString('label')]);
+      expect(spec.jsonDataGroups, isEmpty);
+    });
+
+    test('groups multiple json fields under the same root key', () {
+      const a = HWJson('user', HWString('name'));
+      const b = HWJson('user', HWInt('age'));
+      final spec = _spec(dataFields: const [a, b]);
+
+      final groups = spec.jsonDataGroups;
+      expect(groups.length, 1);
+      expect(groups.single.key, 'user');
+      expect(groups.single.children.length, 2);
+      expect(groups.single.children[0].path, ['name']);
+      expect(groups.single.children[1].path, ['age']);
+    });
+
+    test('preserves insertion order across distinct root keys', () {
+      const a = HWJson('b_root', HWString('x'));
+      const b = HWJson('a_root', HWString('y'));
+      final spec = _spec(dataFields: const [a, b]);
+
+      final groups = spec.jsonDataGroups;
+      expect(groups.map((g) => g.key).toList(), ['b_root', 'a_root']);
+    });
+
+    test('deduplicates identical paths with identical leaf types', () {
+      const a = HWJson('user', HWString('name'));
+      const b = HWJson('user', HWString('name'));
+      final spec = _spec(dataFields: const [a, b]);
+
+      final groups = spec.jsonDataGroups;
+      expect(groups.single.children.length, 1);
+    });
+
+    test('captures nested path segments', () {
+      const nested = HWJson('user', HWJson('address', HWString('city')));
+      final spec = _spec(dataFields: const [nested]);
+
+      final group = spec.jsonDataGroups.single;
+      expect(group.key, 'user');
+      expect(group.children.single.path, ['address', 'city']);
+    });
+  });
+
+  group('WidgetSpec localized strings', () {
+    const leaf = HWLocalizedString(
+      'name',
+      defaultTranslations: {'en': 'Hello', 'de': 'Hallo'},
+    );
+    const top = HWLocalizedString(
+      'greeting',
+      defaultTranslations: {'en': 'Hi', 'de': 'Hi'},
+    );
+
+    test('surfaces localized JSON leaves alongside top-level fields', () {
+      final spec = _spec(
+        dataFields: const [top, HWJson('profile', leaf)],
+      );
+
+      expect(spec.localizedStrings, const [top]);
+      expect(spec.jsonLocalizedStrings, const [leaf]);
+      expect(spec.allLocalizedStrings, const [top, leaf]);
+    });
+
+    test('a rendered JSON leaf needs the resolver but not the blob reader', () {
+      final spec = _spec(
+        dataFields: const [HWJson('profile', leaf)],
+        widgetTree: const HWText(HWJson('profile', leaf)),
+      );
+
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.rendersLocalizedContent, isTrue);
+      // A JSON leaf is never a data field of its own.
+      expect(spec.keyedLocalizedStrings, isEmpty);
+    });
+
+    test('a JSON leaf nothing renders needs no locale helpers at all', () {
+      final spec = _spec(
+        dataFields: const [HWJson('profile', leaf)],
+        widgetTree: const HWText.fixed('no greeting here'),
+      );
+
+      // It is still a localized string of the widget, it is just never read
+      // against a locale: the group is stored and decoded as it is.
+      expect(spec.jsonLocalizedStrings, const [leaf]);
+      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.rendersLocalizedContent, isFalse);
+    });
+
+    test('a plain JSON leaf pulls in nothing', () {
+      final spec = _spec(dataFields: const [HWJson('profile', HWString('a'))]);
+
+      expect(spec.jsonLocalizedStrings, isEmpty);
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.rendersLocalizedContent, isFalse);
+    });
+
+    test('surfaces a timed localized field without keying it', () {
+      final spec = _spec(dataFields: const [HWTimedData(top)]);
+
+      expect(spec.timedLocalizedStrings, const [top]);
+      expect(spec.allLocalizedStrings, const [top]);
+      // Its value arrives inside the timed entry, so the per-key blob read
+      // must stay out of the generated code...
+      expect(spec.localizedStrings, isEmpty);
+      expect(spec.keyedLocalizedStrings, isEmpty);
+      expect(spec.needsLocalizedRead, isFalse);
+      // ...while the resolver, the locale argument and the re-render on a
+      // language change are all still needed.
+      expect(spec.needsTimedLocalizedRead, isTrue);
+      expect(spec.resolvesLocalizedOnRead, isTrue);
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.rendersLocalizedContent, isTrue);
+    });
+
+    test('surfaces a localized leaf of a timed JSON group', () {
+      final spec = _spec(
+        dataFields: const [HWTimedData(HWJson('profile', leaf))],
+        widgetTree: const HWText(HWTimedData(HWJson('profile', leaf))),
+      );
+
+      expect(spec.timedJsonLocalizedStrings, const [leaf]);
+      expect(spec.allLocalizedStrings, const [leaf]);
+      // A leaf is never a data field of its own, timed or not, so nothing
+      // reads a stored translation map for it.
+      expect(spec.jsonLocalizedStrings, isEmpty);
+      expect(spec.timedLocalizedStrings, isEmpty);
+      expect(spec.needsTimedLocalizedRead, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isFalse);
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.rendersLocalizedContent, isTrue);
+    });
+
+    test('an untimed keyed string keeps driving the per-key read', () {
+      final spec = _spec(dataFields: const [top, HWTimedData(HWInt('count'))]);
+
+      expect(spec.keyedLocalizedStrings, const [top]);
+      expect(spec.needsLocalizedRead, isTrue);
+      expect(spec.needsTimedLocalizedRead, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isTrue);
+    });
+
+    test('a plain timed field pulls in nothing', () {
+      final spec = _spec(dataFields: const [HWTimedData(HWString('label'))]);
+
+      expect(spec.allLocalizedStrings, isEmpty);
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isFalse);
+      expect(spec.rendersLocalizedContent, isFalse);
+    });
+
+    test('a constant string resolves through the OS, not through a helper', () {
+      // ignore: invalid_use_of_internal_member
+      const constant = HWLocalizedString.resolved(
+        'greeting',
+        defaultTranslations: {'en': 'Hi'},
+        isConstant: true,
+        defaultLocale: 'en',
+      );
+      final spec = _spec(
+        dataFields: const [constant],
+        widgetTree: const HWText(constant),
+      );
+
+      expect(spec.needsLocaleHelpers, isFalse);
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('a keyed string resolves to the whole localization closure', () {
+      final spec = _spec(dataFields: const [top]);
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+        HWNativeHelper.hwLocalizedEntries,
+        HWNativeHelper.hwLocalize,
+        HWNativeHelper.hwDecodeLocalized,
+        HWNativeHelper.hwReadLocalized,
+      });
+    });
+
+    test('a timed keyed string reads the entry instead of a key', () {
+      final spec = _spec(dataFields: const [HWTimedData(top)]);
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+        HWNativeHelper.hwLocalizedEntries,
+        HWNativeHelper.hwLocalize,
+        HWNativeHelper.hwReadTimedLocalized,
+      });
+    });
+
+    test('a JSON leaf is resolved at the render site, timed or not', () {
+      const expected = {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      };
+      expect(
+        _spec(
+          dataFields: const [HWJson('profile', leaf)],
+          widgetTree: const HWText(HWJson('profile', leaf)),
+        ).nativeHelpers.toSet(),
+        expected,
+      );
+      expect(
+        _spec(
+          dataFields: const [HWTimedData(HWJson('profile', leaf))],
+          widgetTree: const HWText(HWTimedData(HWJson('profile', leaf))),
+        ).nativeHelpers.toSet(),
+        expected,
+      );
+    });
+
+    test('preview translations of a JSON leaf are resolved as it is read', () {
+      const previewed = HWLocalizedString(
+        'name',
+        defaultTranslations: {'en': 'Hello'},
+        previewTranslations: {'en': 'Sample'},
+      );
+      final spec = _spec(
+        dataFields: const [HWJson('profile', previewed)],
+        widgetTree: const HWText.fixed('no greeting here'),
+      );
+
+      // Nothing displays the leaf, but the preview factory still resolves the
+      // sample text while decoding the group.
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      });
+      expect(spec.needsLocaleHelpers, isTrue);
+    });
+  });
+
+  group('WidgetSpec image helpers', () {
+    test('an image a widget renders names the decoder', () {
+      for (final tree in const <HWImage>[
+        HWImage(HWImageData('avatar')),
+        HWImage.asset('assets/logo.png'),
+        HWImage(HWTimedData(HWImageData('avatar'))),
+        HWImage(HWJson('contact', HWImageData('avatar'))),
+      ]) {
+        final spec = _spec(
+          dataFields: [tree.dataType],
+          widgetTree: tree,
+        );
+        expect(spec.nativeHelpers, [HWNativeHelper.hwDecodeImage]);
+      }
+    });
+
+    test('an image field nothing renders names nothing', () {
+      final spec = _spec(
+        dataFields: const [HWImageData('avatar')],
+        widgetTree: const HWText.fixed('no image here'),
+      );
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('the decoder does not make the widget locale-dependent', () {
+      expect(HWNativeHelper.hwDecodeImage.localeDependent, isFalse);
+    });
+  });
+
+  group('WidgetSpec gallery text', () {
+    WidgetSpec gallerySpec({
+      String name = 'Greeting',
+      String? description,
+      HomeWidgetLocalization? localization,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: name,
+            description: description,
+            localization: localization,
+          ),
+          className: 'Greeting',
+        );
+
+    test('the default-locale entry outranks the top-level text', () {
+      final spec = gallerySpec(
+        description: 'Base',
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          name: {'en': 'Daily greeting', 'de': 'Begruessung'},
+          description: {'en': 'Shows a greeting', 'de': 'Zeigt etwas'},
+        ),
+      );
+
+      expect(spec.galleryName, 'Daily greeting');
+      expect(spec.galleryDescription, 'Shows a greeting');
+    });
+
+    test('falls back to the top-level text', () {
+      final spec = gallerySpec(
+        description: 'Base',
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+          name: {'de': 'Begruessung'},
+        ),
+      );
+
+      expect(spec.galleryName, 'Greeting');
+      expect(spec.galleryDescription, 'Base');
+    });
+
+    test('reports no description when neither source has one', () {
+      expect(gallerySpec().galleryDescription, isNull);
+    });
+
+    test('galleryTranslations drops the default locale', () {
+      final spec = gallerySpec(
+        localization: const HomeWidgetLocalization(
+          defaultLocale: 'en',
+          supportedLocales: ['en', 'de'],
+        ),
+      );
+
+      expect(
+        spec.galleryTranslations(const {'en': 'Greeting', 'de': 'Gruss'}),
+        const {'de': 'Gruss'},
+      );
+      expect(spec.galleryTranslations(null), isNull);
+    });
+  });
+
+  group('WidgetSpec timed data', () {
+    test('timedPrimitiveDataFields unwraps non-json timed fields', () {
+      const label = HWString('label');
+      const count = HWInt('count');
+      final spec = _spec(
+        dataFields: const [
+          HWString('plain'),
+          HWTimedData(label),
+          HWTimedData(count),
+          HWTimedData(HWJson('weather', HWString('condition'))),
+        ],
+      );
+
+      expect(spec.timedPrimitiveDataFields, equals([label, count]));
+      expect(spec.primitiveDataFields, equals(const [HWString('plain')]));
+    });
+
+    test('timedImageFields unwraps timed runtime images', () {
+      const untimed = HWImageData('avatar');
+      const slide = HWImageData('slide');
+      final spec = _spec(
+        dataFields: const [
+          untimed,
+          HWTimedData(slide),
+          HWTimedData(HWInt('n')),
+        ],
+      );
+
+      expect(spec.timedImageFields, equals([slide]));
+      // A timed image is still an image field, so the Dart helper knows to
+      // import ImageProvider for it.
+      expect(spec.imageDataFields, equals([untimed, slide]));
+      expect(spec.runtimeImageFields, equals([untimed, slide]));
+      // ...but never a `saveData` parameter of its own.
+      expect(spec.primitiveDataFields, equals(const [untimed]));
+      expect(spec.timedPrimitiveDataFields, equals(const [slide, HWInt('n')]));
+    });
+
+    // One HWTimedData declaration per JSON root: two of them sharing a root are
+    // rejected by validateWidgetData, so nested paths are the only way down.
+    test('timedJsonDataGroups groups timed json fields by root key', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed')))),
+          HWTimedData(HWJson('other', HWString('x'))),
+        ],
+      );
+
+      final groups = spec.timedJsonDataGroups;
+      expect(groups.map((g) => g.key).toList(), ['weather', 'other']);
+      expect(groups.first.children.single.path, ['wind', 'speed']);
+      expect(groups.last.children.single.path, ['x']);
+    });
+
+    test('timed json groups do not leak into jsonDataGroups', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+        ],
+      );
+
+      expect(spec.jsonDataGroups, isEmpty);
+      expect(spec.timedJsonDataGroups, hasLength(1));
+    });
+
+    test('returns empty timed collections without timed fields', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('label'),
+          HWJson('root', HWString('inner')),
+        ],
+      );
+
+      expect(spec.timedDataFields, isEmpty);
+      expect(spec.timedPrimitiveDataFields, isEmpty);
+      expect(spec.timedJsonDataGroups, isEmpty);
+    });
+  });
+
+  group('WidgetSpec widget URLs', () {
+    WidgetSpec urlSpec({
+      String? widgetUrl,
+      String? androidWidgetUrl,
+      String? iosWidgetUrl,
+      bool openAppOnTap = true,
+      bool configureAndroid = true,
+      bool configureIos = true,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'UrlWidget',
+            widgetUrl: widgetUrl,
+            android: configureAndroid
+                ? HomeWidgetAndroidConfiguration(
+                    widgetUrl: androidWidgetUrl,
+                    openAppOnTap: openAppOnTap,
+                  )
+                : null,
+            iOS: configureIos
+                ? HomeWidgetIOSConfiguration(
+                    groupId: 'group.url',
+                    widgetUrl: iosWidgetUrl,
+                  )
+                : null,
+          ),
+          className: 'UrlWidget',
+        );
+
+    test('no URL configured', () {
+      final spec = urlSpec();
+      expect(spec.effectiveAndroidWidgetUrl, isNull);
+      expect(spec.effectiveIosWidgetUrl, isNull);
+      expect(spec.androidWidgetUrl, isNull);
+      expect(spec.iosWidgetUrl, isNull);
+      expect(spec.hasAndroidWidgetUrl, isFalse);
+      expect(spec.hasIosWidgetUrl, isFalse);
+      expect(spec.hasWidgetUrl, isFalse);
+    });
+
+    test('the top-level URL reaches both platforms', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget');
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('the top-level URL stays off iOS without an iOS configuration', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget', configureIos: false);
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveIosWidgetUrl, isNull);
+      expect(spec.iosWidgetUrl, isNull);
+      expect(spec.hasIosWidgetUrl, isFalse);
+      expect(spec.hasAndroidWidgetUrl, isTrue);
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('the top-level URL stays off Android without an Android configuration',
+        () {
+      final spec =
+          urlSpec(widgetUrl: 'myapp://widget', configureAndroid: false);
+      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.effectiveAndroidWidgetUrl, isNull);
+      expect(spec.androidWidgetUrl, isNull);
+      expect(spec.hasAndroidWidgetUrl, isFalse);
+      expect(spec.hasIosWidgetUrl, isTrue);
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('a platform URL wins over the top-level one', () {
+      final spec = urlSpec(
+        widgetUrl: 'myapp://shared',
+        androidWidgetUrl: 'myapp://android',
+        iosWidgetUrl: 'myapp://ios',
+      );
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://ios');
+    });
+
+    test('one platform may override while the other keeps the top-level URL',
+        () {
+      final spec = urlSpec(
+        widgetUrl: 'myapp://shared',
+        androidWidgetUrl: 'myapp://android',
+      );
+      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
+      expect(spec.effectiveIosWidgetUrl, 'myapp://shared');
+      expect(spec.hasAndroidWidgetUrl, isTrue);
+      expect(spec.hasIosWidgetUrl, isTrue);
+    });
+
+    test('openAppOnTap false drops the Android URL, keeping the iOS one', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget', openAppOnTap: false);
+      expect(spec.androidOpensAppOnTap, isFalse);
+      expect(spec.androidWidgetUrl, isNull);
+      expect(spec.hasAndroidWidgetUrl, isFalse);
+      expect(spec.iosWidgetUrl, 'myapp://widget?homeWidget');
+      expect(spec.hasWidgetUrl, isTrue);
+    });
+
+    test('the homeWidget parameter is appended to a URL without a query', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget');
+      expect(spec.androidWidgetUrl, 'myapp://widget?homeWidget');
+      expect(spec.iosWidgetUrl, 'myapp://widget?homeWidget');
+    });
+
+    test('an existing query is preserved', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget?message=hi%20there');
+      expect(
+        spec.androidWidgetUrl,
+        'myapp://widget?message=hi%20there&homeWidget',
+      );
+    });
+
+    test('the URL is spliced, not normalized', () {
+      final spec = urlSpec(widgetUrl: 'myApp://Widget/Path');
+      expect(spec.androidWidgetUrl, 'myApp://Widget/Path?homeWidget');
+    });
+
+    test('a fragment stays behind the query', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget?a=b#part');
+      expect(spec.iosWidgetUrl, 'myapp://widget?a=b&homeWidget#part');
+    });
+
+    test('a URL that already carries the parameter is left untouched', () {
+      final flag = urlSpec(widgetUrl: 'myapp://widget?message=hi&homeWidget');
+      expect(flag.androidWidgetUrl, 'myapp://widget?message=hi&homeWidget');
+
+      final valued = urlSpec(widgetUrl: 'myapp://widget?homeWidget=1');
+      expect(valued.iosWidgetUrl, 'myapp://widget?homeWidget=1');
+    });
+  });
+
+  group('WidgetSpec flavors', () {
+    WidgetSpec flavorSpec({
+      String iosGroupId = 'group.base',
+      Map<String, HomeWidgetFlavor>? flavors,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'FlavorWidget',
+            android: const HomeWidgetAndroidConfiguration(),
+            iOS: HomeWidgetIOSConfiguration(groupId: iosGroupId),
+            flavors: flavors,
+          ),
+          className: 'FlavorWidget',
+        );
+
+    test('a widget without flavors declares none', () {
+      final spec = flavorSpec();
+      expect(spec.declaredFlavors, isEmpty);
+      expect(spec.hasFlavors, isFalse);
+      expect(spec.flavor('dev'), isNull);
+    });
+
+    test('declaredFlavors keeps the declaration order', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(),
+          'stg': HomeWidgetFlavor(),
+          'prod': HomeWidgetFlavor(),
+        },
+      );
+      expect(spec.declaredFlavors, ['dev', 'stg', 'prod']);
+      expect(spec.hasFlavors, isTrue);
+      expect(spec.flavor('stg'), const HomeWidgetFlavor());
+      expect(spec.flavor('Dev'), isNull);
+    });
+
+    test('an empty flavor entry resolves to the base values', () {
+      final spec = flavorSpec(flavors: const {'stg': HomeWidgetFlavor()});
+      expect(spec.iosGroupIdFor('stg'), 'group.base');
+    });
+
+    test('an unknown flavor name falls back to the base values', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev')),
+        },
+      );
+      expect(spec.iosGroupIdFor('nope'), 'group.base');
+    });
+
+    test('a flavor groupId overrides the base App Group', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(iOS: HomeWidgetIOSFlavor(groupId: 'g.dev')),
+          'stg': HomeWidgetFlavor(),
+        },
+      );
+      expect(spec.iosGroupIdFor(null), 'group.base');
+      expect(spec.iosGroupIdFor('dev'), 'g.dev');
+      expect(spec.iosGroupIdFor('stg'), 'group.base');
+    });
+
+    test('a flavor provisioning profile overrides the base one', () {
+      final spec = flavorSpec(
+        flavors: const {
+          'dev': HomeWidgetFlavor(
+            iOS: HomeWidgetIOSFlavor(provisioningProfile: 'App Dev Widget'),
+          ),
+          'stg': HomeWidgetFlavor(),
+        },
+      );
+      expect(spec.iosProvisioningProfileFor(null), isNull);
+      expect(spec.iosProvisioningProfileFor('dev'), 'App Dev Widget');
+      expect(spec.iosProvisioningProfileFor('stg'), isNull);
+    });
+  });
+
+  group('WidgetSpec.nativeHelpers', () {
+    List<String> namesOf(WidgetSpec spec) =>
+        spec.nativeHelpers.map((h) => h.name).toList();
+
+    test('a widget with no numbers and no dates needs none', () {
+      final spec = _spec(
+        dataFields: const [HWString('label')],
+        widgetTree: const HWText(HWString('label')),
+      );
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('a decimal number pulls in the locale helper it calls', () {
+      expect(
+        namesOf(_spec(widgetTree: const HWText(HWInt('count')))),
+        ['hwFormatLocale', 'hwFormatDecimal'],
+      );
+      expect(
+        namesOf(_spec(widgetTree: const HWText(HWDouble('ratio')))),
+        ['hwFormatLocale', 'hwFormatDecimal'],
+      );
+      expect(
+        namesOf(_spec(widgetTree: const HWText.fixedNumber(1))),
+        ['hwFormatLocale', 'hwFormatDecimal'],
+      );
+      expect(
+        namesOf(
+          _spec(
+            widgetTree: const HWText.number(
+              HWInt('c'),
+              format: HWNumberFormat.compact(),
+            ),
+          ),
+        ),
+        ['hwFormatLocale', 'hwFormatCompact'],
+      );
+    });
+
+    test('a date pulls in the parser, the zone resolver and the format', () {
+      expect(
+        namesOf(
+          _spec(
+            dataFields: const [HWDateTime('when')],
+            widgetTree: const HWText(HWDateTime('when')),
+          ),
+        ),
+        [
+          'hwFormatLocale',
+          'hwParseIsoDate',
+          'hwResolveTimeZone',
+          'hwFormatDateStyled',
+        ],
+      );
+    });
+
+    test('a date nobody renders still needs the parser', () {
+      final spec = _spec(
+        dataFields: const [HWDateTime('when')],
+        widgetTree: const HWDataExists(
+          data: HWDateTime('when'),
+          whenPresent: HWText.fixed('soon'),
+          whenAbsent: HWText.fixed('never'),
+        ),
+      );
+      expect(namesOf(spec), ['hwParseIsoDate']);
+    });
+
+    test('a number reached only through a container or a branch counts', () {
+      final nested = _spec(
+        widgetTree: const HWColumn(
+          children: [
+            HWPadding(
+              padding: HWEdgeInsets.all(4),
+              child: HWDataExists(
+                data: HWString('label'),
+                whenPresent: HWText.fixed('none'),
+                whenAbsent: HWText(HWInt('count')),
+              ),
+            ),
+          ],
+        ),
+      );
+      expect(namesOf(nested), ['hwFormatLocale', 'hwFormatDecimal']);
+
+      final adaptive = _spec(
+        widgetTree: const HWAdaptive(
+          ios: HWText.fixed('x'),
+          android: HWText(HWDateTime('when')),
+        ),
+      );
+      expect(
+        namesOf(adaptive),
+        [
+          'hwFormatLocale',
+          'hwParseIsoDate',
+          'hwResolveTimeZone',
+          'hwFormatDateStyled',
+        ],
+      );
+    });
+
+    test('a number that never reaches a text needs no helpers', () {
+      final spec = _spec(
+        dataFields: const [HWInt('count')],
+        widgetTree: const HWText.fixed('static'),
+      );
+      expect(spec.nativeHelpers, isEmpty);
+    });
+
+    test('every helper comes after the ones it calls', () {
+      final spec = _spec(
+        dataFields: const [HWInt('count'), HWDateTime('when')],
+      );
+      final ordered = spec.nativeHelpers;
+      for (var i = 0; i < ordered.length; i++) {
+        for (final dependency in ordered[i].dependencies) {
+          expect(
+            ordered.sublist(0, i),
+            contains(dependency),
+            reason: '${ordered[i].name} before ${dependency.name}',
+          );
+        }
+      }
+      expect(ordered.map((h) => h.name).toSet(), hasLength(ordered.length));
+    });
+
+    test('a tree using every helper resolves all of them, deps first', () {
+      final spec = _spec(
+        dataFields: const [
+          HWDateTime('when'),
+          HWString('zone'),
+          HWLocalizedString(
+            'greeting',
+            defaultTranslations: {'en': 'Hi'},
+          ),
+          HWTimedData(
+            HWLocalizedString(
+              'headline',
+              defaultTranslations: {'en': 'News'},
+            ),
+          ),
+          HWImageData('avatar'),
+        ],
+        widgetTree: const HWColumn(
+          children: [
+            HWImage(HWImageData('avatar')),
+            HWText.number(HWInt('count')),
+            HWText.number(
+              HWDouble('share'),
+              format: HWNumberFormat.percent(),
+            ),
+            HWText.number(
+              HWDouble('total'),
+              format: HWNumberFormat.currency(
+                currency: HWCurrency.code('EUR'),
+              ),
+            ),
+            HWText.number(HWInt('views'), format: HWNumberFormat.compact()),
+            HWText.number(
+              HWInt('id'),
+              format: HWNumberFormat.pattern('0'),
+            ),
+            HWText.dateTime(HWDateTime('when'), format: HWDateFormat.yMMMd),
+            HWText.dateTime(
+              HWDateTime('when'),
+              format: HWDateFormat.pattern('dd.MM.yyyy'),
+              timeZone: HWTimeZone.data(HWString('zone')),
+            ),
+            HWText.dateTime(
+              HWDateTime('when'),
+              format: HWDateFormat.styled(date: HWFormatStyle.long),
+            ),
+            HWDataExists(
+              data: HWImageData('avatar'),
+              whenPresent: HWImage(HWImageData('avatar')),
+              whenAbsent: HWText.fixed('none'),
+            ),
+            HWText.fixed('styled', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWIcon.glyph(0xE88A, font: HWIconFont(family: 'MaterialIcons')),
+          ],
+        ),
+      );
+
+      final ordered = spec.nativeHelpers;
+      expect(ordered.toSet(), HWNativeHelper.values.toSet());
+      expect(ordered, hasLength(HWNativeHelper.values.length));
+      for (var i = 0; i < ordered.length; i++) {
+        for (final dependency in ordered[i].dependencies) {
+          expect(
+            ordered.sublist(0, i),
+            contains(dependency),
+            reason: '${ordered[i].name} before ${dependency.name}',
+          );
+        }
+      }
+    });
+
+    test('the default tree surfaces the declared number and date fields', () {
+      final spec =
+          _spec(dataFields: const [HWInt('count'), HWDateTime('when')]);
+      expect(
+        namesOf(spec),
+        [
+          'hwFormatLocale',
+          'hwFormatDecimal',
+          'hwParseIsoDate',
+          'hwResolveTimeZone',
+          'hwFormatDateStyled',
+        ],
+      );
+    });
+
+    test('every spelling of a date field asks for the parser', () {
+      for (final field in const <HWDataType<dynamic>>[
+        HWDateTime('when'),
+        HWTimedData(HWDateTime('next')),
+        HWJson('event', HWDateTime('start')),
+        HWTimedData(HWJson('slot', HWDateTime('at'))),
+      ]) {
+        final spec = _spec(
+          dataFields: [const HWString('label'), field],
+          widgetTree: const HWText.fixed('static'),
+        );
+        expect(namesOf(spec), ['hwParseIsoDate'], reason: '$field');
+      }
+    });
+
+    test('a date field the widget never renders still has to be parsed', () {
+      final spec = _spec(
+        dataFields: const [HWDateTime('when')],
+        widgetTree: const HWText.fixed('static'),
+      );
+      expect(namesOf(spec), ['hwParseIsoDate']);
+    });
+  });
+
+  group('WidgetSpec equality', () {
+    test('equal specs are equal and share hashCode', () {
+      final a = _spec();
+      final b = _spec();
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('different className breaks equality', () {
+      final a = _spec(name: 'A');
+      final b = _spec(name: 'B');
+      expect(a, isNot(equals(b)));
+    });
+  });
+
+  group('WidgetSpec.dataFields', () {
+    test('folds two declarations of one key into a single field', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('title', defaultValue: 'Hello'),
+          HWString('title', previewValue: 'Preview'),
+        ],
+      );
+
+      expect(spec.declaredDataFields, hasLength(2));
+      expect(spec.dataFields, hasLength(1));
+      final merged = spec.dataFields.single as HWString;
+      expect(merged.defaultValue, 'Hello');
+      expect(merged.previewValue, 'Preview');
+    });
+
+    test('keeps first-seen order across merges', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('title'),
+          HWInt('count', defaultValue: 1),
+          HWString('title', previewValue: 'Preview'),
+        ],
+      );
+
+      expect(spec.dataFields.map((f) => f.key), ['title', 'count']);
+    });
+
+    test('merges the leaf of a JSON path', () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson(
+            'profile',
+            HWString('name', defaultValue: 'Anon', previewValue: 'Ada'),
+          ),
+        ],
+      );
+
+      expect(spec.dataFields, hasLength(1));
+      final leaf = (spec.dataFields.single as HWJson).leafType as HWString;
+      expect(leaf.defaultValue, 'Anon');
+      expect(leaf.previewValue, 'Ada');
+    });
+
+    test('leaves a JSON leaf apart when only one side declares a defaultValue',
+        () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson('profile', HWString('name', previewValue: 'Ada')),
+        ],
+      );
+
+      expect(spec.dataFields, hasLength(2));
+    });
+
+    test('merges the data of a time-based field', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWInt('score', defaultValue: 0)),
+          HWTimedData(HWInt('score', previewValue: 42)),
+        ],
+      );
+
+      expect(spec.dataFields, hasLength(1));
+      final inner = spec.dataFields.single.unwrapped as HWInt;
+      expect(inner.defaultValue, 0);
+      expect(inner.previewValue, 42);
+    });
+
+    test('leaves declarations that disagree apart for the validator', () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('title', previewValue: 'A'),
+          HWString('title', previewValue: 'B'),
+        ],
+      );
+
+      expect(
+        spec.dataFields.map((f) => (f as HWString).previewValue),
+        ['A', 'B'],
+      );
+    });
+
+    test('a merged JSON group carries one child per path', () {
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson(
+            'profile',
+            HWString('name', defaultValue: 'Anon', previewValue: 'Ada'),
+          ),
+          HWJson('profile', HWInt('age', previewValue: 36)),
+        ],
+      );
+
+      final group = spec.jsonDataGroups.single;
+      expect(group.children.map((c) => c.path.single), ['name', 'age']);
+      expect((group.children.first.type as HWString).defaultValue, 'Anon');
+      expect((group.children.first.type as HWString).previewValue, 'Ada');
+    });
+
+    test('a timed JSON group merges its leaf the same way', () {
+      final spec = _spec(
+        dataFields: const [
+          HWTimedData(HWJson('weather', HWString('condition'))),
+          HWTimedData(
+            HWJson('weather', HWString('condition', previewValue: 'Sunny')),
+          ),
+        ],
+      );
+
+      final group = spec.timedJsonDataGroups.single;
+      expect(group.children, hasLength(1));
+      expect((group.children.single.type as HWString).previewValue, 'Sunny');
+    });
+
+    test('a leaf default set on one side only stays a second child', () {
+      // Such a spec never reaches a generator: validateWidgetData reports the
+      // conflict off the very children this getter hands its path trie, which
+      // is why the two declarations arrive here unmerged.
+      final spec = _spec(
+        dataFields: const [
+          HWJson('profile', HWString('name', defaultValue: 'Anon')),
+          HWJson('profile', HWString('name', previewValue: 'Ada')),
+        ],
+      );
+
+      final group = spec.jsonDataGroups.single;
+      expect(group.children.map((c) => c.path.single), ['name', 'name']);
+    });
+  });
+
+  group('WidgetSpec preview configuration', () {
+    test('platform values override the top-level one', () {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'T',
+          useLiveDataInPreview: false,
+          android: HomeWidgetAndroidConfiguration(
+            useLiveDataInPreview: true,
+            autoUpdatePreview: false,
+          ),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.t'),
+        ),
+        className: 'T',
+      );
+
+      expect(spec.androidUsesLiveDataInPreview, isTrue);
+      expect(spec.iosUsesLiveDataInPreview, isFalse);
+      expect(spec.androidAutoUpdatePreview, isFalse);
+    });
+
+    test('defaults to live data and automatic registration', () {
+      final spec = _spec();
+      expect(spec.androidUsesLiveDataInPreview, isTrue);
+      expect(spec.iosUsesLiveDataInPreview, isTrue);
+      expect(spec.androidAutoUpdatePreview, isTrue);
+    });
+  });
+
+  group('WidgetSpec.hasPreviewValues', () {
+    test('is false without any preview value', () {
+      final spec = _spec(
+        dataFields: const [HWString('title', defaultValue: 'Hi')],
+      );
+      expect(spec.hasPreviewValues, isFalse);
+    });
+
+    test('finds preview values wherever they are declared', () {
+      const fields = <HWDataType<dynamic>>[
+        HWString('a', previewValue: 'x'),
+        HWDateTime('b', previewValue: '2024-03-08T09:41:00Z'),
+        HWImageData('c', previewAsset: 'assets/preview.png'),
+        HWJson('d', HWInt('inner', previewValue: 3)),
+        HWTimedData(HWDouble('e', previewValue: 1.5)),
+        HWString.localized(
+          'f',
+          defaultTranslations: {'en': 'Hi'},
+          previewTranslations: {'en': 'Sample'},
+        ),
+      ];
+
+      for (final field in fields) {
+        expect(
+          _spec(dataFields: [field]).hasPreviewValues,
+          isTrue,
+          reason: '$field',
+        );
+      }
+    });
+  });
+
+  group('WidgetSpec.previewAssetImageFields', () {
+    test('lists runtime images with a preview asset, nested ones included', () {
+      final spec = _spec(
+        dataFields: const [
+          HWImageData('plain'),
+          HWImageData('avatar', previewAsset: 'assets/avatar.png'),
+          HWJson('contact', HWImageData('photo', previewAsset: 'assets/p.png')),
+          HWTimedData(HWImageData('slide', previewAsset: 'assets/s.png')),
+        ],
+      );
+
+      expect(
+        spec.previewAssetImageFields.map((i) => i.previewAsset),
+        ['assets/avatar.png', 'assets/p.png', 'assets/s.png'],
+      );
+    });
+  });
+
+  group('WidgetSpec.previewContentHash', () {
+    test('is a stable 8-digit hex digest', () {
+      final spec = _spec(dataFields: const [HWString('title')]);
+      expect(spec.previewContentHash, matches(RegExp(r'^[0-9a-f]{8}$')));
+      final same = _spec(dataFields: const [HWString('title')]);
+      expect(spec.previewContentHash, same.previewContentHash);
+    });
+
+    test('changes with every value the preview renders', () {
+      final base = _spec(dataFields: const [HWString('title')]);
+
+      final variants = <String, WidgetSpec>{
+        'previewValue': _spec(
+          dataFields: const [HWString('title', previewValue: 'Sample')],
+        ),
+        'defaultValue': _spec(
+          dataFields: const [HWString('title', defaultValue: 'Hi')],
+        ),
+        'preview asset': _spec(
+          dataFields: const [
+            HWString('title'),
+            HWImageData('a', previewAsset: 'assets/a.png'),
+          ],
+        ),
+        'widget tree': _spec(
+          dataFields: const [HWString('title')],
+          widgetTree: const HWText.fixed('other'),
+        ),
+        'preview instant': _spec(
+          dataFields: const [
+            HWString('title'),
+            HWDateTime('when', previewValue: '2024-03-08T09:41:00Z'),
+          ],
+        ),
+      };
+
+      for (final entry in variants.entries) {
+        expect(
+          entry.value.previewContentHash,
+          isNot(base.previewContentHash),
+          reason: entry.key,
+        );
+      }
+    });
+
+    test('changes when the preview configuration changes', () {
+      final live = WidgetSpec(
+        data: HomeWidget(name: 'T'),
+        className: 'T',
+      );
+      final frozen = WidgetSpec(
+        data: HomeWidget(name: 'T', useLiveDataInPreview: false),
+        className: 'T',
+      );
+
+      expect(live.previewContentHash, isNot(frozen.previewContentHash));
+    });
+
+    test('ignores the order translations are written in', () {
+      WidgetSpec specFor(Map<String, String> preview) => WidgetSpec(
+            data: HomeWidget(
+              name: 'T',
+              localization: const HomeWidgetLocalization(
+                defaultLocale: 'en',
+                supportedLocales: ['en', 'de'],
+              ),
+            ),
+            className: 'T',
+            dataFields: [
+              HWString.localized(
+                'title',
+                defaultTranslations: const {'en': 'Hi', 'de': 'Hallo'},
+                previewTranslations: preview,
+              ),
+            ],
+          );
+
+      expect(
+        specFor({'en': 'Sample', 'de': 'Beispiel'}).previewContentHash,
+        specFor({'de': 'Beispiel', 'en': 'Sample'}).previewContentHash,
+      );
+    });
+
+    test('changes with the sizes a size-branching widget declares', () {
+      WidgetSpec specFor(HomeWidgetAndroidConfiguration android) => WidgetSpec(
+            data: HomeWidget(name: 'T', android: android),
+            className: 'T',
+            widgetTree: const HWSizeAdaptive(small: _s, medium: _m),
+          );
+
+      // The tree is the same either way, so only the declared sizes differ.
+      expect(
+        specFor(const HomeWidgetAndroidConfiguration()).previewContentHash,
+        isNot(
+          specFor(
+            const HomeWidgetAndroidConfiguration(
+              maxResizeWidth: 250,
+              maxResizeHeight: 250,
+            ),
+          ).previewContentHash,
+        ),
+      );
+    });
+
+    test('ignores the declared sizes of a widget that never branches', () {
+      WidgetSpec specFor(HomeWidgetAndroidConfiguration android) => WidgetSpec(
+            data: HomeWidget(name: 'T', android: android),
+            className: 'T',
+            widgetTree: const HWText.fixed('x'),
+          );
+
+      expect(
+        specFor(const HomeWidgetAndroidConfiguration()).previewContentHash,
+        specFor(
+          const HomeWidgetAndroidConfiguration(
+            maxResizeWidth: 250,
+            maxResizeHeight: 250,
+          ),
+        ).previewContentHash,
+      );
+    });
+
+    test('is unchanged for a widget that never branches on size', () {
+      final spec = WidgetSpec(
+        data: const HomeWidget(
+          name: 'T',
+          android: HomeWidgetAndroidConfiguration(),
+        ),
+        className: 'T',
+        widgetTree: const HWText.fixed('x'),
+      );
+
+      // The digest this widget had before the declared sizes joined the hash:
+      // a widget without a `sizeMode` must never re-register its preview.
+      expect(spec.previewContentHash, 'c1bfad07');
+    });
+
+    test('changes when an androidSizeRange bound moves', () {
+      WidgetSpec specFor(double maxHeight) => WidgetSpec(
+            data: HomeWidget(
+              name: 'T',
+              android: const HomeWidgetAndroidConfiguration(),
+            ),
+            className: 'T',
+            widgetTree: HWSizeAdaptive(
+              small: _s,
+              medium: _m,
+              androidSizeRanges: [
+                HWAndroidSizeRange(maxHeight: maxHeight, child: _strip),
+              ],
+            ),
+          );
+
+      expect(
+        specFor(120).previewContentHash,
+        isNot(specFor(200).previewContentHash),
+      );
+    });
+  });
+
+  group('WidgetSpec.sizeAdaptives', () {
+    test('is empty for a tree without one', () {
+      expect(_spec(widgetTree: HWText.fixed('hi')).sizeAdaptives, isEmpty);
+    });
+
+    test('collects every instance in document order, nested ones included', () {
+      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final first = HWSizeAdaptive(small: HWText.fixed('first'));
+      final second = HWSizeAdaptive(small: inner);
+
+      final spec = _spec(
+        widgetTree: HWColumn(children: [first, second]),
+      );
+
+      expect(spec.sizeAdaptives, [first, second, inner]);
+    });
+
+    test('an HWAdaptive contributes only the branch its platform emits', () {
+      final onIos = HWSizeAdaptive(small: HWText.fixed('i'));
+      final onAndroid = HWSizeAdaptive(small: HWText.fixed('a'));
+      final spec = _adaptiveSpec(
+        adaptive: HWAdaptive(ios: onIos, android: onAndroid),
+      );
+
+      expect(
+        spec.iosSizeAdaptiveSites.map((site) => site.adaptive),
+        [onIos],
+      );
+      expect(
+        spec.androidSizeAdaptiveSites.map((site) => site.adaptive),
+        [onAndroid],
+      );
+      expect(spec.sizeAdaptives, [onIos, onAndroid]);
+    });
+
+    test('a nested site sees only what its enclosing slot renders', () {
+      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          large: inner,
+        ),
+      );
+
+      final site = spec.iosSizeAdaptiveSites.last;
+      expect(identical(site.adaptive, inner), isTrue);
+      expect(site.enclosingSlot, HWWidgetFamily.systemLarge);
+      expect(site.visible, {HWWidgetFamily.systemLarge});
+    });
+
+    test('an Android site never sees an accessory family', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          accessoryCircular: HWText.fixed('c'),
+        ),
+        iOS: const HomeWidgetIOSConfiguration(
+          groupId: 'group.test',
+          supportedFamilies: [
+            HWWidgetFamily.systemSmall,
+            HWWidgetFamily.accessoryCircular,
+          ],
+        ),
+      );
+
+      expect(
+        spec.androidSizeAdaptiveSites.single.visible,
+        isNot(contains(HWWidgetFamily.accessoryCircular)),
+      );
+      expect(
+        spec.iosSizeAdaptiveSites.single.visible,
+        contains(HWWidgetFamily.accessoryCircular),
+      );
+    });
+  });
+
+  group('WidgetSpec.androidBranchesOnSize', () {
+    test('is false when every reachable family renders one layout', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          accessoryCircular: HWText.fixed('c'),
+        ),
+      );
+
+      expect(spec.androidBranchesOnSize, isFalse);
+    });
+
+    test('is true once two reachable families render differently', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          large: HWText.fixed('l'),
+        ),
+      );
+
+      expect(spec.androidBranchesOnSize, isTrue);
+    });
+
+    test('ignores an instance only the iOS branch of an HWAdaptive holds', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWAdaptive(
+          ios: HWSizeAdaptive(
+            small: HWText.fixed('s'),
+            large: HWText.fixed('l'),
+          ),
+          android: HWText.fixed('a'),
+        ),
+      );
+
+      expect(spec.androidBranchesOnSize, isFalse);
+    });
+
+    test('is true when the grid renders more than one layout', () {
+      expect(_rangeSpec().androidBranchesOnSize, isTrue);
+    });
+
+    test('is false when every corner of the grid renders the same one', () {
+      final spec = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(
+          small: _s,
+          androidSizeRanges: [HWAndroidSizeRange(maxHeight: 120, child: _s)],
+        ),
+      );
+
+      expect(spec.androidHasSizeRanges, isTrue);
+      expect(spec.androidBranchesOnSize, isFalse);
+    });
+  });
+
+  group('WidgetSpec.androidSizeTable', () {
+    test('defaults to the cell footprint of every system family', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(small: HWText.fixed('s')),
+      );
+
+      expect(spec.androidSizeTable, {
+        HWWidgetFamily.systemSmall: const HWSize(110, 110),
+        HWWidgetFamily.systemMedium: const HWSize(250, 110),
+        HWWidgetFamily.systemLarge: const HWSize(250, 250),
+        HWWidgetFamily.systemExtraLarge: const HWSize(530, 250),
+        HWWidgetFamily.systemExtraLargePortrait: const HWSize(250, 530),
+      });
+    });
+
+    test('merges the overrides of every instance', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWColumn(
+          children: [
+            HWSizeAdaptive(
+              small: HWText.fixed('s'),
+              medium: HWText.fixed('m'),
+              androidSizes: const {
+                HWWidgetFamily.systemMedium: HWSize(200, 100),
+              },
+            ),
+            HWSizeAdaptive(
+              small: HWText.fixed('s2'),
+              large: HWText.fixed('l'),
+              androidSizes: const {
+                HWWidgetFamily.systemLarge: HWSize(200, 200),
+              },
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        spec.androidSizeTable[HWWidgetFamily.systemMedium],
+        const HWSize(200, 100),
+      );
+      expect(
+        spec.androidSizeTable[HWWidgetFamily.systemLarge],
+        const HWSize(200, 200),
+      );
+      expect(
+        spec.androidSizeTable[HWWidgetFamily.systemSmall],
+        const HWSize(110, 110),
+      );
+    });
+  });
+
+  group('WidgetSpec.iosReachableFamilies', () {
+    test('is empty without an iOS configuration', () {
+      expect(_adaptiveSpec(iOS: null).iosReachableFamilies, isEmpty);
+    });
+
+    test('defaults to the three home-screen families', () {
+      expect(_adaptiveSpec().iosReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('reads an empty supportedFamilies as the default too', () {
+      final spec = _adaptiveSpec(
+        iOS: const HomeWidgetIOSConfiguration(
+          groupId: 'group.test',
+          supportedFamilies: [],
+        ),
+      );
+
+      expect(spec.iosReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('is what supportedFamilies declares', () {
+      final spec = _adaptiveSpec(
+        iOS: const HomeWidgetIOSConfiguration(
+          groupId: 'group.test',
+          supportedFamilies: [
+            HWWidgetFamily.systemSmall,
+            HWWidgetFamily.accessoryInline,
+          ],
+        ),
+      );
+
+      expect(spec.iosReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.accessoryInline,
+      });
+    });
+  });
+
+  group('WidgetSpec.androidReachableFamilies', () {
+    test('is empty without an Android configuration', () {
+      expect(_adaptiveSpec(android: null).androidReachableFamilies, isEmpty);
+    });
+
+    test('reaches every system family with the default configuration', () {
+      expect(
+        _adaptiveSpec().androidReachableFamilies,
+        HWWidgetFamily.values.where((f) => !f.isAccessory).toSet(),
+      );
+    });
+
+    test('pins a non-resizable widget to the family of its target cells', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.none,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemMedium});
+      expect(spec.androidMinSize, (width: 250.0, height: 110.0));
+      expect(spec.androidMaxSize, (width: 250.0, height: 110.0));
+    });
+
+    test('keeps the height fixed when only the width resizes', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 2,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.horizontal,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+      });
+      expect(spec.androidMaxSize, (width: null, height: 110.0));
+    });
+
+    test('keeps the width fixed when only the height resizes', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 2,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.vertical,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemSmall});
+    });
+
+    test('drops a family a bigger one already covers at the minimum', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          minWidth: 250,
+          minHeight: 250,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemLarge});
+      expect(spec.androidMinSize, (width: 250.0, height: 250.0));
+    });
+
+    test('a resizable widget shrinks to minWidth, not to its target cells', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 4,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(spec.androidMinSize, (width: 80.0, height: 80.0));
+      expect(spec.androidReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('honours minResize over the target cells', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 4,
+          minResizeWidth: 110,
+          minResizeHeight: 110,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+    });
+
+    test('falls back to the smallest family when nothing fits', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 100,
+          maxResizeHeight: 100,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemSmall});
+    });
+
+    test('the no-fit fallback is the smallest declared area, not small', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          medium: HWText.fixed('m'),
+          androidSizes: const {HWWidgetFamily.systemMedium: HWSize(60, 60)},
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 50,
+          maxResizeHeight: 50,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemMedium});
+    });
+
+    test('an override pulls a family into range', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          large: HWText.fixed('l'),
+          androidSizes: const {HWWidgetFamily.systemLarge: HWSize(90, 90)},
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 100,
+          maxResizeHeight: 100,
+        ),
+      );
+
+      expect(spec.androidReachableFamilies, {HWWidgetFamily.systemLarge});
+    });
+
+    test('an override pushes a family out of range', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: HWText.fixed('s'),
+          medium: HWText.fixed('m'),
+          androidSizes: const {HWWidgetFamily.systemMedium: HWSize(600, 600)},
+        ),
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 4,
+          maxResizeWidth: 250,
+          maxResizeHeight: 250,
+        ),
+      );
+
+      expect(
+        spec.androidReachableFamilies,
+        isNot(contains(HWWidgetFamily.systemMedium)),
+      );
+    });
+  });
+
+  group('WidgetSpec emit contexts', () {
+    test('carry the reachable families of their platform', () {
+      final spec = _adaptiveSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          targetCellWidth: 4,
+          targetCellHeight: 2,
+          resizeMode: HWAndroidResizeMode.none,
+        ),
+      );
+
+      expect(spec.iosEmitContext.reachableFamilies, {
+        HWWidgetFamily.systemSmall,
+        HWWidgetFamily.systemMedium,
+        HWWidgetFamily.systemLarge,
+      });
+      expect(spec.iosEmitContext.androidSizeTable, isNull);
+      expect(spec.androidEmitContext.reachableFamilies, {
+        HWWidgetFamily.systemMedium,
+      });
+      expect(
+        spec.androidEmitContext.androidSizeTable?[HWWidgetFamily.systemMedium],
+        const HWSize(250, 110),
+      );
+    });
+
+    test('carry the declared sizes only once a range asks for them', () {
+      expect(_adaptiveSpec().androidEmitContext.declaredAndroidSizes, isNull);
+      expect(
+        _rangeSpec().androidEmitContext.declaredAndroidSizes,
+        _rangeSpec().androidDeclaredSizes,
+      );
+    });
+  });
+
+  group('WidgetSpec.androidHasSizeRanges', () {
+    test('is false for a tree of family slots alone', () {
+      expect(_adaptiveSpec().androidHasSizeRanges, isFalse);
+    });
+
+    test('is true once an Android-reached instance carries one', () {
+      expect(_rangeSpec().androidHasSizeRanges, isTrue);
+    });
+
+    test('is false without an Android configuration', () {
+      expect(_rangeSpec(android: null).androidHasSizeRanges, isFalse);
+    });
+
+    test('ignores an instance only the iOS branch of an HWAdaptive holds', () {
+      final spec = _adaptiveSpec(
+        adaptive: HWAdaptive(
+          ios: const HWSizeAdaptive(
+            small: _s,
+            androidSizeRanges: [_stripRange],
+          ),
+          android: HWText.fixed('a'),
+        ),
+      );
+
+      expect(spec.androidHasSizeRanges, isFalse);
+    });
+
+    test('an empty list renders exactly like no ranges at all', () {
+      final empty = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(
+          small: _s,
+          medium: _m,
+          androidSizeRanges: [],
+        ),
+      );
+      final without = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(small: _s, medium: _m),
+      );
+
+      expect(empty.androidHasSizeRanges, isFalse);
+      expect(empty.androidDeclaredSizes, without.androidDeclaredSizes);
+      expect(_kotlinOf(empty), _kotlinOf(without));
+    });
+  });
+
+  group('WidgetSpec.androidSizeGrid', () {
+    test('compiles the corners the ranges ask for', () {
+      expect(_rangeSpec().androidSizeGrid.sizes, const [
+        HWSize(80, 80),
+        HWSize(80, 121),
+        HWSize(250, 121),
+        HWSize(400, 200),
+        HWSize(250, 250),
+        HWSize(400, 250),
+      ]);
+    });
+
+    test('is floored at the smallest size the launcher can give it', () {
+      final spec = _rangeSpec(
+        android: const HomeWidgetAndroidConfiguration(minResizeWidth: 260),
+      );
+
+      expect(
+        spec.androidSizeGrid.sizes.map((size) => size.width),
+        everyElement(greaterThanOrEqualTo(260)),
+      );
+    });
+
+    test('keeps the family composition corners with custom-font text', () {
+      const style = HWTextStyle(fontFamily: 'Chewy');
+      final spec = _adaptiveSpec(
+        adaptive: const HWSizeAdaptive(
+          small: HWText.fixed('s', style: style),
+          medium: HWText.fixed('m', style: style),
+          large: HWText.fixed('l', style: style),
+          androidSizeRanges: [_stripRange, _dashboardRange],
+        ),
+      );
+
+      expect(spec.androidSizeGrid.sizes, const [
+        HWSize(80, 80),
+        HWSize(80, 121),
+        HWSize(110, 121),
+        HWSize(250, 121),
+        HWSize(400, 200),
+        HWSize(250, 250),
+        HWSize(400, 250),
+        HWSize(250, 530),
+        HWSize(400, 530),
+      ]);
+      expect(
+        spec.androidDeclaredSizes.length,
+        greaterThan(_rangeSpec().androidDeclaredSizes.length),
+      );
+    });
+
+    test('is clipped by what the widget can be resized to', () {
+      final spec = _rangeSpec(
+        android: const HomeWidgetAndroidConfiguration(
+          maxResizeWidth: 399,
+          maxResizeHeight: 400,
+        ),
+      );
+
+      expect(spec.androidSizeGrid.sizes, const [
+        HWSize(80, 80),
+        HWSize(80, 121),
+        HWSize(250, 121),
+        HWSize(250, 250),
+      ]);
+    });
+
+    test('is floored at one dp without an Android configuration', () {
+      final spec = _rangeSpec(android: null);
+
+      expect(spec.androidSizeGrid.sizes, const [
+        HWSize(1, 1),
+        HWSize(1, 121),
+        HWSize(250, 121),
+        HWSize(400, 200),
+        HWSize(250, 250),
+        HWSize(400, 250),
+      ]);
+    });
+  });
+
+  group('WidgetSpec.androidDeclaredSizes', () {
+    test('is every reachable family size without a range', () {
+      expect(_adaptiveSpec().androidDeclaredSizes, const [
+        HWSize(110, 110),
+        HWSize(250, 110),
+        HWSize(250, 250),
+        HWSize(530, 250),
+        HWSize(250, 530),
+      ]);
+    });
+
+    test('is the grid corners with one', () {
+      expect(
+        _rangeSpec().androidDeclaredSizes,
+        _rangeSpec().androidSizeGrid.sizes,
+      );
+    });
+  });
+
+  group('the Android size range walk', () {
+    test('descends into a range child, which belongs to no slot', () {
+      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final range = HWAndroidSizeRange(maxHeight: 120, child: inner);
+      final outer = HWSizeAdaptive(
+        small: HWText.fixed('s'),
+        androidSizeRanges: [range],
+      );
+      final spec = _adaptiveSpec(adaptive: outer);
+
+      final site = spec.androidSizeAdaptiveSites.last;
+      expect(identical(site.adaptive, inner), isTrue);
+      expect(site.enclosingSlot, isNull);
+      expect(identical(site.enclosingRange, range), isTrue);
+      expect(site.visible, spec.androidReachableFamilies);
+
+      expect(spec.iosSizeAdaptiveSites.map((s) => s.adaptive), [outer]);
+      expect(spec.sizeAdaptives, [outer, inner]);
+    });
+
+    test('a range child written into a slot too is one place', () {
+      final shared = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final spec = _adaptiveSpec(
+        adaptive: HWSizeAdaptive(
+          small: shared,
+          androidSizeRanges: [
+            HWAndroidSizeRange(maxHeight: 120, child: shared),
+          ],
+        ),
+      );
+
+      expect(spec.androidSizeAdaptiveSites, hasLength(2));
+      expect(
+        spec.androidSizeAdaptiveSites.last.enclosingSlot,
+        HWWidgetFamily.systemSmall,
+      );
+    });
+  });
+
+  group('WidgetSpec lists', () {
+    test('declaredLists finds every builder in document order', () {
+      const forecast = HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        item: HWText(HWItemData(HWString('label'))),
+      );
+      const events = HWColumn.builder(
+        'events',
+        item: HWText(HWItemData(HWString('title'))),
+      );
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            forecast,
+            HWAdaptive(ios: events, android: HWText.fixed('none')),
+          ],
+        ),
+      );
+
+      final declarations = spec.declaredLists;
+      expect(declarations.map((d) => d.key), ['forecast', 'events']);
+      expect(
+        declarations.map((d) => d.spelling),
+        ["HWRow.builder('forecast')", "HWColumn.builder('events')"],
+      );
+      expect(identical(declarations.first.builder, forecast), isTrue);
+      expect(declarations.first.reads, const [HWItemData(HWString('label'))]);
+    });
+
+    test('declares a builder written into two slots once', () {
+      const forecast = HWRow.builder(
+        'forecast',
+        maxItems: 5,
+        item: HWText(HWItemData(HWString('label'))),
+      );
+      final spec = _listSpec(
+        const HWSizeAdaptive(small: forecast, medium: forecast),
+      );
+
+      expect(spec.declaredLists, hasLength(1));
+    });
+
+    test('folds the reads of every builder over one list into one group', () {
+      final spec = _listSpec(
+        const HWSizeAdaptive(
+          small: HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWColumn(
+              children: [
+                HWText.number(
+                  HWItemData(HWInt('temperature', defaultValue: 0)),
+                ),
+                HWText(HWString('unit')),
+              ],
+            ),
+          ),
+          large: HWColumn.builder(
+            'forecast',
+            maxItems: 6,
+            item: HWColumn(
+              children: [
+                HWText(HWItemData(HWString('label'))),
+                HWText.number(
+                  HWItemData(HWInt('temperature'), previewValues: [21, 17]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final group = spec.listDataGroups.single;
+      expect(group.key, 'forecast');
+      expect(group.timed, isFalse);
+      expect(group.declarations, hasLength(2));
+      expect(group.fields, const [
+        HWItemData(
+          HWInt('temperature', defaultValue: 0),
+          previewValues: [21, 17],
+        ),
+        HWItemData(HWString('label')),
+      ]);
+      expect(spec.untimedListGroups.single.key, 'forecast');
+      expect(spec.timedListGroups, isEmpty);
+      expect(spec.dataFields, const [HWString('unit')]);
+    });
+
+    test('keeps reads that disagree apart for the validator', () {
+      final spec = _listSpec(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 3,
+          item: HWColumn(
+            children: [
+              HWText.number(HWItemData(HWInt('temperature', defaultValue: 0))),
+              HWText.number(HWItemData(HWInt('temperature', defaultValue: 1))),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        spec.listDataGroups.single.fields.map((f) => f.defaultValue),
+        [0, 1],
+      );
+    });
+
+    test('a list read through HWTimedData is time-based as a whole', () {
+      final spec = _listSpec(
+        const HWColumn.builder(
+          'hourly',
+          maxItems: 4,
+          item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
+        ),
+      );
+
+      final group = spec.listDataGroups.single;
+      expect(group.timed, isTrue);
+      expect(group.fields, const [HWItemData(HWInt('temperature'))]);
+      expect(spec.timedListGroups.single.key, 'hourly');
+      expect(spec.untimedListGroups, isEmpty);
+      expect(spec.hasTimedData, isTrue);
+      expect(spec.timedDataFields, isEmpty);
+    });
+
+    test('a builder whose item reads no item field makes an untimed list', () {
+      final spec = _listSpec(
+        const HWRow.builder('dots', maxItems: 4, item: HWText.fixed('dot')),
+      );
+
+      final group = spec.listDataGroups.single;
+      expect(group.fields, isEmpty);
+      expect(group.timed, isFalse);
+      expect(group.itemClassName(spec.className), 'WeatherDotsItem');
+      expect(group.sampleItemCount, 0);
+      expect(spec.hasTimedData, isFalse);
+    });
+
+    test('hasTimedData also answers for a time-based field', () {
+      expect(
+        _spec(dataFields: const [HWTimedData(HWInt('score'))]).hasTimedData,
+        isTrue,
+      );
+      expect(_spec(dataFields: const [HWInt('score')]).hasTimedData, isFalse);
+    });
+
+    test('itemClassName puts the list key between class name and Item', () {
+      const group = ListDataGroup(
+        key: 'hourlyForecast',
+        timed: false,
+        fields: [],
+        declarations: [],
+      );
+      expect(group.itemClassName('Weather'), 'WeatherHourlyForecastItem');
+    });
+
+    test('an item field left among the data fields is no plain or timed one',
+        () {
+      final spec = _spec(
+        dataFields: const [
+          HWString('city'),
+          HWItemData(HWString('label')),
+          HWTimedData(HWInt('score')),
+          HWTimedData(HWItemData(HWInt('temperature'))),
+        ],
+      );
+
+      expect(spec.primitiveDataFields, const [HWString('city')]);
+      expect(spec.timedDataFields, const [HWTimedData(HWInt('score'))]);
+      expect(spec.timedPrimitiveDataFields, const [HWInt('score')]);
+    });
+
+    group('sample items', () {
+      ListDataGroup groupOf(List<HWItemData<dynamic>> fields) => ListDataGroup(
+            key: 'forecast',
+            timed: false,
+            fields: fields,
+            declarations: const [],
+          );
+
+      test('vary as far as the longest previewValues reach', () {
+        const label = HWItemData(
+          HWString('label'),
+          previewValues: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+        );
+        const high = HWItemData(
+          HWInt('high', defaultValue: 0, previewValue: 25),
+          previewValues: [21, 17, 19],
+        );
+        const low = HWItemData(
+          HWInt('low', defaultValue: 0),
+          previewValues: [12],
+        );
+        const note = HWItemData(HWString('note'));
+        final group = groupOf(const [label, high, low, note]);
+
+        expect(group.sampleItemCount, 5);
+        expect(group.variesSampleItems, isTrue);
+        List<Object?> column(HWItemData<dynamic> field) => [
+              for (var index = 0; index < 5; index++)
+                group.sampleValue(field, index),
+            ];
+        expect(column(label), ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+        expect(column(high), [21, 17, 19, 25, 25]);
+        expect(column(low), [12, 0, 0, 0, 0]);
+        expect(column(note), [null, null, null, null, null]);
+      });
+
+      test('repeat as often as the largest maxItems of the builders', () {
+        final spec = _listSpec(
+          const HWSizeAdaptive(
+            small: HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+            ),
+            medium: HWRow.builder(
+              'forecast',
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+            large: HWColumn.builder(
+              'forecast',
+              maxItems: 6,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+          ),
+        );
+
+        final group = spec.listDataGroups.single;
+        expect(group.sampleItemCount, 6);
+        expect(group.variesSampleItems, isFalse);
+        expect(group.sampleValue(group.fields.single, 5), 'Day');
+      });
+
+      test('repeat three times when no builder sets maxItems', () {
+        final spec = _listSpec(
+          const HWRow.builder(
+            'forecast',
+            item: HWText.number(HWItemData(HWInt('high', previewValue: 25))),
+          ),
+        );
+
+        expect(spec.listDataGroups.single.sampleItemCount, 3);
+      });
+
+      test('are none while no field sets a preview value', () {
+        final group = groupOf(const [
+          HWItemData(HWInt('high', defaultValue: 0)),
+          HWItemData(
+            HWString.localized('label', defaultTranslations: {'en': 'Day'}),
+          ),
+        ]);
+
+        expect(group.sampleItemCount, 0);
+      });
+
+      test('spell every kind of field the way previewValues do', () {
+        const localized = HWItemData(
+          HWString.localized(
+            'label',
+            defaultTranslations: {'en': 'Day'},
+            previewTranslations: {'en': 'Monday'},
+          ),
+        );
+        const plainLocalized = HWItemData(
+          HWString.localized('note', defaultTranslations: {'en': 'Note'}),
+        );
+        const day = HWItemData(
+          HWDateTime('day', previewValue: '2026-09-21T12:00:00Z'),
+        );
+        const avatar = HWItemData(
+          HWImageData('avatar', previewAsset: 'assets/avatar.png'),
+        );
+        const condition = HWItemData(
+          HWIconData.resolved(
+            'condition',
+            entries: [HWIconEntry('cloud', 0xE2BD)],
+            iconFont: HWIconFont(family: 'MaterialIcons'),
+            defaultValue: 0xE2BD,
+          ),
+        );
+        const ratio = HWItemData(HWDouble('ratio', previewValue: 0.5));
+        const done = HWItemData(HWBool('done', defaultValue: false));
+        final group = groupOf(
+          const [
+            localized,
+            plainLocalized,
+            day,
+            avatar,
+            condition,
+            ratio,
+            done,
+          ],
+        );
+
+        expect(group.sampleValue(localized, 0), {'en': 'Monday'});
+        expect(group.sampleValue(plainLocalized, 0), isNull);
+        expect(group.sampleValue(day, 0), '2026-09-21T12:00:00Z');
+        expect(group.sampleValue(avatar, 0), 'assets/avatar.png');
+        expect(group.sampleValue(condition, 0), 0xE2BD);
+        expect(group.sampleValue(ratio, 0), 0.5);
+        expect(group.sampleValue(done, 0), false);
+      });
+    });
+
+    test('item icons join the icon fields and share the enum of their key', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      const root = HWIconData.resolved(
+        'condition',
+        entries: [HWIconEntry('wbSunny', 0xE430), HWIconEntry('cloud', 0xE2BD)],
+        iconFont: font,
+      );
+      const item = HWIconData.resolved(
+        'condition',
+        entries: [
+          HWIconEntry('cloud', 0xE2BD),
+          HWIconEntry('arrowBack', 0xE5C4, matchTextDirection: true),
+        ],
+        iconFont: font,
+      );
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            HWIcon(root),
+            HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWIcon(HWItemData(item)),
+            ),
+          ],
+        ),
+      );
+
+      expect(spec.iconFields, const [root, item]);
+      final enums = spec.iconEnums;
+      expect(enums.keys, ['WeatherConditionIcon']);
+      expect(
+        enums['WeatherConditionIcon']!.entries.map((e) => e.name),
+        ['wbSunny', 'cloud', 'arrowBack'],
+      );
+      expect(spec.mirroredIconCodePoints, {0xE5C4});
+      expect(spec.iconCodePoints, {
+        font: {0xE430, 0xE2BD, 0xE5C4},
+      });
+    });
+
+    test('an item icon is named by its list in an enum conflict', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            HWIcon(
+              HWIconData.resolved(
+                'condition',
+                entries: [HWIconEntry('sun', 0xE430)],
+                iconFont: font,
+              ),
+            ),
+            HWRow.builder(
+              'forecast',
+              maxItems: 3,
+              item: HWIcon(
+                HWItemData(
+                  HWIconData.resolved(
+                    'condition',
+                    entries: [HWIconEntry('sun', 0xE2BD)],
+                    iconFont: font,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        () => spec.iconEnums,
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            contains('"condition" and "forecast[].condition"'),
+          ),
+        ),
+      );
+    });
+
+    test('item images reach the image getters with their preview assets', () {
+      final spec = _listSpec(
+        const HWColumn(
+          children: [
+            HWRow.builder(
+              'contacts',
+              maxItems: 3,
+              item: HWImage(
+                HWItemData(
+                  HWImageData('avatar', previewAsset: 'assets/a.png'),
+                  previewValues: [
+                    'assets/b.png',
+                    'assets/a.png',
+                    'assets/c.png',
+                  ],
+                ),
+              ),
+            ),
+            HWRow.builder(
+              'slides',
+              maxItems: 3,
+              item: HWImage(HWTimedData(HWItemData(HWImageData('cover')))),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        spec.listImageFields.map((f) => (f.listKey, f.timed, f.image.key)),
+        [('contacts', false, 'avatar'), ('slides', true, 'cover')],
+      );
+      expect(spec.runtimeImageFields, isEmpty);
+      expect(spec.hasRuntimeImages, isTrue);
+      expect(
+        spec.listPreviewAssets.map(
+          (preview) =>
+              (preview.listKey, preview.fieldKey, preview.index, preview.asset),
+        ),
+        [
+          ('contacts', 'avatar', null, 'assets/a.png'),
+          ('contacts', 'avatar', 0, 'assets/b.png'),
+          ('contacts', 'avatar', 2, 'assets/c.png'),
+        ],
+      );
+    });
+
+    test('item localized strings count wherever a JSON leaf one does', () {
+      const label = HWLocalizedString(
+        'label',
+        defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+      );
+      final spec = _listSpec(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 3,
+          item: HWText(HWItemData(label)),
+        ),
+      );
+
+      expect(spec.listLocalizedStrings, const [label]);
+      expect(spec.allLocalizedStrings, const [label]);
+      expect(spec.localizedStrings, isEmpty);
+      expect(spec.keyedLocalizedStrings, isEmpty);
+      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.rendersLocalizedContent, isTrue);
+      expect(spec.nativeHelpers.toSet(), {
+        HWNativeHelper.hwCurrentLocales,
+        HWNativeHelper.hwResolveLocalized,
+      });
+    });
+
+    test('a time-based item localized string is no timed string', () {
+      const label = HWLocalizedString(
+        'label',
+        defaultTranslations: {'en': 'Day'},
+      );
+      final spec = _listSpec(
+        const HWRow.builder(
+          'hourly',
+          maxItems: 3,
+          item: HWText(HWTimedData(HWItemData(label))),
+        ),
+      );
+
+      expect(spec.allLocalizedStrings, const [label]);
+      expect(spec.timedLocalizedStrings, isEmpty);
+      expect(spec.needsTimedLocalizedRead, isFalse);
+      expect(spec.resolvesLocalizedOnRead, isFalse);
+    });
+
+    test('an item date nothing renders still pulls in the parser', () {
+      final spec = _listSpec(
+        const HWRow.builder(
+          'forecast',
+          maxItems: 3,
+          item: HWDataOnly([HWItemData(HWDateTime('day'))]),
+        ),
+      );
+
+      expect(spec.nativeHelpers, contains(HWNativeHelper.hwParseIsoDate));
+    });
+
+    test('hasPreviewValues counts a list with sample items', () {
+      bool previews(HWDataType<num> read) => _listSpec(
+            HWRow.builder('forecast', maxItems: 3, item: HWText.number(read)),
+          ).hasPreviewValues;
+
+      expect(
+        previews(const HWItemData(HWInt('high'), previewValues: [21])),
+        isTrue,
+      );
+      expect(
+        previews(const HWItemData(HWInt('high', previewValue: 25))),
+        isTrue,
+      );
+      expect(
+        previews(const HWItemData(HWInt('high', defaultValue: 0))),
+        isFalse,
+      );
+    });
+
+    test('previewContentHash covers every value a list previews with', () {
+      String hashOf(HWDataType<num> read) => _listSpec(
+            HWRow.builder('forecast', maxItems: 3, item: HWText.number(read)),
+          ).previewContentHash;
+
+      final base = hashOf(const HWItemData(HWInt('high'), previewValues: [1]));
+      expect(
+        hashOf(const HWItemData(HWInt('high'), previewValues: [1])),
+        base,
+      );
+
+      final variants = <String, String>{
+        'previewValues': hashOf(
+          const HWItemData(HWInt('high'), previewValues: [2]),
+        ),
+        'previewValue': hashOf(
+          const HWItemData(HWInt('high', previewValue: 5), previewValues: [1]),
+        ),
+        'no previewValues': hashOf(const HWItemData(HWInt('high'))),
+        'time-based': hashOf(
+          const HWTimedData(HWItemData(HWInt('high'), previewValues: [1])),
+        ),
+      };
+      for (final entry in variants.entries) {
+        expect(entry.value, isNot(base), reason: entry.key);
+      }
+    });
+  });
+}
+
+const _s = HWText.fixed('s');
+const _m = HWText.fixed('m');
+const _l = HWText.fixed('l');
+const _strip = HWText.fixed('strip');
+const _dashboard = HWText.fixed('dashboard');
+const _stripRange = HWAndroidSizeRange(maxHeight: 120, child: _strip);
+const _dashboardRange = HWAndroidSizeRange(
+  minWidth: 400,
+  minHeight: 200,
+  child: _dashboard,
+);
+
+/// The §4.4 widget: three slots, a strip for every one-row widget and a
+/// dashboard for tablets.
+WidgetSpec _rangeSpec({
+  HomeWidgetAndroidConfiguration? android =
+      const HomeWidgetAndroidConfiguration(),
+}) =>
+    _adaptiveSpec(
+      android: android,
+      adaptive: const HWSizeAdaptive(
+        small: _s,
+        medium: _m,
+        large: _l,
+        androidSizeRanges: [_stripRange, _dashboardRange],
+      ),
+    );
+
+/// The Glance body [spec] emits, which is what a declared size branches over.
+String _kotlinOf(WidgetSpec spec) => spec.effectiveWidgetTree.toKotlin(
+      0,
+      dataExpr: 'data',
+      context: spec.androidEmitContext,
+    );
+
+/// A spec named Weather whose data fields are exactly what [tree] binds, the
+/// way the parser builds one.
+WidgetSpec _listSpec(HWWidget tree) => WidgetSpec(
+      data: HomeWidget(name: 'Weather'),
+      className: 'Weather',
+      dataFields: tree.dataDependencies.toList(),
+      widgetTree: tree,
+    );
+
+WidgetSpec _adaptiveSpec({
+  HWWidget? adaptive,
+  HomeWidgetAndroidConfiguration? android =
+      const HomeWidgetAndroidConfiguration(),
+  HomeWidgetIOSConfiguration? iOS =
+      const HomeWidgetIOSConfiguration(groupId: 'group.test'),
+}) =>
+    WidgetSpec(
+      data: HomeWidget(name: 'Adaptive', android: android, iOS: iOS),
+      className: 'Adaptive',
+      widgetTree: adaptive ?? HWSizeAdaptive(small: HWText.fixed('s')),
+    );

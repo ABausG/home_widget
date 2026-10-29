@@ -14,10 +14,7 @@ void callbackDispatcher() async {
   Workmanager().executeTask((taskName, inputData) {
     final now = DateTime.now();
     return Future.wait<bool?>([
-      HomeWidget.saveWidgetData(
-        'title',
-        'Updated from Background',
-      ),
+      HomeWidget.saveWidgetData('title', 'Updated from Background'),
       HomeWidget.saveWidgetData(
         'message',
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
@@ -112,14 +109,11 @@ class _MyAppState extends State<MyApp> {
 
   Future _sendData() async {
     try {
-      return Future.wait([
+      return await Future.wait([
         HomeWidget.saveWidgetData<String>('title', _titleController.text),
         HomeWidget.saveWidgetData<String>('message', _messageController.text),
         HomeWidget.renderFlutterWidget(
-          const Icon(
-            Icons.flutter_dash,
-            size: 200,
-          ),
+          const Icon(Icons.flutter_dash, size: 200),
           logicalSize: const Size(200, 200),
           key: 'dashIcon',
         ),
@@ -131,7 +125,7 @@ class _MyAppState extends State<MyApp> {
 
   Future _updateWidget() async {
     try {
-      return Future.wait([
+      return await Future.wait([
         HomeWidget.updateWidget(
           name: 'HomeWidgetExampleProvider',
           iOSName: 'HomeWidgetExample',
@@ -147,11 +141,28 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
+  Future<void> _updateWidgetPreview() async {
+    try {
+      final updated = await HomeWidget.updateWidgetPreview(
+        qualifiedAndroidName:
+            'es.antonborri.home_widget_example.glance.HomeWidgetReceiver',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Preview updated: $updated')));
+    } on PlatformException catch (exception) {
+      debugPrint('Error Updating Widget Preview. $exception');
+    }
+  }
+
   Future _loadData() async {
     try {
-      return Future.wait([
-        HomeWidget.getWidgetData<String>('title', defaultValue: 'Default Title')
-            .then((value) => _titleController.text = value ?? ''),
+      return await Future.wait([
+        HomeWidget.getWidgetData<String>(
+          'title',
+          defaultValue: 'Default Title',
+        ).then((value) => _titleController.text = value ?? ''),
         HomeWidget.getWidgetData<String>(
           'message',
           defaultValue: 'Default Message',
@@ -219,10 +230,7 @@ class _MyAppState extends State<MyApp> {
             children: [
               Text('Number of widgets: ${widgets.length}'),
               const Divider(),
-              for (final widget in widgets)
-                Text(
-                  getText(widget),
-                ),
+              for (final widget in widgets) Text(getText(widget)),
             ],
           ),
         ),
@@ -245,29 +253,27 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('HomeWidget Example'),
-      ),
+      appBar: AppBar(title: const Text('HomeWidget Example')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
               TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Title',
-                ),
+                decoration: const InputDecoration(hintText: 'Title'),
                 controller: _titleController,
               ),
               TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Body',
-                ),
+                decoration: const InputDecoration(hintText: 'Body'),
                 controller: _messageController,
               ),
               ElevatedButton(
                 onPressed: _sendAndUpdate,
                 child: const Text('Send Data to Widget'),
+              ),
+              ElevatedButton(
+                onPressed: _updateWidgetPreview,
+                child: const Text('Update gallery preview'),
               ),
               ElevatedButton(
                 onPressed: _loadData,

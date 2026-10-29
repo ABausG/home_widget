@@ -23,10 +23,14 @@ ignorePaths:
         "**/gradle.properties",
         "cspell.yaml",
         "**/build.gradle",
+        "**/*.kts",
         "**/proguard-rules.pro",
         "**/.github/**",
         "**/.gitignore",
-        "**/*.intentdefinition"
+        "**/*.intentdefinition",
+        "**/ios/Flutter/**",
+        "**/*.iml",
+        "**/test/**"
     ]
 dictionaries:
   - names
@@ -34,6 +38,9 @@ dictionaryDefinitions:
   - name: names
     path: .cspell/names_dictionary.txt
 words:
+    - airplanemode
+    - ellipsized
+    - ellipsizing
     - antonborries
     - Borries
     - abausg
@@ -59,6 +66,7 @@ words:
     - Jetpack
     - kotlinx
     - lateinit
+    - Expando # Dart's per-object weak map
     - prefs # short for preferences
     - mipmap # android image format
     - nullsafety
@@ -78,5 +86,160 @@ words:
     - pbxproj
     - xcworkspace
     - Codemagic
+    - xcrun
+    - simctl
+    - bootstatus
+    - pipefail
+    - udid
+    - startswith # jq
+    - tonumber # jq
     - lockscreen
     - codesign
+    - Charsets
+    - savefile
+    # home_widget_cli / home_widget_generator
+    - adaptives # plural of the HWSizeAdaptive widget
+    - ARGB
+    - associatedtype
+    - buildable
+    - buildfile
+    - buildscript
+    - callout
+    - carryforward
+    - cfglist
+    - codegen
+    - crossinline
+    - cupertinoicons
+    - deinit
+    - fileprivate
+    - fileref
+    - Fqcn
+    - fsex
+    - fsgroup
+    - generatable
+    - Generatable
+    - homewidget
+    # docs.page anchor fragments (lowercased heading text)
+    - homewidgetiosconfiguration
+    - homewidgetandroidconfiguration
+    - homewidgetiosflavor
+    - hwalignment
+    - hwcolorrole
+    - hwcrossaxisalignment
+    - hwfill
+    - hwitemdata
+    - hwmainaxisalignment
+    - hwsizedbox
+    - hwstackfit
+    - hwwidgetfamily
+    - idempotently
+    - INFOPLIST
+    - inout
+    - Ints
+    - IPHONEOS
+    - isnull
+    - jsondbl
+    - jsonint
+    - keyguard
+    - KITKAT
+    - LTRB
+    - materialicons
+    - multiplatform
+    - nofill
+    - noinline
+    - nopadding
+    - notheme
+    - notimed
+    - plists
+    - precache
+    - precached
+    - RUNPATH
+    - scaffolder
+    - SDKROOT
+    - somethingelse
+    - sourcecode
+    - strikethrough
+    - struct
+    - structs
+    - sublist
+    - subsetting
+    - sysexits
+    - tailrec
+    - timedjson
+    - tisa
+    - unawaited
+    - unparseable
+    - untimed
+    - vararg
+    - WAKEUP
+    - wakeups
+    - widgetkit
+    - writeln
+    - xcstrings
+    - uncompilable
+    - dedupe
+    - myapp
+    - myapplication
+    - classpath
+    - subtag
+    - aapt
+    - CFURL
+    - subsamples
+    - subsampled
+    - downsampling
+    - downsampled
+    - memberwise
+    # number & date formatting (ICU skeleton names, mirroring package:intl)
+    - CLDR
+    - MMMEd
+    - MMMMEEEEd
+    - Mdjm
+    - yMdjm
+    - yMMMdjm
+    - yMMMMdjm
+    # native format helpers (Swift API / SimpleDateFormat pattern)
+    - uppercased
+    - SSSZ
+    # custom fonts and icons
+    - codepoint
+    - codepoints
+    - ellipsize
+    - flavorizr
+    - fontawesomesolid
+    - glyphless
+    - parcelable
+    - pathed
+    - renderable
+    - roboto
+    - subsetter
+    - themable
+    - undecoded
+    - unmanaged
+    - untinted
+    - upsert
+ignoreWords:
+    # generator localization docs/examples (German + Portuguese sample text)
+    - Lokalisierte
+    - Begrüßung
+    - Begrüßt
+    - dich
+    - deiner
+    - deine
+    - Sprache
+    - letzten
+    - Aktivitäten
+    - Zeigt
+    - Saudação
+    - Localizada
+    - Cumprimenta
+    - você
+    - idioma
+    - Sonnig
+    - Sonne
+    # generator formatting docs (German sample output)
+    - Montag
+    - März
+    # streak_widget example
+    - Dasholingo
+    - Duolingo
+    - Nunito

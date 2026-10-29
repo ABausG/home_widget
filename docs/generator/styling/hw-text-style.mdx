@@ -1,0 +1,126 @@
+---
+title: HWTextStyle
+description: Text styling for HWText — font size, weight, color, decorations, and semantic roles.
+---
+
+# HWTextStyle
+
+`HWTextStyle` describes how an `HWText` is rendered. Every field is optional; unset fields fall back to the platform default or to `baseStyle` if provided.
+
+## Parameters
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- |
+| `fontSize` | `double?` | `null` | Point size on iOS, `sp` on Android. |
+| `fontWeight` | `HWFontWeight?` | `null` | One of `w100`–`w900`, `normal`, `bold`. |
+| `color` | `HWColor?` | `null` | Foreground color. Unset, text renders in the platform's primary content color (`Color.primary` on iOS, `GlanceTheme.colors.onSurface` on Android), so it follows light and dark mode. See [HWColor](/generator/styling/hw-color). |
+| `italic` | `bool?` | `null` | Italicizes the text. |
+| `underline` | `bool?` | `null` | Adds an underline decoration. |
+| `lineThrough` | `bool?` | `null` | Adds a strike-through decoration. |
+| `fontFamily` | `String?` | `null` | Name of a font family declared under `flutter: fonts:`. See [Custom fonts](#custom-fonts). |
+| `package` | `String?` | `null` | Package that owns `fontFamily`, mirroring `TextStyle(fontFamily:, package:)`. `null` means the app's own fonts. |
+| `androidFont` | `HWAndroidFont?` | `null` (= `HWAndroidFont.custom`) | Android-only: how Android renders this text. See [Android font](#android-font). |
+| `baseStyle` | `HWTextStyle?` | `null` | A style to inherit from. See [Inheritance](#inheritance). |
+
+```dart
+HWText.fixed(
+  'kWh',
+  style: HWTextStyle(
+    fontSize: 16.0,
+    color: HWDefaultColor(HWColorRole.contentSecondary),
+  ),
+)
+```
+
+## HWTextStyle.role / HWRoleTextStyle
+
+Use `HWRoleTextStyle` when you want to follow the system's typographic hierarchy. The role sets a sensible default font size and weight per platform; you can still override individual fields.
+
+| Role | Description |
+| --- | --- |
+| `title` | Largest, headline-level text. |
+| `headline` | Section headline. |
+| `body` | Default body copy. |
+| `callout` | Slightly smaller than body. |
+| `caption` | Small caption text. |
+| `captionSmall` | Smallest caption variant. |
+
+`HWRoleTextStyle` exposes a named constructor per role: `.title`, `.headline`, `.body`, `.callout`, `.caption`, `.captionSmall`.
+
+```dart
+HWText.fixed(
+  '46',
+  style: HWRoleTextStyle(
+    role: HWTextStyleRole.title,
+    color: HWDefaultColor(HWColorRole.contentPrimary),
+    fontWeight: HWFontWeight.bold,
+  ),
+)
+```
+
+## Inheritance
+
+`baseStyle` lets you compose styles. The generator walks up the chain and uses the first non-null value it finds for each field — so a child only needs to declare what it overrides.
+
+## Custom fonts
+
+Set `fontFamily` to render text in a font your Flutter app bundles, declared under `flutter: fonts:`
+in `pubspec.yaml` exactly as for a regular Flutter `TextStyle`:
+
+```dart
+HWText.fixed('kWh', style: HWTextStyle(fontFamily: 'Chewy', fontSize: 16))
+```
+
+Pass `package` for a font that ships inside a dependency rather than your app. Both fields resolve
+through `baseStyle` like any other field, so a shared base style can set the family once for every
+style built on top of it. See [Custom Fonts](/generator/custom-fonts) for what to declare and what
+custom-font text can and cannot do on each platform.
+
+Give a style that names a family a `fontSize` or a role: a custom family cannot fall through to the
+platform's default text size and lands on a fixed **16** instead. A role next to a family is baked
+in as a fixed size too, so on iOS it stops following the system's text-size setting.
+
+## Android font
+
+`androidFont` decides how Android renders a style's text. It is Android-only: iOS always renders
+`fontFamily`, and the font file is bundled either way.
+
+| Value | What Android renders |
+| --- | --- |
+| `HWAndroidFont.custom` | The bitmap of the style's `fontFamily`. The default; a style naming no family renders as a plain Glance `Text`. |
+| `HWAndroidFont.system` | A plain Glance `Text` in the platform's default font, whatever `fontFamily` says. |
+| `HWAndroidFont.serif` | A Glance `Text` in the device's serif family. |
+| `HWAndroidFont.sansSerif` | A Glance `Text` in the device's sans-serif family. |
+| `HWAndroidFont.monospace` | A Glance `Text` in the device's monospace family. |
+| `HWAndroidFont.cursive` | A Glance `Text` in the device's cursive family. |
+| `HWAndroidFont.family('...')` | A Glance `Text` in any Android system family, e.g. `sans-serif-condensed`. |
+
+```dart
+HWText.fixed(
+  'Serif on Android',
+  style: HWTextStyle(
+    fontFamily: 'Chewy',
+    fontSize: 14,
+    androidFont: HWAndroidFont.serif,
+  ),
+)
+```
+
+Anything other than `custom` gives up the bundled family on Android and gets real Glance text back:
+it follows the widget theme, reports a baseline an `HWRow` can line up by, and needs no measuring
+pass. What it gives up with the family is fine-grained weight — Glance renders text as bold or
+regular only, so `w500` and up land on bold. A family name the device does not know falls back to
+its default sans-serif rather than failing.
+
+`androidFont` resolves through `baseStyle` alongside `fontFamily` and `package`: a style naming its
+own `fontFamily` does **not** inherit the base style's `androidFont`, because that choice was made
+about a family this style replaced.
+
+## Platform mapping
+
+- iOS — emitted as SwiftUI [`.font`](https://developer.apple.com/documentation/swiftui/view/font(_:)), [`.foregroundColor`](https://developer.apple.com/documentation/swiftui/view/foregroundcolor(_:)) and decoration modifiers. A style naming a
+  `fontFamily` renders at a fixed point size instead of a Dynamic Type text style.
+- Android — emitted as Glance [`TextStyle`](https://developer.android.com/reference/kotlin/androidx/glance/text/TextStyle) with `FontWeight`, `FontStyle`, and `TextDecoration`. A style naming a
+  `fontFamily` is the exception: Android cannot put a bundled font onto widget text, so it is drawn
+  as an image instead — see [Custom Fonts](/generator/custom-fonts), or opt out with
+  [`androidFont`](#android-font).

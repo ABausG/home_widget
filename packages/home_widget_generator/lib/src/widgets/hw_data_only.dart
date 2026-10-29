@@ -1,0 +1,58 @@
+part of 'hw_widget.dart';
+
+/// A widget that contributes data fields but renders nothing.
+/// Useful for passing background data or non-visual fields.
+class HWDataOnly extends HWWidget implements HWDataWidget {
+  final List<HWDataType<dynamic>> data;
+
+  const HWDataOnly(this.data);
+
+  static HWDataOnly fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
+    final dataField = obj.getField('data');
+    final data = dataField?.toListValue()?.map<HWDataType<dynamic>>((d) {
+      final decoded = WidgetValueDecoder.decodeDataType(
+        d,
+        defaultLocale: decoder.defaultLocale,
+        resourcePrefix: decoder.resourcePrefix,
+      );
+      // coverage:ignore-start
+      if (decoded == null) {
+        throw GeneratorError('Unknown data type in HWDataOnly: $d');
+      }
+      // coverage:ignore-end
+      return decoded;
+    }).toList();
+
+    return HWDataOnly(data ?? []);
+  }
+
+  @override
+  Set<HWDataType<dynamic>> get dataDependencies => data.toSet();
+
+  @override
+  Set<String> get kotlinImports => {};
+
+  @override
+  bool get swiftRendersNothing => true;
+
+  @override
+  bool get kotlinRendersNothing => true;
+
+  @override
+  String toSwift(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    return '';
+  }
+
+  @override
+  String toKotlin(
+    int indent, {
+    required String dataExpr,
+    HWEmitContext? context,
+  }) {
+    return '';
+  }
+}

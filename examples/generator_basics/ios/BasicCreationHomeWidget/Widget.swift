@@ -1,0 +1,72 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Placeholder SwiftUI widget.
+//
+// App Group ID used here: BasicCreationHomeWidgetFlavor.appGroupId
+
+import SwiftUI
+import WidgetKit
+
+enum BasicCreationHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
+
+struct Provider: TimelineProvider {
+  func placeholder(in context: Context) -> BasicCreationHomeWidgetEntry {
+    BasicCreationHomeWidgetEntry(date: Date())
+  }
+
+  func getSnapshot(
+    in context: Context, completion: @escaping (BasicCreationHomeWidgetEntry) -> Void
+  ) {
+    // Example of accessing data written by home_widget in Flutter:
+    // let prefs = UserDefaults(suiteName: BasicCreationHomeWidgetFlavor.appGroupId)
+    // let counter = prefs?.integer(forKey: "counter") ?? 0
+    completion(BasicCreationHomeWidgetEntry(date: Date()))
+
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+    completion(Timeline(entries: [BasicCreationHomeWidgetEntry(date: Date())], policy: .atEnd))
+
+  }
+}
+
+struct BasicCreationHomeWidgetEntry: TimelineEntry {
+  let date: Date
+}
+
+struct BasicCreationHomeWidgetEntryView: View {
+  var entry: Provider.Entry
+
+  var body: some View {
+    VStack(alignment: .center, spacing: 0) {
+      Text("Basic Creation")
+    }
+    .applyContainerBackground()
+  }
+}
+
+struct BasicCreationHomeWidget: Widget {
+  let kind: String = "BasicCreationHomeWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+      BasicCreationHomeWidgetEntryView(entry: entry)
+    }
+    .configurationDisplayName("Basic Creation")
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
+  }
+}

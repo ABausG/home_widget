@@ -1,0 +1,84 @@
+---
+title: Icons
+description: Render icon glyphs from a bundled icon font from native widget code
+---
+
+# Icons
+
+Widget extensions are native targets: they don't get the tree-shaken `MaterialIcons`/
+`CupertinoIcons` fonts your Flutter app ships for free. This page covers rendering icon glyphs from
+native widget code.
+
+## iOS
+
+Flutter tree-shakes `MaterialIcons`/`CupertinoIcons` down to only the glyphs your app itself
+references, so a widget extension cannot rely on the copy of the icon font sitting in
+`flutter_assets` — the glyph it needs may simply not be there. Bundle the icon font (or a subset of
+it) in the extension instead, and render a glyph as text using its code point:
+
+```swift
+Text(String(UnicodeScalar(0xe25b)!))
+  .font(.custom("MaterialIcons-Regular", size: 24))
+```
+
+## Android
+
+### Icon glyphs
+
+`HomeWidgetFonts.iconBitmap(context, fontRes, codePoint, sizeDp)` renders one glyph of an icon font
+resource as a white bitmap, meant to be tinted like any other Glance icon:
+
+```kotlin
+Image(
+    provider = ImageProvider(
+        HomeWidgetFonts.iconBitmap(context, R.font.material_icons_regular, 0xe25b, sizeDp = 24f),
+    ),
+    contentDescription = null,
+    colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface),
+    modifier = GlanceModifier.size(24.dp),
+)
+```
+
+Like `textBitmap`, `iconBitmap` works on every API level the plugin supports, and never throws: a
+font it cannot load or a glyph it cannot draw yields a transparent bitmap of the requested size.
+
+A fifth, optional `matchTextDirection` parameter mirrors the glyph horizontally when the
+configuration lays out right to left, the way Flutter's `Icon` honours `IconData.matchTextDirection`.
+Pass it for a directional glyph such as `Icons.arrow_back`; it defaults to `false` and does nothing
+in a left-to-right layout:
+
+```kotlin
+HomeWidgetFonts.iconBitmap(
+    context,
+    R.font.material_icons_regular,
+    0xe092,
+    sizeDp = 24f,
+    matchTextDirection = true,
+)
+```
+
+### Getting an icon font into `res/font/`
+
+Icon fonts still need to live in `android/app/src/main/res/font/` rather than the Flutter asset
+bundle: the same tree-shaking issue from iOS applies here, and Flutter tree-shakes
+`MaterialIcons`/`CupertinoIcons` out of `flutter_assets` down to only the glyphs your Dart code
+references, so the plugin can't load them from the asset bundle the way `assetTypeface` does for a
+regular font. Copy the font file into `res/font/` yourself, named with lowercase `[a-z0-9_]`
+characters (e.g. `material_icons_regular.ttf`).
+
+- Material icons: `MaterialIcons-Regular.otf` from
+  `<flutter sdk>/bin/cache/artifacts/material_fonts/`.
+- Cupertino icons: `CupertinoIcons.ttf` from the `cupertino_icons` package.
+
+Optionally subset it to only the glyphs you use with the Flutter engine's `font-subset` tool:
+
+```sh
+printf '0xe25b\n' | <sdk>/bin/cache/artifacts/engine/<host>/font-subset out.otf MaterialIcons-Regular.otf
+```
+
+Code points for Material icons are `Icons.<name>.codePoint` in Dart.
+
+<Info>
+The `home_widget_generator` handles all of this automatically — see
+[/generator/icons](/generator/icons).
+</Info>

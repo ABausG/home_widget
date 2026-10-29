@@ -39,9 +39,10 @@ class HomeWidgetInfo {
       androidWidgetId: data['widgetId'] as int?,
       androidClassName: data['androidClassName'] as String?,
       androidLabel: data['label'] as String?,
-      configuration: ((data['configuration'] as Map<dynamic, dynamic>?)
-            ?..removeWhere((key, _) => key is! String))
-          ?.cast<String, dynamic>(),
+      configuration:
+          ((data['configuration'] as Map<dynamic, dynamic>?)
+                ?..removeWhere((key, _) => key is! String))
+              ?.cast<String, dynamic>(),
     );
   }
 

@@ -1,0 +1,22 @@
+include: package:lints/recommended.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+  language:
+    strict-raw-types: true
+    strict-inference: true
+    strict-casts: true
+
+linter:
+  rules:
+    - public_member_api_docs
+    - require_trailing_commas
+
+

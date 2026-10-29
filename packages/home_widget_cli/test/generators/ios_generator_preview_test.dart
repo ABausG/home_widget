@@ -1,0 +1,971 @@
+import 'dart:io';
+
+import 'package:home_widget_cli/src/generators/ios_generator.dart';
+import 'package:home_widget_cli/src/models/widget_spec.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
+import 'package:test/test.dart';
+
+import '../helpers/xcode_project.dart';
+
+void main() {
+  late Directory tempDir;
+
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync('ios_preview_test');
+    writeRunnerXcodeProject(tempDir);
+  });
+
+  tearDown(() {
+    tempDir.deleteSync(recursive: true);
+  });
+
+  Future<String> generate(WidgetSpec spec) async {
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+    return File(
+      p.join(tempDir.path, 'ios/${spec.className}HomeWidget/Widget.swift'),
+    ).readAsStringSync();
+  }
+
+  WidgetSpec specOf({
+    required List<HWDataType<dynamic>> dataFields,
+    bool? useLiveDataInPreview,
+    HWWidget? widget,
+  }) =>
+      WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          useLiveDataInPreview: useLiveDataInPreview ?? true,
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example'),
+          widget: widget,
+        ),
+        className: 'ExampleWidget',
+        dataFields: dataFields,
+        widgetTree: widget,
+      );
+
+  const prefsExpr =
+      'UserDefaults(suiteName: ExampleWidgetHomeWidgetFlavor.appGroupId)';
+
+  group('getSnapshot', () {
+    test('reads live defaults through the preview factory in a preview',
+        () async {
+      final content = await generate(
+        specOf(dataFields: [HWString('label', previewValue: 'Sample')]),
+      );
+
+      expect(
+        content,
+        contains('''
+    if context.isPreview {
+      let prefs: UserDefaults? = $prefsExpr
+      let data = ExampleWidgetData.previewFromUserDefaults(prefs)
+      completion(ExampleWidgetHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+'''),
+      );
+    });
+
+    test('keeps stored data out of the preview when live data is off',
+        () async {
+      final content = await generate(
+        specOf(
+          dataFields: [HWString('label', previewValue: 'Sample')],
+          useLiveDataInPreview: false,
+        ),
+      );
+
+      expect(content, contains('      let prefs: UserDefaults? = nil\n'));
+      expect(
+        content,
+        contains('      let data = ExampleWidgetData.previewFromUserDefaults'
+            '(prefs)\n'),
+      );
+    });
+
+    test('lets the iOS configuration override the top-level preview source',
+        () async {
+      final spec = WidgetSpec(
+        data: HomeWidget(
+          name: 'ExampleWidget',
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.com.example',
+            useLiveDataInPreview: false,
+          ),
+        ),
+        className: 'ExampleWidget',
+        dataFields: const [HWString('label')],
+      );
+      final content = await generate(spec);
+
+      // Without preview values the widget's own factory still serves, just
+      // never reaching the stored data.
+      expect(content, contains('      let prefs: UserDefaults? = nil\n'));
+      expect(
+        content,
+        contains(
+          '      let data = ExampleWidgetData.fromUserDefaults(prefs)\n',
+        ),
+      );
+      expect(content, isNot(contains('previewFromUserDefaults')));
+    });
+
+    test('branches on the loaded timed entries of the preview prefs', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized('title', defaultTranslations: {'en': 'Hi'}),
+            HWTimedData(HWInt('count', previewValue: 42)),
+          ],
+          useLiveDataInPreview: false,
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+    if context.isPreview {
+      let prefs: UserDefaults? = nil
+      let timedEntries = ExampleWidgetData.loadTimedEntries(prefs)
+      let data = ExampleWidgetData.previewFromUserDefaults(prefs, timedEntries: timedEntries)
+
+      completion(ExampleWidgetHomeWidgetEntry(date: Date(), data: data, timedEntries: timedEntries, preview: true))
+      return
+    }
+'''),
+      );
+    });
+
+    test('emits no branch when a preview reads exactly what the widget reads',
+        () async {
+      final content = await generate(
+        specOf(dataFields: const [HWString('label', defaultValue: 'Hi')]),
+      );
+
+      expect(content, isNot(contains('context.isPreview')));
+      expect(content, isNot(contains('previewFromUserDefaults')));
+    });
+
+    test('keeps the non-preview branch reading the widget defaults', () async {
+      final content = await generate(
+        specOf(dataFields: [HWString('label', previewValue: 'Sample')]),
+      );
+
+      expect(
+        content,
+        contains('''
+    let prefs = $prefsExpr
+    let data = ExampleWidgetData.fromUserDefaults(prefs)
+
+    completion(ExampleWidgetHomeWidgetEntry(date: Date(), data: data))
+'''),
+      );
+    });
+  });
+
+  group('placeholder', () {
+    test('builds the redacted entry from the preview factory', () async {
+      final content = await generate(
+        specOf(dataFields: [HWString('label', previewValue: 'Sample')]),
+      );
+
+      expect(
+        content,
+        contains(
+          '    ExampleWidgetHomeWidgetEntry(date: Date(), data: '
+          'ExampleWidgetData.previewFromUserDefaults(nil))\n',
+        ),
+      );
+    });
+
+    test('marks the entry as a preview where the view re-reads', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized(
+              'title',
+              defaultTranslations: {'en': 'Hi'},
+              previewTranslations: {'en': 'Sample'},
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '    ExampleWidgetHomeWidgetEntry(date: Date(), data: '
+          'ExampleWidgetData.previewFromUserDefaults(nil), preview: true)\n',
+        ),
+      );
+    });
+
+    test('stays on the widget factory without preview values', () async {
+      final content = await generate(
+        specOf(dataFields: const [HWString('label')]),
+      );
+
+      expect(
+        content,
+        contains(
+          '    ExampleWidgetHomeWidgetEntry(date: Date(), data: '
+          'ExampleWidgetData.fromUserDefaults(nil))\n',
+        ),
+      );
+    });
+  });
+
+  group('preview factory', () {
+    test('falls back on the preview value of every primitive', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWInt('count', defaultValue: 1, previewValue: 42),
+            HWString('label', previewValue: 'Sample'),
+            HWDouble('ratio', previewValue: 0.5),
+            HWBool('flag', previewValue: true),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> ExampleWidgetData {
+    return ExampleWidgetData(
+      count: (defaults?.object(forKey: "\\(paramPrefix).count") as? Int ?? 42),
+      label: (defaults?.string(forKey: "\\(paramPrefix).label") ?? "Sample"),
+      ratio: (defaults?.object(forKey: "\\(paramPrefix).ratio") as? Double ?? 0.5),
+      flag: (defaults?.object(forKey: "\\(paramPrefix).flag") as? Bool ?? true),
+    )
+  }
+'''),
+      );
+    });
+
+    test('leaves fromUserDefaults on the shipped defaults', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWInt('count', defaultValue: 1, previewValue: 42),
+            HWString('label', previewValue: 'Sample'),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static func fromUserDefaults(_ defaults: UserDefaults?) -> ExampleWidgetData {
+    return ExampleWidgetData(
+      count: (defaults?.object(forKey: "\\(paramPrefix).count") as? Int ?? 1),
+      label: defaults?.string(forKey: "\\(paramPrefix).label"),
+    )
+  }
+'''),
+      );
+    });
+
+    test('parses the preview instant of a date out of its ISO spelling',
+        () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWDateTime('due', previewValue: '2024-03-01T10:00:00Z'),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      due: hwParseIsoDate(defaults?.string('
+          'forKey: "\\(paramPrefix).due") ?? "2024-03-01T10:00:00Z"),\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      due: hwParseIsoDate(defaults?.string('
+          'forKey: "\\(paramPrefix).due") ?? ""),\n',
+        ),
+      );
+    });
+
+    test('falls a preview image back to its asset key', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
+        ),
+      );
+
+      // The decoder reads a value that is not an absolute path as an asset
+      // key, so the stored shape and the fallback are the same on both
+      // platforms.
+      expect(
+        content,
+        contains(
+          '      photo: (defaults?.string(forKey: "\\(paramPrefix).photo") '
+          '?? "a/logo.png"),\n',
+        ),
+      );
+    });
+
+    test('resolves a localized string against its preview translations',
+        () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized(
+              'title',
+              defaultTranslations: {'en': 'Hi', 'de': 'Hallo'},
+              previewTranslations: {'en': 'Sample', 'de': 'Beispiel'},
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      title: hwReadLocalized(defaults, "\\(paramPrefix).title", '
+          '["en": "Sample", "de": "Beispiel"], baseLocale: "en"),\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      title: hwReadLocalized(defaults, "\\(paramPrefix).title", '
+          '["en": "Hi", "de": "Hallo"], baseLocale: "en"),\n',
+        ),
+      );
+    });
+
+    test('reads a timed field out of the same active entry', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWTimedData(HWInt('count', defaultValue: 1, previewValue: 42)),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('      count: (timedValues["count"] as? Int) ?? 42,\n'),
+      );
+      expect(
+        content,
+        contains('      count: (timedValues["count"] as? Int) ?? 1,\n'),
+      );
+      expect(
+        content,
+        contains('''
+  static func previewFromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ExampleWidgetData {
+'''),
+      );
+    });
+
+    test('emits no twin when nothing ships a preview value', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWInt('count', defaultValue: 1),
+            HWJson('stats', HWString('city', defaultValue: 'Berlin')),
+          ],
+        ),
+      );
+
+      expect(content, isNot(contains('previewFrom')));
+    });
+  });
+
+  group('preview JSON factories', () {
+    test('materializes the root node an unreadable path leaves absent',
+        () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWJson('stats', HWInt('hits', previewValue: 7)),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static func previewFromPath(_ path: String?) -> ExampleWidgetStatsJsonData? {
+    guard let path else { return previewFromJson([:]) }
+    guard FileManager.default.fileExists(atPath: path) else { return previewFromJson([:]) }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return previewFromJson([:]) }
+      return previewFromJson(json)
+    } catch {
+      return previewFromJson([:])
+    }
+  }
+'''),
+      );
+      expect(
+        content,
+        contains('''
+  static func previewFromJson(_ json: [String: Any]?) -> ExampleWidgetStatsJsonData? {
+    let values = json ?? [:]
+    return ExampleWidgetStatsJsonData(
+      hits: (values["hits"] as? Int) ?? 7,
+    )
+  }
+'''),
+      );
+    });
+
+    test('leaves the shipped root factory giving up on an absent group',
+        () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWJson('stats', HWInt('hits', previewValue: 7)),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static func fromPath(_ path: String?) -> ExampleWidgetStatsJsonData? {
+    guard let path else { return nil }
+'''),
+      );
+      expect(
+        content,
+        contains('''
+  static func fromJson(_ json: [String: Any]?) -> ExampleWidgetStatsJsonData? {
+    guard let values = json else { return nil }
+    return ExampleWidgetStatsJsonData(
+      hits: values["hits"] as? Int,
+    )
+  }
+'''),
+      );
+    });
+
+    test('descends into a nested node through the preview twin', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWJson('stats', HWJson('inner', HWInt('hits', previewValue: 7))),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      inner: ExampleWidgetStatsJsonDataInner.previewFromJson('
+          'values["inner"] as? [String: Any]),\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      inner: ExampleWidgetStatsJsonDataInner.fromJson('
+          'values["inner"] as? [String: Any]),\n',
+        ),
+      );
+    });
+
+    test('resolves a localized leaf against the reader locales', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWJson(
+              'stats',
+              HWString.localized(
+                'city',
+                defaultTranslations: {'en': 'Berlin', 'de': 'Berlin'},
+                previewTranslations: {'en': 'Sample', 'de': 'Beispiel'},
+              ),
+            ),
+          ],
+        ),
+      );
+
+      // The preview twin resolves the preview translations rather than
+      // collapsing them to the base locale's text...
+      expect(
+        content,
+        contains(
+          '      city: (values["city"] as? String) ?? hwResolveLocalized('
+          'hwCurrentLocales(), ["en": "Sample", "de": "Beispiel"], '
+          'baseLocale: "en"),\n',
+        ),
+      );
+      // ...while the shipped factory keeps reading the stored value alone.
+      expect(
+        content,
+        contains('      city: values["city"] as? String,\n'),
+      );
+    });
+
+    test('leaves a localized leaf without preview translations nil', () async {
+      const widget = HWColumn(
+        children: [
+          HWText(
+            HWJson(
+              'stats',
+              HWString.localized(
+                'city',
+                defaultTranslations: {'en': 'Berlin', 'de': 'Berlin'},
+              ),
+            ),
+          ),
+          HWText(HWString('label', previewValue: 'Sample')),
+        ],
+      );
+      final content = await generate(
+        specOf(
+          dataFields: widget.dataDependencies.toList(),
+          widget: widget,
+        ),
+      );
+
+      // Nil, not the base locale's text: the render site's own chain resolves
+      // the shipped translations against the reader's locales.
+      expect(
+        content,
+        contains('''
+  static func previewFromJson(_ json: [String: Any]?) -> ExampleWidgetStatsJsonData? {
+    let values = json ?? [:]
+    return ExampleWidgetStatsJsonData(
+      city: values["city"] as? String,
+    )
+  }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          'Text(((data.stats?.city) ?? hwResolveLocalized(hwCurrentLocales(), '
+          '["en": "Berlin", "de": "Berlin"], baseLocale: "en") ?? "Berlin"))',
+        ),
+      );
+    });
+
+    test('reaches the preview value of a date leaf', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [
+            HWJson(
+              'stats',
+              HWDateTime('due', previewValue: '2024-03-01T10:00:00Z'),
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '      due: hwParseIsoDate((values["due"] as? String) '
+          '?? "2024-03-01T10:00:00Z"),\n',
+        ),
+      );
+    });
+  });
+
+  group('file helpers', () {
+    test('emits the decoder for the image the preview renders', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
+          widget: const HWImage(HWImageData('photo')),
+        ),
+      );
+
+      expect(content, contains('func hwDecodeImage('));
+      expect(content, contains('import ImageIO'));
+    });
+
+    test('emits no decoder for a preview asset nothing renders', () async {
+      final content = await generate(
+        specOf(
+          dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
+          widget: const HWText.fixed('no image here'),
+        ),
+      );
+
+      expect(content, isNot(contains('hwDecodeImage')));
+      expect(content, isNot(contains('import ImageIO')));
+    });
+  });
+
+  group('render-time re-resolve', () {
+    test('re-reads a preview entry through the preview factory', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized(
+              'title',
+              defaultTranslations: {'en': 'Hi'},
+              previewTranslations: {'en': 'Sample'},
+            ),
+          ],
+          useLiveDataInPreview: false,
+        ),
+      );
+
+      expect(content, contains('  var preview: Bool = false\n'));
+      expect(
+        content,
+        contains('''
+    let prefs: UserDefaults? = entry.preview ? nil : $prefsExpr
+    let data = entry.preview
+      ? ExampleWidgetData.previewFromUserDefaults(prefs)
+      : ExampleWidgetData.fromUserDefaults(prefs)
+'''),
+      );
+    });
+
+    test('keeps the live prefs and only switches factory', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized(
+              'title',
+              defaultTranslations: {'en': 'Hi'},
+              previewTranslations: {'en': 'Sample'},
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+    let prefs = $prefsExpr
+    let data = entry.preview
+      ? ExampleWidgetData.previewFromUserDefaults(prefs)
+      : ExampleWidgetData.fromUserDefaults(prefs)
+'''),
+      );
+    });
+
+    test('re-reads at the entry date once timed fields exist', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized('title', defaultTranslations: {'en': 'Hi'}),
+            HWTimedData(HWInt('count', previewValue: 42)),
+          ],
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+    let data = entry.preview
+      ? ExampleWidgetData.previewFromUserDefaults(prefs, at: entry.date, timedEntries: entry.timedEntries)
+      : ExampleWidgetData.fromUserDefaults(prefs, at: entry.date, timedEntries: entry.timedEntries)
+'''),
+      );
+    });
+
+    test('carries no preview flag when the entry cannot differ', () async {
+      final content = await generate(
+        specOf(
+          dataFields: [
+            HWString.localized('title', defaultTranslations: {'en': 'Hi'}),
+          ],
+        ),
+      );
+
+      expect(content, isNot(contains('var preview: Bool')));
+      expect(
+        content,
+        contains('''
+    let prefs = $prefsExpr
+    let data = ExampleWidgetData.fromUserDefaults(prefs)
+'''),
+      );
+    });
+  });
+
+  group('sample items', () {
+    WidgetSpec listSpecOf(HWWidget tree, {bool useLiveDataInPreview = true}) =>
+        specOf(
+          dataFields: tree.dataDependencies.toList(),
+          widget: tree,
+          useLiveDataInPreview: useLiveDataInPreview,
+        );
+
+    test('spells out varied items and prefers the stored list', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWRow.builder(
+            'forecast',
+            maxItems: 5,
+            item: HWColumn(
+              children: [
+                HWText.dateTime(
+                  HWItemData(
+                    HWDateTime('day'),
+                    previewValues: [
+                      '2026-09-21T12:00:00Z',
+                      '2026-09-22T12:00:00Z',
+                      '2026-09-23T12:00:00Z',
+                    ],
+                  ),
+                ),
+                HWText.number(
+                  HWItemData(
+                    HWInt('temperature', defaultValue: 0),
+                    previewValues: [21, 17],
+                  ),
+                ),
+                HWText.number(HWItemData(HWDouble('rain', previewValue: 1))),
+                HWBoolConditional(
+                  data: HWItemData(HWBool('windy', defaultValue: false)),
+                  whenTrue: HWText.fixed('windy'),
+                  whenFalse: HWText.fixed('calm'),
+                ),
+                HWText(
+                  HWItemData(
+                    HWString.localized(
+                      'label',
+                      defaultTranslations: {'en': 'Day', 'de': 'Tag'},
+                      previewTranslations: {
+                        'en': 'Someday',
+                        'de': 'Irgendwann',
+                      },
+                    ),
+                    previewValues: ['Mon "1"'],
+                  ),
+                ),
+                HWText(HWItemData(HWString('note'))),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static let previewItems: [ExampleWidgetForecastItem] = [
+    ExampleWidgetForecastItem(day: hwParseIsoDate("2026-09-21T12:00:00Z"), temperature: 21, rain: 1.0, windy: false, label: "Mon \\"1\\"", note: nil),
+    ExampleWidgetForecastItem(day: hwParseIsoDate("2026-09-22T12:00:00Z"), temperature: 17, rain: 1.0, windy: false, label: hwResolveLocalized(hwCurrentLocales(), ["en": "Someday", "de": "Irgendwann"], baseLocale: "en"), note: nil),
+    ExampleWidgetForecastItem(day: hwParseIsoDate("2026-09-23T12:00:00Z"), temperature: 0, rain: 1.0, windy: false, label: hwResolveLocalized(hwCurrentLocales(), ["en": "Someday", "de": "Irgendwann"], baseLocale: "en"), note: nil),
+  ]
+
+  static func fromPath('''),
+      );
+      expect(
+        content,
+        contains(
+          '      forecast: ExampleWidgetForecastItem.fromPath(defaults?.string('
+          'forKey: "\\(paramPrefix).forecast")) ?? '
+          'ExampleWidgetForecastItem.previewItems,\n',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '      forecast: ExampleWidgetForecastItem.fromPath(defaults?.string('
+          'forKey: "\\(paramPrefix).forecast")),\n',
+        ),
+      );
+    });
+
+    test('repeats one item as often as the largest maxItems', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWSizeAdaptive(
+            small: HWRow.builder(
+              'forecast',
+              maxItems: 2,
+              item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+            ),
+            large: HWColumn.builder(
+              'forecast',
+              maxItems: 4,
+              item: HWText(HWItemData(HWString('label'))),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          '  static let previewItems: [ExampleWidgetForecastItem] = '
+          'Array(repeating: ExampleWidgetForecastItem(label: "Day"), '
+          'count: 4)\n',
+        ),
+      );
+    });
+
+    test('shows the stored list alone when no field has a sample', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWColumn(
+            children: [
+              HWText(HWString('city', previewValue: 'Berlin')),
+              HWRow.builder(
+                'forecast',
+                maxItems: 5,
+                item: HWText(HWItemData(HWString('label'))),
+                whenEmpty: HWText.fixed('Nothing yet'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(content, isNot(contains('previewItems')));
+      expect(
+        'forecast: ExampleWidgetForecastItem.fromPath(defaults?.string('
+                'forKey: "\\(paramPrefix).forecast")),'
+            .allMatches(content),
+        hasLength(2),
+      );
+    });
+
+    test('previews a time-based list through its samples behind the entry',
+        () async {
+      final content = await generate(
+        listSpecOf(
+          const HWColumn.builder(
+            'hourly',
+            maxItems: 3,
+            item: HWText.number(
+              HWTimedData(
+                HWItemData(
+                  HWInt('temperature', defaultValue: 0),
+                  previewValues: [12, 13],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static let previewItems: [ExampleWidgetHourlyItem] = [
+    ExampleWidgetHourlyItem(temperature: 12),
+    ExampleWidgetHourlyItem(temperature: 13),
+  ]
+'''),
+      );
+      expect(
+        content,
+        contains('''
+  static func previewFromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ExampleWidgetData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return ExampleWidgetData(
+      hourly: ExampleWidgetHourlyItem.fromJsonArray(timedValues["hourly"]) ?? ExampleWidgetHourlyItem.previewItems,
+    )
+  }
+'''),
+      );
+      expect(
+        content,
+        contains(
+          '      hourly: ExampleWidgetHourlyItem.fromJsonArray('
+          'timedValues["hourly"]),\n',
+        ),
+      );
+    });
+
+    test('previews a list that is the only data through its samples', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWRow.builder(
+            'forecast',
+            maxItems: 3,
+            item: HWText(HWItemData(HWString('label', previewValue: 'Day'))),
+          ),
+          useLiveDataInPreview: false,
+        ),
+      );
+
+      expect(
+        content,
+        contains(
+          'ExampleWidgetHomeWidgetEntry(date: Date(), data: '
+          'ExampleWidgetData.previewFromUserDefaults(nil))',
+        ),
+      );
+      expect(content, contains('      let prefs: UserDefaults? = nil\n'));
+      expect(
+        content,
+        contains(
+          '      let data = ExampleWidgetData.previewFromUserDefaults(prefs)\n',
+        ),
+      );
+    });
+
+    test('previews an item image through its asset key', () async {
+      final content = await generate(
+        listSpecOf(
+          const HWRow.builder(
+            'contacts',
+            maxItems: 3,
+            item: HWRow(
+              children: [
+                HWImage(
+                  HWItemData(
+                    HWImageData('avatar', previewAsset: 'assets/a.png'),
+                    previewValues: ['assets/b.png', 'packages/brand/c.png'],
+                  ),
+                ),
+                HWImage(HWItemData(HWImageData('badge'))),
+                HWText(
+                  HWItemData(
+                    HWString('name'),
+                    previewValues: ['Ada', 'Bob', 'Cy'],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        content,
+        contains('''
+  static let previewItems: [ExampleWidgetContactsItem] = [
+    ExampleWidgetContactsItem(avatar: "assets/b.png", badge: nil, name: "Ada"),
+    ExampleWidgetContactsItem(avatar: "packages/brand/c.png", badge: nil, name: "Bob"),
+    ExampleWidgetContactsItem(avatar: "assets/a.png", badge: nil, name: "Cy"),
+  ]
+'''),
+      );
+      expect(
+        content,
+        contains(
+          'if let path = hwItem.avatar, '
+          'let uiImage = hwDecodeImage(path, nil, nil) {',
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '.appendingPathComponent("Frameworks/App.framework/flutter_assets")',
+        ),
+      );
+    });
+  });
+}

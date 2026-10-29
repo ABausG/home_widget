@@ -1,3 +1,39 @@
+## 0.10.0
+
+> Note: This release has breaking changes.
+
+ - **FIX**: Handle Dart null values in method-channel arguments (iOS) ([#450](https://github.com/abausg/home_widget/issues/450)). ([31c93d62](https://github.com/abausg/home_widget/commit/31c93d622d69e6964cdc2a3896755ea6b13ce4b5))
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
+## 0.9.4
+
+ - **FEAT**: Add support for opening Widgets on Click from Generated Widgets ([#442](https://github.com/abausg/home_widget/issues/442)). ([7e9e2102](https://github.com/abausg/home_widget/commit/7e9e21026b4b7c49b7eda617ee871f8faeb681ff))
+ - **FEAT**: Add Time-Based Widget Content ([#440](https://github.com/abausg/home_widget/issues/440)). ([70b27061](https://github.com/abausg/home_widget/commit/70b2706118cf8667c772ee1fcb04af51951721ae))
+ - **FEAT**: Add support for Localized Text ([#439](https://github.com/abausg/home_widget/issues/439)). ([a121e474](https://github.com/abausg/home_widget/commit/a121e474a43e19cfa8e896a876449561eb9e6a4c))
+ - **FEAT**: Add Packages for home_widget_cli and home_widget_generator ([#428](https://github.com/abausg/home_widget/issues/428)). ([05569013](https://github.com/abausg/home_widget/commit/055690135d326278bf91278c8250620c03c251ae))
+
+## 0.9.3
+
+ - **FEAT**: Support UIScene Lifecycle ([#423](https://github.com/abausg/home_widget/issues/423)). ([bd899596](https://github.com/abausg/home_widget/commit/bd8995964680fb5507414f54beea4f2e6514b456))
+
+## 0.9.2+1
+
+ - **FIX**: Apply kotlin plugin when not built in ([#425](https://github.com/abausg/home_widget/issues/425)). ([fc7e800c](https://github.com/abausg/home_widget/commit/fc7e800c661e2fd6ad951a8df16a04d14e8eacc0))
+
+## 0.9.2
+
+ - **FIX**: Add FlutterFramework to iOS SPM package ([#419](https://github.com/abausg/home_widget/issues/419)). ([85aa4bf2](https://github.com/abausg/home_widget/commit/85aa4bf2f56feddf1b8d4c6f6a3954363308317d))
+ - **FIX**: Support Android Gradle Plugin 9.x ([#420](https://github.com/abausg/home_widget/issues/420)). ([cb2b4ad5](https://github.com/abausg/home_widget/commit/cb2b4ad530da0a599b283cd109fa01d928dae662))
+ - **FIX**: Pin android dependency versions to prevent pre-release pickup ([#418](https://github.com/abausg/home_widget/issues/418)). ([e42f1f7c](https://github.com/abausg/home_widget/commit/e42f1f7cf53f23b0e2e2092463a2ef22f67b6d57))
+ - **FEAT**: Support passing appGroupId directly with functions ([#416](https://github.com/abausg/home_widget/issues/416)). ([55e6f435](https://github.com/abausg/home_widget/commit/55e6f435cb573a570a524d662d2f2d0bd2c50f43))
+
+## 0.9.1
+
+ - **FEAT**: Configurable widgets for Android ([#396](https://github.com/abausg/home_widget/issues/396)). ([faf16897](https://github.com/abausg/home_widget/commit/faf16897d6667b54799c61fa714eec9247dda1c9))
+ - **FEAT**: Add support for `HomeWidget.saveFile` and `HomeWidget.saveImage` ([#409](https://github.com/abausg/home_widget/issues/409)). ([bf965fbf](https://github.com/abausg/home_widget/commit/bf965fbf37e3d14aeb32077184897025014d994f))
+
 ## 0.9.0
 
 > Note: This release has breaking changes. See the [migration guide](https://docs.page/ABausG/home_widget/migrations/0.9.0) for details on how to migrate.

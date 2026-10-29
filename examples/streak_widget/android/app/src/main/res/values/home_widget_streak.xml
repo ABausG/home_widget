@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_streak_label">Streak</string>
+    <string name="home_widget_streak_description">Your Dasholingo streak, with Dash reacting through the day.</string>
+</resources>

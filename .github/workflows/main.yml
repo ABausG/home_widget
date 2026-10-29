@@ -15,9 +15,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     name: Quality Checks
+    if: ${{ !startsWith(github.head_ref, 'release-') }}
     runs-on: macos-15
     defaults:
       run:

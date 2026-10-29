@@ -9,6 +9,10 @@ on:
     paths:
       - 'packages/home_widget/lib/**'
       - 'packages/home_widget/android/**'
+      - 'packages/home_widget/pubspec.yaml'
+      - 'packages/home_widget/example/lib/**'
+      - 'packages/home_widget/example/android/**'
+      - 'packages/home_widget/example/pubspec.yaml'
       - 'packages/home_widget/example/integration_test/android_test.dart'
       - '.github/workflows/android-integration.yml'
 
@@ -16,9 +20,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   android-integration:
     name: Android Integration Tests
+    if: ${{ !startsWith(github.head_ref, 'release-') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

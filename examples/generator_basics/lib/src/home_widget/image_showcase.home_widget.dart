@@ -1,0 +1,348 @@
+// dart format off
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint
+
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:home_widget/home_widget.dart';
+
+class ImageShowcaseHomeWidget {
+  const ImageShowcaseHomeWidget._();
+
+  static const String _$appGroupId = 'group.es.antonborri.generatorBasics';
+
+  static const String _$paramPrefix = 'home_widget.ImageShowcase';
+
+  /// Writes every value handed to it, and leaves out what it was not given.
+  ///
+  /// A picture this widget itself wrote, handed back by [getData] and since
+  /// removed from disk, is saved as no picture rather than failing the call:
+  /// a nested, timed or per-item one is cleared, a top-level one keeps the
+  /// path it had.
+  static Future<void> saveData({
+    ImageProvider? picture,
+    ContactJsonData? contact,
+    Map<DateTime, ImageShowcaseTimedData>? timedData,
+  }) async {
+    final _rootImage_picture = await _$readImage(picture);
+    final _jsonImage_contact_avatar = await _$readImage(contact?.avatar);
+    final _timedImages_slide = {
+      if (timedData != null)
+        for (final MapEntry(key: _time, value: _entry) in timedData.entries)
+          _time: await _$readImage(_entry.slide),
+    };
+    await Future.wait([
+      if (_rootImage_picture != null) _$saveImage('${_$paramPrefix}.picture', _rootImage_picture),
+      if (contact != null) () async {
+        final _contactJson = contact.toJson();
+        if (_jsonImage_contact_avatar != null) {
+          _contactJson['avatar'] = await _$saveImage('${_$paramPrefix}.contact.avatar', _jsonImage_contact_avatar);
+        } else {
+          await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contact.avatar', null, appGroupId: _$appGroupId);
+        }
+        await HomeWidget.saveFile('${_$paramPrefix}.contact', Uint8List.fromList(utf8.encode(jsonEncode(_contactJson))), extension: 'json', appGroupId: _$appGroupId);
+      }(),
+      if (timedData != null) () async {
+        final _timedTimes = timedData.keys.toList()..sort();
+        final _storedTimes = await _$storedTimedKeys();
+        if (_timedTimes.isEmpty) {
+          await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
+          await _$deleteTimedImages(_storedTimes);
+          try {
+            await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ImageShowcaseHomeWidgetReceiver');
+          } catch (error, stackTrace) {
+            // Cancelling is best effort; the data was deleted.
+            FlutterError.reportError(
+              FlutterErrorDetails(
+                exception: error,
+                stack: stackTrace,
+                library: 'home_widget',
+                context: ErrorDescription('cancelling scheduled updates for the ImageShowcase widget'),
+              ),
+            );
+          }
+          return;
+        }
+        final _timedJson = <String, dynamic>{};
+        for (final _time in _timedTimes) {
+          final _millis = _time.toUtc().millisecondsSinceEpoch;
+          final _entry = timedData[_time]!;
+          final _values = _entry.toJson();
+          final _timedImage_slide = _timedImages_slide[_time];
+          if (_timedImage_slide != null) {
+            _values['slide'] = await _$saveImage('${_$paramPrefix}.timedData.slide.$_millis', _timedImage_slide);
+          } else if (_storedTimes.contains(_millis)) {
+            await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.timedData.slide.$_millis', null, appGroupId: _$appGroupId);
+          }
+          _timedJson[_millis.toString()] = _values;
+        }
+        await HomeWidget.saveFile('${_$paramPrefix}.timedData', Uint8List.fromList(utf8.encode(jsonEncode(_timedJson))), extension: 'json', appGroupId: _$appGroupId);
+        await _$deleteTimedImages(_storedTimes.where((_millis) => !_timedJson.containsKey(_millis.toString())));
+        try {
+          await HomeWidget.scheduleWidgetUpdates(_timedTimes, androidName: 'ImageShowcaseHomeWidgetReceiver');
+        } catch (error, stackTrace) {
+          // Scheduling is best effort; the data was saved.
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'home_widget',
+              context: ErrorDescription('scheduling updates for the ImageShowcase widget'),
+            ),
+          );
+        }
+      }(),
+    ]);
+  }
+
+  static Future<void> deleteData({
+    bool picture = false,
+    bool contact = false,
+    bool timedData = false,
+  }) {
+    return Future.wait([
+      if (picture) HomeWidget.saveWidgetData('${_$paramPrefix}.picture', null, appGroupId: _$appGroupId),
+      if (contact) () async {
+        await HomeWidget.saveWidgetData('${_$paramPrefix}.contact', null, appGroupId: _$appGroupId);
+        await HomeWidget.saveWidgetData<String>('${_$paramPrefix}.contact.avatar', null, appGroupId: _$appGroupId);
+      }(),
+      if (timedData) () async {
+        final _storedTimes = await _$storedTimedKeys();
+        await HomeWidget.saveWidgetData('${_$paramPrefix}.timedData', null, appGroupId: _$appGroupId);
+        await _$deleteTimedImages(_storedTimes);
+        try {
+          await HomeWidget.cancelScheduledWidgetUpdates(androidName: 'ImageShowcaseHomeWidgetReceiver');
+        } catch (error, stackTrace) {
+          // Cancelling is best effort; the data was deleted.
+          FlutterError.reportError(
+            FlutterErrorDetails(
+              exception: error,
+              stack: stackTrace,
+              library: 'home_widget',
+              context: ErrorDescription('cancelling scheduled updates for the ImageShowcase widget'),
+            ),
+          );
+        }
+      }(),
+    ]);
+  }
+
+  /// Reads every stored value back.
+  ///
+  /// The keys of [timedData] are local-time [DateTime]s, so they compare equal to a
+  /// local [DateTime] for the same instant. Timestamps are stored as epoch
+  /// milliseconds: sub-millisecond precision of the saved keys is not preserved.
+  /// Keys are compared by instant, so a local [DateTime] and its `toUtc()` twin
+  /// denote the same entry and only one of them survives a save.
+  ///
+  /// [picture] comes back as the file path of the PNG
+  /// `saveData` wrote, not as an `ImageProvider`, and the file it points at may
+  /// since have been removed. Nested and timed images are handed back as an
+  /// `ImageProvider` instead.
+  static Future<({String? picture, ContactJsonData? contact, Map<DateTime, ImageShowcaseTimedData>? timedData})> getData() async {
+    final _contactPath = await HomeWidget.getWidgetData<String>('${_$paramPrefix}.contact', appGroupId: _$appGroupId);
+    ContactJsonData? contact;
+    if (_contactPath != null) {
+      try {
+        final raw = await File(_contactPath).readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) contact = ContactJsonData.fromJson(decoded);
+      } on Exception {
+        contact = null;
+      }
+    }
+    final _timedDataPath = await HomeWidget.getWidgetData<String>('${_$paramPrefix}.timedData', appGroupId: _$appGroupId);
+    Map<DateTime, ImageShowcaseTimedData>? timedData;
+    if (_timedDataPath != null) {
+      try {
+        final raw = await File(_timedDataPath).readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          final entries = <DateTime, ImageShowcaseTimedData>{};
+          for (final entry in decoded.entries) {
+            final millis = int.tryParse(entry.key);
+            if (millis == null) continue;
+            final value = entry.value;
+            entries[DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true).toLocal()] = ImageShowcaseTimedData.fromJson(value is Map<String, dynamic> ? value : null);
+          }
+          timedData = entries;
+        }
+      } on Exception {
+        timedData = null;
+      }
+    }
+    return (
+      picture: await HomeWidget.getWidgetData<String>('${_$paramPrefix}.picture', appGroupId: _$appGroupId),
+      contact: contact,
+      timedData: timedData,
+    );
+  }
+
+
+  static Future<bool?> updateWidget() {
+    return HomeWidget.updateWidget(
+      androidName: 'ImageShowcaseHomeWidgetReceiver',
+      iOSName: 'ImageShowcaseHomeWidget',
+    );
+  }
+
+  /// Asks the launcher to re-render this widget's gallery preview.
+  ///
+  /// Android 15 and newer only; returns false elsewhere and when the system
+  /// rate limit (about two updates per hour and widget) was hit. The plugin
+  /// registers the preview automatically when the app starts, so this is only
+  /// needed after data changes that should show in the gallery right away.
+  static Future<bool> updatePreview() async {
+    return await HomeWidget.updateWidgetPreview(
+      androidName: 'ImageShowcaseHomeWidgetReceiver',
+    ) ?? false;
+  }
+
+  /// Whether the launcher lets the app ask to add this widget to the home
+  /// screen: Android 8 or newer with a launcher that supports pinning. Always
+  /// false on iOS.
+  static Future<bool> isRequestPinWidgetSupported() async {
+    return await HomeWidget.isRequestPinWidgetSupported() ?? false;
+  }
+
+  /// Asks the launcher to add this widget to the home screen.
+  ///
+  /// Shows the system pin dialog where [isRequestPinWidgetSupported] is true
+  /// and does nothing anywhere else.
+  static Future<void> requestPinWidget() {
+    return HomeWidget.requestPinWidget(
+      androidName: 'ImageShowcaseHomeWidgetReceiver',
+    );
+  }
+
+  /// Every instance of this widget currently placed on a home screen.
+  ///
+  /// Android reports one entry per placed instance, iOS one entry per family
+  /// the widget is placed in.
+  static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {
+    final widgets = await HomeWidget.getInstalledWidgets();
+    return widgets.where(_$isThisWidget).toList();
+  }
+
+  /// Whether at least one instance of this widget is on a home screen.
+  static Future<bool> isInstalled() async {
+    return (await getInstalledWidgets()).isNotEmpty;
+  }
+
+  /// Whether [info] describes this widget.
+  ///
+  /// Android reports the provider's short class name — `.Receiver` when it
+  /// lives in the package of the application id, and the qualified name
+  /// otherwise — which is why the suffix is matched.
+  static bool _$isThisWidget(HomeWidgetInfo info) {
+    final androidClassName = info.androidClassName;
+    if (androidClassName != null) {
+      return androidClassName.endsWith('.ImageShowcaseHomeWidgetReceiver');
+    }
+    return info.iOSKind == 'ImageShowcaseHomeWidget';
+  }
+
+  static Future<ImageProvider?> _$readImage(ImageProvider? image) async {
+    if (image is! FileImage) return image;
+    final path = image.file.path;
+    final name = path.substring(path.lastIndexOf('/') + 1);
+    if (!name.startsWith('${_$paramPrefix}.') || !name.endsWith('.png')) {
+      return image;
+    }
+    try {
+      return MemoryImage(await image.file.readAsBytes());
+    } on FileSystemException {
+      return null;
+    }
+  }
+
+  static Future<String> _$saveImage(String key, ImageProvider image) async {
+    final path = await HomeWidget.saveImage(key, image, appGroupId: _$appGroupId);
+    await FileImage(File(path)).evict();
+    return path;
+  }
+
+  static Future<List<int>> _$storedTimedKeys() async {
+    final path = await HomeWidget.getWidgetData<String>('${_$paramPrefix}.timedData', appGroupId: _$appGroupId);
+    if (path == null) return const [];
+    try {
+      final decoded = jsonDecode(await File(path).readAsString());
+      if (decoded is! Map<String, dynamic>) return const [];
+      return [
+        for (final key in decoded.keys)
+          if (int.tryParse(key) case final millis?) millis,
+      ];
+    } on Exception {
+      return const [];
+    }
+  }
+
+  static Future<void> _$deleteTimedImages(Iterable<int> times) async {
+    await Future.wait([
+      for (final _millis in times)
+        for (final _key in const ['slide'])
+          HomeWidget.saveWidgetData<String>('${_$paramPrefix}.timedData.$_key.$_millis', null, appGroupId: _$appGroupId),
+    ]);
+  }
+}
+
+class ImageShowcaseTimedData {
+  /// The image shown from this entry's timestamp on.
+  ///
+  /// `saveData` writes it to its own PNG and stores that path in the entry;
+  /// `getData` hands it back as a `FileImage` of that PNG.
+  final ImageProvider? slide;
+
+  const ImageShowcaseTimedData({
+    this.slide,
+  });
+
+  factory ImageShowcaseTimedData.fromJson(Map<String, dynamic>? json) {
+    json ??= const {};
+    return ImageShowcaseTimedData(
+      slide: _readFileImage(json['slide']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+    };
+  }
+}
+
+class ContactJsonData {
+  /// The image stored at this leaf.
+  ///
+  /// `saveData` writes it to its own PNG and puts that path in the blob;
+  /// `getData` hands it back as a `FileImage` of that PNG.
+  final ImageProvider? avatar;
+  final String? name;
+
+  const ContactJsonData({
+    this.avatar,
+    this.name,
+  });
+
+  factory ContactJsonData.fromJson(Map<String, dynamic>? json) {
+    json ??= const {};
+    return ContactJsonData(
+      avatar: _readFileImage(json['avatar']),
+      name: _readString(json['name']) ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      if (name != null) 'name': name,
+    };
+  }
+}
+
+String? _readString(Object? value) => value is String ? value : null;
+ImageProvider? _readFileImage(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  final file = File(value);
+  return file.existsSync() ? FileImage(file) : null;
+}

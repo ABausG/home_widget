@@ -1,119 +1,174 @@
 {
+  "$schema": "https://docs.page/schema.json",
   "name": "home_widget",
-  "theme": "#567acb",
+  "description": "Documentation for the home_widget Flutter package and related tools.",
+  "theme": {
+    "primary": "#567acb"
+  },
   "content": {
     "headerDepth": 4
   },
   "social": {
     "x": "@abausg",
-    "github": "abausg",
+    "github": "ABausG/home_widget",
     "linkedin": "/in/abausg"
   },
+  "tabs": [
+    {
+      "id": "home_widget",
+      "title": "home_widget",
+      "href": "/"
+    },
+    {
+      "id": "generator",
+      "title": "Generator",
+      "href": "/generator"
+    },
+    {
+      "id": "cli",
+      "title": "CLI",
+      "href": "/cli"
+    }
+  ],
   "sidebar": [
-    [
-      "Overview",
-      "/"
-    ],
-    [
-      "Usage",
-      [
-        [
-          "Sync Data",
-          "/usage/sync-data"
-        ],
-        [
-          "Update Widget",
-          "/usage/update-widget"
-        ]
+    {
+      "tab": "home_widget",
+      "group": "Getting Started",
+      "pages": [
+        { "title": "Overview", "href": "/index" },
+        { "title": "Sync Data", "href": "/usage/sync-data" },
+        { "title": "Update Widget", "href": "/usage/update-widget" }
       ]
-    ],
-    [
-      "Platform Setup",
-      [
-        [
-          "iOS",
-          "/setup/ios"
-        ],
-        [
-          "Android",
-          "/setup/android"
-        ]
+    },
+    {
+      "tab": "home_widget",
+      "group": "Platform Setup",
+      "pages": [
+        { "title": "iOS", "href": "/setup/ios" },
+        { "title": "Android", "href": "/setup/android" }
       ]
-    ],
-    [
-      "Features",
-      [
-        [
-          "Render Flutter Widgets",
-          "/features/render-flutter-widgets"
-        ],
-        [
-          "Interactive Widgets",
-          "/features/interactive-widgets"
-        ],
-        [
-          "Detect Clicks",
-          "/features/detect-clicks"
-        ],
-        [
-          "Analytics",
-          "/features/analytics"
-        ],
-        [
-          "Configurable Widgets",
-          "/features/configurable-widgets"
-        ],
-        [
-          "iOS Lock Screen Widgets",
-          "/features/ios-lock-screen"
-        ],
-        [
-          "Pin Widget (Android)",
-          "/features/pin-widget"
-        ],
-        [
-          "Background Updates",
-          "/features/background-updates"
-        ]
+    },
+    {
+      "tab": "home_widget",
+      "group": "Features",
+      "pages": [
+        { "title": "Render Flutter Widgets", "href": "/features/render-flutter-widgets" },
+        { "title": "Interactive Widgets", "href": "/features/interactive-widgets" },
+        { "title": "Detect Clicks", "href": "/features/detect-clicks" },
+        { "title": "Analytics", "href": "/features/analytics" },
+        { "title": "Save files and images", "href": "/features/save-files" },
+        { "title": "Custom Fonts", "href": "/features/custom-fonts" },
+        { "title": "Icons", "href": "/features/icons" },
+        { "title": "Configurable Widgets", "href": "/features/configurable-widgets" },
+        { "title": "iOS Lock Screen Widgets", "href": "/features/ios-lock-screen" },
+        { "title": "Pin Widget (Android)", "href": "/features/pin-widget" },
+        { "title": "Widget Previews (Android)", "href": "/features/widget-previews" },
+        { "title": "Background Updates", "href": "/features/background-updates" }
       ]
-    ],
-    [
-      "Migrations",
-      [
-        [
-          "0.9.0",
-          "/migrations/0.9.0"
-        ],
-        [
-          "Swift Package Manager",
-          "/migrations/swift-package-manager"
-        ]
+    },
+    {
+      "tab": "home_widget",
+      "group": "Migrations",
+      "pages": [
+        { "title": "0.10.0", "href": "/migrations/0.10.0" },
+        { "title": "0.9.0", "href": "/migrations/0.9.0" },
+        { "title": "Swift Package Manager", "href": "/migrations/swift-package-manager" }
       ]
-    ],
-    [
-      "Android XML",
-      [
-        [
-          "Overview",
-          "/android-xml/overview"
-        ],
-        [
-          "Setup",
-          "/android-xml/setup"
-        ],
-        [
-          "Render Flutter Widgets",
-          "/android-xml/render-flutter-widget"
-        ],
-        [
-          "Interactive Widgets",
-          "/android-xml/interactive-widgets"
-        ],
-        [
-          "Detect Clicks",
-          "/android-xml/detect-clicks"
-        ]
+    },
+    {
+      "tab": "home_widget",
+      "group": "Android XML",
+      "pages": [
+        { "title": "Overview", "href": "/android-xml/overview" },
+        { "title": "Setup", "href": "/android-xml/setup" },
+        { "title": "Render Flutter Widgets", "href": "/android-xml/render-flutter-widget" },
+        { "title": "Interactive Widgets", "href": "/android-xml/interactive-widgets" },
+        { "title": "Detect Clicks", "href": "/android-xml/detect-clicks" }
       ]
-    ]
+    },
+    {
+      "tab": "generator",
+      "group": "Getting Started",
+      "pages": [
+        { "title": "Overview", "href": "/generator" },
+        { "title": "Getting Started", "href": "/generator/getting-started" },
+        { "title": "Annotation", "href": "/generator/annotation" },
+        { "title": "Data Types", "href": "/generator/data" },
+        { "title": "Lists", "href": "/generator/lists" },
+        { "title": "Localization", "href": "/generator/localization" },
+        { "title": "Formatting", "href": "/generator/formatting" },
+        { "title": "Custom Fonts", "href": "/generator/custom-fonts" },
+        { "title": "Icons", "href": "/generator/icons" },
+        { "title": "Time-based Content", "href": "/generator/timed-data" },
+        { "title": "Widget Clicks", "href": "/generator/widget-url" },
+        { "title": "Previews", "href": "/generator/previews" },
+        { "title": "Pinning & Install Status", "href": "/generator/install-status" },
+        { "title": "Flavors", "href": "/generator/flavors" }
+      ]
+    },
+    {
+      "tab": "generator",
+      "group": "Widgets",
+      "pages": [
+        { "title": "Overview", "href": "/generator/widgets" },
+        { "title": "HWAdaptive", "href": "/generator/widgets/hw-adaptive" },
+        { "title": "HWAlign", "href": "/generator/widgets/hw-align" },
+        { "title": "HWColoredBox", "href": "/generator/widgets/hw-colored-box" },
+        { "title": "HWColumn", "href": "/generator/widgets/hw-column" },
+        { "title": "HWConditional", "href": "/generator/widgets/hw-conditional" },
+        { "title": "HWDataOnly", "href": "/generator/widgets/hw-data-only" },
+        { "title": "HWDecoratedBox", "href": "/generator/widgets/hw-decorated-box" },
+        { "title": "HWIcon", "href": "/generator/widgets/hw-icon" },
+        { "title": "HWImage", "href": "/generator/widgets/hw-image" },
+        { "title": "HWPadding", "href": "/generator/widgets/hw-padding" },
+        { "title": "HWRow", "href": "/generator/widgets/hw-row" },
+        { "title": "HWSizeAdaptive", "href": "/generator/widgets/hw-size-adaptive" },
+        { "title": "HWSizedBox", "href": "/generator/widgets/hw-sized-box" },
+        { "title": "HWStack", "href": "/generator/widgets/hw-stack" },
+        { "title": "HWText", "href": "/generator/widgets/hw-text" }
+      ]
+    },
+    {
+      "tab": "generator",
+      "group": "Styling",
+      "pages": [
+        { "title": "Overview", "href": "/generator/styling" },
+        { "title": "Alignment", "href": "/generator/styling/hw-alignment" },
+        { "title": "HWBoxDecoration", "href": "/generator/styling/hw-box-decoration" },
+        { "title": "HWColor", "href": "/generator/styling/hw-color" },
+        { "title": "HWEdgeInsets", "href": "/generator/styling/hw-edge-insets" },
+        { "title": "HWTextStyle", "href": "/generator/styling/hw-text-style" }
+      ]
+    },
+    {
+      "tab": "generator",
+      "group": "Migrations",
+      "pages": [
+        { "title": "0.3.0", "href": "/generator/migrations/0.3.0" },
+        { "title": "0.2.0", "href": "/generator/migrations/0.2.0" },
+        { "title": "0.1.0", "href": "/generator/migrations/0.1.0" }
+      ]
+    },
+    {
+      "tab": "cli",
+      "pages": [
+        { "title": "Overview", "href": "/cli" },
+        {
+          "group": "Commands",
+          "pages": [
+            { "title": "create", "href": "/cli/create" },
+            { "title": "generate", "href": "/cli/generate" }
+          ]
+        },
+        {
+          "group": "Migrations",
+          "pages": [
+            { "title": "0.4.0", "href": "/cli/migrations/0.4.0" },
+            { "title": "0.3.0", "href": "/cli/migrations/0.3.0" },
+            { "title": "0.1.0", "href": "/cli/migrations/0.1.0" }
+          ]
+        }
+      ]
+    }
   ]
 }

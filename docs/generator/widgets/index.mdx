@@ -1,0 +1,44 @@
+---
+title: Widgets
+description: Overview of the HWWidget building blocks.
+---
+
+# Widgets
+
+`HWWidget` is the base class for the layout primitives you compose inside `@HomeWidget(widget: ...)`. They translate to SwiftUI on iOS and Jetpack Glance on Android at generation time.
+
+## Layout
+
+| Widget                                                | Purpose                                              |
+| ----------------------------------------------------- | ---------------------------------------------------- |
+| [`HWColumn`](/generator/widgets/hw-column)            | Vertical stack of children. `HWColumn.builder` renders one child per item of a saved [list](/generator/lists). |
+| [`HWRow`](/generator/widgets/hw-row)                  | Horizontal stack of children. `HWRow.builder` renders one child per item of a saved [list](/generator/lists). |
+| [`HWPadding`](/generator/widgets/hw-padding)          | Inset a child by an `HWEdgeInsets`.                  |
+| [`HWSizedBox`](/generator/widgets/hw-sized-box)       | Give a child a fixed size, or leave a gap.           |
+| [`HWStack`](/generator/widgets/hw-stack)              | Overlap children and align them within shared room.  |
+| [`HWAlign`](/generator/widgets/hw-align)              | Place a child within all the room it is given.       |
+
+## Content
+
+| Widget                                                       | Purpose                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`HWText`](/generator/widgets/hw-text)                       | Fixed or data-bound text, including formatted numbers and dates. |
+| [`HWImage`](/generator/widgets/hw-image)                     | Runtime image or Flutter asset.                      |
+| [`HWColoredBox`](/generator/widgets/hw-colored-box)          | Solid background color around a child.               |
+| [`HWDecoratedBox`](/generator/widgets/hw-decorated-box)      | Background color and/or border around a child.       |
+
+## Branching
+
+| Widget                                                       | Purpose                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`HWAdaptive`](/generator/widgets/hw-adaptive)               | Pick a different child per platform.                 |
+| [`HWConditional`](/generator/widgets/hw-conditional)         | Pick a child based on a runtime data check.          |
+| [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive)      | Pick a different child per widget family / size.     |
+
+## Data only
+
+| Widget                                                       | Purpose                                              |
+| ------------------------------------------------------------ | ---------------------------------------------------- |
+| [`HWDataOnly`](/generator/widgets/hw-data-only)              | Declare data fields without rendering anything.      |
+
+See [Data Types](/generator/data) for the available `HWDataType` variants you can bind to widgets.

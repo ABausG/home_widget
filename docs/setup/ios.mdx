@@ -133,35 +133,19 @@ The "Thin Binary" script phase should run after all other build phases, includin
 <Accordion title="Sync CFBundleVersion (optional)">
 This step is optional, this will sync the widget extension build version with your app version, so you don't get warnings of mismatch version from App Store Connect when uploading your app.
 
-![Build Phases](https://github.com/ABausG/home_widget/blob/main/.github/assets/build_phases.png?raw=true)
+The app target gets its version from the `FLUTTER_BUILD_NAME` and `FLUTTER_BUILD_NUMBER` variables, which Flutter writes to `ios/Flutter/Generated.xcconfig`. The widget extension has no `.xcconfig` file, so it does not see them. Give it one:
 
-In your Runner (app) target go to <kbd>Build Phases</kbd> > <kbd>+</kbd> > <kbd>New Run Script Phase</kbd> and add the following script:
-```bash
-generatedPath="$SRCROOT/Flutter/Generated.xcconfig"
+1. In Xcode, right-click the <kbd>Flutter</kbd> group and choose <kbd>New File from Template</kbd> > <kbd>Configuration Settings File</kbd>. Save it as `ios/Flutter/HomeWidget.xcconfig`, without adding it to a target, with this content:
+   ```text
+   FLUTTER_BUILD_NAME = 1.0
+   FLUTTER_BUILD_NUMBER = 1
+   #include? "Generated.xcconfig"
+   ```
+   The first two lines are defaults for a project that was never built; the include overrides them.
+2. In Xcode, select the project in the navigator and open <kbd>Info</kbd> > <kbd>Configurations</kbd>. Expand every configuration (Debug, Release, Profile, and the ones of your flavors) and set `HomeWidget` as the configuration of your widget extension target.
+3. Select the widget extension target, open <kbd>Build Settings</kbd> and set <kbd>Current Project Version</kbd> to `$(FLUTTER_BUILD_NUMBER)` and <kbd>Marketing Version</kbd> to `$(FLUTTER_BUILD_NAME)`.
 
-# Read and trim versionNumber and buildNumber
-versionNumber=$(grep FLUTTER_BUILD_NAME "$generatedPath" | cut -d '=' -f2 | xargs)
-buildNumber=$(grep FLUTTER_BUILD_NUMBER "$generatedPath" | cut -d '=' -f2 | xargs)
+Now `flutter build ios --build-name=1.2.3 --build-number=45` gives the widget extension the same `CFBundleShortVersionString` and `CFBundleVersion` as the app.
 
-infoPlistPath="$SRCROOT/HomeExampleWidget/Info.plist"
-
-# Check and add CFBundleVersion if it does not exist
-/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$infoPlistPath" 2>/dev/null
-if [ $? != 0 ]; then
-    /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $buildNumber" "$infoPlistPath"
-else
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $buildNumber" "$infoPlistPath"
-fi
-
-# Check and add CFBundleShortVersionString if it does not exist
-/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$infoPlistPath" 2>/dev/null
-if [ $? != 0 ]; then
-    /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $versionNumber" "$infoPlistPath"
-else
-    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $versionNumber" "$infoPlistPath"
-fi
-
-```
-
-Replace `HomeExampleWidget` with the name of the widget extension folder that you have created.
+If you use the [CLI](/cli/generate), it sets this up for you and keeps it up to date.
 </Accordion>

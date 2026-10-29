@@ -1,0 +1,63 @@
+---
+title: Pinning & Install Status
+description: Ask the launcher to add a generated widget to the home screen, and check where that widget is currently placed.
+---
+
+# Pinning & Install Status
+
+Every generated helper class knows which native widget it belongs to. That is enough to ask the launcher to place it, and to find it again among the widgets a user has on their home screen — without writing the receiver class name or the iOS kind by hand.
+
+```dart
+/// Android 8+ with a launcher that supports pinning. Always false on iOS.
+static Future<bool> isRequestPinWidgetSupported();
+
+/// Shows the system pin dialog for this widget.
+static Future<void> requestPinWidget();
+
+/// Every instance of this widget currently placed on a home screen.
+static Future<List<HomeWidgetInfo>> getInstalledWidgets();
+
+/// Whether at least one instance is placed.
+static Future<bool> isInstalled();
+```
+
+The first two are generated only for a schema with an `android:` configuration — a widget without one has no Android widget, and pinning is an Android feature. The install-status pair is generated for every widget.
+
+## Pinning
+
+`requestPinWidget()` asks the launcher to add *this* widget to the home screen, passing the generated receiver as `androidName` (or `qualifiedAndroidName` when the schema sets `android: HomeWidgetAndroidConfiguration(packageName: ...)`).
+
+Pinning needs [Android API 26+](https://developer.android.com/develop/ui/views/appwidgets/configuration#pin) **and** a launcher that supports it, which is what `isRequestPinWidgetSupported()` answers — it wraps the plugin's [`isRequestPinWidgetSupported`](/features/pin-widget) and reports `false` instead of `null` where the platform says nothing. On iOS it is always `false`, and `requestPinWidget()` does nothing there.
+
+Only offer the button where it works:
+
+```dart
+FutureBuilder<bool>(
+  future: GreetingHomeWidget.isRequestPinWidgetSupported(),
+  builder: (context, snapshot) {
+    if (snapshot.data != true) return const SizedBox.shrink();
+    return FilledButton(
+      onPressed: GreetingHomeWidget.requestPinWidget,
+      child: const Text('Add to home screen'),
+    );
+  },
+)
+```
+
+## Install status
+
+`getInstalledWidgets()` filters the plugin's [`HomeWidget.getInstalledWidgets()`](/features/analytics) down to this one widget, so you never have to match the class name or kind yourself:
+
+- **Android** matches the receiver of this schema and returns **one entry per placed instance** — a user with the widget on two screens gets two entries, each with its own `androidWidgetId`.
+- **iOS** matches the widget's `kind` and returns **one entry per family** the widget is placed in. Two medium widgets of the same kind collapse into a single entry, so the list counts sizes, not placements.
+
+```dart
+final placed = await GreetingHomeWidget.isInstalled();
+final instances = await GreetingHomeWidget.getInstalledWidgets();
+
+Text(placed ? 'On the home screen (${instances.length})' : 'Not added yet');
+```
+
+<Info>
+Pinning happens in the launcher, not in your app: the app is in the background while the user confirms or dismisses the system dialog, and `requestPinWidget()` does not report the outcome. Re-check `isInstalled()` when the app resumes (for example from `AppLifecycleState.resumed`) rather than assuming the widget was added.
+</Info>

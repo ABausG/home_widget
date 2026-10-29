@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_number_date_formatting_label">Number Date Formatting</string>
+    <string name="home_widget_number_date_formatting_description">An order total, discount and delivery time, formatted on the device.</string>
+</resources>

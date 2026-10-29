@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_widget_font_and_icons_label">Font &amp; Icons</string>
+    <string name="home_widget_font_and_icons_description">Text in a bundled font next to fixed and data-bound icons.</string>
+</resources>

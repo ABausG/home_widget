@@ -1,0 +1,130 @@
+import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('hwResourceSnakeCase', () {
+    test('lower cases and collapses everything outside [a-z0-9]', () {
+      expect(hwResourceSnakeCase('Chewy'), 'chewy');
+      expect(hwResourceSnakeCase('MaterialIcons'), 'materialicons');
+      expect(hwResourceSnakeCase('Roboto Mono'), 'roboto_mono');
+      expect(hwResourceSnakeCase('My-Icons.v2'), 'my_icons_v2');
+    });
+  });
+
+  group('hwFontResourcePrefix', () {
+    test('namespaces a widget', () {
+      expect(hwFontResourcePrefix('forecast'), 'hw_font_forecast');
+    });
+  });
+
+  group('HWFontVariant', () {
+    test('flutterFamilyKey namespaces a package family', () {
+      expect(
+        const HWFontVariant(family: 'Chewy', weight: 400, italic: false)
+            .flutterFamilyKey,
+        'Chewy',
+      );
+      expect(
+        const HWFontVariant(
+          family: 'Chewy',
+          package: 'my_fonts',
+          weight: 400,
+          italic: false,
+        ).flutterFamilyKey,
+        'packages/my_fonts/Chewy',
+      );
+    });
+
+    test('equality covers every part of the file choice', () {
+      const variant =
+          HWFontVariant(family: 'Chewy', weight: 400, italic: false);
+      expect(
+        variant,
+        const HWFontVariant(family: 'Chewy', weight: 400, italic: false),
+      );
+      expect(
+        variant.hashCode,
+        const HWFontVariant(family: 'Chewy', weight: 400, italic: false)
+            .hashCode,
+      );
+      expect(
+        variant,
+        isNot(const HWFontVariant(family: 'Chewy', weight: 700, italic: false)),
+      );
+      expect(
+        variant,
+        isNot(const HWFontVariant(family: 'Chewy', weight: 400, italic: true)),
+      );
+      expect(
+        variant,
+        isNot(
+          const HWFontVariant(
+            family: 'Chewy',
+            package: 'my_fonts',
+            weight: 400,
+            italic: false,
+          ),
+        ),
+      );
+      expect(variant.toString(), contains('Chewy'));
+    });
+  });
+
+  group('HWIconFont', () {
+    test('resource names', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      expect(font.resourceSuffix, 'icons_materialicons');
+      expect(
+        font.androidResourceName(hwFontResourcePrefix('forecast')),
+        'hw_font_forecast__icons_materialicons',
+      );
+      expect(font.iosResourceName, 'hw_font_icons_materialicons');
+    });
+
+    test('resource names carry the package when there is one', () {
+      const font =
+          HWIconFont(family: 'CupertinoIcons', package: 'cupertino_icons');
+      expect(font.resourceSuffix, 'icons_cupertinoicons__cupertino_icons');
+      expect(
+        font.iosResourceName,
+        'hw_font_icons_cupertinoicons__cupertino_icons',
+      );
+      expect(
+        font.androidResourceName(null),
+        'hw_font_home_widget__icons_cupertinoicons__cupertino_icons',
+      );
+    });
+
+    test('a family a package name could run into keeps its own resource', () {
+      const inPackage = HWIconFont(family: 'Foo', package: 'bar_baz');
+      const named = HWIconFont(family: 'Foo_bar', package: 'baz');
+
+      expect(inPackage.resourceSuffix, 'icons_foo__bar_baz');
+      expect(named.resourceSuffix, 'icons_foo_bar__baz');
+      expect(inPackage.resourceSuffix, isNot(named.resourceSuffix));
+    });
+
+    test('equality covers family and package', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      expect(font, const HWIconFont(family: 'MaterialIcons'));
+      expect(font.hashCode, const HWIconFont(family: 'MaterialIcons').hashCode);
+      expect(
+        font,
+        isNot(const HWIconFont(family: 'MaterialIcons', package: 'pack')),
+      );
+      expect(font.toString(), contains('MaterialIcons'));
+    });
+
+    test(
+        'a widget whose snake name is a prefix of another\'s never claims '
+        'that widget\'s resource name', () {
+      const font = HWIconFont(family: 'MaterialIcons');
+      final weatherPrefix = hwFontResourcePrefix('weather');
+      final weatherIconsName =
+          font.androidResourceName(hwFontResourcePrefix('weather_icons'));
+
+      expect(weatherIconsName, 'hw_font_weather_icons__icons_materialicons');
+      expect(weatherIconsName.startsWith('${weatherPrefix}__'), isFalse);
+    });
+  });
+}

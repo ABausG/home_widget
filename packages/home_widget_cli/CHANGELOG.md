@@ -1,0 +1,53 @@
+## 0.4.0+1
+
+ - Update a dependency to the latest release.
+
+## 0.4.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FEAT**: Sync the iOS widget extension version with the app ([#472](https://github.com/abausg/home_widget/issues/472)). ([89173001](https://github.com/abausg/home_widget/commit/89173001c92b7162a1c65f0f5b84f984809d3624))
+ - **BREAKING** **FEAT**: Mirror the app's signing setup on the iOS widget extension ([#471](https://github.com/abausg/home_widget/issues/471)). ([aae149a6](https://github.com/abausg/home_widget/commit/aae149a670a4e5d9f4930d22e99a4777c0b8e7f6))
+
+## 0.3.0
+
+> Note: This release has breaking changes.
+
+ - **BREAKING** **FIX**: Keep flavored iOS widgets out of undeclared flavors ([#469](https://github.com/abausg/home_widget/issues/469)). ([7e59f908](https://github.com/abausg/home_widget/commit/7e59f9089d6da1bb9078f6a5824a6f3150b3495e))
+
+## 0.2.0
+
+> Note: This release has breaking changes.
+
+ - **FIX**: Handle more Xcodeproject setups ([#460](https://github.com/abausg/home_widget/issues/460)). ([4db6b2eb](https://github.com/abausg/home_widget/commit/4db6b2ebd10437c6f091c047e0677af6792aa46e))
+ - **FEAT**: Add androidFont to HWTextStyle to choose the Android font ([#462](https://github.com/abausg/home_widget/issues/462)). ([5d72e0a6](https://github.com/abausg/home_widget/commit/5d72e0a6efc71061f5dac30b513fb4c838c5c082))
+ - **BREAKING** **FEAT**: Add HWStack and HWAlign with HWAlignment ([#466](https://github.com/abausg/home_widget/issues/466)). ([7cb28823](https://github.com/abausg/home_widget/commit/7cb28823d7a27216419d5258269a68c88fe596e2))
+ - **BREAKING** **FEAT**: Add androidSizeRanges to HWSizeAdaptive ([#465](https://github.com/abausg/home_widget/issues/465)). ([e20d97d2](https://github.com/abausg/home_widget/commit/e20d97d2cc8769b318a35c704b2d2e5ccc223e80))
+ - **BREAKING** **FEAT**: Add HWSizedBox and remove HWFill ([#464](https://github.com/abausg/home_widget/issues/464)). ([70c64bde](https://github.com/abausg/home_widget/commit/70c64bde85a89afb17c1976d6dab9626ebee2f1e))
+ - **BREAKING** **FEAT**: Add list builders, spacing and Glance stack layout for HWColumn/HWRow ([#463](https://github.com/abausg/home_widget/issues/463)). ([2bea2d82](https://github.com/abausg/home_widget/commit/2bea2d82ec1e5766e935fc249294a015096a486e))
+
+## 0.1.0
+
+> Note: This release has breaking changes.
+
+ - **FEAT**: Support Baseline Alignment in Rows and handle Custom Font Alignment ([#456](https://github.com/abausg/home_widget/issues/456)). ([4a5c696d](https://github.com/abausg/home_widget/commit/4a5c696d9616a7a2cbe275a92ba9b0601dda26c4))
+ - **FEAT**: Add new HWAdaptiveSize builder ([#453](https://github.com/abausg/home_widget/issues/453)). ([7ca46499](https://github.com/abausg/home_widget/commit/7ca464994844e30352621f8b02d44ffb2a43dd9c))
+ - **FEAT**: Request Pin and Get Install Status ([#447](https://github.com/abausg/home_widget/issues/447)). ([99fbf5dd](https://github.com/abausg/home_widget/commit/99fbf5dd8fffd84d1795492335cf0fd3b86b4f74))
+ - **FEAT**: Add support for Flavor aware Generation ([#446](https://github.com/abausg/home_widget/issues/446)). ([66560cb5](https://github.com/abausg/home_widget/commit/66560cb54bd9151483dbda87ab9474a582ff9cb4))
+ - **FEAT**: Support for Number, Currency and Date formatting ([#445](https://github.com/abausg/home_widget/issues/445)). ([60d996e9](https://github.com/abausg/home_widget/commit/60d996e9f24bca4c3ebb2cd09357d38cd744a2c2))
+ - **BREAKING** **REFACTOR**: Simplify writing of helpers ([#451](https://github.com/abausg/home_widget/issues/451)). ([ef6428fc](https://github.com/abausg/home_widget/commit/ef6428fc899510172efcba9947b36e2c7dc1176c))
+ - **BREAKING** **FEAT**: Support Custom Fonts and Icons ([#452](https://github.com/abausg/home_widget/issues/452)). ([ebc5ce0a](https://github.com/abausg/home_widget/commit/ebc5ce0a8f60c42531f64e61a12d27397c54b35b))
+ - **BREAKING** **FEAT**: Support Widget Previews ([#448](https://github.com/abausg/home_widget/issues/448)). ([a7fe969e](https://github.com/abausg/home_widget/commit/a7fe969ef3503c42a591706a7584c03c19fbb46e))
+
+## 0.0.2
+
+ - **FEAT**: Add support for opening Widgets on Click from Generated Widgets ([#442](https://github.com/abausg/home_widget/issues/442)). ([7e9e2102](https://github.com/abausg/home_widget/commit/7e9e21026b4b7c49b7eda617ee871f8faeb681ff))
+ - **FEAT**: Support Images in generated widgets ([#441](https://github.com/abausg/home_widget/issues/441)). ([8932b7c1](https://github.com/abausg/home_widget/commit/8932b7c1ed459a41d46e7dbcb034481f3d0a1ee1))
+ - **FEAT**: Add Time-Based Widget Content ([#440](https://github.com/abausg/home_widget/issues/440)). ([70b27061](https://github.com/abausg/home_widget/commit/70b2706118cf8667c772ee1fcb04af51951721ae))
+ - **FEAT**: Add support for Localized Text ([#439](https://github.com/abausg/home_widget/issues/439)). ([a121e474](https://github.com/abausg/home_widget/commit/a121e474a43e19cfa8e896a876449561eb9e6a4c))
+
+## 0.0.1
+
+ - **FEAT**: Initial release of the `home_widget` CLI.
+ - **FEAT**: `create` command to scaffold native HomeScreen widget code for iOS and Android.
+ - **FEAT**: `generate` command to produce native widget code and typed Dart helpers from `home_widget_generator` schemas.

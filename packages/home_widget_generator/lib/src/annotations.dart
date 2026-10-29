@@ -1,0 +1,641 @@
+import 'utils/content_hash.dart';
+import 'utils/map_equals.dart';
+import 'widgets/hw_color.dart';
+import 'widgets/hw_size.dart';
+import 'widgets/hw_widget.dart';
+
+/// The rules by which a widget can be resized.
+///
+/// See: [AppWidgetProviderInfo.resizeMode](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#resizeMode)
+enum HWAndroidResizeMode {
+  /// The widget is not resizable.
+  none,
+
+  /// The widget is resizable horizontally.
+  horizontal,
+
+  /// The widget is resizable vertically.
+  vertical,
+
+  /// The widget is resizable both horizontally and vertically.
+  horizontalAndVertical,
+}
+
+/// The category of widget. Whether it can be displayed on the home screen,
+/// the keyguard, or both.
+///
+/// See: [AppWidgetProviderInfo.widgetCategory](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#widgetCategory)
+enum HWAndroidWidgetCategory {
+  /// The widget can be displayed on the home screen.
+  homeScreen,
+
+  /// The widget can be displayed on the keyguard.
+  keyguard,
+
+  /// The widget can be displayed in the search box.
+  searchbox,
+}
+
+/// Configuration for the Android widget.
+///
+/// See: [AppWidgetProviderInfo](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo)
+class HomeWidgetAndroidConfiguration {
+  /// The package name of the app.
+  ///
+  /// If null, the plugin will attempt to detect the package name from
+  /// the Android project.
+  final String? packageName;
+
+  /// The default width of the widget when added to a host, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minWidth)
+  final int? minWidth;
+
+  /// The default height of the widget when added to a host, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minHeight)
+  final int? minHeight;
+
+  /// The minimum width the widget can be resized to, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minResizeWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minResizeWidth)
+  final int? minResizeWidth;
+
+  /// The minimum height the widget can be resized to, in dp.
+  ///
+  /// See: [AppWidgetProviderInfo.minResizeHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#minResizeHeight)
+  final int? minResizeHeight;
+
+  /// The maximum width the widget can be resized to, in dp.
+  ///
+  /// **Note:** This field corresponds to `maxResizeWidth` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.maxResizeWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#maxResizeWidth)
+  final int? maxResizeWidth;
+
+  /// The maximum height the widget can be resized to, in dp.
+  ///
+  /// **Note:** This field corresponds to `maxResizeHeight` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.maxResizeHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#maxResizeHeight)
+  final int? maxResizeHeight;
+
+  /// The default width of the widget when added to a host, in cells.
+  ///
+  /// **Note:** This field corresponds to `targetCellWidth` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.targetCellWidth](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#targetCellWidth)
+  final int? targetCellWidth;
+
+  /// The default height of the widget when added to a host, in cells.
+  ///
+  /// **Note:** This field corresponds to `targetCellHeight` on Android 12 (API level 31) and higher.
+  ///
+  /// See: [AppWidgetProviderInfo.targetCellHeight](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#targetCellHeight)
+  final int? targetCellHeight;
+
+  /// The rules by which a widget can be resized.
+  ///
+  /// See: [AppWidgetProviderInfo.resizeMode](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#resizeMode)
+  final HWAndroidResizeMode? resizeMode;
+
+  /// The category of widget.
+  ///
+  /// See: [AppWidgetProviderInfo.widgetCategory](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#widgetCategory)
+  final HWAndroidWidgetCategory? widgetCategory;
+
+  /// The update period in milliseconds.
+  ///
+  /// See: [AppWidgetProviderInfo.updatePeriodMillis](https://developer.android.com/reference/android/appwidget/AppWidgetProviderInfo#updatePeriodMillis)
+  final int? updatePeriodMillis;
+
+  /// Whether to wrap the widget in a `GlanceTheme`.
+  ///
+  /// Defaults to `true`. When true, the generated Android code will use
+  /// `GlanceTheme { ... }` which generates local CompositionLocals for colors.
+  final bool useGlanceTheme;
+
+  /// The background color to be applied to the widget.
+  ///
+  /// Defaults to `HWDefaultColor(HWColorRole.defaultBackground)`.
+  /// When not null, applies a `GlanceModifier.background(color)`.
+  final HWColor? backgroundColor;
+
+  /// Whether to apply default content padding to the widget.
+  ///
+  /// Defaults to `true`. If true, applies 16.dp root padding on Android.
+  final bool applyContentPadding;
+
+  /// Whether to apply fill modifier to the widget content.
+  ///
+  /// Defaults to `true`. If true, applies `GlanceModifier.fillMaxSize()`.
+  final bool fillWidgetContent;
+
+  /// The URL passed to the app when the widget is tapped.
+  ///
+  /// Overrides [HomeWidget.widgetUrl] on Android.
+  final String? widgetUrl;
+
+  /// Whether tapping the widget opens the app.
+  ///
+  /// Defaults to `true`. When false, the widget is not made clickable at all,
+  /// even if a [widgetUrl] is configured.
+  final bool openAppOnTap;
+
+  /// Whether the gallery preview reads the widget's stored data on Android.
+  ///
+  /// Null inherits [HomeWidget.useLiveDataInPreview].
+  final bool? useLiveDataInPreview;
+
+  /// Whether the plugin registers the generated preview with the launcher when
+  /// the app starts, on Android 15 and higher.
+  ///
+  /// Defaults to `true`. The generated `updatePreview()` helper triggers the
+  /// same registration by hand either way.
+  final bool autoUpdatePreview;
+
+  const HomeWidgetAndroidConfiguration({
+    this.packageName,
+    this.minWidth,
+    this.minHeight,
+    this.minResizeWidth,
+    this.minResizeHeight,
+    this.maxResizeWidth,
+    this.maxResizeHeight,
+    this.targetCellWidth,
+    this.targetCellHeight,
+    this.resizeMode,
+    this.widgetCategory,
+    this.updatePeriodMillis,
+    this.useGlanceTheme = true,
+    this.backgroundColor = const HWDefaultColor(HWColorRole.defaultBackground),
+    this.applyContentPadding = true,
+    this.fillWidgetContent = true,
+    this.widgetUrl,
+    this.openAppOnTap = true,
+    this.useLiveDataInPreview,
+    this.autoUpdatePreview = true,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidgetAndroidConfiguration &&
+          packageName == other.packageName &&
+          minWidth == other.minWidth &&
+          minHeight == other.minHeight &&
+          minResizeWidth == other.minResizeWidth &&
+          minResizeHeight == other.minResizeHeight &&
+          maxResizeWidth == other.maxResizeWidth &&
+          maxResizeHeight == other.maxResizeHeight &&
+          targetCellWidth == other.targetCellWidth &&
+          targetCellHeight == other.targetCellHeight &&
+          resizeMode == other.resizeMode &&
+          widgetCategory == other.widgetCategory &&
+          updatePeriodMillis == other.updatePeriodMillis &&
+          useGlanceTheme == other.useGlanceTheme &&
+          backgroundColor == other.backgroundColor &&
+          applyContentPadding == other.applyContentPadding &&
+          fillWidgetContent == other.fillWidgetContent &&
+          widgetUrl == other.widgetUrl &&
+          openAppOnTap == other.openAppOnTap &&
+          useLiveDataInPreview == other.useLiveDataInPreview &&
+          autoUpdatePreview == other.autoUpdatePreview;
+
+  @override
+  int get hashCode =>
+      packageName.hashCode ^
+      minWidth.hashCode ^
+      minHeight.hashCode ^
+      minResizeWidth.hashCode ^
+      minResizeHeight.hashCode ^
+      maxResizeWidth.hashCode ^
+      maxResizeHeight.hashCode ^
+      targetCellWidth.hashCode ^
+      targetCellHeight.hashCode ^
+      resizeMode.hashCode ^
+      widgetCategory.hashCode ^
+      updatePeriodMillis.hashCode ^
+      useGlanceTheme.hashCode ^
+      backgroundColor.hashCode ^
+      applyContentPadding.hashCode ^
+      fillWidgetContent.hashCode ^
+      widgetUrl.hashCode ^
+      openAppOnTap.hashCode ^
+      useLiveDataInPreview.hashCode ^
+      autoUpdatePreview.hashCode;
+}
+
+/// The size and shape of a widget.
+///
+/// See: [WidgetFamily](https://developer.apple.com/documentation/widgetkit/widgetfamily)
+enum HWWidgetFamily {
+  /// A small widget.
+  systemSmall,
+
+  /// A medium-sized widget.
+  systemMedium,
+
+  /// A large widget.
+  systemLarge,
+
+  /// An extra-large widget.
+  systemExtraLarge,
+
+  /// An extra-large widget in portrait orientation.
+  ///
+  /// Available on iOS and iPadOS 27.
+  systemExtraLargePortrait,
+
+  /// A circular accessory widget.
+  accessoryCircular,
+
+  /// A rectangular accessory widget.
+  accessoryRectangular,
+
+  /// An inline accessory widget.
+  accessoryInline;
+
+  /// Whether this is one of the Lock Screen accessory families.
+  bool get isAccessory =>
+      this == accessoryCircular ||
+      this == accessoryRectangular ||
+      this == accessoryInline;
+
+  /// The name of the [HWSizeAdaptive] slot carrying this family's content.
+  String get slotName => switch (this) {
+        HWWidgetFamily.systemSmall => 'small',
+        HWWidgetFamily.systemMedium => 'medium',
+        HWWidgetFamily.systemLarge => 'large',
+        HWWidgetFamily.systemExtraLarge => 'extraLarge',
+        HWWidgetFamily.systemExtraLargePortrait => 'extraLargePortrait',
+        HWWidgetFamily.accessoryCircular => 'accessoryCircular',
+        HWWidgetFamily.accessoryRectangular => 'accessoryRectangular',
+        HWWidgetFamily.accessoryInline => 'accessoryInline',
+      };
+
+  /// The Swift compiler version whose toolchain first knows the matching
+  /// `WidgetFamily` case, or null when every targeted toolchain has it.
+  ///
+  /// Naming a case an older toolchain lacks does not compile, so both the
+  /// generated `switch` case and the `supportedFamilies` append sit inside
+  /// `#if compiler(>=<this>)`.
+  String? get swiftCompilerGate =>
+      this == systemExtraLargePortrait ? '6.4' : null;
+
+  /// The families tried, in order, when this one has no content of its own.
+  ///
+  /// The chain only ever goes down: content designed for a smaller box is safe
+  /// in a bigger one, the reverse is not. The portrait extra-large skips the
+  /// landscape one, and the three accessory families are distinct shapes that
+  /// fall back to nothing.
+  List<HWWidgetFamily> get fallbackChain => switch (this) {
+        HWWidgetFamily.systemSmall => const [],
+        HWWidgetFamily.systemMedium => const [HWWidgetFamily.systemSmall],
+        HWWidgetFamily.systemLarge => const [
+            HWWidgetFamily.systemMedium,
+            HWWidgetFamily.systemSmall,
+          ],
+        HWWidgetFamily.systemExtraLarge ||
+        HWWidgetFamily.systemExtraLargePortrait =>
+          const [
+            HWWidgetFamily.systemLarge,
+            HWWidgetFamily.systemMedium,
+            HWWidgetFamily.systemSmall,
+          ],
+        HWWidgetFamily.accessoryCircular ||
+        HWWidgetFamily.accessoryRectangular ||
+        HWWidgetFamily.accessoryInline =>
+          const [],
+      };
+
+  /// The home-screen grid footprint on Android, or null for an accessory
+  /// family.
+  ({int columns, int rows})? get androidCells => switch (this) {
+        HWWidgetFamily.systemSmall => (columns: 2, rows: 2),
+        HWWidgetFamily.systemMedium => (columns: 4, rows: 2),
+        HWWidgetFamily.systemLarge => (columns: 4, rows: 4),
+        HWWidgetFamily.systemExtraLarge => (columns: 8, rows: 4),
+        HWWidgetFamily.systemExtraLargePortrait => (columns: 4, rows: 8),
+        HWWidgetFamily.accessoryCircular ||
+        HWWidgetFamily.accessoryRectangular ||
+        HWWidgetFamily.accessoryInline =>
+          null,
+      };
+
+  /// The dp size declared to Glance for [androidCells], or null for an
+  /// accessory family.
+  HWSize? get androidSize {
+    final cells = androidCells;
+    return cells == null ? null : HWSize.cells(cells.columns, cells.rows);
+  }
+
+  /// The [androidSize] of every system family, with [overrides] replacing
+  /// individual entries.
+  static Map<HWWidgetFamily, HWSize> androidSizeTable([
+    Map<HWWidgetFamily, HWSize>? overrides,
+  ]) =>
+      {
+        for (final family in values)
+          if (family.androidSize case final size?) family: size,
+        ...?overrides,
+      };
+}
+
+/// Configuration for the iOS widget.
+///
+/// See: [WidgetConfiguration](https://developer.apple.com/documentation/widgetkit/widgetconfiguration)
+class HomeWidgetIOSConfiguration {
+  /// The App Group ID allowing data sharing between the app and the widget.
+  final String groupId;
+
+  /// The supported widget families.
+  ///
+  /// See: [StaticConfiguration.supportedFamilies(_:)](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:))
+  final List<HWWidgetFamily>? supportedFamilies;
+
+  /// The background color to be applied to the widget.
+  final HWColor? backgroundColor;
+
+  /// Whether to apply default system content margin to the widget.
+  ///
+  /// Defaults to `true`. If false, disables the default system padding using contentMarginsDisabled().
+  final bool applyContentPadding;
+
+  /// The URL passed to the app when the widget is tapped.
+  ///
+  /// Overrides [HomeWidget.widgetUrl] on iOS.
+  final String? widgetUrl;
+
+  /// Whether the gallery preview reads the widget's stored data on iOS.
+  ///
+  /// Null inherits [HomeWidget.useLiveDataInPreview].
+  final bool? useLiveDataInPreview;
+
+  /// The name of the provisioning profile the widget extension signs with
+  /// wherever the app target signs manually.
+  ///
+  /// Two placeholders are replaced per build configuration:
+  ///
+  /// - `{appProfile}`: the app's `PROVISIONING_PROFILE_SPECIFIER` in that
+  ///   configuration, so one value gives Debug and Release their own profile.
+  /// - `{extensionName}`: the name of the extension target, e.g.
+  ///   `WeatherHomeWidget`.
+  ///
+  /// A value without placeholders is the profile name itself. Null is
+  /// `'{appProfile} {extensionName}'`: `"App Prod"` becomes
+  /// `"App Prod WeatherHomeWidget"`. Any other `{…}` placeholder is an error.
+  /// Configurations the app signs automatically ignore it.
+  final String? provisioningProfile;
+
+  const HomeWidgetIOSConfiguration({
+    required this.groupId,
+    this.supportedFamilies,
+    this.backgroundColor,
+    this.applyContentPadding = true,
+    this.widgetUrl,
+    this.useLiveDataInPreview,
+    this.provisioningProfile,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidgetIOSConfiguration &&
+          groupId == other.groupId &&
+          supportedFamilies == other.supportedFamilies &&
+          backgroundColor == other.backgroundColor &&
+          applyContentPadding == other.applyContentPadding &&
+          widgetUrl == other.widgetUrl &&
+          useLiveDataInPreview == other.useLiveDataInPreview &&
+          provisioningProfile == other.provisioningProfile;
+
+  @override
+  int get hashCode =>
+      groupId.hashCode ^
+      supportedFamilies.hashCode ^
+      backgroundColor.hashCode ^
+      applyContentPadding.hashCode ^
+      widgetUrl.hashCode ^
+      useLiveDataInPreview.hashCode ^
+      provisioningProfile.hashCode;
+}
+
+/// Per-flavor overrides of [HomeWidgetIOSConfiguration].
+///
+/// A null field keeps the value of the base configuration.
+class HomeWidgetIOSFlavor {
+  /// Replaces [HomeWidgetIOSConfiguration.groupId] in this flavor.
+  final String? groupId;
+
+  /// Replaces [HomeWidgetIOSConfiguration.provisioningProfile] in this flavor.
+  ///
+  /// Takes the same `{appProfile}` and `{extensionName}` placeholders. Null
+  /// keeps the base value, which itself defaults to
+  /// `'{appProfile} {extensionName}'`.
+  final String? provisioningProfile;
+
+  const HomeWidgetIOSFlavor({this.groupId, this.provisioningProfile});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidgetIOSFlavor &&
+          groupId == other.groupId &&
+          provisioningProfile == other.provisioningProfile;
+
+  @override
+  int get hashCode => groupId.hashCode ^ provisioningProfile.hashCode;
+}
+
+/// What one entry of [HomeWidget.flavors] changes about the widget.
+///
+/// Each field overrides its counterpart in the base configuration; an empty
+/// `HomeWidgetFlavor()` declares a flavor that keeps the base values.
+class HomeWidgetFlavor {
+  /// iOS overrides for this flavor.
+  final HomeWidgetIOSFlavor? iOS;
+
+  const HomeWidgetFlavor({this.iOS});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is HomeWidgetFlavor && iOS == other.iOS;
+
+  @override
+  int get hashCode => iOS.hashCode;
+}
+
+/// Localization settings for a widget.
+///
+/// [supportedLocales] is the canonical locale set: it defines the generated Dart
+/// localizations constructor and lets the generator reject a locale tag that no
+/// string actually covers.
+///
+/// [name] and [description] hold translations for the widget's gallery entry.
+/// The **base-locale** text stays in [HomeWidget.name] / [HomeWidget.description],
+/// so these maps hold the *other* locales only — omit one entirely to leave that
+/// string untranslated (a brand name, say).
+class HomeWidgetLocalization {
+  /// The locale the top-level `name`, `description` and each localized string's
+  /// base value are written in. Must be one of [supportedLocales].
+  final String defaultLocale;
+
+  /// Every locale this widget ships text for, including [defaultLocale].
+  final List<String> supportedLocales;
+
+  /// Translations of [HomeWidget.name].
+  ///
+  /// May carry a [defaultLocale] entry, which then takes precedence over
+  /// [HomeWidget.name]. Every other supported locale must be present.
+  final Map<String, String>? name;
+
+  /// Translations of [HomeWidget.description].
+  ///
+  /// May carry a [defaultLocale] entry, which then takes precedence over
+  /// [HomeWidget.description]. Every other supported locale must be present.
+  final Map<String, String>? description;
+
+  const HomeWidgetLocalization({
+    required this.defaultLocale,
+    required this.supportedLocales,
+    this.name,
+    this.description,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidgetLocalization &&
+          defaultLocale == other.defaultLocale &&
+          _listEquals(supportedLocales, other.supportedLocales) &&
+          mapEquals(name, other.name) &&
+          mapEquals(description, other.description);
+
+  @override
+  int get hashCode => Object.hash(
+        defaultLocale,
+        Object.hashAll(supportedLocales),
+        name == null ? null : localizedContentHash(name!),
+        description == null ? null : localizedContentHash(description!),
+      );
+}
+
+bool _listEquals(List<String> a, List<String> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
+/// Annotation for generating home_widget native code.
+class HomeWidget {
+  /// The name of the widget.
+  ///
+  /// This corresponds to the `kind` in iOS WidgetKit and the `label` in Android
+  /// receiver.
+  final String name;
+
+  /// A description of the widget.
+  ///
+  /// This is displayed in the widget gallery on iOS and Android.
+  final String? description;
+
+  /// The widget structure defined inline.
+  final HWWidget? widget;
+
+  /// The path to the generated Dart file.
+  ///
+  /// This file will contain helper methods for updating the widget data.
+  final String? dartOutput;
+
+  /// Configuration for the Android widget.
+  final HomeWidgetAndroidConfiguration? android;
+
+  /// Configuration for the iOS widget.
+  final HomeWidgetIOSConfiguration? iOS;
+
+  /// Localization settings.
+  ///
+  /// Required as soon as any localized string is used, since it supplies the
+  /// default locale that anchors every fallback chain.
+  final HomeWidgetLocalization? localization;
+
+  /// The URL passed to the app when the widget is tapped.
+  ///
+  /// Tapping the widget launches the app with this URL, which the app reads
+  /// through the generated launch helpers. Set
+  /// [HomeWidgetAndroidConfiguration.widgetUrl] or
+  /// [HomeWidgetIOSConfiguration.widgetUrl] to override it for that platform.
+  final String? widgetUrl;
+
+  /// The flavors the widget is generated for, each with its overrides.
+  ///
+  /// A present map is the exact set of flavors the widget exists in, so a
+  /// flavor missing from it gets no widget. Omit it to generate the widget for
+  /// every flavor with the base configuration. Names are matched against the
+  /// native flavors case sensitively.
+  final Map<String, HomeWidgetFlavor>? flavors;
+
+  /// Whether the widget gallery preview shows the widget's stored data.
+  ///
+  /// Defaults to `true`, where a value in the preview is the stored one, then
+  /// the field's `previewValue`, then its `defaultValue`. With `false` the
+  /// preview never reads stored data and shows `previewValue`, then
+  /// `defaultValue`. Set
+  /// [HomeWidgetAndroidConfiguration.useLiveDataInPreview] or
+  /// [HomeWidgetIOSConfiguration.useLiveDataInPreview] to override it for that
+  /// platform.
+  final bool useLiveDataInPreview;
+
+  const HomeWidget({
+    required this.name,
+    this.description,
+    this.widget,
+    this.dartOutput,
+    this.android,
+    this.iOS,
+    this.localization,
+    this.widgetUrl,
+    this.flavors,
+    this.useLiveDataInPreview = true,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeWidget &&
+          name == other.name &&
+          description == other.description &&
+          widget == other.widget &&
+          dartOutput == other.dartOutput &&
+          android == other.android &&
+          iOS == other.iOS &&
+          localization == other.localization &&
+          widgetUrl == other.widgetUrl &&
+          mapEquals(flavors, other.flavors) &&
+          useLiveDataInPreview == other.useLiveDataInPreview;
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      description.hashCode ^
+      widget.hashCode ^
+      dartOutput.hashCode ^
+      android.hashCode ^
+      iOS.hashCode ^
+      localization.hashCode ^
+      widgetUrl.hashCode ^
+      _flavorsHash(flavors) ^
+      useLiveDataInPreview.hashCode;
+}
+
+/// Order-insensitive hash of [flavors], so two annotations spelling the same
+/// flavors in a different order agree with their `==`.
+int _flavorsHash(Map<String, HomeWidgetFlavor>? flavors) => flavors == null
+    ? null.hashCode
+    : Object.hashAllUnordered([
+        for (final entry in flavors.entries)
+          Object.hash(entry.key, entry.value),
+      ]);

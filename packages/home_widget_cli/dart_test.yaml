@@ -1,0 +1,6 @@
+concurrency: 1
+
+tags:
+  integration:
+  integration_android:
+  integration_ios:

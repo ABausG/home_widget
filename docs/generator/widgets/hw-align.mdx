@@ -1,0 +1,33 @@
+---
+title: HWAlign
+description: Place a child within all the room it is given.
+---
+
+# HWAlign
+
+Places its child within the room it is given, exactly like Flutter's `Align` without `widthFactor` / `heightFactor`: it always takes every pixel offered on both axes, then places the child by `alignment`. Works at the root of a widget and anywhere else a widget can go. Unlike the other wrappers, an `HWAlign` takes its room even when its child renders nothing, such as an [`HWDataOnly`](/generator/widgets/hw-data-only), the way Flutter's `Align` around an empty child does.
+
+```dart
+HWSizedBox.expand(
+  child: HWAlign(
+    alignment: HWAlignment.bottomEnd,
+    child: HWText.fixed('v1.2'),
+  ),
+)
+```
+
+## Parameters
+
+| Name        | Type          | Default               | Description                                        |
+| ----------- | ------------- | ---------------------- | --------------------------------------------------- |
+| `alignment` | `HWAlignment` | `HWAlignment.center`   | Where the child sits within the room `HWAlign` is given. |
+| `child`     | `HWWidget`    | **required**            | Widget being placed.                                |
+
+See [HWAlignment](/generator/styling/hw-alignment#hwalignment) for the nine values.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`.frame(maxWidth: .infinity, maxHeight: .infinity, alignment:)`](<https://developer.apple.com/documentation/swiftui/view/frame(minwidth:idealwidth:maxwidth:minheight:idealheight:maxheight:alignment:)>) around the child.
+- **Android:** Glance [`Box`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#Box(androidx.glance.GlanceModifier,androidx.glance.layout.Alignment,kotlin.Function0)) with `contentAlignment` set to `alignment`, wrapped around the child. Inside an [`HWColumn`](/generator/widgets/hw-column) / [`HWRow`](/generator/widgets/hw-row) the `Box` shares the main axis by weight with its siblings instead of filling it, the same rule as [`HWSizedBox.expand`](/generator/migrations/0.2.0#hwfill-was-replaced-by-hwsizedbox-expand); outside one it fills both axes.
+- A gap from a `spacing` on the enclosing `HWColumn` / `HWRow` lands inside the `Box`'s own bounds on Android rather than around it, which looks the same either way.
+- Placed in an `HWRow` with `HWCrossAxisAlignment.baseline`, `HWAlign` stays at the top of the row on Android, where it has no text baseline of its own. On iOS SwiftUI lines its frame up by the first text baseline of the text inside it, and one holding no text by its bottom edge.

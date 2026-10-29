@@ -1,0 +1,132 @@
+---
+title: Widget Previews (Android)
+description: Show your Widget filled with real data in the launcher's Widget gallery
+---
+
+# Widget Previews
+
+When a user browses the Widget gallery of their launcher, Android normally shows the static image
+you declared as `android:previewImage` in the Widget's `appwidget-provider` XML.
+Android 15 (API 35) adds *generated previews*: the system renders the preview from the Widget's own
+code, so the gallery can show your Widget with the data the user actually has instead of a mockup.
+
+<Info>
+This is Android only. On iOS WidgetKit already builds the gallery preview itself: it calls your
+Widget's `getSnapshot` with `context.isPreview` set. `HomeWidget.updateWidgetPreview` therefore does
+nothing on iOS and returns `false`.
+</Info>
+
+## Providing a preview
+
+Generated previews need [Jetpack Glance](/setup/android) 1.2 or newer, which the plugin depends on.
+A Glance Widget describes its preview by overriding `providePreview`. It is a normal composition, so
+it can build the same content as `provideGlance` and read the data your app saved with
+`HomeWidget.saveWidgetData`:
+
+```kotlin
+class MyGlanceWidget : GlanceAppWidget() {
+
+  override val stateDefinition = HomeWidgetGlanceStateDefinition()
+
+  override suspend fun provideGlance(context: Context, id: GlanceId) {
+    provideContent { WidgetContent(currentState()) }
+  }
+
+  override suspend fun providePreview(context: Context, widgetCategory: Int) {
+    provideContent { WidgetContent(HomeWidgetGlanceState(HomeWidgetPlugin.getData(context))) }
+  }
+
+  @Composable
+  private fun WidgetContent(state: HomeWidgetGlanceState) {
+    val data = state.preferences
+    Column {
+      Text(data.getString("title", "Title")!!)
+      Text(data.getString("message", "Message")!!)
+    }
+  }
+}
+```
+
+`providePreview` runs outside of a placed Widget, so there is no `GlanceId` and no per-instance
+state. Read from the shared preferences the plugin writes (`HomeWidgetPlugin.getData`) and fall back
+to sensible placeholder values for keys the user has not filled yet.
+
+## Registering the preview
+
+Rendering the preview is not automatic — the app has to hand it to the system:
+
+```dart
+await HomeWidget.updateWidgetPreview(
+  androidName: 'MyWidgetReceiver',
+);
+```
+
+`name` / `androidName` / `qualifiedAndroidName` resolve the target the same way as
+[`updateWidget`](/usage/update-widget); the class they resolve to is the Widget **receiver**.
+A good time to call this is at app start once the data is loaded, and again after events that change
+what the Widget shows — a sign-in, a switch of the selected account, a language change.
+
+The call returns `true` when the system accepted the new preview and `false` when it did not:
+on Android below 15, when the resolved provider is not a Glance Widget, and when the rate limit
+described below was hit. If no class matches the given name, or rendering the preview failed, it
+throws a `PlatformException` with code `-8`.
+
+<Warning>
+Android rate-limits preview updates to roughly **two per hour and Widget**. Calling
+`updateWidgetPreview` on every app start with unchanged content burns that budget, so the update
+that actually matters gets rejected. Only call it when the content of the preview changed.
+</Warning>
+
+### Automatic registration
+
+For that reason the plugin can do the bookkeeping for you. A receiver extending
+`HomeWidgetGlanceWidgetReceiver` may override `previewFingerprint` and return a short string that
+describes what the preview would render right now:
+
+```kotlin
+class MyWidgetReceiver : HomeWidgetGlanceWidgetReceiver<MyGlanceWidget>() {
+
+  override val glanceAppWidget = MyGlanceWidget()
+
+  override fun previewFingerprint(context: Context): String {
+    val data = HomeWidgetPlugin.getData(context)
+    val title = data.getString("title", "")!!
+    val message = data.getString("message", "")!!
+    return "${title.length}:$title|${message.length}:$message"
+  }
+}
+```
+
+Prefixing each value with its length keeps the fingerprint unambiguous — plain `"$title|$message"`
+would collide as soon as one of the values contains a `|`.
+
+Whenever a Flutter engine attaches, the plugin walks the installed Widget providers of your app,
+compares each fingerprint against the one stored when its preview was last accepted, and only
+re-registers the previews that changed or that the system no longer holds, which happens after an
+app update or a reboot. Returning `null` — the default — opts a Widget out.
+
+Widgets created with [home_widget_generator](/generator) already do all of this: the preview is
+built from the annotation and registered for you, see [Previews](/generator/previews).
+
+## Minimum SDK
+
+Glance 1.2 requires **API 23**, so the plugin declares `minSdkVersion 23`. Apps that are pinned to a
+lower `minSdkVersion` fail the manifest merge with an error naming each library that asks for more.
+You can let those libraries in anyway with
+[`tools:overrideLibrary`](https://developer.android.com/build/manage-manifests#override-library) in
+your app's `AndroidManifest.xml`:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-sdk tools:overrideLibrary="androidx.glance, androidx.glance.appwidget, es.antonborri.home_widget" />
+
+</manifest>
+```
+
+<Warning>
+`tools:overrideLibrary` only silences the merger. The code of those libraries is still compiled
+against API 23, so your app has to make sure it never reaches Glance or the plugin's Glance helpers
+on an older device.
+</Warning>

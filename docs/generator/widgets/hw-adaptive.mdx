@@ -1,0 +1,31 @@
+---
+title: HWAdaptive
+description: Render different widgets on iOS and Android.
+---
+
+# HWAdaptive
+
+`HWAdaptive` is a generator-time switch: it picks the `ios` subtree when emitting SwiftUI and the `android` subtree when emitting Glance. Use it whenever the two platforms need a meaningfully different layout.
+
+```dart
+HWAdaptive(
+  ios: HWText.fixed('Hello iOS'),
+  android: HWText.fixed('Hello Android'),
+)
+```
+
+## Constructor
+
+`HWAdaptive({required HWWidget ios, required HWWidget android})` — both branches are required and may be any [`HWWidget`](/generator/widgets). Each branch contributes its own data dependencies and imports.
+
+## Parameters
+
+| Name      | Type        | Default | Description                                         |
+| --------- | ----------- | ------- | --------------------------------------------------- |
+| `ios`     | `HWWidget`  | **required** | Widget tree used to generate the SwiftUI body. |
+| `android` | `HWWidget`  | **required** | Widget tree used to generate the Glance content. |
+
+## Platform mapping
+
+- **iOS:** delegates to the `ios` child — see [SwiftUI `View`](https://developer.apple.com/documentation/swiftui/view).
+- **Android:** delegates to the `android` child — see [Glance composables](https://developer.android.com/reference/kotlin/androidx/glance/package-summary).

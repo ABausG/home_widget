@@ -4,7 +4,9 @@ import Intents
 import UIKit
 import WidgetKit
 
-public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
+  FlutterSceneLifeCycleDelegate
+{
 
   @available(iOS 17.0, *)
   private static var configurationLookup: [String: any WidgetConfigurationIntent.Type] = [:]
@@ -32,6 +34,19 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private let notInitializedError = FlutterError(
     code: "-7", message: "AppGroupId not set. Call setAppGroupId first", details: nil)
 
+  private func callArguments(_ call: FlutterMethodCall) -> [String: Any?]? {
+    return call.arguments as? [String: Any?]
+  }
+
+  private func resolvedAppGroupId(from call: FlutterMethodCall) -> String? {
+    if let args = callArguments(call),
+      let appGroupId = args["appGroupId"] as? String
+    {
+      return appGroupId
+    }
+    return HomeWidgetPlugin.groupId
+  }
+
   private static func isRunningInAppExtension() -> Bool {
     let bundleURL = Bundle.main.bundleURL
     let bundlePathExtension = bundleURL.pathExtension
@@ -48,13 +63,18 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       name: "home_widget/updates", binaryMessenger: registrar.messenger())
     eventChannel.setStreamHandler(instance)
 
-    guard isRunningInAppExtension() == false else {
+    guard !isRunningInAppExtension() else {
       return
     }
 
-    let selector = NSSelectorFromString("addApplicationDelegate:")
-    if registrar.responds(to: selector) {
-      registrar.perform(selector, with: instance)
+    // Runtime registration avoids compile errors when this module is built for app extensions.
+    let applicationDelegateSelector = NSSelectorFromString("addApplicationDelegate:")
+    if registrar.responds(to: applicationDelegateSelector) {
+      registrar.perform(applicationDelegateSelector, with: instance)
+    }
+    let sceneDelegateSelector = NSSelectorFromString("addSceneDelegate:")
+    if registrar.responds(to: sceneDelegateSelector) {
+      registrar.perform(sceneDelegateSelector, with: instance)
     }
   }
 
@@ -75,7 +95,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             details: nil))
       }
     } else if call.method == "saveWidgetData" {
-      if HomeWidgetPlugin.groupId == nil {
+      guard let resolvedGroupId = resolvedAppGroupId(from: call) else {
         result(notInitializedError)
         return
       }
@@ -86,8 +106,9 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let id = myArgs["id"] as? String,
         let data = myArgs["data"]
       {
-        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
-        if data != nil {
+        let preferences = UserDefaults.init(suiteName: resolvedGroupId)
+        // Dart null values in method-channel arguments arrive as NSNull.
+        if data != nil && !(data is NSNull) {
           if let binaryData = data as? FlutterStandardTypedData {
             preferences?.setValue(Data(binaryData.data), forKey: id)
           } else {
@@ -104,7 +125,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             details: nil))
       }
     } else if call.method == "getWidgetData" {
-      if HomeWidgetPlugin.groupId == nil {
+      guard let resolvedGroupId = resolvedAppGroupId(from: call) else {
         result(notInitializedError)
         return
       }
@@ -115,7 +136,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
         let id = myArgs["id"] as? String,
         let defaultValue = myArgs["defaultValue"]
       {
-        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
+        let preferences = UserDefaults.init(suiteName: resolvedGroupId)
         result(preferences?.value(forKey: id) ?? defaultValue)
       } else {
         result(
@@ -168,11 +189,22 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
             code: "-3", message: "InvalidArguments updateWidget must be called with name",
             details: nil))
       }
+    } else if call.method == "updateWidgetPreview" {
+      // Generated previews are Android only. WidgetKit renders the gallery preview itself by
+      // calling the Widget's getSnapshot with context.isPreview set, so there is no preview for
+      // the plugin to push here.
+      result(false)
+    } else if call.method == "scheduleWidgetUpdates"
+      || call.method == "cancelScheduledWidgetUpdates"
+      || call.method == "canScheduleExactWidgetUpdates"
+    {
+      // Scheduling is Android only. On iOS a Widget decides for itself when its content changes
+      // by returning future TimelineEntries from its TimelineProvider, so the plugin neither
+      // schedules nor cancels anything here and cannot promise exact updates either: WidgetKit
+      // renders entries on a best effort basis. Returning false keeps that honest instead of
+      // reporting a schedule that does not exist.
+      result(false)
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
-      if HomeWidgetPlugin.groupId == nil {
-        result(notInitializedError)
-        return
-      }
       result(initialUrl?.absoluteString)
     } else if call.method == "registerBackgroundCallback" {
       if HomeWidgetPlugin.groupId == nil {
@@ -201,6 +233,10 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     } else if call.method == "isRequestPinWidgetSupported" {
       result(false)
     } else if call.method == "requestPinWidget" {
+      result(nil)
+    } else if call.method == "initiallyLaunchedFromHomeWidgetConfigure" {
+      result(nil)
+    } else if call.method == "finishHomeWidgetConfigure" {
       result(nil)
     } else if call.method == "getInstalledWidgets" {
       if #available(iOS 14.0, *) {
@@ -387,8 +423,8 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     didFinishLaunchingWithOptions launchOptions: [AnyHashable: Any] = [:]
   ) -> Bool {
     let launchUrl = (launchOptions[UIApplication.LaunchOptionsKey.url] as? NSURL)?.absoluteURL
-    if launchUrl != nil && isWidgetUrl(url: launchUrl!) {
-      initialUrl = launchUrl?.absoluteURL
+    if let launchUrl = launchUrl, isWidgetUrl(url: launchUrl) {
+      initialUrl = launchUrl.absoluteURL
       latestUrl = initialUrl
     }
     return true
@@ -401,6 +437,36 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     if isWidgetUrl(url: url) {
       latestUrl = url
       return true
+    }
+    return false
+  }
+
+  public func scene(
+    _ scene: UIScene,
+    willConnectTo session: UISceneSession,
+    options connectionOptions: UIScene.ConnectionOptions?
+  ) -> Bool {
+    guard let urlContexts = connectionOptions?.urlContexts else {
+      return false
+    }
+    for context in urlContexts {
+      let url = context.url
+      if isWidgetUrl(url: url) {
+        initialUrl = url
+        latestUrl = url
+        return true
+      }
+    }
+    return false
+  }
+
+  public func scene(_ scene: UIScene, openURLContexts urlContexts: Set<UIOpenURLContext>) -> Bool {
+    for context in urlContexts {
+      let url = context.url
+      if isWidgetUrl(url: url) {
+        latestUrl = url
+        return true
+      }
     }
     return false
   }

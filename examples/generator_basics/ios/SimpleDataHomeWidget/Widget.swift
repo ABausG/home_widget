@@ -1,0 +1,131 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Placeholder SwiftUI widget.
+//
+// App Group ID used here: SimpleDataHomeWidgetFlavor.appGroupId
+
+import SwiftUI
+import WidgetKit
+
+enum SimpleDataHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
+
+struct Provider: TimelineProvider {
+  func placeholder(in context: Context) -> SimpleDataHomeWidgetEntry {
+    SimpleDataHomeWidgetEntry(date: Date(), data: SimpleDataData.previewFromUserDefaults(nil))
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (SimpleDataHomeWidgetEntry) -> Void) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
+      let data = SimpleDataData.previewFromUserDefaults(prefs)
+      completion(SimpleDataHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
+    let prefs = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
+    let data = SimpleDataData.fromUserDefaults(prefs)
+
+    completion(SimpleDataHomeWidgetEntry(date: Date(), data: data))
+
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+    let prefs = UserDefaults(suiteName: SimpleDataHomeWidgetFlavor.appGroupId)
+    let data = SimpleDataData.fromUserDefaults(prefs)
+
+    completion(
+      Timeline(entries: [SimpleDataHomeWidgetEntry(date: Date(), data: data)], policy: .atEnd))
+
+  }
+}
+
+struct SimpleDataHomeWidgetEntry: TimelineEntry {
+  let date: Date
+  let data: SimpleDataData
+}
+
+struct SimpleDataHomeWidgetEntryView: View {
+  var entry: Provider.Entry
+
+  var body: some View {
+    VStack(alignment: .center, spacing: 0) {
+      Text("Simple Data")
+      HStack(alignment: .center, spacing: 0) {
+        Text("label: ")
+        Text(entry.data.label ?? "")
+      }
+      HStack(alignment: .center, spacing: 0) {
+        Text("value: ")
+        Text(
+          entry.data.value.map {
+            hwFormatDecimal(NSNumber(value: $0), minFraction: nil, maxFraction: nil, grouping: true)
+          } ?? "")
+      }
+    }
+    .applyContainerBackground()
+  }
+}
+
+struct SimpleDataHomeWidget: Widget {
+  let kind: String = "SimpleDataHomeWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+      SimpleDataHomeWidgetEntryView(entry: entry)
+    }
+    .configurationDisplayName("Simple Data")
+    .supportedFamilies([.systemSmall])
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
+  }
+}
+
+struct SimpleDataData {
+  let label: String?
+  let value: Int?
+
+  static let paramPrefix = "home_widget.SimpleData"
+
+  static func fromUserDefaults(_ defaults: UserDefaults?) -> SimpleDataData {
+    return SimpleDataData(
+      label: defaults?.string(forKey: "\(paramPrefix).label"),
+      value: defaults?.object(forKey: "\(paramPrefix).value") as? Int,
+    )
+  }
+
+  static func previewFromUserDefaults(_ defaults: UserDefaults?) -> SimpleDataData {
+    return SimpleDataData(
+      label: (defaults?.string(forKey: "\(paramPrefix).label") ?? "Hello"),
+      value: (defaults?.object(forKey: "\(paramPrefix).value") as? Int ?? 42),
+    )
+  }
+}
+
+func hwFormatLocale() -> Locale {
+  return Locale.current
+}
+
+func hwFormatDecimal(
+  _ value: NSNumber, minFraction: Int?, maxFraction: Int?, grouping: Bool
+) -> String {
+  let formatter = NumberFormatter()
+  formatter.locale = hwFormatLocale()
+  formatter.numberStyle = .decimal
+  formatter.usesGroupingSeparator = grouping
+  if let minFraction { formatter.minimumFractionDigits = minFraction }
+  if let maxFraction { formatter.maximumFractionDigits = maxFraction }
+  return formatter.string(from: value) ?? value.stringValue
+}

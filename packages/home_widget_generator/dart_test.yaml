@@ -1,0 +1,2 @@
+# Analyzer-backed widget tests can exceed the default 30s under parallel load.
+timeout: 3m

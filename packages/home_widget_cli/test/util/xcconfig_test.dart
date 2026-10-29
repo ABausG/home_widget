@@ -1,0 +1,125 @@
+import 'dart:io';
+
+import 'package:home_widget_cli/src/util/xcconfig.dart';
+import 'package:test/test.dart';
+
+void main() {
+  late Directory tempDir;
+
+  setUp(() {
+    tempDir = Directory.systemTemp.createTempSync('xcconfig_test');
+  });
+
+  tearDown(() {
+    tempDir.deleteSync(recursive: true);
+  });
+
+  File write(String name, String content) {
+    final file = File('${tempDir.path}/$name')
+      ..parent.createSync(recursive: true);
+    return file..writeAsStringSync(content);
+  }
+
+  test('reads assignments and strips comments', () {
+    final file = write(
+      'Debug.xcconfig',
+      '// leading comment\n'
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app // trailing\n'
+          '\n'
+          'OTHER_SWIFT_FLAGS = -DFOO\n',
+    );
+
+    expect(readXcconfigSettings(file), {
+      'PRODUCT_BUNDLE_IDENTIFIER': 'com.example.app',
+      'OTHER_SWIFT_FLAGS': '-DFOO',
+    });
+  });
+
+  test('lets a later line win', () {
+    final file = write(
+      'Debug.xcconfig',
+      'PRODUCT_BUNDLE_IDENTIFIER = com.example.app\n'
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev\n',
+    );
+
+    expect(
+      readXcconfigSettings(file)['PRODUCT_BUNDLE_IDENTIFIER'],
+      'com.example.app.dev',
+    );
+  });
+
+  test('follows includes and lets the including file override them', () {
+    write(
+        'Generated.xcconfig',
+        'PRODUCT_BUNDLE_IDENTIFIER = com.example.app\n'
+            'FLUTTER_TARGET = lib/main.dart\n');
+    final file = write(
+      'Debug-dev.xcconfig',
+      '#include "Generated.xcconfig"\n'
+          '#include? "Pods/Pods-Runner.debug.xcconfig"\n'
+          'PRODUCT_BUNDLE_IDENTIFIER = com.example.app.dev\n',
+    );
+
+    expect(readXcconfigSettings(file), {
+      'PRODUCT_BUNDLE_IDENTIFIER': 'com.example.app.dev',
+      'FLUTTER_TARGET': 'lib/main.dart',
+    });
+  });
+
+  test('unquotes a value that is one quoted string', () {
+    final file = write(
+      'Debug.xcconfig',
+      r'CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/Runner/Runner.entitlements"'
+          '\n'
+          'OTHER_SWIFT_FLAGS = "-D" "FOO"\n'
+          'PRODUCT_NAME = ""\n',
+    );
+
+    expect(readXcconfigSettings(file), {
+      'CODE_SIGN_ENTITLEMENTS': r'$(SRCROOT)/Runner/Runner.entitlements',
+      'OTHER_SWIFT_FLAGS': '"-D" "FOO"',
+      'PRODUCT_NAME': '',
+    });
+  });
+
+  test('treats a missing file as empty', () {
+    expect(
+      readXcconfigSettings(File('${tempDir.path}/nope.xcconfig')),
+      isEmpty,
+    );
+  });
+
+  test('treats a file it cannot decode as empty', () {
+    // Xcode writes UTF-8, but a file saved in another encoding still parses as
+    // a project — reading it must not take the whole command down.
+    final file = File('${tempDir.path}/Latin1.xcconfig')
+      ..writeAsBytesSync([0xC3, 0x28, 0xFF, 0xFE]);
+
+    expect(readXcconfigSettings(file), isEmpty);
+  });
+
+  test('keeps conditional assignments apart from the unconditional value', () {
+    final file = write(
+      'Debug.xcconfig',
+      'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements\n'
+          'CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*] = Runner/Device.entitlements\n'
+          'DEVELOPMENT_TEAM[sdk=iphoneos*] [arch=arm64] = "ABCDE12345"\n',
+    );
+
+    expect(readXcconfigSettings(file), {
+      'CODE_SIGN_ENTITLEMENTS': 'Runner/Runner.entitlements',
+      'CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]': 'Runner/Device.entitlements',
+      'DEVELOPMENT_TEAM[sdk=iphoneos*][arch=arm64]': 'ABCDE12345',
+    });
+  });
+
+  test('survives a file that includes itself', () {
+    final file = write(
+      'Loop.xcconfig',
+      '#include "Loop.xcconfig"\n'
+          'PRODUCT_NAME = Runner\n',
+    );
+
+    expect(readXcconfigSettings(file), {'PRODUCT_NAME': 'Runner'});
+  });
+}

@@ -17,9 +17,13 @@ struct Provider: TimelineProvider {
 
   func getSnapshot(in context: Context, completion: @escaping (ExampleEntry) -> Void) {
     let data = UserDefaults.init(suiteName: widgetGroupId)
+    let title = data?.string(forKey: "title") ?? ""
+    let message = data?.string(forKey: "message") ?? ""
+    // The gallery calls this with `isPreview` before any data was saved.
     let entry = ExampleEntry(
-      date: Date(), title: data?.string(forKey: "title") ?? "No Title Set",
-      message: data?.string(forKey: "message") ?? "No Message Set")
+      date: Date(),
+      title: title.isEmpty ? (context.isPreview ? "Hello" : "No Title Set") : title,
+      message: message.isEmpty ? (context.isPreview ? "Preview data" : "No Message Set") : message)
     completion(entry)
   }
 

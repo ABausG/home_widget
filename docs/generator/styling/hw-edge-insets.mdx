@@ -1,0 +1,53 @@
+---
+title: HWEdgeInsets
+description: Padding values used by HWPadding and other layout widgets.
+---
+
+# HWEdgeInsets
+
+`HWEdgeInsets` describes padding around a widget. It mirrors Flutter's `EdgeInsets` API and only ships the constructors below.
+
+## Constructors
+
+| Constructor | Description |
+| --- | --- |
+| `HWEdgeInsets.all(double value)` | Same padding on all four sides. |
+| `HWEdgeInsets.symmetric({vertical, horizontal})` | Equal top/bottom and left/right padding. Both default to `0.0`. |
+| `HWEdgeInsets.only({left, top, right, bottom})` | Per-side padding. Each side defaults to `0.0`. |
+
+## Fields
+
+| Name | Type | Description |
+| --- | --- | --- |
+| `top` | `double` | Top inset. |
+| `bottom` | `double` | Bottom inset. |
+| `left` | `double` | Leading inset. |
+| `right` | `double` | Trailing inset. |
+
+## Examples
+
+```dart
+HWPadding(
+  padding: HWEdgeInsets.all(8.0),
+  child: HWText.fixed('Hello World'),
+)
+```
+
+```dart
+HWPadding(
+  padding: HWEdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+  child: HWText.fixed('Hello World'),
+)
+```
+
+```dart
+HWPadding(
+  padding: HWEdgeInsets.only(left: 16.0, top: 8.0),
+  child: HWText.fixed('Hello World'),
+)
+```
+
+## Platform mapping
+
+- iOS — emitted as SwiftUI [`.padding(_:)`](https://developer.apple.com/documentation/swiftui/view/padding(_:_:)) with explicit edge insets.
+- Android — emitted as Glance [`GlanceModifier.padding(...)`](https://developer.android.com/reference/kotlin/androidx/glance/layout/package-summary#padding) in `dp`.

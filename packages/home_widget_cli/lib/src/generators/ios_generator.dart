@@ -1,0 +1,1516 @@
+import 'dart:io';
+
+import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
+import 'package:path/path.dart' as p;
+
+import '../models/widget_spec.dart';
+import '../models/extensions.dart';
+import '../util/logger.dart';
+import '../util/entitlements.dart';
+import '../util/export_options.dart';
+import '../util/font_resolver.dart';
+import '../util/fs.dart';
+import '../util/icon_font_writer.dart';
+import '../util/ios_templates.dart';
+import '../util/naming.dart';
+import '../util/pbxproj/pbxproj_document.dart' show ownBuildSettings;
+import '../util/string_catalog.dart';
+import '../util/xcode_pbxproj_patcher.dart';
+import '../util/xcode_project.dart';
+import 'swift_widget_emitter.dart';
+
+/// Generates iOS WidgetKit extension files from a [WidgetSpec].
+class IosGenerator {
+  /// The widget specification to generate code for.
+  final WidgetSpec spec;
+
+  /// The root directory of the Flutter project.
+  final Directory projectRoot;
+
+  /// Creates a new [IosGenerator].
+  IosGenerator({
+    required this.spec,
+    required this.projectRoot,
+  });
+
+  /// Generates the iOS WidgetKit extension files and wires them into the
+  /// Xcode project.
+  Future<void> generate() async {
+    final primitiveFields = spec.primitiveDataFields;
+    final jsonGroups = spec.jsonDataGroups;
+    final timedPrimitiveFields = spec.timedPrimitiveDataFields;
+    final timedJsonGroups = spec.timedJsonDataGroups;
+    final lists = spec.listDataGroups;
+    final hasTimedData = spec.hasTimedData;
+    final hasDataFields = primitiveFields.isNotEmpty ||
+        jsonGroups.isNotEmpty ||
+        hasTimedData ||
+        lists.isNotEmpty;
+    final needsEntryTimedEntries = spec.needsLocaleHelpers && hasTimedData;
+
+    final iosDir = Directory(p.join(projectRoot.path, 'ios'));
+    if (!iosDir.existsSync()) {
+      logger.warn(
+        'Warning: ios/ not found. Skipping iOS generation for ${spec.data.name}.',
+      );
+      return;
+    }
+
+    if (spec.data.iOS == null) {
+      return;
+    }
+
+    final xcodeproj = findXcodeProject(iosDir);
+    await _checkXcodeProject(xcodeproj);
+
+    final widgetClassName = '${spec.className}HomeWidget';
+    final groupId = spec.iosGroupIdFor(null);
+    final flavorAppGroupIds = {
+      for (final flavor in spec.declaredFlavors)
+        flavor: spec.iosGroupIdFor(flavor),
+    };
+    final prefsExpr =
+        'UserDefaults(suiteName: ${iosFlavorEnumName(widgetClassName)}.appGroupId)';
+
+    // Localized strings must be resolved at render time so a system language
+    // change is picked up without waiting for a new timeline. Timeline entries
+    // still carry a snapshot for WidgetKit, but the view re-reads.
+    final reResolveAtRender = spec.needsLocaleHelpers;
+
+    // What the gallery reads: its own defaults only where the widget opts into
+    // live data, and the preview factories only where a field ships a sample.
+    // With neither, a preview is the same read as the widget's own and no
+    // branch is emitted at all.
+    final previewPrefsExpr = spec.iosUsesLiveDataInPreview ? prefsExpr : 'nil';
+    final previewFactory =
+        spec.hasPreviewValues ? 'previewFromUserDefaults' : 'fromUserDefaults';
+    final previewDiffers =
+        spec.hasPreviewValues || !spec.iosUsesLiveDataInPreview;
+
+    // A view that re-reads at render would otherwise pull live data back into a
+    // preview entry, so the entry has to say which read it was built with.
+    final entryCarriesPreview =
+        hasDataFields && reResolveAtRender && previewDiffers;
+
+    final extensionDir = Directory(p.join(iosDir.path, widgetClassName));
+    await ensureDir(extensionDir);
+
+    // Icon fonts are copied into the extension bundle because Flutter
+    // tree-shakes them out of `flutter_assets`; text fonts stay where they are
+    // and the extension looks them up as it renders.
+    final iconFonts = await writeIosIconFonts(
+      spec: spec,
+      extensionDir: extensionDir,
+      fonts: FontResolver(projectRoot),
+    );
+
+    final widgetSwift = File(p.join(extensionDir.path, 'Widget.swift'));
+    final widgetBundleSwift = File(
+      p.join(extensionDir.path, 'WidgetBundle.swift'),
+    );
+    final infoPlist = File(p.join(extensionDir.path, 'Info.plist'));
+    final extensionEntitlements = File(
+      p.join(iosDir.path, '$widgetClassName.entitlements'),
+    );
+
+    String? extraContent;
+    String? entryDefinition;
+    String? getSnapshotBody;
+    String? getTimelineBody;
+    String? entryViewBody;
+
+    if (hasDataFields) {
+      final className = '${spec.className}Data';
+
+      final buffer = StringBuffer();
+      buffer.writeln('struct $className {');
+      for (final field in primitiveFields) {
+        final type = field.swiftType;
+        buffer.writeln('  let ${field.key}: $type?');
+      }
+      for (final group in jsonGroups) {
+        buffer.writeln('  let ${group.key}: ${_jsonStructName(group.key)}?');
+      }
+      for (final field in timedPrimitiveFields) {
+        buffer.writeln('  let ${field.key}: ${field.swiftType}?');
+      }
+      for (final group in timedJsonGroups) {
+        buffer.writeln('  let ${group.key}: ${_jsonStructName(group.key)}?');
+      }
+      for (final group in lists) {
+        buffer.writeln(
+          '  let ${group.key}: [${group.itemClassName(spec.className)}]?',
+        );
+      }
+      buffer.writeln();
+      buffer.writeln(
+        '  static let paramPrefix = "home_widget.${spec.className}"',
+      );
+      buffer.writeln();
+      buffer.write(_swiftDataFactory(preview: false));
+      if (spec.hasPreviewValues) {
+        buffer.writeln();
+        buffer.write(_swiftDataFactory(preview: true));
+      }
+      if (hasTimedData) {
+        buffer.writeln();
+        buffer.write(_swiftTimedDataHelpers());
+      }
+      buffer.writeln('}');
+      // Keys are unique within each list, and the validator forbids sharing a
+      // root key between a timed and an untimed field, so struct names never
+      // collide across the two.
+      for (final group in [...jsonGroups, ...timedJsonGroups]) {
+        buffer.writeln();
+        buffer.write(
+          _swiftJsonNodeStruct(
+            structName: _jsonStructName(group.key),
+            node: _buildJsonTree(group.children),
+            isRoot: true,
+          ),
+        );
+      }
+      for (final group in lists) {
+        buffer.writeln();
+        buffer.write(_swiftListItemStruct(group));
+      }
+      extraContent = buffer.toString();
+
+      final entryBuffer = StringBuffer();
+      entryBuffer.write('''
+struct ${widgetClassName}Entry: TimelineEntry {
+  let date: Date
+  let data: $className
+''');
+      if (needsEntryTimedEntries) {
+        entryBuffer.writeln(
+          '  let timedEntries: [(date: Date, values: [String: Any])]',
+        );
+      }
+      // A `var` with an initializer keeps the memberwise init, so only the
+      // preview call sites have to mention it.
+      if (entryCarriesPreview) {
+        entryBuffer.writeln('  var preview: Bool = false');
+      }
+      entryBuffer.writeln('}');
+      entryDefinition = entryBuffer.toString();
+
+      final previewArg = entryCarriesPreview ? ', preview: true' : '';
+      final snapshotBuffer = StringBuffer();
+      if (previewDiffers) {
+        if (needsEntryTimedEntries) {
+          snapshotBuffer.write('''
+    if context.isPreview {
+      let prefs: UserDefaults? = $previewPrefsExpr
+      let timedEntries = $className.loadTimedEntries(prefs)
+      let data = $className.$previewFactory(prefs, timedEntries: timedEntries)
+
+      completion(${widgetClassName}Entry(date: Date(), data: data, timedEntries: timedEntries$previewArg))
+      return
+    }
+
+''');
+        } else {
+          snapshotBuffer.write('''
+    if context.isPreview {
+      let prefs: UserDefaults? = $previewPrefsExpr
+      let data = $className.$previewFactory(prefs)
+      completion(${widgetClassName}Entry(date: Date(), data: data$previewArg))
+      return
+    }
+
+''');
+        }
+      }
+      if (needsEntryTimedEntries) {
+        snapshotBuffer.write('''
+    let prefs = $prefsExpr
+    let timedEntries = $className.loadTimedEntries(prefs)
+    let data = $className.fromUserDefaults(prefs, timedEntries: timedEntries)
+
+    completion(${widgetClassName}Entry(date: Date(), data: data, timedEntries: timedEntries))
+''');
+      } else {
+        snapshotBuffer.write('''
+    let prefs = $prefsExpr
+    let data = $className.fromUserDefaults(prefs)
+
+    completion(${widgetClassName}Entry(date: Date(), data: data))
+''');
+      }
+      getSnapshotBody = snapshotBuffer.toString();
+
+      final timelineBuffer = StringBuffer();
+      if (hasTimedData) {
+        // The trailing comma opens the argument list for the `timedEntries:`
+        // line that follows it.
+        final entryComma = needsEntryTimedEntries ? ',' : '';
+        timelineBuffer.write('''
+    let prefs = $prefsExpr
+    let timedEntries = $className.loadTimedEntries(prefs)
+    let now = Date()
+    var entries: [${widgetClassName}Entry] = [
+      ${widgetClassName}Entry(
+        date: now,
+''');
+        timelineBuffer.writeln(
+          '        data: $className.fromUserDefaults('
+          'prefs, at: now, timedEntries: timedEntries)$entryComma',
+        );
+        if (needsEntryTimedEntries) {
+          timelineBuffer.writeln('        timedEntries: timedEntries');
+        }
+        timelineBuffer.write('''
+      )
+    ]
+    for timedEntry in timedEntries where timedEntry.date > now {
+      entries.append(
+        ${widgetClassName}Entry(
+          date: timedEntry.date,
+''');
+        timelineBuffer.writeln(
+          '          data: $className.fromUserDefaults('
+          'prefs, at: timedEntry.date, timedEntries: timedEntries)$entryComma',
+        );
+        if (needsEntryTimedEntries) {
+          timelineBuffer.writeln('          timedEntries: timedEntries');
+        }
+        timelineBuffer.write('''
+        )
+      )
+    }
+    completion(Timeline(entries: entries, policy: .atEnd))
+''');
+      } else {
+        timelineBuffer.write('''
+    let prefs = $prefsExpr
+    let data = $className.fromUserDefaults(prefs)
+
+    completion(Timeline(entries: [${widgetClassName}Entry(date: Date(), data: data)], policy: .atEnd))
+''');
+      }
+      getTimelineBody = timelineBuffer.toString();
+    }
+
+    // File-scope helpers: the spec resolves every helper the tree renders
+    // through and every one the declared fields are read back with to its
+    // transitive closure, already ordered so each one is declared after what
+    // it calls.
+    final nativeHelpers = swiftNativeHelpers(spec.nativeHelpers).toList();
+    // Whether a glyph mirrors in a right-to-left layout is a property of the
+    // icon itself, so one widget-wide set answers for every icon field.
+    final fileDeclarations = <String>[
+      if (spec.iconFields.isNotEmpty)
+        'private let hwMirroredIcons: Set<Int> = '
+            '[${_hexList(spec.mirroredIconCodePoints)}]',
+      for (final helper in nativeHelpers) helper.swift!.trim(),
+    ];
+    if (fileDeclarations.isNotEmpty) {
+      extraContent = [
+        if (extraContent != null) extraContent,
+        ...fileDeclarations,
+      ].join('\n\n');
+    }
+
+    final dataExpr = !hasDataFields
+        ? 'null'
+        : reResolveAtRender
+            ? 'data'
+            : 'entry.data';
+
+    // The re-read has to land on the same instant WidgetKit is rendering, or
+    // every entry of the timeline would show the values that were active when
+    // the timeline was built and no timed change would ever appear.
+    final atEntryDate = hasTimedData ? ', at: entry.date' : '';
+    final entryTimedEntriesArg =
+        needsEntryTimedEntries ? ', timedEntries: entry.timedEntries' : '';
+    final reReadArgs = 'prefs$atEntryDate$entryTimedEntriesArg';
+
+    final treeCode = emitSwiftWidgetBody(
+      spec.effectiveWidgetTree,
+      dataExpr: dataExpr,
+      indent: 2,
+      context: spec.iosEmitContext,
+    );
+
+    final customBgColor = spec.data.iOS?.backgroundColor;
+    final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
+    final hasCustomBg = customBgColor != null;
+    final containerBackgroundModifier = hasCustomBg
+        ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
+        : '.applyContainerBackground()';
+
+    final viewBuffer = StringBuffer();
+    if (reResolveAtRender) {
+      if (entryCarriesPreview && previewPrefsExpr != prefsExpr) {
+        viewBuffer.writeln(
+          '    let prefs: UserDefaults? = '
+          'entry.preview ? $previewPrefsExpr : $prefsExpr',
+        );
+      } else {
+        viewBuffer.writeln('    let prefs = $prefsExpr');
+      }
+      if (entryCarriesPreview && spec.hasPreviewValues) {
+        viewBuffer.write('''
+    let data = entry.preview
+      ? ${spec.className}Data.$previewFactory($reReadArgs)
+      : ${spec.className}Data.fromUserDefaults($reReadArgs)
+''');
+      } else {
+        viewBuffer.writeln(
+          '    let data = ${spec.className}Data'
+          '.fromUserDefaults($reReadArgs)',
+        );
+      }
+    }
+    // A root `switch` or `if` is a statement, not a view expression, so the
+    // modifier has to land on a `Group { ... }` wrapper instead of dangling
+    // after the closing brace.
+    viewBuffer.write(
+      applySwiftModifier(treeCode, containerBackgroundModifier, 1),
+    );
+    entryViewBody = viewBuffer.toString();
+
+    String? supportedFamilies;
+    String? supportedFamiliesProperty;
+    final declaredFamilies = spec.data.iOS?.supportedFamilies;
+    if (declaredFamilies != null && declaredFamilies.isNotEmpty) {
+      final baseFamilies = declaredFamilies
+          .where((f) => f.minimumIosVersion == null)
+          .map((f) => f.toSwiftValue())
+          .join(', ');
+      final gatedFamilies = <String, List<HWWidgetFamily>>{};
+      for (final family in declaredFamilies) {
+        final version = family.minimumIosVersion;
+        if (version == null) continue;
+        gatedFamilies
+            .putIfAbsent(version, () => <HWWidgetFamily>[])
+            .add(family);
+      }
+
+      if (gatedFamilies.isEmpty) {
+        supportedFamilies = '[$baseFamilies]';
+      } else {
+        supportedFamilies = 'supportedFamilies';
+        supportedFamiliesProperty = _gatedSupportedFamiliesProperty(
+          baseFamilies,
+          gatedFamilies,
+        );
+      }
+    }
+
+    await widgetSwift.writeAsString(
+      iosWidgetSwiftTemplate(
+        widgetClassName: widgetClassName,
+        appGroupId: groupId,
+        flavorAppGroupIds: flavorAppGroupIds,
+        widgetUrl: spec.iosWidgetUrl == null
+            ? null
+            : escapeSwiftStringLiteral(spec.iosWidgetUrl!),
+        // The redacted placeholder is built from the same sample data as the
+        // gallery preview, with no store to read at build time. A widget that
+        // re-resolves at render still re-reads there, so with live preview data
+        // on it can end up showing the stored values.
+        placeholderBody: hasDataFields
+            ? '${widgetClassName}Entry(date: Date(), data: ${spec.className}Data'
+                '.$previewFactory(nil)'
+                '${needsEntryTimedEntries ? ', timedEntries: []' : ''}'
+                '${entryCarriesPreview ? ', preview: true' : ''})'
+            : null,
+        extraContent: extraContent,
+        // What the helper bodies reach beyond what a widget extension already
+        // imports — CGImageSource, say, lives in ImageIO, which SwiftUI does
+        // not re-export.
+        extraImports: <String>{
+          for (final helper in nativeHelpers) ...helper.swiftImports,
+        }.toList(),
+        entryDefinition: entryDefinition,
+        getSnapshotBody: getSnapshotBody,
+        getTimelineBody: getTimelineBody,
+        entryViewBody: entryViewBody,
+        displayName: spec.galleryName,
+        description: spec.galleryDescription,
+        displayNameExpression: _galleryStringExpression(
+          resourceName: spec.labelResourceName,
+          translations: spec.data.localization?.name,
+        ),
+        descriptionExpression: spec.galleryDescription == null
+            ? null
+            : _galleryStringExpression(
+                resourceName: spec.descriptionResourceName,
+                translations: spec.data.localization?.description,
+              ),
+        supportedFamilies: supportedFamilies,
+        supportedFamiliesProperty: supportedFamiliesProperty,
+        swiftViewModifiers: {
+          ...spec.effectiveWidgetTree.swiftViewModifiers,
+          if (customBgColor != null) ...customBgColor.swiftViewModifiers,
+        },
+        hasCustomContainerBackground: hasCustomBg,
+        applyContentPadding: applyPadding,
+      ),
+    );
+    logger.detail('Generated: ${widgetSwift.path}');
+
+    await widgetBundleSwift.writeAsString(
+      iosWidgetBundleSwiftTemplate(
+        widgetClassName: widgetClassName,
+        flavors: spec.declaredFlavors,
+      ),
+    );
+    logger.detail('Generated: ${widgetBundleSwift.path}');
+
+    await infoPlist.writeAsString(iosInfoPlistTemplate());
+    logger.detail('Generated: ${infoPlist.path}');
+
+    final catalogEntries = _stringCatalogEntries();
+    final catalogFile = File(
+      p.join(extensionDir.path, 'Localizable.xcstrings'),
+    );
+    if (catalogEntries.isNotEmpty) {
+      await catalogFile.writeAsString(
+        stringCatalogJson(
+          sourceLanguage: spec.defaultLocale,
+          entries: catalogEntries,
+        ),
+      );
+      logger.detail('Generated: ${catalogFile.path}');
+    }
+
+    await ensureAppGroupEntitlement(
+      entitlementsFile: extensionEntitlements,
+      appGroupId: groupId,
+    );
+    logger.detail('Updated: ${extensionEntitlements.path}');
+
+    final flavorEntitlements = <String, String>{};
+    for (final flavor in spec.declaredFlavors) {
+      final name = '$widgetClassName.$flavor.entitlements';
+      final file = File(p.join(iosDir.path, name));
+      await ensureAppGroupEntitlement(
+        entitlementsFile: file,
+        appGroupId: flavorAppGroupIds[flavor]!,
+      );
+      logger.detail('Updated: ${file.path}');
+      flavorEntitlements[flavor] = name;
+    }
+
+    final exportProfiles = await ensureWidgetExtensionTargetInXcodeProject(
+      pbxprojFile: xcodeproj,
+      widgetClassName: widgetClassName,
+      flavorEntitlements: flavorEntitlements,
+      flavors: spec.hasFlavors ? spec.declaredFlavors : null,
+      provisioningProfile: spec.iosProvisioningProfileFor(null),
+      flavorProvisioningProfiles: {
+        for (final flavor in spec.declaredFlavors)
+          if (spec.iosProvisioningProfileFor(flavor) case final profile?)
+            flavor: profile,
+      },
+    );
+    await syncExportOptionsProvisioningProfiles(
+      iosDir: iosDir,
+      widgetClassName: widgetClassName,
+      profiles: exportProfiles,
+    );
+    await ensureMinimumDeploymentTargetInXcodeProject(pbxprojFile: xcodeproj);
+
+    // Never wire a catalog we did not write: a stale reference to a missing
+    // file fails the build.
+    if (catalogEntries.isNotEmpty) {
+      await ensureLocalizableCatalogInXcodeProject(
+        pbxprojFile: xcodeproj,
+        widgetClassName: widgetClassName,
+        locales: spec.supportedLocales,
+      );
+    }
+
+    // An icon font only ships if the extension target copies it, which a
+    // project with explicit groups does not do on its own.
+    if (iconFonts.written.isNotEmpty || iconFonts.removed.isNotEmpty) {
+      await ensureWidgetResourceFilesInXcodeProject(
+        pbxprojFile: xcodeproj,
+        widgetClassName: widgetClassName,
+        resourceFileNames: iconFonts.written,
+        removedFileNames: iconFonts.removed,
+      );
+    }
+    logger.detail('Updated: ${xcodeproj.path}');
+
+    // Read back only now: the Runner configurations this looks at are the ones
+    // the patchers above just settled.
+    final project = await readXcodeProject(xcodeproj);
+    _reportFlavorMismatches(project, xcodeproj);
+    await _updateRunnerEntitlements(
+      xcodeproj: xcodeproj,
+      project: project,
+      groupId: groupId,
+      flavorAppGroupIds: flavorAppGroupIds,
+    );
+  }
+
+  /// Throws a [GeneratorError] when the Xcode project cannot take this widget,
+  /// so that a caller can fail before anything is written: a project the
+  /// extension cannot be wired into would fail halfway, and a flavor the Xcode
+  /// project does not have compiles the widget out of every build. A project
+  /// with an `ios/` folder but no Xcode project in it fails as well.
+  ///
+  /// Does nothing for a widget without an iOS configuration or a project
+  /// without `ios/`.
+  Future<void> checkXcodeProject() async {
+    final iosDir = Directory(p.join(projectRoot.path, 'ios'));
+    if (spec.data.iOS == null || !iosDir.existsSync()) return;
+    await _checkXcodeProject(findXcodeProject(iosDir));
+  }
+
+  Future<void> _checkXcodeProject(File xcodeproj) async {
+    _requireXcodeFlavors(
+      await checkWidgetExtensionTargetInXcodeProject(
+        pbxprojFile: xcodeproj,
+        widgetClassName: '${spec.className}HomeWidget',
+      ),
+      xcodeproj,
+    );
+  }
+
+  /// Fails when a declared flavor has no Xcode build configurations.
+  ///
+  /// The widget is guarded by the compilation conditions of the flavors it
+  /// declares, and those only exist on configurations mirroring a Runner
+  /// `Debug-<flavor>`: without them the guard is never satisfied and the widget
+  /// silently disappears from every build.
+  void _requireXcodeFlavors(Pbxproj project, File xcodeproj) {
+    if (!spec.hasFlavors) return;
+    final detected = detectXcodeFlavors(
+      project,
+      projectDir: xcodeproj.parent.parent,
+      projectName: xcodeProjectName(xcodeproj),
+    );
+    final missing = spec.declaredFlavors
+        .where((flavor) => !detected.contains(flavor))
+        .toList(growable: false);
+    if (missing.isEmpty) return;
+
+    final wanted = missing
+        .map(
+          (flavor) => '"$flavor" needs Debug-$flavor, Release-$flavor and '
+              'Profile-$flavor',
+        )
+        .join('; ');
+    throw GeneratorError(
+      '${spec.data.name} declares the flavor'
+      '${missing.length == 1 ? '' : 's'} '
+      '${missing.map((flavor) => '"$flavor"').join(', ')}, which '
+      '${p.basename(xcodeproj.parent.path)} does not have: $wanted. '
+      '${detected.isEmpty ? 'It defines no flavored build configurations at all.' : 'It defines ${detected.map((flavor) => '"$flavor"').join(', ')}.'} '
+      'Add the build configurations, then generate again.',
+    );
+  }
+
+  /// Adds every App Group the widget uses to the Runner entitlements that
+  /// carry it.
+  ///
+  /// A flavor signs with the files its own Runner configurations name, so its
+  /// group has to land in every one of them rather than in the shared one — the
+  /// Debug and Release configurations of a flavor routinely sign with different
+  /// files, and a group written to only one of them is missing from the other's
+  /// builds. Flavors whose configurations name none fall back to the file the
+  /// scaffolder creates.
+  ///
+  /// With flavors, only the declared ones get a group: the base group has no
+  /// widget to share with elsewhere. A declared flavor sharing its file with a
+  /// configuration outside it is first moved onto a file of its own (see
+  /// [_splitSharedRunnerEntitlements]), and its group removed from the file it
+  /// left, so the group never reaches a flavor that does not declare the
+  /// widget. The base group is never removed, since the app may use it itself;
+  /// a note says where it is left.
+  ///
+  /// A configuration naming a file through a build variable only Xcode can
+  /// resolve is left to the user: writing to a guessed path would create a
+  /// second entitlements file that nothing signs with.
+  Future<void> _updateRunnerEntitlements({
+    required File xcodeproj,
+    required Pbxproj project,
+    required String groupId,
+    required Map<String, String> flavorAppGroupIds,
+  }) async {
+    final iosDir = xcodeproj.parent.parent;
+    final projectName = xcodeProjectName(xcodeproj);
+    final vacated = await _splitSharedRunnerEntitlements(
+      xcodeproj: xcodeproj,
+      project: project,
+      groupId: groupId,
+      flavorAppGroupIds: flavorAppGroupIds,
+    );
+    if (spec.hasFlavors) project = await readXcodeProject(xcodeproj);
+    final defaultPath = defaultRunnerEntitlementsPath(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+    final groupsByPath = <String, Set<String>>{};
+
+    for (final entry in <String?, String>{
+      if (!spec.hasFlavors) null: groupId,
+      ...flavorAppGroupIds,
+    }.entries) {
+      final flavor = entry.key;
+      final settings = runnerEntitlementsSettingsForFlavor(
+        project,
+        flavor,
+        projectDir: iosDir,
+        projectName: projectName,
+      );
+      if (settings.isEmpty) {
+        groupsByPath
+            .putIfAbsent(defaultPath, () => <String>{})
+            .add(entry.value);
+        continue;
+      }
+
+      for (final setting in settings) {
+        final path = resolveProjectRelativePath(setting);
+        if (path == null) {
+          logger.warn(
+            'Warning: The Runner configuration '
+            '${flavor == null ? '' : 'of flavor "$flavor" '}signs with '
+            '"$setting", which only Xcode can resolve. Add the App Group '
+            '${entry.value} to that entitlements file by hand.',
+          );
+          continue;
+        }
+        groupsByPath
+            .putIfAbsent(p.posix.normalize(path), () => <String>{})
+            .add(entry.value);
+      }
+    }
+
+    for (final entry in groupsByPath.entries) {
+      final file = File(p.join(iosDir.path, entry.key));
+      for (final appGroupId in entry.value) {
+        await ensureAppGroupEntitlement(
+          entitlementsFile: file,
+          appGroupId: appGroupId,
+        );
+      }
+      logger.detail('Updated: ${file.path}');
+    }
+
+    final runnerConfigs = runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+    for (final MapEntry(key: path, value: groups) in vacated.entries) {
+      final remaining = {
+        for (final config in runnerConfigs)
+          if (config.entitlements case final setting?)
+            if (resolveProjectRelativePath(setting) case final resolved?)
+              if (p.posix.normalize(resolved) == path) config.name,
+      };
+      final removable = <String>{};
+      for (final group
+          in groups.difference({...?groupsByPath[path], groupId})) {
+        if (!await _otherExtensionNeedsGroup(
+          project: project,
+          iosDir: iosDir,
+          configurations: remaining,
+          groupId: group,
+        )) {
+          removable.add(group);
+        }
+      }
+      await removeAppGroupEntitlements(
+        entitlementsFile: File(p.join(iosDir.path, path)),
+        appGroupIds: removable,
+      );
+    }
+
+    if (spec.hasFlavors) {
+      await _noteLeftoverBaseGroup(
+        xcodeproj: xcodeproj,
+        project: project,
+        groupId: groupId,
+      );
+    }
+
+    // Configurations naming no file were pointed at the default one, which
+    // gets no group when the widget does not exist there.
+    final signsWithDefault = runnerConfigs.any((config) {
+      final path = config.entitlements == null
+          ? null
+          : resolveProjectRelativePath(config.entitlements!);
+      return path != null && p.posix.normalize(path) == defaultPath;
+    });
+    if (signsWithDefault) {
+      await ensureEntitlementsFile(File(p.join(iosDir.path, defaultPath)));
+    }
+  }
+
+  /// Notes every Runner entitlements file of a configuration the widget does
+  /// not exist in that still lists its base App Group, which an earlier run
+  /// may have written there. It is left in place: the app may use it itself.
+  ///
+  /// A file another widget still needs the group in is skipped (see
+  /// [_otherExtensionNeedsGroup]).
+  Future<void> _noteLeftoverBaseGroup({
+    required File xcodeproj,
+    required Pbxproj project,
+    required String groupId,
+  }) async {
+    final iosDir = xcodeproj.parent.parent;
+    final configurationsByPath = <String, Set<String>>{};
+    for (final config in runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: xcodeProjectName(xcodeproj),
+    )) {
+      if (spec.declaredFlavors.contains(config.flavor)) continue;
+      if (config.entitlements case final setting?) {
+        if (resolveProjectRelativePath(setting) case final path?) {
+          configurationsByPath
+              .putIfAbsent(p.posix.normalize(path), () => <String>{})
+              .add(config.name);
+        }
+      }
+    }
+    for (final MapEntry(key: path, value: configurations)
+        in configurationsByPath.entries) {
+      final groups =
+          await appGroupEntitlements(File(p.join(iosDir.path, path)));
+      if (!groups.contains(groupId)) continue;
+      if (await _otherExtensionNeedsGroup(
+        project: project,
+        iosDir: iosDir,
+        configurations: configurations,
+        groupId: groupId,
+      )) {
+        continue;
+      }
+      logger.info(
+        '$path still lists the App Group $groupId, which ${spec.data.name} '
+        'no longer needs there: it does not exist in the configurations '
+        'signing with this file. Remove the group from it unless the app uses '
+        'it itself.',
+      );
+    }
+  }
+
+  /// Whether an app extension target other than this widget's is embedded in
+  /// one of the Runner [configurations] and signs there with an entitlements
+  /// file listing [groupId].
+  ///
+  /// The project is asked rather than the widgets of this run, since a run may
+  /// generate a single widget. An extension is left out of a configuration
+  /// that sets `CODE_SIGNING_ALLOWED = NO` and excludes every source, as the
+  /// patcher does for one the app does not embed. Entitlements that name a
+  /// build variable, or a file that does not exist, count as listing the
+  /// group.
+  Future<bool> _otherExtensionNeedsGroup({
+    required Pbxproj project,
+    required Directory iosDir,
+    required Set<String> configurations,
+    required String groupId,
+  }) async {
+    final ownTarget = '${spec.className}HomeWidget';
+    for (final target in project.objectsOfIsa('PBXNativeTarget')) {
+      if (target.string('productType') !=
+              'com.apple.product-type.app-extension' ||
+          target.string('name') == ownTarget) {
+        continue;
+      }
+      final settingsByName = {
+        for (final config in project.buildConfigurationsOf(target))
+          config.string('name'): ownBuildSettings(config),
+      };
+      for (final name in configurations) {
+        final settings = settingsByName[name] ?? const <String, String>{};
+        final excluded =
+            settings['EXCLUDED_SOURCE_FILE_NAMES']?.split(RegExp(r'\s+'));
+        if (settings['CODE_SIGNING_ALLOWED'] == 'NO' &&
+            (excluded?.contains('*') ?? false)) {
+          continue;
+        }
+        final setting = settings['CODE_SIGN_ENTITLEMENTS'];
+        final path =
+            setting == null ? null : resolveProjectRelativePath(setting);
+        if (path == null) return true;
+        final file = File(p.join(iosDir.path, p.posix.normalize(path)));
+        if (!file.existsSync()) return true;
+        if ((await appGroupEntitlements(file)).contains(groupId)) return true;
+      }
+    }
+    return false;
+  }
+
+  /// Moves every Runner configuration of a declared flavor that shares its
+  /// entitlements file with a configuration outside that flavor, or names none,
+  /// onto a file of its own: `<file>-<flavor>.entitlements` next to the shared
+  /// one, or next to [defaultRunnerEntitlementsPath].
+  ///
+  /// A new file starts as a copy of the shared one, keeping keys such as
+  /// `aps-environment` and the app's own App Groups, without the groups of the
+  /// other declared flavors. The base group stays, since the app may use it
+  /// itself. A file that exists already is reused as it is. Returns, per file
+  /// a flavor was moved off, the App Groups of the flavors moved off it.
+  ///
+  /// Does nothing for a widget without flavors.
+  Future<Map<String, Set<String>>> _splitSharedRunnerEntitlements({
+    required File xcodeproj,
+    required Pbxproj project,
+    required String groupId,
+    required Map<String, String> flavorAppGroupIds,
+  }) async {
+    if (!spec.hasFlavors) return const {};
+    final iosDir = xcodeproj.parent.parent;
+    final projectName = xcodeProjectName(xcodeproj);
+    final configs = runnerEntitlementsByConfiguration(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+    final defaultPath = defaultRunnerEntitlementsPath(
+      project,
+      projectDir: iosDir,
+      projectName: projectName,
+    );
+
+    String? pathOf(String? setting) {
+      final path = setting == null ? null : resolveProjectRelativePath(setting);
+      return path == null ? null : p.posix.normalize(path);
+    }
+
+    final moves = <String, String>{};
+    final vacated = <String, Set<String>>{};
+    for (final MapEntry(key: flavor, value: flavorGroup)
+        in flavorAppGroupIds.entries) {
+      for (final config in configs.where((c) => c.flavor == flavor)) {
+        final source = pathOf(config.entitlements);
+        if (config.entitlements != null) {
+          if (source == null) continue;
+          final shared = configs.any(
+            (other) =>
+                other.flavor != flavor && pathOf(other.entitlements) == source,
+          );
+          if (!shared) continue;
+        }
+
+        final target = _flavorEntitlementsPath(source ?? defaultPath, flavor);
+        moves[config.name] = target;
+        final targetFile = File(p.join(iosDir.path, target));
+        final sourceFile =
+            source == null ? null : File(p.join(iosDir.path, source));
+        if (!targetFile.existsSync() && sourceFile != null) {
+          if (sourceFile.existsSync()) {
+            await targetFile.parent.create(recursive: true);
+            await sourceFile.copy(targetFile.path);
+            await removeAppGroupEntitlements(
+              entitlementsFile: targetFile,
+              appGroupIds: {...flavorAppGroupIds.values}
+                  .difference({flavorGroup, groupId}),
+            );
+            logger.detail('Created: ${targetFile.path}');
+          }
+        }
+        if (source != null) {
+          vacated.putIfAbsent(source, () => <String>{}).add(flavorGroup);
+        }
+      }
+    }
+
+    await setRunnerEntitlementsInXcodeProject(
+      pbxprojFile: xcodeproj,
+      entitlements: moves,
+    );
+    return vacated;
+  }
+
+  /// `<path>` with `-<flavor>` before its extension, in the same folder.
+  static String _flavorEntitlementsPath(String path, String flavor) {
+    final name = '${p.posix.basenameWithoutExtension(path)}-$flavor'
+        '.entitlements';
+    final folder = p.posix.dirname(path);
+    return folder == '.' ? name : '$folder/$name';
+  }
+
+  /// Notes the Xcode flavors the widget leaves out.
+  void _reportFlavorMismatches(Pbxproj project, File xcodeproj) {
+    if (!spec.hasFlavors) return;
+    final detected = detectXcodeFlavors(
+      project,
+      projectDir: xcodeproj.parent.parent,
+      projectName: xcodeProjectName(xcodeproj),
+    );
+
+    for (final flavor in detected) {
+      if (spec.declaredFlavors.contains(flavor)) continue;
+      logger.detail(
+        '${spec.data.name} is not generated for the Xcode flavor "$flavor".',
+      );
+    }
+  }
+
+  /// The `supportedFamilies` property a widget declaring a family newer than
+  /// the oldest deployment target an extension can have (iOS 14) needs.
+  ///
+  /// [baseFamilies] is the comma-separated literal of families available on
+  /// every targeted version; [gatedFamilies] maps a minimum iOS version to the
+  /// families introduced with it. A family whose symbol is missing from older
+  /// toolchains gets a compiler gate on top of the availability check.
+  String _gatedSupportedFamiliesProperty(
+    String baseFamilies,
+    Map<String, List<HWWidgetFamily>> gatedFamilies,
+  ) {
+    final buffer = StringBuffer()..write('''
+  private var supportedFamilies: [WidgetFamily] {
+    var families: [WidgetFamily] = [$baseFamilies]
+''');
+
+    final versions = gatedFamilies.keys.toList()
+      ..sort((a, b) => double.parse(a).compareTo(double.parse(b)));
+
+    for (final version in versions) {
+      final families = gatedFamilies[version]!;
+      final values = families.map((f) => f.toSwiftValue()).toList();
+      final append = values.length == 1
+          ? 'families.append(${values.single})'
+          : 'families.append(contentsOf: [${values.join(', ')}])';
+      final gate = families
+          .map((f) => f.swiftCompilerGate)
+          .firstWhere((gate) => gate != null, orElse: () => null);
+      final pad = gate != null ? '      ' : '    ';
+
+      if (gate != null) buffer.writeln('    #if compiler(>=$gate)');
+      buffer.write('''
+${pad}if #available(iOSApplicationExtension $version, *) {
+$pad  $append
+$pad}
+''');
+      if (gate != null) buffer.writeln('    #endif');
+    }
+
+    buffer.write('''
+    return families
+  }''');
+    return buffer.toString();
+  }
+
+  /// Swift expression for a gallery string, or null when nothing was
+  /// translated and the plain `LocalizedStringKey` literal should stay.
+  String? _galleryStringExpression({
+    required String resourceName,
+    required Map<String, String>? translations,
+  }) {
+    if (translations == null || translations.isEmpty) return null;
+    return 'NSLocalizedString("$resourceName", comment: "")';
+  }
+
+  /// The entries the extension's string catalog has to carry.
+  ///
+  /// Maps resource name to locale tag → text, always including the default
+  /// locale. Empty when the widget has nothing fixed to translate, in which
+  /// case no catalog is written and none is wired into the Xcode project.
+  Map<String, Map<String, String>> _stringCatalogEntries() {
+    final defaultLocale = spec.defaultLocale;
+    final entries = <String, Map<String, String>>{};
+
+    for (final constant in spec.constantLocalizedStrings) {
+      entries[constant.resourceName] = {
+        defaultLocale: constant.baseValue,
+        ...constant.defaultTranslations,
+      };
+    }
+
+    final localization = spec.data.localization;
+    final nameTranslations = localization?.name;
+    if (nameTranslations != null && nameTranslations.isNotEmpty) {
+      entries[spec.labelResourceName] = {
+        ...nameTranslations,
+        defaultLocale: spec.galleryName,
+      };
+    }
+
+    final descriptionTranslations = localization?.description;
+    final description = spec.galleryDescription;
+    if (description != null &&
+        descriptionTranslations != null &&
+        descriptionTranslations.isNotEmpty) {
+      entries[spec.descriptionResourceName] = {
+        ...descriptionTranslations,
+        defaultLocale: description,
+      };
+    }
+
+    return entries;
+  }
+
+  /// The Swift struct holding the JSON group rooted at [key].
+  String _jsonStructName(String key) =>
+      '${spec.className}${toPascalCase(key)}JsonData';
+
+  /// The static factory building the generated data class out of the app
+  /// group's UserDefaults.
+  ///
+  /// [preview] emits the `previewFromUserDefaults` twin instead, identical down
+  /// to its parameters except that every read falls back on the field's preview
+  /// value before its default. Callers hand it `nil` defaults to keep stored
+  /// data out of the gallery entirely.
+  String _swiftDataFactory({required bool preview}) {
+    final className = '${spec.className}Data';
+    final name = preview ? 'previewFromUserDefaults' : 'fromUserDefaults';
+    final pathFactory = preview ? 'previewFromPath' : 'fromPath';
+    final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
+
+    final buffer = StringBuffer();
+    if (!spec.hasTimedData) {
+      buffer.writeln(
+        '  static func $name(_ defaults: UserDefaults?) -> $className {',
+      );
+    } else {
+      buffer.write('''
+  static func $name(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> $className {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+''');
+    }
+    buffer.writeln('    return $className(');
+    for (final field in spec.primitiveDataFields) {
+      final read = field.iosReadValue(
+        store: 'defaults',
+        key: '\\(paramPrefix).${field.key}',
+        preview: preview,
+      );
+      buffer.writeln('      ${field.key}: $read,');
+    }
+    for (final group in spec.jsonDataGroups) {
+      buffer.writeln(
+        '      ${group.key}: ${_jsonStructName(group.key)}.$pathFactory('
+        'defaults?.string(forKey: "\\(paramPrefix).${group.key}")),',
+      );
+    }
+    for (final field in spec.timedPrimitiveDataFields) {
+      buffer.writeln(
+        '      ${field.key}: ${_swiftTimedRead(field, preview: preview)},',
+      );
+    }
+    for (final group in spec.timedJsonDataGroups) {
+      buffer.writeln(
+        '      ${group.key}: ${_jsonStructName(group.key)}.$jsonFactory('
+        'timedValues["${group.key}"] as? [String: Any]),',
+      );
+    }
+    for (final group in spec.listDataGroups) {
+      final itemStruct = group.itemClassName(spec.className);
+      final read = group.timed
+          ? '$itemStruct.fromJsonArray(timedValues["${group.key}"])'
+          : '$itemStruct.fromPath('
+              'defaults?.string(forKey: "\\(paramPrefix).${group.key}"))';
+      buffer.writeln(
+        preview && group.sampleItemCount > 0
+            ? '      ${group.key}: $read ?? $itemStruct.previewItems,'
+            : '      ${group.key}: $read,',
+      );
+    }
+    buffer.write('''
+    )
+  }
+''');
+    return buffer.toString();
+  }
+
+  /// The Swift expression resolving one time-based primitive out of the active
+  /// timed entry.
+  String _swiftTimedRead(HWDataType<dynamic> field, {required bool preview}) {
+    // Checked before the plain cast, which would read a timed translation as
+    // the text of a single locale rather than as the locale map it is.
+    if (field is HWLocalizedString) {
+      return field.iosTimedReadValue(
+        valuesExpr: 'timedValues',
+        preview: preview,
+      );
+    }
+    // Also checked before the plain cast: a date travels as an ISO string, so
+    // casting the entry value to `Date` would always miss.
+    if (field is HWDateTime) {
+      return field.iosTimedReadValue(
+        valuesExpr: 'timedValues',
+        preview: preview,
+      );
+    }
+    final fallback = field.codegenSwiftFallbackLiteral(preview: preview);
+    final read = 'timedValues["${field.key}"] as? ${field.swiftType}';
+    return fallback == null ? read : '($read) ?? $fallback';
+  }
+
+  /// Emits the timed-data file loader and the active-entry resolver used by
+  /// `fromUserDefaults` when the spec has [WidgetSpec.hasTimedData].
+  ///
+  /// Both statics are implementation details of the generated file, so they are
+  /// `fileprivate` rather than public. They cannot be `private`: Swift's
+  /// `private` is lexically scoped to the enclosing declaration, and
+  /// `loadTimedEntries` is called from the provider's `getTimeline`, a
+  /// different type in the same file.
+  ///
+  /// `loadTimedEntries` parses the same timed-data file — decimal epoch-millis
+  /// string keys, one flat JSON object per timestamp — that `generate()` in
+  /// dart_helper_generator.dart writes and `resolveTimedValues` in
+  /// android_generator.dart parses on Android; the three must stay in step. A
+  /// root localized field's timed value is stored as a locale-tag-to-text
+  /// object rather than a plain value, so callers read `values[key]` as a
+  /// `[String: Any]`, not the leaf type.
+  String _swiftTimedDataHelpers() => '''
+  fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(date: Date, values: [String: Any])] {
+    guard let path = defaults?.string(forKey: "\\(paramPrefix).timedData") else { return [] }
+    guard FileManager.default.fileExists(atPath: path) else { return [] }
+    do {
+      let raw = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return [] }
+      var entries: [(date: Date, values: [String: Any])] = []
+      for (key, value) in json {
+        guard let millis = Double(key), let values = value as? [String: Any] else { continue }
+        entries.append((date: Date(timeIntervalSince1970: millis / 1000), values: values))
+      }
+      entries.sort { \$0.date < \$1.date }
+      return entries
+    } catch {
+      return []
+    }
+  }
+
+  fileprivate static func activeTimedValues(_ entries: [(date: Date, values: [String: Any])], at date: Date) -> [String: Any] {
+    var values: [String: Any] = [:]
+    for entry in entries {
+      if entry.date > date { break }
+      values = entry.values
+    }
+    return values
+  }
+''';
+
+  String _swiftDefaultLiteral(HWDataType<dynamic> field) {
+    final defaultValue = field.defaultValue;
+    if (defaultValue == null) return 'nil';
+    if (defaultValue is String) {
+      return '"${escapeSwiftStringLiteral(defaultValue)}"';
+    }
+    return '$defaultValue';
+  }
+
+  _SwiftJsonNode _buildJsonTree(List<JsonDataField> fields) {
+    final root = _SwiftJsonNode();
+    for (final field in fields) {
+      var node = root;
+      for (final segment in field.path) {
+        node = node.children.putIfAbsent(segment, _SwiftJsonNode.new);
+      }
+      node.leafType = field.type;
+    }
+    return root;
+  }
+
+  /// `fromPath` on a generated JSON root struct, or its `previewFromPath` twin.
+  ///
+  /// The twin never gives up on the group: an unset or unreadable path still
+  /// yields a struct built from an empty object, so every leaf falls back on
+  /// its preview value even before the app has saved the group once.
+  String _swiftJsonPathFactory({
+    required String structName,
+    required bool preview,
+  }) {
+    final name = preview ? 'previewFromPath' : 'fromPath';
+    final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
+    final absent = preview ? '$jsonFactory([:])' : 'nil';
+    return '''
+  static func $name(_ path: String?) -> $structName? {
+    guard let path else { return $absent }
+    guard FileManager.default.fileExists(atPath: path) else { return $absent }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return $absent }
+      return $jsonFactory(json)
+    } catch {
+      return $absent
+    }
+  }
+''';
+  }
+
+  /// `fromJson` on a generated JSON struct, or its `previewFromJson` twin.
+  ///
+  /// Nested nodes materialize from an absent object either way; only the root
+  /// distinguishes the two, so that a widget with nothing stored still renders
+  /// its preview values.
+  String _swiftJsonFactory({
+    required String structName,
+    required _SwiftJsonNode node,
+    required bool isRoot,
+    required bool preview,
+  }) {
+    final name = preview ? 'previewFromJson' : 'fromJson';
+
+    final buffer = StringBuffer();
+    buffer.writeln(
+      '  static func $name(_ json: [String: Any]?) -> $structName? {',
+    );
+    buffer.writeln(
+      isRoot && !preview
+          ? '    guard let values = json else { return nil }'
+          : '    let values = json ?? [:]',
+    );
+    buffer.writeln('    return $structName(');
+    for (final entry in node.children.entries) {
+      final read = _swiftJsonNodeRead(
+        structName: structName,
+        key: entry.key,
+        child: entry.value,
+        preview: preview,
+      );
+      buffer.writeln('      ${entry.key}: $read,');
+    }
+    buffer.write('''
+    )
+  }
+''');
+    return buffer.toString();
+  }
+
+  /// The Swift expression one generated JSON factory reads a single child with.
+  String _swiftJsonNodeRead({
+    required String structName,
+    required String key,
+    required _SwiftJsonNode child,
+    required bool preview,
+  }) {
+    final leaf = child.leafType;
+    if (leaf == null || child.children.isNotEmpty) {
+      final childStruct = '$structName${toPascalCase(key)}';
+      final jsonFactory = preview ? 'previewFromJson' : 'fromJson';
+      return '$childStruct.$jsonFactory(values["$key"] as? [String: Any])';
+    }
+    // A date leaf is stored as an ISO string, so it is parsed rather than cast,
+    // and has no default to fall back on.
+    if (leaf is HWDateTime) {
+      return leaf.iosJsonReadValue(
+        objExpr: 'values',
+        key: key,
+        preview: preview,
+      );
+    }
+    final read = 'values["$key"] as? ${leaf.swiftType}';
+    // The conditional cast already yields nil when the value is absent or of
+    // another type; coalescing that to nil again is a Swift warning.
+    final fallback = preview
+        ? leaf is HWLocalizedString
+            ? _swiftPreviewLocalizedFallback(leaf)
+            : leaf.codegenSwiftFallbackLiteral(preview: true)
+        : leaf.defaultValue == null
+            ? null
+            : _swiftDefaultLiteral(leaf);
+    return fallback == null ? read : '($read) ?? $fallback';
+  }
+
+  /// The preview fallback of a localized JSON leaf: its preview translations
+  /// resolved against the reader's locales, or null without them, which sends
+  /// the render site to the shipped translations rather than to one locale's
+  /// text.
+  String? _swiftPreviewLocalizedFallback(HWLocalizedString leaf) {
+    final values = leaf.swiftPreviewMapLiteral;
+    if (values == null) return null;
+    final base = escapeSwiftStringLiteral(leaf.previewBaseLocaleTag!);
+    return 'hwResolveLocalized(hwCurrentLocales(), $values, baseLocale: "$base")';
+  }
+
+  String _swiftJsonNodeStruct({
+    required String structName,
+    required _SwiftJsonNode node,
+    required bool isRoot,
+  }) {
+    final buffer = StringBuffer();
+    buffer.writeln('struct $structName {');
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.leafType != null && child.children.isEmpty) {
+        final leaf = child.leafType!;
+        final st = leaf.swiftType;
+        // A `let` with an initializer drops out of the memberwise init, which
+        // `fromJson` — the only place these structs are built — calls with
+        // every property. The default is applied there instead.
+        buffer.writeln(
+          leaf.defaultValue == null ? '  let $key: $st?' : '  let $key: $st',
+        );
+      } else {
+        final childStruct = '$structName${toPascalCase(key)}';
+        buffer.writeln('  let $key: $childStruct?');
+      }
+    }
+    buffer.writeln();
+    for (final preview in [false, if (spec.hasPreviewValues) true]) {
+      if (preview) buffer.writeln();
+      if (isRoot) {
+        buffer.write(
+          _swiftJsonPathFactory(structName: structName, preview: preview),
+        );
+        buffer.writeln();
+      }
+      buffer.write(
+        _swiftJsonFactory(
+          structName: structName,
+          node: node,
+          isRoot: isRoot,
+          preview: preview,
+        ),
+      );
+    }
+    buffer.writeln('}');
+
+    for (final entry in node.children.entries) {
+      final key = entry.key;
+      final child = entry.value;
+      if (child.children.isNotEmpty) {
+        buffer.writeln();
+        buffer.write(
+          _swiftJsonNodeStruct(
+            structName: '$structName${toPascalCase(key)}',
+            node: child,
+            isRoot: false,
+          ),
+        );
+      }
+    }
+    return buffer.toString();
+  }
+
+  /// The struct an item of [group] is decoded into, with the factories
+  /// reading a stored list of them.
+  ///
+  /// Every property is optional, as on the data struct, so a widget reads an
+  /// item field the way it reads a root one; `fromJson` applies the defaults.
+  String _swiftListItemStruct(ListDataGroup group) {
+    final structName = group.itemClassName(spec.className);
+    final buffer = StringBuffer();
+    buffer.writeln('struct $structName {');
+    for (final field in group.fields) {
+      buffer.writeln('  let ${field.key}: ${field.data.swiftType}?');
+    }
+    if (group.fields.isNotEmpty) buffer.writeln();
+
+    if (group.sampleItemCount > 0) {
+      buffer
+        ..write(_swiftPreviewItems(group, structName))
+        ..writeln();
+    }
+
+    buffer.write('''
+  static func fromPath(_ path: String?) -> [$structName]? {
+    guard let path else { return nil }
+    guard FileManager.default.fileExists(atPath: path) else { return nil }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      let json = try JSONSerialization.jsonObject(with: data)
+      return fromJsonArray(json)
+    } catch {
+      return nil
+    }
+  }
+
+  static func fromJsonArray(_ value: Any?) -> [$structName]? {
+    guard let items = value as? [Any] else { return nil }
+''');
+
+    if (group.fields.isEmpty) {
+      buffer.write('''
+    return items.map { _ in $structName() }
+  }
+}
+''');
+      return buffer.toString();
+    }
+
+    buffer.write('''
+    return items.map { fromJson(\$0 as? [String: Any]) }
+  }
+
+  static func fromJson(_ json: [String: Any]?) -> $structName {
+    let values = json ?? [:]
+    return $structName(
+''');
+    for (final field in group.fields) {
+      final read = _swiftJsonNodeRead(
+        structName: structName,
+        key: field.key,
+        child: _SwiftJsonNode()..leafType = field.data,
+        preview: false,
+      );
+      buffer.writeln('      ${field.key}: $read,');
+    }
+    buffer.write('''
+    )
+  }
+}
+''');
+    return buffer.toString();
+  }
+
+  /// `previewItems`: the sample items of [group], which the gallery shows
+  /// until a list is saved.
+  String _swiftPreviewItems(ListDataGroup group, String structName) {
+    String item(int index) {
+      final arguments = [
+        for (final field in group.fields)
+          '${field.key}: '
+              '${_swiftSampleLiteral(field.data, group.sampleValue(field, index))}',
+      ];
+      return '$structName(${arguments.join(', ')})';
+    }
+
+    final count = group.sampleItemCount;
+    final buffer = StringBuffer();
+    if (!group.variesSampleItems) {
+      buffer.writeln(
+        '  static let previewItems: [$structName] = '
+        'Array(repeating: ${item(0)}, count: $count)',
+      );
+      return buffer.toString();
+    }
+
+    buffer.writeln('  static let previewItems: [$structName] = [');
+    for (var index = 0; index < count; index++) {
+      buffer.writeln('    ${item(index)},');
+    }
+    buffer.writeln('  ]');
+    return buffer.toString();
+  }
+
+  /// [value], a field's value in a sample item as [ListDataGroup.sampleValue]
+  /// spells it, as the Swift property of [leaf] holds it.
+  String _swiftSampleLiteral(HWDataType<dynamic> leaf, Object? value) {
+    if (value == null) return 'nil';
+    if (value is Map) {
+      return _swiftPreviewLocalizedFallback(leaf as HWLocalizedString)!;
+    }
+    return switch (leaf) {
+      HWDateTime() =>
+        'hwParseIsoDate("${escapeSwiftStringLiteral(value as String)}")',
+      HWString() ||
+      HWImageData() =>
+        '"${escapeSwiftStringLiteral(value as String)}"',
+      HWDouble() => '${(value as num).toDouble()}',
+      _ => '$value',
+    };
+  }
+}
+
+/// [codePoints] as the uppercase hex literals an icon is usually written as,
+/// sorted so the same set always comes out the same way.
+String _hexList(Set<int> codePoints) => (codePoints.toList()..sort())
+    .map((codePoint) => '0x${codePoint.toRadixString(16).toUpperCase()}')
+    .join(', ');
+
+class _SwiftJsonNode {
+  final Map<String, _SwiftJsonNode> children = {};
+  HWDataType<dynamic>? leafType;
+}

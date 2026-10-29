@@ -1,0 +1,235 @@
+import 'dart:io';
+
+import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
+
+import '../models/widget_spec.dart';
+import '../util/package_config.dart';
+
+/// Verifies that every `HWImage.asset` / `HWImageData.asset` in [spec] points at
+/// an asset that will actually be bundled, so a typo fails at generate time
+/// instead of silently rendering nothing on the home screen.
+///
+/// App assets (no package) must exist on disk under [projectRoot] **and** be
+/// covered by the `flutter: assets:` section of the app's `pubspec.yaml`.
+///
+/// Package assets -- written either as `HWImageData.asset(path, package: 'pkg')`
+/// or as the manual `packages/pkg/path` spelling -- are resolved through
+/// `<projectRoot>/.dart_tool/package_config.json` and only checked for
+/// existence; declaring them is the dependency author's job. When the package
+/// config is missing or does not list the package (e.g. `pub get` has not run
+/// yet) the field is skipped silently rather than failing generation.
+///
+/// Runtime images are never validated: their bytes only exist at runtime —
+/// except for the `previewAsset` a runtime image previews with, and the
+/// `previewValues` of an item image, which are bundled assets and are checked
+/// exactly like a declared one.
+void validateAssets(WidgetSpec spec, Directory projectRoot) {
+  final references = <_AssetReference>[
+    for (final image in spec.assetImageFields) _AssetReference.from(image),
+    for (final image in spec.previewAssetImageFields)
+      _AssetReference.preview(image.previewAsset!),
+    for (final preview in spec.listPreviewAssets)
+      _AssetReference.itemPreview(preview),
+  ];
+  if (references.isEmpty) return;
+
+  _PubspecAssets? appAssets;
+
+  for (final reference in references) {
+    if (reference.package != null) {
+      _validatePackageAsset(spec, reference, projectRoot);
+      continue;
+    }
+
+    appAssets ??= _PubspecAssets.read(projectRoot);
+    _validateAppAsset(spec, reference, projectRoot, appAssets);
+  }
+}
+
+/// An asset image split into its owning package (if any) and the path relative
+/// to that package's asset root.
+class _AssetReference {
+  /// The package that owns the asset, or null for an app asset.
+  final String? package;
+
+  /// The path relative to the owning package (no `packages/<pkg>/` prefix).
+  final String path;
+
+  /// The asset key as it appears to Flutter, used in error messages.
+  final String effectiveKey;
+
+  /// How the asset was declared, named so an error points at the right
+  /// argument.
+  final String origin;
+
+  const _AssetReference({
+    required this.package,
+    required this.path,
+    required this.effectiveKey,
+    required this.origin,
+  });
+
+  /// Splits [image] into package and package-relative path.
+  ///
+  /// An explicit `package:` wins; otherwise a bare `packages/<pkg>/<rest>`
+  /// path is treated as the manual spelling of the same thing. Anything else
+  /// is an app asset.
+  factory _AssetReference.from(HWImageData image) {
+    final effectiveKey = image.effectiveAssetKey!;
+    final package = image.package;
+    if (package != null) {
+      return _AssetReference(
+        package: package,
+        path: image.assetPath!,
+        effectiveKey: effectiveKey,
+        origin: 'HWImage.asset(...)',
+      );
+    }
+
+    return _AssetReference.of(effectiveKey, origin: 'HWImage.asset(...)');
+  }
+
+  /// The asset a runtime image previews with, which has no `package:`
+  /// argument: a dependency's asset is spelled `packages/<pkg>/<rest>`.
+  factory _AssetReference.preview(String previewAsset) =>
+      _AssetReference.of(previewAsset, origin: 'previewAsset');
+
+  /// The asset an item image previews with, named after the argument that
+  /// spells it.
+  factory _AssetReference.itemPreview(ListPreviewAsset preview) {
+    final index = preview.index;
+    final argument = index == null ? 'previewAsset' : 'previewValues[$index]';
+    return _AssetReference.of(
+      preview.asset,
+      origin: '$argument of HWItemData "${preview.fieldKey}" in list '
+          '"${preview.listKey}"',
+    );
+  }
+
+  /// [assetKey] split on a `packages/<pkg>/` prefix, if it has one.
+  factory _AssetReference.of(String assetKey, {required String origin}) {
+    const prefix = 'packages/';
+    if (assetKey.startsWith(prefix)) {
+      final rest = assetKey.substring(prefix.length);
+      final slash = rest.indexOf('/');
+      if (slash > 0 && slash < rest.length - 1) {
+        return _AssetReference(
+          package: rest.substring(0, slash),
+          path: rest.substring(slash + 1),
+          effectiveKey: assetKey,
+          origin: origin,
+        );
+      }
+    }
+
+    return _AssetReference(
+      package: null,
+      path: assetKey,
+      effectiveKey: assetKey,
+      origin: origin,
+    );
+  }
+}
+
+void _validateAppAsset(
+  WidgetSpec spec,
+  _AssetReference reference,
+  Directory projectRoot,
+  _PubspecAssets appAssets,
+) {
+  final file = File(p.join(projectRoot.path, reference.path));
+  if (!file.existsSync()) {
+    throw GeneratorError(
+      'Missing asset for widget "${spec.className}": '
+      '"${reference.path}" does not exist at ${file.path}. '
+      'Create the file or fix the path in ${reference.origin}.',
+    );
+  }
+
+  if (!appAssets.covers(reference.path)) {
+    throw GeneratorError(
+      'Undeclared asset for widget "${spec.className}": '
+      '"${reference.path}" is not listed in the "flutter: assets:" section of '
+      'pubspec.yaml. Add it so Flutter bundles the asset:\n'
+      'flutter:\n'
+      '  assets:\n'
+      '    - ${reference.path}',
+    );
+  }
+}
+
+void _validatePackageAsset(
+  WidgetSpec spec,
+  _AssetReference reference,
+  Directory projectRoot,
+) {
+  final packageRoot = resolvePackage(projectRoot, reference.package!)?.libRoot;
+  // `pub get` may not have run yet, or the package is not a dependency of this
+  // project: skip rather than block generation.
+  if (packageRoot == null) return;
+
+  final file = File(p.join(packageRoot, reference.path));
+  if (!file.existsSync()) {
+    throw GeneratorError(
+      'Missing package asset for widget "${spec.className}": '
+      '"${reference.effectiveKey}" does not exist at ${file.path}. '
+      'Package assets live under the dependency\'s lib/ directory.',
+    );
+  }
+}
+
+/// The `flutter: assets:` declarations of the app's `pubspec.yaml`.
+class _PubspecAssets {
+  /// Declared entries that name a single file.
+  final Set<String> files;
+
+  /// Declared entries ending in `/`, normalized without the trailing slash.
+  final Set<String> directories;
+
+  const _PubspecAssets({required this.files, required this.directories});
+
+  /// Reads the declarations from `<projectRoot>/pubspec.yaml`.
+  ///
+  /// A missing pubspec, or one without a `flutter: assets:` list, yields empty
+  /// declarations, which makes every asset report as undeclared.
+  factory _PubspecAssets.read(Directory projectRoot) {
+    final files = <String>{};
+    final directories = <String>{};
+
+    final flutterSection = readFlutterSection(projectRoot.path);
+    if (flutterSection == null) {
+      return _PubspecAssets(files: files, directories: directories);
+    }
+
+    final assets = flutterSection['assets'];
+    if (assets is! YamlList) {
+      return _PubspecAssets(files: files, directories: directories);
+    }
+
+    for (final entry in assets) {
+      // Flutter accepts both `- assets/logo.png` and the map form used for
+      // flavors / transformers (`- path: assets/logo.png`).
+      final value = entry is YamlMap ? entry['path'] : entry;
+      if (value is! String || value.isEmpty) continue;
+      if (value.endsWith('/')) {
+        directories.add(p.normalize(value.substring(0, value.length - 1)));
+      } else {
+        files.add(p.normalize(value));
+      }
+    }
+
+    return _PubspecAssets(files: files, directories: directories);
+  }
+
+  /// Whether [assetPath] is bundled by one of the declarations.
+  ///
+  /// Matches Flutter's semantics: a file entry matches exactly, and a directory
+  /// entry covers the files directly inside it but not its subdirectories.
+  bool covers(String assetPath) {
+    final normalized = p.normalize(assetPath);
+    if (files.contains(normalized)) return true;
+    return directories.contains(p.normalize(p.dirname(normalized)));
+  }
+}

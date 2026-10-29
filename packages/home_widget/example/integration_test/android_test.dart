@@ -1,3 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui' as ui;
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:integration_test/integration_test.dart';
@@ -15,12 +22,20 @@ void main() {
     'longKey': DateTime(2024).millisecondsSinceEpoch,
   };
 
+  final cleanupKeys = <String>{
+    ...testData.keys,
+    'integration_json_file_key',
+    'integration_png_file_key',
+    'integration_save_image_key',
+    'integration_savefile_clear_key',
+    'integration_savefile_clear_no_delete_key',
+  };
+
   const defaultValue = MapEntry('defaultKey', 'defaultValue');
 
-  setUpAll(() {
-    // Clear all Data
-    for (final key in testData.keys) {
-      HomeWidget.saveWidgetData(key, null);
+  setUp(() async {
+    for (final key in cleanupKeys) {
+      await HomeWidget.saveWidgetData(key, null);
     }
   });
 
@@ -36,13 +51,16 @@ void main() {
     }
 
     testWidgets('Delete Value successful', (tester) async {
-      final initialData = await HomeWidget.getWidgetData(testData.keys.first);
-      expect(initialData, testData.values.first);
+      final entry = testData.entries.first;
+      final key = entry.key;
+      final value = entry.value;
 
-      await HomeWidget.saveWidgetData(testData.values.first, null);
+      await HomeWidget.saveWidgetData(key, value);
+      expect(await HomeWidget.getWidgetData(key), value);
 
-      final deletedData = await HomeWidget.getWidgetData(testData.keys.first);
-      expect(deletedData, testData.values.first);
+      await HomeWidget.saveWidgetData(key, null);
+
+      expect(await HomeWidget.getWidgetData(key), isNull);
     });
 
     testWidgets('Returns default Value', (tester) async {
@@ -90,22 +108,161 @@ void main() {
     });
   });
 
+  group('Update Widget Preview', () {
+    const glanceReceiverClassName = 'glance.HomeWidgetReceiver';
+    const qualifiedGlanceReceiverName =
+        'es.antonborri.home_widget_example.$glanceReceiverClassName';
+
+    // The system accepts about two previews per hour and Widget, so only the
+    // first of these tests can expect a preview to be accepted.
+    testWidgets('Update Widget Preview with qualifiedAndroidName', (
+      tester,
+    ) async {
+      final sdkInt = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        qualifiedAndroidName: qualifiedGlanceReceiverName,
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, sdkInt < 35 ? false : true);
+    });
+
+    testWidgets('Update Widget Preview with androidName only', (tester) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        androidName: glanceReceiverClassName,
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, isA<bool>());
+    });
+
+    testWidgets('Update Widget Preview with name only', (tester) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        name: glanceReceiverClassName,
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, isA<bool>());
+    });
+
+    testWidgets('Update Widget Preview of a non Glance Widget returns false', (
+      tester,
+    ) async {
+      final returnValue = await HomeWidget.updateWidgetPreview(
+        qualifiedAndroidName:
+            'es.antonborri.home_widget_example.HomeWidgetExampleProvider',
+      ).timeout(const Duration(seconds: 10));
+
+      expect(returnValue, false);
+    });
+
+    testWidgets('Update Widget Preview of an unknown Widget throws', (
+      tester,
+    ) async {
+      await expectLater(
+        HomeWidget.updateWidgetPreview(name: 'UnknownWidgetReceiver'),
+        throwsA(isA<PlatformException>().having((e) => e.code, 'code', '-8')),
+      );
+    });
+  });
+
   testWidgets('Register Background Callback', (tester) async {
-    final returnValue =
-        await HomeWidget.registerInteractivityCallback(backgroundCallback);
+    final returnValue = await HomeWidget.registerInteractivityCallback(
+      backgroundCallback,
+    );
     expect(returnValue, true);
   });
 
   testWidgets(
-      'Initially Launched completes and returns null if not launched from widget',
-      (tester) async {
-    final retrievedData = await HomeWidget.initiallyLaunchedFromHomeWidget();
-    expect(retrievedData, isNull);
-  });
+    'Initially Launched completes and returns null if not launched from widget',
+    (tester) async {
+      final retrievedData = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      expect(retrievedData, isNull);
+    },
+  );
 
   testWidgets('Get Installed Widgets returns empty list', (tester) async {
     final retrievedData = await HomeWidget.getInstalledWidgets();
     expect(retrievedData, isEmpty);
+  });
+
+  group('saveFile and saveImage', () {
+    testWidgets('saveFile JSON round-trip', (tester) async {
+      const key = 'integration_json_file_key';
+      final data = <String, dynamic>{'hello': 'world', 'n': 42};
+      final jsonStr = jsonEncode(data);
+      final path = await HomeWidget.saveFile(
+        key,
+        Uint8List.fromList(utf8.encode(jsonStr)),
+        extension: 'json',
+      );
+      final storedPath = await HomeWidget.getWidgetData<String>(key);
+      expect(storedPath, path);
+      final read = jsonDecode(await File(path).readAsString());
+      expect(read, data);
+    });
+
+    testWidgets('saveFile PNG bytes match asset', (tester) async {
+      const key = 'integration_png_file_key';
+      final bundle = await rootBundle.load('assets/integration_test.png');
+      final expected = bundle.buffer.asUint8List();
+      final path = await HomeWidget.saveFile(key, expected, extension: 'png');
+      final storedPath = await HomeWidget.getWidgetData<String>(key);
+      expect(storedPath, path);
+      final read = await File(path).readAsBytes();
+      expect(read, orderedEquals(expected));
+    });
+
+    testWidgets('saveImage decodes asset and saves valid 1x1 PNG', (
+      tester,
+    ) async {
+      const key = 'integration_save_image_key';
+      final path = await HomeWidget.saveImage(
+        key,
+        const AssetImage('assets/integration_test.png'),
+      );
+      final storedPath = await HomeWidget.getWidgetData<String>(key);
+      expect(storedPath, path);
+      final bytes = await File(path).readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      expect(frame.image.width, 1);
+      expect(frame.image.height, 1);
+    });
+
+    testWidgets('saveFile then clear key removes data and file', (
+      tester,
+    ) async {
+      const key = 'integration_savefile_clear_key';
+      final data = <String, dynamic>{'clear': 'test'};
+      final jsonStr = jsonEncode(data);
+      final path = await HomeWidget.saveFile(
+        key,
+        Uint8List.fromList(utf8.encode(jsonStr)),
+        extension: 'json',
+      );
+      expect(await File(path).exists(), isTrue);
+      await HomeWidget.saveWidgetData(key, null);
+      expect(await HomeWidget.getWidgetData(key), isNull);
+      expect(await File(path).exists(), isFalse);
+    });
+
+    testWidgets(
+      'saveFile then clear key with deleteFile false removes path but keeps file',
+      (tester) async {
+        const key = 'integration_savefile_clear_no_delete_key';
+        final data = <String, dynamic>{'keep': 'on_disk'};
+        final jsonStr = jsonEncode(data);
+        final path = await HomeWidget.saveFile(
+          key,
+          Uint8List.fromList(utf8.encode(jsonStr)),
+          extension: 'json',
+        );
+        expect(await File(path).exists(), isTrue);
+        await HomeWidget.saveWidgetData(key, null, deleteFile: false);
+        expect(await HomeWidget.getWidgetData(key), isNull);
+        expect(await File(path).exists(), isTrue);
+        expect(jsonDecode(await File(path).readAsString()), data);
+      },
+    );
   });
 }
 

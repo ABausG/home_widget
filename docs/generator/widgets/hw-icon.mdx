@@ -1,0 +1,110 @@
+---
+title: HWIcon
+description: Render an icon glyph, fixed or chosen from saved data.
+---
+
+# HWIcon
+
+Renders one glyph out of an icon font — either a fixed `IconData` baked in at generation time, or one
+picked at runtime from a declared set. See [Icons](/generator/icons) for how the
+underlying icon font gets onto the device and the constraints on the icon list.
+
+## Constructors
+
+### HWIcon (runtime)
+
+`const HWIcon(HWDataType<dynamic> icon, {double size = 24, HWColor? color, String? semanticLabel})`
+
+Displays an icon chosen at runtime. `icon` is an `HWIconData`, or an `HWJson` / `HWTimedData`
+wrapping one.
+
+```dart
+HWIcon(
+  HWIconData(
+    'mood',
+    icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+    defaultValue: Icons.wb_sunny,
+  ),
+  size: 32,
+  color: HWDefaultColor(HWColorRole.contentPrimary),
+  semanticLabel: 'Current mood',
+)
+```
+
+### HWIcon.fixed
+
+`const HWIcon.fixed(IconData icon, {double size = 24, HWColor? color, String? semanticLabel})`
+
+Displays a constant icon, known at generation time. `icon` can be a `Icons.*` constant, a
+`CupertinoIcons.*` constant, or a constant from any other icon font package.
+
+```dart
+HWIcon.fixed(Icons.favorite, size: 24, color: HWColor.fixed(0xFFE91E63))
+HWIcon.fixed(CupertinoIcons.heart_fill, size: 20)
+```
+
+## Parameters
+
+| Name            | Type                  | Default              | Description                                                              |
+| --------------- | --------------------- | --------------------- | ------------------------------------------------------------------------ |
+| `icon`          | `HWDataType<dynamic>` | **required** _(default ctor)_ | `HWIconData`, or an `HWJson` / `HWTimedData` wrapping one, naming the icon to render. |
+| `icon`          | `IconData`            | **required** _(`.fixed`)_ | The icon constant to render.                                          |
+| `size`          | `double`              | `24`                  | Glyph size in logical pixels.                                            |
+| `color`         | `HWColor?`            | `null`                | Tint applied to the glyph. `null` uses the platform's primary text color. See [HWColor](/generator/styling/hw-color). |
+| `semanticLabel` | `String?`             | `null`                | Accessibility description, or `null` for a decorative icon.              |
+
+## Icons at a JSON leaf or on a schedule
+
+An `HWIconData` can sit at the leaf of an [`HWJson`](/generator/data#nested-json) group, so an icon
+travels with the rest of a record:
+
+```dart
+HWIcon(HWJson('status', HWIconData('icon', icons: [Icons.check_circle, Icons.error])))
+```
+
+It can also be wrapped in [`HWTimedData`](/generator/timed-data) to change on a schedule, without the
+app running:
+
+```dart
+HWIcon(HWTimedData(HWIconData('mood', icons: [Icons.wb_sunny, Icons.nightlight])))
+```
+
+Both follow the same rules as a top-level `HWIconData` — see [Data Types](/generator/data#icon-data).
+
+## Example
+
+```dart
+@HomeWidget(
+  name: 'Font And Icons',
+  android: HomeWidgetAndroidConfiguration(packageName: 'com.example.app'),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWRow(
+    children: [
+      HWIcon.fixed(Icons.favorite, size: 24),
+      HWIcon(
+        HWIconData(
+          'mood',
+          icons: [Icons.wb_sunny, Icons.cloud, Icons.umbrella],
+          defaultValue: Icons.wb_sunny,
+          previewValue: Icons.cloud,
+        ),
+      ),
+    ],
+  ),
+)
+class FontAndIcons {}
+```
+
+## Platform mapping
+
+- **iOS:** the glyph as SwiftUI [`Text`](https://developer.apple.com/documentation/swiftui/text),
+  set in the icon font the CLI copies into the widget extension — see
+  [Icons](/generator/icons#what-the-cli-does).
+- **Android:** the glyph as a Glance [`Image`](https://developer.android.com/reference/kotlin/androidx/glance/package-summary#Image(androidx.glance.ImageProvider,kotlin.String,androidx.glance.GlanceModifier,androidx.glance.layout.ContentScale)), tinted with the icon's `color`.
+
+An icon that declares `IconData.matchTextDirection`, such as `Icons.arrow_back`, is mirrored in a
+right-to-left layout on both platforms — see [Directional icons](/generator/icons#directional-icons).
+
+An icon whose data field has no value and no `defaultValue` renders nothing, the same as any other
+missing data-bound field — wrap it in [`HWDataExists`](/generator/widgets/hw-conditional) for a
+placeholder.

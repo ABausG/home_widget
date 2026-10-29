@@ -1,0 +1,318 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+//
+// Placeholder SwiftUI widget.
+//
+// App Group ID used here: ImageShowcaseHomeWidgetFlavor.appGroupId
+
+import ImageIO
+import SwiftUI
+import WidgetKit
+
+enum ImageShowcaseHomeWidgetFlavor {
+  static let appGroupId = "group.es.antonborri.generatorBasics"
+}
+
+struct Provider: TimelineProvider {
+  func placeholder(in context: Context) -> ImageShowcaseHomeWidgetEntry {
+    ImageShowcaseHomeWidgetEntry(date: Date(), data: ImageShowcaseData.previewFromUserDefaults(nil))
+  }
+
+  func getSnapshot(
+    in context: Context, completion: @escaping (ImageShowcaseHomeWidgetEntry) -> Void
+  ) {
+    if context.isPreview {
+      let prefs: UserDefaults? = UserDefaults(suiteName: ImageShowcaseHomeWidgetFlavor.appGroupId)
+      let data = ImageShowcaseData.previewFromUserDefaults(prefs)
+      completion(ImageShowcaseHomeWidgetEntry(date: Date(), data: data))
+      return
+    }
+
+    let prefs = UserDefaults(suiteName: ImageShowcaseHomeWidgetFlavor.appGroupId)
+    let data = ImageShowcaseData.fromUserDefaults(prefs)
+
+    completion(ImageShowcaseHomeWidgetEntry(date: Date(), data: data))
+
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+    let prefs = UserDefaults(suiteName: ImageShowcaseHomeWidgetFlavor.appGroupId)
+    let timedEntries = ImageShowcaseData.loadTimedEntries(prefs)
+    let now = Date()
+    var entries: [ImageShowcaseHomeWidgetEntry] = [
+      ImageShowcaseHomeWidgetEntry(
+        date: now,
+        data: ImageShowcaseData.fromUserDefaults(prefs, at: now, timedEntries: timedEntries)
+      )
+    ]
+    for timedEntry in timedEntries where timedEntry.date > now {
+      entries.append(
+        ImageShowcaseHomeWidgetEntry(
+          date: timedEntry.date,
+          data: ImageShowcaseData.fromUserDefaults(
+            prefs, at: timedEntry.date, timedEntries: timedEntries)
+        )
+      )
+    }
+    completion(Timeline(entries: entries, policy: .atEnd))
+
+  }
+}
+
+struct ImageShowcaseHomeWidgetEntry: TimelineEntry {
+  let date: Date
+  let data: ImageShowcaseData
+}
+
+struct ImageShowcaseHomeWidgetEntryView: View {
+  var entry: Provider.Entry
+
+  var body: some View {
+    VStack(alignment: .center, spacing: 0) {
+      Spacer(minLength: 0)
+      if let uiImage = hwDecodeImage("assets/logo.png", 24.0, 24.0) {
+        Image(uiImage: uiImage)
+          .resizable()
+          .aspectRatio(contentMode: .fit)
+          .frame(width: 24.0, height: 24.0)
+          .accessibilityLabel("App logo")
+      }
+      Group {
+        if hwImageExists(entry.data.picture) {
+          if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
+            Image(uiImage: uiImage)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+              .frame(width: 64.0, height: 64.0)
+              .clipped()
+              .accessibilityLabel("Picture saved by the app")
+          }
+        } else {
+          Text("Open the app to pick an image")
+            .font(.caption).foregroundColor(Color.secondary)
+        }
+      }
+      .padding(.top, 8.0)
+      HStack(alignment: .center, spacing: 0) {
+        Spacer(minLength: 0)
+        if let path = entry.data.slide, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
+          Image(uiImage: uiImage)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 28.0, height: 28.0)
+            .accessibilityLabel("Picture for the current time slot")
+        }
+        Group {
+          if let path = entry.data.contact?.avatar, let uiImage = hwDecodeImage(path, 28.0, 28.0) {
+            Image(uiImage: uiImage)
+              .resizable()
+              .aspectRatio(contentMode: .fill)
+              .frame(width: 28.0, height: 28.0)
+              .clipped()
+              .accessibilityLabel("Contact avatar")
+          }
+        }
+        .padding(.leading, 8.0)
+        Text((((entry.data.contact?.name) ?? (""))))
+          .font(.caption)
+          .padding(.leading, 8.0)
+        Spacer(minLength: 0)
+      }
+      .padding(.top, 8.0)
+      Spacer(minLength: 0)
+    }
+    .padding(EdgeInsets(top: 8.0, leading: 8.0, bottom: 8.0, trailing: 8.0))
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .applyContainerBackground()
+  }
+}
+
+struct ImageShowcaseHomeWidget: Widget {
+  let kind: String = "ImageShowcaseHomeWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+      ImageShowcaseHomeWidgetEntryView(entry: entry)
+    }
+    .configurationDisplayName("Image Showcase")
+    .description("A bundled asset logo plus images saved by the app.")
+    .supportedFamilies([.systemSmall])
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
+  }
+}
+
+struct ImageShowcaseData {
+  let picture: String?
+  let contact: ImageShowcaseContactJsonData?
+  let slide: String?
+
+  static let paramPrefix = "home_widget.ImageShowcase"
+
+  static func fromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ImageShowcaseData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return ImageShowcaseData(
+      picture: defaults?.string(forKey: "\(paramPrefix).picture"),
+      contact: ImageShowcaseContactJsonData.fromPath(
+        defaults?.string(forKey: "\(paramPrefix).contact")),
+      slide: timedValues["slide"] as? String,
+    )
+  }
+
+  static func previewFromUserDefaults(
+    _ defaults: UserDefaults?,
+    at date: Date = Date(),
+    timedEntries: [(date: Date, values: [String: Any])]? = nil
+  ) -> ImageShowcaseData {
+    let timedValues = activeTimedValues(timedEntries ?? loadTimedEntries(defaults), at: date)
+    return ImageShowcaseData(
+      picture: (defaults?.string(forKey: "\(paramPrefix).picture") ?? "assets/dash.png"),
+      contact: ImageShowcaseContactJsonData.previewFromPath(
+        defaults?.string(forKey: "\(paramPrefix).contact")),
+      slide: timedValues["slide"] as? String,
+    )
+  }
+
+  fileprivate static func loadTimedEntries(_ defaults: UserDefaults?) -> [(
+    date: Date, values: [String: Any]
+  )] {
+    guard let path = defaults?.string(forKey: "\(paramPrefix).timedData") else { return [] }
+    guard FileManager.default.fileExists(atPath: path) else { return [] }
+    do {
+      let raw = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: raw) as? [String: Any] else {
+        return []
+      }
+      var entries: [(date: Date, values: [String: Any])] = []
+      for (key, value) in json {
+        guard let millis = Double(key), let values = value as? [String: Any] else { continue }
+        entries.append((date: Date(timeIntervalSince1970: millis / 1000), values: values))
+      }
+      entries.sort { $0.date < $1.date }
+      return entries
+    } catch {
+      return []
+    }
+  }
+
+  fileprivate static func activeTimedValues(
+    _ entries: [(date: Date, values: [String: Any])], at date: Date
+  ) -> [String: Any] {
+    var values: [String: Any] = [:]
+    for entry in entries {
+      if entry.date > date { break }
+      values = entry.values
+    }
+    return values
+  }
+}
+
+struct ImageShowcaseContactJsonData {
+  let avatar: String?
+  let name: String
+
+  static func fromPath(_ path: String?) -> ImageShowcaseContactJsonData? {
+    guard let path else { return nil }
+    guard FileManager.default.fileExists(atPath: path) else { return nil }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return nil
+      }
+      return fromJson(json)
+    } catch {
+      return nil
+    }
+  }
+
+  static func fromJson(_ json: [String: Any]?) -> ImageShowcaseContactJsonData? {
+    guard let values = json else { return nil }
+    return ImageShowcaseContactJsonData(
+      avatar: values["avatar"] as? String,
+      name: (values["name"] as? String) ?? "",
+    )
+  }
+
+  static func previewFromPath(_ path: String?) -> ImageShowcaseContactJsonData? {
+    guard let path else { return previewFromJson([:]) }
+    guard FileManager.default.fileExists(atPath: path) else { return previewFromJson([:]) }
+    do {
+      let data = try Data(contentsOf: URL(fileURLWithPath: path))
+      guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return previewFromJson([:])
+      }
+      return previewFromJson(json)
+    } catch {
+      return previewFromJson([:])
+    }
+  }
+
+  static func previewFromJson(_ json: [String: Any]?) -> ImageShowcaseContactJsonData? {
+    let values = json ?? [:]
+    return ImageShowcaseContactJsonData(
+      avatar: values["avatar"] as? String,
+      name: (values["name"] as? String) ?? "",
+    )
+  }
+}
+
+func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> UIImage? {
+  func assetFile(_ asset: String) -> String? {
+    let appBundleURL = Bundle.main.bundleURL
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+    let url =
+      appBundleURL
+      .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+      .appendingPathComponent(asset)
+    return FileManager.default.fileExists(atPath: url.path) ? url.path : nil
+  }
+
+  guard let file = path.hasPrefix("/") ? path : assetFile(path),
+    let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: file) as CFURL, nil)
+  else { return nil }
+  let displayScale = UITraitCollection.current.displayScale
+  let scale = displayScale > 0 ? displayScale : 3
+  let fallback = CGFloat(1536)
+  let targetWidth = widthPt.map { CGFloat($0) * scale } ?? fallback
+  let targetHeight = heightPt.map { CGFloat($0) * scale } ?? fallback
+  let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
+  guard maxPixelSize > 0 else { return nil }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true,
+    kCGImageSourceShouldCacheImmediately: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+  ]
+  guard
+    let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+  else { return nil }
+  return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
+}
+
+func hwImageExists(_ path: String?) -> Bool {
+  guard let path, !path.isEmpty else { return false }
+  if path.hasPrefix("/") {
+    return FileManager.default.fileExists(atPath: path)
+  }
+  let asset = Bundle.main.bundleURL
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .appendingPathComponent("Frameworks/App.framework/flutter_assets")
+    .appendingPathComponent(path)
+  return FileManager.default.fileExists(atPath: asset.path)
+}

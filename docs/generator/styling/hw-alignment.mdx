@@ -1,0 +1,110 @@
+---
+title: Alignment
+description: Alignment enums used across the generator widgets, HWMainAxisAlignment and HWCrossAxisAlignment for HWColumn and HWRow, HWAlignment for HWStack and HWAlign.
+---
+
+# Alignment
+
+Flutter splits alignment the same way the generator does: `MainAxisAlignment` and `CrossAxisAlignment` belong to `Flex` (`Row` / `Column`), and `Alignment` belongs to `Stack` / `Align`. [`HWMainAxisAlignment`](#hwmainaxisalignment) and [`HWCrossAxisAlignment`](#hwcrossaxisalignment) are for [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row). [`HWAlignment`](#hwalignment) is for [`HWStack`](/generator/widgets/hw-stack) and [`HWAlign`](/generator/widgets/hw-align).
+
+## HWAlignment
+
+`HWAlignment` places a child within the room [`HWStack`](/generator/widgets/hw-stack) or [`HWAlign`](/generator/widgets/hw-align) gives it, Flutter's `AlignmentDirectional`. It has nine values, one per corner, edge and the center:
+
+`topStart`, `topCenter`, `topEnd`, `centerStart`, `center`, `centerEnd`, `bottomStart`, `bottomCenter`, `bottomEnd`
+
+There is no `topLeft` or `topRight`. `HWAlignment` only has directional values because that is all SwiftUI and Glance have: SwiftUI's `Alignment` gives you `.topLeading`, not `.topLeft`, and Glance's `Alignment` gives you `Alignment.TopStart`, not a left/right pair. Neither platform has a left that stays on the left in a right-to-left layout, so there is no value to map a literal left or right onto, and the generator does not invent one.
+
+| `HWAlignment` | SwiftUI `Alignment` | Glance `Alignment` |
+| --- | --- | --- |
+| `topStart` | `.topLeading` | `Alignment.TopStart` |
+| `topCenter` | `.top` | `Alignment.TopCenter` |
+| `topEnd` | `.topTrailing` | `Alignment.TopEnd` |
+| `centerStart` | `.leading` | `Alignment.CenterStart` |
+| `center` | `.center` | `Alignment.Center` |
+| `centerEnd` | `.trailing` | `Alignment.CenterEnd` |
+| `bottomStart` | `.bottomLeading` | `Alignment.BottomStart` |
+| `bottomCenter` | `.bottom` | `Alignment.BottomCenter` |
+| `bottomEnd` | `.bottomTrailing` | `Alignment.BottomEnd` |
+
+`HWAlign` defaults to `center`, `HWStack` defaults to `topStart`, matching Flutter's own defaults for `Align` and `Stack`.
+
+## HWStackFit
+
+`HWStackFit` decides how [`HWStack`](/generator/widgets/hw-stack) sizes itself and its children, Flutter's `StackFit` without `passthrough`:
+
+| Value | Description |
+| --- | --- |
+| `loose` | The stack sizes itself to its largest child; each child keeps its own size. |
+| `expand` | The stack takes all the room it is offered. Each child is given that same room and placed within it by `alignment`, not stretched to fill it. |
+
+`loose` is the default. See [`HWStack`](/generator/widgets/hw-stack#fit) for how `expand` is built out of `HWAlign`.
+
+## HWMainAxisAlignment and HWCrossAxisAlignment
+
+The two enums below are consumed by [`HWColumn`](/generator/widgets/hw-column) and [`HWRow`](/generator/widgets/hw-row).
+
+The cross-axis is the axis perpendicular to the layout direction:
+
+- `HWColumn` (vertical) — cross-axis is **horizontal**, main-axis is **vertical**.
+- `HWRow` (horizontal) — cross-axis is **vertical**, main-axis is **horizontal**.
+
+## HWCrossAxisAlignment
+
+| Value      | Description                          |
+| ---------- | ------------------------------------ |
+| `start`    | Align children to the cross-axis start. |
+| `center`   | Center children along the cross-axis.   |
+| `end`      | Align children to the cross-axis end.   |
+| `baseline` | Line the children up on their first text baselines. **`HWRow` only.** |
+
+Leaving `crossAxisAlignment` unset is the same as `center` on both platforms.
+
+`baseline` is what a large display number next to a small caption usually wants: `end` aligns the boxes the two texts sit in, which leaves their baselines apart by the difference in descent. A column's cross axis is horizontal and has no baseline, so an `HWColumn` asking for `baseline` fails generation.
+
+On Android it lines up the children that render text of their own, and only those. A child rendering none — a picture, an icon, a column of several texts — has no baseline to go by and stays at the top of the row, which is where a row with fewer than two texts leaves all of them; generation warns when that is what a row asks for. iOS has no such limit: SwiftUI's `.firstTextBaseline` puts the bottom edge of a child rendering no text on the baseline of the one that does.
+
+A row holding a text in a [custom font](/generator/custom-fonts) is lined up by the plugin when the widget updates, since such a text is drawn into a bitmap that carries no baseline for the layout to read. The same goes for a row whose `spacing` puts a text with a background or a border in a `Box` of its own, which reports no baseline either.
+
+```dart
+HWRow(
+  crossAxisAlignment: HWCrossAxisAlignment.baseline,
+  children: [
+    HWText(HWInt('streak'), style: HWTextStyle(fontSize: 34)),
+    HWText.fixed('days', style: HWTextStyle(fontSize: 12)),
+  ],
+)
+```
+
+## HWMainAxisAlignment
+
+| Value          | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `start`        | Pack children at the main-axis start.                             |
+| `center`       | Center children along the main-axis.                              |
+| `end`          | Pack children at the main-axis end.                               |
+| `spaceBetween` | Distribute children with equal space between them.                |
+| `spaceEvenly`  | Distribute children with equal space between, before, and after.  |
+
+Any value other than `start` stretches the `HWColumn` / `HWRow` along its main axis, since there has to be room to distribute. `start` and leaving it unset keep it hugging its children.
+
+The alignment only distributes the room left over. The spacers it inserts shrink to nothing when there is none, so they never keep two children apart on their own; `spacing` is what guarantees a gap, and the alignment adds its share on top of it.
+
+### Spacers and the Android child limit
+
+Glance lays out at most 10 children in one `Column` or `Row`, and each spacer an alignment inserts counts as a child. For an `HWColumn` or `HWRow` of `n` children:
+
+| Value           | Spacers | Children + spacers | Most children |
+| --------------- | ------- | ------------------ | ------------- |
+| `start` / unset | 0       | n                  | 10            |
+| `end`           | 1       | n + 1              | 9             |
+| `center`        | 2       | n + 2              | 8             |
+| `spaceBetween`  | n − 1   | 2n − 1             | 5             |
+| `spaceEvenly`   | n + 1   | 2n + 1             | 4             |
+
+`spacing` adds nothing to the count. A stack Android would render with more than 10 fails generation; see [`HWColumn`](/generator/widgets/hw-column#android-at-most-10-children). For an `HWColumn.builder` or `HWRow.builder`, `n` is its `maxItems`, so the last column is the largest `maxItems` it can have; see [Lists](/generator/lists#android-limits).
+
+## Platform mapping
+
+- **iOS:** maps to SwiftUI [`HorizontalAlignment`](https://developer.apple.com/documentation/swiftui/horizontalalignment) / [`VerticalAlignment`](https://developer.apple.com/documentation/swiftui/verticalalignment) on the stack, with `Spacer(minLength: 0)`s inserted to model the `center`, `end`, `spaceBetween` and `spaceEvenly` values. Where those spacers might not stretch the stack — `spaceBetween` with a single child, or a builder, whose items are only known at runtime — a `.frame` with an infinite maximum stretches it and keeps the children at the start. `baseline` becomes `.firstTextBaseline`.
+- **Android:** maps to Glance [`Alignment.Horizontal`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Horizontal) / [`Alignment.Vertical`](https://developer.android.com/reference/kotlin/androidx/glance/layout/Alignment.Vertical) on the `Column` / `Row`, with weighted `Spacer`s for the `center`, `end`, `spaceBetween` and `spaceEvenly` values.
