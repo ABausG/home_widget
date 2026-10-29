@@ -534,6 +534,9 @@ class AndroidGenerator {
         (spec.androidOpensAppOnTap && spec.links.isNotEmpty)) {
       await ensureAndroidManifestLaunchIntent(projectRoot);
     }
+    if (spec.hasInteractions) {
+      await ensureAndroidManifestBackgroundReceiver(projectRoot);
+    }
     if (hasTimedData) {
       // Time-based content drives itself through HomeWidget.scheduleWidgetUpdates
       // on Android, which needs the plugin's scheduling receiver declared by the

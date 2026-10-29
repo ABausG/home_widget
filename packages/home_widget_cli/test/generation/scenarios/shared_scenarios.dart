@@ -338,6 +338,133 @@ class LinksOnly {}
     hasLinks: true,
   ),
   BuildScenario(
+    description: 'runs Dart for buttons with a payload',
+    className: 'Tapped',
+    widgetSource: '''
+import 'package:cli_test/tapped_interaction.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Tapped',
+  onInteraction: onTappedInteraction,
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.cliTest',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
+  ),
+  widget: HWColumn(
+    children: [
+      HWButton(
+        'add',
+        data: [
+          HWString('city'),
+          HWInt('count', defaultValue: 0),
+          HWDouble('ratio'),
+          HWBool('done'),
+          HWDateTime('updatedAt'),
+          HWPayload('name', HWJson('user', HWString('name'))),
+          HWPayload('step', HWInt.fixed(2)),
+        ],
+        child: HWText(HWString('city')),
+      ),
+      HWColumn.builder(
+        'todos',
+        maxItems: 3,
+        item: HWButton(
+          'toggle',
+          data: [HWItemData(HWString('id'))],
+          child: HWText(HWItemData(HWString('title'))),
+        ),
+      ),
+    ],
+  ),
+)
+class Tapped {}
+''',
+    files: {
+      'lib/tapped_interaction.dart': '''
+import 'package:cli_test/src/home_widget/widget.home_widget.dart';
+
+Future<void> onTappedInteraction(TappedInteraction interaction) async {
+  switch (interaction) {
+    case TappedAddInteraction(:final count, :final step):
+      await TappedHomeWidget.saveData(count: count + step);
+    case TappedToggleInteraction(:final id):
+      await TappedHomeWidget.saveData(city: id);
+  }
+  await TappedHomeWidget.updateWidget();
+}
+''',
+      'lib/main.dart': '''
+import 'package:cli_test/src/home_widget/widget.home_widget.dart';
+import 'package:flutter/widgets.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  TappedHomeWidget.registerInteractivity();
+  runApp(const SizedBox());
+}
+''',
+    },
+    hasButtons: true,
+  ),
+  BuildScenario(
+    description: 'runs a static function for a button next to a link',
+    className: 'Mixed',
+    widgetSource: '''
+import 'package:cli_test/mixed_interaction.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Mixed',
+  widgetUrl: 'cliTest://mixed',
+  onInteraction: MixedHandlers.onTap,
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.cliTest',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
+  ),
+  widget: HWRow(
+    children: [
+      HWLink(
+        'details',
+        url: 'cliTest://details',
+        child: HWText(HWString.fixed('Details')),
+      ),
+      HWButton('refresh', child: HWText(HWString.fixed('Refresh'))),
+    ],
+  ),
+)
+class Mixed {}
+''',
+    files: {
+      'lib/mixed_interaction.dart': '''
+import 'package:cli_test/src/home_widget/widget.home_widget.dart';
+
+class MixedHandlers {
+  static void onTap(MixedInteraction interaction) {
+    MixedHomeWidget.updateWidget();
+  }
+}
+''',
+      'lib/main.dart': '''
+import 'package:cli_test/src/home_widget/widget.home_widget.dart';
+import 'package:flutter/widgets.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  MixedHomeWidget.registerInteractivity();
+  MixedHomeWidget.launches().listen((launch) {});
+  runApp(const SizedBox());
+}
+''',
+    },
+    expectedAndroidWidgetUrl: 'cliTest://mixed?homeWidget',
+    expectedIosWidgetUrl: 'cliTest://mixed?homeWidget',
+    hasLinks: true,
+    hasButtons: true,
+  ),
+  BuildScenario(
     description: 'keeps a widget URL that already carries homeWidget',
     className: 'ExplicitUrl',
     widgetSource: '''

@@ -1,27 +1,5 @@
 part of 'widget_data_validator.dart';
 
-/// One place an [HWLink] sits in a widget tree.
-class _LinkSite {
-  final HWLink link;
-
-  /// Whether the link sits in the item of a list builder.
-  final bool inItem;
-
-  /// The choices made on the way down to the link: each widget rendering one
-  /// of several subtrees, with the index of the one the link is in.
-  final List<(HWWidget, int)> choices;
-
-  const _LinkSite(this.link, {required this.inItem, required this.choices});
-
-  /// Whether this link and [other] can never render together, because some
-  /// widget above both renders the subtree of one or of the other.
-  bool excludes(_LinkSite other) => choices.any(
-        (mine) => other.choices.any(
-          (theirs) => identical(mine.$1, theirs.$1) && mine.$2 != theirs.$2,
-        ),
-      );
-}
-
 /// Validates everything a tap on [spec] can open the app with: the widget's
 /// own URL, its [HWLink]s, and the payloads of both.
 ///
@@ -48,9 +26,9 @@ void validateLaunches(WidgetSpec spec) {
     );
   }
 
-  final sites = _linkSites(spec, widget);
+  final sites = _tapSites(spec, widget).links;
   for (final site in sites) {
-    final link = site.link;
+    final link = site.target;
     final owner = "$widget: HWLink('${link.id}')";
     if (!asciiDataNamePattern.hasMatch(link.id)) {
       throw GeneratorError(
@@ -128,108 +106,39 @@ void _validateUrlPayload(
   );
 }
 
-/// Every [HWLink] of [spec], in document order, rejecting one inside another.
-List<_LinkSite> _linkSites(WidgetSpec spec, String widget) {
-  final sites = <_LinkSite>[];
-
-  void walk(
-    HWWidget node,
-    List<(HWWidget, int)> choices, {
-    required bool inItem,
-    required HWLink? enclosing,
-  }) {
-    if (node is HWLink) {
-      if (enclosing != null) {
-        throw GeneratorError(
-          "$widget: HWLink('${node.id}') sits inside "
-          "HWLink('${enclosing.id}'). A tap opens one URL, so a link cannot "
-          'contain another one.',
-        );
-      }
-      sites.add(_LinkSite(node, inItem: inItem, choices: choices));
-      walk(node.child, choices, inItem: inItem, enclosing: node);
-      return;
-    }
-
-    final item = node is HWFlex ? node.item : null;
-    final branches = switch (node) {
-      HWConditional() => [node.firstBranch, node.secondBranch],
-      HWAdaptive() => [node.ios, node.android],
-      HWSizeAdaptive() => node.childWidgets,
-      HWFlex(:final whenEmpty?) when item != null => [item, whenEmpty],
-      _ => null,
-    };
-    if (branches != null) {
-      final walked = <HWWidget>[];
-      for (final (index, branch) in branches.indexed) {
-        // One widget written into two slots is one place in the tree.
-        if (walked.any((other) => identical(other, branch))) continue;
-        walked.add(branch);
-        walk(
-          branch,
-          [...choices, (node, index)],
-          inItem: inItem || (item != null && index == 0),
-          enclosing: enclosing,
-        );
-      }
-      return;
-    }
-
-    for (final child in node.childWidgets) {
-      walk(
-        child,
-        choices,
-        inItem: inItem || identical(child, item),
-        enclosing: enclosing,
-      );
-    }
-  }
-
-  walk(spec.effectiveWidgetTree, const [], inItem: false, enclosing: null);
-  return sites;
-}
-
 /// Rejects two links generating one launch class unless they are the same
 /// target: only one of them can ever render, and both open the same URL with
 /// the same payload.
-void _validateLinkIds(WidgetSpec spec, List<_LinkSite> sites, String widget) {
-  final seen = <String, List<_LinkSite>>{};
-  for (final site in sites) {
-    final link = site.link;
-    final earlier = seen.putIfAbsent(spec.linkClassName(link), () => []);
-    for (final existing in earlier) {
-      final other = existing.link;
-      final ids = other.id == link.id
-          ? "HWLink('${link.id}') is declared twice"
-          : "HWLink('${other.id}') and HWLink('${link.id}') both generate "
-              '${spec.linkClassName(link)}';
-      if (!existing.excludes(site)) {
-        throw GeneratorError(
-          '$widget: $ids. A link id is unique within a widget; it may only '
-          'repeat across the branches of a conditional or the slots of an '
-          'HWSizeAdaptive, where one of them renders at a time.',
-        );
-      }
-      if (!_sameLaunch(other.payloadUrl, link.payloadUrl)) {
-        throw GeneratorError(
-          '$widget: $ids, but with a different url or data. Both reach the '
-          'app as the same launch class, so give them the same url and the '
-          'same data, or different ids.',
-        );
-      }
-    }
-    earlier.add(site);
-  }
-}
+void _validateLinkIds(
+  WidgetSpec spec,
+  List<_TapSite<HWLink>> sites,
+  String widget,
+) {
+  final conflict = _conflictingTapSites(
+    sites,
+    className: spec.linkClassName,
+    payloadUrl: (link) => link.payloadUrl,
+  );
+  if (conflict == null) return;
 
-/// Whether [a] and [b] open the same URL with a payload of the same shape.
-bool _sameLaunch(HWPayloadUrl a, HWPayloadUrl b) {
-  if (a.url != b.url || a.payload.length != b.payload.length) return false;
-  final theirs = {for (final entry in b.payload) entry.name: entry};
-  return a.payload.every((entry) {
-    final other = theirs[entry.name];
-    return other != null && entry.hasSameShapeAs(other);
-  });
+  final link = conflict.second.target;
+  final other = conflict.first.target;
+  final ids = other.id == link.id
+      ? "HWLink('${link.id}') is declared twice"
+      : "HWLink('${other.id}') and HWLink('${link.id}') both generate "
+          '${spec.linkClassName(link)}';
+  if (!conflict.exclusive) {
+    throw GeneratorError(
+      '$widget: $ids. A link id is unique within a widget; it may only '
+      'repeat across the branches of a conditional or the slots of an '
+      'HWSizeAdaptive, where one of them renders at a time.',
+    );
+  }
+  throw GeneratorError(
+    '$widget: $ids, but with a different url or data. Both reach the app '
+    'as the same launch class, so give them the same url and the same '
+    'data, or different ids.',
+  );
 }
 
 /// Rejects two launch targets whose URLs the app could not tell apart.
