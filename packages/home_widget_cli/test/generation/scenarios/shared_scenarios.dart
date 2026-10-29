@@ -21,7 +21,7 @@ const variableTestWidget = HWColoredBox(
     padding: .all(8),
     child: HWColumn(
       mainAxisAlignment: HWMainAxisAlignment.start,
-      crossAxisAlignment: .stretch,
+      crossAxisAlignment: .start,
       children: [
         variableTestWidget,
         HWText(HWString.fixed('Some other')),
