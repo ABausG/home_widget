@@ -23,6 +23,9 @@ public struct HomeWidgetBackgroundWorker {
 
   private static var registerPlugins: FlutterPluginRegistrantCallback?
 
+  /// Whether the plugins of the app are being registered with the background engine.
+  static var isRegisteringPlugins: Bool = false
+
   public static func setPluginRegistrantCallback(registerPlugins: FlutterPluginRegistrantCallback) {
     self.registerPlugins = registerPlugins
   }
@@ -117,9 +120,11 @@ public struct HomeWidgetBackgroundWorker {
       withEntrypoint: flutterCallbackInfo?.callbackName,
       libraryURI: flutterCallbackInfo?.callbackLibraryPath)
     if let registerPlugins = registerPlugins {
+      isRegisteringPlugins = true
       registerPlugins(backgroundEngine)
+      isRegisteringPlugins = false
     } else if let registrar = backgroundEngine.registrar(forPlugin: "home_widget") {
-      HomeWidgetPlugin.register(with: registrar)
+      HomeWidgetPlugin.registerChannels(with: registrar)
     }
 
     channel?.setMethodCallHandler(handle)

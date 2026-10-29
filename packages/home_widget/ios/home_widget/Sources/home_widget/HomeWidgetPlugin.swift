@@ -59,16 +59,14 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
   }
 
   public static func register(with registrar: FlutterPluginRegistrar) {
-    let instance = HomeWidgetPlugin()
-
-    let channel = FlutterMethodChannel(name: "home_widget", binaryMessenger: registrar.messenger())
-    registrar.addMethodCallDelegate(instance, channel: channel)
-
-    let eventChannel = FlutterEventChannel(
-      name: "home_widget/updates", binaryMessenger: registrar.messenger())
-    eventChannel.setStreamHandler(instance)
+    let instance = registerChannels(with: registrar)
 
     guard !isRunningInAppExtension() else {
+      return
+    }
+    // The engine a widget interaction runs in only needs the channels: as an application delegate
+    // it would sit in the delegate chain next to the app's own instance.
+    if #available(iOS 17, *), HomeWidgetBackgroundWorker.isRegisteringPlugins {
       return
     }
 
@@ -81,6 +79,22 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     if registrar.responds(to: sceneDelegateSelector) {
       registrar.perform(sceneDelegateSelector, with: instance)
     }
+  }
+
+  /// Sets up the `home_widget` method channel and the `home_widget/updates` event channel on
+  /// the messenger of `registrar`, without adding the plugin as an application or scene delegate.
+  @discardableResult
+  public static func registerChannels(with registrar: FlutterPluginRegistrar) -> HomeWidgetPlugin {
+    let instance = HomeWidgetPlugin()
+
+    let channel = FlutterMethodChannel(name: "home_widget", binaryMessenger: registrar.messenger())
+    registrar.addMethodCallDelegate(instance, channel: channel)
+
+    let eventChannel = FlutterEventChannel(
+      name: "home_widget/updates", binaryMessenger: registrar.messenger())
+    eventChannel.setStreamHandler(instance)
+
+    return instance
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
