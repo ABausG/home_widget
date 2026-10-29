@@ -18,7 +18,7 @@ Add this package and `home_widget_cli` as dev dependencies, and `home_widget` as
 
 ```yaml
 dependencies:
-  home_widget: ^0.9.0
+  home_widget: ^0.10.1
 
 dev_dependencies:
   home_widget_generator: ^0.0.1
