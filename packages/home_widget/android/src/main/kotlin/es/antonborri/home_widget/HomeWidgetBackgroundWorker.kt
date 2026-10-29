@@ -19,7 +19,6 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
 import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -31,9 +30,6 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     if (engine == null) {
       try {
         initializeFlutterEngine()
-      } catch (e: CancellationException) {
-        resetEngine()
-        throw e
       } catch (e: Exception) {
         Log.e(TAG, "Failed to initialize Flutter engine", e)
         resetEngine()
