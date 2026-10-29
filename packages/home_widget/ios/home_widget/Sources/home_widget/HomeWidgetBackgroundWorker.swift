@@ -31,6 +31,13 @@ public struct HomeWidgetBackgroundWorker {
   /// The url you provide will be used as arguments in the callback function in dart
   /// The AppGroup is necessary to retrieve the dart callbacks
   static public func run(url: URL?, appGroup: String) async {
+    await run(url: url, appGroup: appGroup, key: nil)
+  }
+
+  /// Invokes the callback that was registered with the given key in your Flutter App.
+  /// Falls back to the callback registered without a key if the key is nil or nothing was
+  /// registered for it.
+  static public func run(url: URL?, appGroup: String, key: String?) async {
     if isSetupCompleted == false {
       await withCheckedContinuation { continuation in
         continuations.append(continuation)
@@ -41,7 +48,23 @@ public struct HomeWidgetBackgroundWorker {
     let dispatcher = preferences?.object(forKey: dispatcherKey) as! Int64
     NSLog("Dispatcher: \(dispatcher)")
 
-    await sendEvent(url: url, appGroup: appGroup)
+    await sendEvent(url: url, appGroup: appGroup, key: key)
+  }
+
+  static func callbackStorageKey(for key: String?) -> String {
+    guard let key = key else {
+      return callbackKey
+    }
+    return "\(callbackKey).\(key)"
+  }
+
+  static func callbackHandle(in preferences: UserDefaults?, key: String?) -> Int64? {
+    if let key = key,
+      let keyed = preferences?.object(forKey: callbackStorageKey(for: key)) as? Int64
+    {
+      return keyed
+    }
+    return preferences?.object(forKey: callbackKey) as? Int64
   }
 
   static func setupEngine(dispatcher: Int64) {
@@ -82,12 +105,12 @@ public struct HomeWidgetBackgroundWorker {
     }
   }
 
-  static func sendEvent(url: URL?, appGroup: String) async {
+  static func sendEvent(url: URL?, appGroup: String, key: String? = nil) async {
     guard let _channel = channel else {
       return
     }
     let preferences = UserDefaults.init(suiteName: appGroup)
-    guard let _callback = preferences?.object(forKey: callbackKey) as? Int64 else {
+    guard let _callback = callbackHandle(in: preferences, key: key) else {
       return
     }
     await withCheckedContinuation { continuation in

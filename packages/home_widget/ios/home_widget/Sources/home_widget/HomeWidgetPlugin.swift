@@ -212,18 +212,24 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     } else if call.method == "initiallyLaunchedFromHomeWidget" {
       result(initialUrl?.absoluteString)
     } else if call.method == "registerBackgroundCallback" {
-      if HomeWidgetPlugin.groupId == nil {
+      // [dispatcher, callback] or [dispatcher, callback, key, appGroupId]
+      let arguments = call.arguments as! [Any]
+      let key = arguments.count > 2 ? arguments[2] as? String : nil
+      let appGroupId = arguments.count > 3 ? arguments[3] as? String : nil
+      guard let resolvedGroupId = appGroupId ?? HomeWidgetPlugin.groupId else {
         result(notInitializedError)
         return
       }
       if #available(iOS 17.0, *) {
-        let callbackHandles = call.arguments as! [Int64]
-        let dispatcher = callbackHandles[0]
-        let callback = callbackHandles[1]
-        let preferences = UserDefaults.init(suiteName: HomeWidgetPlugin.groupId)
+        let dispatcher = arguments[0] as! Int64
+        let callback = arguments[1] as! Int64
+        let preferences = UserDefaults.init(suiteName: resolvedGroupId)
         preferences?.setValue(dispatcher, forKey: HomeWidgetBackgroundWorker.dispatcherKey)
-        preferences?.setValue(callback, forKey: HomeWidgetBackgroundWorker.callbackKey)
-        HomeWidgetBackgroundWorker.setupEngine(dispatcher: dispatcher)
+        preferences?.setValue(
+          callback, forKey: HomeWidgetBackgroundWorker.callbackStorageKey(for: key))
+        if HomeWidgetBackgroundWorker.engine == nil {
+          HomeWidgetBackgroundWorker.setupEngine(dispatcher: dispatcher)
+        }
 
         result(true)
         return

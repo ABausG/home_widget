@@ -171,6 +171,15 @@ void main() {
     expect(returnValue, true);
   });
 
+  testWidgets('Register keyed Background Callback', (tester) async {
+    final returnValue = await HomeWidget.registerInteractivityCallback(
+      backgroundCallback,
+      key: 'KeyedWidget',
+      appGroupId: 'ignored.on.android',
+    );
+    expect(returnValue, true);
+  });
+
   testWidgets(
     'Initially Launched completes and returns null if not launched from widget',
     (tester) async {

@@ -43,7 +43,8 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     val data = inputData.getString(DATA_KEY) ?: ""
-    val args = listOf(HomeWidgetPlugin.getHandle(context), data)
+    val args =
+        listOf(HomeWidgetPlugin.getHandle(context, inputData.getString(CALLBACK_KEY_KEY)), data)
 
     synchronized(serviceStarted) {
       if (!serviceStarted.get()) {
@@ -104,6 +105,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
   companion object {
     private const val TAG = "HomeWidgetWorker"
     private const val DATA_KEY = "uri_data"
+    private const val CALLBACK_KEY_KEY = "callback_key"
     private const val UNIQUE_WORK_NAME = "home_widget_background"
     private const val CHANNEL_NAME = "home_widget/background"
 
@@ -128,7 +130,14 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     fun enqueueWork(context: Context, work: Intent) {
-      val data = Data.Builder().putString(DATA_KEY, work.data?.toString() ?: "").build()
+      val data =
+          Data.Builder()
+              .putString(DATA_KEY, work.data?.toString() ?: "")
+              .putString(
+                  CALLBACK_KEY_KEY,
+                  work.getStringExtra(HomeWidgetBackgroundIntent.EXTRA_CALLBACK_KEY),
+              )
+              .build()
 
       val workRequest =
           OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>().setInputData(data).build()
