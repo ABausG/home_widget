@@ -9,6 +9,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:xml/xml.dart';
 
 import '../helpers/font_fixture.dart';
 import '../helpers/mock_logger.dart';
@@ -2080,6 +2081,14 @@ void main() {
       ).readAsStringSync();
     }
 
+    String receiverOf(WidgetSpec spec) => File(
+          p.join(
+            tempDir.path,
+            'android/app/src/main/kotlin/com/example/'
+            '${spec.className}HomeWidgetReceiver.kt',
+          ),
+        ).readAsStringSync();
+
     WidgetSpec specOf(
       String className, {
       List<HWDataType<dynamic>> dataFields = const [],
@@ -2188,10 +2197,12 @@ void main() {
         content,
         contains(
           'Text(text = widgetData.placedAt?.let { hwFormatDateSkeleton(it, '
-          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "", '
+          '"yMMMd", context, widgetData.zone) } ?: "", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );
+      expect(content, contains('AndroidDateFormat.is24HourFormat(context)'));
+      expect('import android.content.Context'.allMatches(content).length, 1);
 
       // The skeleton resolver is Android's DateFormat, aliased so it can live
       // beside the java.text one the styled helper uses.
@@ -2313,18 +2324,73 @@ void main() {
     });
 
     test('handles LOCALE_CHANGED for a formatting-only widget', () async {
-      await generateFor(
-        specOf(
-          'Prices',
-          dataFields: const [HWDouble('total')],
-          widgetTree: const HWText.number(HWDouble('total')),
-        ),
+      final spec = specOf(
+        'Prices',
+        dataFields: const [HWDouble('total')],
+        widgetTree: const HWText.number(HWDouble('total')),
       );
+      await generateFor(spec);
 
       expect(
         manifest.readAsStringSync(),
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
+      // A number has no hour cycle to follow.
+      expect(manifest.readAsStringSync(), isNot(contains('TIME_SET')));
+      expect(receiverOf(spec), isNot(contains('onReceive')));
+    });
+
+    test('handles TIME_SET for a date left to the device hour cycle', () async {
+      final specs = [
+        specOf(
+          'Clock',
+          dataFields: const [HWDateTime('at')],
+          widgetTree: const HWText.dateTime(
+            HWDateTime('at'),
+            format: HWDateFormat.jm,
+          ),
+        ),
+        specOf(
+          'Stamp',
+          dataFields: const [HWDateTime('at')],
+          widgetTree: const HWText.dateTime(HWDateTime('at')),
+        ),
+      ];
+
+      for (final spec in specs) {
+        await generateFor(spec);
+
+        final receiver = XmlDocument.parse(manifest.readAsStringSync())
+            .findAllElements('receiver')
+            .singleWhere(
+              (e) =>
+                  e.getAttribute('android:name') ==
+                  'com.example.${spec.className}HomeWidgetReceiver',
+            );
+        expect(
+          receiver
+              .findAllElements('action')
+              .map((e) => e.getAttribute('android:name')),
+          [
+            'android.appwidget.action.APPWIDGET_UPDATE',
+            'android.intent.action.LOCALE_CHANGED',
+            'android.intent.action.TIME_SET',
+          ],
+          reason: spec.className,
+        );
+
+        final source = receiverOf(spec);
+        expect(
+          source,
+          contains('if (intent.action == Intent.ACTION_TIME_CHANGED) {'),
+          reason: spec.className,
+        );
+        expect(
+          'import android.content.Context'.allMatches(source).length,
+          1,
+          reason: spec.className,
+        );
+      }
     });
 
     test('keys LOCALE_CHANGED on the helpers that read the locale', () async {
@@ -2351,6 +2417,13 @@ void main() {
         manifest.readAsStringSync(),
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
+      // An explicit pattern spells its own hour cycle out.
+      expect(
+        spec.nativeHelpers.where((h) => h.hourCycleDependent),
+        isEmpty,
+      );
+      expect(manifest.readAsStringSync(), isNot(contains('TIME_SET')));
+      expect(receiverOf(spec), isNot(contains('onReceive')));
     });
   });
 

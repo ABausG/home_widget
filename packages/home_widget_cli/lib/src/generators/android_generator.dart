@@ -65,6 +65,11 @@ class AndroidGenerator {
     final handlesLocaleChange = spec.rendersLocalizedContent ||
         nativeHelpers.any((helper) => helper.localeDependent);
 
+    // Flipping the system's 12-/24-hour setting changes no locale, so a widget
+    // showing a time in the device's hour cycle needs its own trigger.
+    final handlesTimeChange =
+        nativeHelpers.any((helper) => helper.hourCycleDependent);
+
     // A preview fingerprint always folds in the current locale tags, so
     // whenever one is emitted the generated file needs hwCurrentLocales
     // whether or not anything else already pulled it in.
@@ -440,6 +445,7 @@ class AndroidGenerator {
         packageName: packageName,
         widgetClassName: widgetClassName,
         previewFingerprint: previewFingerprint != null,
+        handleTimeChange: handlesTimeChange,
       ),
     );
     logger.detail('Generated: ${receiverFile.path}');
@@ -515,6 +521,7 @@ class AndroidGenerator {
       appPackageName: packageName,
       providerInfoName: providerInfoName,
       handleLocaleChange: handlesLocaleChange,
+      handleTimeChange: handlesTimeChange,
       label: '@string/$labelResourceName',
       flavors: spec.declaredFlavors,
     );

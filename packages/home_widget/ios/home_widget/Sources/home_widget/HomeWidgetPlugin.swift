@@ -23,8 +23,13 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
   private var initialUrl: URL?
   private var latestUrl: URL? {
     didSet {
-      if latestUrl != nil {
-        eventSink?.self(latestUrl?.absoluteString)
+      guard let url = latestUrl else { return }
+      if let eventSink = eventSink {
+        eventSink(url.absoluteString)
+      } else {
+        // Nobody listens yet, so the click would be lost: `initiallyLaunchedFromHomeWidget`
+        // answers with it instead.
+        initialUrl = url
       }
     }
   }

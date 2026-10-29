@@ -412,7 +412,18 @@ class HomeWidgetPlugin :
   }
 
   override fun onNewIntent(intent: Intent): Boolean {
-    receiver?.onReceive(context, intent)
-    return receiver != null
+    val listener = receiver
+    if (listener != null) {
+      listener.onReceive(context, intent)
+      return true
+    }
+    // Nobody listens yet, as when the process restarts inside a task that is still there: the
+    // Activity comes back with its old Intent and the click arrives here. Keeping it as the
+    // Activity's Intent lets `initiallyLaunchedFromHomeWidget` answer with it.
+    if (intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
+      activity?.intent = intent
+      return true
+    }
+    return false
   }
 }

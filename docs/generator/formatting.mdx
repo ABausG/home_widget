@@ -290,9 +290,9 @@ Examples are the instant Monday, 2 March 2026, 14:05:09 local time, in en-US:
 | `HWDateFormat.yMMMMd` | `yMMMMd` | year, full month, day | `March 2, 2026` |
 | `HWDateFormat.yMMMEd` | `yMMMEd` | weekday and abbreviated date | `Mon, Mar 2, 2026` |
 | `HWDateFormat.yMMMMEEEEd` | `yMMMMEEEEd` | full weekday and date | `Monday, March 2, 2026` |
-| `HWDateFormat.j` | `j` | hour, locale's clock | `2 PM` |
-| `HWDateFormat.jm` | `jm` | hour and minute, locale's clock | `2:05 PM` |
-| `HWDateFormat.jms` | `jms` | hour, minute, second, locale's clock | `2:05:09 PM` |
+| `HWDateFormat.j` | `j` | hour, device's clock | `2 PM` |
+| `HWDateFormat.jm` | `jm` | hour and minute, device's clock | `2:05 PM` |
+| `HWDateFormat.jms` | `jms` | hour, minute, second, device's clock | `2:05:09 PM` |
 | `HWDateFormat.H` | `H` | hour, forced 24-hour | `14` |
 | `HWDateFormat.Hm` | `Hm` | hour and minute, forced 24-hour | `14:05` |
 | `HWDateFormat.Hms` | `Hms` | hour, minute, second, forced 24-hour | `14:05:09` |
@@ -300,10 +300,11 @@ Examples are the instant Monday, 2 March 2026, 14:05:09 local time, in en-US:
 | `HWDateFormat.yMMMdjm` | `yMMMdjm` | abbreviated date and time | `Mar 2, 2026 2:05 PM` |
 | `HWDateFormat.yMMMMdjm` | `yMMMMdjm` | full date and time | `March 2, 2026 2:05 PM` |
 
-The `j` in a skeleton means "the hour field this locale prefers", so `jm` is
-`2:05 PM` in en-US and `14:05` in de-DE. `H` forces 24-hour and `h` forces
-12-hour regardless of locale — reach for them only when the design genuinely
-requires one clock.
+The `j` in a skeleton means "the hour field this device uses": the locale's
+default — `jm` is `2:05 PM` in en-US and `14:05` in de-DE — unless the user
+changed the 12/24-hour setting in the system settings. `H` forces 24-hour and
+`h` forces 12-hour regardless of either — reach for them only when the design
+genuinely requires one clock.
 
 The same instant in de-DE:
 
@@ -529,6 +530,11 @@ Formatting uses `java.text.NumberFormat` / `DecimalFormat` and
 first entry of `context.resources.configuration.locales`, falling back to
 `Locale.getDefault()`.
 
+A skeleton containing `j` honors the system's 24-hour setting through
+`DateFormat.is24HourFormat`, and so does a `short` or `medium` style-preset
+time. A `long` or `full` preset time keeps the locale's clock, which is a
+platform limitation.
+
 The display zone defaults to `TimeZone.getDefault()`. `HWTimeZone.named` and
 `HWTimeZone.data` resolve through `TimeZone.getTimeZone(id)`, which also
 accepts custom offsets such as `GMT+02:00`; a `UTC+2` spelling is rewritten to
@@ -539,5 +545,7 @@ back to `TimeZone.getDefault()`, the same as an empty id.
 is **API 24+**. On API 23 the widget falls back to a plain decimal format, so
 `1200000` renders as `1,200,000` rather than `1.2M`. Every other format works on
 all supported API levels. Widgets re-render on `LOCALE_CHANGED`, so a language
-or region switch is reflected without your app running.
+or region switch is reflected without your app running. Widgets that format a
+date with a skeleton or a style preset also re-render on `TIME_SET`, so
+flipping the 24-hour setting is reflected the same way.
 </Accordion>
