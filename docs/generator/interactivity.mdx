@@ -1,0 +1,343 @@
+---
+title: Interactive Widgets
+description: Run Dart code from a button on a generated widget, without opening the app.
+---
+
+# Interactive Widgets
+
+An [`HWButton`](/generator/widgets/hw-button) makes a region of a generated widget run a Dart function when it is tapped. The app is not opened: the function runs in the background, changes the widget's data and updates the widget.
+
+You write the button in the schema and one Dart function. The CLI generates the native code and wires it into the Android and iOS projects. You write no Swift, no Kotlin, no `AppIntent` and no manifest entry, and you never parse a `Uri`.
+
+<Info>
+For a tap that should open the app, use [`widgetUrl`](/generator/widget-url) or an [`HWLink`](/generator/widgets/hw-link). For hand-written native widgets, see [Interactive Widgets](/features/interactive-widgets) of the plugin.
+</Info>
+
+## Requirements
+
+- `home_widget` 0.10.1 or newer. When `pubspec.lock` resolves an older hosted `home_widget`, generation fails with a message asking you to raise the constraint.
+- iOS 17 for the buttons to react. See [iOS below 17](#ios-below-17).
+
+## Walk-through
+
+This builds a counter with two buttons. It uses three files:
+
+| File | Content |
+| --- | --- |
+| `home_widget/counter.dart` | The schema, with the buttons. |
+| `lib/counter_interaction.dart` | The function a tap runs. |
+| `lib/src/home_widget/counter.home_widget.dart` | Generated. The helper class and the interaction classes. |
+
+<Steps>
+  <Step title="Write the function">
+    Create `lib/counter_interaction.dart`:
+
+    ```dart
+    import 'src/home_widget/counter.home_widget.dart';
+
+    Future<void> onCounterInteraction(CounterInteraction interaction) async {
+      final count = (await CounterHomeWidget.getData()).count ?? 0;
+      switch (interaction) {
+        case CounterIncrementInteraction(:final step):
+          await CounterHomeWidget.saveData(count: count + step);
+        case CounterDecrementInteraction():
+          await CounterHomeWidget.saveData(count: count - 1);
+      }
+      await CounterHomeWidget.updateWidget();
+    }
+    ```
+
+    <Info>
+    `CounterInteraction` and the generated file do not exist before the first `generate` run, so the analyzer reports errors in this file until then. Generation still works.
+    </Info>
+  </Step>
+
+  <Step title="Write the schema">
+    Create `home_widget/counter.dart`. It imports the library with the function, names the function in `onInteraction`, and wraps what should be tapped in an `HWButton`:
+
+    ```dart
+    import 'package:home_widget_generator/home_widget_generator.dart';
+    import 'package:my_app/counter_interaction.dart';
+
+    @HomeWidget(
+      name: 'Counter',
+      onInteraction: onCounterInteraction,
+      android: HomeWidgetAndroidConfiguration(),
+      iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+      widget: HWColumn(
+        spacing: 8,
+        children: [
+          HWText.number(HWInt('count', defaultValue: 0)),
+          HWRow(
+            spacing: 24,
+            children: [
+              HWButton(
+                'decrement',
+                child: HWText(HWString.fixed('-')),
+              ),
+              HWButton(
+                'increment',
+                data: [HWPayload('step', HWInt.fixed(1))],
+                child: HWText(HWString.fixed('+')),
+              ),
+            ],
+          ),
+        ],
+      ),
+    )
+    class Counter {}
+    ```
+  </Step>
+
+  <Step title="Generate the code">
+    ```bash
+    dart run home_widget_cli generate
+    ```
+
+    This writes the Dart helper with the interaction classes and the native widgets, and changes the native projects as listed under [What the CLI changes in your project](#what-the-cli-changes-in-your-project).
+  </Step>
+
+  <Step title="Register the function when the app starts">
+    ```dart
+    import 'package:flutter/widgets.dart';
+
+    import 'src/home_widget/counter.home_widget.dart';
+
+    Future<void> main() async {
+      WidgetsFlutterBinding.ensureInitialized();
+      await CounterHomeWidget.registerInteractivity();
+      runApp(const MyApp());
+    }
+    ```
+
+    See [Registration](#registration) for why this call is recommended.
+  </Step>
+
+  <Step title="Build and run the app">
+    Do a full build, not a hot reload or hot restart: the widget and its wiring are native code. Then place the widget and tap a button.
+  </Step>
+</Steps>
+
+## The function
+
+`onInteraction` names the function every button of the widget runs. It has to be:
+
+- a top-level or static function,
+- public, in a public class when it is static,
+- declared in a library under `lib/`,
+- taking exactly one positional parameter, the generated `<WidgetClass>Interaction`,
+- returning `void`, `Future<void>` or `FutureOr<void>`.
+
+Each of these is checked, and a function that does not fit fails generation with a message naming what to change.
+
+The function does not go into the schema file. The generated Dart file imports the function to call it, and a schema file lives outside `lib/` and imports `home_widget_generator`, which is a dev dependency. So the function lives in the app, and the schema imports that library with a `package:` import to name it.
+
+The function needs no `@pragma('vm:entry-point')`. The generated code has an entry point of its own that decodes the tap and calls your function.
+
+Several widgets can be interactive. Each one names its own function and registers it under its own key, so they do not interfere with each other or with a callback you registered by hand through `HomeWidget.registerInteractivityCallback`.
+
+## The interaction classes
+
+`generate` writes a sealed class per widget and one subclass per button id into the Dart helper file:
+
+```dart
+sealed class CounterInteraction {
+  static CounterInteraction? fromUri(Uri uri);
+  Uri toUri();
+}
+
+final class CounterDecrementInteraction extends CounterInteraction {
+  const CounterDecrementInteraction();
+}
+
+final class CounterIncrementInteraction extends CounterInteraction {
+  const CounterIncrementInteraction({this.step = 1});
+
+  final int step;
+}
+```
+
+The class name is the widget class, the button id in PascalCase, and `Interaction`. Each entry of a button's `data` becomes one typed field. Handle the classes with a `switch`: it is exhaustive, so a button added to the schema later does not compile until the function handles it.
+
+See [`HWButton`](/generator/widgets/hw-button) for `data`, buttons in list rows and the validation rules.
+
+## Rendered values and state
+
+The fields of an interaction hold the values the widget was **rendered with** when it was tapped. They are not read from storage at the moment of the tap.
+
+Use them for identity: which row, which button, which step. Do not use them for state the function changes. A widget can be tapped again before it has rendered the previous change, and the second tap then still carries the old value.
+
+```dart
+// Identity: the id of the row that was tapped. Right.
+HWButton('toggle', data: [HWItemData(HWString('id'))], child: ...)
+
+// State: the count the widget was showing. Wrong for counting.
+HWButton('increment', data: [HWInt('count')], child: ...)
+```
+
+Read state inside the function, from `getData()` or from your own storage, as the counter does:
+
+```dart
+final count = (await CounterHomeWidget.getData()).count ?? 0;
+```
+
+## What runs where
+
+**Android.** The button is a Glance `clickable` that runs the plugin's `HomeWidgetInteractivityAction`. The action sends a broadcast to the plugin's `HomeWidgetBackgroundReceiver`, and the plugin runs the function in a background Flutter engine.
+
+**iOS.** The button performs a generated `AppIntent`. iOS runs the intent in the app's process and launches the app in the background for it when it is not running. The app is not shown. The plugin then runs the function in a background Flutter engine. It starts that engine from the registration stored earlier, so nothing has to be registered again on that launch.
+
+<Info>
+When iOS launches the app for a tap, the app starts through its normal `main()`, without being shown. Keep work that only matters on screen out of the start of the app, or check the lifecycle state before you do it.
+</Info>
+
+On both platforms the function runs in a **background isolate**, separate from the isolate of the app's UI. That has three consequences:
+
+- **No shared memory.** Variables, singletons and state objects of the running app are not visible to the function, and what the function sets is not visible to the app. Persist everything through `saveData` or your own storage.
+- **Update the widget yourself.** Call `updateWidget()` at the end of the function, or the widget keeps showing the old values.
+- **The app does not hear about it.** When the app is open, read the data again to show the change, for example with `getData()` when the app resumes.
+
+Other plugins can be used in the function. On iOS that needs the plugin registration `generate` adds to `AppDelegate.swift`. See [App delegate](#app-delegate).
+
+## Registration
+
+A tap finds the function through a registration the plugin stores on the device. A button only works after the function was registered once on that install.
+
+The generated helper class has a method for it:
+
+```dart
+/// Registers the function the buttons of this widget run with the plugin.
+static Future<bool?> registerInteractivity();
+```
+
+`saveData` and `updateWidget` also register the function themselves, once per isolate. They do not wait for it, and a failed registration never fails them: it is logged once with `debugPrint`, the data is still written, and the next call tries again. `registerInteractivity()` itself throws such an error to its caller, except for iOS below 17, where it returns `false`.
+
+**Call `registerInteractivity()` once when the app starts**, in `main()` after `WidgetsFlutterBinding.ensureInitialized()` or in the `initState` of the first screen. A widget can be placed and tapped before the app has saved anything. It then renders its default values, and without the call a tap does nothing until the app saves data or updates the widget for the first time. The registration in `saveData` and `updateWidget` is the safety net for an app that does not make the call.
+
+<Warning>
+The app has to run once after it was installed before a button reacts. A widget that is placed and tapped before the first launch of the app does nothing.
+</Warning>
+
+### iOS below 17
+
+Buttons need iOS 17. On iOS 15 and 16:
+
+- The child of the button renders, but a tap on it does not run the function.
+- `registerInteractivity()` returns `false` and logs one line with `debugPrint`, saying that the buttons of the widget need iOS 17.
+- `saveData` and `updateWidget` log that line once and then work as usual.
+
+No error is thrown, so the same code runs on every iOS version. Generation does not warn about the deployment target.
+
+### iOS Lock Screen
+
+The inline Lock Screen family `accessoryInline` shows text only. The child renders without the button there, and `generate` warns when a button can be shown in that family. Every other family gets the button, including `accessoryCircular`, `accessoryRectangular` and StandBy. On a locked device iOS asks to unlock before it runs the tap.
+
+## What the CLI changes in your project
+
+For a widget with an `HWButton`, `generate` changes more than the widget's own files. Every change is repeatable: running `generate` again changes nothing further.
+
+### Android
+
+`android/app/src/main/AndroidManifest.xml` gets the plugin's background receiver:
+
+```xml
+<receiver
+    android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+    android:exported="false" />
+```
+
+A receiver of that name that is already declared is left as it is.
+
+### The intent on iOS
+
+`ios/CounterHomeWidget/CounterHomeWidgetIntent.swift` is written, with the `AppIntent` the buttons perform. The file becomes a member of two targets: the widget extension, which names the intent on its buttons, and the app target (`Runner`), where iOS runs it.
+
+### Linking the plugin on iOS
+
+The intent calls into `home_widget`, so the widget extension has to link it. How depends on how the project integrates plugins:
+
+- **Swift Package Manager.** When the app target links `FlutterGeneratedPluginSwiftPackage` and that package holds `home_widget`, the same package product is added to the extension target.
+- **CocoaPods.** Otherwise, when the project has a `Podfile`, a target for the extension is added to it:
+
+  ```rb
+  target 'CounterHomeWidget' do
+    use_frameworks!
+    use_modular_headers!
+
+    pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+  end
+  ```
+
+  The extension's build configurations are then based on `ios/Flutter/HomeWidget-CounterHomeWidget.xcconfig`, a generated file that includes the CocoaPods settings of the target and `HomeWidget.xcconfig`. A target of that name that is already in the `Podfile` is left as it is, with a warning when it does not name the `home_widget` pod.
+
+When the project has neither, `generate` warns that it could not link the plugin. Build the app once and generate again.
+
+### App delegate
+
+`ios/Runner/AppDelegate.swift` gets `import home_widget` and this block in `application(_:didFinishLaunchingWithOptions:)`:
+
+```swift
+if #available(iOS 17, *) {
+  HomeWidgetBackgroundWorker.setPluginRegistrantCallback { registry in
+    GeneratedPluginRegistrant.register(with: registry)
+  }
+}
+```
+
+It registers the app's plugins with the background engine, so the function can use them. Without it the function can only use `home_widget`.
+
+The block is inserted ahead of `return super.application(application, didFinishLaunchingWithOptions: launchOptions)`, the shape `flutter create` writes. When `AppDelegate.swift` does not have that shape, nothing is guessed: a warning prints the snippet, and you add it by hand. A delegate that already sets the callback is left as it is.
+
+### Removing the buttons
+
+Remove the last `HWButton` of a widget and generate again, and the iOS wiring of that widget is taken out: the intent file, its references in the Xcode project, the package product or the `Podfile` target, and the generated `.xcconfig`. A `Podfile` target you edited stays.
+
+The manifest receiver and the `AppDelegate` block stay. Other widgets, hand-written ones included, may rely on them.
+
+## Testing
+
+The function is plain Dart, and the interaction classes are plain values with a `const` constructor. Call the function directly:
+
+```dart
+await onCounterInteraction(const CounterIncrementInteraction(step: 2));
+```
+
+It calls `saveData`, `getData` and `updateWidget`, which talk to the plugin. In a unit test, mock the plugin's method channel, or keep the logic in a function of its own that takes and returns plain values and test that.
+
+`toUri()` returns the URL the native widget sends for an interaction, and `fromUri` reads one back. That checks the path a real tap takes into the function:
+
+```dart
+final uri = const CounterIncrementInteraction(step: 2).toUri();
+
+CounterInteraction.fromUri(uri) == const CounterIncrementInteraction(step: 2); // true
+CounterInteraction.fromUri(Uri.parse('myapp://other')); // null
+```
+
+The format of the URL is internal to the generated code. Build one with `toUri()` and do not write it by hand.
+
+## Troubleshooting
+
+### A tap does nothing
+
+- **The function was never registered on this install.** Open the app once. Call `registerInteractivity()` when the app starts, so that opening it is enough. See [Registration](#registration).
+- **The device runs iOS 15 or 16.** Buttons need iOS 17. The log shows the line described under [iOS below 17](#ios-below-17).
+- **The widget is shown as `accessoryInline`.** That family cannot be tapped.
+- **The native code is older than the schema.** Hot reload and hot restart only replace Dart code. A placed widget keeps running the native code of the last build. After `generate`, stop the app and build it again.
+- **Android: the receiver is missing.** `generate` warns when it cannot find or read `AndroidManifest.xml`. Add the `<receiver>` entry shown [above](#android).
+
+### The function runs, but the widget does not change
+
+- Call `updateWidget()` at the end of the function.
+- Save through `saveData`. A variable of the app that the function sets lives in another isolate and is lost.
+
+### Another plugin does not work in the function on iOS
+
+The `AppDelegate` block is missing. `generate` printed a warning with the snippet because `AppDelegate.swift` did not have the expected shape. Add `import home_widget` and the block from [App delegate](#app-delegate) by hand.
+
+### The iOS build fails at `import home_widget` in the intent file
+
+The widget extension does not link the plugin. Check the output of `generate` for a warning about linking `home_widget`. In a CocoaPods project, check that the `Podfile` has the target shown under [Linking the plugin on iOS](#linking-the-plugin-on-ios) and that the target names the `home_widget` pod, then build again.
+
+### The count jumps back or skips a tap
+
+The function uses a value from the interaction as state. See [Rendered values and state](#rendered-values-and-state).

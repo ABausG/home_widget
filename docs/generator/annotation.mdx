@@ -47,6 +47,7 @@ class ConfigurationOptions {}
 | `localization` | `HomeWidgetLocalization?` | `null` | Default locale, supported locales, and translations of the gallery name and description. See [Localization](/generator/localization). |
 | `widgetUrl` | `String?` | `null` | URL the app is opened with when the widget is tapped, the same on both platforms. See [Widget Clicks](/generator/widget-url). |
 | `widgetUrlData` | `List<HWDataType>` | `const []` | Values a tap sends along with `widgetUrl`, appended to it as query parameters. Requires `widgetUrl`. See [Sending data with the tap](/generator/widget-url#sending-data-with-the-tap). |
+| `onInteraction` | `Function?` | `null` | The function a tap on an [`HWButton`](/generator/widgets/hw-button) of the widget runs in the background, without opening the app. A public top-level or static function in a library under `lib/`, taking the generated `<WidgetClass>Interaction` and returning `void`, `Future<void>` or `FutureOr<void>`. Required as soon as the widget contains an `HWButton`. See [Interactive Widgets](/generator/interactivity). |
 | `flavors` | `Map<String, HomeWidgetFlavor>?` | `null` | Restricts which Flutter flavors the widget is generated into, with per-flavor overrides. See [Flavors](/generator/flavors). |
 | `useLiveDataInPreview` | `bool` | `true` | Whether the widget gallery preview reads stored data ahead of `previewValue`. Overridable per platform. See [Previews](/generator/previews). |
 
@@ -77,7 +78,7 @@ Maps to [`AppWidgetProviderInfo`](https://developer.android.com/reference/androi
 | `backgroundColor` | `HWColor?` | `HWDefaultColor(HWColorRole.defaultBackground)` | Background color applied via `GlanceModifier.background(...)`. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | Applies a default 16.dp root padding. |
 | `fillWidgetContent` | `bool` | `true` | Applies `GlanceModifier.fillMaxSize()` to the root. |
-| `openAppOnTap` | `bool` | `true` | If `false`, nothing in the widget is made clickable, so tapping it does nothing — even when a `widgetUrl` is set or the widget contains an [`HWLink`](/generator/widgets/hw-link). See [Widget Clicks](/generator/widget-url#widgets-that-should-not-open-the-app). |
+| `openAppOnTap` | `bool` | `true` | If `false`, a tap never opens the app: the widget gets no click action that launches it, even when a `widgetUrl` is set or the widget contains an [`HWLink`](/generator/widgets/hw-link). An [`HWButton`](/generator/widgets/hw-button) is not affected, because it does not open the app. See [Widget Clicks](/generator/widget-url#widgets-that-should-not-open-the-app). |
 | `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on Android. `null` inherits it. See [Previews](/generator/previews). |
 | `autoUpdatePreview` | `bool` | `true` | Whether the plugin registers the generated preview with the launcher automatically on app start (Android 15+). See [Previews](/generator/previews#registering-the-preview-on-android). |
 
