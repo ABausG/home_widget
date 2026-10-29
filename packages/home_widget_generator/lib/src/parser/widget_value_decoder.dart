@@ -84,6 +84,8 @@ class WidgetValueDecoder {
       return HWPadding.fromDartObject(object!, this);
     } else if (typeName == 'HWLink') {
       return HWLink.fromDartObject(object!, this);
+    } else if (typeName == 'HWButton') {
+      return HWButton.fromDartObject(object!, this);
     } else if (typeName == 'HWDataExists') {
       return HWDataExists.fromDartObject(object!, this);
     } else if (typeName == 'HWBoolConditional') {
