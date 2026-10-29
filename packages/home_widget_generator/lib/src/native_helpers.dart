@@ -35,8 +35,9 @@ enum HWNativeHelper implements HWGeneratable {
   /// The locale every formatter runs in: the device's own, region included.
   ///
   /// Swift reaches `Locale` globally; the Kotlin call sites pass
-  /// `hwFormatLocale(context)` because the configuration is only reachable
-  /// through the composable's context.
+  /// `hwFormatLocale(context)`, or the context itself to a helper that needs
+  /// more of it, because the configuration is only reachable through the
+  /// composable's context.
   hwFormatLocale(
     swift: '''
 func hwFormatLocale() -> Locale {
@@ -374,7 +375,10 @@ private fun hwFormatNumberPattern(
   ///
   /// Android's skeleton resolver is `android.text.format.DateFormat`, which
   /// shares its short name with the `java.text.DateFormat` the styled helper
-  /// needs, so this one imports it under an alias.
+  /// needs, so this one imports it under an alias. It resolves `j` from the
+  /// locale alone, so the Kotlin side takes the context and turns `j` into `H`
+  /// or `h` first, whichever the system's 24-hour setting asks for; iOS follows
+  /// that setting through `Locale.current`.
   hwFormatDateSkeleton(
     swift: '''
 func hwFormatDateSkeleton(_ date: Date, _ skeleton: String, timeZone: String? = nil) -> String {
@@ -390,24 +394,28 @@ func hwFormatDateSkeleton(_ date: Date, _ skeleton: String, timeZone: String? = 
 private fun hwFormatDateSkeleton(
     date: Date,
     skeleton: String,
-    locale: Locale,
+    context: Context,
     timeZoneId: String? = null,
 ): String {
-    val pattern = AndroidDateFormat.getBestDateTimePattern(locale, skeleton)
+    val locale = hwFormatLocale(context)
+    val hour = if (AndroidDateFormat.is24HourFormat(context)) 'H' else 'h'
+    val pattern =
+        AndroidDateFormat.getBestDateTimePattern(locale, skeleton.replace('j', hour))
     val formatter = SimpleDateFormat(pattern, locale)
     formatter.timeZone = hwResolveTimeZone(timeZoneId)
     return formatter.format(date)
 }''',
     kotlinImports: {
+      'import android.content.Context',
       'import android.text.format.DateFormat as AndroidDateFormat',
       'import java.text.SimpleDateFormat',
       'import java.util.Date',
-      'import java.util.Locale',
     },
     dependencies: [
       HWNativeHelper.hwFormatLocale,
       HWNativeHelper.hwResolveTimeZone,
     ],
+    hourCycleDependent: true,
   ),
 
   /// Renders a date with an explicit ICU pattern such as `dd.MM.yyyy HH:mm`,
@@ -511,6 +519,7 @@ private fun hwFormatDateStyled(
       HWNativeHelper.hwFormatLocale,
       HWNativeHelper.hwResolveTimeZone,
     ],
+    hourCycleDependent: true,
   ),
 
   /// The user's preferred languages, most-wanted first, as BCP 47 tags.
@@ -1141,6 +1150,7 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
     Set<String>? swiftImports,
     this.dependencies = const [],
     this.localeDependent = true,
+    this.hourCycleDependent = false,
   })  : _kotlinImports = kotlinImports,
         _swiftImports = swiftImports;
 
@@ -1177,6 +1187,15 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
   /// resolving a zone id — does not depend on the locale. The default is `true`
   /// so a helper added later over-refreshes rather than showing stale text.
   final bool localeDependent;
+
+  /// Whether what this helper produces changes with the device's 12-/24-hour
+  /// setting.
+  ///
+  /// A widget that uses one of these goes stale when the user flips that
+  /// setting, so Android has to listen for `TIME_SET`, the broadcast the system
+  /// sends for it. Only a helper that leaves the hour cycle to the device
+  /// depends on it; an explicit pattern spells its own out.
+  final bool hourCycleDependent;
 
   /// Always empty: a helper is a function, not a view.
   @override

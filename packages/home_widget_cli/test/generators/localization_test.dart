@@ -356,6 +356,7 @@ void main() {
       final keyedManifest =
           await manifestAfter(keyedRoot, _spec(widget: HWText(_localized())));
       expect(keyedManifest, contains('android.intent.action.LOCALE_CHANGED'));
+      expect(keyedManifest, isNot(contains('android.intent.action.TIME_SET')));
       // ...but the refresh itself is Glance's job, so the generated receiver
       // stays override-free; see androidGlanceReceiverTemplate.
       expect(receiverSource(keyedRoot), isNot(contains('onReceive')));
