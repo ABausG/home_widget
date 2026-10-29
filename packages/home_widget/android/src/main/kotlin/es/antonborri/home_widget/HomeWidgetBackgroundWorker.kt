@@ -19,10 +19,8 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
 import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class HomeWidgetBackgroundWorker(private val context: Context, workerParams: WorkerParameters) :
@@ -30,60 +28,22 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
   private lateinit var channel: MethodChannel
 
   override suspend fun doWork(): Result {
-    engineMutex.withLock {
-      if (engine == null) {
-        try {
-          initializeFlutterEngine()
-        } catch (e: CancellationException) {
-          // Rethrow to respect cooperative cancellation. Swallowing this
-          // would prevent CoroutineWorker from handling worker stoppage
-          // correctly (e.g. OS killing the process, constraints changing).
-          resetEngine()
-          throw e
-        } catch (e: Exception) {
-          Log.e(TAG, "Failed to initialize Flutter engine", e)
-          // Reset engine state so the next work item can retry initialization
-          // from a clean state instead of using a partially initialized engine.
-          resetEngine()
-          // Queue this work item's data so it is not silently lost. When a
-          // subsequent worker succeeds in starting the engine and Dart calls
-          // backgroundInitialized, the queued callback will be dispatched.
-          val data = inputData.getString(DATA_KEY) ?: ""
-          val args = listOf(HomeWidgetPlugin.getHandle(context), data)
-          synchronized(serviceStarted) {
-            queue.add(args)
-          }
-          // Return success to prevent poisoning the APPEND work chain.
-          // Returning failure would cancel all subsequently appended work items
-          // because WorkManager treats a failed item in an APPEND chain as a
-          // signal to cancel every downstream item. The chain state is persisted
-          // in WorkManager's database and survives process restarts, effectively
-          // breaking all future background callbacks until app data is cleared.
-          // Output data carries the failure signal for observability.
-          return Result.success(
-              Data.Builder()
-                  .putBoolean("engine_init_failed", true)
-                  .putString("error", e.message ?: "Unknown error")
-                  .build()
-          )
-        }
+    if (engine == null) {
+      try {
+        initializeFlutterEngine()
+      } catch (e: CancellationException) {
+        resetEngine()
+        throw e
+      } catch (e: Exception) {
+        Log.e(TAG, "Failed to initialize Flutter engine", e)
+        resetEngine()
+        return Result.failure()
       }
     }
 
-    // Defensive null check: engine could theoretically become null if
-    // resetEngine() is called between the mutex release above and here.
-    val currentEngine = engine
-    if (currentEngine != null) {
-      channel = MethodChannel(currentEngine.dartExecutor.binaryMessenger, CHANNEL_NAME)
+    engine?.let {
+      channel = MethodChannel(it.dartExecutor.binaryMessenger, CHANNEL_NAME)
       channel.setMethodCallHandler(this)
-    } else {
-      Log.e(TAG, "Flutter engine is null after initialization, queuing callback data")
-      val data = inputData.getString(DATA_KEY) ?: ""
-      val args = listOf(HomeWidgetPlugin.getHandle(context), data)
-      synchronized(serviceStarted) {
-        queue.add(args)
-      }
-      return Result.success()
     }
 
     val data = inputData.getString(DATA_KEY) ?: ""
@@ -151,7 +111,6 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     private const val UNIQUE_WORK_NAME = "home_widget_background"
     private const val CHANNEL_NAME = "home_widget/background"
 
-    private val engineMutex = Mutex()
     @Volatile private var engine: FlutterEngine? = null
     private val queue = ArrayDeque<List<Any>>()
     private val serviceStarted = AtomicBoolean(false)
@@ -161,9 +120,6 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
       val engineToDestroy = engine
       engine = null
       serviceStarted.set(false)
-      // Do not clear the queue: pending callbacks from earlier workers
-      // should still be dispatched once a new engine initializes successfully.
-      // Destroy the engine on the main thread as required by FlutterEngine.
       if (engineToDestroy != null) {
         mainHandler.post {
           try {
@@ -181,14 +137,6 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
       val workRequest =
           OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>().setInputData(data).build()
 
-      // Use APPEND_OR_REPLACE instead of APPEND to prevent work chain
-      // poisoning. With APPEND, if any work item in the chain fails, all
-      // subsequently appended items are immediately cancelled by WorkManager.
-      // This failure state is persisted in WorkManager's SQLite database and
-      // survives process death, force stop, and device reboots — permanently
-      // breaking background callbacks until the user clears app data.
-      // APPEND_OR_REPLACE replaces the chain if it has failed or been
-      // cancelled, allowing recovery without user intervention.
       WorkManager.getInstance(context)
           .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, workRequest)
     }
