@@ -517,6 +517,11 @@ class HomeWidget {
   /// registering works without calling [setAppGroupId] first. It defaults to
   /// [groupId] and has no effect on Android.
   ///
+  /// The [callback] runs in a separate background isolate that finds it only
+  /// by its callback handle, so it must be a top-level or static function
+  /// annotated with `@pragma('vm:entry-point')`. Closures and instance methods
+  /// have no such handle and make this method throw an [ArgumentError].
+  ///
   /// On iOS, throws a `PlatformException` with code `-7` when neither
   /// [appGroupId] nor [setAppGroupId] provided an App Group, and with code `-5`
   /// below iOS 17, where Widgets cannot be interactive.
@@ -525,9 +530,23 @@ class HomeWidget {
     String? key,
     String? appGroupId,
   }) {
+    final dispatcherHandle = ui.PluginUtilities.getCallbackHandle(
+      callbackDispatcher,
+    )?.toRawHandle();
+    final callbackHandle = ui.PluginUtilities.getCallbackHandle(
+      callback,
+    )?.toRawHandle();
+    if (dispatcherHandle == null || callbackHandle == null) {
+      throw ArgumentError.value(
+        callback,
+        'callback',
+        "must be a top-level or static function annotated with @pragma('vm:entry-point'). "
+            'Closures and instance methods cannot run in the background engine',
+      );
+    }
     final args = <dynamic>[
-      ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
+      dispatcherHandle,
+      callbackHandle,
       if (key != null || appGroupId != null) ...[key, appGroupId],
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);

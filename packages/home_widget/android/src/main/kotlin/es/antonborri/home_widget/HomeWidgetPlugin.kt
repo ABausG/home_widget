@@ -208,8 +208,15 @@ class HomeWidgetPlugin :
       }
       "registerBackgroundCallback" -> {
         val arguments = (call.arguments as Iterable<*>).toList()
-        val dispatcher = (arguments[0] as Number).toLong()
-        val callback = (arguments[1] as Number).toLong()
+        val dispatcher = (arguments.getOrNull(0) as? Number)?.toLong()
+        val callback = (arguments.getOrNull(1) as? Number)?.toLong()
+        if (dispatcher == null || callback == null) {
+          return result.error(
+              "-9",
+              "InvalidArguments registerBackgroundCallback must be called with a top-level or static callback",
+              null,
+          )
+        }
         val key = arguments.getOrNull(2) as? String
         saveCallbackHandle(context, dispatcher, callback, key)
         return result.success(true)
