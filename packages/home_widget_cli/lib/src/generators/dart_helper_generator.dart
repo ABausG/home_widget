@@ -1483,12 +1483,26 @@ sealed class $launch {
   /// reach. Below iOS 17 the plugin answers with error `-5`, which is logged
   /// and not thrown: the widget still renders there, its buttons do nothing.
   String _interactionHelpers() {
-    final appGroupId =
-        spec.data.iOS != null ? '\n        appGroupId: _\$appGroupId,' : '';
+    final hasIOS = spec.data.iOS != null;
+    final appGroupId = hasIOS ? '\n        appGroupId: _\$appGroupId,' : '';
     final name = escapeDartStringLiteral(spec.data.name);
     final implicit = _hasDataFields
         ? '`saveData` and `updateWidget` do this themselves'
         : '`updateWidget` does this itself';
+    final androidOnly = hasIOS
+        ? ''
+        : '''
+  ///
+  /// Returns false without registering anywhere but on Android, the only
+  /// platform this widget is generated for.''';
+    final androidGuard = hasIOS
+        ? ''
+        : '''
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      _\$interactivityRegistered = true;
+      return false;
+    }
+''';
     return '''
   static const String _\$interactionKey = '${escapeDartStringLiteral(spec.interactionKey)}';
 
@@ -1507,9 +1521,9 @@ sealed class $launch {
   ///
   /// Returns false below iOS 17, where a widget cannot run code on a tap.
   /// Any other error of the plugin, such as a platform without interactive
-  /// widgets, is thrown.
+  /// widgets, is thrown.$androidOnly
   static Future<bool?> registerInteractivity() async {
-${_flavorGuard('false')}    try {
+${_flavorGuard('false')}$androidGuard    try {
       final registered = await HomeWidget.registerInteractivityCallback(
         $_interactionEntryPointName,
         key: _\$interactionKey,$appGroupId
