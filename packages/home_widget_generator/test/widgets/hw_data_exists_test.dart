@@ -21,13 +21,13 @@ void main() {
         expect(
           code,
           equals('if entry.data.myKey != nil {\n'
-              '    Text("Present")\n'
+              '    Text(verbatim: "Present")\n'
               '} else {\n'
-              '    Text("Absent")\n'
+              '    Text(verbatim: "Absent")\n'
               '}'),
         );
         expect(code, contains('if '));
-        expect(code, contains('Text("Present")'));
+        expect(code, contains('Text(verbatim: "Present")'));
       });
 
       test('swiftViewModifiers merges both branches (empty for plain Text)',

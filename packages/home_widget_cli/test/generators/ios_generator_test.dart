@@ -105,7 +105,7 @@ void main() {
     );
 
     // Check View — default tree uses separate Text views in HStack
-    expect(content, contains('Text("count: ")'));
+    expect(content, contains('Text(verbatim: "count: ")'));
     expect(
       content,
       contains(
@@ -577,14 +577,14 @@ void main() {
 
     // Should produce the debug VStack view body
     expect(content, contains('VStack(alignment: .center, spacing: 0) {'));
-    expect(content, contains('Text("Simple Data")'));
+    expect(content, contains('Text(verbatim: "Simple Data")'));
     // Default tree uses separate Text views in HStack
-    expect(content, contains('Text("label: ")'));
+    expect(content, contains('Text(verbatim: "label: ")'));
     expect(
       content,
       contains('Text(entry.data.label ?? "")'),
     );
-    expect(content, contains('Text("value: ")'));
+    expect(content, contains('Text(verbatim: "value: ")'));
     expect(
       content,
       contains(
@@ -2877,9 +2877,9 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
           '    Group {\n'
           '            switch widgetFamily {\n'
           '            case .systemMedium, .systemLarge:\n'
-          '                Text("M")\n'
+          '                Text(verbatim: "M")\n'
           '            default:\n'
-          '                Text("S")\n'
+          '                Text(verbatim: "S")\n'
           '            }\n'
           '    }\n'
           '    .applyContainerBackground()',
@@ -2901,8 +2901,11 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
       );
 
       expect(content, isNot(contains('switch widgetFamily')));
-      expect(content, isNot(contains('Text("M")')));
-      expect(content, contains('        Text("S")\n    .applyContainer'));
+      expect(content, isNot(contains('Text(verbatim: "M")')));
+      expect(
+        content,
+        contains('        Text(verbatim: "S")\n    .applyContainer'),
+      );
     });
 
     test(
@@ -2924,9 +2927,9 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
         contains(
           '            switch widgetFamily {\n'
           '            case .accessoryRectangular:\n'
-          '                Text("R")\n'
+          '                Text(verbatim: "R")\n'
           '            default:\n'
-          '                Text("C")\n'
+          '                Text(verbatim: "C")\n'
           '            }',
         ),
       );

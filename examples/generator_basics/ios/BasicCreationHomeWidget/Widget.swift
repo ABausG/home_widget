@@ -41,7 +41,7 @@ struct BasicCreationHomeWidgetEntryView: View {
 
   var body: some View {
     VStack(alignment: .center, spacing: 0) {
-      Text("Basic Creation")
+      Text(verbatim: "Basic Creation")
     }
     .applyContainerBackground()
   }

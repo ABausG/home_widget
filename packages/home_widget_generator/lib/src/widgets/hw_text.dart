@@ -228,6 +228,14 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     // coverage:ignore-end
   }
 
+  /// Whether the Swift `Text` is handed a fixed literal, which must not be
+  /// read as a `LocalizedStringKey` (looked up and parsed as Markdown).
+  bool get _swiftRendersVerbatim {
+    final bound = dataType.unwrapped;
+    if (!bound.isFixed || bound is HWLocalizedString) return false;
+    return bound is HWString || bound is HWBool;
+  }
+
   /// The Swift expression `Text(...)` is handed.
   String _swiftTextValue(String dataExpr) {
     final bound = dataType.unwrapped;
@@ -324,7 +332,8 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     HWEmitContext? context,
   }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level to match tests
-    var viewCall = '${pad}Text(${_swiftTextValue(dataExpr)})';
+    final label = _swiftRendersVerbatim ? 'verbatim: ' : '';
+    var viewCall = '${pad}Text($label${_swiftTextValue(dataExpr)})';
 
     if (style != null) {
       final styleCode = style!.toSwift(indent, dataExpr: dataExpr);

@@ -285,7 +285,28 @@ void _validateFixedData(WidgetSpec spec) {
         'End it in Z or an offset such as +02:00. $_isoDateExample',
       );
     }
+    if (!isNativeIsoDate(_writtenFieldsIso(iso)) ||
+        !isNativeIsoDate(field.fixedNativeIso!)) {
+      throw GeneratorError(
+        'Widget "${spec.data.name}": HWDateTime.fixed("$iso") is not a date '
+        'the widget can read: a field is out of range, or the year is not '
+        'between 1 and 9999. $_isoDateExample',
+      );
+    }
   }
+}
+
+final RegExp _isoDateTimeFields = RegExp(
+  r'^[+-]?(\d{4,6})-?(\d\d)-?(\d\d)[ T](\d\d)(?::?(\d\d)(?::?(\d\d))?)?',
+);
+
+/// The date and time fields of [iso], a UTC instant [DateTime.parse] reads,
+/// as written and before any rollover, in the spelling the widget reads.
+String _writtenFieldsIso(String iso) {
+  final match = _isoDateTimeFields.firstMatch(iso)!;
+  String field(int group) => match.group(group) ?? '00';
+  return '${field(1)}-${field(2)}-${field(3)}'
+      'T${field(4)}:${field(5)}:${field(6)}Z';
 }
 
 /// Validates the key of [type] and of everything it wraps; [wrapped] is set

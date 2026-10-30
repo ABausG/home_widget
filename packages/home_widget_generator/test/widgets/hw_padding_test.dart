@@ -34,7 +34,7 @@ void main() {
     group('iOS (SwiftUI)', () {
       test('chains .padding(EdgeInsets…) after child', () {
         final result = padding.toSwift(0, dataExpr: 'data');
-        expect(result, contains('Text("Hi")'));
+        expect(result, contains('Text(verbatim: "Hi")'));
         expect(
           result,
           contains('.padding(EdgeInsets('),
@@ -49,7 +49,7 @@ void main() {
         final result = padding.toSwift(1, dataExpr: 'data');
         expect(
           result,
-          '    Text("Hi")\n    .padding(EdgeInsets(top: 2.0, leading: 1.0, bottom: 4.0, trailing: 3.0))',
+          '    Text(verbatim: "Hi")\n    .padding(EdgeInsets(top: 2.0, leading: 1.0, bottom: 4.0, trailing: 3.0))',
         );
       });
     });

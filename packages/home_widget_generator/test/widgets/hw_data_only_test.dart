@@ -62,7 +62,7 @@ void main() {
         expect(adaptive.toSwift(0, dataExpr: 'd'), '''
 switch widgetFamily {
 case .systemMedium:
-    Text("medium")
+    Text(verbatim: "medium")
 default:
     EmptyView()
 }''');

@@ -109,8 +109,8 @@ void main() {
           const HWStack(alignment: HWAlignment.centerEnd, children: [_a, _b])
               .toSwift(0, dataExpr: 'data'),
           'ZStack(alignment: .trailing) {\n'
-          '    Text("a")\n'
-          '    Text("b")\n'
+          '    Text(verbatim: "a")\n'
+          '    Text(verbatim: "b")\n'
           '}\n'
           '.clipped()',
         );
@@ -124,7 +124,7 @@ void main() {
             children: [_a],
           ).toSwift(0, dataExpr: 'data'),
           'ZStack(alignment: .center) {\n'
-          '    Text("a")\n'
+          '    Text(verbatim: "a")\n'
           '    .frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .center)\n'
           '}\n'
@@ -142,7 +142,7 @@ void main() {
             children: [HWAlign(alignment: HWAlignment.topEnd, child: _a)],
           ).toSwift(0, dataExpr: 'data'),
           'ZStack(alignment: .center) {\n'
-          '    Text("a")\n'
+          '    Text(verbatim: "a")\n'
           '    .frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .topTrailing)\n'
           '}\n'
@@ -160,7 +160,7 @@ void main() {
             children: [HWSizedBox.expand(child: _a)],
           ).toSwift(0, dataExpr: 'data'),
           'ZStack(alignment: .center) {\n'
-          '    Text("a")\n'
+          '    Text(verbatim: "a")\n'
           '    .frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .topLeading)\n'
           '}\n'
@@ -174,7 +174,7 @@ void main() {
         expect(
           const HWStack(children: [_hidden, _a]).toSwift(0, dataExpr: 'data'),
           'ZStack(alignment: .topLeading) {\n'
-          '    Text("a")\n'
+          '    Text(verbatim: "a")\n'
           '}\n'
           '.clipped()',
         );
@@ -184,7 +184,7 @@ void main() {
         expect(
           const HWStack(children: [_a]).toSwift(1, dataExpr: 'data'),
           '    ZStack(alignment: .topLeading) {\n'
-          '        Text("a")\n'
+          '        Text(verbatim: "a")\n'
           '    }\n'
           '    .clipped()',
         );
