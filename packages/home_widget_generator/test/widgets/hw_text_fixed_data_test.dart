@@ -25,7 +25,7 @@ void main() {
       test('HWString.fixed', () {
         _expectEmit(
           const HWText(HWString.fixed('Hi')),
-          swift: 'Text("Hi")',
+          swift: 'Text(verbatim: "Hi")',
           kotlin: 'Text(text = "Hi", $_defaultStyleArg)',
         );
       });
@@ -33,9 +33,17 @@ void main() {
       test('HWString.fixed, escaped for each platform', () {
         _expectEmit(
           const HWText(HWString.fixed('He said "Hi" for \$5')),
-          swift: r'Text("He said \"Hi\" for $5")',
+          swift: r'Text(verbatim: "He said \"Hi\" for $5")',
           kotlin: 'Text(text = "He said \\"Hi\\" for \\\$5", '
               '$_defaultStyleArg)',
+        );
+      });
+
+      test('HWString.fixed as written, not as Markdown or a localized key', () {
+        _expectEmit(
+          const HWText(HWString.fixed('**Sale**')),
+          swift: 'Text(verbatim: "**Sale**")',
+          kotlin: 'Text(text = "**Sale**", $_defaultStyleArg)',
         );
       });
 
@@ -47,7 +55,7 @@ void main() {
         );
 
         expect(text.toSwift(1, dataExpr: 'entry.data'), '''
-    Text("Hi")
+    Text(verbatim: "Hi")
         .font(.system(size: 20.0, weight: .bold))
         .multilineTextAlignment(.center)''');
         expect(
@@ -207,12 +215,15 @@ void main() {
         const on = HWText(HWBool.fixed(true));
         const off = HWText(HWBool.fixed(false));
 
-        expect(on.toSwift(0, dataExpr: 'entry.data'), 'Text("true")');
+        expect(on.toSwift(0, dataExpr: 'entry.data'), 'Text(verbatim: "true")');
         expect(
           on.toKotlin(0, dataExpr: 'data'),
           'Text(text = "true", $_defaultStyleArg)',
         );
-        expect(off.toSwift(0, dataExpr: 'entry.data'), 'Text("false")');
+        expect(
+          off.toSwift(0, dataExpr: 'entry.data'),
+          'Text(verbatim: "false")',
+        );
         expect(
           off.toKotlin(0, dataExpr: 'data'),
           'Text(text = "false", $_defaultStyleArg)',

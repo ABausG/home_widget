@@ -109,7 +109,7 @@ void main() {
       expect(spec.dataFields, [const HWString('label')]);
       expect(
         spec.effectiveWidgetTree.toSwift(0, dataExpr: 'entry.data'),
-        allOf(contains('Text("a")'), contains('Text("b")')),
+        allOf(contains('Text(verbatim: "a")'), contains('Text(verbatim: "b")')),
       );
     });
 

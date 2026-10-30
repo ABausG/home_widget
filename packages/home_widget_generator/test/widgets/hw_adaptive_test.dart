@@ -42,7 +42,7 @@ void main() {
 
       test('toSwift uses only ios subtree', () {
         final swift = simpleAdaptive.toSwift(0, dataExpr: 'd');
-        expect(swift, contains('Text("ios only")'));
+        expect(swift, contains('Text(verbatim: "ios only")'));
         expect(swift, isNot(contains('android only')));
       });
 
@@ -222,7 +222,7 @@ $code
 
           final swiftCode = adaptive.toSwift(0, dataExpr: 'data');
           expect(swiftCode, contains('VStack'));
-          expect(swiftCode, contains('Text("iOS Text")'));
+          expect(swiftCode, contains('Text(verbatim: "iOS Text")'));
           expect(swiftCode, isNot(contains('Android Text')));
 
           final kotlinCode = adaptive.toKotlin(0, dataExpr: 'data');

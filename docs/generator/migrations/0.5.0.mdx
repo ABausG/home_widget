@@ -7,7 +7,7 @@ description: Breaking changes and migration guide for home_widget_generator 0.5.
 
 Regenerate your widgets, then check the changes below.
 
-A constant value is now a [data type](/generator/data#fixed-values) instead of a widget constructor. The constructors `HWText.fixed`, `HWText.fixedNumber`, `HWText.localized`, `HWIcon.fixed` and `HWImage.asset` are removed. The rewrite is mechanical, and the rendered widgets do not change: the regenerated Swift and Kotlin is identical.
+A constant value is now a [data type](/generator/data#fixed-values) instead of a widget constructor. The constructors `HWText.fixed`, `HWText.fixedNumber`, `HWText.localized`, `HWIcon.fixed` and `HWImage.asset` are removed. The rewrite is mechanical. The only change in the rendered widgets is that fixed text on iOS now shows exactly as written, see [Fixed Text Renders Verbatim on iOS](#fixed-text-renders-verbatim-on-ios).
 
 | Removed | Replacement |
 | --- | --- |
@@ -69,6 +69,17 @@ HWIcon(HWIconData.fixed(Icons.favorite), size: 24) // [!code ++]
 HWImage.asset('assets/logo.png', package: 'my_icons', width: 32) // [!code --]
 HWImage(HWImageData.asset('assets/logo.png', package: 'my_icons'), width: 32) // [!code ++]
 ```
+
+## Fixed Text Renders Verbatim on iOS
+
+Fixed text is now emitted as `Text(verbatim:)`. Before, SwiftUI read the literal as a localization key: it looked the text up in the widget extension's string tables and rendered Markdown, so `**Sale**` showed in bold on iOS while Android showed the asterisks. Both platforms now show the text as written, and the same goes for `HWBool.fixed`:
+
+```swift
+Text("**Sale**") // [!code --]
+Text(verbatim: "**Sale**") // [!code ++]
+```
+
+To translate a constant text, use `HWString.localizedFixed`. To style it, use the `style` of the `HWText`.
 
 ## Fixed Values Create No Stored Field
 

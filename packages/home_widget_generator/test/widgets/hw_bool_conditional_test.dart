@@ -74,13 +74,13 @@ void main() {
         expect(
           code,
           equals('if entry.data.myBool == true {\n'
-              '    Text("True")\n'
+              '    Text(verbatim: "True")\n'
               '} else {\n'
-              '    Text("False")\n'
+              '    Text(verbatim: "False")\n'
               '}'),
         );
         expect(code, contains('if entry.data.myBool == true'));
-        expect(code, contains('Text("True")'));
+        expect(code, contains('Text(verbatim: "True")'));
       });
     });
 
@@ -132,7 +132,7 @@ void main() {
           expect(
             conditional.toSwift(0, dataExpr: 'entry.data'),
             'if hwItem.done == true {\n'
-            '    Text("True")\n'
+            '    Text(verbatim: "True")\n'
             '} else {\n'
             '    Text(entry.data.status ?? "")\n'
             '}',

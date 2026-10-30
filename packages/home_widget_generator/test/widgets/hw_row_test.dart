@@ -108,7 +108,7 @@ void main() {
         final node = HWRow(children: [HWText(HWString.fixed('x'))]);
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
-        expect(r, contains('Text("x")'));
+        expect(r, contains('Text(verbatim: "x")'));
       });
 
       test('crossAxis .start → top', () {
@@ -157,9 +157,9 @@ void main() {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
-        expect(r, contains('Text("a")'));
+        expect(r, contains('Text(verbatim: "a")'));
         expect(r, contains('Spacer(minLength: 0)'));
-        expect(r, contains('Text("b")'));
+        expect(r, contains('Text(verbatim: "b")'));
         expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
       });
 
@@ -170,8 +170,8 @@ void main() {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 2);
-        expect(r, contains('Text("a")'));
-        expect(r, contains('Text("b")'));
+        expect(r, contains('Text(verbatim: "a")'));
+        expect(r, contains('Text(verbatim: "b")'));
       });
 
       test('mainAxis .end leads with Spacer', () {
@@ -181,7 +181,7 @@ void main() {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
-        expect(r, contains('Text("a")'));
+        expect(r, contains('Text(verbatim: "a")'));
       });
 
       test('mainAxis .spaceEvenly has Spacer between and around', () {
@@ -191,8 +191,8 @@ void main() {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 3);
-        expect(r, contains('Text("a")'));
-        expect(r, contains('Text("b")'));
+        expect(r, contains('Text(verbatim: "a")'));
+        expect(r, contains('Text(verbatim: "b")'));
       });
     });
 
