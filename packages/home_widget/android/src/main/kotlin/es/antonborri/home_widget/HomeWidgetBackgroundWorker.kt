@@ -27,6 +27,15 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
   private lateinit var channel: MethodChannel
 
   override suspend fun doWork(): Result {
+    val handle = HomeWidgetPlugin.getHandle(context, inputData.getString(CALLBACK_KEY_KEY))
+    if (handle == 0L) {
+      Log.w(
+          TAG,
+          "No interactivity callback is registered. Call HomeWidget.registerInteractivityCallback in the app first.",
+      )
+      return Result.success()
+    }
+
     if (engine == null) {
       try {
         initializeFlutterEngine()
@@ -43,8 +52,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     val data = inputData.getString(DATA_KEY) ?: ""
-    val args =
-        listOf(HomeWidgetPlugin.getHandle(context, inputData.getString(CALLBACK_KEY_KEY)), data)
+    val args = listOf(handle, data)
 
     synchronized(serviceStarted) {
       if (!serviceStarted.get()) {
