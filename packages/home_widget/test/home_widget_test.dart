@@ -656,6 +656,14 @@ void main() {
 
       expect(HomeWidget.groupId, previousGroupId);
     });
+
+    test('throws an ArgumentError for a closure', () {
+      expect(
+        () => HomeWidget.registerInteractivityCallback((_) {}),
+        throwsArgumentError,
+      );
+      expect(passedArguments.isCompleted, isFalse);
+    });
   });
 
   group('Widget Clicked', () {

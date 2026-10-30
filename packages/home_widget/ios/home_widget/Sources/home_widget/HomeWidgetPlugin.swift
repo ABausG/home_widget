@@ -235,8 +235,16 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
         return
       }
       if #available(iOS 17.0, *) {
-        let dispatcher = arguments[0] as! Int64
-        let callback = arguments[1] as! Int64
+        guard let dispatcher = arguments[0] as? Int64, let callback = arguments[1] as? Int64
+        else {
+          result(
+            FlutterError(
+              code: "-9",
+              message:
+                "InvalidArguments registerBackgroundCallback must be called with a top-level or static callback",
+              details: nil))
+          return
+        }
         let preferences = UserDefaults.init(suiteName: resolvedGroupId)
         preferences?.setValue(dispatcher, forKey: HomeWidgetBackgroundWorker.dispatcherKey)
         preferences?.setValue(

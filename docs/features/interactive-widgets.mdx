@@ -23,6 +23,7 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
     }
     ```
    `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode.
+   The callback runs in a separate background isolate that finds it only by its handle, so it must be a top-level or static function. Closures and instance methods make `registerInteractivityCallback` throw an `ArgumentError`.
 
 2. Register the callback function by calling
     ```dart
