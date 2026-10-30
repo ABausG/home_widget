@@ -668,6 +668,84 @@ void main() {
     void click(Object? uri) =>
         emitEvent(updateChannel.codec.encodeSuccessEnvelope(uri));
 
+    void Function(String uri) nativeClicks() {
+      final pending = <String>[];
+      var listening = false;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(
+            updateChannel.name,
+            // ignore: body_might_complete_normally_nullable
+            (message) async {
+              final call = updateChannel.codec.decodeMethodCall(message);
+              listening = call.method == 'listen';
+              if (!listening) return;
+              pending
+                ..forEach(click)
+                ..clear();
+            },
+          );
+      return (uri) => listening ? click(uri) : pending.add(uri);
+    }
+
+    void launchedWith(String uri) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) async => uri);
+    }
+
+    test('delivers a click made while nothing listened on re-listen', () async {
+      launchedWith('homeWidget://known/initial');
+      final nativeClick = nativeClicks();
+
+      final first = <String>[];
+      final firstSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(first.add);
+      await pumpEventQueue();
+      await firstSubscription.cancel();
+      nativeClick('homeWidget://known/gap');
+      await pumpEventQueue();
+
+      final second = <String>[];
+      final secondSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(second.add);
+      addTearDown(secondSubscription.cancel);
+      await pumpEventQueue();
+      nativeClick('homeWidget://known/later');
+      await pumpEventQueue();
+
+      expect(first, ['/initial']);
+      expect(second, ['/gap', '/later']);
+    });
+
+    test('keeps initialLaunch at the launch after a gap click', () async {
+      launchedWith('homeWidget://known/initial');
+      final nativeClick = nativeClicks();
+
+      final subscription = HomeWidget.launches(decodeHost).listen((_) {});
+      await pumpEventQueue();
+      await subscription.cancel();
+      nativeClick('homeWidget://known/gap');
+      await pumpEventQueue();
+
+      expect(await HomeWidget.initialLaunch(decodeHost), '/initial');
+    });
+
+    test('delivers clicks made before anything listened in order', () async {
+      launchedWith('homeWidget://known/initial');
+      final nativeClick = nativeClicks();
+      nativeClick('homeWidget://known/1');
+      nativeClick('homeWidget://known/2');
+      nativeClick('homeWidget://known/3');
+
+      final launches = <String>[];
+      final subscription = HomeWidget.launches(decodeHost).listen(launches.add);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+
+      expect(launches, ['/initial', '/1', '/2', '/3']);
+    });
+
     test('concurrent listeners each get the clicks they decode', () async {
       launchUri = null;
       final platformCalls = <String>[];
@@ -827,6 +905,51 @@ void main() {
       await pumpEventQueue();
       expect(launches, ['/initial', '/early', '/initial']);
       await subscription.cancel();
+    });
+
+    test('drops only one click repeating the initial Uri', () async {
+      final initial = Completer<String?>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) => initial.future);
+      emitClicksOnListen([
+        'homeWidget://known/initial',
+        'homeWidget://known/initial',
+        'homeWidget://known/early',
+      ]);
+
+      final launches = <String>[];
+      final subscription = HomeWidget.launches(decodeHost).listen(launches.add);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+      initial.complete('homeWidget://known/initial');
+      await pumpEventQueue();
+
+      expect(launches, ['/initial', '/initial', '/early']);
+    });
+
+    test('delivers every click queued behind a failed initial read', () async {
+      final initial = Completer<String?>();
+      var reads = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) {
+            reads++;
+            return reads == 1
+                ? initial.future
+                : Future.value('homeWidget://known/2');
+          });
+      emitClicksOnListen(['homeWidget://known/1', 'homeWidget://known/2']);
+
+      final events = <Object>[];
+      final subscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(events.add, onError: events.add);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+      initial.completeError(PlatformException(code: 'failed'));
+      await pumpEventQueue();
+
+      expect(events, [isA<PlatformException>(), '/1', '/2']);
+      expect(reads, 1);
     });
 
     test('reports a failed initial read and keeps going with clicks', () async {

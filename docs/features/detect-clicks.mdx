@@ -17,14 +17,14 @@ For when your App is started from the very background check:
 ```dart
 HomeWidget.initiallyLaunchedFromHomeWidget();
 ```
-this will return a `Future<Uri?>` with the Uri that was used to start the App.
+this will return a `Future<Uri?>` with the Uri that was used to start the App. It keeps returning that Uri for the whole run of the App, whatever is clicked later.
 
 When your App is already running all Widget clicks are broadcast to a Stream provided via:
 
 ```dart
 HomeWidget.widgetClicked;
 ```
-which is a `Stream<Uri?>` that you can listen to to detect App Launches from the Widget.
+which is a `Stream<Uri?>` that you can listen to to detect App Launches from the Widget. Every active subscription receives each click (earlier versions delivered a click to the newest subscription only). Clicks that arrive while nothing listens, for example before your Dart code first listens or between one screen cancelling its subscription and the next one listening, are kept and delivered in order as soon as something listens again.
 
 ## Decoding Launches
 
@@ -53,7 +53,7 @@ final subscription = HomeWidget.launches(decodeLaunch).listen((launch) {
 });
 ```
 
-`launches` subscribes to `widgetClicked` before it reads the initial Uri, so a click arriving in between is not lost. A Uri `decode` returns `null` for is skipped, which makes the result a `Stream<T>` without nulls. The scheme of the Uri handed to `decode` is lower-cased.
+`launches` subscribes to `widgetClicked` before it reads the initial Uri, so a click arriving in between is not lost, and a Stream listened to after a pause starts with the clicks that arrived in the meantime. A Uri `decode` returns `null` for is skipped, which makes the result a `Stream<T>` without nulls. The scheme of the Uri handed to `decode` is lower-cased.
 
 Any number of `launches` Streams can be listened to at once, each with a `decode` of its own. The initial launch is delivered once per run of the App: after one listener has decoded and received it, a Stream listened to later starts with clicks only. Call `initialLaunch` to read it again. An exception thrown by `decode`, and a failure to read the initial Uri, arrive as an error of the Stream, which keeps going with the clicks. A Stream listened to after a failed read reads the initial Uri again.
 
