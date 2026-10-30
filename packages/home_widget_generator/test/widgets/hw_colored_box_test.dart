@@ -10,7 +10,7 @@ void main() {
           child: HWText(HWString.fixed('x')),
         );
         final result = node.toSwift(0, dataExpr: 'data');
-        expect(result, contains('Text("x")'));
+        expect(result, contains('Text(verbatim: "x")'));
         expect(result, contains('.background('));
         expect(result, contains('Color(red:'));
       });

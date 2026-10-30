@@ -805,7 +805,7 @@ void main() {
           ),
           '''
 VStack(alignment: .center, spacing: 0) {
-    Text("Hi")
+    Text(verbatim: "Hi")
     Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, maxFraction: nil))
     Text(hwFormatDecimal(NSNumber(value: 2.5), minFraction: nil, maxFraction: nil, grouping: true))
     Text(NSLocalizedString("home_widget_greeting_widget_t_50bb5ce3", comment: ""))

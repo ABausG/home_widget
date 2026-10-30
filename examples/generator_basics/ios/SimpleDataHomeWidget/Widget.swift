@@ -51,13 +51,13 @@ struct SimpleDataHomeWidgetEntryView: View {
 
   var body: some View {
     VStack(alignment: .center, spacing: 0) {
-      Text("Simple Data")
+      Text(verbatim: "Simple Data")
       HStack(alignment: .center, spacing: 0) {
-        Text("label: ")
+        Text(verbatim: "label: ")
         Text(entry.data.label ?? "")
       }
       HStack(alignment: .center, spacing: 0) {
-        Text("value: ")
+        Text(verbatim: "value: ")
         Text(
           entry.data.value.map {
             hwFormatDecimal(NSNumber(value: $0), minFraction: nil, maxFraction: nil, grouping: true)

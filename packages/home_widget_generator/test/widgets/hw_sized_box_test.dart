@@ -67,7 +67,7 @@ void main() {
         expect(
           const HWSizedBox(width: 80, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(width: 80.0, alignment: .topLeading)',
+          'Text(verbatim: "a")\n.frame(width: 80.0, alignment: .topLeading)',
         );
       });
 
@@ -75,7 +75,7 @@ void main() {
         expect(
           const HWSizedBox(height: 40, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(height: 40.0, alignment: .topLeading)',
+          'Text(verbatim: "a")\n.frame(height: 40.0, alignment: .topLeading)',
         );
       });
 
@@ -86,7 +86,7 @@ void main() {
             height: 40.5,
             child: HWText(HWString.fixed('a')),
           ).toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(width: 80.0, height: 40.5, '
+          'Text(verbatim: "a")\n.frame(width: 80.0, height: 40.5, '
           'alignment: .topLeading)',
         );
       });
@@ -97,14 +97,14 @@ void main() {
             width: double.infinity,
             child: HWText(HWString.fixed('a')),
           ).toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(maxWidth: .infinity, alignment: .topLeading)',
+          'Text(verbatim: "a")\n.frame(maxWidth: .infinity, alignment: .topLeading)',
         );
         expect(
           const HWSizedBox(
             height: double.infinity,
             child: HWText(HWString.fixed('a')),
           ).toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(maxHeight: .infinity, alignment: .topLeading)',
+          'Text(verbatim: "a")\n.frame(maxHeight: .infinity, alignment: .topLeading)',
         );
       });
 
@@ -112,7 +112,7 @@ void main() {
         expect(
           const HWSizedBox.expand(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(maxWidth: .infinity, maxHeight: .infinity, '
+          'Text(verbatim: "a")\n.frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .topLeading)',
         );
       });
@@ -124,7 +124,7 @@ void main() {
             height: double.infinity,
             child: HWText(HWString.fixed('a')),
           ).toSwift(0, dataExpr: 'data'),
-          'Text("a")\n'
+          'Text(verbatim: "a")\n'
           '.frame(width: 80.0, alignment: .topLeading)\n'
           '.frame(maxHeight: .infinity, alignment: .topLeading)',
         );
@@ -134,13 +134,13 @@ void main() {
         expect(
           const HWSizedBox.shrink(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(width: 0.0, height: 0.0, alignment: .topLeading)'
+          'Text(verbatim: "a")\n.frame(width: 0.0, height: 0.0, alignment: .topLeading)'
           '\n.clipped()',
         );
         expect(
           const HWSizedBox(width: 0, child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")\n.frame(width: 0.0, alignment: .topLeading)\n.clipped()',
+          'Text(verbatim: "a")\n.frame(width: 0.0, alignment: .topLeading)\n.clipped()',
         );
       });
 
@@ -316,7 +316,7 @@ void main() {
           expect(conditional, contains('    $frame\n    .clipped()\n} else {'));
           expect(
             conditional,
-            contains('    Text("b")\n    $frame\n    .overlay('),
+            contains('    Text(verbatim: "b")\n    $frame\n    .overlay('),
           );
           expect(
             boxed(const HWSizeAdaptive(small: stack, large: bordered)),
@@ -324,7 +324,7 @@ void main() {
           );
           expect(
             boxed(const HWAdaptive(ios: bordered, android: stack)),
-            startsWith('Text("b")\n$frame\n.overlay('),
+            startsWith('Text(verbatim: "b")\n$frame\n.overlay('),
           );
           expect(
             boxed(const HWAdaptive(ios: stack, android: bordered)),
@@ -384,7 +384,7 @@ void main() {
                 child: HWText(HWString.fixed('a')),
               ),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("a")\n$wide\n$fill\n$stroke',
+            'Text(verbatim: "a")\n$wide\n$fill\n$stroke',
           );
         });
 
@@ -414,7 +414,9 @@ void main() {
           }
           expect(
             const HWColumn(children: [outside]).toSwift(0, dataExpr: 'data'),
-            contains('    Text("a")\n    $wide\n    $fill\n    $stroke\n'),
+            contains(
+              '    Text(verbatim: "a")\n    $wide\n    $fill\n    $stroke\n',
+            ),
           );
         });
 
@@ -428,7 +430,7 @@ void main() {
                 child: HWText(HWString.fixed('a')),
               ),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("a")\n'
+            'Text(verbatim: "a")\n'
             '.frame(width: 80.0, height: 40.0, alignment: .topLeading)\n'
             '.background(Color(red: 0.2, green: 0.4, blue: 1.0, opacity: 1.0))',
           );
@@ -446,7 +448,7 @@ void main() {
                 ),
               ),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("a")\n$wide\n$fill\n$stroke\n'
+            'Text(verbatim: "a")\n$wide\n$fill\n$stroke\n'
             '.background(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0))',
           );
         });
@@ -471,15 +473,19 @@ void main() {
             );
             expect(
               box.toSwift(0, dataExpr: 'data'),
-              'Text("a")\n$wide\n$blue\n$pad8',
+              'Text(verbatim: "a")\n$wide\n$blue\n$pad8',
             );
             expect(
               const HWColumn(children: [box]).toSwift(0, dataExpr: 'data'),
-              contains('    Text("a")\n    $wide\n    $blue\n    $pad8\n'),
+              contains(
+                '    Text(verbatim: "a")\n    $wide\n    $blue\n    $pad8\n',
+              ),
             );
             expect(
               const HWRow(children: [box]).toSwift(0, dataExpr: 'data'),
-              contains('    Text("a")\n    $wide\n    $blue\n    $pad8\n'),
+              contains(
+                '    Text(verbatim: "a")\n    $wide\n    $blue\n    $pad8\n',
+              ),
             );
           });
 
@@ -494,7 +500,7 @@ void main() {
                 ),
               ).toSwift(0, dataExpr: 'data'),
               startsWith(
-                'Text("a")\n'
+                'Text(verbatim: "a")\n'
                 '.frame(width: 68.0, height: 10.0, alignment: .topLeading)\n'
                 '$blue\n',
               ),
@@ -517,7 +523,7 @@ void main() {
                   child: HWPadding(padding: HWEdgeInsets.all(8), child: card),
                 ),
               ).toSwift(0, dataExpr: 'data'),
-              'Text("a")\n'
+              'Text(verbatim: "a")\n'
               '.frame(width: 64.0, alignment: .topLeading)\n'
               '$blue\n'
               '$pad8\n'
@@ -535,7 +541,7 @@ void main() {
                   child: HWText(HWString.fixed('a')),
                 ),
               ).toSwift(0, dataExpr: 'data'),
-              'Text("a")\n$pad8\n.frame(width: 80.0, alignment: .topLeading)',
+              'Text(verbatim: "a")\n$pad8\n.frame(width: 80.0, alignment: .topLeading)',
             );
           });
         });
@@ -592,7 +598,7 @@ void main() {
         expect(
           const HWSizedBox(child: HWText(HWString.fixed('a')))
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")',
+          'Text(verbatim: "a")',
         );
       });
 
@@ -654,7 +660,7 @@ void main() {
           ).toSwift(0, dataExpr: 'data'),
           'VStack(alignment: .center, spacing: 0) {\n'
           '    if data.flag == true {\n'
-          '        Text("on")\n'
+          '        Text(verbatim: "on")\n'
           '    } else {\n'
           '\n'
           '    }\n'
@@ -666,7 +672,7 @@ void main() {
         expect(
           const HWSizedBox(width: 8, child: HWText(HWString.fixed('a')))
               .toSwift(1, dataExpr: 'data'),
-          '    Text("a")\n    .frame(width: 8.0, alignment: .topLeading)',
+          '    Text(verbatim: "a")\n    .frame(width: 8.0, alignment: .topLeading)',
         );
         expect(
           const HWSizedBox(width: 8).toSwift(1, dataExpr: 'data'),
@@ -1533,11 +1539,11 @@ void main() {
         test('frames each branch inside its decoration on iOS', () {
           expect(conditional.toSwift(0, dataExpr: 'data'), '''
 if data.flag == true {
-    Text("a")
+    Text(verbatim: "a")
     $wide
     $swiftBlue
 } else {
-    Text("b")
+    Text(verbatim: "b")
     $wide
     $swiftBlack
 }''');
@@ -1567,7 +1573,7 @@ if data.flag == true {
                 whenAbsent: HWText(HWString.fixed('none')),
               ),
             ).toSwift(0, dataExpr: 'data'),
-            contains('} else {\n    Text("none")\n    $wide\n}'),
+            contains('} else {\n    Text(verbatim: "none")\n    $wide\n}'),
           );
         });
 
@@ -1593,8 +1599,11 @@ if data.flag == true {
               large: HWText(HWString.fixed('b')),
             ),
           ).toSwift(0, dataExpr: 'data');
-          expect(swift, contains('    Text("a")\n    $wide\n    $swiftBlue\n'));
-          expect(swift, contains('    Text("b")\n    $wide\n'));
+          expect(
+            swift,
+            contains('    Text(verbatim: "a")\n    $wide\n    $swiftBlue\n'),
+          );
+          expect(swift, contains('    Text(verbatim: "b")\n    $wide\n'));
           expect(swift, isNot(contains('}\n$wide')));
         });
 
@@ -1605,7 +1614,7 @@ if data.flag == true {
               child:
                   HWAdaptive(ios: blueA, android: HWText(HWString.fixed('b'))),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("a")\n$wide\n$swiftBlue',
+            'Text(verbatim: "a")\n$wide\n$swiftBlue',
           );
           expect(
             const HWSizedBox(
@@ -1613,7 +1622,7 @@ if data.flag == true {
               child:
                   HWAdaptive(ios: HWText(HWString.fixed('a')), android: blueA),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("a")\n$wide',
+            'Text(verbatim: "a")\n$wide',
           );
           expect(
             const HWSizedBox(
@@ -1637,7 +1646,7 @@ if data.flag == true {
                 child: HWSizedBox(height: 20, child: blueA),
               ),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("a")\n'
+            'Text(verbatim: "a")\n'
             '.frame(height: 20.0, alignment: .topLeading)\n'
             '$wide\n'
             '$swiftBlue\n'
@@ -1679,7 +1688,7 @@ if data.flag == true {
           );
           expect(
             padded.toSwift(0, dataExpr: 'data'),
-            startsWith('Text("a")\n'
+            startsWith('Text(verbatim: "a")\n'
                 '.frame(height: 20.0, alignment: .topLeading)\n$wide\n'),
           );
           expect(
@@ -1695,7 +1704,7 @@ if data.flag == true {
           );
           expect(
             nested.toSwift(0, dataExpr: 'data'),
-            'Text("a")\n'
+            'Text(verbatim: "a")\n'
             '.frame(width: 40.0, alignment: .topLeading)\n'
             '$swiftBlue\n'
             '$wide',

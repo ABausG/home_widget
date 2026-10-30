@@ -57,7 +57,7 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       HStack(alignment: .center, spacing: 0) {
-        Text("Order #")
+        Text(verbatim: "Order #")
           .font(.caption)
         Text(
           hwFormatDecimal(
@@ -65,7 +65,7 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
             grouping: false)
         )
         .font(.caption)
-        Text(" · ")
+        Text(verbatim: " · ")
           .font(.caption)
         Text(entry.data.placedAt.map { hwFormatDateSkeleton($0, "yMMMd") } ?? "")
           .font(.caption)
@@ -79,15 +79,15 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
         Text(
           hwFormatPercent(
             NSNumber(value: entry.data.discount ?? 0.0), minFraction: nil, maxFraction: nil))
-        Text(" off · ")
+        Text(verbatim: " off · ")
         Text(
           hwFormatDecimal(
             NSNumber(value: entry.data.items ?? 0), minFraction: nil, maxFraction: nil,
             grouping: true))
-        Text(" items")
+        Text(verbatim: " items")
       }
       HStack(alignment: .center, spacing: 0) {
-        Text("Delivery ")
+        Text(verbatim: "Delivery ")
           .font(.caption)
         Text(
           entry.data.deliveryAt.map {
@@ -99,14 +99,14 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
       HStack(alignment: .center, spacing: 0) {
         Text(hwFormatCompact(NSNumber(value: entry.data.points ?? 0)))
           .font(.caption)
-        Text(" of ")
+        Text(verbatim: " of ")
           .font(.caption)
         Text(
           hwFormatDecimal(
             NSNumber(value: 25000.0), minFraction: nil, maxFraction: nil, grouping: true)
         )
         .font(.caption)
-        Text(" points")
+        Text(verbatim: " points")
           .font(.caption)
       }
     }

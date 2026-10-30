@@ -173,8 +173,8 @@ Column(horizontalAlignment = Alignment.Start) {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
-        expect(r, contains('Text("a")'));
-        expect(r, contains('Text("b")'));
+        expect(r, contains('Text(verbatim: "a")'));
+        expect(r, contains('Text(verbatim: "b")'));
       });
 
       test('nested VStack and HStack', () {
@@ -187,8 +187,8 @@ Column(horizontalAlignment = Alignment.Start) {
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('HStack(alignment: .center, spacing: 0) {'));
-        expect(r, contains('Text("x")'));
-        expect(r, contains('Text("y")'));
+        expect(r, contains('Text(verbatim: "x")'));
+        expect(r, contains('Text(verbatim: "y")'));
       });
 
       test('data-bound text in column', () {
@@ -213,7 +213,7 @@ Column(horizontalAlignment = Alignment.Start) {
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, startsWith('VStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('    HStack(alignment: .center, spacing: 0) {'));
-        expect(r, contains('        Text("x")'));
+        expect(r, contains('        Text(verbatim: "x")'));
       });
 
       test('crossAxis .start → leading', () {
@@ -257,7 +257,7 @@ Column(horizontalAlignment = Alignment.Start) {
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('VStack(alignment: .center, spacing: 0) {'));
         expect(r, contains('Spacer(minLength: 0)'));
-        expect(r, contains('Text("a")'));
+        expect(r, contains('Text(verbatim: "a")'));
         expect('Spacer(minLength: 0)'.allMatches(r).length, 2);
       });
 
@@ -268,7 +268,7 @@ Column(horizontalAlignment = Alignment.Start) {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect(r, contains('Spacer(minLength: 0)'));
-        expect(r, contains('Text("a")'));
+        expect(r, contains('Text(verbatim: "a")'));
         expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
       });
 
@@ -288,8 +288,8 @@ Column(horizontalAlignment = Alignment.Start) {
         );
         final r = node.toSwift(0, dataExpr: 'data');
         expect('Spacer(minLength: 0)'.allMatches(r).length, 1);
-        expect(r, contains('Text("a")'));
-        expect(r, contains('Text("b")'));
+        expect(r, contains('Text(verbatim: "a")'));
+        expect(r, contains('Text(verbatim: "b")'));
       });
 
       test('crossAxis .end → trailing', () {

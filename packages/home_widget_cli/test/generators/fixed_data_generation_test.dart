@@ -100,7 +100,7 @@ void main() {
 
       final swift = files['ios/GreetingHomeWidget/Widget.swift']!;
       for (final line in [
-        'Text("Hi")',
+        'Text(verbatim: "Hi")',
         'Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, '
             'maxFraction: nil))',
         'Text(hwFormatDecimal(NSNumber(value: 2.5), minFraction: nil, '
@@ -158,8 +158,8 @@ void main() {
       final swift = files['ios/GreetingHomeWidget/Widget.swift']!;
       expect(swift, isNot(contains('fromUserDefaults')));
       expect(swift, isNot(contains('paramPrefix')));
-      expect(swift, contains('Text("Hi")'));
-      expect(swift, contains('Text("true")'));
+      expect(swift, contains('Text(verbatim: "Hi")'));
+      expect(swift, contains('Text(verbatim: "true")'));
       expect(swift, contains('hwParseIsoDate("2026-09-22T10:00:00.000Z")'));
       expect(swift, contains('func hwParseIsoDate('));
 

@@ -150,7 +150,7 @@ void main() {
       test('emits fixed text', () {
         final node = HWText(HWString.fixed('Hello'));
         final result = node.toSwift(0, dataExpr: 'data');
-        expect(result, 'Text("Hello")');
+        expect(result, 'Text(verbatim: "Hello")');
       });
 
       test('emits string data ref', () {
@@ -213,13 +213,13 @@ void main() {
       test('escapes strings', () {
         final node = HWText(HWString.fixed('He said "Hi"'));
         final result = node.toSwift(0, dataExpr: 'data');
-        expect(result, 'Text("He said \\"Hi\\"")');
+        expect(result, 'Text(verbatim: "He said \\"Hi\\"")');
       });
 
       test('respects indent', () {
         final node = HWText(HWString.fixed('Hello'));
         final result = node.toSwift(1, dataExpr: 'data');
-        expect(result, '    Text("Hello")');
+        expect(result, '    Text(verbatim: "Hello")');
       });
 
       test('swiftViewModifiers: empty without style', () {
@@ -268,7 +268,7 @@ void main() {
           textAlign: HWTextAlign.center,
         );
         final result = node.toSwift(0, dataExpr: 'data');
-        expect(result, contains('Text("Styled")'));
+        expect(result, contains('Text(verbatim: "Styled")'));
         expect(result, contains('.font(.system(size: 24.0, weight: .bold))'));
         expect(
           result,

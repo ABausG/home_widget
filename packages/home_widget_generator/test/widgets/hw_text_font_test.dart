@@ -145,7 +145,7 @@ void main() {
       expect(
         const HWText(HWString.fixed('Hello'), style: style)
             .toSwift(0, dataExpr: 'data'),
-        'Text("Hello")\n'
+        'Text(verbatim: "Hello")\n'
         '    .font(hwFont("Chewy", 400, false, 16))',
       );
     });

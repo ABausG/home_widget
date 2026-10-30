@@ -304,12 +304,12 @@ void main() {
     group('iOS (SwiftUI)', () {
       test('a single reachable widget collapses to no switch', () {
         const adaptive = HWSizeAdaptive(small: _small);
-        expect(adaptive.toSwift(0, dataExpr: 'd'), 'Text("s")');
+        expect(adaptive.toSwift(0, dataExpr: 'd'), 'Text(verbatim: "s")');
       });
 
       test('families resolving to the same widget collapse too', () {
         const adaptive = HWSizeAdaptive(small: _small, large: _small);
-        expect(adaptive.toSwift(0, dataExpr: 'd'), 'Text("s")');
+        expect(adaptive.toSwift(0, dataExpr: 'd'), 'Text(verbatim: "s")');
       });
 
       test('without a context only the provided families are switched over',
@@ -322,11 +322,11 @@ void main() {
         expect(adaptive.toSwift(0, dataExpr: 'd'), '''
 switch widgetFamily {
 case .systemMedium:
-    Text("m")
+    Text(verbatim: "m")
 case .systemLarge:
-    Text("l")
+    Text(verbatim: "l")
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''');
       });
 
@@ -345,15 +345,15 @@ default:
           '''
 switch widgetFamily {
 case .systemMedium:
-    Text("m")
+    Text(verbatim: "m")
 case .systemLarge, .systemExtraLarge:
-    Text("l")
+    Text(verbatim: "l")
 #if compiler(>=6.4)
 case .systemExtraLargePortrait:
-    Text("l")
+    Text(verbatim: "l")
 #endif
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''',
         );
       });
@@ -367,13 +367,13 @@ default:
         expect(adaptive.toSwift(0, dataExpr: 'd'), '''
 switch widgetFamily {
 case .systemExtraLarge:
-    Text("xl")
+    Text(verbatim: "xl")
 #if compiler(>=6.4)
 case .systemExtraLargePortrait:
-    Text("xlp")
+    Text(verbatim: "xlp")
 #endif
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''');
       });
 
@@ -394,10 +394,10 @@ default:
 switch widgetFamily {
 #if compiler(>=6.4)
 case .systemExtraLargePortrait:
-    Text("m")
+    Text(verbatim: "m")
 #endif
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''',
         );
       });
@@ -419,9 +419,9 @@ default:
           '''
 switch widgetFamily {
 case .systemExtraLarge:
-    Text("xl")
+    Text(verbatim: "xl")
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''',
         );
       });
@@ -446,9 +446,9 @@ default:
           '''
 switch widgetFamily {
 case .systemLarge:
-    Text("l")
+    Text(verbatim: "l")
 default:
-    Text("m")
+    Text(verbatim: "m")
 }''',
         );
       });
@@ -469,11 +469,11 @@ default:
           '''
 switch widgetFamily {
 case .accessoryRectangular:
-    Text("r")
+    Text(verbatim: "r")
 case .accessoryInline:
-    Text("i")
+    Text(verbatim: "i")
 default:
-    Text("c")
+    Text(verbatim: "c")
 }''',
         );
       });
@@ -497,9 +497,9 @@ default:
           '''
 switch widgetFamily {
 case .accessoryCircular:
-    Text("c")
+    Text(verbatim: "c")
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''',
         );
       });
@@ -522,9 +522,9 @@ default:
           '''
 switch widgetFamily {
 case .accessoryInline:
-    Text("i")
+    Text(verbatim: "i")
 default:
-    Text("l")
+    Text(verbatim: "l")
 }''',
         );
       });
@@ -537,7 +537,7 @@ default:
             dataExpr: 'd',
             context: const HWEmitContext(reachableFamilies: {}),
           ),
-          'Text("s")',
+          'Text(verbatim: "s")',
         );
       });
 
@@ -546,9 +546,9 @@ default:
         expect(adaptive.toSwift(2, dataExpr: 'd'), '''
         switch widgetFamily {
         case .systemMedium:
-            Text("m")
+            Text(verbatim: "m")
         default:
-            Text("s")
+            Text(verbatim: "s")
         }''');
       });
 
@@ -570,7 +570,7 @@ default:
           ),
           '''
 VStack(alignment: .center, spacing: 0) {
-    Text("s")
+    Text(verbatim: "s")
 }''',
         );
       });
@@ -1074,11 +1074,11 @@ when (LocalSize.current) {
         expect(example.toSwift(0, dataExpr: 'd'), '''
 switch widgetFamily {
 case .systemMedium:
-    Text("m")
+    Text(verbatim: "m")
 case .systemLarge:
-    Text("l")
+    Text(verbatim: "l")
 default:
-    Text("s")
+    Text(verbatim: "s")
 }''');
         expect(
           example.swiftViewModifiers,

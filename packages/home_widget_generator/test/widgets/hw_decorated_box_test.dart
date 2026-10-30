@@ -13,7 +13,7 @@ void main() {
         );
 
         final result = node.toSwift(0, dataExpr: 'data');
-        expect(result, contains('Text("x")'));
+        expect(result, contains('Text(verbatim: "x")'));
         expect(result, contains('.background(Color(red:'));
         expect(result, isNot(contains('.overlay(')));
       });
@@ -74,7 +74,7 @@ void main() {
               ),
               child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("x")\n'
+            'Text(verbatim: "x")\n'
             '.background(RoundedRectangle(cornerRadius: 16.0).fill($blue))',
           );
         });
@@ -91,7 +91,7 @@ void main() {
               ),
               child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("x")\n'
+            'Text(verbatim: "x")\n'
             '.overlay(RoundedRectangle(cornerRadius: 16.0)'
             '.strokeBorder($black, lineWidth: 1.0))',
           );
@@ -106,7 +106,7 @@ void main() {
               ),
               child: HWText(HWString.fixed('x')),
             ).toSwift(0, dataExpr: 'data'),
-            'Text("x")\n.background($blue)',
+            'Text(verbatim: "x")\n.background($blue)',
           );
         });
 
@@ -117,7 +117,7 @@ void main() {
             ),
             child: HWText(HWString.fixed('x')),
           );
-          expect(node.toSwift(0, dataExpr: 'data'), 'Text("x")');
+          expect(node.toSwift(0, dataExpr: 'data'), 'Text(verbatim: "x")');
           expect(
             const HWDecoratedBox(
               decoration: HWBoxDecoration(
@@ -152,7 +152,7 @@ void main() {
                 .toSwift(0, dataExpr: 'data');
         expect(
           result,
-          contains('    Text("x")\n'
+          contains('    Text(verbatim: "x")\n'
               '    .frame(maxWidth: .infinity, alignment: .topLeading)\n'
               '    .background(RoundedRectangle(cornerRadius: 12.0)'),
         );

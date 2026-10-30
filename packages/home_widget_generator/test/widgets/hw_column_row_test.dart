@@ -278,8 +278,8 @@ void main() {
       );
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains(swiftColumn));
-      expect(result, contains('Text("a")'));
-      expect(result, contains('Text("b")'));
+      expect(result, contains('Text(verbatim: "a")'));
+      expect(result, contains('Text(verbatim: "b")'));
     });
 
     test('HStack from HWRow', () {
@@ -290,7 +290,7 @@ void main() {
       );
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains(swiftRow));
-      expect(result, contains('Text("x")'));
+      expect(result, contains('Text(verbatim: "x")'));
     });
 
     test('nested VStack/HStack', () {
@@ -303,8 +303,8 @@ void main() {
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains(swiftColumn));
       expect(result, contains(swiftRow));
-      expect(result, contains('Text("x")'));
-      expect(result, contains('Text("y")'));
+      expect(result, contains('Text(verbatim: "x")'));
+      expect(result, contains('Text(verbatim: "y")'));
     });
 
     test('data in layout', () {
@@ -337,7 +337,7 @@ void main() {
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, startsWith(swiftColumn));
       expect(result, contains('    $swiftRow'));
-      expect(result, contains('        Text("x")'));
+      expect(result, contains('        Text(verbatim: "x")'));
     });
 
     test('Column with .start alignment', () {
@@ -385,7 +385,7 @@ void main() {
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains(swiftColumn));
       expect(result, contains('Spacer(minLength: 0)'));
-      expect(result, contains('Text("a")'));
+      expect(result, contains('Text(verbatim: "a")'));
       expect('Spacer(minLength: 0)'.allMatches(result).length, 2);
     });
 
@@ -396,7 +396,7 @@ void main() {
       );
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains('Spacer(minLength: 0)'));
-      expect(result, contains('Text("a")'));
+      expect(result, contains('Text(verbatim: "a")'));
       expect('Spacer(minLength: 0)'.allMatches(result).length, 1);
     });
 
@@ -410,9 +410,9 @@ void main() {
       );
       final result = node.toSwift(0, dataExpr: 'data');
       expect(result, contains(swiftRow));
-      expect(result, contains('Text("a")'));
+      expect(result, contains('Text(verbatim: "a")'));
       expect(result, contains('Spacer(minLength: 0)'));
-      expect(result, contains('Text("b")'));
+      expect(result, contains('Text(verbatim: "b")'));
       expect('Spacer(minLength: 0)'.allMatches(result).length, 1);
     });
 
@@ -451,7 +451,7 @@ void main() {
           ).toSwift(0, dataExpr: 'data'),
           '''
 HStack(alignment: .center, spacing: 0) {
-    Text("a")
+    Text(verbatim: "a")
 }
 $rowFrame''',
         );
@@ -578,19 +578,31 @@ $rowFrame''',
 
       final expected = <HWMainAxisAlignment?, (List<String>, List<String>)>{
         null: (
-          [swiftRow, 'Text("a")', 'Text("b")', swiftGap, '}'],
+          [
+            swiftRow,
+            'Text(verbatim: "a")',
+            'Text(verbatim: "b")',
+            swiftGap,
+            '}',
+          ],
           [kotlinRow, kotlinA, kotlinB, '}'],
         ),
         HWMainAxisAlignment.start: (
-          [swiftRow, 'Text("a")', 'Text("b")', swiftGap, '}'],
+          [
+            swiftRow,
+            'Text(verbatim: "a")',
+            'Text(verbatim: "b")',
+            swiftGap,
+            '}',
+          ],
           [kotlinRow, kotlinA, kotlinB, '}'],
         ),
         HWMainAxisAlignment.center: (
           [
             swiftRow,
             swiftSpacer,
-            'Text("a")',
-            'Text("b")',
+            'Text(verbatim: "a")',
+            'Text(verbatim: "b")',
             swiftGap,
             swiftSpacer,
             '}',
@@ -598,20 +610,34 @@ $rowFrame''',
           [kotlinFilledRow, kotlinSpacer, kotlinA, kotlinB, kotlinSpacer, '}'],
         ),
         HWMainAxisAlignment.end: (
-          [swiftRow, swiftSpacer, 'Text("a")', 'Text("b")', swiftGap, '}'],
+          [
+            swiftRow,
+            swiftSpacer,
+            'Text(verbatim: "a")',
+            'Text(verbatim: "b")',
+            swiftGap,
+            '}',
+          ],
           [kotlinFilledRow, kotlinSpacer, kotlinA, kotlinB, '}'],
         ),
         HWMainAxisAlignment.spaceBetween: (
-          [swiftRow, 'Text("a")', swiftSpacer, 'Text("b")', swiftGap, '}'],
+          [
+            swiftRow,
+            'Text(verbatim: "a")',
+            swiftSpacer,
+            'Text(verbatim: "b")',
+            swiftGap,
+            '}',
+          ],
           [kotlinFilledRow, kotlinA, kotlinSpacer, kotlinB, '}'],
         ),
         HWMainAxisAlignment.spaceEvenly: (
           [
             swiftRow,
             swiftSpacer,
-            'Text("a")',
+            'Text(verbatim: "a")',
             swiftSpacer,
-            'Text("b")',
+            'Text(verbatim: "b")',
             swiftGap,
             swiftSpacer,
             '}',
@@ -648,10 +674,10 @@ $rowFrame''',
       const column = HWColumn(spacing: 8, children: [a, b, a]);
       expect(column.toSwift(0, dataExpr: 'data'), '''
 VStack(alignment: .center, spacing: 0) {
-    Text("a")
-    Text("b")
+    Text(verbatim: "a")
+    Text(verbatim: "b")
     .padding(.top, 8.0)
-    Text("a")
+    Text(verbatim: "a")
     .padding(.top, 8.0)
 }''');
       expect(
@@ -715,12 +741,12 @@ VStack(alignment: .center, spacing: 0) {
         );
         expect(row.toSwift(0, dataExpr: 'data'), '''
 HStack(alignment: .center, spacing: 0) {
-    Text("a")
+    Text(verbatim: "a")
     Group {
         if data.maybe != nil {
-            Text("b")
+            Text(verbatim: "b")
         } else {
-            Text("a")
+            Text(verbatim: "a")
         }
     }
     .padding(.leading, 4.0)
@@ -1602,7 +1628,7 @@ Row(verticalAlignment = Alignment.Top) {
 VStack(alignment: .center, spacing: 0) {
     if (entry.data.events ?? []).isEmpty {
         Spacer(minLength: 0)
-        Text("Nothing yet")
+        Text(verbatim: "Nothing yet")
         Spacer(minLength: 0)
     } else {
         Spacer(minLength: 0)
@@ -1643,7 +1669,7 @@ Column(modifier = GlanceModifier.fillMaxHeight(), horizontalAlignment = Alignmen
       expect(row.toSwift(0, dataExpr: 'data'), '''
 HStack(alignment: .center, spacing: 0) {
     if (data.ids ?? []).isEmpty {
-        Text("Nothing yet")
+        Text(verbatim: "Nothing yet")
     } else {
     }
 }
@@ -2035,7 +2061,7 @@ VStack(alignment: .center, spacing: 0) {
             if hwItem.note != nil {
                 Text(hwItem.label ?? "")
             } else {
-                Text("Nothing yet")
+                Text(verbatim: "Nothing yet")
             }
         }
         .padding(.top, hwIndex > 0 ? 4.0 : 0)
@@ -2085,8 +2111,8 @@ VStack(alignment: .center, spacing: 0) {
       const column = HWColumn(spacing: 8, children: [dataOnly, a, b]);
       expect(column.toSwift(0, dataExpr: 'd'), '''
 VStack(alignment: .center, spacing: 0) {
-    Text("a")
-    Text("b")
+    Text(verbatim: "a")
+    Text(verbatim: "b")
     .padding(.top, 8.0)
 }''');
       expect(column.toKotlin(0, dataExpr: 'd'), '''
@@ -2109,7 +2135,7 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
       );
       expect(row.toSwift(0, dataExpr: 'd'), '''
 HStack(alignment: .center, spacing: 0) {
-    Text("b")
+    Text(verbatim: "b")
 }
 .frame(maxWidth: .infinity, alignment: .leading)''');
       final kotlin = row.toKotlin(0, dataExpr: 'd');
@@ -2299,8 +2325,8 @@ HStack(alignment: .center, spacing: 0) {
       expect(
         const HWRow(children: [fixed, wide]).toSwift(0, dataExpr: 'data'),
         'HStack(alignment: .center, spacing: 0) {\n'
-        '    Text("fixed")\n'
-        '    Text("w")\n'
+        '    Text(verbatim: "fixed")\n'
+        '    Text(verbatim: "w")\n'
         '    .frame(maxWidth: .infinity, alignment: .topLeading)\n'
         '}',
       );
