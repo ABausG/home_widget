@@ -8,7 +8,12 @@ import 'package:test/test.dart';
 
 import '../helpers/font_fixture.dart';
 
-WidgetSpec _spec({String? widgetUrl, HWWidget? widget}) => WidgetSpec(
+WidgetSpec _spec({
+  String? widgetUrl,
+  HWWidget? widget,
+  InteractionHandler? interactionHandler,
+}) =>
+    WidgetSpec(
       data: HomeWidget(
         name: 'Weather',
         widgetUrl: widgetUrl,
@@ -16,6 +21,7 @@ WidgetSpec _spec({String? widgetUrl, HWWidget? widget}) => WidgetSpec(
       ),
       className: 'Weather',
       widgetTree: widget,
+      interactionHandler: interactionHandler,
     );
 
 void main() {
@@ -103,6 +109,86 @@ void main() {
 
       expect(
         () => validateLaunchSupport(_spec(), tempDir),
+        returnsNormally,
+      );
+    });
+  });
+
+  group('validateInteractionSupport', () {
+    const handler = InteractionHandler(
+      libraryUri: 'package:app/handlers.dart',
+      name: 'onWeatherInteraction',
+    );
+    const button = HWButton(
+      'refresh',
+      child: HWText(HWString.fixed('Refresh')),
+    );
+
+    test('rejects a hosted home_widget without the keyed callbacks', () {
+      lock('0.10.0');
+
+      expect(
+        () => validateInteractionSupport(
+          _spec(widget: button, interactionHandler: handler),
+          tempDir,
+        ),
+        throwsA(
+          isA<GeneratorError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              startsWith('Widget "Weather": this widget has an HWButton'),
+              contains(
+                'home_widget $minimumInteractionHomeWidgetVersion or newer',
+              ),
+              contains('resolves home_widget 0.10.0'),
+              contains('flutter pub get'),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('accepts the release with the keyed callbacks and anything newer', () {
+      for (final version in const [
+        minimumInteractionHomeWidgetVersion,
+        '$minimumInteractionHomeWidgetVersion-dev.1',
+        '0.11.0',
+        '1.0.0',
+      ]) {
+        lock(version);
+        expect(
+          () => validateInteractionSupport(
+            _spec(widget: button, interactionHandler: handler),
+            tempDir,
+          ),
+          returnsNormally,
+          reason: version,
+        );
+      }
+    });
+
+    test('does not apply to a widget whose buttons call nothing', () {
+      lock('0.9.0');
+
+      expect(
+        () => validateInteractionSupport(_spec(widget: button), tempDir),
+        returnsNormally,
+      );
+    });
+
+    test('does not apply to a widget without a button', () {
+      lock('0.9.0');
+
+      expect(
+        () => validateInteractionSupport(
+          _spec(interactionHandler: handler),
+          tempDir,
+        ),
+        returnsNormally,
+      );
+      expect(
+        () => validateInteractionSupport(_spec(), tempDir),
         returnsNormally,
       );
     });

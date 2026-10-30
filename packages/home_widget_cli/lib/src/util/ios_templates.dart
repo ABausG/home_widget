@@ -1,3 +1,5 @@
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
+
 import 'naming.dart';
 
 const String _defaultHeader = '// GENERATED CODE - DO NOT MODIFY BY HAND';
@@ -323,6 +325,106 @@ struct ${widgetClassName}Bundle: WidgetBundle {
 ''');
 
   return buffer.toString();
+}
+
+/// The Swift declarations the generated widget wraps the child of an
+/// `HWButton` in: [function], the view behind it, and the intent it performs.
+///
+/// A button needs iOS 17 and a URL to send; without either, and in the inline
+/// accessory family, which shows text only, the child renders as it is.
+/// [intentName] is the `AppIntent` of the widget, [interactionKey] the key its
+/// Dart function is registered under, and the App Group is read off the
+/// flavor enum of [widgetClassName].
+String iosButtonSwift({
+  required String function,
+  required String widgetClassName,
+  required String intentName,
+  required String interactionKey,
+}) =>
+    '''
+struct HWButtonView<Content: View>: View {
+  let url: URL?
+  let content: Content
+
+  @Environment(\\.widgetFamily) private var family
+
+  var body: some View {
+    if #available(iOS 17.0, *), let url = url, family != .accessoryInline {
+      Button(
+        intent: $intentName(
+          url: url, appGroup: ${iosFlavorEnumName(widgetClassName)}.appGroupId,
+          key: "${escapeSwiftStringLiteral(interactionKey)}")
+      ) {
+        content
+      }
+      .buttonStyle(.plain)
+    } else {
+      content
+    }
+  }
+}
+
+func $function<Content: View>(_ url: URL?, @ViewBuilder content: () -> Content) -> some View {
+  return HWButtonView(url: url, content: content())
+}''';
+
+/// Generates the `AppIntent` a tap on a button of the widget performs.
+///
+/// The file is compiled into the app and into the widget extension: the
+/// extension names the intent on its buttons, and iOS performs it in the app,
+/// which the `ForegroundContinuableIntent` conformance asks for, where the
+/// plugin runs the Dart function registered under the key the intent carries.
+///
+/// [intentName]: The name of the intent, e.g. `CounterHomeWidgetIntent`.
+/// [widgetName]: The name of the widget, for the title of the intent.
+/// [header]: Optional header comment. Defaults to "GENERATED CODE...".
+String iosIntentSwiftTemplate({
+  required String intentName,
+  required String widgetName,
+  String? header,
+}) {
+  final head = header ?? _defaultHeader;
+  return '''
+$head
+
+import AppIntents
+import Foundation
+import home_widget
+
+@available(iOS 17, *)
+struct $intentName: AppIntent {
+  static let title: LocalizedStringResource = "${escapeSwiftStringLiteral(widgetName)} interaction"
+  static let isDiscoverable: Bool = false
+
+  @Parameter(title: "URL")
+  var url: URL?
+
+  @Parameter(title: "App Group")
+  var appGroup: String?
+
+  @Parameter(title: "Key")
+  var key: String?
+
+  init() {}
+
+  init(url: URL?, appGroup: String?, key: String?) {
+    self.url = url
+    self.appGroup = appGroup
+    self.key = key
+  }
+
+  func perform() async throws -> some IntentResult {
+    if let appGroup = appGroup {
+      await HomeWidgetBackgroundWorker.run(url: url, appGroup: appGroup, key: key)
+    }
+    return .result()
+  }
+}
+
+@available(iOS 17, *)
+@available(iOSApplicationExtension, unavailable)
+extension $intentName: ForegroundContinuableIntent {}
+''';
 }
 
 /// Generates the Info.plist content for the Widget Extension.

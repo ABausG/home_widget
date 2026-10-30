@@ -239,6 +239,35 @@ void main() {
             );
           }
         });
+
+        testWidgets('Keyed registration takes an explicit appGroupId', (
+          tester,
+        ) async {
+          final deviceInfo = await DeviceInfoPlugin().iosInfo;
+          final hasInteractiveWidgets =
+              double.parse(deviceInfo.systemVersion.split('.').first) >= 17.0;
+          if (hasInteractiveWidgets) {
+            final registerCallbackResult =
+                await HomeWidget.registerInteractivityCallback(
+                  interactivityCallback,
+                  key: 'KeyedWidget',
+                  appGroupId: integrationAppGroupId,
+                );
+
+            expect(registerCallbackResult, isTrue);
+          } else {
+            expect(
+              () async => await HomeWidget.registerInteractivityCallback(
+                interactivityCallback,
+                key: 'KeyedWidget',
+                appGroupId: integrationAppGroupId,
+              ),
+              throwsA(
+                isA<PlatformException>().having((e) => e.code, 'code', '-5'),
+              ),
+            );
+          }
+        });
       });
     });
   });

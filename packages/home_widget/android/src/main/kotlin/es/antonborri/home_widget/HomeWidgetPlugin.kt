@@ -207,9 +207,18 @@ class HomeWidgetPlugin :
         return result.success(null)
       }
       "registerBackgroundCallback" -> {
-        val dispatcher = ((call.arguments as Iterable<*>).toList()[0] as Number).toLong()
-        val callback = ((call.arguments as Iterable<*>).toList()[1] as Number).toLong()
-        saveCallbackHandle(context, dispatcher, callback)
+        val arguments = (call.arguments as Iterable<*>).toList()
+        val dispatcher = (arguments.getOrNull(0) as? Number)?.toLong()
+        val callback = (arguments.getOrNull(1) as? Number)?.toLong()
+        if (dispatcher == null || callback == null) {
+          return result.error(
+              "-9",
+              "InvalidArguments registerBackgroundCallback must be called with a top-level or static callback",
+              null,
+          )
+        }
+        val key = arguments.getOrNull(2) as? String
+        saveCallbackHandle(context, dispatcher, callback, key)
         return result.success(true)
       }
       "isRequestPinWidgetSupported" -> {
@@ -340,12 +349,15 @@ class HomeWidgetPlugin :
 
     const val TRIGGERED_FROM_HOME_WIDGET = "triggeredFromHomeWidget"
 
-    private fun saveCallbackHandle(context: Context, dispatcher: Long, handle: Long) {
+    private fun callbackHandleKey(key: String?): String =
+        if (key == null) CALLBACK_HANDLE else "$CALLBACK_HANDLE.$key"
+
+    private fun saveCallbackHandle(context: Context, dispatcher: Long, handle: Long, key: String?) {
       context
           .getSharedPreferences(INTERNAL_PREFERENCES, Context.MODE_PRIVATE)
           .edit()
           .putLong(CALLBACK_DISPATCHER_HANDLE, dispatcher)
-          .putLong(CALLBACK_HANDLE, handle)
+          .putLong(callbackHandleKey(key), handle)
           .apply()
     }
 
@@ -358,6 +370,17 @@ class HomeWidgetPlugin :
         context
             .getSharedPreferences(INTERNAL_PREFERENCES, Context.MODE_PRIVATE)
             .getLong(CALLBACK_HANDLE, 0)
+
+    /**
+     * The handle of the callback registered for [key], or the one of the default callback when
+     * [key] is `null` or has no callback of its own.
+     */
+    fun getHandle(context: Context, key: String?): Long {
+      if (key == null) return getHandle(context)
+      val preferences = context.getSharedPreferences(INTERNAL_PREFERENCES, Context.MODE_PRIVATE)
+      val handle = preferences.getLong(callbackHandleKey(key), 0)
+      return if (handle != 0L) handle else preferences.getLong(CALLBACK_HANDLE, 0)
+    }
 
     fun getData(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)

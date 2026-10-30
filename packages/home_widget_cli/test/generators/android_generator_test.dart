@@ -2142,6 +2142,151 @@ void main() {
       });
     });
 
+    group('HWButton', () {
+      const buttons = HWRow(
+        children: [
+          HWButton(
+            'increment',
+            data: [HWInt('count'), HWPayload('step', HWInt.fixed(1))],
+            child: HWText(HWString.fixed('Add')),
+          ),
+          HWButton(
+            'reset',
+            child: HWText(HWString.fixed('Reset')),
+          ),
+        ],
+      );
+
+      WidgetSpec buttonSpec({bool openAppOnTap = true}) => WidgetSpec(
+            data: HomeWidget(
+              name: 'Taps',
+              android: HomeWidgetAndroidConfiguration(
+                packageName: 'com.urls',
+                openAppOnTap: openAppOnTap,
+              ),
+            ),
+            className: 'Taps',
+            dataFields: const [HWInt('count')],
+            widgetTree: buttons,
+            interactionHandler: const InteractionHandler(
+              libraryUri: 'package:app/taps.dart',
+              name: 'onTapsInteraction',
+            ),
+          );
+
+      File manifest() => File(
+            p.join(
+              tempDir.path,
+              'android',
+              'app',
+              'src',
+              'main',
+              'AndroidManifest.xml',
+            ),
+          );
+
+      test('runs the callback registered under the key of the widget',
+          () async {
+        writeManifest();
+        final content = await generateFor(buttonSpec(), 'com/urls');
+
+        expect(
+          content,
+          contains(
+            'clickable(onClick = actionRunCallback<HomeWidgetInteractivityAction>('
+            'HomeWidgetInteractivityAction.parameters('
+            'hwPayloadUrl("homewidget://interaction/increment", '
+            'listOf("count" to hwPayloadValue(widgetData.count), '
+            '"step" to "1"), "homeWidget", ""), "TapsHomeWidget")))',
+          ),
+        );
+        expect(
+          content,
+          contains(
+            'clickable(onClick = actionRunCallback<HomeWidgetInteractivityAction>('
+            'HomeWidgetInteractivityAction.parameters('
+            'Uri.parse("homewidget://interaction/reset?homeWidget"), '
+            '"TapsHomeWidget")))',
+          ),
+        );
+        expect(
+          content,
+          contains(
+            'import androidx.glance.appwidget.action.actionRunCallback',
+          ),
+        );
+        expect(
+          content,
+          contains(
+            'import es.antonborri.home_widget.HomeWidgetInteractivityAction',
+          ),
+        );
+        expect(content, contains('import androidx.glance.action.clickable'));
+      });
+
+      test('declares the background receiver in the manifest', () async {
+        writeManifest();
+        await generateFor(buttonSpec(), 'com/urls');
+
+        final content = manifest().readAsStringSync();
+        expect(
+          content,
+          contains(
+            '        <receiver\n'
+            '            android:name="$backgroundReceiverFqcn"\n'
+            '            android:exported="false" />\n',
+          ),
+        );
+        expect(backgroundReceiverFqcn.allMatches(content), hasLength(1));
+      });
+
+      test('keeps the buttons when openAppOnTap is false', () async {
+        writeManifest();
+        final content = await generateFor(
+          buttonSpec(openAppOnTap: false),
+          'com/urls',
+        );
+
+        expect(
+          'clickable(onClick = actionRunCallback<HomeWidgetInteractivityAction>('
+                  'HomeWidgetInteractivityAction.parameters('
+              .allMatches(content),
+          hasLength(2),
+        );
+        expect(content, contains('"TapsHomeWidget")))'));
+        expect(content, isNot(contains('actionStartActivity')));
+        expect(
+          manifest().readAsStringSync(),
+          contains(backgroundReceiverFqcn),
+        );
+      });
+
+      test('leaves the manifest of a widget without buttons alone', () async {
+        writeManifest();
+        final content = await generateFor(
+          WidgetSpec(
+            data: HomeWidget(
+              name: 'Plain',
+              android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+            ),
+            className: 'Plain',
+            interactionHandler: const InteractionHandler(
+              libraryUri: 'package:app/taps.dart',
+              name: 'onTapsInteraction',
+            ),
+          ),
+          'com/urls',
+        );
+
+        expect(content, isNot(contains('actionRunCallback')));
+        expect(content, isNot(contains('HomeWidgetInteractivityAction')));
+        expect(
+          manifest().readAsStringSync(),
+          isNot(contains(backgroundReceiverFqcn)),
+        );
+      });
+    });
+
     test('imports the launcher activity when it lives in another package',
         () async {
       writeManifest(activityName: 'com.other.HostActivity');

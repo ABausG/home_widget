@@ -27,6 +27,15 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
   private lateinit var channel: MethodChannel
 
   override suspend fun doWork(): Result {
+    val handle = HomeWidgetPlugin.getHandle(context, inputData.getString(CALLBACK_KEY_KEY))
+    if (handle == 0L) {
+      Log.w(
+          TAG,
+          "No interactivity callback is registered. Call HomeWidget.registerInteractivityCallback in the app first.",
+      )
+      return Result.success()
+    }
+
     if (engine == null) {
       try {
         initializeFlutterEngine()
@@ -43,7 +52,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     val data = inputData.getString(DATA_KEY) ?: ""
-    val args = listOf(HomeWidgetPlugin.getHandle(context), data)
+    val args = listOf(handle, data)
 
     synchronized(serviceStarted) {
       if (!serviceStarted.get()) {
@@ -104,6 +113,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
   companion object {
     private const val TAG = "HomeWidgetWorker"
     private const val DATA_KEY = "uri_data"
+    private const val CALLBACK_KEY_KEY = "callback_key"
     private const val UNIQUE_WORK_NAME = "home_widget_background"
     private const val CHANNEL_NAME = "home_widget/background"
 
@@ -128,7 +138,23 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     fun enqueueWork(context: Context, work: Intent) {
-      val data = Data.Builder().putString(DATA_KEY, work.data?.toString() ?: "").build()
+      val uri = work.data?.toString() ?: ""
+      val key = work.getStringExtra(HomeWidgetBackgroundIntent.EXTRA_CALLBACK_KEY)
+      // WorkManager caps the input of a request at about 10 KB. Above 64 KB it silently stores
+      // empty data instead of throwing, so the size is checked up front.
+      val size =
+          uri.toByteArray(Charsets.UTF_8).size + (key?.toByteArray(Charsets.UTF_8)?.size ?: 0)
+      if (size > Data.MAX_DATA_BYTES) {
+        Log.e(TAG, "Dropped an interaction whose Uri is too large to hand to WorkManager")
+        return
+      }
+      val data =
+          try {
+            Data.Builder().putString(DATA_KEY, uri).putString(CALLBACK_KEY_KEY, key).build()
+          } catch (e: IllegalStateException) {
+            Log.e(TAG, "Dropped an interaction whose Uri is too large to hand to WorkManager", e)
+            return
+          }
 
       val workRequest =
           OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>().setInputData(data).build()

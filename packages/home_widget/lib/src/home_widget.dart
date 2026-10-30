@@ -501,12 +501,53 @@ class HomeWidget {
   /// Register a callback that gets called when clicked on a specific View in a HomeWidget
   /// This enables having Interactive Widgets that can call Dart Code
   /// More Info on setting this up in the README
+  ///
+  /// Without a [key] the callback takes the default slot: it receives every
+  /// interaction that names no key, and every interaction whose key has no
+  /// callback of its own.
+  ///
+  /// With a [key] the callback is registered next to the default one and only
+  /// receives interactions sent with the same key, so several Widgets can each
+  /// have their own callback. The native side passes the key along with the
+  /// Uri: `HomeWidgetBackgroundIntent.getBroadcast(context, uri, key)` or
+  /// `HomeWidgetInteractivityAction` on Android,
+  /// `HomeWidgetBackgroundWorker.run(url:appGroup:key:)` on iOS.
+  ///
+  /// [appGroupId] names the App Group the callback is stored in on iOS, so
+  /// registering works without calling [setAppGroupId] first. It defaults to
+  /// [groupId] and has no effect on Android.
+  ///
+  /// The [callback] runs in a separate background isolate that finds it only
+  /// by its callback handle, so it must be a top-level or static function
+  /// annotated with `@pragma('vm:entry-point')`. Closures and instance methods
+  /// have no such handle and make this method throw an [ArgumentError].
+  ///
+  /// On iOS, throws a `PlatformException` with code `-7` when neither
+  /// [appGroupId] nor [setAppGroupId] provided an App Group, and with code `-5`
+  /// below iOS 17, where Widgets cannot be interactive.
   static Future<bool?> registerInteractivityCallback(
-    FutureOr<void> Function(Uri?) callback,
-  ) {
+    FutureOr<void> Function(Uri?) callback, {
+    String? key,
+    String? appGroupId,
+  }) {
+    final dispatcherHandle = ui.PluginUtilities.getCallbackHandle(
+      callbackDispatcher,
+    )?.toRawHandle();
+    final callbackHandle = ui.PluginUtilities.getCallbackHandle(
+      callback,
+    )?.toRawHandle();
+    if (dispatcherHandle == null || callbackHandle == null) {
+      throw ArgumentError.value(
+        callback,
+        'callback',
+        "must be a top-level or static function annotated with @pragma('vm:entry-point'). "
+            'Closures and instance methods cannot run in the background engine',
+      );
+    }
     final args = <dynamic>[
-      ui.PluginUtilities.getCallbackHandle(callbackDispatcher)?.toRawHandle(),
-      ui.PluginUtilities.getCallbackHandle(callback)?.toRawHandle(),
+      dispatcherHandle,
+      callbackHandle,
+      if (key != null || appGroupId != null) ...[key, appGroupId],
     ];
     return _channel.invokeMethod('registerBackgroundCallback', args);
   }

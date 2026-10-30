@@ -311,6 +311,60 @@ class LaunchTarget {
   });
 }
 
+/// A button of a widget, which the generated Dart hands the widget's
+/// interaction function as a class of its own.
+class InteractionTarget {
+  /// The generated class, e.g. `CounterIncrementInteraction`.
+  final String className;
+
+  /// The URL a tap is sent as, with the payload the class carries.
+  final HWPayloadUrl url;
+
+  /// The sentence documenting the generated class.
+  final String description;
+
+  /// Creates an [InteractionTarget].
+  const InteractionTarget({
+    required this.className,
+    required this.url,
+    required this.description,
+  });
+}
+
+/// The function `HomeWidget.onInteraction` names, as the generated Dart calls
+/// it.
+class InteractionHandler {
+  /// The `package:` URI of the library declaring the function.
+  final String libraryUri;
+
+  /// The name of the function.
+  final String name;
+
+  /// The class a static function is declared in, or null for a top-level one.
+  final String? className;
+
+  /// Creates an [InteractionHandler].
+  const InteractionHandler({
+    required this.libraryUri,
+    required this.name,
+    this.className,
+  });
+
+  /// The function as code in a library importing [libraryUri] names it.
+  String get reference => className == null ? name : '$className.$name';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is InteractionHandler &&
+          libraryUri == other.libraryUri &&
+          name == other.name &&
+          className == other.className;
+
+  @override
+  int get hashCode => Object.hash(libraryUri, name, className);
+}
+
 /// Whether Android draws [widget] as text into a bitmap, which the room of
 /// has to be measured before it is drawn.
 bool androidMeasuresText(HWWidget widget) => widget.kotlinRendersBitmapText;
@@ -370,12 +424,16 @@ class WidgetSpec {
   /// The widget tree definition (if any).
   final HWWidget? widgetTree;
 
+  /// The function `HomeWidget.onInteraction` names, or null without one.
+  final InteractionHandler? interactionHandler;
+
   /// Creates a new [WidgetSpec].
   WidgetSpec({
     required this.data,
     required this.className,
     List<HWDataType<dynamic>> dataFields = const [],
     this.widgetTree,
+    this.interactionHandler,
   }) : declaredDataFields = dataFields;
 
   /// [declaredDataFields] with every compatible re-declaration of a key folded
@@ -404,14 +462,16 @@ class WidgetSpec {
           data == other.data &&
           className == other.className &&
           declaredDataFields == other.declaredDataFields &&
-          widgetTree == other.widgetTree;
+          widgetTree == other.widgetTree &&
+          interactionHandler == other.interactionHandler;
 
   @override
   int get hashCode =>
       data.hashCode ^
       className.hashCode ^
       declaredDataFields.hashCode ^
-      widgetTree.hashCode;
+      widgetTree.hashCode ^
+      interactionHandler.hashCode;
 
   /// The effective widget tree, returning [widgetTree] if provided, or a
   /// generated default widget based on [dataFields].
@@ -829,6 +889,7 @@ class WidgetSpec {
       reachableFamilies: _androidReachableFamilies(table),
       androidSizeTable: table,
       declaredAndroidSizes: androidHasSizeRanges ? androidDeclaredSizes : null,
+      interactionKey: hasInteractions ? interactionKey : null,
     );
   }
 
@@ -1143,11 +1204,20 @@ class WidgetSpec {
   /// The [HWLink]s a family in [iosSingleTapFamilies] renders as part of a
   /// larger layout, where iOS ignores them, in document order.
   List<HWLink> get iosIgnoredLinks {
-    final ignored = <HWLink>[];
     final wholeWidget = iosWidgetUrlLinks;
+    return [
+      for (final link in _iosRenderedIn<HWLink>(iosSingleTapFamilies))
+        if (!wholeWidget.any((other) => identical(other, link))) link,
+    ];
+  }
+
+  /// The widgets of type [T] iOS renders in one of [families] the widget can
+  /// be shown in, in document order, leaving out those rendering nothing.
+  List<T> _iosRenderedIn<T extends HWWidget>(Set<HWWidgetFamily> families) {
+    final rendered = <T>[];
 
     void walk(HWWidget widget, Set<HWWidgetFamily> visible) {
-      if (visible.intersection(iosSingleTapFamilies).isEmpty) return;
+      if (visible.intersection(families).isEmpty) return;
       switch (widget) {
         case HWAdaptive():
           walk(widget.ios, visible);
@@ -1159,11 +1229,7 @@ class WidgetSpec {
             walk(slot, widget.familiesResolvingTo(slot, visible));
           }
         default:
-          if (widget is HWLink &&
-              !widget.swiftRendersNothing &&
-              !wholeWidget.any((other) => identical(other, widget))) {
-            ignored.add(widget);
-          }
+          if (widget is T && !widget.swiftRendersNothing) rendered.add(widget);
           for (final child in widget.childWidgets) {
             walk(child, visible);
           }
@@ -1171,8 +1237,61 @@ class WidgetSpec {
     }
 
     walk(effectiveWidgetTree, iosReachableFamilies);
-    return ignored;
+    return rendered;
   }
+
+  /// Every [HWButton] in the tree, in document order, both platforms'
+  /// included.
+  List<HWButton> get buttons =>
+      effectiveWidgetTree.descendants.whereType<HWButton>().toList();
+
+  /// Whether a tap on the widget runs Dart code: it has an [HWButton] and a
+  /// function for it to reach.
+  bool get hasInteractions => interactionHandler != null && buttons.isNotEmpty;
+
+  /// One target per [HWButton] id, in document order.
+  ///
+  /// Buttons sharing an id are one target; `validateWidgetData` makes sure
+  /// they send the same payload.
+  List<InteractionTarget> get interactionTargets {
+    final targets = <InteractionTarget>[];
+    final seen = <String>{};
+    for (final button in buttons) {
+      final name = buttonClassName(button);
+      if (!seen.add(name)) continue;
+      targets.add(
+        InteractionTarget(
+          className: name,
+          url: button.payloadUrl,
+          description: "A tap on the `${button.id}` button of the "
+              '${data.name} widget.',
+        ),
+      );
+    }
+    return targets;
+  }
+
+  /// The class a tap on [button] reaches the app as:
+  /// `<WidgetClass><Id>Interaction`, e.g. `CounterIncrementInteraction`.
+  String buttonClassName(HWButton button) =>
+      '$className${toPascalCase(button.id)}Interaction';
+
+  /// The class every [interactionTargets] entry extends:
+  /// `<WidgetClass>Interaction`.
+  String get interactionClassName => '${className}Interaction';
+
+  /// The key the widget's interaction function is registered under with the
+  /// plugin, which the native widget sends along with a tap: the name of the
+  /// generated native widget, the WidgetKit kind on iOS.
+  String get interactionKey => '${className}HomeWidget';
+
+  /// The `AppIntent` a tap on a button performs on iOS.
+  String get iosIntentName => '${className}HomeWidgetIntent';
+
+  /// The [HWButton]s iOS renders in the inline accessory family, which shows
+  /// text only and cannot be tapped, in document order.
+  List<HWButton> get iosInlineButtons =>
+      _iosRenderedIn<HWButton>(const {HWWidgetFamily.accessoryInline});
 
   /// Whether the Android gallery preview reads the widget's stored data, where
   /// the platform value wins over the top-level

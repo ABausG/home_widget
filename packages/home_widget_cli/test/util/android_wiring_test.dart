@@ -1470,4 +1470,176 @@ dependencies {
       expect(manifestFile.readAsStringSync(), before);
     });
   });
+
+  group('ensureAndroidManifestBackgroundReceiver', () {
+    late File manifestFile;
+
+    setUp(() {
+      final dir = Directory(
+        p.join(root.path, 'android', 'app', 'src', 'main'),
+      )..createSync(recursive: true);
+      manifestFile = File(p.join(dir.path, 'AndroidManifest.xml'));
+    });
+
+    void writeManifest({String extraApplicationChildren = ''}) {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application android:label="test">
+        <activity android:name=".MainActivity" android:exported="true" />$extraApplicationChildren
+    </application>
+</manifest>
+''',
+      );
+    }
+
+    test('warns when the manifest is missing', () async {
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf([
+              contains('AndroidManifest.xml not found'),
+              contains('HomeWidgetBackgroundReceiver'),
+            ]),
+          ),
+        ),
+      ).called(1);
+      expect(manifestFile.existsSync(), isFalse);
+    });
+
+    test('warns when the manifest is not parsable XML', () async {
+      manifestFile.writeAsStringSync('not xml <<<');
+
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf([
+              contains('Could not parse AndroidManifest.xml'),
+              contains('interactivity wiring'),
+            ]),
+          ),
+        ),
+      ).called(1);
+      expect(manifestFile.readAsStringSync(), 'not xml <<<');
+    });
+
+    test('warns when manifest has no application element', () async {
+      const content = '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+</manifest>
+''';
+      manifestFile.writeAsStringSync(content);
+
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf([
+              contains('Could not find <application>'),
+              contains('interactivity wiring'),
+            ]),
+          ),
+        ),
+      ).called(1);
+      expect(manifestFile.readAsStringSync(), content);
+    });
+
+    test('adds the receiver to the application, not exported', () async {
+      writeManifest();
+
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      final content = manifestFile.readAsStringSync();
+      expect(
+        content,
+        contains(
+          '        <receiver\n'
+          '            android:name='
+          '"es.antonborri.home_widget.HomeWidgetBackgroundReceiver"\n'
+          '            android:exported="false" />\n'
+          '    </application>',
+        ),
+      );
+
+      final document = XmlDocument.parse(content);
+      final application =
+          document.rootElement.findElements('application').single;
+      final receiver = application.childElements
+          .where((e) => e.localName == 'receiver')
+          .single;
+      expect(receiver.getAttribute('android:name'), backgroundReceiverFqcn);
+      expect(receiver.getAttribute('android:exported'), 'false');
+      expect(receiver.children, isEmpty);
+      expect(application.findElements('activity'), hasLength(1));
+      verify(
+        () => mockLogger.detail(any(that: contains('AndroidManifest.xml'))),
+      ).called(1);
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
+    test('is idempotent across repeated runs', () async {
+      writeManifest();
+
+      await ensureAndroidManifestBackgroundReceiver(root);
+      final afterFirst = manifestFile.readAsStringSync();
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      expect(manifestFile.readAsStringSync(), afterFirst);
+      expect(
+        backgroundReceiverFqcn.allMatches(afterFirst).length,
+        1,
+      );
+    });
+
+    test('leaves a hand-written receiver untouched', () async {
+      writeManifest(
+        extraApplicationChildren: '''
+
+        <receiver android:name="$backgroundReceiverFqcn" android:exported="true">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>''',
+      );
+      final before = manifestFile.readAsStringSync();
+
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      expect(manifestFile.readAsStringSync(), before);
+      verifyNever(() => mockLogger.detail(any()));
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf(
+              contains('android:exported="true"'),
+              contains('any app on the device'),
+              contains('android:exported="false" without an intent-filter'),
+            ),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('does not warn about a hand-written receiver that is not exported',
+        () async {
+      writeManifest(
+        extraApplicationChildren: '''
+
+        <receiver android:name="$backgroundReceiverFqcn" android:exported="false" />''',
+      );
+      final before = manifestFile.readAsStringSync();
+
+      await ensureAndroidManifestBackgroundReceiver(root);
+
+      expect(manifestFile.readAsStringSync(), before);
+      verifyNever(() => mockLogger.warn(any()));
+    });
+  });
 }

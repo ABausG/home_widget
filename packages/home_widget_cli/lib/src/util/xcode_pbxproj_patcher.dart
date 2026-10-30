@@ -240,33 +240,49 @@ Future<void> _writeVersionXcconfig(Directory projectDir) async {
 
 /// Adds the file reference of [versionXcconfigPath] to the project, into the
 /// `Flutter` group when the main group has one and the main group otherwise.
-void _ensureVersionXcconfigReference(PbxprojEditor editor, String mainGroupId) {
+void _ensureVersionXcconfigReference(
+  PbxprojEditor editor,
+  String mainGroupId,
+) =>
+    _ensureXcconfigReference(
+      editor,
+      mainGroupId,
+      id: _versionXcconfigId,
+      name: _versionXcconfigName,
+      path: versionXcconfigPath,
+    );
+
+/// Adds the file reference [id] of the `.xcconfig` [name] at `ios/[path]`, a
+/// file in `ios/Flutter`, to the project, into the `Flutter` group when the
+/// main group has one and the main group otherwise.
+void _ensureXcconfigReference(
+  PbxprojEditor editor,
+  String mainGroupId, {
+  required String id,
+  required String name,
+  required String path,
+}) {
   final project = editor.project;
   final flutterGroup = [
-    for (final id
+    for (final childId
         in project.object(mainGroupId)?.strings('children') ?? const <String>[])
-      if (project.objectOfIsa(id, 'PBXGroup') case final group?)
+      if (project.objectOfIsa(childId, 'PBXGroup') case final group?)
         if ((group.string('path') ?? group.string('name')) == 'Flutter') group,
   ].firstOrNull;
   final groupId = flutterGroup?.id ?? mainGroupId;
 
-  if (project.object(_versionXcconfigId) == null) {
+  if (project.object(id) == null) {
     final location = flutterGroup?.string('path') == null
-        ? 'name = $_versionXcconfigName; path = $versionXcconfigPath;'
-        : 'path = $_versionXcconfigName;';
+        ? 'name = ${pbxLiteral(name)}; path = ${pbxLiteral(path)};'
+        : 'path = ${pbxLiteral(name)};';
     editor.insertObjects('PBXFileReference', '''
-\t\t$_versionXcconfigId /* $_versionXcconfigName */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; $location sourceTree = "<group>"; };
+\t\t$id /* $name */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; $location sourceTree = "<group>"; };
 ''');
   }
   final grouped = editor.project.objects.values
-      .any((object) => object.strings('children').contains(_versionXcconfigId));
+      .any((object) => object.strings('children').contains(id));
   if (!grouped) {
-    editor.addArrayEntry(
-      groupId,
-      'children',
-      _versionXcconfigId,
-      comment: _versionXcconfigName,
-    );
+    editor.addArrayEntry(groupId, 'children', id, comment: name);
   }
 }
 
@@ -2027,6 +2043,420 @@ Future<void> ensureWidgetResourceFilesInXcodeProject({
         '${resourceFileNames.length == 1 ? '' : 's'} of $widgetClassName into '
         'the extension target.';
   });
+}
+
+/// How a widget extension gets at the `home_widget` plugin its interaction
+/// intent calls.
+enum WidgetPluginLinkage {
+  /// Through the Swift package Flutter generates for the app's plugins, which
+  /// the Xcode project lists for the extension target.
+  swiftPackage,
+
+  /// Through a CocoaPods target of its own in the `Podfile`.
+  cocoaPods,
+
+  /// Not at all: the project integrates plugins neither way, or the widget
+  /// has no interaction.
+  none,
+}
+
+/// The Swift package product holding every plugin of a Flutter app that
+/// supports Swift Package Manager.
+const _pluginPackageProduct = 'FlutterGeneratedPluginSwiftPackage';
+
+/// The `.xcconfig` the configurations of the interactive extension
+/// [widgetClassName] are based on in a CocoaPods project, relative to `ios/`.
+String podsXcconfigPath(String widgetClassName) =>
+    'Flutter/${_podsXcconfigName(widgetClassName)}';
+
+String _podsXcconfigName(String widgetClassName) =>
+    'HomeWidget-$widgetClassName.xcconfig';
+
+/// Wires what an `HWButton` needs into the Xcode project, or takes it out
+/// again when [interactive] is `false`.
+///
+/// `<widgetClassName>/[intentFileName]` holds the `AppIntent` a tap performs.
+/// iOS runs it in the app, so the file becomes a member of the app target as
+/// well as the extension target: through explicit references in a project
+/// with classic groups, and through a membership exception of the extension's
+/// synchronized folder otherwise, which builds the file for the extension on
+/// its own.
+///
+/// The intent calls into `home_widget`, which the extension has to link:
+///
+/// - Where the app target links the Swift package Flutter generates for its
+///   plugins, the extension target gets the same package product. A project
+///   Flutter created with the package can still integrate its plugins through
+///   CocoaPods, so [pluginInSwiftPackage] says whether that package holds
+///   `home_widget`: `false` rules this out, and `null`, for a package that
+///   was not generated yet, trusts the app target.
+/// - Otherwise, with [hasPodfile], the extension gets a CocoaPods target,
+///   which the caller writes into the `Podfile`. CocoaPods configures a
+///   target through the `.xcconfig` its configurations are based on, and
+///   leaves one that already has a base alone, so the configurations move
+///   from [versionXcconfigPath] to [podsXcconfigPath], which this writes and
+///   which includes both. A target made in Xcode without a base gets one
+///   including only the CocoaPods files, and goes back to no base.
+///
+/// Every object has an id derived from the widget, so a second run changes
+/// nothing, and a widget losing its last button gets exactly these objects
+/// removed and its configurations moved back. A product or a base
+/// configuration set by hand is left alone.
+///
+/// Returns how the extension links the plugin.
+Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
+  required File pbxprojFile,
+  required String widgetClassName,
+  required String intentFileName,
+  required bool interactive,
+  required bool hasPodfile,
+  bool? pluginInSwiftPackage,
+}) async {
+  final projectName = xcodeProjectName(pbxprojFile);
+  final projectDir = _projectDirOf(pbxprojFile);
+  final ids = _InteractivityIds(widgetClassName, intentFileName);
+  var linkage = WidgetPluginLinkage.none;
+  var podConfigurations = const <String>[];
+  var podsIncludeVersion = false;
+
+  await _updateXcodeProject(pbxprojFile, (editor) {
+    final runner = _appTarget(editor.project, projectName);
+    final target = editor.project.nativeTargetNamed(widgetClassName);
+    if (!interactive || runner == null || target == null) {
+      editor.removeObjects(ids.intent);
+      _unlinkPluginPackage(editor, ids);
+      _restoreVersionXcconfig(editor, widgetClassName, ids);
+      return 'Removed the interaction wiring of $widgetClassName.';
+    }
+
+    _wireIntentFile(
+      editor,
+      ids: ids,
+      widgetClassName: widgetClassName,
+      intentFileName: intentFileName,
+      runnerTargetId: runner.id,
+    );
+
+    if (pluginInSwiftPackage != false &&
+        _linksPluginPackage(editor.project, runner)) {
+      linkage = WidgetPluginLinkage.swiftPackage;
+      _linkPluginPackage(editor, ids, widgetClassName);
+      _restoreVersionXcconfig(editor, widgetClassName, ids);
+    } else if (hasPodfile) {
+      linkage = WidgetPluginLinkage.cocoaPods;
+      _unlinkPluginPackage(editor, ids);
+      podsIncludeVersion = _basesOnVersionXcconfig(editor, widgetClassName);
+      podConfigurations = _basePodsXcconfig(
+        editor,
+        ids: ids,
+        widgetClassName: widgetClassName,
+        mainGroupId: editor.project.rootProject?.string('mainGroup') ?? '',
+      );
+    } else {
+      _unlinkPluginPackage(editor, ids);
+      _restoreVersionXcconfig(editor, widgetClassName, ids);
+    }
+    return 'Wired the interaction intent of $widgetClassName into '
+        '${runner.string('name')} and $widgetClassName.';
+  });
+
+  final podsXcconfig =
+      File(p.join(projectDir.path, podsXcconfigPath(widgetClassName)));
+  if (linkage == WidgetPluginLinkage.cocoaPods) {
+    final content = _podsXcconfigContent(
+      widgetClassName,
+      podConfigurations,
+      includeVersion: podsIncludeVersion,
+    );
+    if (!podsXcconfig.existsSync() ||
+        await podsXcconfig.readAsString() != content) {
+      await podsXcconfig.parent.create(recursive: true);
+      await podsXcconfig.writeAsString(content);
+      logger.detail('Generated: ${podsXcconfig.path}');
+    }
+  } else if (podsXcconfig.existsSync()) {
+    await podsXcconfig.delete();
+  }
+  return linkage;
+}
+
+/// Makes `<widgetClassName>/[intentFileName]` a member of the extension
+/// target and of the app target [runnerTargetId].
+void _wireIntentFile(
+  PbxprojEditor editor, {
+  required _InteractivityIds ids,
+  required String widgetClassName,
+  required String intentFileName,
+  required String runnerTargetId,
+}) {
+  final project = editor.project;
+  final target = project.nativeTargetNamed(widgetClassName)!;
+  final runner = project.object(runnerTargetId)!;
+  final runnerName = runner.string('name') ?? 'Runner';
+
+  if (_widgetUsesSynchronizedGroup(project, widgetClassName)) {
+    final rootGroupId = target.strings('fileSystemSynchronizedGroups').first;
+    final title = 'Exceptions for "$widgetClassName" folder in '
+        '"$runnerName" target';
+    if (project.object(ids.runnerExceptionId) == null) {
+      editor.insertObjects(
+        'PBXFileSystemSynchronizedBuildFileExceptionSet',
+        '''
+\t\t${ids.runnerExceptionId} /* $title */ = {
+\t\t\tisa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+\t\t\tmembershipExceptions = (
+\t\t\t\t${pbxLiteral(intentFileName)},
+\t\t\t);
+\t\t\ttarget = $runnerTargetId /* $runnerName */;
+\t\t};
+''',
+      );
+    }
+    editor.addArrayEntry(
+      rootGroupId,
+      'exceptions',
+      ids.runnerExceptionId,
+      comment: title,
+    );
+    return;
+  }
+
+  final groupId = _extensionGroupId(project, widgetClassName);
+  final extensionSources =
+      project.buildPhasesOf(target, 'PBXSourcesBuildPhase').firstOrNull?.id;
+  final runnerSources =
+      project.buildPhasesOf(runner, 'PBXSourcesBuildPhase').firstOrNull?.id;
+  if (groupId == null || extensionSources == null || runnerSources == null) {
+    logger.warn(
+      'Warning: $intentFileName could not be wired into the Xcode project: '
+      'it needs a group for the ios/$widgetClassName folder and a Sources '
+      'build phase in $runnerName and $widgetClassName. Add '
+      'ios/$widgetClassName/$intentFileName to both targets in Xcode.',
+    );
+    return;
+  }
+
+  if (project.object(ids.intentFileRefId) == null) {
+    editor.insertObjects('PBXFileReference', '''
+\t\t${ids.intentFileRefId} /* $intentFileName */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ${pbxLiteral(intentFileName)}; sourceTree = "<group>"; };
+''');
+  }
+  for (final (buildFileId, phaseId) in [
+    (ids.intentBuildFileId, extensionSources),
+    (ids.runnerIntentBuildFileId, runnerSources),
+  ]) {
+    if (editor.project.object(buildFileId) == null) {
+      editor.insertObjects('PBXBuildFile', '''
+\t\t$buildFileId /* $intentFileName in Sources */ = {isa = PBXBuildFile; fileRef = ${ids.intentFileRefId} /* $intentFileName */; };
+''');
+    }
+    editor.addArrayEntry(
+      phaseId,
+      'files',
+      buildFileId,
+      comment: '$intentFileName in Sources',
+    );
+  }
+  editor.addArrayEntry(
+    groupId,
+    'children',
+    ids.intentFileRefId,
+    comment: intentFileName,
+  );
+}
+
+/// Whether [target] links the Swift package holding the app's plugins.
+bool _linksPluginPackage(Pbxproj project, PbxObject target) => target
+    .strings('packageProductDependencies')
+    .any(
+      (id) =>
+          project.object(id)?.string('productName') == _pluginPackageProduct,
+    );
+
+/// Links the Swift package holding the app's plugins into the extension
+/// target, unless it already links it.
+void _linkPluginPackage(
+  PbxprojEditor editor,
+  _InteractivityIds ids,
+  String widgetClassName,
+) {
+  final project = editor.project;
+  final target = project.nativeTargetNamed(widgetClassName)!;
+  final linkedByHand = target
+      .strings('packageProductDependencies')
+      .where((id) => id != ids.packageProductId)
+      .any(
+        (id) =>
+            project.object(id)?.string('productName') == _pluginPackageProduct,
+      );
+  final frameworks =
+      project.buildPhasesOf(target, 'PBXFrameworksBuildPhase').firstOrNull?.id;
+  if (linkedByHand || frameworks == null) return;
+
+  if (project.object(ids.packageProductId) == null) {
+    editor.insertObjects('XCSwiftPackageProductDependency', '''
+\t\t${ids.packageProductId} /* $_pluginPackageProduct */ = {
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tproductName = $_pluginPackageProduct;
+\t\t};
+''');
+  }
+  if (editor.project.object(ids.packageBuildFileId) == null) {
+    editor.insertObjects('PBXBuildFile', '''
+\t\t${ids.packageBuildFileId} /* $_pluginPackageProduct in Frameworks */ = {isa = PBXBuildFile; productRef = ${ids.packageProductId} /* $_pluginPackageProduct */; };
+''');
+  }
+  editor
+    ..addArrayEntry(
+      frameworks,
+      'files',
+      ids.packageBuildFileId,
+      comment: '$_pluginPackageProduct in Frameworks',
+    )
+    ..addArrayEntry(
+      target.id,
+      'packageProductDependencies',
+      ids.packageProductId,
+      comment: _pluginPackageProduct,
+    );
+}
+
+void _unlinkPluginPackage(PbxprojEditor editor, _InteractivityIds ids) =>
+    editor.removeObjects({ids.packageProductId, ids.packageBuildFileId});
+
+/// Whether the configurations of the extension [widgetClassName] belong on
+/// [versionXcconfigPath]: the target is the one this patcher created, which
+/// is based on it, and the project references it.
+bool _basesOnVersionXcconfig(PbxprojEditor editor, String widgetClassName) {
+  final project = editor.project;
+  return project.object(_versionXcconfigId) != null &&
+      project.nativeTargetNamed(widgetClassName)?.id ==
+          _WidgetExtensionIds(widgetClassName).targetId;
+}
+
+/// Bases every configuration of the extension that is based on
+/// [versionXcconfigPath], or on nothing, on [podsXcconfigPath], and returns
+/// the names of the extension's configurations.
+///
+/// A configuration based on another file, also through
+/// `baseConfigurationReferenceAnchor`, is left alone.
+List<String> _basePodsXcconfig(
+  PbxprojEditor editor, {
+  required _InteractivityIds ids,
+  required String widgetClassName,
+  required String mainGroupId,
+}) {
+  final name = _podsXcconfigName(widgetClassName);
+  _ensureXcconfigReference(
+    editor,
+    mainGroupId,
+    id: ids.podsXcconfigId,
+    name: name,
+    path: podsXcconfigPath(widgetClassName),
+  );
+
+  final names = <String>[];
+  final target = editor.project.nativeTargetNamed(widgetClassName)!;
+  for (final config in editor.project.buildConfigurationsOf(target)) {
+    names.add(config.string('name') ?? '');
+    final base = config.string('baseConfigurationReference');
+    if (base != null && base != _versionXcconfigId ||
+        config.string('baseConfigurationReferenceAnchor') != null) {
+      continue;
+    }
+    editor.setReferenceField(
+      config.id,
+      'baseConfigurationReference',
+      ids.podsXcconfigId,
+      comment: name,
+    );
+  }
+  return names;
+}
+
+/// Moves every configuration of the extension based on [podsXcconfigPath]
+/// back to [versionXcconfigPath], or to no base where the extension does not
+/// belong on that, and drops the reference to the former.
+void _restoreVersionXcconfig(
+  PbxprojEditor editor,
+  String widgetClassName,
+  _InteractivityIds ids,
+) {
+  final target = editor.project.nativeTargetNamed(widgetClassName);
+  if (target != null) {
+    final toVersion = _basesOnVersionXcconfig(editor, widgetClassName);
+    for (final config in editor.project.buildConfigurationsOf(target)) {
+      if (config.string('baseConfigurationReference') != ids.podsXcconfigId) {
+        continue;
+      }
+      if (toVersion) {
+        editor.setReferenceField(
+          config.id,
+          'baseConfigurationReference',
+          _versionXcconfigId,
+          comment: _versionXcconfigName,
+        );
+      } else {
+        editor.removeField(config.id, 'baseConfigurationReference');
+      }
+    }
+  }
+  editor.removeObjects({ids.podsXcconfigId});
+}
+
+/// The content of [podsXcconfigPath]: what CocoaPods generates for the
+/// extension target in each of [configurations], then [versionXcconfigPath]
+/// when [includeVersion] is set.
+///
+/// The CocoaPods files only exist after `pod install`, and are the same for
+/// every configuration of a target whose pods are, so all of them are
+/// included, the way Flutter's own `Release.xcconfig` includes two.
+String _podsXcconfigContent(
+  String widgetClassName,
+  List<String> configurations, {
+  required bool includeVersion,
+}) {
+  final buffer = StringBuffer();
+  for (final configuration in configurations) {
+    buffer.writeln(
+      '#include? "Pods/Target Support Files/Pods-$widgetClassName/'
+      'Pods-$widgetClassName.${configuration.toLowerCase()}.xcconfig"',
+    );
+  }
+  if (includeVersion) buffer.writeln('#include "$_versionXcconfigName"');
+  return buffer.toString();
+}
+
+final class _InteractivityIds {
+  _InteractivityIds(String widgetClassName, String intentFileName)
+      : intentFileRefId =
+            xcodeObjectId('fileref:$intentFileName:$widgetClassName'),
+        intentBuildFileId =
+            xcodeObjectId('buildfile:$intentFileName:$widgetClassName'),
+        runnerIntentBuildFileId =
+            xcodeObjectId('buildfile:app:$intentFileName:$widgetClassName'),
+        runnerExceptionId = xcodeObjectId('fsex:app:$widgetClassName'),
+        packageProductId = xcodeObjectId('package:plugins:$widgetClassName'),
+        packageBuildFileId =
+            xcodeObjectId('buildfile:package:plugins:$widgetClassName'),
+        podsXcconfigId =
+            xcodeObjectId('fileref:pods-xcconfig:$widgetClassName');
+
+  final String intentFileRefId;
+  final String intentBuildFileId;
+  final String runnerIntentBuildFileId;
+  final String runnerExceptionId;
+  final String packageProductId;
+  final String packageBuildFileId;
+  final String podsXcconfigId;
+
+  /// Everything making the intent file a member of the two targets.
+  Set<String> get intent => {
+        intentFileRefId,
+        intentBuildFileId,
+        runnerIntentBuildFileId,
+        runnerExceptionId,
+      };
 }
 
 /// The ids of the file reference and the build file of the extension's

@@ -5,7 +5,7 @@ description: Open the app with a URL of its own when one region of the widget is
 
 # HWLink
 
-Makes its child a tap target that opens the app with its own URL. A link has no styling: it renders exactly what its child renders. For a tap on the widget as a whole, set [`widgetUrl`](/generator/widget-url) on the annotation instead.
+Makes its child a tap target that opens the app with its own URL. A link has no styling: it renders exactly what its child renders. For a tap on the widget as a whole, set [`widgetUrl`](/generator/widget-url) on the annotation instead. For a tap that runs Dart code without opening the app, use an [`HWButton`](/generator/widgets/hw-button).
 
 ```dart
 @HomeWidget(
@@ -167,7 +167,7 @@ An `HWLink` that **is** the whole layout of such a family works: the root of the
 ## Android
 
 - An `HWLink` that is the whole layout, found the same way through the `android` branch of an `HWAdaptive`, also covers the padding the generator puts around the widget, unless the widget sets a `widgetUrl`, which keeps that area.
-- With `HomeWidgetAndroidConfiguration(openAppOnTap: false)` nothing in the widget is clickable, links included. The generator warns when such a widget contains an `HWLink`.
+- With `HomeWidgetAndroidConfiguration(openAppOnTap: false)` nothing in the widget opens the app, links included. The generator warns when such a widget contains an `HWLink`.
 - When the generator finds no launcher activity, it warns and emits the links without a click action, as it does for `widgetUrl`. See [When no launcher activity is found](/generator/widget-url#when-no-launcher-activity-is-found).
 
 ## Parameters
@@ -186,6 +186,7 @@ Each of these fails generation:
 - An `id` that is not ASCII letters and digits starting with a letter.
 - A `url` that is empty, has no scheme, or holds a character a URL cannot hold unescaped, such as a space, a quote or a brace. Percent-encode it.
 - An `HWLink` inside another `HWLink`.
+- An `HWLink` inside an [`HWButton`](/generator/widgets/hw-button), or an `HWButton` inside an `HWLink`.
 - Two links with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `url` and the same `data`.
 - Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one that can produce a query parameter written into the other.
 - An `HWLink` that is the whole layout of an iOS single-tap family in a widget that also sets `widgetUrl`.
