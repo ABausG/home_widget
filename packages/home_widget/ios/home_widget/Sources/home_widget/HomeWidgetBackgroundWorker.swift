@@ -45,12 +45,13 @@ public struct HomeWidgetBackgroundWorker {
   /// and has not registered a callback since, the engine is started from the dispatcher an
   /// earlier registration stored in the AppGroup.
   static public func run(url: URL?, appGroup: String, key: String?) async {
-    let hasEngine = await MainActor.run { startEngineIfNeeded(appGroup: appGroup) }
-    let callback = callbackHandle(in: UserDefaults.init(suiteName: appGroup), key: key)
-    guard hasEngine, let callback = callback else {
-      NSLog(
-        "home_widget: No interactivity callback is registered in \(appGroup). "
-          + "Call HomeWidget.registerInteractivityCallback in the app first.")
+    guard let callback = callbackHandle(in: UserDefaults.init(suiteName: appGroup), key: key)
+    else {
+      logMissingCallback(appGroup: appGroup)
+      return
+    }
+    guard await MainActor.run(body: { startEngineIfNeeded(appGroup: appGroup) }) else {
+      logMissingCallback(appGroup: appGroup)
       return
     }
 
@@ -65,6 +66,12 @@ public struct HomeWidgetBackgroundWorker {
     }
 
     await sendEvent(url: url, callback: callback)
+  }
+
+  private static func logMissingCallback(appGroup: String) {
+    NSLog(
+      "home_widget: No interactivity callback is registered in \(appGroup). "
+        + "Call HomeWidget.registerInteractivityCallback in the app first.")
   }
 
   static func callbackStorageKey(for key: String?) -> String {
