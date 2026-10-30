@@ -212,7 +212,7 @@ The generated helper class has a method for it:
 static Future<bool?> registerInteractivity();
 ```
 
-`saveData` and `updateWidget` also register the function themselves, once per isolate. They do not wait for it, and a failed registration never fails them: it is logged once with `debugPrint`, the data is still written, and the next call tries again. `registerInteractivity()` itself throws such an error to its caller, except for iOS below 17, where it returns `false`.
+`saveData` and `updateWidget` also register the function themselves, once per isolate. They do not wait for it, and a failed registration never fails them: it is logged once with `debugPrint`, the data is still written, and the next call tries again. `registerInteractivity()` itself throws such an error to its caller, except for iOS below 17, where it returns `false`. A widget without an iOS configuration only registers on Android: anywhere else `registerInteractivity()` returns `false` without calling the plugin, and nothing is logged.
 
 **Call `registerInteractivity()` once when the app starts**, in `main()` after `WidgetsFlutterBinding.ensureInitialized()` or in the `initState` of the first screen. A widget can be placed and tapped before the app has saved anything. It then renders its default values, and without the call a tap does nothing until the app saves data or updates the widget for the first time. The registration in `saveData` and `updateWidget` is the safety net for an app that does not make the call.
 

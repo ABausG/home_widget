@@ -452,6 +452,34 @@ void main() {
       expect(output, isNot(contains('_\$appGroupId')));
       expect(output, isNot(contains('iOSName:')));
     });
+
+    test('leaves registering to Android without an iOS configuration', () {
+      final output = _generate(iOS: false);
+
+      expect(
+        output,
+        contains(
+          '  /// Returns false without registering anywhere but on Android, '
+          'the only\n'
+          '  /// platform this widget is generated for.\n'
+          '  static Future<bool?> registerInteractivity() async {\n'
+          '    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) '
+          '{\n'
+          '      _\$interactivityRegistered = true;\n'
+          '      return false;\n'
+          '    }\n'
+          '    try {\n',
+        ),
+      );
+      expect(
+        output,
+        contains("import 'package:flutter/foundation.dart';"),
+      );
+      expect(
+        _generate(),
+        isNot(contains('defaultTargetPlatform')),
+      );
+    });
   });
 
   group('flavors', () {
@@ -768,17 +796,55 @@ void main() {
         'registrations 2',
       ]);
     });
+
+    test('never registers an Android-only widget on iOS', () async {
+      final output = await _runHelper(
+        "PlatformException(code: '-7')",
+        androidOnly: true,
+      );
+
+      expect(output, [
+        'saved 4',
+        'registrations 0',
+        'explicit false',
+        'registrations 0',
+      ]);
+    });
+
+    test('registers an Android-only widget on Android', () async {
+      final output = await _runHelper(
+        'null',
+        androidOnly: true,
+        platform: 'android',
+      );
+
+      expect(output, [
+        'saved 4',
+        'registrations 1',
+        'explicit true',
+        'registrations 2',
+      ]);
+    });
   });
 }
 
-/// Runs the helper of an iOS widget `Counter` storing `count` in a subprocess,
+/// Runs the helper of a widget `Counter` storing `count` in a subprocess,
 /// against a stub of `package:home_widget` whose registration throws
 /// [registerError], a Dart expression, unless it is `null`.
 ///
+/// The widget is iOS-only, or Android-only when [androidOnly] is set, and
+/// runs on [platform], a `TargetPlatform` value.
+///
 /// Saves twice and updates once, letting each implicit registration settle,
 /// then registers explicitly, and prints one line per step.
-Future<List<String>> _runHelper(String registerError) async {
-  final generated = _generate(android: false).replaceAll(
+Future<List<String>> _runHelper(
+  String registerError, {
+  bool androidOnly = false,
+  String platform = 'iOS',
+}) async {
+  final generated =
+      (androidOnly ? _generate(iOS: false) : _generate(android: false))
+          .replaceAll(
     RegExp(r"^import '.*'.*;$", multiLine: true),
     '',
   );
@@ -809,6 +875,12 @@ class MissingPluginException implements Exception {
 }
 
 void debugPrint(String? message) => print('LOG \$message');
+
+enum TargetPlatform { android, iOS }
+
+const kIsWeb = false;
+
+const defaultTargetPlatform = TargetPlatform.$platform;
 
 class HomeWidgetInfo {
   String? androidClassName;
@@ -841,6 +913,12 @@ class HomeWidget {
   static Future<bool?> updateWidget({String? name, String? androidName, String? iOSName, String? qualifiedAndroidName}) async => true;
 
   static Future<List<HomeWidgetInfo>> getInstalledWidgets() async => [];
+
+  static Future<bool?> updateWidgetPreview({String? androidName}) async => true;
+
+  static Future<bool?> isRequestPinWidgetSupported() async => false;
+
+  static Future<void> requestPinWidget({String? androidName}) async {}
 }
 
 class _\$interaction {
