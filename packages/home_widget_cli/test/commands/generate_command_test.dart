@@ -270,7 +270,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 @HomeWidget(
   name: 'Missing Asset',
-  widget: HWImage.asset('assets/does_not_exist.png'),
+  widget: HWImage(HWImageData.asset('assets/does_not_exist.png')),
 )
 class MissingAsset {}
 ''');
@@ -341,7 +341,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   name: 'Both Platforms',
   android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
-  widget: HWText.fixed('Both'),
+  widget: HWText(HWString.fixed('Both')),
 )
 class BothPlatforms {}
 ''');
@@ -397,7 +397,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   name: 'Both Platforms',
   android: HomeWidgetAndroidConfiguration(packageName: 'com.example'),
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.example'),
-  widget: HWText.fixed('Both'),
+  widget: HWText(HWString.fixed('Both')),
 )
 class BothPlatforms {}
 ''');

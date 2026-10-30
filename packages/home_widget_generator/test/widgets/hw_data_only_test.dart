@@ -56,13 +56,13 @@ void main() {
       test('renders as an EmptyView in the branch of a size adaptive', () {
         const adaptive = HWSizeAdaptive(
           small: dataOnly,
-          medium: HWText.fixed('medium'),
+          medium: HWText(HWString.fixed('medium')),
         );
 
         expect(adaptive.toSwift(0, dataExpr: 'd'), '''
 switch widgetFamily {
 case .systemMedium:
-    Text("medium")
+    Text(verbatim: "medium")
 default:
     EmptyView()
 }''');
@@ -81,7 +81,7 @@ default:
       test('leaves no empty Box behind for a wrapper around it', () {
         const column = HWColumn(
           children: [
-            HWText.fixed('first'),
+            HWText(HWString.fixed('first')),
             HWPadding(padding: HWEdgeInsets.all(4), child: dataOnly),
           ],
         );

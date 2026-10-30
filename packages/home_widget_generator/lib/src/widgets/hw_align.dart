@@ -7,7 +7,10 @@ part of 'hw_widget.dart';
 /// Works at the root of a widget and anywhere inside it.
 ///
 /// ```dart
-/// HWAlign(alignment: HWAlignment.bottomEnd, child: HWText.fixed('3'))
+/// HWAlign(
+///   alignment: HWAlignment.bottomEnd,
+///   child: HWText(HWString.fixed('3')),
+/// )
 /// ```
 ///
 /// Maps to a SwiftUI `.frame(maxWidth:maxHeight:alignment:)` and a Glance `Box`

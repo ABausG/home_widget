@@ -22,7 +22,8 @@ WidgetSpec _spec(
     );
 
 List<HWWidget> _texts(int count) => [
-      for (var index = 0; index < count; index++) HWText.fixed('$index'),
+      for (var index = 0; index < count; index++)
+        HWText(HWString.fixed('$index')),
     ];
 
 /// A column one child past what Glance lays out.
@@ -129,7 +130,7 @@ void main() {
               ..._texts(10),
               const HWDataOnly([HWString('id')]),
               const HWAdaptive(
-                ios: HWText.fixed('iOS'),
+                ios: HWText(HWString.fixed('iOS')),
                 android: HWDataOnly([HWString('other')]),
               ),
             ],
@@ -181,13 +182,23 @@ void main() {
   test('counts only the Android side of an adaptive', () {
     expect(
       () => validateChildLimits(
-        _spec(HWAdaptive(ios: _crowded, android: const HWText.fixed('a'))),
+        _spec(
+          HWAdaptive(
+            ios: _crowded,
+            android: const HWText(HWString.fixed('a')),
+          ),
+        ),
       ),
       returnsNormally,
     );
     expect(
       () => validateChildLimits(
-        _spec(HWAdaptive(ios: const HWText.fixed('a'), android: _crowded)),
+        _spec(
+          HWAdaptive(
+            ios: const HWText(HWString.fixed('a')),
+            android: _crowded,
+          ),
+        ),
       ),
       _rejectedWith(contains('an HWColumn has 11 children')),
     );
@@ -198,7 +209,7 @@ void main() {
       () => validateChildLimits(
         _spec(
           HWSizeAdaptive(
-            small: const HWText.fixed('a'),
+            small: const HWText(HWString.fixed('a')),
             accessoryRectangular: _crowded,
           ),
         ),
@@ -207,7 +218,12 @@ void main() {
     );
     expect(
       () => validateChildLimits(
-        _spec(HWSizeAdaptive(small: const HWText.fixed('a'), large: _crowded)),
+        _spec(
+          HWSizeAdaptive(
+            small: const HWText(HWString.fixed('a')),
+            large: _crowded,
+          ),
+        ),
       ),
       _rejectedWith(contains('an HWColumn has 11 children')),
     );
@@ -248,8 +264,8 @@ void main() {
               ..._texts(texts),
               const HWBoolConditional(
                 data: HWBool('flag', defaultValue: false),
-                whenTrue: HWText.fixed('on'),
-                whenFalse: HWText.fixed('off'),
+                whenTrue: HWText(HWString.fixed('on')),
+                whenFalse: HWText(HWString.fixed('off')),
               ),
             ],
           );
@@ -283,7 +299,7 @@ void main() {
           _spec(
             HWAdaptive(
               ios: HWStack(children: _texts(11)),
-              android: const HWText.fixed('a'),
+              android: const HWText(HWString.fixed('a')),
             ),
           ),
         ),
@@ -453,7 +469,7 @@ void main() {
             builder(
               maxItems: 4,
               alignment: HWMainAxisAlignment.spaceEvenly,
-              whenEmpty: const HWText.fixed('No forecast yet'),
+              whenEmpty: const HWText(HWString.fixed('No forecast yet')),
               spacing: 8,
             ),
           ),
@@ -488,7 +504,10 @@ void main() {
       expect(
         () => validateChildLimits(
           _spec(
-            HWAdaptive(ios: builder(), android: const HWText.fixed('a')),
+            HWAdaptive(
+              ios: builder(),
+              android: const HWText(HWString.fixed('a')),
+            ),
           ),
         ),
         returnsNormally,
@@ -506,7 +525,12 @@ void main() {
       );
       expect(
         () => validateChildLimits(
-          _spec(HWAdaptive(ios: const HWText.fixed('a'), android: builder())),
+          _spec(
+            HWAdaptive(
+              ios: const HWText(HWString.fixed('a')),
+              android: builder(),
+            ),
+          ),
         ),
         _rejectedWith(contains('has no maxItems')),
       );
@@ -524,7 +548,7 @@ void main() {
 
     List<HWWidget> fontTexts(int count) => [
           for (var index = 0; index < count; index++)
-            HWText.fixed('$index', style: chewy),
+            HWText(HWString.fixed('$index'), style: chewy),
         ];
 
     HWWidget listOf(String list, {required int maxItems, required int texts}) =>
@@ -567,7 +591,7 @@ void main() {
             children: [
               HWRow(children: fontTexts(2)),
               listOf('days', maxItems: 10, texts: 3),
-              const HWText.fixed('plain'),
+              const HWText(HWString.fixed('plain')),
             ],
           ),
         ),
@@ -624,7 +648,12 @@ void main() {
         ],
       );
       validateMeasuredTexts(
-        _spec(HWAdaptive(ios: crowded, android: const HWText.fixed('a'))),
+        _spec(
+          HWAdaptive(
+            ios: crowded,
+            android: const HWText(HWString.fixed('a')),
+          ),
+        ),
       );
       validateMeasuredTexts(_spec(crowded, android: null));
       validateMeasuredTexts(
@@ -634,7 +663,7 @@ void main() {
             maxItems: 10,
             item: HWAdaptive(
               ios: HWColumn(children: fontTexts(4)),
-              android: const HWText.fixed('plain'),
+              android: const HWText(HWString.fixed('plain')),
             ),
           ),
         ),

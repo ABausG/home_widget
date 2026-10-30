@@ -596,7 +596,7 @@ void main() {
       final content = await generate(
         specOf(
           dataFields: const [HWImageData('photo', previewAsset: 'a/logo.png')],
-          widget: const HWText.fixed('no image here'),
+          widget: const HWText(HWString.fixed('no image here')),
         ),
       );
 
@@ -731,8 +731,8 @@ void main() {
                 HWText.number(HWItemData(HWDouble('rain', previewValue: 1))),
                 HWBoolConditional(
                   data: HWItemData(HWBool('windy', defaultValue: false)),
-                  whenTrue: HWText.fixed('windy'),
-                  whenFalse: HWText.fixed('calm'),
+                  whenTrue: HWText(HWString.fixed('windy')),
+                  whenFalse: HWText(HWString.fixed('calm')),
                 ),
                 HWText(
                   HWItemData(
@@ -820,7 +820,7 @@ void main() {
                 'forecast',
                 maxItems: 5,
                 item: HWText(HWItemData(HWString('label'))),
-                whenEmpty: HWText.fixed('Nothing yet'),
+                whenEmpty: HWText(HWString.fixed('Nothing yet')),
               ),
             ],
           ),

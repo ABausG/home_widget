@@ -80,7 +80,7 @@ void main() {
     test('composes from the stored data when the preview uses live data',
         () async {
       final content = await generate(
-        _spec(widget: const HWText.fixed('hello')),
+        _spec(widget: const HWText(HWString.fixed('hello'))),
       );
 
       expect(
@@ -103,7 +103,7 @@ void main() {
         () async {
       final content = await generate(
         _spec(
-          widget: const HWText.fixed('hello'),
+          widget: const HWText(HWString.fixed('hello')),
           useLiveDataInPreview: false,
         ),
       );
@@ -688,7 +688,7 @@ void main() {
         _spec(
           widget: const HWColumn(
             children: [
-              HWImage.asset('assets/logo.png'),
+              HWImage(HWImageData.asset('assets/logo.png')),
               HWImage(HWImageData('picture')),
               HWImage(HWTimedData(HWImageData('slide'))),
               HWImage(HWJson('contact', HWImageData('avatar'))),
@@ -803,7 +803,7 @@ void main() {
         _spec(
           widget: const HWColumn(
             children: [
-              HWImage.asset('assets/logo.png'),
+              HWImage(HWImageData.asset('assets/logo.png')),
               HWText(HWString('greeting', previewValue: 'Hi')),
             ],
           ),
@@ -885,7 +885,7 @@ void main() {
 
     test('the receiver forwards the fingerprint', () async {
       final receiver = await generateReceiver(
-        _spec(widget: const HWText.fixed('hello')),
+        _spec(widget: const HWText(HWString.fixed('hello'))),
       );
 
       expect(receiver, contains('import android.content.Context'));
@@ -900,7 +900,7 @@ void main() {
 
     test('autoUpdatePreview false emits neither side of it', () async {
       final spec = _spec(
-        widget: const HWText.fixed('hello'),
+        widget: const HWText(HWString.fixed('hello')),
         autoUpdatePreview: false,
       );
       final content = await generate(spec);
@@ -946,8 +946,8 @@ void main() {
                 HWText.number(HWItemData(HWDouble('rain', previewValue: 1))),
                 HWBoolConditional(
                   data: HWItemData(HWBool('windy', defaultValue: false)),
-                  whenTrue: HWText.fixed('windy'),
-                  whenFalse: HWText.fixed('calm'),
+                  whenTrue: HWText(HWString.fixed('windy')),
+                  whenFalse: HWText(HWString.fixed('calm')),
                 ),
                 HWText(
                   HWItemData(
@@ -1141,7 +1141,7 @@ void main() {
                 'forecast',
                 maxItems: 5,
                 item: HWText(HWItemData(HWString('label'))),
-                whenEmpty: HWText.fixed('Nothing yet'),
+                whenEmpty: HWText(HWString.fixed('Nothing yet')),
               ),
             ],
           ),

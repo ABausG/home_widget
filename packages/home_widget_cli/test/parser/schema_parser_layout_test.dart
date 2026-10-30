@@ -52,10 +52,10 @@ void main() {
           widget: HWColumn(
             mainAxisAlignment: HWMainAxisAlignment.spaceEvenly,
             children: [
-              HWText.fixed('Hello World'),
+              HWText(HWString.fixed('Hello World')),
               HWRow(
                 mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
-                children: [HWText.fixed('1'), HWText.fixed('2')],
+                children: [HWText(HWString.fixed('1')), HWText(HWString.fixed('2'))],
               ),
             ],
           ),
@@ -72,7 +72,9 @@ void main() {
       expect(column.children, hasLength(2));
 
       expect(column.children[0], isA<HWText>());
-      expect((column.children[0] as HWText).fixedContent, 'Hello World');
+      final text = (column.children[0] as HWText).dataType as HWString;
+      expect(text.isFixed, isTrue);
+      expect(text.fixedValue, 'Hello World');
 
       expect(column.children[1], isA<HWRow>());
       final row = column.children[1] as HWRow;
@@ -114,7 +116,7 @@ void main() {
                     HWText(HWString('unit', defaultValue: 'C')),
                   ],
                 ),
-                whenEmpty: HWText.fixed('No forecast yet'),
+                whenEmpty: HWText(HWString.fixed('No forecast yet')),
               ),
             ],
           ),
@@ -166,8 +168,8 @@ void main() {
             'tasks',
             item: HWBoolConditional(
               data: HWItemData(HWBool('done')),
-              whenTrue: HWText.fixed('done'),
-              whenFalse: HWText.fixed('open'),
+              whenTrue: HWText(HWString.fixed('done')),
+              whenFalse: HWText(HWString.fixed('open')),
             ),
           ),
         )

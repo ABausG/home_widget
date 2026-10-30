@@ -103,7 +103,8 @@ void main() {
       expect(renderer, isNotNull);
       expect(renderer!.fontFamily, isNull);
 
-      final imports = const HWText.fixed('Hi', style: style).kotlinImports;
+      final imports =
+          const HWText(HWString.fixed('Hi'), style: style).kotlinImports;
       expect(imports, contains('import androidx.glance.text.Text'));
       expect(
         imports,
@@ -118,7 +119,7 @@ void main() {
         fontSize: 14,
         androidFont: HWAndroidFont.serif,
       );
-      const text = HWText.fixed('Hi', style: style);
+      const text = HWText(HWString.fixed('Hi'), style: style);
 
       expect(
         text.toKotlin(0, dataExpr: 'data'),
@@ -138,15 +139,15 @@ void main() {
     });
 
     test('only a baseline row pulls the typeface import in', () {
-      const serif = HWText.fixed(
-        'Hi',
+      const serif = HWText(
+        HWString.fixed('Hi'),
         style: HWTextStyle(
           fontSize: 11,
           androidFont: HWAndroidFont.serif,
         ),
       );
-      const bitmap = HWText.fixed(
-        'There',
+      const bitmap = HWText(
+        HWString.fixed('There'),
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 20),
       );
       const typeface = 'import android.graphics.Typeface';
@@ -178,7 +179,8 @@ void main() {
         androidFont: HWAndroidFont.family('sans-serif-condensed'),
       );
       expect(
-        const HWText.fixed('Hi', style: style).toKotlin(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hi'), style: style)
+            .toKotlin(0, dataExpr: 'data'),
         contains('fontFamily = FontFamily("sans-serif-condensed")'),
       );
     });
@@ -206,7 +208,8 @@ void main() {
         const HWFontVariant(family: 'Chewy', weight: 400, italic: false),
       );
       expect(
-        const HWText.fixed('Hi', style: style).toSwift(0, dataExpr: 'data'),
+        const HWText(HWString.fixed('Hi'), style: style)
+            .toSwift(0, dataExpr: 'data'),
         contains('hwFont("Chewy", 400, false, 14)'),
       );
     });
@@ -286,8 +289,8 @@ void main() {
     });
 
     test('is still a text the row can line up by', () {
-      const text = HWText.fixed(
-        'Hi',
+      const text = HWText(
+        HWString.fixed('Hi'),
         style: HWTextStyle(
           fontFamily: 'Chewy',
           androidFont: HWAndroidFont.serif,
@@ -303,7 +306,10 @@ void main() {
       expect(
         const HWColumn(
           children: [
-            HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText(
+              HWString.fixed('Hi'),
+              style: HWTextStyle(fontFamily: 'Chewy'),
+            ),
           ],
         ).rendersAndroidBitmapText,
         isTrue,
@@ -313,8 +319,8 @@ void main() {
     test('is false when that text opts out of the bitmap', () {
       const tree = HWColumn(
         children: [
-          HWText.fixed(
-            'Hi',
+          HWText(
+            HWString.fixed('Hi'),
             style: HWTextStyle(
               fontFamily: 'Chewy',
               androidFont: HWAndroidFont.system,
@@ -330,8 +336,8 @@ void main() {
       expect(
         const HWColumn(
           children: [
-            HWText.fixed(
-              'Hi',
+            HWText(
+              HWString.fixed('Hi'),
               style: HWTextStyle(androidFont: HWAndroidFont.monospace),
             ),
           ],
@@ -344,14 +350,17 @@ void main() {
       expect(
         const HWColumn(
           children: [
-            HWText.fixed(
-              'Hi',
+            HWText(
+              HWString.fixed('Hi'),
               style: HWTextStyle(
                 fontFamily: 'Chewy',
                 androidFont: HWAndroidFont.serif,
               ),
             ),
-            HWText.fixed('There', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText(
+              HWString.fixed('There'),
+              style: HWTextStyle(fontFamily: 'Chewy'),
+            ),
           ],
         ).rendersAndroidBitmapText,
         isTrue,
@@ -365,8 +374,11 @@ void main() {
     test('ignores the branch of an HWAdaptive only iOS renders', () {
       expect(
         const HWAdaptive(
-          ios: HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
-          android: HWText.fixed('Hi'),
+          ios: HWText(
+            HWString.fixed('Hi'),
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
+          android: HWText(HWString.fixed('Hi')),
         ).rendersAndroidBitmapText,
         isFalse,
       );
@@ -375,8 +387,11 @@ void main() {
     test('is true for a bitmap text in the branch Android renders', () {
       expect(
         const HWAdaptive(
-          ios: HWText.fixed('Hi'),
-          android: HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+          ios: HWText(HWString.fixed('Hi')),
+          android: HWText(
+            HWString.fixed('Hi'),
+            style: HWTextStyle(fontFamily: 'Chewy'),
+          ),
         ).rendersAndroidBitmapText,
         isTrue,
       );
@@ -385,10 +400,13 @@ void main() {
     test('reaches a bitmap text nested in the Android branch', () {
       expect(
         const HWAdaptive(
-          ios: HWText.fixed('Hi'),
+          ios: HWText(HWString.fixed('Hi')),
           android: HWColumn(
             children: [
-              HWText.fixed('Hi', style: HWTextStyle(fontFamily: 'Chewy')),
+              HWText(
+                HWString.fixed('Hi'),
+                style: HWTextStyle(fontFamily: 'Chewy'),
+              ),
             ],
           ),
         ).rendersAndroidBitmapText,

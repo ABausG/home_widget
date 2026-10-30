@@ -12,7 +12,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///   4217 code from the `currency` field, so each order renders in its own.
 /// - `HWNumberFormat.percent()` takes a fraction: `0.15` shows as `15%`.
 /// - `HWNumberFormat.compact()` shortens the points balance to `12K`.
-/// - `HWText.fixedNumber(25000)` is hardcoded but still localized.
+/// - `HWInt.fixed(25000)` is hardcoded but still localized.
 /// - `HWDateFormat.yMMMd` orders and spells the date the way the locale does.
 /// - `HWTimeZone.data(HWString('deliveryZone'))` shows the delivery time on the
 ///   destination's wall clock, not the viewer's.
@@ -35,8 +35,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     children: [
       HWRow(
         children: [
-          HWText.fixed(
-            'Order #',
+          HWText(
+            HWString.fixed('Order #'),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText.number(
@@ -44,8 +44,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             format: HWNumberFormat.decimal(useGrouping: false),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
-          HWText.fixed(
-            ' · ',
+          HWText(
+            HWString.fixed(' · '),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText.dateTime(
@@ -71,15 +71,15 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             HWDouble('discount', defaultValue: 0, previewValue: 0.15),
             format: HWNumberFormat.percent(),
           ),
-          HWText.fixed(' off · '),
+          HWText(HWString.fixed(' off · ')),
           HWText(HWInt('items', defaultValue: 0, previewValue: 1204)),
-          HWText.fixed(' items'),
+          HWText(HWString.fixed(' items')),
         ],
       ),
       HWRow(
         children: [
-          HWText.fixed(
-            'Delivery ',
+          HWText(
+            HWString.fixed('Delivery '),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText.dateTime(
@@ -99,16 +99,16 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             format: HWNumberFormat.compact(),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
-          HWText.fixed(
-            ' of ',
+          HWText(
+            HWString.fixed(' of '),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
-          HWText.fixedNumber(
-            25000,
+          HWText.number(
+            HWInt.fixed(25000),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
-          HWText.fixed(
-            ' points',
+          HWText(
+            HWString.fixed(' points'),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
         ],

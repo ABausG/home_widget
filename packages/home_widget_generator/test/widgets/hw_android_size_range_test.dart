@@ -7,8 +7,8 @@ import 'package:home_widget_generator/src/parser/widget_tree_parser.dart';
 import 'package:test/test.dart';
 import 'package:path/path.dart' as p;
 
-const _strip = HWText.fixed('strip');
-const _other = HWText.fixed('other');
+const _strip = HWText(HWString.fixed('strip'));
+const _other = HWText(HWString.fixed('other'));
 
 /// Resolves [annotation] through the parser the generator uses, so decoding is
 /// exercised on a real analyzer constant.
@@ -161,14 +161,14 @@ void main() {
 @HomeWidget(
   name: 'RangeWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizeRanges: [
-      HWAndroidSizeRange(maxHeight: 120, child: HWText.fixed('strip')),
+      HWAndroidSizeRange(maxHeight: 120, child: HWText(HWString.fixed('strip'))),
       HWAndroidSizeRange(
         minWidth: 400,
         maxWidth: 529.5,
         minHeight: 200,
-        child: HWColumn(children: [HWText.fixed('dashboard')]),
+        child: HWColumn(children: [HWText(HWString.fixed('dashboard'))]),
       ),
     ],
   ),
@@ -178,7 +178,10 @@ void main() {
         expect(ranges.length, 2);
         expect(ranges.first.maxHeight, 120);
         expect(ranges.first.minWidth, isNull);
-        expect((ranges.first.child as HWText).fixedContent, 'strip');
+        expect(
+          ((ranges.first.child as HWText).dataType as HWString).fixedValue,
+          'strip',
+        );
         expect(ranges.last.minWidth, 400);
         expect(ranges.last.maxWidth, 529.5);
         expect(ranges.last.minHeight, 200);
@@ -191,7 +194,7 @@ void main() {
 @HomeWidget(
   name: 'EmptyRangesWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizeRanges: [],
   ),
 )''');
@@ -207,8 +210,8 @@ void main() {
 @HomeWidget(
   name: 'BoundlessRangeWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
-    androidSizeRanges: [HWAndroidSizeRange(child: HWText.fixed('strip'))],
+    small: HWText(HWString.fixed('small')),
+    androidSizeRanges: [HWAndroidSizeRange(child: HWText(HWString.fixed('strip')))],
   ),
 )'''),
           throwsA(isA<GeneratorError>()),
@@ -221,7 +224,7 @@ void main() {
 @HomeWidget(
   name: 'BadRangeEntryWidget',
   widget: HWSizeAdaptive(
-    small: HWText.fixed('small'),
+    small: HWText(HWString.fixed('small')),
     androidSizeRanges: [null],
   ),
 )'''),

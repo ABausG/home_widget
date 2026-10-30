@@ -69,8 +69,8 @@ works. `HWDateTime`, `HWImageData` and `HWString.localized` each have their own 
 below. `HWTimedData` and `HWJson` have no preview of their own — the preview shown is the one
 carried by the type they wrap or the leaf they address.
 
-Constant `HWText.localized` text takes no preview value: it is a fixed string compiled into the
-widget, so it is already the same text the preview would show.
+A fixed value (`HWString.fixed`, `HWString.localizedFixed`, `HWInt.fixed` and the other `.fixed` forms) takes no preview value: it is compiled into the
+widget, so it already previews as itself.
 
 ## Precedence
 
@@ -174,13 +174,17 @@ HWText.dateTime(
 )
 ```
 
+Write it as `yyyy-MM-ddTHH:mm:ss` with an optional fraction and `Z` or an offset, e.g.
+`2026-09-22T10:00:00Z`. Other ISO 8601 spellings — no seconds, a space for the `T`, a date alone —
+generate with a warning, and the preview shows no date.
+
 A `previewValue` that does not parse as an ISO 8601 date is a generation error naming the field and
 the text it was given.
 
 ## Preview assets
 
 A runtime `HWImageData` takes a `previewAsset`: a Flutter asset shown in the gallery until the app
-has saved a real picture. It is validated exactly like an `HWImage.asset` path — declared under
+has saved a real picture. It is validated exactly like an `HWImageData.asset` path — declared under
 `flutter.assets`, or resolved inside the named package:
 
 ```dart
@@ -226,8 +230,8 @@ widget: HWColumn(
     HWText(HWString('city', previewValue: 'Berlin')),
     HWDataExists(
       data: HWString('city'),
-      whenPresent: HWText.fixed('Forecast available'),
-      whenAbsent: HWText.fixed('Open the app'),
+      whenPresent: HWText(HWString.fixed('Forecast available')),
+      whenAbsent: HWText(HWString.fixed('Open the app')),
     ),
   ],
 ),

@@ -25,8 +25,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           mainAxisAlignment: HWMainAxisAlignment.center,
           crossAxisAlignment: HWCrossAxisAlignment.center,
           children: [
-            HWText.fixed(
-              'Enabled',
+            HWText(
+              HWString.fixed('Enabled'),
               style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFF16A34A)),
             ),
           ],
@@ -35,8 +35,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           mainAxisAlignment: HWMainAxisAlignment.center,
           crossAxisAlignment: HWCrossAxisAlignment.center,
           children: [
-            HWText.fixed(
-              'Disabled',
+            HWText(
+              HWString.fixed('Disabled'),
               style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFFDC2626)),
             ),
           ],
@@ -46,9 +46,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         mainAxisAlignment: HWMainAxisAlignment.center,
         crossAxisAlignment: HWCrossAxisAlignment.center,
         children: [
-          HWText.fixed('No Data', style: HWRoleTextStyle.headline()),
-          HWText.fixed(
-            'Open the app',
+          HWText(HWString.fixed('No Data'), style: HWRoleTextStyle.headline()),
+          HWText(
+            HWString.fixed('Open the app'),
             style: HWRoleTextStyle(
               role: HWTextStyleRole.caption,
               color: HWDefaultColor(HWColorRole.contentSecondary),

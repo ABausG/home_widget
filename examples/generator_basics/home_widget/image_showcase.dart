@@ -2,7 +2,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 /// Image demo combining every way of getting an image into a widget.
 ///
-/// - `HWImage.asset` renders a bundled Flutter asset, read straight out of the
+/// - `HWImageData.asset` renders a bundled Flutter asset, read straight out of the
 ///   app bundle with nothing to save.
 /// - `HWImage(HWImageData('picture'))` renders an image the app saves at
 ///   runtime via `saveData(picture: ...)`. Until that happens the
@@ -30,8 +30,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         crossAxisAlignment: HWCrossAxisAlignment.center,
         spacing: 8,
         children: [
-          HWImage.asset(
-            'assets/logo.png',
+          HWImage(
+            HWImageData.asset('assets/logo.png'),
             width: 24,
             height: 24,
             semanticLabel: 'App logo',
@@ -45,8 +45,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
               fit: HWImageFit.cover,
               semanticLabel: 'Picture saved by the app',
             ),
-            whenAbsent: HWText.fixed(
-              'Open the app to pick an image',
+            whenAbsent: HWText(
+              HWString.fixed('Open the app to pick an image'),
               style: HWRoleTextStyle(
                 role: HWTextStyleRole.caption,
                 color: HWDefaultColor(HWColorRole.contentSecondary),

@@ -6,7 +6,7 @@ void main() {
     test('Column in tree', () {
       final node = HWColumn(
         children: [
-          HWText.fixed('a'),
+          HWText(HWString.fixed('a')),
         ],
       );
       final imports = node.kotlinImports;
@@ -16,7 +16,7 @@ void main() {
     test('Row in tree', () {
       final node = HWRow(
         children: [
-          HWText.fixed('a'),
+          HWText(HWString.fixed('a')),
         ],
       );
       final imports = node.kotlinImports;
@@ -26,7 +26,7 @@ void main() {
     test('both Column + Row', () {
       final node = HWColumn(
         children: [
-          HWRow(children: [HWText.fixed('a')]),
+          HWRow(children: [HWText(HWString.fixed('a'))]),
         ],
       );
       final imports = node.kotlinImports;
@@ -35,7 +35,7 @@ void main() {
     });
 
     test('HWText only', () {
-      final node = HWText.fixed('a');
+      final node = HWText(HWString.fixed('a'));
       final imports = node.kotlinImports;
       // HWText might have text imports, check logic or ignore?
       // HWText imports: 'import androidx.glance.text.Text', 'import androidx.glance.text.TextStyle'
@@ -44,7 +44,7 @@ void main() {
 
     test('alignment import when alignment is set', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.center,
       );
       final imports = node.kotlinImports;
@@ -52,14 +52,14 @@ void main() {
     });
 
     test('alignment import even without an alignment', () {
-      final node = HWRow(children: [HWText.fixed('a')]);
+      final node = HWRow(children: [HWText(HWString.fixed('a'))]);
       final imports = node.kotlinImports;
       expect(imports, contains('import androidx.glance.layout.Alignment'));
     });
 
     test('fillMaxWidth import when the row distributes its children', () {
       final node = HWRow(
-        children: [HWText.fixed('a'), HWText.fixed('b')],
+        children: [HWText(HWString.fixed('a')), HWText(HWString.fixed('b'))],
         mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       );
       expect(
@@ -70,7 +70,7 @@ void main() {
 
     test('Box import when a row defeats the baselines of its texts', () {
       final node = HWRow(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         crossAxisAlignment: HWCrossAxisAlignment.end,
       );
       expect(
@@ -80,7 +80,7 @@ void main() {
     });
     test('Spacer import collected when mainAxisAlignment set', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
         mainAxisAlignment: HWMainAxisAlignment.center,
       );
       final imports = node.kotlinImports;
@@ -89,7 +89,7 @@ void main() {
 
     test('no Spacer import when mainAxisAlignment not set', () {
       final node = HWColumn(
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
       );
       final imports = node.kotlinImports;
       expect(

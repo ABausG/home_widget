@@ -7,24 +7,17 @@ part of 'hw_widget.dart';
 /// tree-shakes icon fonts out of `flutter_assets`, so there is nothing to read
 /// in place the way an asset image is.
 ///
-/// Two const constructors:
-/// - `HWIcon.fixed(Icons.favorite)` -- one hardcoded icon
+/// Const constructors:
+/// - `HWIcon(HWIconData.fixed(Icons.favorite))` -- one hardcoded icon
 /// - `HWIcon(HWIconData('mood', icons: [...]))` -- one of a fixed set, chosen
 ///   by the app at runtime
+/// - `HWIcon.glyph(0xe87d, font: ...)` -- one hardcoded glyph, named without a
+///   Flutter `IconData`
 ///
 /// The data form takes an [HWIconData], optionally wrapped in an [HWJson] or
 /// an [HWItemData] and/or an [HWTimedData], exactly like [HWImage]. Nothing is
 /// rendered while there is no stored value and the field declares no default.
-///
-/// The `icon` of [HWIcon.fixed] is a Flutter `IconData` constant, typed as
-/// [Object] for the reason [HWIconData] spells out.
 class HWIcon extends HWWidget implements HWDataWidget {
-  /// The icon passed to [HWIcon.fixed] exactly as written, null otherwise.
-  ///
-  /// Only ever set on the const instance living inside the annotation: the
-  /// decoder reads its codepoint and font and hands back an [HWIcon.glyph].
-  final Object? icon;
-
   /// The glyph a constant icon renders, or null for the data form.
   final int? codePoint;
 
@@ -39,8 +32,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
   /// its [HWIconData] instead.
   final bool matchTextDirection;
 
-  /// The icon data passed to the default constructor, null for a constant
-  /// icon.
+  /// The icon data passed to the default constructor, null for
+  /// [HWIcon.glyph].
   final HWDataType<dynamic>? data;
 
   /// The edge length of the rendered glyph, in logical pixels.
@@ -70,19 +63,6 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.color,
     this.semanticLabel,
   })  : data = icon,
-        icon = null,
-        codePoint = null,
-        font = null,
-        matchTextDirection = false,
-        fontResourcePrefix = null;
-
-  /// Renders the hardcoded Flutter [icon], e.g. `Icons.favorite`.
-  const HWIcon.fixed(
-    Object this.icon, {
-    this.size = 24,
-    this.color,
-    this.semanticLabel,
-  })  : data = null,
         codePoint = null,
         font = null,
         matchTextDirection = false,
@@ -90,8 +70,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
 
   /// Renders [codePoint] out of [font].
   ///
-  /// What [HWIcon.fixed] decodes to, and the way to name a glyph without a
-  /// Flutter `IconData` to point at.
+  /// What an [HWIconData.fixed] decodes to, and the way to name a glyph
+  /// without a Flutter `IconData` to point at.
   const HWIcon.glyph(
     int this.codePoint, {
     required HWIconFont this.font,
@@ -99,8 +79,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.color,
     this.semanticLabel,
     this.matchTextDirection = false,
-  })  : icon = null,
-        data = null,
+  })  : data = null,
         fontResourcePrefix = null;
 
   /// [HWIcon] rebuilt by the parser with [fontResourcePrefix] resolved.
@@ -114,7 +93,6 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.color,
     this.semanticLabel,
   })  : data = icon,
-        icon = null,
         codePoint = null,
         font = null,
         matchTextDirection = false;
@@ -130,10 +108,9 @@ class HWIcon extends HWWidget implements HWDataWidget {
     this.color,
     this.semanticLabel,
     this.matchTextDirection = false,
-  })  : icon = null,
-        data = null;
+  }) : data = null;
 
-  /// The icon field this widget renders, or null for a constant icon.
+  /// The icon data this widget renders, or null for [HWIcon.glyph].
   ///
   /// Keeps the [HWTimedData] and [HWJson] wrappers, so the field is registered
   /// as time-based / as part of its group and the access expressions come out
@@ -141,7 +118,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
   HWDataType<dynamic>? get dataType => data;
 
   /// The icon field itself, with any [HWTimedData] and [HWJson] wrappers
-  /// removed, or null for a constant icon.
+  /// removed, or null for [HWIcon.glyph].
   ///
   /// Throws a [GeneratorError] when the widget was handed something other than
   /// an [HWIconData], which only a hand-built tree can do — the decoder rejects
@@ -172,13 +149,27 @@ class HWIcon extends HWWidget implements HWDataWidget {
     throw GeneratorError(_undecodedMessage);
   }
 
-  /// The icon field a glyphless icon renders, which only the data form has.
+  /// The [HWIconData.fixed] this widget was handed directly, or null.
+  HWIconData? get _fixedData {
+    final data = this.data;
+    return data is HWIconData && data.isFixed ? data : null;
+  }
+
+  /// The glyph a constant icon renders, whether it was named as one or handed
+  /// over as a decoded [HWIconData.fixed]; null for the data form.
+  int? get _glyph => codePoint ?? _fixedData?.fixedCodePoint;
+
+  /// Whether a constant icon mirrors in a right-to-left layout.
+  bool get _mirrors =>
+      matchTextDirection || (_fixedData?.fixedMatchTextDirection ?? false);
+
+  /// The icon field a glyphless icon renders, which only the stored form has.
   ///
-  /// Throws the [GeneratorError] [iconFont] throws for an icon the decoder
-  /// never saw, rather than failing on a null check.
+  /// Throws the [GeneratorError] [iconFont] throws for a fixed icon the decoder
+  /// never saw, which has no glyph yet and no field either.
   HWDataType<dynamic> get _boundDataType {
     final data = dataType;
-    if (data != null) return data;
+    if (data != null && _fixedData == null) return data;
     throw GeneratorError(_undecodedMessage);
   }
 
@@ -188,20 +179,23 @@ class HWIcon extends HWWidget implements HWDataWidget {
       color ?? const HWDefaultColor(HWColorRole.contentPrimary);
 
   @override
-  Set<HWDataType<dynamic>> get dataDependencies {
-    final data = this.data;
-    return data == null ? const {} : {data};
-  }
+  Set<HWDataType<dynamic>> get dataDependencies =>
+      _dataDependenciesOf([if (data case final data?) data]);
 
+  /// Empty for a fixed icon that never went through the decoder, whose glyph
+  /// and font are not known yet.
   @override
   Map<HWIconFont, Set<int>> get ownIconCodePoints {
+    final codePoint = _glyph;
+    if (codePoint != null) {
+      return {
+        iconFont: {codePoint},
+      };
+    }
     final data = iconData;
-    if (data != null) return {iconFont: data.codePoints};
-    final codePoint = this.codePoint;
-    if (codePoint == null) return const {};
-    return {
-      iconFont: {codePoint},
-    };
+    return data == null || data.isFixed
+        ? const {}
+        : {iconFont: data.codePoints};
   }
 
   @override
@@ -246,29 +240,6 @@ class HWIcon extends HWWidget implements HWDataWidget {
         WidgetValueDecoder.getField(obj, 'semanticLabel')?.toStringValue();
     final fontResourcePrefix = decoder.fontResourcePrefix;
 
-    final iconObj = WidgetValueDecoder.getField(obj, 'icon');
-    if (iconObj != null && !iconObj.isNull) {
-      final codePoint = WidgetValueDecoder.decodeIconCodePoint(iconObj);
-      final font = WidgetValueDecoder.decodeIconFont(iconObj);
-      if (codePoint == null || font == null) {
-        throw GeneratorError(
-          'Could not decode HWIcon.fixed. It takes a Flutter IconData such as '
-          'Icons.favorite, got: ${iconObj.type?.element?.name}',
-        );
-      }
-      hwValidateCodePoint(codePoint, 'This HWIcon');
-      return HWIcon.resolvedGlyph(
-        codePoint,
-        font: font,
-        size: size,
-        color: color,
-        semanticLabel: semanticLabel,
-        fontResourcePrefix: fontResourcePrefix,
-        matchTextDirection:
-            WidgetValueDecoder.decodeIconMatchTextDirection(iconObj),
-      );
-    }
-
     final glyph = WidgetValueDecoder.getField(obj, 'codePoint')?.toIntValue();
     if (glyph != null) {
       final fontObj = WidgetValueDecoder.getField(obj, 'font');
@@ -298,6 +269,19 @@ class HWIcon extends HWWidget implements HWDataWidget {
       defaultLocale: decoder.defaultLocale,
       resourcePrefix: decoder.resourcePrefix,
     );
+    if (data is HWIconData && data.isFixed) {
+      final codePoint = data.fixedCodePoint!;
+      hwValidateCodePoint(codePoint, 'This HWIcon');
+      return HWIcon.resolvedGlyph(
+        codePoint,
+        font: data.iconFont!,
+        size: size,
+        color: color,
+        semanticLabel: semanticLabel,
+        fontResourcePrefix: fontResourcePrefix,
+        matchTextDirection: data.fixedMatchTextDirection,
+      );
+    }
     if (data != null && iconLeafOf(data) != null) {
       return HWIcon.resolved(
         data,
@@ -346,8 +330,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
   /// `hwMirroredIcons` the generator emits.
   String? get _swiftMirrorCondition {
     const rightToLeft = 'layoutDirection == .rightToLeft';
-    if (matchTextDirection) return rightToLeft;
-    if (data == null) return null;
+    if (_mirrors) return rightToLeft;
+    if (_glyph != null) return null;
     return '$rightToLeft && hwMirroredIcons.contains(codePoint)';
   }
 
@@ -360,7 +344,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
     final pad = '    ' * indent; // Use 4 spaces per indent level
     final buffer = StringBuffer();
 
-    final codePoint = this.codePoint;
+    final codePoint = _glyph;
     final String bodyPad;
     if (codePoint == null) {
       final access = _boundDataType.swiftAccess(dataExpr);
@@ -415,8 +399,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
   ///
   /// The data form asks the file-level `hwMirroredIcons` the generator emits.
   String get _kotlinMatchTextDirection {
-    if (matchTextDirection) return ', matchTextDirection = true';
-    if (data == null) return '';
+    if (_mirrors) return ', matchTextDirection = true';
+    if (_glyph != null) return '';
     return ', matchTextDirection = codePoint in hwMirroredIcons';
   }
 
@@ -428,7 +412,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
   }) {
     final pad = '    ' * indent; // Use 4 spaces per indent level
 
-    final codePoint = this.codePoint;
+    final codePoint = _glyph;
     if (codePoint != null) {
       final hex = _codePointLiteral(codePoint);
       return '$pad${_kotlinImage(indent, dataExpr, hex)}';
@@ -452,7 +436,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
     required HWEmitContext context,
     required _HWKotlinStackSlot slot,
   }) {
-    if (codePoint != null) {
+    if (_glyph != null) {
       return super._kotlinInStack(
         indent,
         dataExpr: dataExpr,

@@ -37,11 +37,14 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   widget: HWColumn(
     crossAxisAlignment: HWCrossAxisAlignment.start,
     children: [
-      HWText.localized({
-        'en': 'Greeting',
-        'de': 'Begrüßung',
-        'pt-BR': 'Saudação',
-      }, style: HWRoleTextStyle(role: HWTextStyleRole.caption)),
+      HWText(
+        HWString.localizedFixed({
+          'en': 'Greeting',
+          'de': 'Begrüßung',
+          'pt-BR': 'Saudação',
+        }),
+        style: HWRoleTextStyle(role: HWTextStyleRole.caption),
+      ),
       HWText(
         HWString.localized(
           'greeting',

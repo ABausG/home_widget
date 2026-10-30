@@ -60,7 +60,7 @@ struct WeekForecastHomeWidgetEntryView: View {
       Spacer(minLength: 0)
       HStack(alignment: .center, spacing: 0) {
         if (entry.data.days ?? []).isEmpty {
-          Text("Open the app to load the forecast")
+          Text(verbatim: "Open the app to load the forecast")
             .font(.caption).foregroundColor(Color.secondary)
         } else {
           ForEach(Array((entry.data.days ?? []).prefix(5).enumerated()), id: \.offset) {

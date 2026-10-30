@@ -480,7 +480,7 @@ class _HomePageState extends State<_HomePage> {
         ),
 
         // -------------------------------------------------------------------
-        // Image Showcase: HWImage.asset, a runtime HWImage inside
+        // Image Showcase: HWImageData.asset, a runtime HWImage inside
         // HWDataExists, and a timed HWImage swapping pictures on a schedule.
         // -------------------------------------------------------------------
         WidgetSection(
@@ -662,7 +662,7 @@ class _HomePageState extends State<_HomePage> {
         ),
 
         // -------------------------------------------------------------------
-        // Localized Greeting: HWText.localized for fixed text, and a localized
+        // Localized Greeting: HWString.localizedFixed for fixed text, and a localized
         // HWString the app can override per locale at runtime.
         // -------------------------------------------------------------------
         WidgetSection(

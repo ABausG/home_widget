@@ -25,13 +25,13 @@ WidgetSpec _spec(
 Matcher _errorWith(Matcher message) =>
     isA<GeneratorError>().having((e) => e.message, 'message', message);
 
-const _s = HWText.fixed('s');
-const _m = HWText.fixed('m');
-const _l = HWText.fixed('l');
-const _wide = HWText.fixed('wide');
-const _tall = HWText.fixed('tall');
-const _strip = HWText.fixed('strip');
-const _dashboard = HWText.fixed('dashboard');
+const _s = HWText(HWString.fixed('s'));
+const _m = HWText(HWString.fixed('m'));
+const _l = HWText(HWString.fixed('l'));
+const _wide = HWText(HWString.fixed('wide'));
+const _tall = HWText(HWString.fixed('tall'));
+const _strip = HWText(HWString.fixed('strip'));
+const _dashboard = HWText(HWString.fixed('dashboard'));
 
 const _stripRange = HWAndroidSizeRange(maxHeight: 120, child: _strip);
 const _dashboardRange = HWAndroidSizeRange(
@@ -66,7 +66,7 @@ void main() {
     test('rejects an accessory key even without an Android widget', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           androidSizes: const {
             HWWidgetFamily.accessoryCircular: HWSize(100, 100),
           },
@@ -89,7 +89,7 @@ void main() {
     test('rejects a size without a positive extent', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           androidSizes: const {HWWidgetFamily.systemMedium: HWSize(0, 110)},
         ),
       );
@@ -112,13 +112,13 @@ void main() {
         HWColumn(
           children: [
             HWSizeAdaptive(
-              small: HWText.fixed('s'),
+              small: HWText(HWString.fixed('s')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(200, 100),
               },
             ),
             HWSizeAdaptive(
-              small: HWText.fixed('s2'),
+              small: HWText(HWString.fixed('s2')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(220, 100),
               },
@@ -147,13 +147,13 @@ void main() {
         HWColumn(
           children: [
             HWSizeAdaptive(
-              small: HWText.fixed('s'),
+              small: HWText(HWString.fixed('s')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(200, 100),
               },
             ),
             HWSizeAdaptive(
-              small: HWText.fixed('s2'),
+              small: HWText(HWString.fixed('s2')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(200, 100),
               },
@@ -171,13 +171,13 @@ void main() {
         HWColumn(
           children: [
             HWSizeAdaptive(
-              small: HWText.fixed('s'),
+              small: HWText(HWString.fixed('s')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(200, 100),
               },
             ),
             HWSizeAdaptive(
-              small: HWText.fixed('s2'),
+              small: HWText(HWString.fixed('s2')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(220, 100),
               },
@@ -195,7 +195,7 @@ void main() {
     test('leaves the table checks alone without an Android widget', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           androidSizes: const {HWWidgetFamily.systemMedium: HWSize(110, 110)},
         ),
       );
@@ -206,7 +206,7 @@ void main() {
     test('rejects two families resolving to one dp size', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           androidSizes: const {HWWidgetFamily.systemMedium: HWSize(110, 110)},
         ),
         android: _androidDefault,
@@ -229,9 +229,9 @@ void main() {
     test('warns about a family an override made smaller than its fallback', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          medium: HWText.fixed('m'),
-          large: HWText.fixed('l'),
+          small: HWText(HWString.fixed('s')),
+          medium: HWText(HWString.fixed('m')),
+          large: HWText(HWString.fixed('l')),
           androidSizes: const {HWWidgetFamily.systemLarge: HWSize(200, 100)},
         ),
         android: _androidDefault,
@@ -254,7 +254,7 @@ void main() {
 
     test('the default table satisfies every fallback chain', () {
       final spec = _spec(
-        HWSizeAdaptive(small: HWText.fixed('s')),
+        HWSizeAdaptive(small: HWText(HWString.fixed('s'))),
         android: _androidDefault,
       );
 
@@ -267,7 +267,7 @@ void main() {
   group('missing content', () {
     test('names the family, the widget and the platform', () {
       final spec = _spec(
-        HWSizeAdaptive(accessoryCircular: HWText.fixed('c')),
+        HWSizeAdaptive(accessoryCircular: HWText(HWString.fixed('c'))),
         iOS: const HomeWidgetIOSConfiguration(
           groupId: 'group.test',
           supportedFamilies: [
@@ -293,7 +293,7 @@ void main() {
 
     test('an accessory family names only its own slot', () {
       final spec = _spec(
-        HWSizeAdaptive(small: HWText.fixed('s')),
+        HWSizeAdaptive(small: HWText(HWString.fixed('s'))),
         iOS: const HomeWidgetIOSConfiguration(
           groupId: 'group.test',
           supportedFamilies: [
@@ -318,7 +318,7 @@ void main() {
 
     test('reports a family both platforms show, one paragraph each', () {
       final spec = _spec(
-        HWSizeAdaptive(accessoryCircular: HWText.fixed('c')),
+        HWSizeAdaptive(accessoryCircular: HWText(HWString.fixed('c'))),
         android: _androidDefault,
       );
 
@@ -341,7 +341,7 @@ void main() {
 
     test('says nothing about a family no platform reaches', () {
       final spec = _spec(
-        HWSizeAdaptive(small: HWText.fixed('s')),
+        HWSizeAdaptive(small: HWText(HWString.fixed('s'))),
         android: _androidDefault,
       );
 
@@ -351,8 +351,8 @@ void main() {
     test('ignores a family the enclosing slot never renders', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          large: HWSizeAdaptive(large: HWText.fixed('l')),
+          small: HWText(HWString.fixed('s')),
+          large: HWSizeAdaptive(large: HWText(HWString.fixed('l'))),
         ),
       );
 
@@ -362,7 +362,7 @@ void main() {
     test('names a family the nested instance does miss', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWSizeAdaptive(medium: HWText.fixed('m')),
+          small: HWSizeAdaptive(medium: HWText(HWString.fixed('m'))),
         ),
       );
 
@@ -382,8 +382,9 @@ void main() {
     test('ignores an instance the platform does not emit', () {
       final spec = _spec(
         HWAdaptive(
-          ios: HWText.fixed('i'),
-          android: HWSizeAdaptive(accessoryCircular: HWText.fixed('c')),
+          ios: HWText(HWString.fixed('i')),
+          android:
+              HWSizeAdaptive(accessoryCircular: HWText(HWString.fixed('c'))),
         ),
       );
 
@@ -394,8 +395,11 @@ void main() {
       final spec = _spec(
         HWColumn(
           children: [
-            HWSizeAdaptive(small: HWText.fixed('s'), medium: HWText.fixed('m')),
-            HWSizeAdaptive(accessoryInline: HWText.fixed('i')),
+            HWSizeAdaptive(
+              small: HWText(HWString.fixed('s')),
+              medium: HWText(HWString.fixed('m')),
+            ),
+            HWSizeAdaptive(accessoryInline: HWText(HWString.fixed('i'))),
           ],
         ),
         iOS: const HomeWidgetIOSConfiguration(
@@ -427,8 +431,8 @@ void main() {
     test('names the family list on iOS and the dp cap on Android', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          extraLarge: HWText.fixed('xl'),
+          small: HWText(HWString.fixed('s')),
+          extraLarge: HWText(HWString.fixed('xl')),
         ),
         android: const HomeWidgetAndroidConfiguration(
           targetCellWidth: 4,
@@ -451,8 +455,8 @@ void main() {
     test('says so when the widget is not generated for Android', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          extraLarge: HWText.fixed('xl'),
+          small: HWText(HWString.fixed('s')),
+          extraLarge: HWText(HWString.fixed('xl')),
         ),
       );
 
@@ -473,8 +477,8 @@ void main() {
     test('says so when the widget is not generated for iOS', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          large: HWText.fixed('l'),
+          small: HWText(HWString.fixed('s')),
+          large: HWText(HWString.fixed('l')),
         ),
         iOS: null,
         android: const HomeWidgetAndroidConfiguration(
@@ -502,8 +506,8 @@ void main() {
     test('names the lower bound when the widget resizes without a maximum', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          large: HWText.fixed('l'),
+          small: HWText(HWString.fixed('s')),
+          large: HWText(HWString.fixed('l')),
         ),
         iOS: null,
         android: const HomeWidgetAndroidConfiguration(
@@ -529,8 +533,8 @@ void main() {
     test('an override that pushes a family out of range warns', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          medium: HWText.fixed('m'),
+          small: HWText(HWString.fixed('s')),
+          medium: HWText(HWString.fixed('m')),
           androidSizes: const {HWWidgetFamily.systemMedium: HWSize(600, 600)},
         ),
         iOS: null,
@@ -551,10 +555,10 @@ void main() {
     test('names the enclosing slot of a nested instance', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           large: HWSizeAdaptive(
-            large: HWText.fixed('l'),
-            extraLarge: HWText.fixed('xl'),
+            large: HWText(HWString.fixed('l')),
+            extraLarge: HWText(HWString.fixed('xl')),
           ),
         ),
       );
@@ -573,10 +577,10 @@ void main() {
     test('says so for a platform that never renders the instance', () {
       final spec = _spec(
         HWAdaptive(
-          ios: HWText.fixed('i'),
+          ios: HWText(HWString.fixed('i')),
           android: HWSizeAdaptive(
-            small: HWText.fixed('s'),
-            extraLarge: HWText.fixed('xl'),
+            small: HWText(HWString.fixed('s')),
+            extraLarge: HWText(HWString.fixed('xl')),
           ),
         ),
         android: const HomeWidgetAndroidConfiguration(
@@ -604,8 +608,8 @@ void main() {
     test('an override that pulls a family into range does not', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          large: HWText.fixed('l'),
+          small: HWText(HWString.fixed('s')),
+          large: HWText(HWString.fixed('l')),
           androidSizes: const {HWWidgetFamily.systemLarge: HWSize(90, 90)},
         ),
         iOS: null,
@@ -627,8 +631,8 @@ void main() {
     test('warns about an inline slot WidgetKit cannot render', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          accessoryInline: HWColumn(children: [HWText.fixed('a')]),
+          small: HWText(HWString.fixed('s')),
+          accessoryInline: HWColumn(children: [HWText(HWString.fixed('a'))]),
         ),
       );
 
@@ -650,11 +654,11 @@ void main() {
     test('accepts a row of text and images inline', () {
       final spec = _spec(
         HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           accessoryInline: HWRow(
             children: [
-              HWText.fixed('a'),
-              HWImage.asset('assets/icon.png'),
+              HWText(HWString.fixed('a')),
+              HWImage(HWImageData.asset('assets/icon.png')),
             ],
           ),
         ),
@@ -677,12 +681,12 @@ void main() {
     test('checks the item and whenEmpty of an inline builder', () {
       WidgetSpec inline(HWWidget item) => _spec(
             HWSizeAdaptive(
-              small: HWText.fixed('s'),
+              small: HWText(HWString.fixed('s')),
               accessoryInline: HWRow.builder(
                 'tags',
                 maxItems: 3,
                 item: item,
-                whenEmpty: HWText.fixed('none'),
+                whenEmpty: HWText(HWString.fixed('none')),
               ),
             ),
             iOS: const HomeWidgetIOSConfiguration(
@@ -711,7 +715,7 @@ void main() {
       final spec = _spec(
         HWSizeAdaptive(
           small: HWColumn(
-            children: [HWSizeAdaptive(small: HWText.fixed('inner'))],
+            children: [HWSizeAdaptive(small: HWText(HWString.fixed('inner')))],
           ),
         ),
       );
@@ -1500,7 +1504,7 @@ void main() {
   group('trees without an HWSizeAdaptive', () {
     test('are not validated against families at all', () {
       final spec = _spec(
-        HWText.fixed('plain'),
+        HWText(HWString.fixed('plain')),
         iOS: const HomeWidgetIOSConfiguration(
           groupId: 'group.test',
           supportedFamilies: [HWWidgetFamily.accessoryCircular],

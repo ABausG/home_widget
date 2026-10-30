@@ -28,18 +28,20 @@ HWDataExists(
   data: HWBool('hasData'),
   whenPresent: HWBoolConditional(
     data: HWBool('data', defaultValue: true),
-    whenTrue: HWText.fixed(
-      'Enabled',
+    whenTrue: HWText(
+      HWString.fixed('Enabled'),
       style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFF00FF00)),
     ),
-    whenFalse: HWText.fixed(
-      'Disabled',
+    whenFalse: HWText(
+      HWString.fixed('Disabled'),
       style: HWRoleTextStyle.headline(color: HWColor.fixed(0xFFFF0000)),
     ),
   ),
-  whenAbsent: HWText.fixed('No Data'),
+  whenAbsent: HWText(HWString.fixed('No Data')),
 )
 ```
+
+The condition must be a stored field. A [fixed value](/generator/data#fixed-values) such as `HWBool.fixed(true)` or `HWString.fixed('x')` is a generation error as the `data` of either variant, because one branch could never render. To pin a branch while you work on a layout, give the stored `HWBool` a `defaultValue` and `previewValue`.
 
 ## Parameters
 

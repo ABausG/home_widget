@@ -55,8 +55,8 @@ This page walks through setting up `home_widget_generator`, writing your first w
       widget: HWColumn(
         crossAxisAlignment: HWCrossAxisAlignment.start,
         children: [
-          HWText.fixed(
-            'Hello',
+          HWText(
+            HWString.fixed('Hello'),
             style: HWRoleTextStyle(role: HWTextStyleRole.caption),
           ),
           HWText(

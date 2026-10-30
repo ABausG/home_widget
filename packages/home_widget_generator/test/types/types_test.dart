@@ -1116,8 +1116,8 @@ void main() {
     });
 
     test('deduplicates in a data dependency set', () {
-      const a = HWImage.asset('assets/logo.png');
-      const b = HWImage.asset('assets/logo.png');
+      const a = HWImage(HWImageData.asset('assets/logo.png'));
+      const b = HWImage(HWImageData.asset('assets/logo.png'));
       final deps = <HWDataType<dynamic>>{
         ...a.dataDependencies,
         ...b.dataDependencies,

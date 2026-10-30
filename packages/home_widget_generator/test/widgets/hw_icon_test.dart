@@ -129,7 +129,10 @@ void main() {
 
     test('only the resolved constructors carry a font resource prefix', () {
       expect(const HWIcon(_mood).fontResourcePrefix, isNull);
-      expect(const HWIcon.fixed('Icons.home').fontResourcePrefix, isNull);
+      expect(
+        const HWIcon(HWIconData.fixed('Icons.home')).fontResourcePrefix,
+        isNull,
+      );
       expect(
         const HWIcon.glyph(0xE88A, font: _materialIcons).fontResourcePrefix,
         isNull,
@@ -151,7 +154,7 @@ void main() {
 
     test('throws when the icon never went through the decoder', () {
       expect(
-        () => const HWIcon.fixed('Icons.home').iconFont,
+        () => const HWIcon(HWIconData.fixed('Icons.home')).iconFont,
         throwsA(
           isA<GeneratorError>().having(
             (e) => e.message,
@@ -163,7 +166,7 @@ void main() {
     });
 
     test('renders an undecoded icon as that same error, not a null check', () {
-      const icon = HWIcon.fixed('Icons.home');
+      const icon = HWIcon(HWIconData.fixed('Icons.home'));
       final unknownFont = throwsA(
         isA<GeneratorError>().having(
           (e) => e.message,
@@ -174,6 +177,54 @@ void main() {
 
       expect(() => icon.toSwift(0, dataExpr: 'data'), unknownFont);
       expect(() => icon.toKotlin(0, dataExpr: 'data'), unknownFont);
+    });
+
+    test('renders a decoded fixed icon handed over as data as its glyph', () {
+      for (final mirrored in [false, true]) {
+        final fixed = HWIcon(
+          HWIconData.resolvedFixed(
+            0xE88A,
+            iconFont: _materialIcons,
+            matchTextDirection: mirrored,
+          ),
+          size: 32,
+        );
+        final glyph = HWIcon.glyph(
+          0xE88A,
+          font: _materialIcons,
+          size: 32,
+          matchTextDirection: mirrored,
+        );
+
+        expect(
+          fixed.toSwift(0, dataExpr: 'data'),
+          glyph.toSwift(0, dataExpr: 'data'),
+        );
+        expect(
+          fixed.toSwift(0, dataExpr: 'data'),
+          startsWith('Text(String(UnicodeScalar(UInt32(0xE88A))!))'),
+        );
+        expect(
+          fixed.toKotlin(0, dataExpr: 'data'),
+          glyph.toKotlin(0, dataExpr: 'data'),
+        );
+        expect(fixed.swiftViewModifiers, glyph.swiftViewModifiers);
+        expect(fixed.dataDependencies, isEmpty);
+
+        const context = HWEmitContext();
+        expect(
+          HWColumn(children: [fixed]).toKotlin(
+            0,
+            dataExpr: 'data',
+            context: context,
+          ),
+          HWColumn(children: [glyph]).toKotlin(
+            0,
+            dataExpr: 'data',
+            context: context,
+          ),
+        );
+      }
     });
 
     test('throws for a glyph outside the Unicode range', () {
@@ -514,7 +565,7 @@ void main() {
             children: [
               HWIcon(_mood),
               HWIcon.glyph(0xF4B6, font: cupertino),
-              HWText.fixed('no icon'),
+              HWText(HWString.fixed('no icon')),
             ],
           ),
         ],
@@ -528,14 +579,28 @@ void main() {
 
     test('is empty for a tree without icons', () {
       expect(
-        const HWColumn(children: [HWText.fixed('a')]).iconCodePoints,
+        const HWColumn(children: [HWText(HWString.fixed('a'))]).iconCodePoints,
         isEmpty,
       );
     });
 
     test('contributes nothing for an icon that never went through the decoder',
         () {
-      expect(const HWIcon.fixed('Icons.home').ownIconCodePoints, isEmpty);
+      expect(
+        const HWIcon(HWIconData.fixed('Icons.home')).ownIconCodePoints,
+        isEmpty,
+      );
+    });
+
+    test('names the glyph of a decoded fixed icon handed over as data', () {
+      expect(
+        const HWIcon(
+          HWIconData.resolvedFixed(0xE88A, iconFont: _materialIcons),
+        ).ownIconCodePoints,
+        {
+          _materialIcons: {0xE88A},
+        },
+      );
     });
   });
 }

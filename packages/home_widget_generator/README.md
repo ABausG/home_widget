@@ -41,8 +41,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   widget: HWColumn(
     crossAxisAlignment: HWCrossAxisAlignment.start,
     children: [
-      HWText.fixed(
-        'Hello',
+      HWText(
+        HWString.fixed('Hello'),
         style: HWRoleTextStyle(role: HWTextStyleRole.caption),
       ),
       HWText(
