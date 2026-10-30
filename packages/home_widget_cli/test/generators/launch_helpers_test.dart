@@ -192,6 +192,30 @@ void main() {
       expect(output, isNot(contains('_\$payloadBool')));
     });
 
+    test('declares no private helper it never calls', () {
+      for (final output in [
+        _generate(widgetUrl: 'myapp://weather'),
+        _generate(tree: _history),
+        _generate(widgetUrl: 'myapp://weather', tree: _forecast),
+      ]) {
+        final declared = RegExp(r'^\w[\w<>?]* (_\$\w+)\(', multiLine: true)
+            .allMatches(output)
+            .map((match) => match[1]!);
+        expect(declared, isNotEmpty);
+        for (final name in declared) {
+          expect(
+            RegExp('${RegExp.escape(name)}\\b').allMatches(output).length,
+            greaterThan(1),
+            reason: name,
+          );
+        }
+      }
+      expect(
+        _generate(widgetUrl: 'myapp://weather'),
+        isNot(contains('_\$payloadUri')),
+      );
+    });
+
     test('stores what a link sends as a field of the widget', () {
       final output = DartHelperGenerator(
         WidgetSpec(

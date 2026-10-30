@@ -222,11 +222,18 @@ void main() {
   });
 
   group('helpers', () {
-    test('always carries the matcher and the writer', () {
+    test('carries the writer only for a payload to write', () {
+      expect(
+        PayloadDartEmitter.helpers([plain, forecast]),
+        contains('Uri _\$payloadUri(String head, '),
+      );
+    });
+
+    test('always carries the matcher', () {
       final code = PayloadDartEmitter.helpers([plain]);
 
       expect(code, contains('bool _\$matchesPayloadUrl(Uri uri, Uri url) {'));
-      expect(code, contains('Uri _\$payloadUri(String head, '));
+      expect(code, isNot(contains('_\$payloadUri')));
       expect(code, isNot(contains('_\$payloadInt')));
       expect(code, isNot(contains('_\$payloadDouble')));
       expect(code, isNot(contains('_\$payloadBool')));
