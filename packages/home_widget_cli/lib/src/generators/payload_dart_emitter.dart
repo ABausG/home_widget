@@ -111,7 +111,8 @@ final class $className extends $superClass {
     return buffer.toString();
   }
 
-  /// The file-level functions the classes of [urls] call, each written once.
+  /// The file-level functions the classes of [urls] call, each written once
+  /// and only where one of them calls it.
   static String helpers(Iterable<HWPayloadUrl> urls) {
     final types = <HWPayloadType>{
       for (final url in urls)
@@ -140,6 +141,9 @@ bool $matcher(Uri uri, Uri url) {
   }
   return true;
 }
+''');
+    if (urls.any((url) => url.payload.isNotEmpty)) {
+      buffer.write('''
 
 /// [head] with every value of [payload] that is there appended as a query
 /// parameter, then [marker] and [fragment].
@@ -156,6 +160,7 @@ Uri $writer(String head, Map<String, String?> payload, String marker, String fra
   return Uri.parse(url.toString());
 }
 ''');
+    }
     if (types.contains(HWPayloadType.int)) {
       buffer.write('''
 

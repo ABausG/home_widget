@@ -1221,8 +1221,8 @@ class HWDateTime extends HWDataType<DateTime> {
   /// The argument of [HWDateTime.fixed] exactly as written, unparsed, or null
   /// for a stored date.
   ///
-  /// The CLI validator rejects a spelling that does not parse or names no
-  /// zone.
+  /// The CLI validator rejects a spelling that does not parse, names no zone,
+  /// or names a date the widget cannot read.
   final String? fixedIso;
 
   const HWDateTime(super.key, {String? previewValue})

@@ -473,7 +473,7 @@ Text(String(UnicodeScalar(UInt32($hex))!))
 
       expect(column.toSwift(0, dataExpr: 'entry.data'), '''
 VStack(alignment: .center, spacing: 0) {
-    Text("Hi")
+    Text(verbatim: "Hi")
     Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, maxFraction: nil))
     Text(hwFormatCompact(NSNumber(value: 2.5)))
 }''');

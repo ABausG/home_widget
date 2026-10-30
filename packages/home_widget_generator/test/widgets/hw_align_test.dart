@@ -94,7 +94,7 @@ void main() {
         expect(
           const HWAlign(alignment: HWAlignment.topEnd, child: _child)
               .toSwift(0, dataExpr: 'data'),
-          'Text("a")\n'
+          'Text(verbatim: "a")\n'
           '.frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .topTrailing)',
         );
@@ -124,7 +124,7 @@ void main() {
       test('respects the indent it is emitted at', () {
         expect(
           const HWAlign(child: _child).toSwift(1, dataExpr: 'data'),
-          '    Text("a")\n'
+          '    Text(verbatim: "a")\n'
           '    .frame(maxWidth: .infinity, maxHeight: .infinity, '
           'alignment: .center)',
         );

@@ -107,7 +107,7 @@ void main() {
     );
 
     // Check View — default tree uses separate Text views in HStack
-    expect(content, contains('Text("count: ")'));
+    expect(content, contains('Text(verbatim: "count: ")'));
     expect(
       content,
       contains(
@@ -579,14 +579,14 @@ void main() {
 
     // Should produce the debug VStack view body
     expect(content, contains('VStack(alignment: .center, spacing: 0) {'));
-    expect(content, contains('Text("Simple Data")'));
+    expect(content, contains('Text(verbatim: "Simple Data")'));
     // Default tree uses separate Text views in HStack
-    expect(content, contains('Text("label: ")'));
+    expect(content, contains('Text(verbatim: "label: ")'));
     expect(
       content,
       contains('Text(entry.data.label ?? "")'),
     );
-    expect(content, contains('Text("value: ")'));
+    expect(content, contains('Text(verbatim: "value: ")'));
     expect(
       content,
       contains(
@@ -1150,6 +1150,40 @@ $dependencies
         () => mockLogger.warn(any(that: contains('Could not link'))),
       );
     });
+  });
+
+  test('emits a padded link in the iOS branch of the root as widgetURL',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'AdaptiveLinkWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.root'),
+      ),
+      className: 'AdaptiveLinkWidget',
+      widgetTree: const HWAdaptive(
+        ios: HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+        ),
+        android: HWText(HWString.fixed('Android')),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/AdaptiveLinkWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "myapp://history?homeWidget"))'),
+    );
+    expect(content, isNot(contains('hwLink(')));
   });
 
   test('emits no widgetURL when none is configured', () async {
@@ -3158,9 +3192,9 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
           '    Group {\n'
           '            switch widgetFamily {\n'
           '            case .systemMedium, .systemLarge:\n'
-          '                Text("M")\n'
+          '                Text(verbatim: "M")\n'
           '            default:\n'
-          '                Text("S")\n'
+          '                Text(verbatim: "S")\n'
           '            }\n'
           '    }\n'
           '    .applyContainerBackground()',
@@ -3182,8 +3216,11 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
       );
 
       expect(content, isNot(contains('switch widgetFamily')));
-      expect(content, isNot(contains('Text("M")')));
-      expect(content, contains('        Text("S")\n    .applyContainer'));
+      expect(content, isNot(contains('Text(verbatim: "M")')));
+      expect(
+        content,
+        contains('        Text(verbatim: "S")\n    .applyContainer'),
+      );
     });
 
     test(
@@ -3205,9 +3242,9 @@ ${groups.map((group) => '\t\t<string>$group</string>').join('\n')}
         contains(
           '            switch widgetFamily {\n'
           '            case .accessoryRectangular:\n'
-          '                Text("R")\n'
+          '                Text(verbatim: "R")\n'
           '            default:\n'
-          '                Text("C")\n'
+          '                Text(verbatim: "C")\n'
           '            }',
         ),
       );

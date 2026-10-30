@@ -1940,6 +1940,7 @@ void main() {
         String? widgetUrl,
         bool openAppOnTap = true,
         String packageName = 'com.urls',
+        HWWidget tree = links,
       }) =>
           WidgetSpec(
             data: HomeWidget(
@@ -1952,8 +1953,26 @@ void main() {
             ),
             className: 'Links',
             dataFields: const [HWString('city')],
-            widgetTree: links,
+            widgetTree: tree,
           );
+
+      const wholeLink = HWAdaptive(
+        ios: HWText(HWString.fixed('iOS')),
+        android: HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWString('city')],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+        ),
+      );
+      const forecastAction =
+          'clickable(onClick = actionStartActivity<MainActivity>(context, '
+          'hwPayloadUrl("myapp://forecast", '
+          'listOf("city" to hwPayloadValue(widgetData.city)), '
+          '"homeWidget", "")))';
 
       File manifest() => File(
             p.join(
@@ -2019,6 +2038,35 @@ void main() {
           content,
           isNot(contains('import androidx.glance.action.actionStartActivity')),
         );
+      });
+
+      test('opens a whole-layout link from the root padding too', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(tree: wholeLink),
+          'com/urls',
+        );
+
+        expect(forecastAction.allMatches(content), hasLength(2));
+        expect(
+          content,
+          isNot(contains('actionStartActivity<MainActivity>()')),
+        );
+        expect(
+          content,
+          isNot(contains('import androidx.glance.action.actionStartActivity')),
+        );
+      });
+
+      test('keeps widgetUrl on the root around a whole-layout link', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(tree: wholeLink, widgetUrl: 'myapp://weather'),
+          'com/urls',
+        );
+
+        expect(forecastAction.allMatches(content), hasLength(1));
+        expect(content, contains('Uri.parse("myapp://weather?homeWidget")'));
       });
 
       test('imports a launcher activity of another package', () async {

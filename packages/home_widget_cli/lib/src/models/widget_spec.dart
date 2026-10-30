@@ -1147,31 +1147,59 @@ class WidgetSpec {
   static const Set<HWWidgetFamily> iosSingleTapFamilies = {
     HWWidgetFamily.systemSmall,
     HWWidgetFamily.accessoryCircular,
+    HWWidgetFamily.accessoryRectangular,
     HWWidgetFamily.accessoryInline,
   };
+
+  /// The [HWLink] [widget] is as a whole on iOS, or on Android where [ios] is
+  /// false: [widget] itself, or the link the branch of an [HWAdaptive] or the
+  /// child of a padding or a background is, which leave the tap area as it is.
+  static HWLink? _wholeLayoutLink(HWWidget widget, {required bool ios}) =>
+      switch (widget) {
+        HWLink() => widget,
+        HWAdaptive() =>
+          _wholeLayoutLink(ios ? widget.ios : widget.android, ios: ios),
+        HWPadding(:final child) ||
+        HWColoredBox(:final child) ||
+        HWDecoratedBox(:final child) =>
+          _wholeLayoutLink(child, ios: ios),
+        _ => null,
+      };
 
   /// The [HWLink]s iOS opens through `.widgetURL`: each is the whole layout
   /// of a family in [iosSingleTapFamilies] the widget can be shown in.
   ///
-  /// That is the root of the tree, or the slot such a family resolves to in an
-  /// [HWSizeAdaptive] at the root.
+  /// That is the link the tree is as a whole, or the one the slot such a
+  /// family resolves to in an [HWSizeAdaptive] at the root is.
   List<HWLink> get iosWidgetUrlLinks {
     final singleTap = iosReachableFamilies.intersection(iosSingleTapFamilies);
     if (singleTap.isEmpty) return const [];
 
-    final root = effectiveWidgetTree;
-    if (root is HWLink) return root.swiftRendersNothing ? const [] : [root];
+    var root = effectiveWidgetTree;
+    final whole = _wholeLayoutLink(root, ios: true);
+    if (whole != null) {
+      return whole.swiftRendersNothing ? const [] : [whole];
+    }
+    while (root is HWAdaptive) {
+      root = root.ios;
+    }
     if (root is! HWSizeAdaptive) return const [];
 
     final links = <HWLink>[];
     for (final family in singleTap) {
       final slot = root.resolve(family);
-      if (slot is! HWLink || slot.swiftRendersNothing) continue;
-      if (links.any((other) => identical(other, slot))) continue;
-      links.add(slot);
+      final link = slot == null ? null : _wholeLayoutLink(slot, ios: true);
+      if (link == null || link.swiftRendersNothing) continue;
+      if (links.any((other) => identical(other, link))) continue;
+      links.add(link);
     }
     return links;
   }
+
+  /// The [HWLink] the tree is as a whole on Android, whose URL the root of the
+  /// widget opens where the widget sets no `widgetUrl` of its own.
+  HWLink? get androidWholeLayoutLink =>
+      _wholeLayoutLink(effectiveWidgetTree, ios: false);
 
   /// The [HWLink]s a family in [iosSingleTapFamilies] renders as part of a
   /// larger layout, where iOS ignores them, in document order.

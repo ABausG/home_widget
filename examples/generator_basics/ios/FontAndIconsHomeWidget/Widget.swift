@@ -56,17 +56,17 @@ struct FontAndIconsHomeWidgetEntryView: View {
   var body: some View {
     VStack(alignment: .center, spacing: 0) {
       Spacer(minLength: 0)
-      Text("Chewy")
+      Text(verbatim: "Chewy")
         .font(hwFont("Chewy", 400, false, 24))
-      Text("The same family again, wrapping to the room the label leaves it.")
+      Text(verbatim: "The same family again, wrapping to the room the label leaves it.")
         .font(hwFont("Chewy", 400, false, 14))
         .multilineTextAlignment(.center)
         .padding(.top, 4.0)
       HStack(alignment: .firstTextBaseline, spacing: 0) {
         Spacer(minLength: 0)
-        Text("Chewy")
+        Text(verbatim: "Chewy")
           .font(hwFont("Chewy", 400, false, 20))
-        Text("serif on Android")
+        Text(verbatim: "serif on Android")
           .font(hwFont("Chewy", 400, false, 11))
         Spacer(minLength: 0)
       }
@@ -103,7 +103,7 @@ struct FontAndIconsHomeWidgetEntryView: View {
         Spacer(minLength: 0)
       }
       .padding(.top, 4.0)
-      Text("three icons, three fonts")
+      Text(verbatim: "three icons, three fonts")
         .font(.caption)
         .padding(.top, 4.0)
       Group {

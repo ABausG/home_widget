@@ -21,20 +21,27 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
   private static var groupId: String?
 
   private var initialUrl: URL?
-  private var latestUrl: URL? {
-    didSet {
-      guard let url = latestUrl else { return }
-      if let eventSink = eventSink {
-        eventSink(url.absoluteString)
-      } else {
-        // Nobody listens yet, so the click would be lost: `initiallyLaunchedFromHomeWidget`
-        // answers with it instead.
-        initialUrl = url
-      }
-    }
-  }
+  private var pendingUrls: [URL] = []
+  private var sceneConnected = false
 
   private var eventSink: FlutterEventSink?
+
+  private func launched(with url: URL) {
+    guard initialUrl == nil else {
+      clicked(url)
+      return
+    }
+    initialUrl = url
+    eventSink?(url.absoluteString)
+  }
+
+  private func clicked(_ url: URL) {
+    if let eventSink = eventSink {
+      eventSink(url.absoluteString)
+    } else {
+      pendingUrls.append(url)
+    }
+  }
 
   private let notInitializedError = FlutterError(
     code: "-7", message: "AppGroupId not set. Call setAppGroupId first", details: nil)
@@ -435,6 +442,11 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     -> FlutterError?
   {
     eventSink = events
+    let urls = pendingUrls
+    pendingUrls.removeAll()
+    for url in urls {
+      events(url.absoluteString)
+    }
     return nil
   }
 
@@ -449,8 +461,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
   ) -> Bool {
     let launchUrl = (launchOptions[UIApplication.LaunchOptionsKey.url] as? NSURL)?.absoluteURL
     if let launchUrl = launchUrl, isWidgetUrl(url: launchUrl) {
-      initialUrl = launchUrl.absoluteURL
-      latestUrl = initialUrl
+      launched(with: launchUrl.absoluteURL)
     }
     return true
   }
@@ -460,7 +471,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
     if isWidgetUrl(url: url) {
-      latestUrl = url
+      clicked(url)
       return true
     }
     return false
@@ -471,14 +482,19 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     willConnectTo session: UISceneSession,
     options connectionOptions: UIScene.ConnectionOptions?
   ) -> Bool {
+    let isLaunch = !sceneConnected
+    sceneConnected = true
     guard let urlContexts = connectionOptions?.urlContexts else {
       return false
     }
     for context in urlContexts {
       let url = context.url
       if isWidgetUrl(url: url) {
-        initialUrl = url
-        latestUrl = url
+        if isLaunch {
+          launched(with: url)
+        } else {
+          clicked(url)
+        }
         return true
       }
     }
@@ -489,7 +505,7 @@ public class HomeWidgetPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
     for context in urlContexts {
       let url = context.url
       if isWidgetUrl(url: url) {
-        latestUrl = url
+        clicked(url)
         return true
       }
     }

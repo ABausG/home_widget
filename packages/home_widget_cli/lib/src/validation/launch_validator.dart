@@ -77,6 +77,29 @@ void _validateLaunchUrl(String? url, {required String where}) {
       '%20.',
     );
   }
+  final afterHost = url.substring(_ipLiteralHost.matchAsPrefix(url)?.end ?? 0);
+  final misplaced = _bracket.firstMatch(afterHost)?[0] ??
+      (afterHost.indexOf('#') != afterHost.lastIndexOf('#') ? '#' : null);
+  if (misplaced != null) {
+    final what = misplaced == '#'
+        ? 'a second "#"'
+        : '"$misplaced" outside an '
+            'IP address host';
+    throw GeneratorError(
+      '$where "$url" contains $what, which a URL cannot hold as it is: iOS '
+      'before 17 opens nothing for such a URL. Percent-encode it as '
+      '${_percentEncoded[misplaced]}.',
+    );
+  }
+  try {
+    uri.queryParametersAll;
+  } on FormatException {
+    throw GeneratorError(
+      '$where "$url" has a query that does not decode as UTF-8, so the app '
+      'cannot read the tap back. Percent-encode the UTF-8 bytes of each '
+      'character, e.g. "é" as %C3%A9.',
+    );
+  }
 }
 
 /// What RFC 3986 does not let a URL hold unescaped, and a `%` that starts no
@@ -84,6 +107,19 @@ void _validateLaunchUrl(String? url, {required String where}) {
 final RegExp _illegalUrlCharacter = RegExp(
   r"[^A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]|%(?![0-9A-Fa-f]{2})",
 );
+
+/// The scheme and authority of a URL up to a host in brackets, an IP address
+/// and the one place a URL can hold `[` and `]`.
+final RegExp _ipLiteralHost =
+    RegExp(r'[A-Za-z][A-Za-z0-9+.\-]*://(?:[^/?#\[\]@]*@)?\[[^/?#\[\]]*\]');
+
+final RegExp _bracket = RegExp(r'[\[\]]');
+
+const Map<String, String> _percentEncoded = {
+  '[': '%5B',
+  ']': '%5D',
+  '#': '%23',
+};
 
 /// Validates the payload [url] carries, whose names share the query of the
 /// URL with its own parameters, as the fields of [className].
