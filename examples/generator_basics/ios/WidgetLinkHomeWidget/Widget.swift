@@ -58,7 +58,7 @@ struct WidgetLinkHomeWidgetEntryView: View {
           Text(entry.data.topic ?? "")
         }
         hwLink(URL(string: "generatorBasics://settings?homeWidget")) {
-          Text("Settings")
+          Text(verbatim: "Settings")
         }
         .padding(.leading, 16.0)
       }
