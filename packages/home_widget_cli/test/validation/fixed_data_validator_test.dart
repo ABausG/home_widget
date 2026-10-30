@@ -337,6 +337,28 @@ void main() {
       );
     });
 
+    test('rejects an HWDateTime.fixed the widget cannot read', () {
+      for (final iso in [
+        '2026-02-30T10:00:00Z',
+        '2026-09-22T24:00:00Z',
+        '0000-01-01T10:00:00Z',
+        '10000-01-01T10:00:00Z',
+        '0001-01-01T00:30:00+01:00',
+      ]) {
+        expect(
+          () => validateWidgetData(
+            _spec(HWText.dateTime(HWDateTime.fixed(iso))),
+          ),
+          _throwsMessage(
+            'Widget "T": HWDateTime.fixed("$iso") is not a date the widget '
+            'can read: a field is out of range, or the year is not between 1 '
+            'and 9999. Write the instant as e.g. "2024-03-08T09:41:00Z".',
+          ),
+          reason: iso,
+        );
+      }
+    });
+
     test('rejects a fixed value as the data of a currency or a time zone', () {
       expect(
         () => validateWidgetData(
