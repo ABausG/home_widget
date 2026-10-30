@@ -864,7 +864,9 @@ void main() {
         'myapp://weather',
         'myApp://Weather/Path?city=1&tab=a#today',
         'https://user@example.com:8080/a-b_c.d~e/?q=New%20York&x=%C3%A9',
-        "myapp://a/!\$&'()*+,;=:@?k=[v]",
+        "myapp://a/!\$&'()*+,;=:@?k=v",
+        'myapp://[::1]:8080/x#a',
+        'https://user@[fe80::1]/x',
         'cliTest://widget?section=main&homeWidget',
         'generatorBasics://link',
       ]) {
@@ -913,6 +915,47 @@ void main() {
           reason: url,
         );
       }
+    });
+
+    test('rejects brackets outside the host and a second "#"', () {
+      for (final (url, what, escape) in const [
+        ('myapp://x?k=[v]', '"[" outside an IP address host', '%5B'),
+        ('myapp://x/a]', '"]" outside an IP address host', '%5D'),
+        ('myapp://[::1]/[x]', '"[" outside an IP address host', '%5B'),
+        ('myapp://x#a#b', 'a second "#"', '%23'),
+      ]) {
+        final matcher = _throwsMessage(
+          allOf(
+            contains('contains $what'),
+            contains('Percent-encode it as $escape.'),
+          ),
+        );
+        expect(
+          () => validateWidgetData(_spec(_label, widgetUrl: url)),
+          matcher,
+          reason: url,
+        );
+        expect(
+          () => validateWidgetData(_spec(_link('open', url: url))),
+          matcher,
+          reason: url,
+        );
+      }
+    });
+
+    test('rejects a query that does not decode as UTF-8', () {
+      const url = 'myapp://x?q=%FF';
+      final matcher = _throwsMessage(
+        contains('"$url" has a query that does not decode as UTF-8'),
+      );
+      expect(
+        () => validateWidgetData(_spec(_label, widgetUrl: url)),
+        matcher,
+      );
+      expect(
+        () => validateWidgetData(_spec(_link('open', url: url))),
+        matcher,
+      );
     });
   });
 
