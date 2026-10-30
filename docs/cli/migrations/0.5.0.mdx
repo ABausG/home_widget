@@ -38,6 +38,20 @@ dependencies:
 
 A path, git or workspace dependency is not checked.
 
+## Widget URLs are checked before generating
+
+`generate` now fails for a `widgetUrl` that iOS cannot open or the app cannot read back, where it used to generate a widget whose tap opened nothing:
+
+- a character a URL cannot hold unescaped, such as a space, a quote, a brace or a `%` that starts no escape;
+- `[` or `]` outside an IP address host, or a second `#`, which iOS before 17 rejects;
+- a query whose percent-encoding does not decode as UTF-8, such as `%FF`.
+
+```text
+Widget "Weather": widgetUrl "myapp://weather?city=New York" contains a space, which a URL cannot hold as it is: iOS opens nothing for such a URL. Percent-encode it, e.g. a space as %20.
+```
+
+Percent-encode what the message names, for example `myapp://weather?city=New%20York`.
+
 ## The helper reports taps as typed launches
 
 The generated helper class gains `initialLaunch()` and `launches()`, which report a tap as a subclass of the generated sealed class `<Name>Launch`. The `Uri` helpers it had before, the static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`, are no longer generated, so code calling them stops compiling after the next `generate`. See [Uri Launch Helpers Removed](/generator/migrations/0.5.0#uri-launch-helpers-removed) for the replacement of each one.

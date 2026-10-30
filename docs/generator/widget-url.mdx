@@ -155,7 +155,7 @@ class Weather {}
 
 Two things that can be tapped in one widget still need URLs the app can tell apart. Generation fails when two URLs differ only in the data they send, and when a value one of them sends can produce a query parameter written into the other, such as `data: [HWString('tab')]` on `myapp://home` next to `myapp://home?tab=settings`.
 
-A URL has to be written the way it is opened: characters that are not allowed in a URL, such as a space, a quote or a brace, have to be percent-encoded, and generation fails for one that is not.
+A URL has to be written the way it is opened: characters that are not allowed in a URL, such as a space, a quote or a brace, have to be percent-encoded, and generation fails for one that is not. The same goes for `[` and `]` outside an IP address host and for a second `#`, which iOS before 17 cannot open, and for a query whose percent-encoding does not decode as UTF-8, such as `%FF`.
 
 ### Filtering
 
