@@ -49,7 +49,7 @@ void main() {
       test('wraps the child in a link to a static URL', () {
         expect(plain.toSwift(1, dataExpr: 'entry.data'), '''
     hwLink(URL(string: "myapp://history?homeWidget")) {
-        Text("History")
+        Text(verbatim: "History")
     }''');
       });
 
@@ -93,7 +93,7 @@ void main() {
         );
 
         expect(code, '''
-    Text("History")
+    Text(verbatim: "History")
     .widgetURL(URL(string: "myapp://history?homeWidget"))''');
       });
 
