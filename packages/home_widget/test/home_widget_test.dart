@@ -927,6 +927,31 @@ void main() {
       expect(launches, ['/initial', '/initial', '/early']);
     });
 
+    test('delivers every click queued behind a failed initial read', () async {
+      final initial = Completer<String?>();
+      var reads = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) {
+            reads++;
+            return reads == 1
+                ? initial.future
+                : Future.value('homeWidget://known/2');
+          });
+      emitClicksOnListen(['homeWidget://known/1', 'homeWidget://known/2']);
+
+      final events = <Object>[];
+      final subscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(events.add, onError: events.add);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+      initial.completeError(PlatformException(code: 'failed'));
+      await pumpEventQueue();
+
+      expect(events, [isA<PlatformException>(), '/1', '/2']);
+      expect(reads, 1);
+    });
+
     test('reports a failed initial read and keeps going with clicks', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(

@@ -371,10 +371,11 @@ class HomeWidget {
       _launchClickQueue = _launchClickQueue.then((_) => _launchClicks.add(uri));
       return;
     }
+    final initialUri = _readLaunchInitialUri();
     _launchClickQueue = _launchClickQueue.then((_) async {
       Uri? initial;
       try {
-        initial = await _readLaunchInitialUri();
+        initial = await initialUri;
       } on Object {
         // Whoever listens to [launches] is told about the failed read.
       }
