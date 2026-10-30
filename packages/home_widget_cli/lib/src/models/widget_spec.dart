@@ -343,15 +343,11 @@ class InteractionHandler {
   /// The class a static function is declared in, or null for a top-level one.
   final String? className;
 
-  /// Whether the function returns a future to wait for.
-  final bool returnsFuture;
-
   /// Creates an [InteractionHandler].
   const InteractionHandler({
     required this.libraryUri,
     required this.name,
     this.className,
-    this.returnsFuture = true,
   });
 
   /// The function as code in a library importing [libraryUri] names it.
@@ -363,11 +359,10 @@ class InteractionHandler {
       other is InteractionHandler &&
           libraryUri == other.libraryUri &&
           name == other.name &&
-          className == other.className &&
-          returnsFuture == other.returnsFuture;
+          className == other.className;
 
   @override
-  int get hashCode => Object.hash(libraryUri, name, className, returnsFuture);
+  int get hashCode => Object.hash(libraryUri, name, className);
 }
 
 /// Whether Android draws [widget] as text into a bitmap, which the room of

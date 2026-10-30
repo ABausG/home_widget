@@ -72,18 +72,15 @@ void main() {
       String libraryUri = 'package:app/handlers.dart',
       String name = 'onTap',
       String? className = 'Handlers',
-      bool returnsFuture = true,
     }) =>
         InteractionHandler(
           libraryUri: libraryUri,
           name: name,
           className: className,
-          returnsFuture: returnsFuture,
         );
 
     test('references a top-level function by its name', () {
       expect(_handler.reference, 'onCounterInteraction');
-      expect(_handler.returnsFuture, isTrue);
     });
 
     test('references a static function through its class', () {
@@ -104,7 +101,6 @@ void main() {
       expect(first, isNot(equals(handler(libraryUri: 'package:app/b.dart'))));
       expect(first, isNot(equals(handler(name: 'onOther'))));
       expect(first, isNot(equals(handler(className: null))));
-      expect(first, isNot(equals(handler(returnsFuture: false))));
       expect(first, isNot(equals('Handlers.onTap')));
     });
 
@@ -691,24 +687,6 @@ void main() {
         ),
       );
       expect("@pragma('vm:entry-point')".allMatches(output), hasLength(1));
-    });
-
-    test('does not wait for a function returning nothing', () {
-      final output = _generate(
-        handler: const InteractionHandler(
-          libraryUri: 'package:app/counter_interaction.dart',
-          name: 'onCounterInteraction',
-          returnsFuture: false,
-        ),
-      );
-
-      expect(
-        output,
-        contains(
-          '  if (interaction != null) '
-          '_\$interaction.onCounterInteraction(interaction);\n',
-        ),
-      );
     });
 
     test('calls a static function through its class', () {

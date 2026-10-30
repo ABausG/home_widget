@@ -63,10 +63,10 @@ InteractionHandler? parseInteractionHandler({
   }
 
   final returnType = function.returnType.getDisplayString();
-  if (!const {'void', 'Future<void>', 'FutureOr<void>'}.contains(returnType)) {
+  if (returnType != 'Future<void>') {
     throw GeneratorError(
-      '$where names $reference, which returns $returnType. Return void, '
-      'Future<void> or FutureOr<void>.',
+      '$where names $reference, which returns $returnType. Return '
+      'Future<void>: the tap waits for it to finish.',
     );
   }
 
@@ -83,7 +83,6 @@ InteractionHandler? parseInteractionHandler({
     libraryUri: '$library',
     name: name,
     className: className,
-    returnsFuture: returnType != 'void',
   );
 }
 

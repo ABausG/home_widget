@@ -442,8 +442,8 @@ class Mixed {}
 import 'package:cli_test/src/home_widget/widget.home_widget.dart';
 
 class MixedHandlers {
-  static void onTap(MixedInteraction interaction) {
-    MixedHomeWidget.updateWidget();
+  static Future<void> onTap(MixedInteraction interaction) async {
+    await MixedHomeWidget.updateWidget();
   }
 }
 ''',

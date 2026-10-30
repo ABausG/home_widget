@@ -126,7 +126,9 @@ This builds a counter with two buttons. It uses three files:
 - public, in a public class when it is static,
 - declared in a library under `lib/`,
 - taking exactly one positional parameter, the generated `<WidgetClass>Interaction`,
-- returning `void`, `Future<void>` or `FutureOr<void>`.
+- returning `Future<void>`.
+
+The tap waits for the returned `Future` to finish, so await everything the function does, such as `saveData` and `updateWidget`. A `void` function, also one marked `async`, is rejected: the tap could end while its work is still running.
 
 Each of these is checked, and a function that does not fit fails generation with a message naming what to change.
 

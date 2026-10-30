@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 const _schemas = '''
 import 'package:home_widget_generator/home_widget_generator.dart';
 
-void onCounter(Object interaction) {}
+Future<void> onCounter(Object interaction) async {}
 
 @HomeWidget(
   name: 'Counter',

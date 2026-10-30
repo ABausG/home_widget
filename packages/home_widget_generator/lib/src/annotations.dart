@@ -564,9 +564,9 @@ class HomeWidget {
   /// the app.
   ///
   /// A top-level or static function taking the generated
-  /// `<WidgetClass>Interaction` and returning `void`, `Future<void>` or
-  /// `FutureOr<void>`. It has to live in a library under `lib/`, which the
-  /// generated Dart imports.
+  /// `<WidgetClass>Interaction` and returning `Future<void>`, which the tap
+  /// waits for. It has to live in a library under `lib/`, which the generated
+  /// Dart imports.
   final Function? onInteraction;
 
   /// The flavors the widget is generated for, each with its overrides.
