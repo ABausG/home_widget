@@ -1185,6 +1185,71 @@ void main() {
       expect(spec.iosIgnoredLinks, isEmpty);
     });
 
+    test('a rectangular Lock Screen widget is one tap area', () {
+      expect(
+        WidgetSpec.iosSingleTapFamilies,
+        contains(HWWidgetFamily.accessoryRectangular),
+      );
+      final spec = linkSpec(
+        const HWColumn(children: [history]),
+        families: const [HWWidgetFamily.accessoryRectangular],
+      );
+      expect(spec.iosIgnoredLinks, [history]);
+    });
+
+    test('a link in the iOS branch of an adaptive root opens through widgetURL',
+        () {
+      final spec = linkSpec(
+        const HWAdaptive(ios: history, android: HWText(HWString.fixed('x'))),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.androidWholeLayoutLink, isNull);
+    });
+
+    test('padding and backgrounds around a root link keep it whole', () {
+      final spec = linkSpec(
+        const HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWDecoratedBox(
+            decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
+            child: HWColoredBox(
+              color: HWColor.fixed(0xFFFFFFFF),
+              child: history,
+            ),
+          ),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.androidWholeLayoutLink, history);
+    });
+
+    test('an adaptive root looks through to the size adaptive of iOS', () {
+      final spec = linkSpec(
+        const HWAdaptive(
+          ios: HWSizeAdaptive(
+            small: HWPadding(padding: HWEdgeInsets.all(4), child: history),
+            medium: HWRow(children: [history, forecast]),
+          ),
+          android: forecast,
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.androidWholeLayoutLink, forecast);
+    });
+
+    test('a whole-layout link that renders nothing on iOS names none', () {
+      final spec = linkSpec(
+        const HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink('gap', url: 'myapp://gap', child: HWSizedBox()),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, isEmpty);
+    });
+
     test('a slot that is no link names no whole-widget link', () {
       final spec = linkSpec(
         const HWSizeAdaptive(

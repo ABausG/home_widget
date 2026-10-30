@@ -837,6 +837,40 @@ void main() {
     );
   });
 
+  test('emits a padded link in the iOS branch of the root as widgetURL',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'AdaptiveLinkWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.root'),
+      ),
+      className: 'AdaptiveLinkWidget',
+      widgetTree: const HWAdaptive(
+        ios: HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+        ),
+        android: HWText(HWString.fixed('Android')),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/AdaptiveLinkWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "myapp://history?homeWidget"))'),
+    );
+    expect(content, isNot(contains('hwLink(')));
+  });
+
   test('emits no widgetURL when none is configured', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

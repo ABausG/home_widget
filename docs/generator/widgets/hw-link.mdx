@@ -142,7 +142,7 @@ The link's URL and `widgetUrl` have to differ in scheme, host, path, fragment or
 
 ## Small widgets on iOS
 
-iOS treats a `systemSmall` widget, and the `accessoryCircular` and `accessoryInline` Lock Screen families, as one tap area. A `Link` inside them is ignored. Android is not affected.
+iOS treats a `systemSmall` widget, and the `accessoryCircular`, `accessoryRectangular` and `accessoryInline` Lock Screen families, as one tap area. A `Link` inside them is ignored. Android is not affected.
 
 When an `HWLink` can be shown in one of these families as part of a larger layout, the generator warns. A tap on the link there opens the app through `widgetUrl`, which the app sees as `WeatherWidgetTap`, or without any URL when the widget sets none. To keep links out of these families, put them in an [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) slot of a larger family:
 
@@ -162,10 +162,11 @@ HWSizeAdaptive(
 )
 ```
 
-An `HWLink` that **is** the whole layout of such a family works: the root of the widget tree, or the slot that family resolves to in an `HWSizeAdaptive` at the root. It is emitted as `.widgetURL(...)` on iOS, and the tap arrives as the link's class. Combining it with a `widgetUrl` on the annotation is a generation error, because both claim the tap on the whole widget.
+An `HWLink` that **is** the whole layout of such a family works: the root of the widget tree, or the slot that family resolves to in an `HWSizeAdaptive` at the root. The link may sit in the `ios` branch of an `HWAdaptive`, or inside an `HWPadding`, `HWColoredBox` or `HWDecoratedBox`, which do not change what can be tapped. It is emitted as `.widgetURL(...)` on iOS, and the tap arrives as the link's class. Combining it with a `widgetUrl` on the annotation is a generation error, because both claim the tap on the whole widget.
 
 ## Android
 
+- An `HWLink` that is the whole layout, found the same way through the `android` branch of an `HWAdaptive`, also covers the padding the generator puts around the widget, unless the widget sets a `widgetUrl`, which keeps that area.
 - With `HomeWidgetAndroidConfiguration(openAppOnTap: false)` nothing in the widget is clickable, links included. The generator warns when such a widget contains an `HWLink`.
 - When the generator finds no launcher activity, it warns and emits the links without a click action, as it does for `widgetUrl`. See [When no launcher activity is found](/generator/widget-url#when-no-launcher-activity-is-found).
 

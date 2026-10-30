@@ -277,12 +277,14 @@ class AndroidGenerator {
     // A widget without a URL still opens the app, matching what iOS does for a
     // widget that declares no `widgetURL`. The plain Glance action carries no
     // home_widget launch intent, so no widget click is reported.
+    // A link that is the whole layout also covers the root's own padding.
+    final rootUrl = widgetUrl ?? spec.androidWholeLayoutLink?.payloadUrl;
     final clickAction = activityClassName == null
         ? null
-        : widgetUrl == null
+        : rootUrl == null
             ? 'actionStartActivity<$activityClassName>()'
             : 'actionStartActivity<$activityClassName>(context, '
-                '${widgetUrl.toKotlin(widgetDataExpr)})';
+                '${rootUrl.toKotlin(widgetDataExpr)})';
     final opensLinks = activityClassName != null && spec.links.isNotEmpty;
 
     final rootModifiers = <String>[];
@@ -364,7 +366,7 @@ class AndroidGenerator {
 
     if (clickAction != null) {
       layoutImports.add('import androidx.glance.action.clickable');
-      if (widgetUrl == null) {
+      if (rootUrl == null) {
         // The reified Activity overload lives in glance core; the appwidget
         // package only carries the Intent-based ones.
         layoutImports.add('import androidx.glance.action.actionStartActivity');
