@@ -611,6 +611,84 @@ void main() {
       expect(podsXcconfig.readAsStringSync(), content);
     });
 
+    test('adds no second base next to an anchored one', () async {
+      const folder = 'C0FFEE00000000000000C0F1';
+      final pbxproj = project();
+      final debug = pbxproj
+          .buildConfigurationsOf(pbxproj.object(_targetId)!)
+          .firstWhere((config) => config.string('name') == 'Debug');
+      final anchored = read().replaceFirst(
+        '\t\t${debug.id} /* Debug */ = {\n'
+            '\t\t\tisa = XCBuildConfiguration;\n'
+            '\t\t\tbaseConfigurationReference = $_versionXcconfigId '
+            '/* HomeWidget.xcconfig */;\n',
+        '\t\t${debug.id} /* Debug */ = {\n'
+            '\t\t\tisa = XCBuildConfiguration;\n'
+            '\t\t\tbaseConfigurationReferenceAnchor = $folder /* Config */;\n'
+            '\t\t\tbaseConfigurationReferenceRelativePath = Widget.xcconfig;\n',
+      );
+      expect(anchored, isNot(read()));
+      pbxprojFile.writeAsStringSync(anchored);
+
+      await sync(hasPodfile: true);
+
+      expect(baseConfigurations(), {
+        for (final name in configurationNames) name: _podsXcconfigId,
+        'Debug': null,
+      });
+      final config = project().object(debug.id)!;
+      expect(config.string('baseConfigurationReferenceAnchor'), folder);
+
+      await sync(interactive: false, hasPodfile: true);
+
+      expectRestored(anchored);
+    });
+
+    test('includes no version xcconfig for a target made by hand', () async {
+      const handMadeId = 'AB00000000000000000000DD';
+      final handMade = scaffolded.replaceAll(_targetId, handMadeId).replaceAll(
+            '\t\t\tbaseConfigurationReference = $_versionXcconfigId '
+                '/* HomeWidget.xcconfig */;\n',
+            '',
+          );
+      pbxprojFile.writeAsStringSync(handMade);
+      Map<String, String?> handMadeBases() {
+        final pbxproj = project();
+        return {
+          for (final config
+              in pbxproj.buildConfigurationsOf(pbxproj.object(handMadeId)!))
+            config.string('name')!: config.string('baseConfigurationReference'),
+        };
+      }
+
+      expect(
+        handMadeBases(),
+        {for (final name in configurationNames) name: null},
+      );
+
+      final linkage = await sync(hasPodfile: true);
+
+      expect(linkage, WidgetPluginLinkage.cocoaPods);
+      expect(
+        podsXcconfig.readAsStringSync(),
+        content.replaceAll('#include "HomeWidget.xcconfig"\n', ''),
+      );
+      expect(
+        handMadeBases(),
+        {for (final name in configurationNames) name: _podsXcconfigId},
+      );
+
+      await sync(interactive: false, hasPodfile: true);
+
+      expect(
+        handMadeBases(),
+        {for (final name in configurationNames) name: null},
+      );
+      expect(podsXcconfig.existsSync(), isFalse);
+      expectNothingOf(_interactivityIds);
+      expectRestored(handMade);
+    });
+
     test('is idempotent', () async {
       await sync(hasPodfile: true);
       final first = read();
