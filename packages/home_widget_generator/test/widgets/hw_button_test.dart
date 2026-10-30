@@ -47,7 +47,7 @@ void main() {
       test('wraps the child in a button sending a static URL', () {
         expect(plain.toSwift(1, dataExpr: 'entry.data'), '''
     hwButton(URL(string: "homewidget://interaction/increment?homeWidget")) {
-        Text("Add")
+        Text(verbatim: "Add")
     }''');
       });
 
