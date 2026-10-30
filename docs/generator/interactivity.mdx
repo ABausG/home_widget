@@ -270,7 +270,7 @@ The intent calls into `home_widget`, so the widget extension has to link it. How
   end
   ```
 
-  The extension's build configurations are then based on `ios/Flutter/HomeWidget-CounterHomeWidget.xcconfig`, a generated file that includes the CocoaPods settings of the target and `HomeWidget.xcconfig`. A target of that name that is already in the `Podfile` is left as it is, with a warning when it does not name the `home_widget` pod.
+  The extension's build configurations are then based on `ios/Flutter/HomeWidget-CounterHomeWidget.xcconfig`, a generated file that includes the CocoaPods settings of the target and `HomeWidget.xcconfig`. For an extension target you created in Xcode, it includes only the CocoaPods settings, and a configuration based on another file is left as it is. A target of that name that is already in the `Podfile` is left as it is, with a warning when it does not name the `home_widget` pod.
 
 When the project has neither, `generate` warns that it could not link the plugin. Build the app once and generate again.
 

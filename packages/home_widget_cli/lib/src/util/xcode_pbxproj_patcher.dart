@@ -2095,7 +2095,8 @@ String _podsXcconfigName(String widgetClassName) =>
 ///   target through the `.xcconfig` its configurations are based on, and
 ///   leaves one that already has a base alone, so the configurations move
 ///   from [versionXcconfigPath] to [podsXcconfigPath], which this writes and
-///   which includes both.
+///   which includes both. A target made in Xcode without a base gets one
+///   including only the CocoaPods files, and goes back to no base.
 ///
 /// Every object has an id derived from the widget, so a second run changes
 /// nothing, and a widget losing its last button gets exactly these objects
@@ -2116,6 +2117,7 @@ Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
   final ids = _InteractivityIds(widgetClassName, intentFileName);
   var linkage = WidgetPluginLinkage.none;
   var podConfigurations = const <String>[];
+  var podsIncludeVersion = false;
 
   await _updateXcodeProject(pbxprojFile, (editor) {
     final runner = _appTarget(editor.project, projectName);
@@ -2143,6 +2145,7 @@ Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
     } else if (hasPodfile) {
       linkage = WidgetPluginLinkage.cocoaPods;
       _unlinkPluginPackage(editor, ids);
+      podsIncludeVersion = _basesOnVersionXcconfig(editor, widgetClassName);
       podConfigurations = _basePodsXcconfig(
         editor,
         ids: ids,
@@ -2160,7 +2163,11 @@ Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
   final podsXcconfig =
       File(p.join(projectDir.path, podsXcconfigPath(widgetClassName)));
   if (linkage == WidgetPluginLinkage.cocoaPods) {
-    final content = _podsXcconfigContent(widgetClassName, podConfigurations);
+    final content = _podsXcconfigContent(
+      widgetClassName,
+      podConfigurations,
+      includeVersion: podsIncludeVersion,
+    );
     if (!podsXcconfig.existsSync() ||
         await podsXcconfig.readAsString() != content) {
       await podsXcconfig.parent.create(recursive: true);
@@ -2317,9 +2324,22 @@ void _linkPluginPackage(
 void _unlinkPluginPackage(PbxprojEditor editor, _InteractivityIds ids) =>
     editor.removeObjects({ids.packageProductId, ids.packageBuildFileId});
 
+/// Whether the configurations of the extension [widgetClassName] belong on
+/// [versionXcconfigPath]: the target is the one this patcher created, which
+/// is based on it, and the project references it.
+bool _basesOnVersionXcconfig(PbxprojEditor editor, String widgetClassName) {
+  final project = editor.project;
+  return project.object(_versionXcconfigId) != null &&
+      project.nativeTargetNamed(widgetClassName)?.id ==
+          _WidgetExtensionIds(widgetClassName).targetId;
+}
+
 /// Bases every configuration of the extension that is based on
 /// [versionXcconfigPath], or on nothing, on [podsXcconfigPath], and returns
 /// the names of the extension's configurations.
+///
+/// A configuration based on another file, also through
+/// `baseConfigurationReferenceAnchor`, is left alone.
 List<String> _basePodsXcconfig(
   PbxprojEditor editor, {
   required _InteractivityIds ids,
@@ -2340,7 +2360,10 @@ List<String> _basePodsXcconfig(
   for (final config in editor.project.buildConfigurationsOf(target)) {
     names.add(config.string('name') ?? '');
     final base = config.string('baseConfigurationReference');
-    if (base != null && base != _versionXcconfigId) continue;
+    if (base != null && base != _versionXcconfigId ||
+        config.string('baseConfigurationReferenceAnchor') != null) {
+      continue;
+    }
     editor.setReferenceField(
       config.id,
       'baseConfigurationReference',
@@ -2352,7 +2375,8 @@ List<String> _basePodsXcconfig(
 }
 
 /// Moves every configuration of the extension based on [podsXcconfigPath]
-/// back to [versionXcconfigPath], and drops the reference to the former.
+/// back to [versionXcconfigPath], or to no base where the extension does not
+/// belong on that, and drops the reference to the former.
 void _restoreVersionXcconfig(
   PbxprojEditor editor,
   String widgetClassName,
@@ -2360,31 +2384,38 @@ void _restoreVersionXcconfig(
 ) {
   final target = editor.project.nativeTargetNamed(widgetClassName);
   if (target != null) {
+    final toVersion = _basesOnVersionXcconfig(editor, widgetClassName);
     for (final config in editor.project.buildConfigurationsOf(target)) {
       if (config.string('baseConfigurationReference') != ids.podsXcconfigId) {
         continue;
       }
-      editor.setReferenceField(
-        config.id,
-        'baseConfigurationReference',
-        _versionXcconfigId,
-        comment: _versionXcconfigName,
-      );
+      if (toVersion) {
+        editor.setReferenceField(
+          config.id,
+          'baseConfigurationReference',
+          _versionXcconfigId,
+          comment: _versionXcconfigName,
+        );
+      } else {
+        editor.removeField(config.id, 'baseConfigurationReference');
+      }
     }
   }
   editor.removeObjects({ids.podsXcconfigId});
 }
 
 /// The content of [podsXcconfigPath]: what CocoaPods generates for the
-/// extension target in each of [configurations], then [versionXcconfigPath].
+/// extension target in each of [configurations], then [versionXcconfigPath]
+/// when [includeVersion] is set.
 ///
 /// The CocoaPods files only exist after `pod install`, and are the same for
 /// every configuration of a target whose pods are, so all of them are
 /// included, the way Flutter's own `Release.xcconfig` includes two.
 String _podsXcconfigContent(
   String widgetClassName,
-  List<String> configurations,
-) {
+  List<String> configurations, {
+  required bool includeVersion,
+}) {
   final buffer = StringBuffer();
   for (final configuration in configurations) {
     buffer.writeln(
@@ -2392,7 +2423,7 @@ String _podsXcconfigContent(
       'Pods-$widgetClassName.${configuration.toLowerCase()}.xcconfig"',
     );
   }
-  buffer.writeln('#include "$_versionXcconfigName"');
+  if (includeVersion) buffer.writeln('#include "$_versionXcconfigName"');
   return buffer.toString();
 }
 
