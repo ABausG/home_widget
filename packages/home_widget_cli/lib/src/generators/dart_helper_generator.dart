@@ -1580,7 +1580,7 @@ sealed class $interaction {
 Future<void> $_interactionEntryPointName(Uri? uri) async {
   ${spec.className}HomeWidget._\$interactivityRegistered = true;
   final interaction = uri == null ? null : ${spec.interactionClassName}.fromUri(uri);
-  if (interaction != null) ${handler.returnsFuture ? 'await ' : ''}$call;
+  if (interaction != null) await $call;
 }
 ''';
   }

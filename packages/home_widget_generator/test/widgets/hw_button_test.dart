@@ -316,6 +316,6 @@ void main() {
   });
 }
 
-void _handler(Object interaction) {}
+Future<void> _handler(Object interaction) async {}
 
-void _other(Object interaction) {}
+Future<void> _other(Object interaction) async {}

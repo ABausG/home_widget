@@ -45,7 +45,6 @@ void main() {
     test('references a top-level function by its name', () {
       expect(_handler.reference, 'onCounterInteraction');
       expect(_handler.className, isNull);
-      expect(_handler.returnsFuture, isTrue);
     });
 
     test('references a static function through its class', () {
@@ -53,11 +52,9 @@ void main() {
         libraryUri: 'package:app/handlers.dart',
         name: 'onTap',
         className: 'Handlers',
-        returnsFuture: false,
       );
 
       expect(handler.reference, 'Handlers.onTap');
-      expect(handler.returnsFuture, isFalse);
     });
 
     test('equals a handler naming the same function', () {
@@ -86,11 +83,6 @@ void main() {
           libraryUri: 'package:app/handlers.dart',
           name: 'onCounterInteraction',
           className: 'Handlers',
-        ),
-        InteractionHandler(
-          libraryUri: 'package:app/handlers.dart',
-          name: 'onCounterInteraction',
-          returnsFuture: false,
         ),
       ];
 

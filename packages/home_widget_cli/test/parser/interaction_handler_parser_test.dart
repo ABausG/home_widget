@@ -99,7 +99,6 @@ Future<void> onCounterInteraction(CounterInteraction interaction) async {}
         expect(handler.libraryUri, 'package:cli_test/first_run_handlers.dart');
         expect(handler.name, 'onCounterInteraction');
         expect(handler.className, isNull);
-        expect(handler.returnsFuture, isTrue);
         expect(handler.reference, 'onCounterInteraction');
         expect(spec.hasInteractions, isTrue);
         expect(spec.buttons.single.id, 'increment');
@@ -117,30 +116,6 @@ Future<void> onCounterInteraction(CounterInteraction interaction) async {}
 
         expect(spec.interactionHandler?.name, 'onCounterInteraction');
         expect(spec.hasInteractions, isFalse);
-      });
-
-      test('a function returning void as one not to wait for', () async {
-        final spec = await parseCounter(
-          'returns_void',
-          onInteraction: 'onTap',
-          handlers: 'void onTap(CounterInteraction interaction) {}',
-        );
-
-        expect(spec.interactionHandler?.returnsFuture, isFalse);
-      });
-
-      test('a function returning FutureOr<void> as one to wait for', () async {
-        final spec = await parseCounter(
-          'returns_future_or',
-          onInteraction: 'onTap',
-          handlers: '''
-import 'dart:async';
-
-FutureOr<void> onTap(CounterInteraction interaction) {}
-''',
-        );
-
-        expect(spec.interactionHandler?.returnsFuture, isTrue);
       });
 
       test('a static function with the class declaring it', () async {
@@ -174,7 +149,6 @@ class Handlers {
         expect(handler.name, 'onTap');
         expect(handler.className, 'Handlers');
         expect(handler.reference, 'Handlers.onTap');
-        expect(handler.returnsFuture, isTrue);
       });
 
       test('a top-level function next to methods of its name', () async {
@@ -188,7 +162,7 @@ class Handlers {
 
 void onOther(Uri uri) {}
 
-void onTap(CounterInteraction interaction) {}
+Future<void> onTap(CounterInteraction interaction) async {}
 ''',
         );
 
@@ -206,7 +180,7 @@ class Other {
 }
 
 class Handlers {
-  static void onTap(CounterInteraction interaction) {}
+  static Future<void> onTap(CounterInteraction interaction) async {}
 }
 ''',
         );
@@ -224,7 +198,7 @@ void helper() {
   onTap(Uri());
 }
 
-void onTap(CounterInteraction interaction) {}
+Future<void> onTap(CounterInteraction interaction) async {}
 ''',
         );
 
@@ -243,7 +217,9 @@ void onTap(CounterInteraction interaction) {}
 
       test('a function through a prefixed import and annotation', () async {
         await File(p.join(project.root.path, 'lib', 'prefixed_handlers.dart'))
-            .writeAsString('void onTap(CounterInteraction interaction) {}');
+            .writeAsString(
+          'Future<void> onTap(CounterInteraction interaction) async {}',
+        );
 
         final specs = await parseFile(
           'prefixed_schema',
@@ -268,7 +244,9 @@ class Counter {}
 
       test('the function of each widget of a file', () async {
         await File(p.join(project.root.path, 'lib', 'two_handlers.dart'))
-            .writeAsString('void onTimer(TimerInteraction interaction) {}');
+            .writeAsString(
+          'Future<void> onTimer(TimerInteraction interaction) async {}',
+        );
 
         final specs = await parseFile(
           'two_schema',
@@ -322,7 +300,7 @@ import 'package:cli_test/parameter_${name}_generated.dart' as generated;
 
 typedef Alias = CounterInteraction;
 
-void onTap($parameter) {}
+Future<void> onTap($parameter) async {}
 ''',
           );
 
@@ -343,7 +321,7 @@ class CounterInteraction {}
 
 typedef Alias = CounterInteraction;
 
-void onTap(@deprecated Alias? interaction) {}
+Future<void> onTap(@deprecated Alias? interaction) async {}
 ''',
         );
 
@@ -439,7 +417,8 @@ class Handlers {
           parseCounter(
             'private_function',
             onInteraction: '_onTap',
-            declarations: 'void _onTap(CounterInteraction interaction) {}',
+            declarations:
+                'Future<void> _onTap(CounterInteraction interaction) async {}',
           ),
           _throwsMessage(
             allOf(
@@ -460,7 +439,7 @@ class Handlers {
             onInteraction: '_Handlers.onTap',
             declarations: '''
 class _Handlers {
-  static void onTap(CounterInteraction interaction) {}
+  static Future<void> onTap(CounterInteraction interaction) async {}
 }
 ''',
           ),
@@ -477,7 +456,7 @@ class _Handlers {
             onInteraction: 'Handlers._onTap',
             declarations: '''
 class Handlers {
-  static void _onTap(CounterInteraction interaction) {}
+  static Future<void> _onTap(CounterInteraction interaction) async {}
 }
 ''',
           ),
@@ -492,7 +471,8 @@ class Handlers {
           parseCounter(
             'outside_lib',
             onInteraction: 'onTap',
-            declarations: 'void onTap(CounterInteraction interaction) {}',
+            declarations:
+                'Future<void> onTap(CounterInteraction interaction) async {}',
             directory: 'schemas',
           ),
           _throwsMessage(
@@ -525,7 +505,7 @@ class Handlers {
             parseCounter(
               'arity_$name',
               onInteraction: 'onTap',
-              handlers: 'void onTap($parameter) {}',
+              handlers: 'Future<void> onTap($parameter) async {}',
             ),
             _throwsMessage(
               equals(
@@ -539,11 +519,13 @@ class Handlers {
         }
       });
 
-      test('a function returning a value', () async {
+      test('a function returning anything but Future<void>', () async {
         const returnTypes = <String, String>{
           'int': 'int',
           'future_int': 'Future<int>',
           'nullable_future': 'Future<void>?',
+          'void': 'void',
+          'future_or': 'FutureOr<void>',
         };
 
         for (final MapEntry(key: name, value: returnType)
@@ -553,6 +535,8 @@ class Handlers {
               'returns_$name',
               onInteraction: 'Handlers.onTap',
               handlers: '''
+import 'dart:async';
+
 class Handlers {
   static $returnType onTap(CounterInteraction interaction) => throw 0;
 }
@@ -561,13 +545,33 @@ class Handlers {
             _throwsMessage(
               equals(
                 'Widget "Counter": onInteraction names Handlers.onTap, which '
-                'returns $returnType. Return void, Future<void> or '
-                'FutureOr<void>.',
+                'returns $returnType. Return Future<void>: the tap waits for '
+                'it to finish.',
               ),
             ),
             reason: returnType,
           );
         }
+      });
+
+      test('an async function returning void', () async {
+        await expectLater(
+          parseCounter(
+            'returns_void_async',
+            onInteraction: 'onTap',
+            handlers: '''
+void onTap(CounterInteraction interaction) async {
+  await Future<void>.delayed(Duration.zero);
+}
+''',
+          ),
+          _throwsMessage(
+            equals(
+              'Widget "Counter": onInteraction names onTap, which returns '
+              'void. Return Future<void>: the tap waits for it to finish.',
+            ),
+          ),
+        );
       });
 
       test('a function taking something else', () async {
@@ -590,7 +594,7 @@ class TimerInteraction {}
 
 typedef Alias = Uri;
 
-void onTap($parameter) {}
+Future<void> onTap($parameter) async {}
 ''',
             ),
             _throwsMessage(
