@@ -45,7 +45,8 @@ class ConfigurationOptions {}
 | `android` | `HomeWidgetAndroidConfiguration?` | `null` | Android-specific configuration (see below). |
 | `iOS` | `HomeWidgetIOSConfiguration?` | `null` | iOS-specific configuration (see below). |
 | `localization` | `HomeWidgetLocalization?` | `null` | Default locale, supported locales, and translations of the gallery name and description. See [Localization](/generator/localization). |
-| `widgetUrl` | `String?` | `null` | URL the app is opened with when the widget is tapped. See [Widget Clicks](/generator/widget-url). |
+| `widgetUrl` | `String?` | `null` | URL the app is opened with when the widget is tapped, the same on both platforms. See [Widget Clicks](/generator/widget-url). |
+| `widgetUrlData` | `List<HWDataType>` | `const []` | Values a tap sends along with `widgetUrl`, appended to it as query parameters. Requires `widgetUrl`. See [Sending data with the tap](/generator/widget-url#sending-data-with-the-tap). |
 | `flavors` | `Map<String, HomeWidgetFlavor>?` | `null` | Restricts which Flutter flavors the widget is generated into, with per-flavor overrides. See [Flavors](/generator/flavors). |
 | `useLiveDataInPreview` | `bool` | `true` | Whether the widget gallery preview reads stored data ahead of `previewValue`. Overridable per platform. See [Previews](/generator/previews). |
 
@@ -76,8 +77,7 @@ Maps to [`AppWidgetProviderInfo`](https://developer.android.com/reference/androi
 | `backgroundColor` | `HWColor?` | `HWDefaultColor(HWColorRole.defaultBackground)` | Background color applied via `GlanceModifier.background(...)`. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | Applies a default 16.dp root padding. |
 | `fillWidgetContent` | `bool` | `true` | Applies `GlanceModifier.fillMaxSize()` to the root. |
-| `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on Android. See [Widget Clicks](/generator/widget-url). |
-| `openAppOnTap` | `bool` | `true` | If `false`, the widget root is not made clickable at all, so tapping it does nothing — even when a `widgetUrl` is set. See [Widget Clicks](/generator/widget-url). |
+| `openAppOnTap` | `bool` | `true` | If `false`, nothing in the widget is made clickable, so tapping it does nothing — even when a `widgetUrl` is set or the widget contains an [`HWLink`](/generator/widgets/hw-link). See [Widget Clicks](/generator/widget-url#widgets-that-should-not-open-the-app). |
 | `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on Android. `null` inherits it. See [Previews](/generator/previews). |
 | `autoUpdatePreview` | `bool` | `true` | Whether the plugin registers the generated preview with the launcher automatically on app start (Android 15+). See [Previews](/generator/previews#registering-the-preview-on-android). |
 
@@ -91,7 +91,6 @@ Maps to [`WidgetConfiguration`](https://developer.apple.com/documentation/widget
 | `supportedFamilies` | `List<HWWidgetFamily>?` | `systemSmall`, `systemMedium`, `systemLarge` (WidgetKit's default) | Restricts which [`WidgetFamily`](https://developer.apple.com/documentation/widgetkit/widgetfamily) values are supported. Maps to [`StaticConfiguration.supportedFamilies`](https://developer.apple.com/documentation/widgetkit/staticconfiguration/supportedfamilies(_:)). Also the set of families [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) must cover on iOS. |
 | `backgroundColor` | `HWColor?` | `null` | Background color for the widget container. See [`HWColor`](/generator/styling/hw-color). |
 | `applyContentPadding` | `bool` | `true` | If `false`, calls `contentMarginsDisabled()` to opt out of system padding. |
-| `widgetUrl` | `String?` | `null` | Overrides `@HomeWidget.widgetUrl` on iOS. See [Widget Clicks](/generator/widget-url). |
 | `useLiveDataInPreview` | `bool?` | `null` | Overrides `@HomeWidget.useLiveDataInPreview` on iOS. `null` inherits it. See [Previews](/generator/previews). |
 | `provisioningProfile` | `String?` | `null` | Name of the provisioning profile the widget extension signs with in every build configuration the app signs manually. May hold the placeholders `{appProfile}`, the app's profile name in that configuration, and `{extensionName}`, the extension target's name, e.g. `'{appProfile}.{extensionName}'`; because `{appProfile}` differs per configuration, Debug and Release can get different profiles from one value. `null` is `'{appProfile} {extensionName}'`, e.g. `App Prod WeatherHomeWidget`. Overridable per flavor. See [Manual signing](/cli/generate#manual-signing-ios). |
 

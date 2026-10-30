@@ -20,7 +20,8 @@ void main() {
         if (helper.swift != null) {
           expect(
             swiftOf(helper),
-            contains('func ${helper.name}('),
+            // A generic helper names its type parameters before the list.
+            contains(RegExp('func ${helper.name}[(<]')),
             reason: '${helper.name} Swift body',
           );
         }
@@ -255,6 +256,9 @@ void main() {
         HWNativeHelper.hwAssetFont,
         HWNativeHelper.hwBundledFont,
         HWNativeHelper.hwFont,
+        HWNativeHelper.hwPayloadValue,
+        HWNativeHelper.hwPayloadUrl,
+        HWNativeHelper.hwLink,
       };
       for (final helper in HWNativeHelper.values) {
         expect(
@@ -266,6 +270,20 @@ void main() {
       for (final helper in HWNativeHelper.values) {
         if (!helper.name.startsWith('hwFormat')) continue;
         expect(helper.localeDependent, isTrue, reason: helper.name);
+      }
+    });
+
+    test('follows the 12-/24-hour setting only where the device picks it', () {
+      const hourCycleDependent = {
+        HWNativeHelper.hwFormatDateSkeleton,
+        HWNativeHelper.hwFormatDateStyled,
+      };
+      for (final helper in HWNativeHelper.values) {
+        expect(
+          helper.hourCycleDependent,
+          hourCycleDependent.contains(helper),
+          reason: helper.name,
+        );
       }
     });
 
@@ -567,6 +585,36 @@ void main() {
         kotlinOf(helper),
         contains('AndroidDateFormat.getBestDateTimePattern('),
       );
+    });
+
+    test('takes the hour cycle of `j` from the 24-hour setting on Android', () {
+      final kotlin = kotlinOf(helper);
+      expect(kotlin, contains('context: Context,'));
+      expect(kotlin, isNot(contains('locale: Locale')));
+      expect(kotlin, contains('val locale = hwFormatLocale(context)'));
+      expect(
+        kotlin,
+        contains(
+          "val hour = if (AndroidDateFormat.is24HourFormat(context)) 'H' "
+          "else 'h'",
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          "getBestDateTimePattern(locale, skeleton.replace('j', hour))",
+        ),
+      );
+      expect(swiftOf(helper), isNot(contains('replacingOccurrences')));
+    });
+
+    test('imports exactly the types its Kotlin body names', () {
+      expect(helper.kotlinImports, {
+        'import android.content.Context',
+        'import android.text.format.DateFormat as AndroidDateFormat',
+        'import java.text.SimpleDateFormat',
+        'import java.util.Date',
+      });
     });
 
     test('aliases the Android formatter the styled helper would shadow', () {

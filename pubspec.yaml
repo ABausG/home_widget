@@ -46,8 +46,8 @@ melos:
     format:swift:
       description: Format Swift Files
       run: |
-        swift-format -r -i -p .
-        swift-format lint -r -s .
+        xcrun swift-format -r -i -p .
+        xcrun swift-format lint -r -s .
     build:android:examples:
       description: Build Android examples
       exec: flutter build apk --release

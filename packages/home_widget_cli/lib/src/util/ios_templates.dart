@@ -52,8 +52,9 @@ enum $enumName {
 /// [flavorAppGroupIds]: App Group ID per declared flavor, in declaration order.
 /// [widgetBody]: Optional body content for the `Widget` configuration.
 ///               If null, a placeholder configuration is generated.
-/// [widgetUrl]: Optional URL opened when the widget is tapped, emitted as a
-///              `.widgetURL(...)` modifier on the entry view's body.
+/// [widgetUrl]: Optional Swift expression for the `URL?` opened when the widget
+///              is tapped, emitted as a `.widgetURL(...)` modifier on the entry
+///              view's body.
 /// [supportedFamiliesProperty]: Optional property declaration emitted inside
 ///              the `Widget` struct, which [supportedFamilies] then names
 ///              instead of spelling an array literal.
@@ -190,7 +191,7 @@ $viewBody
 ''');
 
   if (widgetUrl != null) {
-    buffer.writeln('    .widgetURL(URL(string: "$widgetUrl"))');
+    buffer.writeln('    .widgetURL($widgetUrl)');
   }
 
   buffer.write('''

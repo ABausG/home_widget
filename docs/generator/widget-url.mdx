@@ -1,6 +1,6 @@
 ---
 title: Widget Clicks
-description: Open your app with a URL when the widget is tapped, and read that URL back with the generated launch helpers.
+description: Open your app with a URL when the widget is tapped, and read the tap back as a typed launch.
 ---
 
 # Widget Clicks
@@ -18,33 +18,96 @@ Set `widgetUrl` on the annotation to have a tap on the widget open your app with
 class Weather {}
 ```
 
-The generator emits `.widgetURL(...)` on iOS and a Glance `clickable(actionStartActivity<MainActivity>(...))` on Android, so the same URL reaches the app on both platforms. Nothing has to be added to the native code by hand — including the Android manifest entry, which the CLI writes for you.
+The generator emits `.widgetURL(...)` on iOS and a Glance `clickable(actionStartActivity<MainActivity>(...))` on Android, so the same URL reaches the app on both platforms. Nothing has to be added to the native code by hand, including the Android manifest entry, which the CLI writes for you. No URL scheme has to be registered.
 
-## Reading the URL in the app
+To open the app from one region of the widget instead of the whole widget, wrap that region in an [`HWLink`](/generator/widgets/hw-link). Links and `widgetUrl` can be combined, and both are read through the launch helpers described below.
 
-As soon as a widget declares a `widgetUrl`, its generated helper class gains the runtime URL and three launch helpers:
+## Sending data with the tap
+
+`widgetUrlData` lists values the tap sends along with `widgetUrl`:
 
 ```dart
-/// The URL a tap on the widget opens the app with, as the app will receive it.
-static final Uri widgetUrl;
-
-/// The URL a tap on the widget started the app with, or null.
-static Future<Uri?> initiallyLaunchedFromWidget();
-
-/// Every tap while the app is already running.
-static Stream<Uri> get widgetClicked;
-
-/// The launch URL first (when there was one), then every later tap.
-static Stream<Uri> launchedFromWidget();
+@HomeWidget(
+  name: 'Weather',
+  widgetUrl: 'myapp://weather',
+  widgetUrlData: [
+    HWString('city'),
+    HWPayload('source', HWString.fixed('widget')),
+  ],
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWText(HWString('city')),
+)
+class Weather {}
 ```
 
-Listening to `launchedFromWidget()` covers both cases at once:
+The values are appended to the URL as percent-encoded query parameters. With `Berlin` saved as `city`, the tap opens `myapp://weather?city=Berlin&source=widget&homeWidget`.
+
+A stored value is sent under its key, and `HWPayload(name, value)` names a fixed value or renames a stored one. See [Payloads](/generator/data#payloads) for the allowed types and the naming rules. `widgetUrlData` without a `widgetUrl` is a generation error, and so is an `HWItemData` in it, because there is no list item at the root of the widget.
+
+The values are the ones the widget was **rendered with**, not the state at the moment of the tap.
+
+## The generated launch model
+
+A widget that sets `widgetUrl` or contains an `HWLink` gets a sealed class with one subclass per thing that can be tapped:
+
+```dart
+sealed class WeatherLaunch {
+  /// The launch [uri] stands for, or null when it is not a URL this widget
+  /// opens the app with.
+  static WeatherLaunch? fromUri(Uri uri);
+
+  /// The URL the widget opens the app with for this launch.
+  Uri toUri();
+}
+
+/// A tap on the widget itself. Generated when `widgetUrl` is set.
+final class WeatherWidgetTap extends WeatherLaunch {
+  const WeatherWidgetTap({this.city, this.source = 'widget'});
+
+  final String? city;
+  final String source;
+}
+
+/// A tap on HWLink('forecast', ...). One class per link id.
+final class WeatherForecastLink extends WeatherLaunch { ... }
+```
+
+- `<Name>WidgetTap` carries one field per `widgetUrlData` entry and has no fields without it.
+- `<Name><Id>Link` carries one field per entry of the link's `data`.
+- The fields are typed `String`, `int`, `double`, `bool` or `DateTime`. A date travels as an instant in UTC with millisecond precision, and two launches compare their dates that way. A field is nullable unless its value is fixed or its data type declares a `defaultValue`. See [Payloads](/generator/data#generated-fields).
+- Every class has value equality and a readable `toString`.
+
+## Reading taps in the app
+
+The generated helper class gains two launch helpers:
+
+```dart
+/// The tap on this widget the app was started by, or null when it was
+/// started any other way.
+static Future<WeatherLaunch?> initialLaunch();
+
+/// The tap that started the app first, if one did, then every tap while
+/// it runs.
+static Stream<WeatherLaunch> launches();
+```
+
+Listening to `launches()` covers both cases at once:
 
 ```dart
 @override
 void initState() {
   super.initState();
-  _subscription = WeatherHomeWidget.launchedFromWidget().listen(_openScreenFor);
+  _subscription = WeatherHomeWidget.launches().listen(_onLaunch);
+}
+
+void _onLaunch(WeatherLaunch launch) {
+  switch (launch) {
+    case WeatherWidgetTap(:final city):
+      _openWeather(city);
+    case WeatherForecastLink():
+      _openForecast();
+  }
 }
 
 @override
@@ -54,25 +117,64 @@ void dispose() {
 }
 ```
 
-`launchedFromWidget()` subscribes to the click stream before it reads the launch URL, so a tap landing while that read is in flight is delivered rather than dropped.
+The switch is exhaustive because the class is sealed: a link added to the widget later is a compile error until the app handles it.
 
-### The runtime URL
+`launches()` subscribes to taps before it reads the URL the app was started with, so a tap arriving while that read is in flight is kept and not dropped.
 
-`widgetUrl` is the URL as the app actually receives it — the configured value with the `homeWidget` query parameter appended and its scheme lower-cased by `Uri.parse`. Compare against it instead of re-deriving the string:
+<Info>
+The launch helpers call `HomeWidget.initialLaunch` and `HomeWidget.launches`, which `home_widget` has from 0.10.1. When `pubspec.lock` resolves an older hosted `home_widget`, generation fails with a message asking you to raise the constraint.
+</Info>
+
+### Matching
+
+A URL belongs to a launch when all of these match the URL written in the schema:
+
+- the scheme, compared lower-cased,
+- the authority (host and port),
+- the path,
+- the fragment,
+- every query parameter written into the URL itself.
+
+The remaining query parameters are the payload. A payload value that is missing or cannot be read decodes to `null`, or to the field's default. Query parameters the launch does not know are ignored. A URL with malformed percent-encoding is no launch at all: `fromUri` answers `null` for it.
+
+One URL can extend another with a query parameter. The launch that writes more query parameters into its URL is matched first, so `myapp://home?tab=settings` is tried before `myapp://home`:
 
 ```dart
-if (uri == WeatherHomeWidget.widgetUrl) _openWeather();
+@HomeWidget(
+  name: 'Weather',
+  widgetUrl: 'myapp://home',
+  widget: HWLink(
+    'settings',
+    url: 'myapp://home?tab=settings',
+    child: HWText(HWString.fixed('Settings')),
+  ),
+  // ...
+)
+class Weather {}
 ```
 
-When the two platforms open different URLs (see [Platform overrides](#platform-overrides)), the field is split into `androidWidgetUrl` and `iosWidgetUrl` instead, and a widget with a URL on only one platform gets only that platform's field.
+Two things that can be tapped in one widget still need URLs the app can tell apart. Generation fails when two URLs differ only in the data they send, and when a value one of them sends can produce a query parameter written into the other, such as `data: [HWString('tab')]` on `myapp://home` next to `myapp://home?tab=settings`.
+
+A URL has to be written the way it is opened: characters that are not allowed in a URL, such as a space, a quote or a brace, have to be percent-encoded, and generation fails for one that is not. The same goes for `[` and `]` outside an IP address host and for a second `#`, which iOS before 17 cannot open, and for a query whose percent-encoding does not decode as UTF-8, such as `%FF`.
 
 ### Filtering
 
-All three helpers report **only this widget's own taps**: the URL the app was handed has to be the one *this* widget opens **on the platform the app is running on** — the Android runtime URL on Android, the iOS one on iOS — compared with a lower-cased scheme on both sides. Taps on your other widgets never reach them, and `null` URLs from the plugin stream are dropped, which is why the streams are `Stream<Uri>` and not `Stream<Uri?>`.
+Both helpers report **only taps whose URL is one this widget opens**. A URL that matches none of the widget's launches is skipped, which is why the stream is a `Stream<WeatherLaunch>` without nulls. A tap is told by its URL alone, so give every widget URLs of its own: when two widgets open the same URL, both report the tap, and `generate` warns about it.
 
-A widget that opens a URL on only one platform therefore never reports anything on the other one: with `openAppOnTap: false` on Android, or an override that gives only iOS a URL, `launchedFromWidget()` and `widgetClicked` stay silent on the platform without a URL, and `initiallyLaunchedFromWidget()` is always `null` there.
+The tap that started the app is delivered once per run of the app. After one `launches()` listener has received it, a stream listened to later, such as one a rebuilt widget subscribes to, starts with the taps that follow. `initialLaunch()` keeps answering it.
 
-There is no hook to widen that match. If you want to catch taps from several widgets, a URL prefix, or a URL built at runtime, listen to [`HomeWidget.initiallyLaunchedFromHomeWidget()` and `HomeWidget.widgetClicked`](/features/detect-clicks) directly and filter them yourself — the generated helpers are wrappers over exactly those.
+To handle the taps of several widgets in one place, call `fromUri` of each widget on the `Uri` from [`HomeWidget.initiallyLaunchedFromHomeWidget()` and `HomeWidget.widgetClicked`](/features/detect-clicks), or merge their `launches()` streams.
+
+### Building a launch URL
+
+`toUri()` returns the URL the widget opens the app with for a launch, and `fromUri` reads one back. That is useful in tests and for routing a launch through code that takes a `Uri`:
+
+```dart
+final uri = const WeatherWidgetTap(city: 'Berlin').toUri();
+// myapp://weather?city=Berlin&source=widget&homeWidget
+
+WeatherLaunch.fromUri(uri) == const WeatherWidgetTap(city: 'Berlin'); // true
+```
 
 ## The `homeWidget` query parameter
 
@@ -82,41 +184,27 @@ The plugin only reports a click whose URL carries a `homeWidget` query parameter
 myapp://weather        →  myapp://weather?homeWidget
 myapp://weather?city=1 →  myapp://weather?city=1&homeWidget
 myapp://weather#today  →  myapp://weather?homeWidget#today
+myapp://weather?tab=1  →  myapp://weather?tab=1&city=Berlin&homeWidget
 ```
 
 A URL that already carries the parameter is passed through untouched, and the rest of the URL is left exactly as written.
 
+The last line is a URL with a payload, here `widgetUrlData: [HWString('city')]`. Payload values go after the query parameters the URL already has and ahead of `homeWidget`. A payload entry cannot be named `homeWidget`, or like a query parameter written into the URL.
+
 <Info>
-The generator emits the URL string verbatim into the native code, but what the app receives is a parsed `Uri`, and `Uri.parse` lower-cases the scheme. A `widgetUrl` of `myApp://weather` therefore arrives as `myapp://weather?homeWidget` — expect the lower-cased scheme when you log or compare the `Uri`. Everything after the scheme keeps its casing. The generated `widgetUrl` field already carries that parsed form, so comparing against it needs no normalization of your own.
+The generator emits the URL string verbatim into the native code, but what the app receives is a parsed `Uri`, and `Uri.parse` lower-cases the scheme. A `widgetUrl` of `myApp://weather` therefore arrives as `myapp://weather?homeWidget`. Everything after the scheme keeps its casing. The launch helpers already match the lower-cased scheme, so they need no normalization of your own.
 </Info>
-
-## Platform overrides
-
-`HomeWidgetAndroidConfiguration.widgetUrl` and `HomeWidgetIOSConfiguration.widgetUrl` override the top-level value for that platform. Setting only one of them leaves the other platform on the top-level URL, or without a URL at all if there is none:
-
-```dart
-@HomeWidget(
-  name: 'Weather',
-  widgetUrl: 'myapp://weather',
-  android: HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://weather/android'),
-  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
-  widget: HWText(HWString('city')),
-)
-class Weather {}
-```
-
-Android opens `myapp://weather/android?homeWidget` here, iOS `myapp://weather?homeWidget`. The launch helpers are generated as soon as **either** platform has a URL, and the runtime URL is exposed as `androidWidgetUrl` and `iosWidgetUrl` — each matched on its own platform.
 
 ## Without a `widgetUrl`
 
-Leaving `widgetUrl` off does not make the widget inert — tapping it still opens your app, matching what iOS does by default for a widget that declares no `widgetURL`. On Android the generator emits a plain `actionStartActivity<MainActivity>()` for that case: the app launches, but the intent carries no URL, so no click is reported and the launch helpers are not generated.
+Leaving `widgetUrl` off does not make the widget inert: tapping it still opens your app, matching what iOS does by default for a widget that declares no `widgetURL`. On Android the generator emits a plain `actionStartActivity<MainActivity>()` for that case. The app launches, but the intent carries no URL, so no tap is reported. The launch helpers are then generated only when the widget contains an [`HWLink`](/generator/widgets/hw-link), and report the links alone.
 
 <Info>
-If you want to detect launches — to route to a screen, log the tap, or refresh on open — set a `widgetUrl`. That is what turns the tap into something the app can read.
+If you want to detect launches, to route to a screen, log the tap, or refresh on open, set a `widgetUrl`. That is what turns the tap into something the app can read.
 </Info>
 
 <Info>
-On Android the URL is delivered through an intent-filter on your launcher activity. The CLI adds it to `AndroidManifest.xml` automatically when a schema sets a `widgetUrl` — if it cannot find a launcher activity it warns during generation, and the URL will not reach the app until the warning is resolved.
+On Android the URL is delivered through an intent-filter on your launcher activity. The CLI adds it to `AndroidManifest.xml` automatically when a schema sets a `widgetUrl` or contains an `HWLink`. If it cannot find a launcher activity it warns during generation, and the URL will not reach the app until the warning is resolved.
 </Info>
 
 ## Widgets that should not open the app
@@ -131,8 +219,12 @@ Set `openAppOnTap: false` on `HomeWidgetAndroidConfiguration` to leave the Andro
 class Status {}
 ```
 
-No `clickable(...)` modifier is emitted, no launch intent-filter is written to the manifest, and a `widgetUrl` configured for Android is ignored — a tap does nothing. iOS is unaffected: its `widgetURL` still applies, and the launch helpers keep reporting taps there while staying silent on Android.
+No `clickable(...)` modifier is emitted, no launch intent-filter is written to the manifest, and `widgetUrl`, `widgetUrlData` and every `HWLink` are ignored on Android: a tap does nothing. The generator warns when such a widget contains an `HWLink`. iOS is unaffected: its `widgetURL` and links still apply, and the launch helpers keep reporting taps there while staying silent on Android.
 
 ## When no launcher activity is found
 
-The Android click action targets the activity your manifest declares with the `MAIN`/`LAUNCHER` intent-filter, resolving a relative `android:name` against the manifest `package` or your `applicationId`. If the generator cannot find that activity, it does not guess a class name: it warns during generation and emits the widget without a click action, so the generated Kotlin never references a class that does not exist. Declare a launcher activity — or set `openAppOnTap: false` if the widget is meant to be inert — to resolve the warning.
+The Android click action targets the activity your manifest declares with the `MAIN`/`LAUNCHER` intent-filter, resolving a relative `android:name` against the manifest `package` or your `applicationId`. If the generator cannot find that activity, it does not guess a class name: it warns during generation and emits the widget and its links without a click action, so the generated Kotlin never references a class that does not exist. Declare a launcher activity, or set `openAppOnTap: false` if the widget is meant to be inert, to resolve the warning.
+
+## Uri helpers
+
+Before 0.5.0 the generated helper class reported taps as plain `Uri`s, through a static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()`. They were removed in 0.5.0 in favor of `initialLaunch()` and `launches()`. See [Migration to 0.5.0](/generator/migrations/0.5.0#uri-launch-helpers-removed) for the replacement of each one.

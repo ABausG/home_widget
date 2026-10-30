@@ -1,0 +1,197 @@
+---
+title: HWLink
+description: Open the app with a URL of its own when one region of the widget is tapped.
+---
+
+# HWLink
+
+Makes its child a tap target that opens the app with its own URL. A link has no styling: it renders exactly what its child renders. For a tap on the widget as a whole, set [`widgetUrl`](/generator/widget-url) on the annotation instead.
+
+```dart
+@HomeWidget(
+  name: 'Weather',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.app',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
+  ),
+  widget: HWRow(
+    spacing: 16,
+    children: [
+      HWLink(
+        'forecast',
+        url: 'myapp://forecast',
+        child: HWText(HWString.fixed('Forecast')),
+      ),
+      HWLink(
+        'settings',
+        url: 'myapp://settings',
+        child: HWText(HWString.fixed('Settings')),
+      ),
+    ],
+  ),
+)
+class Weather {}
+```
+
+The `url` follows the rules of `widgetUrl`: it is written as it is, the [`homeWidget` query parameter](/generator/widget-url#the-homewidget-query-parameter) is appended for you, and no URL scheme has to be registered on either platform. On Android the CLI writes the launch intent-filter into the manifest.
+
+The `id` names the class the tap reaches the app as: `HWLink('forecast', ...)` in the `Weather` widget generates `WeatherForecastLink`.
+
+## Sending data
+
+`data` lists the values a tap sends along with the URL. They are appended as percent-encoded query parameters, ahead of `homeWidget`:
+
+```dart
+HWLink(
+  'forecast',
+  url: 'myapp://forecast',
+  data: [
+    HWString('city'),
+    HWPayload('days', HWInt.fixed(7)),
+  ],
+  child: HWText(HWString('city')),
+)
+```
+
+With `Berlin` saved as `city`, a tap opens `myapp://forecast?city=Berlin&days=7&homeWidget`, and the generated class carries one typed field per entry:
+
+```dart
+final class WeatherForecastLink extends WeatherLaunch {
+  const WeatherForecastLink({this.city, this.days = 7});
+
+  final String? city;
+  final int days;
+}
+```
+
+A stored value is sent under its key. `HWPayload(name, value)` names an entry: it is required for a fixed value, which has no key, and renames a stored value or a JSON leaf:
+
+```dart
+HWPayload('days', HWInt.fixed(7))
+HWPayload('city', HWString('selectedCity'))
+HWPayload('id', HWJson('user', HWString('id')))
+```
+
+A value the widget reads only for a payload is a stored field like any other. It appears in `saveData` and `getData` even when nothing displays it. A value with nothing saved and no `defaultValue` is left out of the URL and arrives as `null`.
+
+The values are the ones the widget was **rendered with**. That is right for identity, such as which row was tapped. For state that changes while the widget is on screen, read the current value in the app.
+
+An `HWDateTime` is sent as an instant with millisecond precision and arrives as a UTC `DateTime`.
+
+Two widgets that contain a link with the same `url` both report a tap on it, because a tap is told by its URL. `generate` warns about that; give each widget URLs of its own.
+
+See [Payloads](/generator/data#payloads) for the allowed types, the naming rules and the nullability of the generated fields.
+
+## Links in list rows
+
+Inside the item of an [`HWColumn.builder` or `HWRow.builder`](/generator/lists), `HWItemData` sends a value of the row that was tapped:
+
+```dart
+HWColumn.builder(
+  'todos',
+  maxItems: 5,
+  item: HWLink(
+    'open',
+    url: 'myapp://todo',
+    data: [HWItemData(HWString('id'))],
+    child: HWText(HWItemData(HWString('title'))),
+  ),
+)
+```
+
+Every row is its own tap target, and all of them reach the app as one class:
+
+```dart
+final class TodosOpenLink extends TodosLaunch {
+  const TodosOpenLink({this.id});
+
+  final String? id;
+}
+```
+
+To send an item value under another name, put the `HWItemData` inside the `HWPayload`: `HWPayload('id', HWItemData(HWString('uuid')))`.
+
+## Reading taps in the app
+
+A widget with an `HWLink` gets the launch helpers `initialLaunch()` and `launches()` on its generated helper class. Each tap arrives as the class of the link that was tapped:
+
+```dart
+WeatherHomeWidget.launches().listen((launch) => switch (launch) {
+  WeatherForecastLink(:final city, :final days) => _openForecast(city, days),
+  WeatherSettingsLink() => _openSettings(),
+});
+```
+
+The switch is exhaustive, so a link added later is a compile error until the app handles it. See [Widget Clicks](/generator/widget-url#reading-taps-in-the-app) for the launch helpers and the matching rules.
+
+The generated launch helpers need `home_widget` 0.10.1 or newer.
+
+## Together with `widgetUrl`
+
+A link can sit in a widget that also sets `widgetUrl`. A tap on the link opens the link's URL, and a tap anywhere else opens `widgetUrl`:
+
+```dart
+WeatherHomeWidget.launches().listen((launch) => switch (launch) {
+  WeatherWidgetTap() => _openHome(),
+  WeatherForecastLink(:final city) => _openForecast(city),
+});
+```
+
+The link's URL and `widgetUrl` have to differ in scheme, host, path, fragment or the query parameters written into them. Otherwise the app could not tell the two taps apart, and generation fails. One may extend the other with a query parameter, such as `myapp://home` and `myapp://home?tab=settings`: the URL with more query parameters is matched first.
+
+## Small widgets on iOS
+
+iOS treats a `systemSmall` widget, and the `accessoryCircular`, `accessoryRectangular` and `accessoryInline` Lock Screen families, as one tap area. A `Link` inside them is ignored. Android is not affected.
+
+When an `HWLink` can be shown in one of these families as part of a larger layout, the generator warns. A tap on the link there opens the app through `widgetUrl`, which the app sees as `WeatherWidgetTap`, or without any URL when the widget sets none. To keep links out of these families, put them in an [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) slot of a larger family:
+
+```dart
+HWSizeAdaptive(
+  small: HWText(HWString('city')),
+  medium: HWRow(
+    children: [
+      HWText(HWString('city')),
+      HWLink(
+        'forecast',
+        url: 'myapp://forecast',
+        child: HWText(HWString.fixed('Forecast')),
+      ),
+    ],
+  ),
+)
+```
+
+An `HWLink` that **is** the whole layout of such a family works: the root of the widget tree, or the slot that family resolves to in an `HWSizeAdaptive` at the root. The link may sit in the `ios` branch of an `HWAdaptive`, or inside an `HWPadding`, `HWColoredBox` or `HWDecoratedBox`, which do not change what can be tapped. It is emitted as `.widgetURL(...)` on iOS, and the tap arrives as the link's class. Combining it with a `widgetUrl` on the annotation is a generation error, because both claim the tap on the whole widget.
+
+## Android
+
+- An `HWLink` that is the whole layout, found the same way through the `android` branch of an `HWAdaptive`, also covers the padding the generator puts around the widget, unless the widget sets a `widgetUrl`, which keeps that area.
+- With `HomeWidgetAndroidConfiguration(openAppOnTap: false)` nothing in the widget is clickable, links included. The generator warns when such a widget contains an `HWLink`.
+- When the generator finds no launcher activity, it warns and emits the links without a click action, as it does for `widgetUrl`. See [When no launcher activity is found](/generator/widget-url#when-no-launcher-activity-is-found).
+
+## Parameters
+
+| Name    | Type               | Default      | Description                                                              |
+| ------- | ------------------ | ------------ | ------------------------------------------------------------------------ |
+| `id`    | `String`           | **required** | Positional. Names the generated launch class, `<Name><Id>Link`.           |
+| `url`   | `String`           | **required** | The URL a tap opens the app with. An absolute URL including a scheme.     |
+| `data`  | `List<HWDataType>` | `const []`   | Values sent along as query parameters. See [Payloads](/generator/data#payloads). |
+| `child` | `HWWidget`         | **required** | The widget that is rendered and tapped.                                   |
+
+## Validation
+
+Each of these fails generation:
+
+- An `id` that is not ASCII letters and digits starting with a letter.
+- A `url` that is empty, has no scheme, or holds a character a URL cannot hold unescaped, such as a space, a quote or a brace. Percent-encode it.
+- An `HWLink` inside another `HWLink`.
+- Two links with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `url` and the same `data`.
+- Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one that can produce a query parameter written into the other.
+- An `HWLink` that is the whole layout of an iOS single-tap family in a widget that also sets `widgetUrl`.
+- A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.
+
+## Platform mapping
+
+- **iOS:** SwiftUI [`Link(destination:)`](https://developer.apple.com/documentation/swiftui/link) with `.buttonStyle(.plain)`, or [`.widgetURL(_:)`](https://developer.apple.com/documentation/swiftui/view/widgeturl(_:)) when the link is the whole layout of a single-tap family.
+- **Android:** Glance [`GlanceModifier.clickable(...)`](https://developer.android.com/reference/kotlin/androidx/glance/action/package-summary) with `actionStartActivity` for your launcher activity, put on the child's own composable.

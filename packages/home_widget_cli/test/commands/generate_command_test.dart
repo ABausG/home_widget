@@ -207,7 +207,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   iOS: HomeWidgetIOSConfiguration(
     groupId: 'group.example',
   ),
-  data: {'label': HWString(), 'value': HWInt()},
+  widget: HWDataOnly([HWString('label'), HWInt('value')]),
 )
 class SimpleData {}
 ''');

@@ -45,6 +45,7 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 | `HWIconData` | `HWIconData(key, {required icons, defaultValue, previewValue})` | generated icon enum | An icon chosen from a fixed set, rendered with [`HWIcon`](/generator/widgets/hw-icon). See [Icon data](#icon-data) below. |
 | `HWItemData` | `HWItemData(data, {previewValues})` | the wrapped type's, on the generated item class | Wraps another type to read a field of the list item a builder is rendering, taking its key and the applicable default and preview. See [List items](#list-items) below. |
+| `HWPayload` | `HWPayload(name, value)` | the wrapped type's, on the generated launch class | Names a value a tap sends to the app. Only valid as an entry of a payload. See [Payloads](#payloads) below. |
 
 `HWString.localized` requires a `localization:` block on the annotation. Its generated setter takes a class with one required field per supported locale, and the widget picks the right one at render time. See [Localization](/generator/localization).
 
@@ -89,6 +90,75 @@ Fixed values carry no key, and two of them are never merged with each other or w
 <Info>
 `HWString('Hello')` and `HWString.fixed('Hello')` both compile, but the first one names a stored field called `Hello`. A key must start with a letter and contain only letters and digits, so text such as `HWString('Hello world')` fails generation with an error that points you to `HWString.fixed`. A single word passes as a key and renders empty until a value is saved.
 </Info>
+
+## Payloads
+
+A payload is the list of values a tap sends to the app: the `data` of an [`HWLink`](/generator/widgets/hw-link), or `widgetUrlData` on the [annotation](/generator/widget-url#sending-data-with-the-tap). The values are appended to the URL as query parameters and come back as typed fields of the generated launch class.
+
+```dart
+HWLink(
+  'forecast',
+  url: 'myapp://forecast',
+  data: [
+    HWString('city'),
+    HWPayload('days', HWInt.fixed(7)),
+  ],
+  child: HWText(HWString('city')),
+)
+// opens myapp://forecast?city=Berlin&days=7&homeWidget
+```
+
+| Entry | Allowed | Notes |
+| --- | --- | --- |
+| `HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWDateTime` | yes | Sent under its key. |
+| The `.fixed` form of those types | yes | Needs an `HWPayload` to name it. |
+| `HWJson` with one of those types as its leaf | yes | Named after the leaf key. |
+| `HWItemData` around one of those types | inside a builder item | Sends the value of the row that was tapped. Not allowed in `widgetUrlData`. |
+| `HWTimedData` around one of those types | yes | Sends the value of the entry currently displayed. |
+| `HWImageData`, `HWIconData` | no | Generation error. |
+| `HWString.localized`, `HWString.localizedFixed` | no | Generation error. |
+
+A stored value a payload reads is a normal data field: it appears in `saveData` and `getData` even when no widget displays it.
+
+### HWPayload
+
+`HWPayload(name, value)` gives a payload entry its name. A stored value needs none and is sent under its key. Use `HWPayload` to name a fixed value, which has no key, or to send a stored value or a JSON leaf under another name:
+
+```dart
+HWPayload('days', HWInt.fixed(7))
+HWPayload('city', HWString('selectedCity'))
+HWPayload('id', HWJson('user', HWString('id')))
+```
+
+An `HWItemData` goes inside it: `HWPayload('id', HWItemData(HWString('uuid')))`.
+
+A name is the query parameter and the field of the generated class, so it has to:
+
+- consist of ASCII letters and digits and start with a letter,
+- be unique within one link or `widgetUrlData`,
+- differ from `homeWidget` and from every query parameter already written into the URL,
+- differ from the members the generated class has: `toUri`, `fromUri`, `hashCode`, `toString`, `runtimeType` and `noSuchMethod`,
+- differ from the Dart names the generated class refers to, such as `String`, `int`, `double`, `bool`, `DateTime`, `Uri` and `Object`, and from the name of the generated class itself.
+
+`HWPayload` is only valid as a direct entry of a `data` list or of `widgetUrlData`. Passing it to a widget such as `HWText`, or wrapping it in `HWJson`, `HWTimedData` or `HWItemData`, is a generation error.
+
+### Generated fields
+
+Each entry becomes one field of the launch class, typed `String`, `int`, `double`, `bool` or `DateTime`.
+
+A date in a payload is an instant with millisecond precision: it arrives as a UTC `DateTime`, whatever zone it was saved in, and anything finer than a millisecond is dropped. Two launches are equal when their dates name the same millisecond, so a launch built with a local `DateTime` equals the one read back from its URL.
+
+| Entry | Field |
+| --- | --- |
+| Fixed value, such as `HWPayload('days', HWInt.fixed(7))` | `final int days`, with `7` as the constructor default. |
+| Stored value with a `defaultValue`, such as `HWString('city', defaultValue: 'Berlin')` | `final String city`, with `'Berlin'` as the constructor default. |
+| Stored value without one, such as `HWString('city')` | `final String? city`. |
+
+A fixed `HWDateTime` has no constructor default, because a `DateTime` is not a constant: its parameter is `required`.
+
+A value that is missing from the URL or cannot be read decodes to `null`, or to the default of a non-nullable field.
+
+The values are the ones the widget was rendered with. See [`HWLink`](/generator/widgets/hw-link) and [Widget Clicks](/generator/widget-url) for the generated classes and how the app reads them.
 
 ## Defaults
 

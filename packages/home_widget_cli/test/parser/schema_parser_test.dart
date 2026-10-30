@@ -199,35 +199,289 @@ void main() {
       final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
       expect(spec!.data.widgetUrl, 'myapp://widget');
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.data.widgetUrlData, isEmpty);
+      expect(spec.androidWidgetUrl?.url, 'myapp://widget');
+      expect(spec.iosWidgetUrl?.url, 'myapp://widget');
     });
 
-    test('parses the per-platform widgetUrl overrides', () async {
+    test('parses widgetUrlData and stores what it sends', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
 
         @HomeWidget(
-          name: 'Url Override Test',
-          widgetUrl: 'myapp://shared',
-          android: const HomeWidgetAndroidConfiguration(
-            widgetUrl: 'myapp://android',
-          ),
-          iOS: const HomeWidgetIOSConfiguration(
-            groupId: 'group.url',
-            widgetUrl: 'myapp://ios',
-          ),
+          name: 'Url Data Test',
+          widgetUrl: 'myapp://widget',
+          widgetUrlData: [
+            HWString('label'),
+            HWPayload('town', HWString('city', defaultValue: 'Berlin')),
+            HWPayload('days', HWInt.fixed(7)),
+          ],
+          android: const HomeWidgetAndroidConfiguration(),
+          iOS: const HomeWidgetIOSConfiguration(groupId: 'group.url'),
+          widget: HWText(HWString('label')),
         )
-        class UrlOverrideWidget {}
+        class UrlDataWidget {}
       ''';
 
       final spec = await parseSourceInTempFile(source);
       expect(spec, isNotNull);
-      expect(spec!.data.widgetUrl, 'myapp://shared');
-      expect(spec.data.android?.widgetUrl, 'myapp://android');
-      expect(spec.data.iOS?.widgetUrl, 'myapp://ios');
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://ios');
+      expect(spec!.data.widgetUrlData, const [
+        HWString('label'),
+        HWPayload('town', HWString('city', defaultValue: 'Berlin')),
+        HWPayload('days', HWInt.fixed(7)),
+      ]);
+      expect(spec.declaredDataFields, const [
+        HWString('label'),
+        HWString('city', defaultValue: 'Berlin'),
+      ]);
+    });
+
+    group('an annotation the analyzer reports an error in', () {
+      Matcher throwsBroken(String fragment) => throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('the @HomeWidget annotation does not compile'),
+                contains('.dart: '),
+                contains(fragment),
+                contains(generatorMigrationGuideUrl),
+                matches(RegExp(r'\n  (const \w+, \S*)?\d+:\d+: ')),
+              ),
+            ),
+          );
+
+      test('fails for the removed Android widgetUrl', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Removed Android Url',
+            widgetUrl: 'myapp://shared',
+            android: HomeWidgetAndroidConfiguration(
+              widgetUrl: 'myapp://android',
+            ),
+          )
+          class RemovedAndroidUrl {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken("'widgetUrl'"),
+        );
+      });
+
+      test('fails for the removed iOS widgetUrl', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Removed iOS Url',
+            iOS: HomeWidgetIOSConfiguration(
+              groupId: 'group.url',
+              widgetUrl: 'myapp://ios',
+            ),
+          )
+          class RemovedIosUrl {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken("'widgetUrl'"),
+        );
+      });
+
+      test('fails for a removed constructor', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Removed Constructor',
+            widget: HWText.fixed('Hi'),
+          )
+          class RemovedConstructor {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('fixed'),
+        );
+      });
+
+      test('fails for a widget that does not exist', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          @HomeWidget(
+            name: 'Unknown Widget',
+            widget: HWColumn(children: [HWCarousel(items: 3)]),
+          )
+          class UnknownWidget {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('HWCarousel'),
+        );
+      });
+
+      test('fails through an import prefix too', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart' as hw;
+
+          @hw.HomeWidget(name: 'Prefixed', widget: hw.HWText.fixed('Hi'))
+          class Prefixed {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('fixed'),
+        );
+      });
+
+      test('fails for a broken constant the annotation refers to', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          String notConst = 'Hi';
+          const tree = HWText(HWString.fixed(notConst));
+
+          @HomeWidget(name: 'Broken Constant', widget: tree)
+          class BrokenConstant {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('  const tree, 4:'),
+        );
+      });
+
+      test('fails for a broken constant two hops away', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          class Parts {
+            static const label = HWText.fixed('Hi');
+          }
+
+          const tree = HWColumn(children: [Parts.label, Parts.label]);
+
+          @HomeWidget(name: 'Two Hops', widget: tree)
+          class TwoHops {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('  const label, 4:'),
+        );
+      });
+
+      test('fails for a broken constant of another project file', () async {
+        final shared = File(p.join(project.root.path, 'lib', 'shared.dart'));
+        await shared.writeAsString('''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          const sharedTree = HWText.fixed('Hi');
+        ''');
+        addTearDown(shared.deleteSync);
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          import 'shared.dart';
+
+          @HomeWidget(name: 'Shared Constant', widget: sharedTree)
+          class SharedConstant {}
+        ''';
+
+        await expectLater(
+          parseSourceInTempFile(source),
+          throwsBroken('  const sharedTree, ${shared.path}:3:'),
+        );
+      });
+
+      test('accepts constants that compile, also those of a package', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          const label = HWString('label');
+          const tree = HWColumn(
+            children: [
+              HWText(label),
+              HWText.dateTime(HWDateTime('at'), format: HWDateFormat.yMMMd),
+            ],
+          );
+
+          @HomeWidget(name: 'Fine Constants', widget: tree)
+          class FineConstants {}
+        ''';
+
+        final spec = await parseSourceInTempFile(source);
+        expect(spec!.dataFields.map((field) => field.key), ['label', 'at']);
+      });
+
+      test('ignores a broken constant the annotation does not refer to',
+          () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          const unrelated = HWText.fixed('Hi');
+          const tree = HWText(HWString('label'));
+
+          @HomeWidget(name: 'Unrelated Constant', widget: tree)
+          class UnrelatedConstant {}
+        ''';
+
+        final spec = await parseSourceInTempFile(source);
+        expect(spec!.dataFields.single.key, 'label');
+      });
+
+      test('leaves errors outside the annotation alone', () async {
+        const source = '''
+          import 'package:home_widget_generator/home_widget_generator.dart';
+
+          import 'not_generated_yet.home_widget.dart';
+
+          @Deprecated(unknown: 1)
+          @HomeWidget(
+            name: 'Before First Generation',
+            widget: HWText(HWString('label')),
+          )
+          class BeforeFirstGeneration {
+            Future<void> save() =>
+                BeforeFirstGenerationHomeWidget.saveData(label: 'Hi');
+          }
+
+          final NotGeneratedYet broken = missing();
+        ''';
+
+        final spec = await parseSourceInTempFile(source);
+        expect(spec, isNotNull);
+        expect(spec!.data.name, 'Before First Generation');
+        expect(spec.dataFields.single.key, 'label');
+      });
+    });
+
+    test('collects the data an HWLink sends', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Link Data Test',
+          android: const HomeWidgetAndroidConfiguration(),
+          widget: HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWPayload('town', HWString('city'))],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+        )
+        class LinkDataWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.dataFields, const [HWString('city')]);
+      expect(spec.links.single.id, 'forecast');
     });
 
     test('collects data fields from widget tree (HWText HWString)', () async {

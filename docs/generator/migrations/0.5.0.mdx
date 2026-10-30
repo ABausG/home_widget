@@ -20,6 +20,12 @@ A constant value is now a [data type](/generator/data#fixed-values) instead of a
 
 Parameters such as `style`, `textAlign`, `format`, `size`, `color`, `semanticLabel`, `width`, `height` and `fit` stay on the widget.
 
+Taps that open the app are now reported as typed launches, which also covers the new [`HWLink`](/generator/widgets/hw-link). Three things changed for widgets that set a `widgetUrl`:
+
+- [Per-platform widget URLs are removed](#per-platform-widget-urls-removed).
+- [The launch helpers need home_widget 0.10.1](#launch-helpers-need-a-plugin-update).
+- [The Uri launch helpers are removed](#uri-launch-helpers-removed).
+
 ## HWText.fixed Became HWString.fixed
 
 Wrap the text in an `HWString.fixed`:
@@ -90,3 +96,107 @@ A `.fixed` value adds no `saveData` or `getData` parameter, no default and no pr
 ## A Mistyped Key Points to HWString.fixed
 
 Text passed to `HWString('...')` is a storage key. When it is not a valid key, such as `HWString('Hello world')`, the "Invalid data name" error now suggests `HWString.fixed`. The suggestion appears only for an `HWString` used on its own, not for one wrapped in `HWJson`, `HWTimedData` or `HWItemData`, and not for any other type.
+
+## Per-Platform Widget URLs Removed
+
+`HomeWidgetAndroidConfiguration.widgetUrl` and `HomeWidgetIOSConfiguration.widgetUrl` are removed. A widget has one `widgetUrl`, on the annotation, and both platforms open it:
+
+```dart
+@HomeWidget(
+  name: 'Weather',
+  widgetUrl: 'myapp://weather',
+  android: HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://weather/android'), // [!code --]
+  android: HomeWidgetAndroidConfiguration(), // [!code ++]
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  // ...
+)
+class Weather {}
+```
+
+A widget that set the URL on one platform only moves it to the annotation, where it applies to both:
+
+```dart
+@HomeWidget(
+  name: 'Weather',
+  widgetUrl: 'myapp://weather', // [!code ++]
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration( // [!code --]
+    groupId: 'group.com.example.app', // [!code --]
+    widgetUrl: 'myapp://weather', // [!code --]
+  ), // [!code --]
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'), // [!code ++]
+  // ...
+)
+class Weather {}
+```
+
+If the app has to behave differently per platform, branch on `Platform` where it handles the launch:
+
+```dart
+WeatherHomeWidget.launches().listen((launch) {
+  if (Platform.isAndroid) {
+    _openAndroidScreen();
+  } else {
+    _openWeather();
+  }
+});
+```
+
+To keep the Android widget from opening the app at all, `HomeWidgetAndroidConfiguration(openAppOnTap: false)` is unchanged. See [Widget Clicks](/generator/widget-url#widgets-that-should-not-open-the-app).
+
+The generated `androidWidgetUrl` and `iosWidgetUrl` fields are gone along with the overrides.
+
+## Launch Helpers Need a Plugin Update
+
+The launch helpers of a widget that sets `widgetUrl` or contains an `HWLink` call `HomeWidget.initialLaunch` and `HomeWidget.launches`, which `home_widget` has from 0.10.1. When `pubspec.lock` resolves an older hosted version, generation fails. Raise the constraint and run `flutter pub get`:
+
+```yaml
+dependencies:
+  home_widget: ^0.10.0 # [!code --]
+  home_widget: ^0.10.1 # [!code ++]
+```
+
+## Uri Launch Helpers Removed
+
+The generated helper class no longer reports taps as a `Uri`. The static `widgetUrl` field, `initiallyLaunchedFromWidget()`, `widgetClicked` and `launchedFromWidget()` are removed. A tap now arrives as a subclass of the generated sealed class `<Name>Launch`, through `initialLaunch()` and `launches()`. See [Widget Clicks](/generator/widget-url#the-generated-launch-model).
+
+| Removed | Replacement |
+| --- | --- |
+| `WeatherHomeWidget.launchedFromWidget()` | `WeatherHomeWidget.launches()` |
+| `WeatherHomeWidget.initiallyLaunchedFromWidget()` | `WeatherHomeWidget.initialLaunch()` |
+| `WeatherHomeWidget.widgetClicked` | `WeatherHomeWidget.launches()`, which emits the tap that started the app first |
+| `uri == WeatherHomeWidget.widgetUrl` | `launch is WeatherWidgetTap` |
+| `WeatherHomeWidget.widgetUrl` | `const WeatherWidgetTap().toUri()` |
+| The `Uri` of a tap | `launch.toUri()` |
+
+A typical listener changes like this:
+
+```dart
+late final StreamSubscription<Uri> _subscription; // [!code --]
+late final StreamSubscription<WeatherLaunch> _subscription; // [!code ++]
+
+@override
+void initState() {
+  super.initState();
+  _subscription = WeatherHomeWidget.launchedFromWidget().listen((uri) { // [!code --]
+    if (uri == WeatherHomeWidget.widgetUrl) _openWeather(); // [!code --]
+  }); // [!code --]
+  _subscription = WeatherHomeWidget.launches().listen((launch) { // [!code ++]
+    switch (launch) { // [!code ++]
+      case WeatherWidgetTap(): // [!code ++]
+        _openWeather(); // [!code ++]
+    } // [!code ++]
+  }); // [!code ++]
+}
+```
+
+The same goes for the launch that started the app:
+
+```dart
+final uri = await WeatherHomeWidget.initiallyLaunchedFromWidget(); // [!code --]
+if (uri != null) _openWeather(); // [!code --]
+final launch = await WeatherHomeWidget.initialLaunch(); // [!code ++]
+if (launch is WeatherWidgetTap) _openWeather(); // [!code ++]
+```
+
+Code that still needs the `Uri`, such as a router that takes one, reads it from the launch with `launch.toUri()`.
