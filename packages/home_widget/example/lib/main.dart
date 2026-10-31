@@ -5,8 +5,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:home_widget/home_widget.dart';
+import 'package:home_widget/home_widget.dart' as home_widget;
+import 'package:home_widget/home_widget.dart' hide callbackDispatcher;
 import 'package:workmanager/workmanager.dart';
+
+import 'macos_example.dart';
 
 /// Used for Background Updates using Workmanager Plugin
 @pragma("vm:entry-point")
@@ -66,10 +69,22 @@ Future<void> interactiveCallback(Uri? data) async {
   }
 }
 
+/// The macOS embedder resolves named entrypoints only in this root library.
+@pragma('vm:entry-point')
+Future<void> homeWidgetBackgroundMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await HomeWidget.registerInteractivityCallback(macOSBackgroundCallback);
+  await home_widget.callbackDispatcher();
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
-  runApp(const MaterialApp(home: MyApp()));
+  if (Platform.isAndroid || Platform.isIOS) {
+    Workmanager().initialize(callbackDispatcher, isInDebugMode: kDebugMode);
+  }
+  runApp(
+    Platform.isMacOS ? const MacOSExample() : const MaterialApp(home: MyApp()),
+  );
 }
 
 class MyApp extends StatefulWidget {

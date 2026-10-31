@@ -1,0 +1,96 @@
+// Reads the files saved by the Flutter example.
+import AppKit
+import SwiftUI
+import WidgetKit
+
+private let appGroupId = "group.es.antonborri.exampleHomeWidget"
+private let fileJsonKey = "fileJson"
+
+private let defaultJson = "{ \"name\": \"World\" }"
+private let previewJson = "{ \"name\": \"Preview\" }"
+
+struct Provider: TimelineProvider {
+  func placeholder(in context: Context) -> FileWidgetHomeWidgetEntry {
+    FileWidgetHomeWidgetEntry(date: Date(), displayName: "World", jsonString: defaultJson)
+  }
+
+  func getSnapshot(in context: Context, completion: @escaping (FileWidgetHomeWidgetEntry) -> Void) {
+    completion(Self.entry(preview: context.isPreview))
+  }
+
+  func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+    completion(Timeline(entries: [Self.entry()], policy: .atEnd))
+  }
+
+  private static func entry(preview: Bool = false) -> FileWidgetHomeWidgetEntry {
+    let (name, json, found) = loadFromFile()
+    // The gallery calls this with `isPreview` before any file was saved.
+    if preview && !found {
+      return FileWidgetHomeWidgetEntry(
+        date: Date(), displayName: "Preview", jsonString: previewJson)
+    }
+    return FileWidgetHomeWidgetEntry(date: Date(), displayName: name, jsonString: json)
+  }
+
+  private static func loadFromFile() -> (String, String, Bool) {
+    let prefs = UserDefaults(suiteName: appGroupId)
+    guard let path = prefs?.string(forKey: fileJsonKey), !path.isEmpty else {
+      return ("World", defaultJson, false)
+    }
+    guard FileManager.default.fileExists(atPath: path) else {
+      return ("World", defaultJson, false)
+    }
+    guard
+      let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+      let json = String(data: data, encoding: .utf8),
+      !json.isEmpty
+    else {
+      return ("World", defaultJson, false)
+    }
+
+    guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      return ("World", json, false)
+    }
+
+    var name = "World"
+    if let n = obj["name"] as? String, !n.isEmpty {
+      name = n
+    }
+
+    return (name, json, true)
+  }
+}
+
+struct FileWidgetHomeWidgetEntry: TimelineEntry {
+  let date: Date
+  let displayName: String
+  let jsonString: String
+}
+
+struct FileWidgetHomeWidgetEntryView: View {
+  var entry: Provider.Entry
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Text("Hello \(entry.displayName)!")
+        .font(.body)
+      Text(entry.jsonString)
+        .font(.system(size: 11, weight: .regular, design: .monospaced))
+        .foregroundColor(.primary)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .padding(12)
+  }
+}
+
+struct FileWidgetHomeWidget: Widget {
+  let kind: String = "FileWidgetHomeWidget"
+
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+      FileWidgetHomeWidgetEntryView(entry: entry)
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+    .configurationDisplayName("FileWidgetHomeWidget")
+  }
+}

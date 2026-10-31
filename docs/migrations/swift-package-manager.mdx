@@ -16,11 +16,13 @@ If you are using [Swift Package Manager for your Flutter App](https://docs.flutt
        use_frameworks!
        use_modular_headers!
 
-       pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios' # [!code --]
+       pod 'home_widget', :path => '.symlinks/plugins/home_widget/darwin' # [!code --]
     end
     ```
 
-    After removing the entry, run `pod install` once so CocoaPods updates its lock file.
+    Older versions used `.symlinks/plugins/home_widget/ios`; remove that entry if
+    it is present instead. After removing the entry, run `pod install` once so
+    CocoaPods updates its lock file.
   </Step>
 
   <Step title="Add frameworks">
@@ -33,3 +35,14 @@ If you are using [Swift Package Manager for your Flutter App](https://docs.flutt
        ![Select the FlutterGeneratedPluginSwiftPackage entry](/assets/swift-package-manager/select-generated-flutter-plugin.png)
   </Step>
 </Steps>
+
+## Native source directory change
+
+The native plugin package has moved from `ios/home_widget` to
+`darwin/home_widget`. Run `flutter pub get` to refresh Flutter's generated plugin
+package. If you added a local `home_widget` package reference manually, update
+its path to `darwin/home_widget` under the plugin directory. The Swift package
+product remains `home-widget` and the import remains `home_widget`.
+
+For CocoaPods setup, use the updated `darwin` path in the
+[interactive widget instructions](../features/interactive-widgets).

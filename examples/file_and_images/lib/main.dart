@@ -357,10 +357,11 @@ class _FileWidgetState extends State<FileWidget> {
             ),
           ),
           ElevatedButton(onPressed: _updateFile, child: Text('Update')),
-          ElevatedButton(
-            onPressed: _updateWidgetPreview,
-            child: Text('Update gallery preview'),
-          ),
+          if (Platform.isAndroid)
+            ElevatedButton(
+              onPressed: _updateWidgetPreview,
+              child: Text('Update gallery preview'),
+            ),
         ],
       ),
     );

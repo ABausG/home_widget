@@ -216,6 +216,16 @@ words:
     - undecoded
     - unmanaged
     - untinted
+    # macOS example and Xcode-generated interface attributes
+    - unconfigured
+    - embedder
+    - LTWH
+    - Autolayout
+    - Instantitation
+    - unhide
+    - autorecalculates
+    - miniaturizable
+    - autoresizing
     - upsert
 ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)

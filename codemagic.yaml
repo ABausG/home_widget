@@ -21,7 +21,7 @@ definitions:
       changeset:
         includes:
           - 'packages/home_widget/lib/**'
-          - 'packages/home_widget/ios/**'
+          - 'packages/home_widget/darwin/**'
           - 'packages/home_widget/pubspec.yaml'
           - 'packages/home_widget/example/lib/**'
           - 'packages/home_widget/example/ios/**'

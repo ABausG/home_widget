@@ -1,0 +1,12 @@
+# Flutter-related
+**/Flutter/ephemeral/
+**/Pods/
+
+# Xcode-related
+**/dgph
+**/xcuserdata/
+
+# Track the source wrappers and workspace despite broader package ignores.
+!Flutter/Flutter-Debug.xcconfig
+!Flutter/Flutter-Release.xcconfig
+!Runner.xcworkspace/contents.xcworkspacedata

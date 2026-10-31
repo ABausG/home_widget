@@ -1,9 +1,9 @@
-/// Represents information about the pinned home widget.
+/// Represents information about a widget configuration or pinned Android widget.
 class HomeWidgetInfo {
-  /// Only iOS. The size of the widget: small, medium, or large.
+  /// iOS and macOS. The WidgetKit family, using the historical field name.
   String? iOSFamily;
 
-  /// Only iOS. The string specified during creation of the widget’s configuration.
+  /// iOS and macOS. The Widget kind, using the historical field name.
   String? iOSKind;
 
   /// Only Android. Unique identifier for each instance of the widget, used for tracking individual widget usage.
@@ -15,8 +15,9 @@ class HomeWidgetInfo {
   /// Only Android. Loads the localized label to display to the user in the AppWidget picker.
   String? androidLabel;
 
-  /// Only iOS. The configuration of the widget if setup as a configurable widget.
-  /// In case `WidgetConfigurationIntent` is used, the configuration needs to passed to the Widget
+  /// iOS and macOS. Configuration values for a configurable widget, when available.
+  /// For `WidgetConfigurationIntent`, register its type with the native
+  /// `HomeWidgetPlugin.setConfigurationLookup` in the host app.
   Map<String, dynamic>? configuration;
 
   /// Constructs a [HomeWidgetInfo] object.

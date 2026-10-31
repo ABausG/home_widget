@@ -1,0 +1,3 @@
+PRODUCT_NAME = generator_basics
+PRODUCT_BUNDLE_IDENTIFIER = es.antonborri.generatorbasics.macos
+PRODUCT_COPYRIGHT = Copyright © 2026

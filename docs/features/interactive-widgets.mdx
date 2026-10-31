@@ -5,7 +5,7 @@ description: Build Interactive Widgets that call Flutter Code from Native Widget
 
 # Interactive Widgets
 
-Android and iOS (starting with iOS 17) allow widgets to have interactive Elements like Buttons.
+Android, iOS (starting with iOS 17) and macOS (starting with macOS 14) allow widgets to have interactive Elements like Buttons.
 Using home_widget you can register Dart Callbacks that get invoked from the Native Widgets so you only have to write that logic once.
 
 <center>
@@ -29,6 +29,10 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
     HomeWidget.registerInteractivityCallback(backgroundCallback);
     ```
 
+## macOS Setup
+
+For macOS, follow the [Interactive Widgets setup](/setup/macos#interactive-widgets) to register the callback in your app.
+
 ## iOS Setup
 
 ### CocoaPods
@@ -39,9 +43,14 @@ target 'YourWidgetExtension' do
    use_frameworks!
    use_modular_headers!
 
-   pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+   pod 'home_widget', :path => '.symlinks/plugins/home_widget/darwin'
 end
 ```
+
+The plugin's native source is now in `darwin/`. If your Podfile uses the older
+`.symlinks/plugins/home_widget/ios` path, replace it with the path above, then run
+`flutter pub get` from your app's root directory, followed by `pod install` from
+its `ios/` directory.
 
 ### Swift Package Manager
 

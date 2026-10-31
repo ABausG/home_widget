@@ -8,14 +8,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path_provider_foundation/path_provider_foundation.dart';
 
 /// A Flutter Plugin to simplify setting up and communicating with HomeScreenWidgets
 class HomeWidget {
   static const MethodChannel _channel = MethodChannel('home_widget');
   static const EventChannel _eventChannel = EventChannel('home_widget/updates');
 
-  /// The AppGroupId used for iOS Widgets
+  /// The default AppGroupId used for iOS and macOS Widgets.
   static String? groupId;
 
   /// Save [data] to the Widget Storage
@@ -52,11 +51,13 @@ class HomeWidget {
   /// Updates the HomeScreen Widget
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
-  /// iOS Widgets will look for [iOSName] and then for [name]
+  /// iOS and macOS Widgets look for [iOSName] and then [name].
   ///
   /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider
   /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name
-  /// The name of the iOS Widget must match the kind specified when creating the Widget
+  /// On iOS and macOS the name must match the Widget kind. [iOSName] remains
+  /// a supported alias on both platforms. A `true` result means a refresh was
+  /// requested; WidgetKit decides when to render the new timeline.
   static Future<bool?> updateWidget({
     String? name,
     String? androidName,
@@ -83,10 +84,10 @@ class HomeWidget {
   /// twice per hour and Widget), below Android 15, and when the resolved
   /// provider is not a Glance Widget.
   ///
-  /// On iOS this does nothing and returns `false`, whatever it is passed:
+  /// On iOS and macOS this does nothing and returns `false`, whatever it is passed:
   /// WidgetKit renders the gallery preview itself by calling the Widget's
   /// `getSnapshot` with `context.isPreview` set, so there is no preview for the
-  /// plugin to push and no iOS Widget to name.
+  /// plugin to push and no iOS or macOS Widget to name.
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
   ///
@@ -113,7 +114,7 @@ class HomeWidget {
   /// This is Android only. There the plugin uses `AlarmManager` to broadcast a
   /// Widget update at each of the given times, and returns `true`.
   ///
-  /// On iOS this does nothing and returns `false`. A WidgetKit Widget decides
+  /// On iOS and macOS this does nothing and returns `false`. A WidgetKit Widget decides
   /// for itself when its content changes by returning future `TimelineEntry`s
   /// from its `TimelineProvider`, so there is no schedule for the plugin to
   /// keep. Write the times into the Widget's data with [saveWidgetData] (or
@@ -170,7 +171,7 @@ class HomeWidget {
 
   /// Cancels all updates scheduled with [scheduleWidgetUpdates]
   ///
-  /// This is Android only and returns `true` there. On iOS nothing was ever
+  /// This is Android only and returns `true` there. On iOS and macOS nothing was ever
   /// scheduled, so this does nothing and returns `false`.
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
@@ -195,7 +196,7 @@ class HomeWidget {
 
   /// Whether [scheduleWidgetUpdates] can schedule *exact* updates
   ///
-  /// On iOS this is always `false`: [scheduleWidgetUpdates] schedules nothing
+  /// On iOS and macOS this is always `false`: [scheduleWidgetUpdates] schedules nothing
   /// there, and WidgetKit renders a Widget's own timeline entries on a best
   /// effort basis, so it may show them later than their date.
   ///
@@ -225,7 +226,7 @@ class HomeWidget {
   /// This is supported only on some Android Launchers and only with Android API 26+
   ///
   /// Android Widgets will look for [qualifiedAndroidName] then [androidName] and then for [name]
-  /// There is no iOS alternative.
+  /// There is no iOS or macOS alternative.
   ///
   /// [qualifiedAndroidName] will use the name as is to find the WidgetProvider.
   /// [androidName] must match the classname of the WidgetProvider, prefixed by the package name.
@@ -259,14 +260,22 @@ class HomeWidget {
     return _channel.invokeMethod<T>('getWidgetData', arguments);
   }
 
-  /// Required on iOS to set the AppGroupId [groupId] in order to ensure
-  /// communication between the App and the Widget Extension
+  /// Sets the default App Group for iOS and macOS shared widget data.
+  ///
+  /// Data calls can override this with their per-call `appGroupId`.
+  /// This only records the identifier. On macOS, data access throws a
+  /// [PlatformException] with code `-9` if the process's App Groups entitlement
+  /// does not authorize the resolved group.
   static Future<bool?> setAppGroupId(String groupId) {
     HomeWidget.groupId = groupId;
     return _channel.invokeMethod('setAppGroupId', {'groupId': groupId});
   }
 
-  /// Checks if the App was initially launched via the Widget
+  /// Returns the cached Widget URI that started the app, if already delivered.
+  ///
+  /// On macOS, retain the example AppDelegate startup forwarding when adapting
+  /// a custom host or registering plugins late. Repeated queries do not consume
+  /// the URI; running clicks do not replace it.
   static Future<Uri?> initiallyLaunchedFromHomeWidget() {
     return _channel
         .invokeMethod<String>('initiallyLaunchedFromHomeWidget')
@@ -287,7 +296,9 @@ class HomeWidget {
     return _channel.invokeMethod<void>('finishHomeWidgetConfigure');
   }
 
-  /// Receives Updates if App Launched via the Widget
+  /// Receives Widget URI events while listening, including repeated clicks.
+  /// Listening does not replay events; query [initiallyLaunchedFromHomeWidget]
+  /// for a cached launch URI after late subscription.
   static Stream<Uri?> get widgetClicked {
     return _eventChannel.receiveBroadcastStream().map<Uri?>(
       _handleReceivedData,
@@ -375,9 +386,11 @@ class HomeWidget {
   /// Writes [bytes] to the shared widget storage area and stores the absolute
   /// file path under [key] via [saveWidgetData] (same as [renderFlutterWidget]).
   ///
-  /// On iOS the file is written under the app group container; on Android under
-  /// the application support directory. In both cases the path is
+  /// On iOS and macOS the file is written under the app group container;
+  /// on Android under the application support directory. The path is
   /// `{container}/home_widget/{key}.{extension}`.
+  /// [appGroupId] overrides the default group on iOS and macOS. An unavailable
+  /// container or a file write failure throws; private storage is not a fallback.
   static Future<String> saveFile(
     String key,
     Uint8List bytes, {
@@ -389,26 +402,19 @@ class HomeWidget {
 
     try {
       late final String? directory;
-      // coverage:ignore-start
-      if (Platform.isIOS) {
-        final PathProviderFoundation provider = PathProviderFoundation();
-        final resolvedGroupId = appGroupId ?? HomeWidget.groupId;
-        assert(
-          resolvedGroupId != null,
-          'No groupId defined. Did you forget to call `HomeWidget.setAppGroupId`',
-        );
-        directory = await provider.getContainerPath(
-          appGroupIdentifier: resolvedGroupId!,
+      if (Platform.isIOS || Platform.isMacOS) {
+        directory = await _channel.invokeMethod<String>(
+          'getWidgetContainerPath',
+          {if (appGroupId != null) 'appGroupId': appGroupId},
         );
 
-        if (directory == null) {
+        if (directory == null || directory.isEmpty) {
           throw StateError(
-            'Widget storage directory is null for group "$resolvedGroupId". '
+            'Widget storage directory is unavailable. '
             'Verify App Group configuration and HomeWidget.setAppGroupId.',
           );
         }
       } else {
-        // coverage:ignore-end
         directory = (await getApplicationSupportDirectory()).path;
       }
 
@@ -487,6 +493,7 @@ class HomeWidget {
   ///
   /// This method can throw in case the widget could not be converted to an
   /// image or if the image could not be saved to a file.
+  /// A Dart Flutter view is required; engines without one fail explicitly.
   static Future<String> renderFlutterWidget(
     Widget widget, {
     required String key,
@@ -494,8 +501,14 @@ class HomeWidget {
     double? pixelRatio,
     String? appGroupId,
   }) async {
-    pixelRatio ??=
-        PlatformDispatcher.instance.implicitView?.devicePixelRatio ?? 1;
+    final view = ui.PlatformDispatcher.instance.implicitView;
+    if (view == null) {
+      throw Exception(
+        'Failed to render the widget: a Flutter view is required. '
+        'Headless screenshot rendering is not supported.',
+      );
+    }
+    pixelRatio ??= view.devicePixelRatio;
 
     /// finding the widget in the current context by the key.
     final RenderRepaintBoundary repaintBoundary = RenderRepaintBoundary();
@@ -508,7 +521,7 @@ class HomeWidget {
 
     try {
       final RenderView renderView = RenderView(
-        view: ui.PlatformDispatcher.instance.implicitView!,
+        view: view,
         child: RenderPositionedBox(
           alignment: Alignment.center,
           child: repaintBoundary,
@@ -587,11 +600,14 @@ class HomeWidget {
     }
   }
 
-  /// On iOS, returns a list of [HomeWidgetInfo] for each type of widget currently installed,
-  /// regardless of the number of instances.
+  /// On iOS and macOS, returns WidgetKit configuration information.
+  /// The historical [HomeWidgetInfo.iOSFamily] and [HomeWidgetInfo.iOSKind]
+  /// fields also describe macOS widgets. The result is not an exact count of
+  /// desktop instances; configurations without available values omit them.
   /// On Android, returns a list of [HomeWidgetInfo] for each instance of each widget
   /// currently pinned on the home screen.
-  /// Returns an empty list if no widgets are pinned.
+  /// Returns an empty list when the platform reports no widgets.
+  /// Platform query errors propagate; they are not converted to an empty list.
   static Future<List<HomeWidgetInfo>> getInstalledWidgets() async {
     final result =
         await _channel.invokeMethod('getInstalledWidgets') as List<dynamic>?;

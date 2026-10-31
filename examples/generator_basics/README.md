@@ -80,3 +80,25 @@ Because `widget_link.dart` sets `widgetUrl`, the CLI also adds the
 `es.antonborri.home_widget.action.LAUNCH` intent-filter to the launcher activity
 in that same manifest — that is what hands the URL to the app when the widget is
 tapped.
+
+## macOS
+
+Run `flutter run -d macos`. This example requires macOS 14 or later.
+Open `macos/Runner.xcworkspace` in Xcode and select your signing team for Runner
+and each Widget Extension. Use your own bundle identifiers, keeping each
+extension identifier prefixed by the host identifier.
+
+Enable the same App Group for the host and all extensions. Replace the sample
+group in the Debug/Release entitlements and the widget sources; it must match
+the group used by the Dart code. Then run the signed app and add the widgets
+from your Mac's widget gallery.
+
+The macOS Xcode project is maintained manually. `home_widget_cli` still
+scaffolds Android/iOS projects; running it does not create or update macOS
+targets. The Dart helpers use the existing `iOSName` alias for macOS Widget kinds.
+
+Most targets compile the existing generated SwiftUI sources from `ios/`.
+The macOS versions under `macos/Widgets/` adapt the platform greeting, image
+and font asset paths, and supported sizes. Keep those files in sync when
+changing their schemas. Lock Screen accessory sizes are omitted on macOS.
+The Widget Link target uses the host's registered `generatorBasics` URL scheme.

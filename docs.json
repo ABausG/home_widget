@@ -45,6 +45,7 @@
       "group": "Platform Setup",
       "pages": [
         { "title": "iOS", "href": "/setup/ios" },
+        { "title": "macOS", "href": "/setup/macos" },
         { "title": "Android", "href": "/setup/android" }
       ]
     },

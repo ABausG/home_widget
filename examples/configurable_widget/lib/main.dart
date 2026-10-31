@@ -85,7 +85,7 @@ class _MainAppState extends State<MainApp> {
     return <String, dynamic>{'name': name, 'punctuation': punctuation};
   }
 
-  /// Loads pinned home screen widget instances (Android: per instance; iOS: per kind).
+  /// Loads pinned home screen widget instances (Android: per instance; iOS/macOS: per kind).
   Future<void> _getInstalledWidgets() async {
     try {
       final installedWidgets = await HomeWidget.getInstalledWidgets();
@@ -96,7 +96,8 @@ class _MainAppState extends State<MainApp> {
           configuration = await _androidConfigurationFromStorage(
             w.androidWidgetId!,
           );
-        } else if (Platform.isIOS && w.configuration != null) {
+        } else if ((Platform.isIOS || Platform.isMacOS) &&
+            w.configuration != null) {
           configuration = Map<String, dynamic>.from(w.configuration!);
         }
         entries.add(
@@ -114,7 +115,7 @@ class _MainAppState extends State<MainApp> {
 
   String _describeWidget(_InstalledWidgetEntry entry) {
     final widget = entry.info;
-    if (Platform.isIOS) {
+    if (Platform.isIOS || Platform.isMacOS) {
       final parts = <String>[
         if (widget.iOSFamily != null) 'family: ${widget.iOSFamily}',
         if (widget.iOSKind != null) 'kind: ${widget.iOSKind}',
