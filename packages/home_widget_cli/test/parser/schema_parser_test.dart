@@ -182,6 +182,38 @@ void main() {
       expect(spec!.data.android?.openAppOnTap, true);
     });
 
+    test('parses useGlanceTheme flag correctly', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Glance Theme Test',
+          android: const HomeWidgetAndroidConfiguration(useGlanceTheme: false),
+        )
+        class GlanceThemeWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.android?.useGlanceTheme, false);
+    });
+
+    test('defaults useGlanceTheme to true', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Glance Theme Default',
+          android: const HomeWidgetAndroidConfiguration(),
+        )
+        class GlanceThemeDefaultWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(spec, isNotNull);
+      expect(spec!.data.android?.useGlanceTheme, true);
+    });
+
     test('parses the top-level widgetUrl', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
