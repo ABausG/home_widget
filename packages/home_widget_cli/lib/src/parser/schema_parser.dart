@@ -166,6 +166,7 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
       HWAndroidWidgetCategory.values,
     ),
     updatePeriodMillis: obj.getField('updatePeriodMillis')?.toIntValue(),
+    useGlanceTheme: obj.getField('useGlanceTheme')?.toBoolValue() ?? true,
     backgroundColor:
         WidgetValueDecoder.decodeColor(obj.getField('backgroundColor')),
     applyContentPadding:
