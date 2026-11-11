@@ -37,8 +37,6 @@ class HomeWidgetPlugin :
 
   private var activity: Activity? = null
   private var receiver: BroadcastReceiver? = null
-  private var launchIntent: Intent? = null
-  private val pendingClicks = mutableListOf<Any>()
   private val doubleLongPrefix: String = "home_widget.double."
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -164,9 +162,10 @@ class HomeWidgetPlugin :
       }
       "initiallyLaunchedFromHomeWidget" -> {
         return if (
-            launchIntent?.action?.equals(HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) == true
+            activity?.intent?.action?.equals(HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) ==
+                true
         ) {
-          result.success(launchIntent?.data?.toString() ?: "")
+          result.success(activity?.intent?.data?.toString() ?: "")
         } else {
           result.success(null)
         }
@@ -365,7 +364,6 @@ class HomeWidgetPlugin :
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     activity = binding.activity
-    launchIntent = binding.activity.intent
     binding.addOnNewIntentListener(this)
   }
 
@@ -382,14 +380,10 @@ class HomeWidgetPlugin :
   override fun onDetachedFromActivity() {
     unregisterReceiver()
     activity = null
-    launchIntent = null
   }
 
   override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
     receiver = createReceiver(events)
-    val clicks = pendingClicks.toList()
-    pendingClicks.clear()
-    clicks.forEach { events?.success(it) }
   }
 
   override fun onCancel(arguments: Any?) {
@@ -401,13 +395,11 @@ class HomeWidgetPlugin :
     return object : BroadcastReceiver() {
       override fun onReceive(context: Context?, intent: Intent?) {
         if (intent?.action.equals(HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION)) {
-          events?.success(clickEvent(intent))
+          events?.success(intent?.data?.toString() ?: true)
         }
       }
     }
   }
-
-  private fun clickEvent(intent: Intent?): Any = intent?.data?.toString() ?: true
 
   private fun unregisterReceiver() {
     try {
@@ -420,15 +412,7 @@ class HomeWidgetPlugin :
   }
 
   override fun onNewIntent(intent: Intent): Boolean {
-    val listener = receiver
-    if (listener != null) {
-      listener.onReceive(context, intent)
-      return true
-    }
-    if (intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
-      pendingClicks.add(clickEvent(intent))
-      return true
-    }
-    return false
+    receiver?.onReceive(context, intent)
+    return receiver != null
   }
 }
