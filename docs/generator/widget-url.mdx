@@ -119,7 +119,7 @@ void dispose() {
 
 The switch is exhaustive because the class is sealed: a link added to the widget later is a compile error until the app handles it.
 
-`launches()` subscribes to taps before it reads the URL the app was started with, so a tap arriving while that read is in flight is kept and not dropped.
+`launches()` reads the URL the app was started with first and then listens to taps, so a tap arriving while that read is in flight is not reported.
 
 <Info>
 The launch helpers call `HomeWidget.initialLaunch` and `HomeWidget.launches`, which `home_widget` has from 0.10.1. When `pubspec.lock` resolves an older hosted `home_widget`, generation fails with a message asking you to raise the constraint.
