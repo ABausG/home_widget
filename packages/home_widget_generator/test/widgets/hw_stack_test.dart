@@ -562,7 +562,8 @@ Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopSta
             ).toKotlin(0, dataExpr: 'data'),
             allOf(
               contains(
-                  'contentAlignment = Alignment.BottomEnd) {\n        data'),
+                'contentAlignment = Alignment.BottomEnd) {\n        data',
+              ),
               contains(
                 'modifier = GlanceModifier.width(24.0.dp).height(24.0.dp),',
               ),
