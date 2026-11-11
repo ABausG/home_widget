@@ -2804,6 +2804,128 @@ class HWItemData<T> extends HWDataType<T> {
   }
 }
 
+/// Names a value a tap target sends to the app.
+///
+/// `HWPayload('days', HWInt.fixed(7))` sends the constant as `days`, and
+/// `HWPayload('city', HWString('selectedCity'))` sends a stored value under a
+/// name other than its key. A stored value needs no wrapper: it is sent under
+/// its key.
+///
+/// Only valid as an entry of a `data` list or of `HomeWidget.widgetUrlData`,
+/// never inside another wrapper; an item field goes inside it, as
+/// `HWPayload('id', HWItemData(HWString('uuid')))`. Typed like the value it
+/// names.
+class HWPayload<T> extends HWDataType<T> {
+  /// The name the value is sent under, which is also the field of the
+  /// generated class holding it.
+  final String name;
+
+  /// The value to send.
+  final HWDataType<T> value;
+
+  const HWPayload(this.name, this.value) : super('');
+
+  @override
+  String get key => name;
+
+  @override
+  T? get defaultValue => value.defaultValue;
+
+  @override
+  T? get previewValue => value.previewValue;
+
+  @override
+  bool get isFixed => value.isFixed;
+
+  @override
+  bool get isDataDependency => value.isDataDependency;
+
+  @override
+  String get dartType => value.dartType;
+
+  @override
+  String get kotlinType => value.kotlinType;
+
+  @override
+  String get swiftType => value.swiftType;
+
+  @override
+  String androidReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) =>
+      value.androidReadValue(store: store, key: key, preview: preview);
+
+  @override
+  String iosReadValue({
+    required String store,
+    required String key,
+    bool preview = false,
+  }) =>
+      value.iosReadValue(store: store, key: key, preview: preview);
+
+  @override
+  String androidToString({
+    required String outerValue,
+    required String innerValue,
+  }) =>
+      value.androidToString(outerValue: outerValue, innerValue: innerValue);
+
+  @override
+  String iosToString({
+    required String outerValue,
+    required String innerValue,
+  }) =>
+      value.iosToString(outerValue: outerValue, innerValue: innerValue);
+
+  @override
+  String swiftAccess(String dataExpr) => value.swiftAccess(dataExpr);
+
+  @override
+  String kotlinAccess(String dataExpr) => value.kotlinAccess(dataExpr);
+
+  @override
+  String kotlinReadExpr(String dataExpr) => value.kotlinReadExpr(dataExpr);
+
+  @override
+  String swiftReadExpr(String dataExpr) => value.swiftReadExpr(dataExpr);
+
+  @override
+  List<HWNativeHelper> get nativeHelpers => value.nativeHelpers;
+
+  @override
+  HWDataType<dynamic> get unwrapped => value.unwrapped;
+
+  @override
+  HWDataType<dynamic> get leaf => value.leaf;
+
+  /// Stable stand-in for the class identity in [hashCode], for the reason
+  /// [HWTimedData] has one.
+  static const String _hashTag = 'HWPayload';
+
+  /// Compatible with another entry of the same name naming a compatible value.
+  @override
+  bool isCompatibleWith(HWDataType<dynamic> other) =>
+      other is HWPayload &&
+      name == other.name &&
+      value.isCompatibleWith(other.value);
+
+  @override
+  HWPayload<T> _merged(HWDataType<dynamic> other) {
+    final payload = other as HWPayload<dynamic>;
+    return HWPayload<T>(name, value.mergedWith(payload.value));
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HWPayload && name == other.name && value == other.value;
+
+  @override
+  int get hashCode => Object.hash(_hashTag, name, value);
+}
+
 /// Whether two declarations of the same optional list can be merged: they hold
 /// equal elements, or only one of them sets it.
 bool _listsMergeable(List<Object?>? a, List<Object?>? b) =>

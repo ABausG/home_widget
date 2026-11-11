@@ -1,8 +1,11 @@
 // ignore_for_file: deprecated_member_use
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/constant/value.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/diagnostic/diagnostic.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
@@ -31,6 +34,8 @@ Future<List<WidgetSpec>> parseSchemaFile(
     // coverage:ignore-end
   }
 
+  await _rejectBrokenAnnotations(result, filePath);
+
   final specs = <WidgetSpec>[];
   for (final element in result.libraryElement.classes) {
     if (_hasHomeWidgetAnnotation(element)) {
@@ -41,6 +46,148 @@ Future<List<WidgetSpec>> parseSchemaFile(
     }
   }
   return specs;
+}
+
+/// Where the migration guides of `home_widget_generator` start.
+const String generatorMigrationGuideUrl =
+    'https://docs.page/ABausG/home_widget/generator/migrations/0.5.0';
+
+/// Fails when the analyzer reports an error inside a `@HomeWidget(...)`
+/// annotation of [result]: a parameter, constructor or widget that does not
+/// exist, or a value that is no constant.
+///
+/// The analyzer still evaluates such an annotation, leaving out what it could
+/// not resolve, so the widget would be generated from something other than
+/// what the schema says. The same goes for a `const` variable of the project
+/// the annotation refers to, and for the ones that refers to in turn. Errors
+/// anywhere else are left alone: a schema may sit next to code that only
+/// compiles once the helpers exist.
+Future<void> _rejectBrokenAnnotations(
+  ResolvedUnitResult result,
+  String filePath,
+) async {
+  for (final declaration in result.unit.declarations) {
+    for (final annotation in declaration.metadata) {
+      if (annotation.name.name.split('.').last != 'HomeWidget') continue;
+
+      final lines = [
+        ..._problemsIn(annotation, result),
+        ...await _problemsInReferencedConstants(annotation, result),
+      ];
+      if (lines.isEmpty) continue;
+
+      throw GeneratorError(
+        '$filePath: the @HomeWidget annotation does not compile, so no widget '
+        'can be generated from it:\n'
+        '${lines.join('\n')}\n'
+        'A parameter, constructor or widget that a newer '
+        'home_widget_generator removed is listed with its replacement in the '
+        'migration guides: $generatorMigrationGuideUrl',
+      );
+    }
+  }
+}
+
+/// The errors the analyzer reports inside [node], a node of [unit], one line
+/// each, located by line and column and by [origin] where given.
+List<String> _problemsIn(
+  AstNode node,
+  ResolvedUnitResult unit, {
+  String origin = '',
+}) =>
+    [
+      for (final diagnostic in unit.diagnostics)
+        if (diagnostic.severity == Severity.error &&
+            diagnostic.offset >= node.offset &&
+            diagnostic.offset < node.end)
+          () {
+            final location = unit.lineInfo.getLocation(diagnostic.offset);
+            return '  $origin${location.lineNumber}:${location.columnNumber}: '
+                '${diagnostic.message}';
+          }(),
+    ];
+
+/// The errors inside the declaration of every `const` variable [root], a node
+/// of [unit], refers to, directly or through another such variable.
+///
+/// Only variables declared in a file of the project are looked at: one of a
+/// package is not the schema author's to fix.
+Future<List<String>> _problemsInReferencedConstants(
+  AstNode root,
+  ResolvedUnitResult unit,
+) async {
+  final lines = <String>[];
+  final seen = <PropertyInducingElement>{};
+  final units = <String, ResolvedUnitResult?>{unit.path: unit};
+  final pending = <AstNode>[root];
+
+  while (pending.isNotEmpty) {
+    final references = _ConstantReferences();
+    pending.removeLast().accept(references);
+
+    for (final variable in references.variables) {
+      if (!seen.add(variable)) continue;
+      final path = variable.firstFragment.libraryFragment.source.fullName;
+      if (!units.containsKey(path)) {
+        final context = unit.session.analysisContext;
+        final resolved = context.contextRoot.isAnalyzed(path)
+            ? await unit.session.getResolvedUnit(path)
+            : null;
+        units[path] = resolved is ResolvedUnitResult ? resolved : null;
+      }
+      final declaring = units[path];
+      if (declaring == null) continue;
+
+      final finder = _VariableDeclarationFinder(variable);
+      declaring.unit.accept(finder);
+      final declaration = finder.declaration;
+      // An enum value is no variable declaration.
+      if (declaration == null) continue; // coverage:ignore-line
+
+      final file = path == unit.path ? '' : '$path:';
+      lines.addAll(
+        _problemsIn(
+          declaration,
+          declaring,
+          origin: 'const ${variable.name}, $file',
+        ),
+      );
+      pending.add(declaration);
+    }
+  }
+  return lines;
+}
+
+/// Collects the top-level and static `const` variables a node refers to.
+class _ConstantReferences extends RecursiveAstVisitor<void> {
+  final List<PropertyInducingElement> variables = [];
+
+  @override
+  void visitSimpleIdentifier(SimpleIdentifier node) {
+    final element = node.element;
+    if (element is GetterElement) {
+      final variable = element.variable;
+      final shared = variable is TopLevelVariableElement ||
+          (variable is FieldElement && variable.isStatic);
+      if (variable.isConst && shared) variables.add(variable);
+    }
+    super.visitSimpleIdentifier(node);
+  }
+}
+
+/// Finds the declaration of [variable] in the unit it visits.
+class _VariableDeclarationFinder extends RecursiveAstVisitor<void> {
+  final PropertyInducingElement variable;
+
+  VariableDeclaration? declaration;
+
+  _VariableDeclarationFinder(this.variable);
+
+  @override
+  void visitVariableDeclaration(VariableDeclaration node) {
+    if (node.declaredFragment?.element == variable) declaration = node;
+    super.visitVariableDeclaration(node);
+  }
 }
 
 bool _isHomeWidgetAnnotation(ElementAnnotation meta) {
@@ -88,12 +235,25 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
     ).decode();
   }
 
+  final widgetUrlData = WidgetValueDecoder.decodePayload(
+    constantValue.getField('widgetUrlData'),
+    owner: 'widgetUrlData',
+    defaultLocale: localization?.defaultLocale,
+    resourcePrefix: widgetResourcePrefix(generatedClassName),
+  );
+
   // Data fields
   final dataFields = <HWDataType<dynamic>>[];
   if (widgetTree != null) {
     final dependencies = widgetTree.dataDependencies;
     for (final dep in dependencies) {
       dataFields.add(dep);
+    }
+  }
+  // The widget reads what its URL sends along, shown or not.
+  for (final entry in HWPayloadEntry.listOf(widgetUrlData)) {
+    if (entry.value.isDataDependency && !dataFields.contains(entry.value)) {
+      dataFields.add(entry.value);
     }
   }
 
@@ -109,6 +269,7 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
       iOS: iosConfig,
       localization: localization,
       widgetUrl: constantValue.getField('widgetUrl')?.toStringValue(),
+      widgetUrlData: widgetUrlData,
       flavors: _extractFlavors(constantValue.getField('flavors')),
       useLiveDataInPreview:
           constantValue.getField('useLiveDataInPreview')?.toBoolValue() ?? true,
@@ -171,7 +332,6 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
-    widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
     openAppOnTap: obj.getField('openAppOnTap')?.toBoolValue() ?? true,
     // Nullable on purpose: unset inherits the top-level value.
     useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
@@ -199,7 +359,6 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     ),
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
-    widgetUrl: obj.getField('widgetUrl')?.toStringValue(),
     useLiveDataInPreview: obj.getField('useLiveDataInPreview')?.toBoolValue(),
     provisioningProfile: obj.getField('provisioningProfile')?.toStringValue(),
   );

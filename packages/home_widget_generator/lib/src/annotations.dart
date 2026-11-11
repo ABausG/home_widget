@@ -1,3 +1,4 @@
+import 'types.dart';
 import 'utils/content_hash.dart';
 import 'utils/map_equals.dart';
 import 'widgets/hw_color.dart';
@@ -131,15 +132,10 @@ class HomeWidgetAndroidConfiguration {
   /// Defaults to `true`. If true, applies `GlanceModifier.fillMaxSize()`.
   final bool fillWidgetContent;
 
-  /// The URL passed to the app when the widget is tapped.
-  ///
-  /// Overrides [HomeWidget.widgetUrl] on Android.
-  final String? widgetUrl;
-
   /// Whether tapping the widget opens the app.
   ///
   /// Defaults to `true`. When false, the widget is not made clickable at all,
-  /// even if a [widgetUrl] is configured.
+  /// even if a [HomeWidget.widgetUrl] or an `HWLink` is configured.
   final bool openAppOnTap;
 
   /// Whether the gallery preview reads the widget's stored data on Android.
@@ -171,7 +167,6 @@ class HomeWidgetAndroidConfiguration {
     this.backgroundColor = const HWDefaultColor(HWColorRole.defaultBackground),
     this.applyContentPadding = true,
     this.fillWidgetContent = true,
-    this.widgetUrl,
     this.openAppOnTap = true,
     this.useLiveDataInPreview,
     this.autoUpdatePreview = true,
@@ -197,7 +192,6 @@ class HomeWidgetAndroidConfiguration {
           backgroundColor == other.backgroundColor &&
           applyContentPadding == other.applyContentPadding &&
           fillWidgetContent == other.fillWidgetContent &&
-          widgetUrl == other.widgetUrl &&
           openAppOnTap == other.openAppOnTap &&
           useLiveDataInPreview == other.useLiveDataInPreview &&
           autoUpdatePreview == other.autoUpdatePreview;
@@ -220,7 +214,6 @@ class HomeWidgetAndroidConfiguration {
       backgroundColor.hashCode ^
       applyContentPadding.hashCode ^
       fillWidgetContent.hashCode ^
-      widgetUrl.hashCode ^
       openAppOnTap.hashCode ^
       useLiveDataInPreview.hashCode ^
       autoUpdatePreview.hashCode;
@@ -362,11 +355,6 @@ class HomeWidgetIOSConfiguration {
   /// Defaults to `true`. If false, disables the default system padding using contentMarginsDisabled().
   final bool applyContentPadding;
 
-  /// The URL passed to the app when the widget is tapped.
-  ///
-  /// Overrides [HomeWidget.widgetUrl] on iOS.
-  final String? widgetUrl;
-
   /// Whether the gallery preview reads the widget's stored data on iOS.
   ///
   /// Null inherits [HomeWidget.useLiveDataInPreview].
@@ -393,7 +381,6 @@ class HomeWidgetIOSConfiguration {
     this.supportedFamilies,
     this.backgroundColor,
     this.applyContentPadding = true,
-    this.widgetUrl,
     this.useLiveDataInPreview,
     this.provisioningProfile,
   });
@@ -406,7 +393,6 @@ class HomeWidgetIOSConfiguration {
           supportedFamilies == other.supportedFamilies &&
           backgroundColor == other.backgroundColor &&
           applyContentPadding == other.applyContentPadding &&
-          widgetUrl == other.widgetUrl &&
           useLiveDataInPreview == other.useLiveDataInPreview &&
           provisioningProfile == other.provisioningProfile;
 
@@ -416,7 +402,6 @@ class HomeWidgetIOSConfiguration {
       supportedFamilies.hashCode ^
       backgroundColor.hashCode ^
       applyContentPadding.hashCode ^
-      widgetUrl.hashCode ^
       useLiveDataInPreview.hashCode ^
       provisioningProfile.hashCode;
 }
@@ -521,7 +506,7 @@ class HomeWidgetLocalization {
       );
 }
 
-bool _listEquals(List<String> a, List<String> b) {
+bool _listEquals(List<Object?> a, List<Object?> b) {
   if (a.length != b.length) return false;
   for (var i = 0; i < a.length; i++) {
     if (a[i] != b[i]) return false;
@@ -564,11 +549,16 @@ class HomeWidget {
 
   /// The URL passed to the app when the widget is tapped.
   ///
-  /// Tapping the widget launches the app with this URL, which the app reads
-  /// through the generated launch helpers. Set
-  /// [HomeWidgetAndroidConfiguration.widgetUrl] or
-  /// [HomeWidgetIOSConfiguration.widgetUrl] to override it for that platform.
+  /// Tapping the widget launches the app with this URL on both platforms,
+  /// which the app reads through the generated launch helpers.
   final String? widgetUrl;
+
+  /// The values a tap on the widget sends along with [widgetUrl], appended to
+  /// it as query parameters.
+  ///
+  /// Each entry is a stored value, sent under its key, or an [HWPayload]
+  /// naming a value. Needs a [widgetUrl].
+  final List<HWDataType<dynamic>> widgetUrlData;
 
   /// The flavors the widget is generated for, each with its overrides.
   ///
@@ -598,6 +588,7 @@ class HomeWidget {
     this.iOS,
     this.localization,
     this.widgetUrl,
+    this.widgetUrlData = const [],
     this.flavors,
     this.useLiveDataInPreview = true,
   });
@@ -614,6 +605,7 @@ class HomeWidget {
           iOS == other.iOS &&
           localization == other.localization &&
           widgetUrl == other.widgetUrl &&
+          _listEquals(widgetUrlData, other.widgetUrlData) &&
           mapEquals(flavors, other.flavors) &&
           useLiveDataInPreview == other.useLiveDataInPreview;
 
@@ -627,6 +619,7 @@ class HomeWidget {
       iOS.hashCode ^
       localization.hashCode ^
       widgetUrl.hashCode ^
+      Object.hashAll(widgetUrlData) ^
       _flavorsHash(flavors) ^
       useLiveDataInPreview.hashCode;
 }

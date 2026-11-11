@@ -3,6 +3,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
+import 'payload_dart_emitter.dart';
 
 /// Generates a Dart helper class with type-safe accessors for widget data.
 class DartHelperGenerator {
@@ -34,20 +35,17 @@ class DartHelperGenerator {
     final className = _helperClassName;
     final iosName = _iosName;
 
+    final launchTargets = spec.launchTargets;
+
     final imports = <String>[
-      if (spec.hasWidgetUrl) "import 'dart:async';",
       // Localized fields store their translations as a single JSON blob, so
       // they need `dart:convert` too — but none of the file plumbing JSON
       // groups use.
       if (storesFiles || _translationFields.isNotEmpty || hasTimedData)
         "import 'dart:convert';",
-      // `dart:io` carries the JSON/list/timed file plumbing, the `File` a
-      // written picture is evicted from the image cache by, and the `Platform`
-      // check deciding which platform's widget URL a click has to match.
-      if (storesFiles ||
-          hasTimedData ||
-          spec.hasWidgetUrl ||
-          spec.hasRuntimeImages)
+      // `dart:io` carries the JSON/list/timed file plumbing and the `File` a
+      // written picture is evicted from the image cache by.
+      if (storesFiles || hasTimedData || spec.hasRuntimeImages)
         "import 'dart:io';",
       if (storesFiles && !hasTimedData && !spec.hasFlavors)
         "import 'dart:typed_data';",
@@ -109,7 +107,10 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
     }
     _appendSection(buffer, _installHelpers());
 
-    _appendSection(buffer, spec.hasWidgetUrl ? _launchHelpers() : null);
+    _appendSection(
+      buffer,
+      launchTargets.isNotEmpty ? _launchHelpers() : null,
+    );
     _appendSection(
       buffer,
       spec.hasRuntimeImages ? _runtimeImageHelpers() : null,
@@ -138,6 +139,24 @@ ${_flavorGuard('Future.value(false)')}    return HomeWidget.updateWidget(
     );
 
     buffer.writeln('}');
+
+    if (launchTargets.isNotEmpty) {
+      _appendSection(buffer, _launchClass());
+      for (final target in launchTargets) {
+        _appendSection(
+          buffer,
+          PayloadDartEmitter(target.url).classDeclaration(
+            className: target.className,
+            superClass: spec.launchClassName,
+            description: target.description,
+          ),
+        );
+      }
+      _appendSection(
+        buffer,
+        PayloadDartEmitter.helpers(launchTargets.map((target) => target.url)),
+      );
+    }
 
     for (final entry in spec.iconEnums.entries) {
       _appendSection(buffer, _iconEnum(entry.key, entry.value));
@@ -1341,171 +1360,51 @@ ${_flavorGuard('Future.value()')}    return HomeWidget.requestPinWidget(
 ''';
   }
 
-  /// Emits the helpers telling the app that the widget was tapped.
+  /// Emits the helpers telling the app which tap on the widget opened it.
   ///
-  /// Emitted only for specs configuring a widget URL, which is what makes the
-  /// platforms report a click at all.
+  /// Emitted only for specs with something a tap opens the app with: a widget
+  /// URL or an [HWLink], which is what makes the platforms report a tap at
+  /// all.
   String _launchHelpers() {
-    final urlFields = _widgetUrlFields;
-    final filterDoc = _filterDoc;
+    final launch = spec.launchClassName;
+    return '''
+  /// The tap on this widget the app was started by, or null when it was
+  /// started any other way.
+  static Future<$launch?> initialLaunch() => HomeWidget.initialLaunch($launch.fromUri);
 
-    final androidField = urlFields.containsKey('widgetUrl')
-        ? 'widgetUrl'
-        : urlFields.containsKey('androidWidgetUrl')
-            ? 'androidWidgetUrl'
-            : null;
-    final iosField = urlFields.containsKey('widgetUrl')
-        ? 'widgetUrl'
-        : urlFields.containsKey('iosWidgetUrl')
-            ? 'iosWidgetUrl'
-            : null;
-
-    final buffer = StringBuffer();
-
-    for (final entry in urlFields.entries) {
-      buffer.write('''
-  /// The URL a tap on the widget opens the app with${_widgetUrlPlatform(entry.key)}, as the app
-  /// will receive it.
+  /// Every tap on this widget that opens the app.
   ///
-  /// The configured `widgetUrl` carrying the `homeWidget` query
-  /// parameter, parsed — so its scheme is lower-cased, exactly like
-  /// the URL handed to the app.
-  static final Uri ${entry.key} = Uri.parse('${escapeDartStringLiteral(entry.value)}');
-
-''');
-    }
-
-    buffer.write('''
-  /// The URL the app was launched with by a tap on the widget, or null
-  /// when it was started any other way.
-  ///
-$filterDoc
-  static Future<Uri?> initiallyLaunchedFromWidget() async {
-    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
-    if (uri == null || !_\$matchesWidgetUrl(uri)) {
-      return null;
-    }
-    return uri;
+  /// Emits the tap that started the app, if one did and no listener was handed
+  /// it yet, then every tap while the app runs. A tap is told by its URL: one
+  /// opening a URL this widget does not open is not reported, and another
+  /// widget opening the same URL is reported here too.
+  static Stream<$launch> launches() => HomeWidget.launches($launch.fromUri);
+''';
   }
 
-  /// The URL of every tap on the widget while the app is running.
+  /// Emits the sealed class every launch of this widget extends.
+  String _launchClass() {
+    final launch = spec.launchClassName;
+    final decoders = spec.launchTargetsByMatchOrder
+        .map((target) => '${target.className}._\$fromUri(uri)');
+    return '''
+/// A tap on the ${spec.data.name} widget that opened the app.
+sealed class $launch {
+  const $launch();
+
+  /// The launch [uri] stands for, or null when it is not a URL this widget
+  /// opens the app with, or is malformed.
   ///
-  /// A tap that started the app in the first place is not replayed here
-  /// — read [initiallyLaunchedFromWidget] for that one, or listen to
-  /// [launchedFromWidget] for both.
-  ///
-$filterDoc
-  static Stream<Uri> get widgetClicked =>
-      HomeWidget.widgetClicked
-          .where((uri) => uri != null && _\$matchesWidgetUrl(uri))
-          .cast<Uri>();
+  /// Of two launches whose URLs differ in their query parameters alone, the
+  /// one writing more of them is matched first. Query parameters the launch
+  /// does not know are ignored.
+  static $launch? fromUri(Uri uri) => ${decoders.join(' ?? ')};
 
-  /// Every tap on the widget, launch included.
-  ///
-  /// Yields the launch URL first when the app was started by a tap on
-  /// the widget, then every tap that follows while it runs. Taps landing
-  /// while the launch URL is still being read are kept, not dropped.
-  ///
-$filterDoc
-  static Stream<Uri> launchedFromWidget() async* {
-    final clicks = StreamController<Uri>();
-    final subscription = HomeWidget.widgetClicked.listen(
-      (uri) {
-        if (uri != null && _\$matchesWidgetUrl(uri)) clicks.add(uri);
-      },
-      onDone: clicks.close,
-    );
-    try {
-      final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();
-      if (initial != null && _\$matchesWidgetUrl(initial)) yield initial;
-      yield* clicks.stream;
-    } finally {
-      await subscription.cancel();
-      await clicks.close();
-    }
+  /// The URL the widget opens the app with for this launch.
+  Uri toUri();
+}
+''';
   }
-
-  /// Whether [uri] is the URL this platform's widget opens.
-  ///
-  /// Schemes are compared case-insensitively: the URL reaches the app parsed,
-  /// which lower-cases the scheme it was written with.
-  static bool _\$matchesWidgetUrl(Uri uri) {
-    final url = _\$platformWidgetUrl;
-    if (url == null) return false;
-    return _\$lowerCaseScheme(uri) == _\$lowerCaseScheme(url);
-  }
-
-  /// The URL the widget opens on the platform the app is running on, or
-  /// null where it opens none.
-  static Uri? get _\$platformWidgetUrl {
-''');
-
-    if (androidField != null) {
-      buffer.writeln('    if (Platform.isAndroid) return $androidField;');
-    }
-    if (iosField != null) {
-      buffer.writeln('    if (Platform.isIOS) return $iosField;');
-    }
-    buffer.writeln('    return null;');
-
-    buffer.write('''
-  }
-
-  static String _\$lowerCaseScheme(Uri uri) {
-    final text = uri.toString();
-    return uri.scheme.toLowerCase() + text.substring(uri.scheme.length);
-  }
-''');
-
-    return buffer.toString();
-  }
-
-  /// The doc-comment paragraph every launch helper carries, naming what the
-  /// emitted filter lets through.
-  String get _filterDoc {
-    final androidUrl = spec.androidWidgetUrl;
-    final iosUrl = spec.iosWidgetUrl;
-    final without = androidUrl == null
-        ? 'Android'
-        : iosUrl == null
-            ? 'iOS'
-            : null;
-    final buffer = StringBuffer();
-    buffer.write('''
-  /// Only the URL this widget opens on the platform the app is running
-  /// on is reported; a tap on any other widget is not.''');
-
-    if (without != null) {
-      buffer.write('''
-
-  /// Nothing is ever reported on $without, where the widget opens no URL
-  /// of its own.''');
-    }
-
-    return buffer.toString();
-  }
-
-  /// The runtime URLs exposed on the generated class, by field name.
-  ///
-  /// Both platforms share one field when they open the same URL, which is the
-  /// common case; a platform override splits them apart.
-  Map<String, String> get _widgetUrlFields {
-    final androidUrl = spec.androidWidgetUrl;
-    final iosUrl = spec.iosWidgetUrl;
-    if (androidUrl != null && androidUrl == iosUrl) {
-      return {'widgetUrl': androidUrl};
-    }
-    return {
-      if (androidUrl != null) 'androidWidgetUrl': androidUrl,
-      if (iosUrl != null) 'iosWidgetUrl': iosUrl,
-    };
-  }
-
-  String _widgetUrlPlatform(String fieldName) => switch (fieldName) {
-        'androidWidgetUrl' => ' on Android',
-        'iosWidgetUrl' => ' on iOS',
-        _ => '',
-      };
 
   /// Emits the two helpers every picture `saveData` writes goes through.
   ///

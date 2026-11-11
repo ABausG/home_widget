@@ -603,6 +603,457 @@ void main() {
 
       await expectation;
     });
+
+    test('delivers each click to every subscription', () async {
+      final platformCalls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(
+            updateChannel.name,
+            // ignore: body_might_complete_normally_nullable
+            (message) async {
+              platformCalls.add(
+                updateChannel.codec.decodeMethodCall(message).method,
+              );
+            },
+          );
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMessageHandler(updateChannel.name, null),
+      );
+      void click(String uri) =>
+          emitEvent(updateChannel.codec.encodeSuccessEnvelope(uri));
+
+      final first = <Uri?>[];
+      final second = <Uri?>[];
+      final firstSubscription = HomeWidget.widgetClicked.listen(first.add);
+      final secondSubscription = HomeWidget.widgetClicked.listen(second.add);
+      await pumpEventQueue();
+
+      click('homeWidget://one');
+      await pumpEventQueue();
+      await firstSubscription.cancel();
+      click('homeWidget://two');
+      await pumpEventQueue();
+
+      expect(first, [Uri.parse('homeWidget://one')]);
+      expect(second, [
+        Uri.parse('homeWidget://one'),
+        Uri.parse('homeWidget://two'),
+      ]);
+      expect(platformCalls, ['listen']);
+
+      await secondSubscription.cancel();
+      expect(platformCalls, ['listen', 'cancel']);
+    });
+  });
+
+  group('initialLaunch', () {
+    String? decodeHost(Uri uri) => uri.host == 'known' ? uri.path : null;
+
+    test('decodes the Uri the App was launched with', () async {
+      launchUri = 'homeWidget://known/first';
+
+      expect(await HomeWidget.initialLaunch(decodeHost), '/first');
+    });
+
+    test('hands decode a lower-cased scheme', () async {
+      launchUri = 'homeWidget://known/first';
+
+      expect(await HomeWidget.initialLaunch((uri) => uri.scheme), 'homewidget');
+    });
+
+    test('returns null when the App was not launched by a Widget', () async {
+      launchUri = null;
+      var decoded = false;
+
+      final launch = await HomeWidget.initialLaunch((uri) {
+        decoded = true;
+        return uri;
+      });
+
+      expect(launch, isNull);
+      expect(decoded, isFalse);
+    });
+
+    test('returns null for a Uri decode does not know', () async {
+      launchUri = 'homeWidget://other/first';
+
+      expect(await HomeWidget.initialLaunch(decodeHost), isNull);
+    });
+  });
+
+  group('launches', () {
+    String? decodeHost(Uri uri) => uri.host == 'known' ? uri.path : null;
+
+    void emitClicksOnListen(List<Object?> clicks) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(
+            updateChannel.name,
+            // ignore: body_might_complete_normally_nullable
+            (message) async {
+              final call = updateChannel.codec.decodeMethodCall(message);
+              if (call.method != 'listen') return;
+              for (final click in clicks) {
+                emitEvent(updateChannel.codec.encodeSuccessEnvelope(click));
+              }
+            },
+          );
+    }
+
+    setUp(() {
+      HomeWidget.debugResetLaunches();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) async => launchUri);
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(updateChannel.name, null);
+    });
+
+    void click(Object? uri) =>
+        emitEvent(updateChannel.codec.encodeSuccessEnvelope(uri));
+
+    test('concurrent listeners each get the clicks they decode', () async {
+      launchUri = null;
+      final platformCalls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(
+            updateChannel.name,
+            // ignore: body_might_complete_normally_nullable
+            (message) async {
+              platformCalls.add(
+                updateChannel.codec.decodeMethodCall(message).method,
+              );
+            },
+          );
+      String? decodeOther(Uri uri) => uri.host == 'other' ? uri.path : null;
+
+      final known = <String>[];
+      final other = <String>[];
+      final knownSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(known.add);
+      final otherSubscription = HomeWidget.launches(
+        decodeOther,
+      ).listen(other.add);
+      await pumpEventQueue();
+
+      click('homeWidget://known/1');
+      click('homeWidget://other/1');
+      await pumpEventQueue();
+      expect(known, ['/1']);
+      expect(other, ['/1']);
+      expect(platformCalls, ['listen']);
+
+      await otherSubscription.cancel();
+      expect(platformCalls, ['listen']);
+      click('homeWidget://known/2');
+      click('homeWidget://other/2');
+      await pumpEventQueue();
+      expect(known, ['/1', '/2']);
+      expect(other, ['/1']);
+
+      await knownSubscription.cancel();
+      expect(platformCalls, ['listen', 'cancel']);
+    });
+
+    test('shares the platform Stream with widgetClicked listeners', () async {
+      launchUri = null;
+      emitClicksOnListen(const []);
+
+      final raw = <Uri?>[];
+      final decoded = <String>[];
+      final rawSubscription = HomeWidget.widgetClicked.listen(raw.add);
+      final otherRawSubscription = HomeWidget.widgetClicked.listen((_) {});
+      final subscription = HomeWidget.launches(decodeHost).listen(decoded.add);
+      await pumpEventQueue();
+
+      click('homeWidget://known/1');
+      await pumpEventQueue();
+      await otherRawSubscription.cancel();
+      click('homeWidget://known/2');
+      await pumpEventQueue();
+
+      expect(raw.map((uri) => uri?.path), ['/1', '/2']);
+      expect(decoded, ['/1', '/2']);
+      await rawSubscription.cancel();
+      await subscription.cancel();
+    });
+
+    test('delivers the initial launch once per run of the App', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            channel,
+            (methodCall) async => 'homeWidget://known/initial',
+          );
+      emitClicksOnListen(const []);
+
+      final first = <String>[];
+      final firstSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(first.add);
+      addTearDown(firstSubscription.cancel);
+      await pumpEventQueue();
+      expect(first, ['/initial']);
+      click('homeWidget://known/later');
+      await pumpEventQueue();
+
+      final second = <String>[];
+      final secondSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(second.add);
+      await pumpEventQueue();
+      click('homeWidget://known/last');
+      await pumpEventQueue();
+
+      expect(first, ['/initial', '/later', '/last']);
+      expect(second, ['/last']);
+      expect(await HomeWidget.initialLaunch(decodeHost), '/initial');
+      await firstSubscription.cancel();
+      await secondSubscription.cancel();
+    });
+
+    test(
+      'leaves an initial Uri it does not know to another listener',
+      () async {
+        launchUri = 'homeWidget://known/initial';
+        emitClicksOnListen(const []);
+
+        final other = <String>[];
+        final otherSubscription = HomeWidget.launches<String>(
+          (uri) => uri.host == 'other' ? uri.path : null,
+        ).listen(other.add);
+        await pumpEventQueue();
+
+        final known = <String>[];
+        final knownSubscription = HomeWidget.launches(
+          decodeHost,
+        ).listen(known.add);
+        await pumpEventQueue();
+
+        expect(other, isEmpty);
+        expect(known, ['/initial']);
+        await otherSubscription.cancel();
+        await knownSubscription.cancel();
+      },
+    );
+
+    test('hands the initial launch to one of two early listeners', () async {
+      launchUri = 'homeWidget://known/initial';
+      emitClicksOnListen(const []);
+
+      final launches = <String>[];
+      final first = HomeWidget.launches(decodeHost).listen(launches.add);
+      final second = HomeWidget.launches(decodeHost).listen(launches.add);
+      await pumpEventQueue();
+
+      expect(launches, ['/initial']);
+      await first.cancel();
+      await second.cancel();
+    });
+
+    test('reports a failed initial read and keeps going with clicks', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            channel,
+            (methodCall) => throw PlatformException(code: 'failed'),
+          );
+      emitClicksOnListen(['homeWidget://known/early']);
+
+      final events = <Object>[];
+      var done = false;
+      final subscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(events.add, onError: events.add, onDone: () => done = true);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+      click('homeWidget://known/later');
+      await pumpEventQueue();
+
+      expect(events, [isA<PlatformException>(), '/early', '/later']);
+      expect(done, isFalse);
+    });
+
+    test('reads the initial Uri again after a failed read', () async {
+      var reads = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) async {
+            reads++;
+            if (reads == 1) throw PlatformException(code: 'failed');
+            return 'homeWidget://known/initial';
+          });
+      emitClicksOnListen(const []);
+
+      final first = <Object>[];
+      final firstSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(first.add, onError: first.add);
+      addTearDown(firstSubscription.cancel);
+      await pumpEventQueue();
+      expect(first.single, isA<PlatformException>());
+
+      final second = <Object>[];
+      final secondSubscription = HomeWidget.launches(
+        decodeHost,
+      ).listen(second.add, onError: second.add);
+      addTearDown(secondSubscription.cancel);
+      await pumpEventQueue();
+
+      expect(second, ['/initial']);
+      expect(reads, 2);
+      click('homeWidget://known/initial');
+      await pumpEventQueue();
+      expect(second, ['/initial', '/initial']);
+    });
+
+    test('reports an exception of decode and keeps going', () async {
+      launchUri = 'homeWidget://known/throw';
+      emitClicksOnListen(const []);
+      String? decode(Uri uri) =>
+          uri.path == '/throw' ? throw const FormatException('bad') : uri.path;
+
+      final events = <Object>[];
+      final subscription = HomeWidget.launches(
+        decode,
+      ).listen(events.add, onError: events.add);
+      await pumpEventQueue();
+      click('homeWidget://known/1');
+      click('homeWidget://known/throw');
+      click('homeWidget://known/2');
+      await pumpEventQueue();
+
+      expect(events, [
+        isA<FormatException>(),
+        '/1',
+        isA<FormatException>(),
+        '/2',
+      ]);
+      await subscription.cancel();
+    });
+
+    test('emits the initial launch, then every click', () async {
+      launchUri = 'homeWidget://known/initial';
+      emitClicksOnListen(['homeWidget://known/first', 'homeWidget://known/2']);
+
+      await expectLater(
+        HomeWidget.launches(decodeHost),
+        emitsInOrder(['/initial', '/first', '/2']),
+      );
+    });
+
+    test('emits only clicks when the App was launched another way', () async {
+      launchUri = null;
+      emitClicksOnListen(['homeWidget://known/first']);
+
+      await expectLater(HomeWidget.launches(decodeHost), emits('/first'));
+    });
+
+    test('skips what decode does not know', () async {
+      launchUri = 'homeWidget://other/initial';
+      emitClicksOnListen([
+        'homeWidget://other/first',
+        null,
+        2,
+        'homeWidget://known/second',
+      ]);
+
+      await expectLater(HomeWidget.launches(decodeHost), emits('/second'));
+    });
+
+    test('reads the initial Uri before listening to clicks', () async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) async {
+            calls.add(methodCall.method);
+            return 'homeWidget://known/initial';
+          });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(
+            updateChannel.name,
+            // ignore: body_might_complete_normally_nullable
+            (message) async {
+              calls.add(updateChannel.codec.decodeMethodCall(message).method);
+            },
+          );
+
+      final launches = <String>[];
+      final subscription = HomeWidget.launches(decodeHost).listen(launches.add);
+      await pumpEventQueue();
+      await subscription.cancel();
+
+      expect(calls, ['initiallyLaunchedFromHomeWidget', 'listen', 'cancel']);
+      expect(launches, ['/initial']);
+    });
+
+    test('forwards an error of the click Stream', () async {
+      launchUri = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMessageHandler(
+            updateChannel.name,
+            // ignore: body_might_complete_normally_nullable
+            (message) async {
+              final call = updateChannel.codec.decodeMethodCall(message);
+              if (call.method != 'listen') return;
+              emitEvent(
+                updateChannel.codec.encodeErrorEnvelope(
+                  code: 'failed',
+                  message: 'No clicks',
+                ),
+              );
+            },
+          );
+
+      await expectLater(
+        HomeWidget.launches(decodeHost),
+        emitsError(isA<PlatformException>()),
+      );
+    });
+
+    test('can be cancelled while the initial Uri is read', () async {
+      final initial = Completer<String?>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (methodCall) => initial.future);
+      emitClicksOnListen(const []);
+
+      final launches = <String>[];
+      final subscription = HomeWidget.launches(decodeHost).listen(launches.add);
+      await pumpEventQueue();
+      final cancelled = subscription.cancel();
+      initial.complete('homeWidget://known/initial');
+
+      await cancelled.timeout(const Duration(seconds: 5));
+      expect(launches, isEmpty);
+    });
+
+    test(
+      'leaves the initial launch to a later listener when cancelled early',
+      () async {
+        final initial = Completer<String?>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (methodCall) => initial.future);
+        emitClicksOnListen(const []);
+
+        final first = <String>[];
+        final firstSubscription = HomeWidget.launches(
+          decodeHost,
+        ).listen(first.add);
+        await pumpEventQueue();
+        await firstSubscription.cancel();
+        initial.complete('homeWidget://known/initial');
+        await pumpEventQueue();
+
+        final second = <String>[];
+        final secondSubscription = HomeWidget.launches(
+          decodeHost,
+        ).listen(second.add);
+        await pumpEventQueue();
+
+        expect(first, isEmpty);
+        expect(second, ['/initial']);
+        await secondSubscription.cancel();
+      },
+    );
   });
 
   group('Render Flutter Widget', () {

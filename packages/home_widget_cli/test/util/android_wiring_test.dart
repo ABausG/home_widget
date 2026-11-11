@@ -228,6 +228,74 @@ dependencies {
         updated,
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
+      expect(updated, isNot(contains('TIME_SET')));
+    });
+
+    test('adds TIME_SET to a newly created receiver', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleTimeChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(
+        updated,
+        contains('android:name="android.appwidget.action.APPWIDGET_UPDATE"'),
+      );
+      expect(
+        updated,
+        contains('android:name="android.intent.action.TIME_SET"'),
+      );
+      expect(updated, isNot(contains('LOCALE_CHANGED')));
+    });
+
+    test('declares both refresh actions in one intent-filter', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        handleTimeChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final filters = XmlDocument.parse(manifestFile.readAsStringSync())
+          .findAllElements('intent-filter')
+          .toList();
+      expect(filters, hasLength(1));
+      expect(
+        filters.single.childElements.map((e) => e.getAttribute('android:name')),
+        [
+          'android.appwidget.action.APPWIDGET_UPDATE',
+          'android.intent.action.LOCALE_CHANGED',
+          'android.intent.action.TIME_SET',
+        ],
+      );
     });
 
     test('leaves a non-localized widget receiver without LOCALE_CHANGED',
@@ -256,6 +324,7 @@ dependencies {
         contains('android:name="android.appwidget.action.APPWIDGET_UPDATE"'),
       );
       expect(updated, isNot(contains('LOCALE_CHANGED')));
+      expect(updated, isNot(contains('TIME_SET')));
     });
 
     test('adds LOCALE_CHANGED to an existing receiver that lacks it', () async {
@@ -428,6 +497,108 @@ dependencies {
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
       expect(updated, isNot(contains('android:exported')));
+    });
+
+    test('adds TIME_SET to an existing receiver and never removes it',
+        () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.LOCALE_CHANGED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      Future<void> ensure({required bool handleTimeChange}) =>
+          ensureAndroidManifestReceiver(
+            root,
+            widgetClassName: 'FooHomeWidget',
+            appPackageName: 'com.test',
+            providerInfoName: 'foo_home_widget',
+            handleLocaleChange: true,
+            handleTimeChange: handleTimeChange,
+            label: '@string/home_widget_foo_label',
+          );
+
+      await ensure(handleTimeChange: true);
+      final afterFirst = manifestFile.readAsStringSync();
+
+      expect(
+        afterFirst,
+        contains('android:name="android.intent.action.TIME_SET"'),
+      );
+      expect('TIME_SET'.allMatches(afterFirst).length, 1);
+      expect('LOCALE_CHANGED'.allMatches(afterFirst).length, 1);
+      expect(
+        XmlDocument.parse(afterFirst).findAllElements('intent-filter'),
+        hasLength(1),
+      );
+
+      await ensure(handleTimeChange: true);
+      expect(manifestFile.readAsStringSync(), afterFirst);
+
+      await ensure(handleTimeChange: false);
+      expect(manifestFile.readAsStringSync(), afterFirst);
+      verify(() => mockLogger.detail(any(that: contains('Updated:'))))
+          .called(1);
+    });
+
+    test(
+        'declares android:exported when TIME_SET creates the first '
+        'intent-filter on an existing receiver', () async {
+      manifestFile.writeAsStringSync(
+        '''<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.test">
+    <application>
+        <receiver
+            android:name="com.test.FooHomeWidgetReceiver"
+            android:label="@string/home_widget_foo_label">
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/foo_home_widget" />
+        </receiver>
+    </application>
+</manifest>
+''',
+      );
+
+      await ensureAndroidManifestReceiver(
+        root,
+        widgetClassName: 'FooHomeWidget',
+        appPackageName: 'com.test',
+        providerInfoName: 'foo_home_widget',
+        handleLocaleChange: true,
+        handleTimeChange: true,
+        label: '@string/home_widget_foo_label',
+      );
+
+      final updated = manifestFile.readAsStringSync();
+      expect(updated, contains('android:exported="true"'));
+      final filters =
+          XmlDocument.parse(updated).findAllElements('intent-filter').toList();
+      expect(filters, hasLength(1));
+      expect(
+        filters.single.childElements.map((e) => e.getAttribute('android:name')),
+        [
+          'android.intent.action.LOCALE_CHANGED',
+          'android.intent.action.TIME_SET',
+        ],
+      );
     });
 
     test('keeps an existing android:label when the caller omits one', () async {

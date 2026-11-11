@@ -958,8 +958,7 @@ void main() {
   group('WidgetSpec widget URLs', () {
     WidgetSpec urlSpec({
       String? widgetUrl,
-      String? androidWidgetUrl,
-      String? iosWidgetUrl,
+      List<HWDataType<dynamic>> widgetUrlData = const [],
       bool openAppOnTap = true,
       bool configureAndroid = true,
       bool configureIos = true,
@@ -968,17 +967,12 @@ void main() {
           data: HomeWidget(
             name: 'UrlWidget',
             widgetUrl: widgetUrl,
+            widgetUrlData: widgetUrlData,
             android: configureAndroid
-                ? HomeWidgetAndroidConfiguration(
-                    widgetUrl: androidWidgetUrl,
-                    openAppOnTap: openAppOnTap,
-                  )
+                ? HomeWidgetAndroidConfiguration(openAppOnTap: openAppOnTap)
                 : null,
             iOS: configureIos
-                ? HomeWidgetIOSConfiguration(
-                    groupId: 'group.url',
-                    widgetUrl: iosWidgetUrl,
-                  )
+                ? const HomeWidgetIOSConfiguration(groupId: 'group.url')
                 : null,
           ),
           className: 'UrlWidget',
@@ -986,105 +980,330 @@ void main() {
 
     test('no URL configured', () {
       final spec = urlSpec();
-      expect(spec.effectiveAndroidWidgetUrl, isNull);
-      expect(spec.effectiveIosWidgetUrl, isNull);
+      expect(spec.widgetUrl, isNull);
       expect(spec.androidWidgetUrl, isNull);
       expect(spec.iosWidgetUrl, isNull);
-      expect(spec.hasAndroidWidgetUrl, isFalse);
-      expect(spec.hasIosWidgetUrl, isFalse);
       expect(spec.hasWidgetUrl, isFalse);
+      expect(spec.launchTargets, isEmpty);
     });
 
-    test('the top-level URL reaches both platforms', () {
+    test('the URL reaches both platforms', () {
       final spec = urlSpec(widgetUrl: 'myapp://widget');
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
+      expect(spec.androidWidgetUrl?.url, 'myapp://widget');
+      expect(spec.iosWidgetUrl?.url, 'myapp://widget');
       expect(spec.hasWidgetUrl, isTrue);
     });
 
-    test('the top-level URL stays off iOS without an iOS configuration', () {
+    test('the URL stays off iOS without an iOS configuration', () {
       final spec = urlSpec(widgetUrl: 'myapp://widget', configureIos: false);
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://widget');
-      expect(spec.effectiveIosWidgetUrl, isNull);
+      expect(spec.androidWidgetUrl?.url, 'myapp://widget');
       expect(spec.iosWidgetUrl, isNull);
-      expect(spec.hasIosWidgetUrl, isFalse);
-      expect(spec.hasAndroidWidgetUrl, isTrue);
       expect(spec.hasWidgetUrl, isTrue);
     });
 
-    test('the top-level URL stays off Android without an Android configuration',
-        () {
+    test('the URL stays off Android without an Android configuration', () {
       final spec =
           urlSpec(widgetUrl: 'myapp://widget', configureAndroid: false);
-      expect(spec.effectiveIosWidgetUrl, 'myapp://widget');
-      expect(spec.effectiveAndroidWidgetUrl, isNull);
+      expect(spec.iosWidgetUrl?.url, 'myapp://widget');
       expect(spec.androidWidgetUrl, isNull);
-      expect(spec.hasAndroidWidgetUrl, isFalse);
-      expect(spec.hasIosWidgetUrl, isTrue);
       expect(spec.hasWidgetUrl, isTrue);
-    });
-
-    test('a platform URL wins over the top-level one', () {
-      final spec = urlSpec(
-        widgetUrl: 'myapp://shared',
-        androidWidgetUrl: 'myapp://android',
-        iosWidgetUrl: 'myapp://ios',
-      );
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://ios');
-    });
-
-    test('one platform may override while the other keeps the top-level URL',
-        () {
-      final spec = urlSpec(
-        widgetUrl: 'myapp://shared',
-        androidWidgetUrl: 'myapp://android',
-      );
-      expect(spec.effectiveAndroidWidgetUrl, 'myapp://android');
-      expect(spec.effectiveIosWidgetUrl, 'myapp://shared');
-      expect(spec.hasAndroidWidgetUrl, isTrue);
-      expect(spec.hasIosWidgetUrl, isTrue);
     });
 
     test('openAppOnTap false drops the Android URL, keeping the iOS one', () {
       final spec = urlSpec(widgetUrl: 'myapp://widget', openAppOnTap: false);
       expect(spec.androidOpensAppOnTap, isFalse);
       expect(spec.androidWidgetUrl, isNull);
-      expect(spec.hasAndroidWidgetUrl, isFalse);
-      expect(spec.iosWidgetUrl, 'myapp://widget?homeWidget');
+      expect(spec.iosWidgetUrl?.staticUrl, 'myapp://widget?homeWidget');
       expect(spec.hasWidgetUrl, isTrue);
     });
 
-    test('the homeWidget parameter is appended to a URL without a query', () {
-      final spec = urlSpec(widgetUrl: 'myapp://widget');
-      expect(spec.androidWidgetUrl, 'myapp://widget?homeWidget');
-      expect(spec.iosWidgetUrl, 'myapp://widget?homeWidget');
+    test('a URL no platform opens is no launch target', () {
+      final spec = urlSpec(
+        widgetUrl: 'myapp://widget',
+        openAppOnTap: false,
+        configureIos: false,
+      );
+      expect(spec.widgetUrl, isNotNull);
+      expect(spec.hasWidgetUrl, isFalse);
+      expect(spec.launchTargets, isEmpty);
+      expect(spec.nativeHelpers, isEmpty);
     });
 
-    test('an existing query is preserved', () {
-      final spec = urlSpec(widgetUrl: 'myapp://widget?message=hi%20there');
+    test('the homeWidget parameter is appended on both platforms', () {
+      final spec = urlSpec(widgetUrl: 'myapp://widget?a=b#part');
       expect(
-        spec.androidWidgetUrl,
-        'myapp://widget?message=hi%20there&homeWidget',
+        spec.androidWidgetUrl?.staticUrl,
+        'myapp://widget?a=b&homeWidget#part',
+      );
+      expect(
+        spec.iosWidgetUrl?.staticUrl,
+        'myapp://widget?a=b&homeWidget#part',
       );
     });
 
-    test('the URL is spliced, not normalized', () {
-      final spec = urlSpec(widgetUrl: 'myApp://Widget/Path');
-      expect(spec.androidWidgetUrl, 'myApp://Widget/Path?homeWidget');
+    test('widgetUrlData is the payload of the URL', () {
+      final spec = urlSpec(
+        widgetUrl: 'myapp://widget',
+        widgetUrlData: const [
+          HWString('city'),
+          HWPayload('days', HWInt.fixed(7)),
+        ],
+      );
+      expect(
+        spec.widgetUrl!.payload.map((entry) => entry.name),
+        ['city', 'days'],
+      );
+      expect(
+        spec.nativeHelpers,
+        containsAll([
+          HWNativeHelper.hwPayloadUrl,
+          HWNativeHelper.hwPayloadValue,
+        ]),
+      );
+    });
+  });
+
+  group('WidgetSpec launch targets', () {
+    const history = HWLink(
+      'history',
+      url: 'myapp://history',
+      child: HWText(HWString.fixed('History')),
+    );
+    const forecast = HWLink(
+      'forecast',
+      url: 'myapp://forecast',
+      data: [HWString('city')],
+      child: HWText(HWString.fixed('Forecast')),
+    );
+
+    WidgetSpec linkSpec(
+      HWWidget tree, {
+      String? widgetUrl,
+      List<HWWidgetFamily>? families,
+      bool configureIos = true,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Weather',
+            widgetUrl: widgetUrl,
+            android: const HomeWidgetAndroidConfiguration(),
+            iOS: configureIos
+                ? HomeWidgetIOSConfiguration(
+                    groupId: 'group.weather',
+                    supportedFamilies: families,
+                  )
+                : null,
+          ),
+          className: 'Weather',
+          widgetTree: tree,
+        );
+
+    test('lists every link of the tree in document order', () {
+      final spec = linkSpec(
+        const HWColumn(
+          children: [
+            history,
+            HWAdaptive(ios: forecast, android: HWText(HWString.fixed('x'))),
+          ],
+        ),
+      );
+      expect(spec.links, [history, forecast]);
     });
 
-    test('a fragment stays behind the query', () {
-      final spec = urlSpec(widgetUrl: 'myapp://widget?a=b#part');
-      expect(spec.iosWidgetUrl, 'myapp://widget?a=b&homeWidget#part');
+    test('names a class per link after the widget and the id', () {
+      final spec = linkSpec(const HWColumn(children: [history, forecast]));
+      expect(spec.launchClassName, 'WeatherLaunch');
+      expect(spec.linkClassName(history), 'WeatherHistoryLink');
+      expect(
+        spec.launchTargets.map((target) => target.className),
+        ['WeatherHistoryLink', 'WeatherForecastLink'],
+      );
+      expect(spec.launchTargets.last.url.payload.single.name, 'city');
+      expect(
+        spec.launchTargets.first.description,
+        'A tap on the `history` link of the Weather widget.',
+      );
     });
 
-    test('a URL that already carries the parameter is left untouched', () {
-      final flag = urlSpec(widgetUrl: 'myapp://widget?message=hi&homeWidget');
-      expect(flag.androidWidgetUrl, 'myapp://widget?message=hi&homeWidget');
+    test('puts the tap on the widget itself first', () {
+      final spec = linkSpec(history, widgetUrl: 'myapp://weather');
+      expect(
+        spec.launchTargets.map((target) => target.className),
+        ['WeatherWidgetTap', 'WeatherHistoryLink'],
+      );
+      expect(
+        spec.launchTargets.first.description,
+        'A tap on the Weather widget itself.',
+      );
+    });
 
-      final valued = urlSpec(widgetUrl: 'myapp://widget?homeWidget=1');
-      expect(valued.iosWidgetUrl, 'myapp://widget?homeWidget=1');
+    test('folds links sharing an id into one target', () {
+      final spec = linkSpec(
+        const HWSizeAdaptive(
+          small: HWColumn(children: [history]),
+          medium: HWRow(children: [history, forecast]),
+        ),
+      );
+      expect(
+        spec.launchTargets.map((target) => target.className),
+        ['WeatherHistoryLink', 'WeatherForecastLink'],
+      );
+    });
+
+    test('a link at the root of a small widget opens through widgetURL', () {
+      final spec = linkSpec(history);
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.iosEmitContext.swiftWidgetUrlLinks, [history]);
+    });
+
+    test('a root link of a widget never shown small stays a link', () {
+      final spec = linkSpec(
+        history,
+        families: const [HWWidgetFamily.systemMedium],
+      );
+      expect(spec.iosWidgetUrlLinks, isEmpty);
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('the slot a single-tap family resolves to opens through widgetURL',
+        () {
+      final spec = linkSpec(
+        const HWSizeAdaptive(
+          small: history,
+          large: HWColumn(children: [forecast]),
+          accessoryCircular: history,
+        ),
+        families: const [
+          HWWidgetFamily.systemSmall,
+          HWWidgetFamily.systemMedium,
+          HWWidgetFamily.systemLarge,
+          HWWidgetFamily.accessoryCircular,
+        ],
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('a rectangular Lock Screen widget is one tap area', () {
+      expect(
+        WidgetSpec.iosSingleTapFamilies,
+        contains(HWWidgetFamily.accessoryRectangular),
+      );
+      final spec = linkSpec(
+        const HWColumn(children: [history]),
+        families: const [HWWidgetFamily.accessoryRectangular],
+      );
+      expect(spec.iosIgnoredLinks, [history]);
+    });
+
+    test('a link in the iOS branch of an adaptive root opens through widgetURL',
+        () {
+      final spec = linkSpec(
+        const HWAdaptive(ios: history, android: HWText(HWString.fixed('x'))),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.androidWholeLayoutLink, isNull);
+    });
+
+    test('padding and backgrounds around a root link keep it whole', () {
+      final spec = linkSpec(
+        const HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWDecoratedBox(
+            decoration: HWBoxDecoration(color: HWColor.fixed(0xFF000000)),
+            child: HWColoredBox(
+              color: HWColor.fixed(0xFFFFFFFF),
+              child: history,
+            ),
+          ),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.androidWholeLayoutLink, history);
+    });
+
+    test('an adaptive root looks through to the size adaptive of iOS', () {
+      final spec = linkSpec(
+        const HWAdaptive(
+          ios: HWSizeAdaptive(
+            small: HWPadding(padding: HWEdgeInsets.all(4), child: history),
+            medium: HWRow(children: [history, forecast]),
+          ),
+          android: forecast,
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.androidWholeLayoutLink, forecast);
+    });
+
+    test('a whole-layout link that renders nothing on iOS names none', () {
+      final spec = linkSpec(
+        const HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink('gap', url: 'myapp://gap', child: HWSizedBox()),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, isEmpty);
+    });
+
+    test('a slot that is no link names no whole-widget link', () {
+      final spec = linkSpec(
+        const HWSizeAdaptive(
+          small: HWText(HWString.fixed('small')),
+          medium: history,
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, isEmpty);
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('a root that is neither a link nor size adaptive names none', () {
+      final spec = linkSpec(const HWColumn(children: [history]));
+      expect(spec.iosWidgetUrlLinks, isEmpty);
+    });
+
+    test('a link inside a layout a small widget shows is ignored there', () {
+      final spec = linkSpec(
+        const HWColumn(
+          children: [
+            history,
+            HWAdaptive(ios: forecast, android: HWText(HWString.fixed('x'))),
+          ],
+        ),
+      );
+      expect(spec.iosIgnoredLinks, [history, forecast]);
+    });
+
+    test('a link only larger families render is not ignored', () {
+      final spec = linkSpec(
+        const HWSizeAdaptive(
+          small: HWText(HWString.fixed('small')),
+          medium: HWRow(children: [history, forecast]),
+          large: HWRow(children: [history, forecast]),
+        ),
+      );
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('a link in the slot a small widget falls back to is ignored', () {
+      const row = HWRow(children: [history]);
+      final spec = linkSpec(
+        const HWSizeAdaptive(small: row, medium: row, large: forecast),
+      );
+      expect(spec.iosIgnoredLinks, [history]);
+    });
+
+    test('nothing is ignored without an iOS configuration', () {
+      final spec = linkSpec(
+        const HWColumn(children: [history]),
+        configureIos: false,
+      );
+      expect(spec.iosIgnoredLinks, isEmpty);
+      expect(spec.iosWidgetUrlLinks, isEmpty);
     });
   });
 
@@ -1347,6 +1566,12 @@ void main() {
               style: HWTextStyle(fontFamily: 'Chewy'),
             ),
             HWIcon.glyph(0xE88A, font: HWIconFont(family: 'MaterialIcons')),
+            HWLink(
+              'zone',
+              url: 'myapp://zone',
+              data: [HWString('zone')],
+              child: HWText(HWString.fixed('zone')),
+            ),
           ],
         ),
       );

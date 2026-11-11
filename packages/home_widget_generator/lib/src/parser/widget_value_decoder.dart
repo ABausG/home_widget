@@ -82,6 +82,8 @@ class WidgetValueDecoder {
       return HWDecoratedBox.fromDartObject(object!, this);
     } else if (typeName == 'HWPadding') {
       return HWPadding.fromDartObject(object!, this);
+    } else if (typeName == 'HWLink') {
+      return HWLink.fromDartObject(object!, this);
     } else if (typeName == 'HWDataExists') {
       return HWDataExists.fromDartObject(object!, this);
     } else if (typeName == 'HWBoolConditional') {
@@ -638,6 +640,16 @@ class WidgetValueDecoder {
 
     final typeName = obj.type?.element?.name;
 
+    if (typeName == 'HWPayload') {
+      final name = getField(obj, 'name')?.toStringValue();
+      throw GeneratorError(
+        'HWPayload("$name", ...) only names an entry of a data list or of '
+        'widgetUrlData. It cannot be rendered, and it cannot sit inside '
+        'another data wrapper: put HWItemData, HWTimedData or HWJson inside '
+        'it instead.',
+      );
+    }
+
     if (typeName == 'HWImageData') {
       final assetPath = getField(obj, 'assetPath')?.toStringValue();
       if (assetPath != null) {
@@ -803,6 +815,47 @@ class WidgetValueDecoder {
     }
 
     return null;
+  }
+
+  /// The entries of a payload: the `data` list of a tap target or
+  /// `widgetUrlData`, which [owner] names in an error.
+  ///
+  /// An [HWPayload] is only decoded here, as an entry of its own, so one
+  /// written anywhere else is rejected by [decodeDataType].
+  static List<HWDataType<dynamic>> decodePayload(
+    DartObject? obj, {
+    required String owner,
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    final entries = obj?.toListValue();
+    if (entries == null) return const [];
+
+    HWDataType<dynamic> decode(DartObject? entry, int index) {
+      final value = decodeDataType(
+        entry,
+        defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
+      );
+      if (value == null) {
+        throw GeneratorError(
+          'Entry $index of the data of $owner could not be read as a data '
+          'type: ${entry?.type?.element?.name}.',
+        );
+      }
+      return value;
+    }
+
+    return [
+      for (final (index, entry) in entries.indexed)
+        if (entry.type?.element?.name == 'HWPayload')
+          HWPayload<dynamic>(
+            getField(entry, 'name')?.toStringValue() ?? '',
+            decode(getField(entry, 'value'), index),
+          )
+        else
+          decode(entry, index),
+    ];
   }
 
   /// The `previewValues` of an [HWItemData] reading [field], each decoded the

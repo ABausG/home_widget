@@ -68,18 +68,13 @@ void main() {
       );
     });
 
-    test('accepts a widget URL on every level', () {
+    test('accepts a widget URL with a query and a fragment', () {
       final spec = WidgetSpec(
         data: HomeWidget(
           name: 'T',
-          widgetUrl: 'myapp://widget',
-          android: HomeWidgetAndroidConfiguration(
-            widgetUrl: 'myapp://widget/android?a=b',
-          ),
-          iOS: HomeWidgetIOSConfiguration(
-            groupId: 'group.t',
-            widgetUrl: 'myapp://widget/ios#part',
-          ),
+          widgetUrl: 'myapp://widget/path?a=b#part',
+          android: HomeWidgetAndroidConfiguration(),
+          iOS: HomeWidgetIOSConfiguration(groupId: 'group.t'),
         ),
         className: 'T',
       );
@@ -100,44 +95,6 @@ void main() {
             (e) => e.message,
             'message',
             allOf(contains('"T"'), contains('widgetUrl'), contains('empty')),
-          ),
-        ),
-      );
-    });
-
-    test('names the platform of an empty widget URL', () {
-      final android = WidgetSpec(
-        data: HomeWidget(
-          name: 'T',
-          android: HomeWidgetAndroidConfiguration(widgetUrl: ''),
-        ),
-        className: 'T',
-      );
-      expect(
-        () => validateWidgetData(android),
-        throwsA(
-          isA<GeneratorError>().having(
-            (e) => e.message,
-            'message',
-            contains('Android widgetUrl'),
-          ),
-        ),
-      );
-
-      final ios = WidgetSpec(
-        data: HomeWidget(
-          name: 'T',
-          iOS: HomeWidgetIOSConfiguration(groupId: 'group.t', widgetUrl: ''),
-        ),
-        className: 'T',
-      );
-      expect(
-        () => validateWidgetData(ios),
-        throwsA(
-          isA<GeneratorError>().having(
-            (e) => e.message,
-            'message',
-            contains('iOS widgetUrl'),
           ),
         ),
       );
@@ -184,47 +141,6 @@ void main() {
           reason: url,
         );
       }
-    });
-
-    test('rejects a scheme-less widget URL on every platform', () {
-      final android = WidgetSpec(
-        data: HomeWidget(
-          name: 'T',
-          android: HomeWidgetAndroidConfiguration(widgetUrl: 'details'),
-        ),
-        className: 'T',
-      );
-      expect(
-        () => validateWidgetData(android),
-        throwsA(
-          isA<GeneratorError>().having(
-            (e) => e.message,
-            'message',
-            contains('Android widgetUrl'),
-          ),
-        ),
-      );
-
-      final ios = WidgetSpec(
-        data: HomeWidget(
-          name: 'T',
-          iOS: HomeWidgetIOSConfiguration(
-            groupId: 'group.t',
-            widgetUrl: 'details',
-          ),
-        ),
-        className: 'T',
-      );
-      expect(
-        () => validateWidgetData(ios),
-        throwsA(
-          isA<GeneratorError>().having(
-            (e) => e.message,
-            'message',
-            contains('iOS widgetUrl'),
-          ),
-        ),
-      );
     });
 
     test('accepts an absolute widget URL with a scheme', () {

@@ -102,8 +102,10 @@ Future<void> runAndroidBuildScenario(BuildScenario scenario) async {
     );
     expect(
       appManifestSource,
-      isNot(contains(launchAction)),
-      reason: 'Specs without a widget URL must not gain launch manifest '
+      scenario.hasLinks
+          ? contains('<action android:name="$launchAction" />')
+          : isNot(contains(launchAction)),
+      reason: 'Only specs with a widget URL or a link gain launch manifest '
           'entries',
     );
   }

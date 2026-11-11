@@ -35,8 +35,9 @@ enum HWNativeHelper implements HWGeneratable {
   /// The locale every formatter runs in: the device's own, region included.
   ///
   /// Swift reaches `Locale` globally; the Kotlin call sites pass
-  /// `hwFormatLocale(context)` because the configuration is only reachable
-  /// through the composable's context.
+  /// `hwFormatLocale(context)`, or the context itself to a helper that needs
+  /// more of it, because the configuration is only reachable through the
+  /// composable's context.
   hwFormatLocale(
     swift: '''
 func hwFormatLocale() -> Locale {
@@ -71,6 +72,114 @@ private fun hwResolveTimeZone(id: String?): TimeZone {
     return if (unknown) TimeZone.getDefault() else zone
 }''',
     kotlinImports: {'import java.util.TimeZone'},
+    localeDependent: false,
+  ),
+
+  /// A payload value as the text a URL carries it as, or null for a value
+  /// that is not there.
+  ///
+  /// The generated Dart reads exactly these spellings back: a number as Dart
+  /// prints it, `true` or `false`, and a date as its milliseconds since the
+  /// epoch.
+  hwPayloadValue(
+    swift: r'''
+func hwPayloadValue(_ value: String?) -> String? {
+  return value
+}
+
+func hwPayloadValue(_ value: Int?) -> String? {
+  return value.map { String($0) }
+}
+
+func hwPayloadValue(_ value: Double?) -> String? {
+  return value.map {
+    $0.isNaN ? "NaN" : $0.isInfinite ? ($0 < 0 ? "-Infinity" : "Infinity") : String($0)
+  }
+}
+
+func hwPayloadValue(_ value: Bool?) -> String? {
+  return value.map { $0 ? "true" : "false" }
+}
+
+func hwPayloadValue(_ value: Date?) -> String? {
+  return value.map { String(Int64(($0.timeIntervalSince1970 * 1000).rounded())) }
+}''',
+    kotlin: '''
+private fun hwPayloadValue(value: Any?): String? =
+    when (value) {
+        null -> null
+        is Date -> value.time.toString()
+        else -> value.toString()
+    }''',
+    kotlinImports: {'import java.util.Date'},
+    localeDependent: false,
+  ),
+
+  /// The URL a tap opens: `head` with every payload value that is there
+  /// appended as a percent-encoded query parameter, then `marker` and
+  /// `fragment`.
+  ///
+  /// Every character outside the unreserved set is encoded, a space as `%20`
+  /// and a `+` as `%2B`, which is what Dart's `Uri.queryParameters` decodes.
+  hwPayloadUrl(
+    swift: r'''
+func hwPayloadUrl(
+  _ head: String, _ payload: [(String, String?)], _ marker: String, _ fragment: String
+) -> URL? {
+  let unreserved = CharacterSet(
+    charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+  var url = head
+  var separator = head.contains("?") ? "&" : "?"
+  for (name, value) in payload {
+    guard let value = value,
+      let encoded = value.addingPercentEncoding(withAllowedCharacters: unreserved)
+    else { continue }
+    url += separator + name + "=" + encoded
+    separator = "&"
+  }
+  if !marker.isEmpty {
+    url += separator + marker
+  }
+  return URL(string: url + fragment)
+}''',
+    kotlin: '''
+private fun hwPayloadUrl(
+    head: String,
+    payload: List<Pair<String, String?>>,
+    marker: String,
+    fragment: String,
+): Uri {
+    val url = StringBuilder(head)
+    var separator = if (head.contains('?')) '&' else '?'
+    for ((name, value) in payload) {
+        if (value == null) continue
+        url.append(separator).append(name).append('=').append(Uri.encode(value))
+        separator = '&'
+    }
+    if (marker.isNotEmpty()) url.append(separator).append(marker)
+    return Uri.parse(url.append(fragment).toString())
+}''',
+    kotlinImports: {'import android.net.Uri'},
+    localeDependent: false,
+  ),
+
+  /// A region of the widget whose tap opens the app with `url`, or the bare
+  /// content when there is no URL to open.
+  ///
+  /// The plain button style keeps the content in its own colors.
+  hwLink(
+    swift: '''
+func hwLink<Content: View>(_ url: URL?, @ViewBuilder content: () -> Content) -> some View {
+  return Group {
+    if let url = url {
+      Link(destination: url, label: content)
+        .buttonStyle(.plain)
+    } else {
+      content()
+    }
+  }
+}''',
+    swiftImports: {'import SwiftUI'},
     localeDependent: false,
   ),
 
@@ -375,7 +484,10 @@ private fun hwFormatNumberPattern(
   ///
   /// Android's skeleton resolver is `android.text.format.DateFormat`, which
   /// shares its short name with the `java.text.DateFormat` the styled helper
-  /// needs, so this one imports it under an alias.
+  /// needs, so this one imports it under an alias. It resolves `j` from the
+  /// locale alone, so the Kotlin side takes the context and turns `j` into `H`
+  /// or `h` first, whichever the system's 24-hour setting asks for; iOS follows
+  /// that setting through `Locale.current`.
   hwFormatDateSkeleton(
     swift: '''
 func hwFormatDateSkeleton(_ date: Date, _ skeleton: String, timeZone: String? = nil) -> String {
@@ -391,24 +503,28 @@ func hwFormatDateSkeleton(_ date: Date, _ skeleton: String, timeZone: String? = 
 private fun hwFormatDateSkeleton(
     date: Date,
     skeleton: String,
-    locale: Locale,
+    context: Context,
     timeZoneId: String? = null,
 ): String {
-    val pattern = AndroidDateFormat.getBestDateTimePattern(locale, skeleton)
+    val locale = hwFormatLocale(context)
+    val hour = if (AndroidDateFormat.is24HourFormat(context)) 'H' else 'h'
+    val pattern =
+        AndroidDateFormat.getBestDateTimePattern(locale, skeleton.replace('j', hour))
     val formatter = SimpleDateFormat(pattern, locale)
     formatter.timeZone = hwResolveTimeZone(timeZoneId)
     return formatter.format(date)
 }''',
     kotlinImports: {
+      'import android.content.Context',
       'import android.text.format.DateFormat as AndroidDateFormat',
       'import java.text.SimpleDateFormat',
       'import java.util.Date',
-      'import java.util.Locale',
     },
     dependencies: [
       HWNativeHelper.hwFormatLocale,
       HWNativeHelper.hwResolveTimeZone,
     ],
+    hourCycleDependent: true,
   ),
 
   /// Renders a date with an explicit ICU pattern such as `dd.MM.yyyy HH:mm`,
@@ -512,6 +628,7 @@ private fun hwFormatDateStyled(
       HWNativeHelper.hwFormatLocale,
       HWNativeHelper.hwResolveTimeZone,
     ],
+    hourCycleDependent: true,
   ),
 
   /// The user's preferred languages, most-wanted first, as BCP 47 tags.
@@ -1142,6 +1259,7 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
     Set<String>? swiftImports,
     this.dependencies = const [],
     this.localeDependent = true,
+    this.hourCycleDependent = false,
   })  : _kotlinImports = kotlinImports,
         _swiftImports = swiftImports;
 
@@ -1178,6 +1296,15 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
   /// resolving a zone id — does not depend on the locale. The default is `true`
   /// so a helper added later over-refreshes rather than showing stale text.
   final bool localeDependent;
+
+  /// Whether what this helper produces changes with the device's 12-/24-hour
+  /// setting.
+  ///
+  /// A widget that uses one of these goes stale when the user flips that
+  /// setting, so Android has to listen for `TIME_SET`, the broadcast the system
+  /// sends for it. Only a helper that leaves the hour cycle to the device
+  /// depends on it; an explicit pattern spells its own out.
+  final bool hourCycleDependent;
 
   /// Always empty: a helper is a function, not a view.
   @override

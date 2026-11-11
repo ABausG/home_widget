@@ -664,30 +664,211 @@ void main() {
     );
   });
 
-  test('prefers the iOS widgetUrl over the top-level one', () async {
+  test('builds the widgetURL from widgetUrlData at render time', () async {
     final spec = WidgetSpec(
       data: HomeWidget(
-        name: 'OverrideWidget',
-        widgetUrl: 'myapp://shared',
-        iOS: HomeWidgetIOSConfiguration(
-          groupId: 'group.override',
-          widgetUrl: 'myapp://ios',
-        ),
+        name: 'PayloadWidget',
+        widgetUrl: 'myapp://weather',
+        widgetUrlData: const [
+          HWString('city'),
+          HWPayload('days', HWInt.fixed(7)),
+        ],
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.payload'),
       ),
-      className: 'OverrideWidget',
+      className: 'PayloadWidget',
+      dataFields: const [HWString('city')],
     );
 
     await IosGenerator(spec: spec, projectRoot: tempDir).generate();
 
     final content = File(
-      p.join(tempDir.path, 'ios/OverrideWidgetHomeWidget/Widget.swift'),
+      p.join(tempDir.path, 'ios/PayloadWidgetHomeWidget/Widget.swift'),
     ).readAsStringSync();
 
     expect(
       content,
-      contains('.widgetURL(URL(string: "myapp://ios?homeWidget"))'),
+      contains(
+        '    .widgetURL(hwPayloadUrl("myapp://weather", '
+        '[("city", hwPayloadValue(entry.data.city)), ("days", "7")], '
+        '"homeWidget", ""))',
+      ),
     );
-    expect(content, isNot(contains('myapp://shared')));
+    expect(content, contains('func hwPayloadUrl('));
+    expect(content, contains('func hwPayloadValue(_ value: String?)'));
+    expect(content, isNot(contains('func hwLink')));
+  });
+
+  test('keeps a link iOS does not render out of the Swift', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PromoWidget',
+        widgetUrl: 'app://home',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.promo'),
+      ),
+      className: 'PromoWidget',
+      widgetTree: const HWColumn(
+        children: [
+          HWText(HWString.fixed('Home')),
+          HWLink(
+            'promo',
+            url: 'app://promo',
+            child: HWAdaptive(
+              ios: HWDataOnly([HWString('hidden')]),
+              android: HWText(HWString.fixed('Promo')),
+            ),
+          ),
+        ],
+      ),
+      dataFields: const [HWString('hidden')],
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/PromoWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect('.widgetURL('.allMatches(content), hasLength(1));
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "app://home?homeWidget"))'),
+    );
+    expect(content, isNot(contains('app://promo')));
+    expect(content, isNot(contains('hwLink(')));
+  });
+
+  test('emits a Link per HWLink next to the widgetURL', () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'LinksWidget',
+        widgetUrl: 'myapp://weather',
+        iOS: HomeWidgetIOSConfiguration(
+          groupId: 'group.links',
+          supportedFamilies: const [HWWidgetFamily.systemMedium],
+        ),
+      ),
+      className: 'LinksWidget',
+      dataFields: const [HWString('city')],
+      widgetTree: const HWRow(
+        children: [
+          HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWString('city')],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+          HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+        ],
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/LinksWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains(
+        'hwLink(hwPayloadUrl("myapp://forecast", '
+        '[("city", hwPayloadValue(entry.data.city))], "homeWidget", "")) {',
+      ),
+    );
+    expect(
+      content,
+      contains('hwLink(URL(string: "myapp://history?homeWidget")) {'),
+    );
+    expect(
+      content,
+      contains('    .widgetURL(URL(string: "myapp://weather?homeWidget"))'),
+    );
+    expect(content, contains('func hwLink<Content: View>('));
+    expect(content, contains('Link(destination: url, label: content)'));
+  });
+
+  test('opens a link that is the whole small layout through widgetURL',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'RootLinkWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.root'),
+      ),
+      className: 'RootLinkWidget',
+      widgetTree: const HWSizeAdaptive(
+        small: HWLink(
+          'history',
+          url: 'myapp://history',
+          child: HWText(HWString.fixed('History')),
+        ),
+        large: HWColumn(
+          children: [
+            HWLink(
+              'forecast',
+              url: 'myapp://forecast',
+              child: HWText(HWString.fixed('Forecast')),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/RootLinkWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "myapp://history?homeWidget"))'),
+    );
+    expect(
+      content,
+      isNot(contains('hwLink(URL(string: "myapp://history?homeWidget"))')),
+    );
+    expect(
+      content,
+      contains('hwLink(URL(string: "myapp://forecast?homeWidget")) {'),
+    );
+  });
+
+  test('emits a padded link in the iOS branch of the root as widgetURL',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'AdaptiveLinkWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.root'),
+      ),
+      className: 'AdaptiveLinkWidget',
+      widgetTree: const HWAdaptive(
+        ios: HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+        ),
+        android: HWText(HWString.fixed('Android')),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/AdaptiveLinkWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "myapp://history?homeWidget"))'),
+    );
+    expect(content, isNot(contains('hwLink(')));
   });
 
   test('emits no widgetURL when none is configured', () async {

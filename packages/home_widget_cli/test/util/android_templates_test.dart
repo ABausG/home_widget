@@ -79,5 +79,92 @@ void main() {
         'import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver',
       ]);
     });
+
+    test('routes a time change into onUpdate and leaves the rest to Glance',
+        () {
+      final source = androidGlanceReceiverTemplate(
+        packageName: 'com.example',
+        widgetClassName: 'FooHomeWidget',
+        handleTimeChange: true,
+      );
+
+      expect(
+        source,
+        contains('''
+  override fun onReceive(context: Context, intent: Intent) {
+    if (intent.action == Intent.ACTION_TIME_CHANGED) {
+      val manager = AppWidgetManager.getInstance(context)
+      onUpdate(context, manager, manager.getAppWidgetIds(ComponentName(context, javaClass)))
+      return
+    }
+    super.onReceive(context, intent)
+  }
+'''),
+      );
+      // onUpdate makes the one goAsync() call a receiver gets; see
+      // androidGlanceReceiverTemplate.
+      expect(source, isNot(contains('goAsync')));
+      expect(source, isNot(contains('ACTION_LOCALE_CHANGED')));
+      expect(source, isNot(contains('updateAll')));
+      expect(source, isNot(contains('kotlinx.coroutines')));
+    });
+
+    test('imports what the time change override names, in ktfmt order', () {
+      List<String> importsOf(String source) => source
+          .split('\n')
+          .where((line) => line.startsWith('import '))
+          .toList();
+
+      const expected = [
+        'import android.appwidget.AppWidgetManager',
+        'import android.content.ComponentName',
+        'import android.content.Context',
+        'import android.content.Intent',
+        'import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver',
+      ];
+      expect(
+        importsOf(
+          androidGlanceReceiverTemplate(
+            packageName: 'com.example',
+            widgetClassName: 'FooHomeWidget',
+            handleTimeChange: true,
+          ),
+        ),
+        expected,
+      );
+
+      final withFingerprint = androidGlanceReceiverTemplate(
+        packageName: 'com.example',
+        widgetClassName: 'FooHomeWidget',
+        previewFingerprint: true,
+        handleTimeChange: true,
+      );
+      expect(importsOf(withFingerprint), expected);
+      expect(
+        withFingerprint.indexOf('override fun previewFingerprint('),
+        lessThan(withFingerprint.indexOf('override fun onReceive(')),
+      );
+    });
+
+    test('imports the context alone for a preview fingerprint', () {
+      final source = androidGlanceReceiverTemplate(
+        packageName: 'com.example',
+        widgetClassName: 'FooHomeWidget',
+        previewFingerprint: true,
+      );
+
+      expect(
+        source,
+        contains('''
+package com.example
+
+import android.content.Context
+import es.antonborri.home_widget.HomeWidgetGlanceWidgetReceiver
+
+class FooHomeWidgetReceiver : HomeWidgetGlanceWidgetReceiver<FooHomeWidget>() {
+'''),
+      );
+      expect(source, isNot(contains('onReceive')));
+    });
   });
 }

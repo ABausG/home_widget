@@ -65,6 +65,11 @@ class AndroidGenerator {
     final handlesLocaleChange = spec.rendersLocalizedContent ||
         nativeHelpers.any((helper) => helper.localeDependent);
 
+    // Flipping the system's 12-/24-hour setting changes no locale, so a widget
+    // showing a time in the device's hour cycle needs its own trigger.
+    final handlesTimeChange =
+        nativeHelpers.any((helper) => helper.hourCycleDependent);
+
     // A preview fingerprint always folds in the current locale tags, so
     // whenever one is emitted the generated file needs hwCurrentLocales
     // whether or not anything else already pulled it in.
@@ -243,17 +248,6 @@ class AndroidGenerator {
     final applyPadding = spec.data.android?.applyContentPadding ?? true;
     final fillContent = spec.data.android?.fillWidgetContent ?? true;
 
-    var widgetTreeBody = emitKotlinWidgetBody(
-      spec.effectiveWidgetTree,
-      dataExpr: hasDataFields ? 'widgetData' : 'null',
-      indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
-      context: spec.androidEmitContext,
-    );
-
-    final sizeModeDeclaration = spec.androidBranchesOnSize
-        ? HWSizeAdaptive.kotlinSizeMode(spec.androidDeclaredSizes)
-        : null;
-
     final widgetUrl = spec.androidWidgetUrl;
     final launcherActivity = spec.androidOpensAppOnTap
         ? tryDetectAndroidLauncherActivity(projectRoot)
@@ -267,15 +261,31 @@ class AndroidGenerator {
       );
     }
     final activityClassName = launcherActivity?.split('.').last;
+    final widgetDataExpr = hasDataFields ? 'widgetData' : 'null';
+
+    var widgetTreeBody = emitKotlinWidgetBody(
+      spec.effectiveWidgetTree,
+      dataExpr: widgetDataExpr,
+      indent: useTheme ? 3 : 2, // inside WidgetContent, +1 if in GlanceTheme
+      context: spec.androidEmitContext.launching(activityClassName),
+    );
+
+    final sizeModeDeclaration = spec.androidBranchesOnSize
+        ? HWSizeAdaptive.kotlinSizeMode(spec.androidDeclaredSizes)
+        : null;
+
     // A widget without a URL still opens the app, matching what iOS does for a
     // widget that declares no `widgetURL`. The plain Glance action carries no
     // home_widget launch intent, so no widget click is reported.
+    // A link that is the whole layout also covers the root's own padding.
+    final rootUrl = widgetUrl ?? spec.androidWholeLayoutLink?.payloadUrl;
     final clickAction = activityClassName == null
         ? null
-        : widgetUrl == null
+        : rootUrl == null
             ? 'actionStartActivity<$activityClassName>()'
             : 'actionStartActivity<$activityClassName>(context, '
-                'Uri.parse("${escapeKotlinStringLiteral(widgetUrl)}"))';
+                '${rootUrl.toKotlin(widgetDataExpr)})';
+    final opensLinks = activityClassName != null && spec.links.isNotEmpty;
 
     final rootModifiers = <String>[];
     if (bgColor != null) {
@@ -356,20 +366,21 @@ class AndroidGenerator {
 
     if (clickAction != null) {
       layoutImports.add('import androidx.glance.action.clickable');
-      if (widgetUrl == null) {
+      if (rootUrl == null) {
         // The reified Activity overload lives in glance core; the appwidget
         // package only carries the Intent-based ones.
         layoutImports.add('import androidx.glance.action.actionStartActivity');
       } else {
-        layoutImports.add('import android.net.Uri');
+        layoutImports.addAll(HWPayloadUrl.kotlinImports);
         layoutImports
             .add('import es.antonborri.home_widget.actionStartActivity');
       }
-      // Only a launcher activity outside the generated file's own package needs
-      // naming; that package may be one the annotation overrode.
-      if (launcherActivity != '$packageName.$activityClassName') {
-        layoutImports.add('import $launcherActivity');
-      }
+    }
+    // Only a launcher activity outside the generated file's own package needs
+    // naming; that package may be one the annotation overrode.
+    if ((clickAction != null || opensLinks) &&
+        launcherActivity != '$packageName.$activityClassName') {
+      layoutImports.add('import $launcherActivity');
     }
     // The gallery preview composes outside a running widget, so it has no state
     // to read and names the store itself: the app's own data when the preview
@@ -440,6 +451,7 @@ class AndroidGenerator {
         packageName: packageName,
         widgetClassName: widgetClassName,
         previewFingerprint: previewFingerprint != null,
+        handleTimeChange: handlesTimeChange,
       ),
     );
     logger.detail('Generated: ${receiverFile.path}');
@@ -515,11 +527,13 @@ class AndroidGenerator {
       appPackageName: packageName,
       providerInfoName: providerInfoName,
       handleLocaleChange: handlesLocaleChange,
+      handleTimeChange: handlesTimeChange,
       label: '@string/$labelResourceName',
       flavors: spec.declaredFlavors,
     );
     if (spec.hasFlavors) _reportFlavorMismatches();
-    if (widgetUrl != null) {
+    if (widgetUrl != null ||
+        (spec.androidOpensAppOnTap && spec.links.isNotEmpty)) {
       await ensureAndroidManifestLaunchIntent(projectRoot);
     }
     if (hasTimedData) {

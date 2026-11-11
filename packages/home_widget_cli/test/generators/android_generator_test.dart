@@ -9,6 +9,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
+import 'package:xml/xml.dart';
 
 import '../helpers/font_fixture.dart';
 import '../helpers/mock_logger.dart';
@@ -1884,25 +1885,261 @@ void main() {
       );
     });
 
-    test('prefers the Android URL over the top-level one', () async {
+    test('builds the URL from widgetUrlData at composition time', () async {
       writeManifest();
       final content = await generateFor(
         WidgetSpec(
           data: HomeWidget(
-            name: 'Override',
-            widgetUrl: 'myapp://shared',
-            android: HomeWidgetAndroidConfiguration(
-              packageName: 'com.urls',
-              widgetUrl: 'myapp://android',
-            ),
+            name: 'Payload',
+            widgetUrl: 'myapp://weather',
+            widgetUrlData: const [
+              HWString('city'),
+              HWPayload('days', HWInt.fixed(7)),
+            ],
+            android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
           ),
-          className: 'Override',
+          className: 'Payload',
+          dataFields: const [HWString('city')],
         ),
         'com/urls',
       );
 
-      expect(content, contains('Uri.parse("myapp://android?homeWidget")'));
-      expect(content, isNot(contains('myapp://shared')));
+      expect(
+        content,
+        contains(
+          'clickable(onClick = actionStartActivity<MainActivity>(context, '
+          'hwPayloadUrl("myapp://weather", '
+          'listOf("city" to hwPayloadValue(widgetData.city), "days" to "7"), '
+          '"homeWidget", "")))',
+        ),
+      );
+      expect(content, contains('private fun hwPayloadUrl('));
+      expect(content, contains('private fun hwPayloadValue(value: Any?)'));
+      expect(content, contains('import android.net.Uri'));
+      expect(content, contains('import java.util.Date'));
+    });
+
+    group('HWLink', () {
+      const links = HWRow(
+        children: [
+          HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWString('city')],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+          HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+        ],
+      );
+
+      WidgetSpec linkSpec({
+        String? widgetUrl,
+        bool openAppOnTap = true,
+        String packageName = 'com.urls',
+        HWWidget tree = links,
+      }) =>
+          WidgetSpec(
+            data: HomeWidget(
+              name: 'Links',
+              widgetUrl: widgetUrl,
+              android: HomeWidgetAndroidConfiguration(
+                packageName: packageName,
+                openAppOnTap: openAppOnTap,
+              ),
+            ),
+            className: 'Links',
+            dataFields: const [HWString('city')],
+            widgetTree: tree,
+          );
+
+      const wholeLink = HWAdaptive(
+        ios: HWText(HWString.fixed('iOS')),
+        android: HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWLink(
+            'forecast',
+            url: 'myapp://forecast',
+            data: [HWString('city')],
+            child: HWText(HWString.fixed('Forecast')),
+          ),
+        ),
+      );
+      const forecastAction =
+          'clickable(onClick = actionStartActivity<MainActivity>(context, '
+          'hwPayloadUrl("myapp://forecast", '
+          'listOf("city" to hwPayloadValue(widgetData.city)), '
+          '"homeWidget", "")))';
+
+      File manifest() => File(
+            p.join(
+              tempDir.path,
+              'android',
+              'app',
+              'src',
+              'main',
+              'AndroidManifest.xml',
+            ),
+          );
+
+      test('makes every link clickable next to a plain root tap', () async {
+        writeManifest();
+        final content = await generateFor(linkSpec(), 'com/urls');
+
+        expect(
+          content,
+          contains(
+            'clickable(onClick = actionStartActivity<MainActivity>(context, '
+            'hwPayloadUrl("myapp://forecast", '
+            'listOf("city" to hwPayloadValue(widgetData.city)), '
+            '"homeWidget", "")))',
+          ),
+        );
+        expect(
+          content,
+          contains(
+            'clickable(onClick = actionStartActivity<MainActivity>(context, '
+            'Uri.parse("myapp://history?homeWidget")))',
+          ),
+        );
+        expect(
+          content,
+          contains('clickable(onClick = actionStartActivity<MainActivity>())'),
+        );
+        expect(
+          content,
+          contains('import androidx.glance.action.actionStartActivity'),
+        );
+        expect(
+          content,
+          contains('import es.antonborri.home_widget.actionStartActivity'),
+        );
+        expect(
+          manifest().readAsStringSync(),
+          contains(
+            '<action android:name="es.antonborri.home_widget.action.LAUNCH" />',
+          ),
+        );
+      });
+
+      test('keeps the links next to a root tap with a URL', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(widgetUrl: 'myapp://weather'),
+          'com/urls',
+        );
+
+        expect(content, contains('Uri.parse("myapp://weather?homeWidget")'));
+        expect(content, contains('Uri.parse("myapp://history?homeWidget")'));
+        expect(
+          content,
+          isNot(contains('import androidx.glance.action.actionStartActivity')),
+        );
+      });
+
+      test('opens a whole-layout link from the root padding too', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(tree: wholeLink),
+          'com/urls',
+        );
+
+        expect(forecastAction.allMatches(content), hasLength(2));
+        expect(
+          content,
+          isNot(contains('actionStartActivity<MainActivity>()')),
+        );
+        expect(
+          content,
+          isNot(contains('import androidx.glance.action.actionStartActivity')),
+        );
+      });
+
+      test('keeps widgetUrl on the root around a whole-layout link', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(tree: wholeLink, widgetUrl: 'myapp://weather'),
+          'com/urls',
+        );
+
+        expect(forecastAction.allMatches(content), hasLength(1));
+        expect(content, contains('Uri.parse("myapp://weather?homeWidget")'));
+      });
+
+      test('imports a launcher activity of another package', () async {
+        writeManifest(activityName: 'com.other.HostActivity');
+        final content = await generateFor(linkSpec(), 'com/urls');
+
+        expect(content, contains('import com.other.HostActivity'));
+        expect(
+          content,
+          contains('actionStartActivity<HostActivity>(context, Uri.parse('),
+        );
+      });
+
+      test('leaves the links inert when openAppOnTap is false', () async {
+        writeManifest();
+        final content = await generateFor(
+          linkSpec(openAppOnTap: false),
+          'com/urls',
+        );
+
+        expect(content, isNot(contains('clickable(')));
+        expect(content, isNot(contains('myapp://history')));
+        expect(content, contains('text = "History"'));
+        expect(
+          manifest().readAsStringSync(),
+          isNot(contains('es.antonborri.home_widget.action.LAUNCH')),
+        );
+      });
+
+      test('leaves the links inert when no launcher activity is found',
+          () async {
+        final content = await generateFor(linkSpec(), 'com/urls');
+
+        expect(content, isNot(contains('clickable(')));
+        expect(content, contains('text = "History"'));
+        verify(
+          () => mockLogger.warn(
+            any(that: contains('Could not detect the launcher activity')),
+          ),
+        ).called(1);
+      });
+
+      test('sends an item field per row of a builder', () async {
+        writeManifest();
+        final content = await generateFor(
+          WidgetSpec(
+            data: HomeWidget(
+              name: 'Todos',
+              android: HomeWidgetAndroidConfiguration(packageName: 'com.urls'),
+            ),
+            className: 'Todos',
+            widgetTree: const HWColumn.builder(
+              'todos',
+              item: HWLink(
+                'open',
+                url: 'myapp://todo',
+                data: [HWItemData(HWString('id'))],
+                child: HWText(HWItemData(HWString('title'))),
+              ),
+            ),
+          ),
+          'com/urls',
+        );
+
+        expect(content, contains('forEachIndexed { _, hwItem ->'));
+        expect(
+          content,
+          contains(
+            'hwPayloadUrl("myapp://todo", '
+            'listOf("id" to hwPayloadValue(hwItem.id)), "homeWidget", "")',
+          ),
+        );
+      });
     });
 
     test('imports the launcher activity when it lives in another package',
@@ -2080,6 +2317,14 @@ void main() {
       ).readAsStringSync();
     }
 
+    String receiverOf(WidgetSpec spec) => File(
+          p.join(
+            tempDir.path,
+            'android/app/src/main/kotlin/com/example/'
+            '${spec.className}HomeWidgetReceiver.kt',
+          ),
+        ).readAsStringSync();
+
     WidgetSpec specOf(
       String className, {
       List<HWDataType<dynamic>> dataFields = const [],
@@ -2188,10 +2433,12 @@ void main() {
         content,
         contains(
           'Text(text = widgetData.placedAt?.let { hwFormatDateSkeleton(it, '
-          '"yMMMd", hwFormatLocale(context), widgetData.zone) } ?: "", '
+          '"yMMMd", context, widgetData.zone) } ?: "", '
           'style = TextStyle(color = GlanceTheme.colors.onSurface))',
         ),
       );
+      expect(content, contains('AndroidDateFormat.is24HourFormat(context)'));
+      expect('import android.content.Context'.allMatches(content).length, 1);
 
       // The skeleton resolver is Android's DateFormat, aliased so it can live
       // beside the java.text one the styled helper uses.
@@ -2313,18 +2560,73 @@ void main() {
     });
 
     test('handles LOCALE_CHANGED for a formatting-only widget', () async {
-      await generateFor(
-        specOf(
-          'Prices',
-          dataFields: const [HWDouble('total')],
-          widgetTree: const HWText.number(HWDouble('total')),
-        ),
+      final spec = specOf(
+        'Prices',
+        dataFields: const [HWDouble('total')],
+        widgetTree: const HWText.number(HWDouble('total')),
       );
+      await generateFor(spec);
 
       expect(
         manifest.readAsStringSync(),
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
+      // A number has no hour cycle to follow.
+      expect(manifest.readAsStringSync(), isNot(contains('TIME_SET')));
+      expect(receiverOf(spec), isNot(contains('onReceive')));
+    });
+
+    test('handles TIME_SET for a date left to the device hour cycle', () async {
+      final specs = [
+        specOf(
+          'Clock',
+          dataFields: const [HWDateTime('at')],
+          widgetTree: const HWText.dateTime(
+            HWDateTime('at'),
+            format: HWDateFormat.jm,
+          ),
+        ),
+        specOf(
+          'Stamp',
+          dataFields: const [HWDateTime('at')],
+          widgetTree: const HWText.dateTime(HWDateTime('at')),
+        ),
+      ];
+
+      for (final spec in specs) {
+        await generateFor(spec);
+
+        final receiver = XmlDocument.parse(manifest.readAsStringSync())
+            .findAllElements('receiver')
+            .singleWhere(
+              (e) =>
+                  e.getAttribute('android:name') ==
+                  'com.example.${spec.className}HomeWidgetReceiver',
+            );
+        expect(
+          receiver
+              .findAllElements('action')
+              .map((e) => e.getAttribute('android:name')),
+          [
+            'android.appwidget.action.APPWIDGET_UPDATE',
+            'android.intent.action.LOCALE_CHANGED',
+            'android.intent.action.TIME_SET',
+          ],
+          reason: spec.className,
+        );
+
+        final source = receiverOf(spec);
+        expect(
+          source,
+          contains('if (intent.action == Intent.ACTION_TIME_CHANGED) {'),
+          reason: spec.className,
+        );
+        expect(
+          'import android.content.Context'.allMatches(source).length,
+          1,
+          reason: spec.className,
+        );
+      }
     });
 
     test('keys LOCALE_CHANGED on the helpers that read the locale', () async {
@@ -2351,6 +2653,13 @@ void main() {
         manifest.readAsStringSync(),
         contains('android:name="android.intent.action.LOCALE_CHANGED"'),
       );
+      // An explicit pattern spells its own hour cycle out.
+      expect(
+        spec.nativeHelpers.where((h) => h.hourCycleDependent),
+        isEmpty,
+      );
+      expect(manifest.readAsStringSync(), isNot(contains('TIME_SET')));
+      expect(receiverOf(spec), isNot(contains('onReceive')));
     });
   });
 

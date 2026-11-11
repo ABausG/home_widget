@@ -96,38 +96,33 @@ void main() {
       expect(a, isNot(equals(HomeWidget(name: 'n'))));
     });
 
-    test('platform configuration equality includes widgetUrl', () {
-      const android = HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://a');
-      expect(
-        android,
-        const HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://a'),
-      );
-      expect(
-        android,
-        isNot(
-          equals(
-            const HomeWidgetAndroidConfiguration(widgetUrl: 'myapp://b'),
-          ),
-        ),
-      );
+    test('HomeWidget equality includes widgetUrlData', () {
+      HomeWidget withData(List<HWDataType<dynamic>> data) => HomeWidget(
+            name: 'n',
+            widgetUrl: 'myapp://widget',
+            widgetUrlData: data,
+          );
 
-      const ios =
-          HomeWidgetIOSConfiguration(groupId: 'g', widgetUrl: 'myapp://a');
+      final a = withData([
+        HWString('city'),
+        HWPayload('days', HWInt.fixed(7)),
+      ]);
+      final same = withData([
+        HWString('city'),
+        HWPayload('days', HWInt.fixed(7)),
+      ]);
+      expect(a, same);
+      expect(a.hashCode, same.hashCode);
+      expect(a, isNot(equals(withData([HWString('city')]))));
       expect(
-        ios,
-        const HomeWidgetIOSConfiguration(groupId: 'g', widgetUrl: 'myapp://a'),
-      );
-      expect(
-        ios,
+        a,
         isNot(
           equals(
-            const HomeWidgetIOSConfiguration(
-              groupId: 'g',
-              widgetUrl: 'myapp://b',
-            ),
+            withData([HWString('city'), HWPayload('days', HWInt.fixed(3))]),
           ),
         ),
       );
+      expect(HomeWidget(name: 'n').widgetUrlData, isEmpty);
     });
 
     test('Android configuration equality includes openAppOnTap', () {

@@ -267,6 +267,8 @@ class HomeWidget {
   }
 
   /// Checks if the App was initially launched via the Widget
+  ///
+  /// Prefer [initialLaunch], which decodes the Uri into a value of your own.
   static Future<Uri?> initiallyLaunchedFromHomeWidget() {
     return _channel
         .invokeMethod<String>('initiallyLaunchedFromHomeWidget')
@@ -287,11 +289,111 @@ class HomeWidget {
     return _channel.invokeMethod<void>('finishHomeWidgetConfigure');
   }
 
+  static final Stream<dynamic> _clickEvents = _eventChannel
+      .receiveBroadcastStream();
+
   /// Receives Updates if App Launched via the Widget
+  ///
+  /// Every active subscription receives each click. A click that arrives while
+  /// nothing listens is not delivered. Read the click the App was launched
+  /// with using [initiallyLaunchedFromHomeWidget].
+  ///
+  /// Prefer [launches], which also delivers the initial launch and decodes
+  /// each Uri into a value of your own.
   static Stream<Uri?> get widgetClicked {
-    return _eventChannel.receiveBroadcastStream().map<Uri?>(
-      _handleReceivedData,
+    return _clickEvents.map<Uri?>(_handleReceivedData);
+  }
+
+  static bool _initialLaunchDelivered = false;
+
+  /// Forgets that [launches] has delivered the initial launch.
+  @visibleForTesting
+  static void debugResetLaunches() {
+    _initialLaunchDelivered = false;
+  }
+
+  /// The launch [decode] reads out of the Uri the App was started with by a
+  /// click on a HomeScreen Widget
+  ///
+  /// Returns `null` when the App was started any other way, and when [decode]
+  /// returns `null` because the Uri is not one it knows. The scheme of the Uri
+  /// handed to [decode] is lower-cased, whatever casing the Widget wrote it
+  /// with.
+  static Future<T?> initialLaunch<T extends Object>(
+    T? Function(Uri uri) decode,
+  ) async {
+    final uri = await initiallyLaunchedFromHomeWidget();
+    return uri == null ? null : decode(uri);
+  }
+
+  /// Every launch [decode] reads out of a click on a HomeScreen Widget
+  ///
+  /// Emits the launch the App was started with first, if there was one, then
+  /// one for every click while the App is running. A Uri [decode] returns
+  /// `null` for is skipped, so the Stream only ever carries launches [decode]
+  /// knows.
+  ///
+  /// When listened to, the Stream first reads the initial Uri and only then
+  /// listens to [widgetClicked]. A click arriving in between is not delivered.
+  ///
+  /// The initial launch is delivered once per run of the App: as soon as one
+  /// listener has decoded the initial Uri to a launch and received it, every
+  /// Stream listened to later starts with clicks only. A listener whose
+  /// [decode] does not know the initial Uri leaves it for another one, and so
+  /// does a listener cancelled before the initial Uri has been read. Use
+  /// [initialLaunch] to read it again.
+  ///
+  /// Any number of these Streams can be listened to at once, each with a
+  /// [decode] of its own. An exception [decode] throws, and a failure to read
+  /// the initial Uri, arrive as an error of the Stream, which keeps going with
+  /// the clicks. A Stream listened to after a failed read reads it again.
+  ///
+  /// The scheme of the Uri handed to [decode] is lower-cased, whatever casing
+  /// the Widget wrote it with.
+  static Stream<T> launches<T extends Object>(T? Function(Uri uri) decode) {
+    late final StreamController<T> controller;
+    StreamSubscription<Uri?>? clicks;
+    var cancelled = false;
+
+    void emit(Uri uri, {bool initial = false}) {
+      try {
+        final launch = decode(uri);
+        if (launch == null) return;
+        if (initial) {
+          if (_initialLaunchDelivered) return;
+          _initialLaunchDelivered = true;
+        }
+        controller.add(launch);
+      } on Object catch (error, stackTrace) {
+        controller.addError(error, stackTrace);
+      }
+    }
+
+    Future<void> listen() async {
+      if (!_initialLaunchDelivered) {
+        try {
+          final uri = await initiallyLaunchedFromHomeWidget();
+          if (cancelled) return;
+          if (uri != null) emit(uri, initial: true);
+        } on Object catch (error, stackTrace) {
+          if (cancelled) return;
+          controller.addError(error, stackTrace);
+        }
+      }
+      if (cancelled) return;
+      clicks = widgetClicked.listen((uri) {
+        if (uri != null) emit(uri);
+      }, onError: controller.addError);
+    }
+
+    controller = StreamController<T>(
+      onListen: () => unawaited(listen()),
+      onCancel: () {
+        cancelled = true;
+        return clicks?.cancel();
+      },
     );
+    return controller.stream;
   }
 
   static Uri? _handleReceivedData(dynamic value) {

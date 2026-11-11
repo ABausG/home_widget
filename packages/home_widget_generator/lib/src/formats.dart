@@ -3,15 +3,22 @@ import 'types.dart';
 import 'utils/string_literals.dart';
 import 'widgets/hw_generatable.dart';
 
-/// The Kotlin expression the generated Glance code passes as the formatting
-/// locale.
+/// The Kotlin expression the generated Glance code passes to a formatter that
+/// reads more of the context than its locale.
 ///
 /// `context` is a parameter of the generated `WidgetContent` composable, so the
 /// expression is only valid inside the widget body — which is the only place
 /// formatting happens.
 ///
 /// Codegen-internal: consumed by `home_widget_cli`, not by app code.
-const String kotlinFormatLocaleExpr = 'hwFormatLocale(context)';
+const String kotlinFormatContextExpr = 'context';
+
+/// The Kotlin expression the generated Glance code passes as the formatting
+/// locale, valid where [kotlinFormatContextExpr] is.
+///
+/// Codegen-internal: consumed by `home_widget_cli`, not by app code.
+const String kotlinFormatLocaleExpr =
+    'hwFormatLocale($kotlinFormatContextExpr)';
 
 /// Length preset for a formatted date or time component.
 enum HWFormatStyle {
@@ -484,7 +491,8 @@ sealed class HWDateFormat {
   /// `2025`
   static const HWDateFormat y = HWDateFormat.skeleton('y');
 
-  /// `5:08 PM`, in the locale's preferred 12- or 24-hour cycle.
+  /// `5:08 PM`, in the device's 12- or 24-hour cycle: the locale's own unless
+  /// the user changed it in the system settings.
   static const HWDateFormat jm = HWDateFormat.skeleton('jm');
 
   /// `5:08:32 PM`
@@ -523,7 +531,8 @@ sealed class HWDateFormat {
   /// The arguments between the date and the trailing time zone, Swift side.
   String _swiftArguments();
 
-  /// Kotlin counterpart of [_swiftArguments], the locale argument included.
+  /// Kotlin counterpart of [_swiftArguments], including the locale the helper
+  /// formats in or the context it reads that from.
   String _kotlinArguments();
 
   /// The Swift call formatting [dateExpr], a non-optional `Date` expression,
@@ -578,7 +587,7 @@ class HWSkeletonDateFormat extends HWDateFormat {
 
   @override
   String _kotlinArguments() =>
-      '"${escapeKotlinStringLiteral(skeleton)}", $kotlinFormatLocaleExpr';
+      '"${escapeKotlinStringLiteral(skeleton)}", $kotlinFormatContextExpr';
 
   @override
   String toString() => 'HWDateFormat.skeleton($skeleton)';

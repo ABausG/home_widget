@@ -32,6 +32,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
         initializeFlutterEngine()
       } catch (e: Exception) {
         Log.e(TAG, "Failed to initialize Flutter engine", e)
+        resetEngine()
         return Result.failure()
       }
     }
@@ -111,6 +112,21 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     private val serviceStarted = AtomicBoolean(false)
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    private fun resetEngine() {
+      val engineToDestroy = engine
+      engine = null
+      serviceStarted.set(false)
+      if (engineToDestroy != null) {
+        mainHandler.post {
+          try {
+            engineToDestroy.destroy()
+          } catch (e: Exception) {
+            Log.w(TAG, "Error destroying Flutter engine", e)
+          }
+        }
+      }
+    }
+
     fun enqueueWork(context: Context, work: Intent) {
       val data = Data.Builder().putString(DATA_KEY, work.data?.toString() ?: "").build()
 
@@ -118,7 +134,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
           OneTimeWorkRequestBuilder<HomeWidgetBackgroundWorker>().setInputData(data).build()
 
       WorkManager.getInstance(context)
-          .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.APPEND, workRequest)
+          .enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.APPEND_OR_REPLACE, workRequest)
     }
   }
 }

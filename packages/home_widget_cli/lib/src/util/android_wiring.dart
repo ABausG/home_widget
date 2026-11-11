@@ -121,6 +121,10 @@ Future<void> ensureAndroidGlanceGradleSetup(Directory projectRoot) async {
 /// language change. Set it for widgets that render localized content
 /// themselves.
 ///
+/// [handleTimeChange] adds `android.intent.action.TIME_SET` the same way, which
+/// the system sends when the user changes the clock or its 12-/24-hour setting.
+/// Set it for widgets that render a time in the device's hour cycle.
+///
 /// [flavors] is the set of product flavors the widget exists in. Empty
 /// registers the receiver in `src/main`. Otherwise it is registered in
 /// `src/<flavor>/AndroidManifest.xml` for every flavor — Gradle's manifest
@@ -134,11 +138,16 @@ Future<void> ensureAndroidManifestReceiver(
   required String appPackageName,
   required String providerInfoName,
   bool handleLocaleChange = false,
+  bool handleTimeChange = false,
   String? label,
   List<String> flavors = const [],
 }) async {
   final receiverFqcn = '$appPackageName.${widgetClassName}Receiver';
   final sourceSets = flavors.isEmpty ? const ['main'] : flavors;
+  final refreshActions = [
+    if (handleLocaleChange) _localeChangedAction,
+    if (handleTimeChange) _timeSetAction,
+  ];
 
   for (final sourceSet in sourceSets) {
     _ensureReceiverInSourceSet(
@@ -147,7 +156,7 @@ Future<void> ensureAndroidManifestReceiver(
       receiverFqcn: receiverFqcn,
       widgetClassName: widgetClassName,
       providerInfoName: providerInfoName,
-      handleLocaleChange: handleLocaleChange,
+      refreshActions: refreshActions,
       label: label,
     );
   }
@@ -192,7 +201,7 @@ void _ensureReceiverInSourceSet(
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
-  required bool handleLocaleChange,
+  required List<String> refreshActions,
   String? label,
 }) {
   // A flavor source set is the generator's to create; `main` is the app's.
@@ -254,10 +263,10 @@ void _ensureReceiverInSourceSet(
       changed = true;
     }
 
-    if (handleLocaleChange && _ensureLocaleChangedAction(existing)) {
-      changed = true;
+    for (final action in refreshActions) {
+      if (_ensureWidgetReceiverAction(existing, action)) changed = true;
     }
-    // Add-only: the action is never removed again, since it may be
+    // Add-only: an action is never removed again, since it may be
     // hand-written.
 
     if (changed && writeXmlFile(manifestFile, manifestXml)) {
@@ -271,7 +280,7 @@ void _ensureReceiverInSourceSet(
       receiverFqcn: receiverFqcn,
       widgetClassName: widgetClassName,
       providerInfoName: providerInfoName,
-      handleLocaleChange: handleLocaleChange,
+      refreshActions: refreshActions,
       label: label,
     ),
   );
@@ -344,7 +353,8 @@ const String scheduledUpdateReceiverFqcn =
 /// existing receiver declaration is left untouched except that a missing
 /// `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED` action is added to it (the
 /// same add-only pattern [ensureAndroidManifestReceiver] uses for
-/// `LOCALE_CHANGED`), so apps generated before that action existed pick it up.
+/// `LOCALE_CHANGED` and `TIME_SET`), so apps generated before that action
+/// existed pick it up.
 /// Only called for specs that actually have time-based fields, so manifests of
 /// other projects stay byte-identical.
 Future<void> ensureAndroidManifestScheduledUpdates(
@@ -640,6 +650,7 @@ XmlElement? _findAndroidWidgetReceiver(
 const String _appWidgetUpdateAction =
     'android.appwidget.action.APPWIDGET_UPDATE';
 const String _localeChangedAction = 'android.intent.action.LOCALE_CHANGED';
+const String _timeSetAction = 'android.intent.action.TIME_SET';
 
 XmlElement _actionElement(String name) => XmlElement(
       XmlName('action'),
@@ -647,13 +658,14 @@ XmlElement _actionElement(String name) => XmlElement(
       const [],
     );
 
-/// Adds `LOCALE_CHANGED` to [receiver]'s intent-filter if it is not there yet.
+/// Adds [action] to the widget [receiver]'s intent-filter if it is not there
+/// yet.
 ///
 /// Returns whether the document was modified.
-bool _ensureLocaleChangedAction(XmlElement receiver) {
+bool _ensureWidgetReceiverAction(XmlElement receiver, String action) {
   final alreadyPresent = receiver
       .findAllElements('action')
-      .any((e) => e.getAttribute('android:name') == _localeChangedAction);
+      .any((e) => e.getAttribute('android:name') == action);
   if (alreadyPresent) return false;
 
   final filter = receiver.childElements
@@ -673,13 +685,13 @@ bool _ensureLocaleChangedAction(XmlElement receiver) {
       XmlElement(
         XmlName('intent-filter'),
         const [],
-        [_actionElement(_localeChangedAction)],
+        [_actionElement(action)],
       ),
     );
     return true;
   }
 
-  filter.children.add(_actionElement(_localeChangedAction));
+  filter.children.add(_actionElement(action));
   return true;
 }
 
@@ -687,7 +699,7 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
   required String receiverFqcn,
   required String widgetClassName,
   required String providerInfoName,
-  bool handleLocaleChange = false,
+  List<String> refreshActions = const [],
   String? label,
 }) {
   return XmlElement(
@@ -703,7 +715,7 @@ XmlElement _buildAndroidAppWidgetReceiverElement({
         const [],
         [
           _actionElement(_appWidgetUpdateAction),
-          if (handleLocaleChange) _actionElement(_localeChangedAction),
+          for (final action in refreshActions) _actionElement(action),
         ],
       ),
       XmlElement(
