@@ -162,6 +162,12 @@ $indent$literal,
     }
   }
 
+  /// Removes the field [field] of [objectId].
+  void removeField(String objectId, String field) {
+    final entry = project.object(objectId)?.fields.entry(field);
+    if (entry != null) _remove(entry.start, entry.end);
+  }
+
   /// Rewrites the elements of the array field [field] of [objectId] to
   /// [literals], in that order.
   void setArrayItems(String objectId, String field, List<String> literals) {

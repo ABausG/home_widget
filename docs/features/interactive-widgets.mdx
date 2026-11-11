@@ -8,6 +8,10 @@ description: Build Interactive Widgets that call Flutter Code from Native Widget
 Android and iOS (starting with iOS 17) allow widgets to have interactive Elements like Buttons.
 Using home_widget you can register Dart Callbacks that get invoked from the Native Widgets so you only have to write that logic once.
 
+<Info>
+This page is about widgets you write natively by hand. If you generate your widgets with `home_widget_generator`, see [Interactive Widgets](/generator/interactivity) of the generator instead: an `HWButton` in the schema does all of the setup below for you.
+</Info>
+
 <center>
 <img src="https://github.com/abausg/home_widget/raw/main/packages/home_widget/pub/screenshots/ios-counter.gif"/>
 </center>
@@ -23,6 +27,7 @@ Using home_widget you can register Dart Callbacks that get invoked from the Nati
     }
     ```
    `@pragma('vm:entry-point')` must be placed above the `callback` function to avoid tree shaking in release mode.
+   The callback runs in a separate background isolate that finds it only by its handle, so it must be a top-level or static function. Closures and instance methods make `registerInteractivityCallback` throw an `ArgumentError`.
 
 2. Register the callback function by calling
     ```dart
@@ -115,7 +120,7 @@ Once the dependency is present in your widget target, continue with the shared s
    @available(iOSApplicationExtension, unavailable)
    extension BackgroundIntent: ForegroundContinuableIntent {}
    ```
-   This code tells the system to always perform the Intent in the App and not in a process attached to the Widget. Note however that this will start your Flutter App using the normal main entrypoint meaning your full app might be run in the background. To counter this you should add checks in the very first Widget you build inside `runApp` to only perform necessary calls/setups while the App is launched in the background
+   This code tells the system to always perform the Intent in the App and not in a process attached to the Widget. Note however that this will start your Flutter App using the normal main entrypoint meaning your full app might be run in the background. To counter this you should add checks in the very first Widget you build inside `runApp` to only perform necessary calls/setups while the App is launched in the background. The plugin starts its background engine from the callback that was registered earlier, so the callback also runs when the App does not register it again during that launch
 
 
 
@@ -123,12 +128,9 @@ Once the dependency is present in your widget target, continue with the shared s
 
 1. Add the necessary Receiver to your `AndroidManifest.xml` file
     ```xml
-   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
-        <intent-filter>
-            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
-        </intent-filter>
-    </receiver>
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="false" />
     ```
+   The receiver does not have to be exported and needs no intent-filter: `HomeWidgetBackgroundIntent.getBroadcast` addresses it by its class, and the launcher sends that `PendingIntent` as your app. With `android:exported="true"` any app on the device can send it a broadcast and run your callback with a Uri of its choice, so change an existing entry to `false`.
 2. Create a custom Action
    ```kotlin
    class InteractiveAction : ActionCallback {
@@ -153,6 +155,89 @@ Once the dependency is present in your widget target, continue with the shared s
         android:permission="android.permission.BIND_JOB_SERVICE" android:exported="true"/>
 ```
 </Accordion>
+
+## Several Callbacks
+
+Everything above uses one callback for the whole app. That is enough for most apps, because the Uri can tell the callback what was tapped.
+
+If your app has several interactive Widgets, each of them can have its own callback instead. Register every callback with a `key`, and pass the same key from the native Widget.
+
+```dart
+HomeWidget.registerInteractivityCallback(counterCallback, key: 'counter');
+HomeWidget.registerInteractivityCallback(todoCallback, key: 'todo');
+```
+
+- A callback registered without a `key` is the default callback. It receives every interaction that is sent without a key, and every interaction whose key has no callback registered.
+- Registering a second callback with the same key replaces the first one.
+- Each callback needs `@pragma('vm:entry-point')`, as before.
+
+### App Group
+
+On iOS the callbacks are stored in the App Group. By default that is the one set with `HomeWidget.setAppGroupId`. You can also name it per call with `appGroupId`, in the same way as for `saveWidgetData`. Registering then works without calling `setAppGroupId` first.
+
+```dart
+HomeWidget.registerInteractivityCallback(
+  counterCallback,
+  key: 'counter',
+  appGroupId: 'group.com.example.app',
+);
+```
+
+Pass the same App Group to `HomeWidgetBackgroundWorker.run` in your `AppIntent`. On Android `appGroupId` has no effect.
+
+<Info>
+  Below iOS 17 `registerInteractivityCallback` throws a `PlatformException` with code `-5`, with or without `key` and `appGroupId`, because Widgets cannot be interactive there. Without an App Group it throws one with code `-7`.
+</Info>
+
+### iOS
+
+Give your `AppIntent` a parameter for the key and pass it to `HomeWidgetBackgroundWorker.run(url:appGroup:key:)`:
+
+```swift
+@Parameter(title: "Callback Key")
+var key: String?
+
+public func perform() async throws -> some IntentResult {
+   await HomeWidgetBackgroundWorker.run(url: url, appGroup: appGroup!, key: key)
+
+   return .result()
+}
+```
+
+`run(url:appGroup:)` without a key keeps calling the default callback.
+
+### Android
+
+Pass the key as the third argument of `HomeWidgetBackgroundIntent.getBroadcast`:
+
+```kotlin
+val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(
+    context,
+    Uri.parse("homeWidgetExample://increment"),
+    "counter",
+)
+backgroundIntent.send()
+```
+
+In a Glance Widget you do not need an `ActionCallback` of your own for this. The plugin ships `HomeWidgetInteractivityAction`, which reads the Uri and the key from its `ActionParameters` and sends the broadcast:
+
+```kotlin
+Text(
+    "+",
+    modifier = GlanceModifier.clickable(
+        actionRunCallback<HomeWidgetInteractivityAction>(
+            HomeWidgetInteractivityAction.parameters(
+                Uri.parse("homeWidgetExample://increment"),
+                "counter",
+            )
+        )
+    ),
+)
+```
+
+The key is optional there too. Without it the action calls the default callback. If you build the `ActionParameters` yourself, use `HomeWidgetInteractivityAction.UriKey` and `HomeWidgetInteractivityAction.CallbackKey`.
+
+The `HomeWidgetBackgroundReceiver` entry in the `AndroidManifest.xml` is needed in both cases.
 
 ## Example Blog Article
 

@@ -21,6 +21,13 @@ void main() {
 
   for (final scenario in [...androidBuildScenarios, ...sharedBuildScenarios]) {
     test('the schema of "${scenario.description}" parses', () async {
+      for (final MapEntry(key: path, value: content)
+          in scenario.files.entries) {
+        if (path == 'lib/main.dart') continue;
+        final extra = File(p.join(project.root.path, p.joinAll(p.split(path))))
+          ..writeAsStringSync(content);
+        addTearDown(extra.deleteSync);
+      }
       final file = File(
         p.join(project.root.path, 'lib', '${scenario.className}.dart'),
       )..writeAsStringSync(scenario.widgetSource);

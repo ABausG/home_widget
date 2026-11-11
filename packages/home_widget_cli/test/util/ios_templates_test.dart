@@ -169,4 +169,199 @@ void main() {
       ),
     );
   });
+
+  group('iosIntentSwiftTemplate', () {
+    test('declares an undiscoverable intent for iOS 17', () {
+      final out = iosIntentSwiftTemplate(
+        intentName: 'CounterHomeWidgetIntent',
+        widgetName: 'Counter',
+      );
+
+      expect(out, startsWith('// GENERATED CODE'));
+      expect(
+        out,
+        contains(
+          'import AppIntents\n'
+          'import Foundation\n'
+          'import home_widget\n',
+        ),
+      );
+      expect(
+        out,
+        contains(
+          '@available(iOS 17, *)\n'
+          'struct CounterHomeWidgetIntent: AppIntent {\n'
+          '  static let title: LocalizedStringResource = '
+          '"Counter interaction"\n'
+          '  static let isDiscoverable: Bool = false\n',
+        ),
+      );
+    });
+
+    test('carries the URL, the App Group and the key as parameters', () {
+      final out = iosIntentSwiftTemplate(
+        intentName: 'CounterHomeWidgetIntent',
+        widgetName: 'Counter',
+      );
+
+      expect(
+        out,
+        contains(
+          '  @Parameter(title: "URL")\n'
+          '  var url: URL?\n'
+          '\n'
+          '  @Parameter(title: "App Group")\n'
+          '  var appGroup: String?\n'
+          '\n'
+          '  @Parameter(title: "Key")\n'
+          '  var key: String?\n',
+        ),
+      );
+      expect(
+        out,
+        contains(
+          '  init() {}\n'
+          '\n'
+          '  init(url: URL?, appGroup: String?, key: String?) {\n'
+          '    self.url = url\n'
+          '    self.appGroup = appGroup\n'
+          '    self.key = key\n'
+          '  }\n',
+        ),
+      );
+    });
+
+    test('runs the background worker when it is performed', () {
+      final out = iosIntentSwiftTemplate(
+        intentName: 'CounterHomeWidgetIntent',
+        widgetName: 'Counter',
+      );
+
+      expect(
+        out,
+        contains(
+          '  func perform() async throws -> some IntentResult {\n'
+          '    if let appGroup = appGroup {\n'
+          '      await HomeWidgetBackgroundWorker.run('
+          'url: url, appGroup: appGroup, key: key)\n'
+          '    }\n'
+          '    return .result()\n'
+          '  }\n',
+        ),
+      );
+    });
+
+    test('continues in the app, which an app extension cannot', () {
+      final out = iosIntentSwiftTemplate(
+        intentName: 'CounterHomeWidgetIntent',
+        widgetName: 'Counter',
+      );
+
+      expect(
+        out,
+        endsWith(
+          '@available(iOS 17, *)\n'
+          '@available(iOSApplicationExtension, unavailable)\n'
+          'extension CounterHomeWidgetIntent: ForegroundContinuableIntent {}\n',
+        ),
+      );
+    });
+
+    test('escapes the widget name in the title', () {
+      final out = iosIntentSwiftTemplate(
+        intentName: 'QuotedHomeWidgetIntent',
+        widgetName: r'My "best" \ widget',
+      );
+
+      expect(
+        out,
+        contains(
+          r'static let title: LocalizedStringResource = '
+          r'"My \"best\" \\ widget interaction"',
+        ),
+      );
+    });
+
+    test('starts with a custom header', () {
+      final out = iosIntentSwiftTemplate(
+        intentName: 'CounterHomeWidgetIntent',
+        widgetName: 'Counter',
+        header: '// Custom header',
+      );
+
+      expect(out, startsWith('// Custom header\n\nimport AppIntents\n'));
+      expect(out, isNot(contains('GENERATED CODE')));
+    });
+  });
+
+  group('iosButtonSwift', () {
+    String button({String interactionKey = 'CounterHomeWidget'}) =>
+        iosButtonSwift(
+          function: 'hwButton',
+          widgetClassName: 'CounterHomeWidget',
+          intentName: 'CounterHomeWidgetIntent',
+          interactionKey: interactionKey,
+        );
+
+    test('declares the function wrapping a child in the button view', () {
+      expect(
+        button(),
+        endsWith(
+          'func hwButton<Content: View>(_ url: URL?, '
+          '@ViewBuilder content: () -> Content) -> some View {\n'
+          '  return HWButtonView(url: url, content: content())\n'
+          '}',
+        ),
+      );
+      expect(
+        button(),
+        startsWith('struct HWButtonView<Content: View>: View {'),
+      );
+    });
+
+    test('performs the intent with the App Group of the flavor and the key',
+        () {
+      expect(
+        button(),
+        contains(
+          '      Button(\n'
+          '        intent: CounterHomeWidgetIntent(\n'
+          '          url: url, appGroup: CounterHomeWidgetFlavor.appGroupId,\n'
+          '          key: "CounterHomeWidget")\n'
+          '      ) {\n'
+          '        content\n'
+          '      }\n'
+          '      .buttonStyle(.plain)\n',
+        ),
+      );
+    });
+
+    test('renders the bare child before iOS 17 and in the inline family', () {
+      final out = button();
+
+      expect(out, contains(r'@Environment(\.widgetFamily) private var family'));
+      expect(
+        out,
+        contains(
+          '    if #available(iOS 17.0, *), let url = url, '
+          'family != .accessoryInline {\n',
+        ),
+      );
+      expect(
+        out,
+        contains(
+          '    } else {\n'
+          '      content\n'
+          '    }\n',
+        ),
+      );
+    });
+
+    test('escapes the interaction key', () {
+      expect(
+        button(interactionKey: r'Quoted"Home\Widget'),
+        contains(r'key: "Quoted\"Home\\Widget")'),
+      );
+    });
+  });
 }

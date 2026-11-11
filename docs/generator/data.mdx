@@ -93,7 +93,7 @@ Fixed values carry no key, and two of them are never merged with each other or w
 
 ## Payloads
 
-A payload is the list of values a tap sends to the app: the `data` of an [`HWLink`](/generator/widgets/hw-link), or `widgetUrlData` on the [annotation](/generator/widget-url#sending-data-with-the-tap). The values are appended to the URL as query parameters and come back as typed fields of the generated launch class.
+A payload is the list of values a tap sends to the app: the `data` of an [`HWLink`](/generator/widgets/hw-link), or `widgetUrlData` on the [annotation](/generator/widget-url#sending-data-with-the-tap). The values are appended to the URL as query parameters and come back as typed fields of the generated launch class. The `data` of an [`HWButton`](/generator/widgets/hw-button) follows the same rules, and comes back as fields of the generated interaction class.
 
 ```dart
 HWLink(

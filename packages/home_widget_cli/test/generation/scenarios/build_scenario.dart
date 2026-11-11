@@ -13,6 +13,8 @@ class BuildScenario {
     this.expectedAndroidWidgetUrl,
     this.expectedIosWidgetUrl,
     this.hasLinks = false,
+    this.hasButtons = false,
+    this.files = const {},
     this.assetPaths = const [],
     this.fontFamilies = const {},
   });
@@ -45,6 +47,17 @@ class BuildScenario {
   /// Whether [widgetSource] contains an `HWLink`, which needs the launch
   /// intent-filter whether or not the widget sets a URL.
   final bool hasLinks;
+
+  /// Whether [widgetSource] contains an `HWButton`, which needs the plugin's
+  /// background receiver on Android and the interaction intent, linked into
+  /// the app and the extension, on iOS.
+  final bool hasButtons;
+
+  /// Dart files written into the test project ahead of generating, by their
+  /// project-relative path: the library of an `onInteraction` function, and a
+  /// `lib/main.dart` importing the generated helper so that the build compiles
+  /// it.
+  final Map<String, String> files;
 
   /// The URL, `homeWidget` parameter included, the generated iOS widget is
   /// expected to carry as its `widgetURL`, or null when it should carry none.

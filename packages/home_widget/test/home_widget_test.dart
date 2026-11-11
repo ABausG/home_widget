@@ -579,6 +579,93 @@ void main() {
     expect(argument[1], callbackHandle);
   });
 
+  group('Keyed Interactivity Callback', () {
+    late int? dispatcherHandle;
+    late int? callbackHandle;
+
+    setUp(() {
+      dispatcherHandle = PluginUtilities.getCallbackHandle(
+        callbackDispatcher,
+      )?.toRawHandle();
+      callbackHandle = PluginUtilities.getCallbackHandle(
+        testCallback,
+      )?.toRawHandle();
+    });
+
+    test('without key and appGroupId only the Handles are passed', () async {
+      expect(
+        await HomeWidget.registerInteractivityCallback(testCallback),
+        true,
+      );
+
+      expect(await passedArguments.future, [dispatcherHandle, callbackHandle]);
+    });
+
+    test('passes key and appGroupId after the Handles', () async {
+      expect(
+        await HomeWidget.registerInteractivityCallback(
+          testCallback,
+          key: 'CounterWidget',
+          appGroupId: 'group.keyed',
+        ),
+        true,
+      );
+
+      expect(await passedArguments.future, [
+        dispatcherHandle,
+        callbackHandle,
+        'CounterWidget',
+        'group.keyed',
+      ]);
+    });
+
+    test('passes key without appGroupId', () async {
+      await HomeWidget.registerInteractivityCallback(
+        testCallback,
+        key: 'CounterWidget',
+      );
+
+      expect(await passedArguments.future, [
+        dispatcherHandle,
+        callbackHandle,
+        'CounterWidget',
+        null,
+      ]);
+    });
+
+    test('passes appGroupId without key', () async {
+      await HomeWidget.registerInteractivityCallback(
+        testCallback,
+        appGroupId: 'group.keyed',
+      );
+
+      expect(await passedArguments.future, [
+        dispatcherHandle,
+        callbackHandle,
+        null,
+        'group.keyed',
+      ]);
+    });
+
+    test('appGroupId does not change the global groupId', () async {
+      final previousGroupId = HomeWidget.groupId;
+      await HomeWidget.registerInteractivityCallback(
+        testCallback,
+        appGroupId: 'group.keyed',
+      );
+
+      expect(HomeWidget.groupId, previousGroupId);
+    });
+
+    test('throws an ArgumentError for a closure', () {
+      expect(
+        () => HomeWidget.registerInteractivityCallback((_) {}),
+        throwsArgumentError,
+      );
+      expect(passedArguments.isCompleted, isFalse);
+    });
+  });
+
   group('Widget Clicked', () {
     test('Send Uris to Stream', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

@@ -20,7 +20,7 @@ class Weather {}
 
 The generator emits `.widgetURL(...)` on iOS and a Glance `clickable(actionStartActivity<MainActivity>(...))` on Android, so the same URL reaches the app on both platforms. Nothing has to be added to the native code by hand, including the Android manifest entry, which the CLI writes for you. No URL scheme has to be registered.
 
-To open the app from one region of the widget instead of the whole widget, wrap that region in an [`HWLink`](/generator/widgets/hw-link). Links and `widgetUrl` can be combined, and both are read through the launch helpers described below.
+To open the app from one region of the widget instead of the whole widget, wrap that region in an [`HWLink`](/generator/widgets/hw-link). Links and `widgetUrl` can be combined, and both are read through the launch helpers described below. For a tap that runs Dart code without opening the app, use an [`HWButton`](/generator/widgets/hw-button).
 
 ## Sending data with the tap
 
@@ -209,7 +209,7 @@ On Android the URL is delivered through an intent-filter on your launcher activi
 
 ## Widgets that should not open the app
 
-Set `openAppOnTap: false` on `HomeWidgetAndroidConfiguration` to leave the Android widget without a click action entirely:
+Set `openAppOnTap: false` on `HomeWidgetAndroidConfiguration` to leave the Android widget without any click action that opens the app:
 
 ```dart
 @HomeWidget(
@@ -219,7 +219,7 @@ Set `openAppOnTap: false` on `HomeWidgetAndroidConfiguration` to leave the Andro
 class Status {}
 ```
 
-No `clickable(...)` modifier is emitted, no launch intent-filter is written to the manifest, and `widgetUrl`, `widgetUrlData` and every `HWLink` are ignored on Android: a tap does nothing. The generator warns when such a widget contains an `HWLink`. iOS is unaffected: its `widgetURL` and links still apply, and the launch helpers keep reporting taps there while staying silent on Android.
+No `clickable(...)` modifier that starts the app is emitted, no launch intent-filter is written to the manifest, and `widgetUrl`, `widgetUrlData` and every `HWLink` are ignored on Android: a tap on them does nothing. The generator warns when such a widget contains an `HWLink`. An [`HWButton`](/generator/widgets/hw-button) is not affected: it does not open the app, so it keeps running its function. iOS is unaffected: its `widgetURL` and links still apply, and the launch helpers keep reporting taps there while staying silent on Android.
 
 ## When no launcher activity is found
 

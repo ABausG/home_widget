@@ -25,6 +25,29 @@ void validateLaunchSupport(WidgetSpec spec, Directory projectRoot) {
   }
 }
 
+/// The first `home_widget` release with the keyed
+/// `HomeWidget.registerInteractivityCallback` and the native entry points the
+/// generated buttons call.
+// Has to equal the release that carries the `key` parameter of
+// `registerInteractivityCallback`. That is only 0.10.1 while the launch
+// helpers and the keyed callbacks ship in one release.
+const String minimumInteractionHomeWidgetVersion = '0.10.1';
+
+/// Fails when [spec] has buttons and the app is pinned to a published
+/// `home_widget` that predates what they call.
+void validateInteractionSupport(WidgetSpec spec, Directory projectRoot) {
+  if (!spec.hasInteractions) return;
+  try {
+    requireHomeWidgetVersion(
+      projectRoot,
+      minimum: minimumInteractionHomeWidgetVersion,
+      feature: 'this widget has an HWButton',
+    );
+  } on GeneratorError catch (error) {
+    throw GeneratorError('Widget "${spec.data.name}": ${error.message}');
+  }
+}
+
 /// Fails when the app is pinned to a published `home_widget` older than
 /// [minimum], which [feature] needs.
 ///

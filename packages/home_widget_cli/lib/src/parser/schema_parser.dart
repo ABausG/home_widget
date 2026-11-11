@@ -13,6 +13,7 @@ import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
 import '../validation/widget_data_validator.dart';
+import 'interaction_handler_parser.dart';
 
 /// Parses a Dart source file to extract [WidgetSpec]s using Analyzer resolution.
 Future<List<WidgetSpec>> parseSchemaFile(
@@ -39,7 +40,7 @@ Future<List<WidgetSpec>> parseSchemaFile(
   final specs = <WidgetSpec>[];
   for (final element in result.libraryElement.classes) {
     if (_hasHomeWidgetAnnotation(element)) {
-      final spec = _extractWidgetSpec(element);
+      final spec = _extractWidgetSpec(element, filePath);
       if (spec != null) {
         specs.add(spec);
       }
@@ -76,10 +77,14 @@ Future<void> _rejectBrokenAnnotations(
       ];
       if (lines.isEmpty) continue;
 
+      final inOnInteraction = [...?annotation.arguments?.arguments]
+          .where((argument) => _onInteractionArgument.hasMatch('$argument'))
+          .any((argument) => _problemsIn(argument, result).isNotEmpty);
       throw GeneratorError(
         '$filePath: the @HomeWidget annotation does not compile, so no widget '
         'can be generated from it:\n'
         '${lines.join('\n')}\n'
+        '${inOnInteraction ? '${_onInteractionHint.trim()}\n' : ''}'
         'A parameter, constructor or widget that a newer '
         'home_widget_generator removed is listed with its replacement in the '
         'migration guides: $generatorMigrationGuideUrl',
@@ -87,6 +92,13 @@ Future<void> _rejectBrokenAnnotations(
     }
   }
 }
+
+final RegExp _onInteractionArgument = RegExp(r'^onInteraction\s*:');
+
+/// What to pass as `onInteraction`, for an annotation that is no constant.
+const String _onInteractionHint =
+    ' onInteraction has to be a compile-time constant: pass a top-level or '
+    'static function by name, e.g. onInteraction: onCounterInteraction.';
 
 /// The errors the analyzer reports inside [node], a node of [unit], one line
 /// each, located by line and column and by [origin] where given.
@@ -200,12 +212,20 @@ bool _hasHomeWidgetAnnotation(ClassElement element) {
   return element.metadata.annotations.any(_isHomeWidgetAnnotation);
 }
 
-WidgetSpec? _extractWidgetSpec(ClassElement element) {
+WidgetSpec? _extractWidgetSpec(ClassElement element, String filePath) {
   final annotation =
       element.metadata.annotations.firstWhere(_isHomeWidgetAnnotation);
 
   final constantValue = annotation.computeConstantValue();
-  if (constantValue == null) return null;
+  if (constantValue == null) {
+    // coverage:ignore-start
+    throw GeneratorError(
+      '$filePath: the @HomeWidget annotation of ${element.name} is not a '
+      'compile-time constant, so no widget can be generated from it. Every '
+      'value it uses has to be a constant.$_onInteractionHint',
+    );
+    // coverage:ignore-end
+  }
 
   // Extract fields from the annotation object
   final name = constantValue.getField('name')?.toStringValue();
@@ -277,6 +297,11 @@ WidgetSpec? _extractWidgetSpec(ClassElement element) {
     className: generatedClassName,
     dataFields: dataFields,
     widgetTree: widgetTree,
+    interactionHandler: parseInteractionHandler(
+      annotationValue: constantValue,
+      widgetName: name,
+      interactionClassName: '${generatedClassName}Interaction',
+    ),
   );
   validateWidgetData(spec);
   return spec;

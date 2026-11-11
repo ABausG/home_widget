@@ -110,6 +110,36 @@ Future<void> runAndroidBuildScenario(BuildScenario scenario) async {
     );
   }
 
+  const backgroundReceiver =
+      'es.antonborri.home_widget.HomeWidgetBackgroundReceiver';
+  if (scenario.hasButtons) {
+    expect(
+      kotlinSource,
+      contains(
+        'actionRunCallback<HomeWidgetInteractivityAction>('
+        'HomeWidgetInteractivityAction.parameters(',
+      ),
+      reason: 'CLI should run the interaction callback on a button tap',
+    );
+    expect(
+      kotlinSource,
+      contains('"${scenario.className}HomeWidget")'),
+      reason: 'A button should name the key its callback is registered under',
+    );
+    expect(
+      appManifestSource,
+      contains(backgroundReceiver),
+      reason: 'CLI should register the background receiver for specs with a '
+          'button',
+    );
+  } else {
+    expect(
+      appManifestSource,
+      isNot(contains(backgroundReceiver)),
+      reason: 'Specs without a button must not gain the background receiver',
+    );
+  }
+
   final buildResult = await Process.run(
     'flutter',
     ['build', 'apk'],
@@ -195,6 +225,50 @@ Future<void> runIosBuildScenario(BuildScenario scenario) async {
         : contains('.widgetURL(URL(string: "$expectedUrl"))'),
   );
 
+  final intentFile = File(
+    p.join(
+      project.root.path,
+      'ios',
+      '${scenario.className}HomeWidget',
+      '${scenario.className}HomeWidgetIntent.swift',
+    ),
+  );
+  final appDelegate = File(
+    p.join(project.root.path, 'ios', 'Runner', 'AppDelegate.swift'),
+  ).readAsStringSync();
+  final pbxproj = File(
+    p.join(project.root.path, 'ios', 'Runner.xcodeproj', 'project.pbxproj'),
+  ).readAsStringSync();
+  if (scenario.hasButtons) {
+    expect(
+      intentFile.existsSync(),
+      isTrue,
+      reason: 'CLI should write the intent a button performs',
+    );
+    expect(swiftSource, contains('hwButton('));
+    expect(
+      appDelegate,
+      contains('HomeWidgetBackgroundWorker.setPluginRegistrantCallback'),
+      reason: 'CLI should register the plugins for background runs',
+    );
+    // A synchronized extension folder builds the file on its own and names it
+    // as an exception for the app target; a classic group lists it twice.
+    final intentName = p.basename(intentFile.path);
+    expect(
+      pbxproj.contains('PBXFileSystemSynchronizedRootGroup')
+          ? pbxproj.contains('\t\t\t\t$intentName,\n')
+          : '$intentName in Sources */ = {isa = PBXBuildFile;'
+                  .allMatches(pbxproj)
+                  .length ==
+              2,
+      isTrue,
+      reason: 'The intent should be built into the app and the extension',
+    );
+  } else {
+    expect(intentFile.existsSync(), isFalse);
+    expect(appDelegate, isNot(contains('setPluginRegistrantCallback')));
+  }
+
   final buildResult = await Process.run(
     'flutter',
     ['build', 'ios', '--no-codesign'],
@@ -214,6 +288,13 @@ Future<void> _generate(
   BuildScenario scenario,
 ) async {
   await _writeScenarioAssets(project, scenario);
+
+  for (final MapEntry(key: path, value: content) in scenario.files.entries) {
+    final file =
+        File(p.join(project.root.path, p.joinAll(p.posix.split(path))));
+    await file.parent.create(recursive: true);
+    await file.writeAsString(content);
+  }
 
   final widgetDir = Directory(p.join(project.root.path, 'home_widget'));
   widgetDir.createSync(recursive: true);

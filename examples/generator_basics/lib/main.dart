@@ -8,6 +8,7 @@ import 'package:generator_basics/src/home_widget/font_and_icons.home_widget.dart
 import 'package:generator_basics/src/home_widget/forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/image_showcase.home_widget.dart';
+import 'package:generator_basics/src/home_widget/interactive_counter.home_widget.dart';
 import 'package:generator_basics/src/home_widget/localized_greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/number_date_formatting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/simple_data.home_widget.dart';
@@ -50,6 +51,7 @@ class _HomePageState extends State<_HomePage> {
   String _currency = 'EUR';
   String _deliveryZone = '';
   int _topic = 0;
+  int _interactiveCount = 0;
   WidgetLinkLaunch? _widgetLinkLaunch;
   StreamSubscription<WidgetLinkLaunch>? _widgetLinkSubscription;
 
@@ -63,6 +65,17 @@ class _HomePageState extends State<_HomePage> {
       (launch) => setState(() => _widgetLinkLaunch = launch),
     );
     unawaited(_loadDashboard());
+    // saveData() and updateWidget() register the interaction function too, but
+    // the widget can be placed and tapped before either of them ran.
+    unawaited(InteractiveCounterHomeWidget.registerInteractivity());
+    unawaited(_loadInteractiveCount());
+  }
+
+  /// The count the buttons of the widget last saved from the background.
+  Future<void> _loadInteractiveCount() async {
+    final data = await InteractiveCounterHomeWidget.getData();
+    if (!mounted) return;
+    setState(() => _interactiveCount = data.count ?? 0);
   }
 
   /// What was tapped, exhaustively: a link added to the schema does not
@@ -853,6 +866,44 @@ class _HomePageState extends State<_HomePage> {
                 setState(() => _topic = (_topic + 1) % _topics.length);
                 await WidgetLinkHomeWidget.saveData(topic: _topics[_topic]);
                 await WidgetLinkHomeWidget.updateWidget();
+              },
+            ),
+          ],
+        ),
+
+        // -------------------------------------------------------------------
+        // Interactive Counter: HWButton + onInteraction.
+        // -------------------------------------------------------------------
+        WidgetSection(
+          title: 'Interactive Counter',
+          description:
+              'The + and - on the widget are HWButtons: a tap runs '
+              'onInteractiveCounterInteraction in the background, without '
+              'opening the app, which saves the new count and updates the '
+              'widget. Buttons need iOS 17.',
+          isInstalled: InteractiveCounterHomeWidget.isInstalled,
+          isRequestPinWidgetSupported:
+              InteractiveCounterHomeWidget.isRequestPinWidgetSupported,
+          requestPinWidget: InteractiveCounterHomeWidget.requestPinWidget,
+          children: [
+            ListTile(
+              title: Text('Stored count: $_interactiveCount'),
+              subtitle: const Text(
+                'getData() — what the buttons of the widget last saved',
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _loadInteractiveCount,
+              ),
+            ),
+            ListTile(
+              title: const Text('Reset to 0'),
+              subtitle: const Text('saveData(count: 0) + updateWidget()'),
+              trailing: const Icon(Icons.restart_alt),
+              onTap: () async {
+                await InteractiveCounterHomeWidget.saveData(count: 0);
+                await InteractiveCounterHomeWidget.updateWidget();
+                await _loadInteractiveCount();
               },
             ),
           ],
