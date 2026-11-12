@@ -491,8 +491,8 @@ void main() {
 
     test('injects the emitted HWSizeAdaptive when', () {
       const adaptive = HWSizeAdaptive(
-        small: HWText.fixed('s'),
-        medium: HWText.fixed('m'),
+        small: HWText(HWString.fixed('s')),
+        medium: HWText(HWString.fixed('m')),
       );
       expect(
         injectGlanceModifier(

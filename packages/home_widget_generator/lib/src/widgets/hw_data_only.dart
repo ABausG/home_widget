@@ -27,7 +27,7 @@ class HWDataOnly extends HWWidget implements HWDataWidget {
   }
 
   @override
-  Set<HWDataType<dynamic>> get dataDependencies => data.toSet();
+  Set<HWDataType<dynamic>> get dataDependencies => _dataDependenciesOf(data);
 
   @override
   Set<String> get kotlinImports => {};

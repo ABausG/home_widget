@@ -50,7 +50,7 @@ void main() {
     });
 
     test('HomeWidget equal and non-equal', () {
-      const widget = HWText.fixed('a');
+      const widget = HWText(HWString.fixed('a'));
       final a = HomeWidget(name: 'n', description: 'd', widget: widget);
       final b = HomeWidget(name: 'n', description: 'd', widget: widget);
       expect(identical(a, b), isFalse);
@@ -76,7 +76,7 @@ void main() {
       );
       // The widget tree compares by identity -- HWWidget defines no `==`, so a
       // separately built but structurally identical tree is not equal.
-      final other = HWText.fixed('a');
+      final other = HWText(HWString.fixed('a'));
       expect(identical(widget, other), isFalse);
       expect(
         a,

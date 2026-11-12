@@ -39,9 +39,9 @@ struct WidgetLinkHomeWidgetEntryView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      Text("Tap me")
+      Text(verbatim: "Tap me")
         .font(.caption)
-      Text("Opens the app")
+      Text(verbatim: "Opens the app")
         .font(.title).fontWeight(.bold)
     }
     .applyContainerBackground()

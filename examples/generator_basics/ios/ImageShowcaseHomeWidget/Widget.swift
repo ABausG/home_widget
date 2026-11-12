@@ -87,7 +87,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
               .accessibilityLabel("Picture saved by the app")
           }
         } else {
-          Text("Open the app to pick an image")
+          Text(verbatim: "Open the app to pick an image")
             .font(.caption).foregroundColor(Color.secondary)
         }
       }

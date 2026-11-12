@@ -191,10 +191,15 @@ class HWDecoratedBox extends HWSingleChildWidget {
       // coverage:ignore-end
     }
 
-    return HWDecoratedBox(
-      child: child ?? const HWText.fixed(''),
-      decoration: decoration,
-    );
+    if (child == null) {
+      // coverage:ignore-start
+      throw GeneratorError(
+        'HWDecoratedBox requires a non-null child property',
+      );
+      // coverage:ignore-end
+    }
+
+    return HWDecoratedBox(child: child, decoration: decoration);
   }
 
   @override

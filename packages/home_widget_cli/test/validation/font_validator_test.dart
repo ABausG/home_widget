@@ -81,7 +81,7 @@ void main() {
     // No pubspec at all: a spec that names no font must not care.
     expect(
       () => validateFonts(
-        _spec(widget: const HWText.fixed('plain')),
+        _spec(widget: const HWText(HWString.fixed('plain'))),
         tempDir,
       ),
       returnsNormally,
@@ -96,7 +96,10 @@ void main() {
         _spec(
           widget: const HWColumn(
             children: [
-              HWText.fixed('plain', style: HWTextStyle(fontFamily: 'Chewy')),
+              HWText(
+                HWString.fixed('plain'),
+                style: HWTextStyle(fontFamily: 'Chewy'),
+              ),
               HWIcon.glyph(0xE88A, font: _brandIcons),
             ],
           ),
@@ -113,8 +116,8 @@ void main() {
     expect(
       () => validateFonts(
         _spec(
-          widget: const HWText.fixed(
-            'plain',
+          widget: const HWText(
+            HWString.fixed('plain'),
             style: HWTextStyle(fontFamily: 'Missing'),
           ),
         ),
@@ -136,8 +139,8 @@ void main() {
     expect(
       () => validateFonts(
         _spec(
-          widget: const HWText.fixed(
-            'plain',
+          widget: const HWText(
+            HWString.fixed('plain'),
             style: HWTextStyle(fontFamily: 'Chewy'),
           ),
         ),
@@ -250,8 +253,8 @@ void main() {
   });
 
   group('the home_widget version gate', () {
-    HWWidget fontWidget() => const HWText.fixed(
-          'plain',
+    HWWidget fontWidget() => const HWText(
+          HWString.fixed('plain'),
           style: HWTextStyle(fontFamily: 'Chewy'),
         );
 
@@ -353,8 +356,10 @@ void main() {
       writeCompleteProject(lockedHomeWidgetVersion: '0.9.2');
 
       expect(
-        () =>
-            validateFonts(_spec(widget: const HWText.fixed('plain')), tempDir),
+        () => validateFonts(
+          _spec(widget: const HWText(HWString.fixed('plain'))),
+          tempDir,
+        ),
         returnsNormally,
       );
     });

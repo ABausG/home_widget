@@ -154,7 +154,7 @@ HWColumn.builder(
   'hourly',
   maxItems: 4,
   item: HWText.number(HWTimedData(HWItemData(HWInt('temperature')))),
-  whenEmpty: HWText.fixed('No forecast yet'),
+  whenEmpty: HWText(HWString.fixed('No forecast yet')),
 )
 ```
 

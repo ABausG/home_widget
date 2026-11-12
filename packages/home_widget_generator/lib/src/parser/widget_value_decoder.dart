@@ -318,8 +318,26 @@ class WidgetValueDecoder {
   /// Throws a [GeneratorError] when the icons are unusable: something other
   /// than an `IconData` in the list, icons from more than one font, no icons at
   /// all, a duplicate name, or a default or preview icon that is not one of
-  /// them.
+  /// them. An `HWIconData.fixed` holding anything but an `IconData` is rejected
+  /// the same way.
   static HWIconData decodeIconData(DartObject obj) {
+    final fixedIcon = getField(obj, 'fixedIcon');
+    if (fixedIcon != null && !fixedIcon.isNull) {
+      final codePoint = decodeIconCodePoint(fixedIcon);
+      final font = decodeIconFont(fixedIcon);
+      if (codePoint == null || font == null) {
+        throw GeneratorError(
+          'Could not decode HWIconData.fixed. It takes a Flutter IconData such '
+          'as Icons.favorite, got: ${fixedIcon.type?.element?.name}',
+        );
+      }
+      return HWIconData.resolvedFixed(
+        codePoint,
+        iconFont: font,
+        matchTextDirection: decodeIconMatchTextDirection(fixedIcon),
+      );
+    }
+
     final key = getField(obj, 'key')?.toStringValue() ?? '';
     final rawIcons = getField(obj, 'icons')?.toListValue() ?? const [];
 
@@ -658,6 +676,8 @@ class WidgetValueDecoder {
     }
 
     if (typeName == 'HWString') {
+      final fixed = getField(obj, 'fixedValue')?.toStringValue();
+      if (fixed != null) return HWString.fixed(fixed);
       final defaultValue = getField(obj, 'defaultValue')?.toStringValue();
       return HWString(
         key,
@@ -665,6 +685,8 @@ class WidgetValueDecoder {
         previewValue: getField(obj, 'previewValue')?.toStringValue(),
       );
     } else if (typeName == 'HWInt') {
+      final fixed = getField(obj, 'fixedValue')?.toIntValue();
+      if (fixed != null) return HWInt.fixed(fixed);
       final defaultValue = getField(obj, 'defaultValue')?.toIntValue();
       return HWInt(
         key,
@@ -672,6 +694,8 @@ class WidgetValueDecoder {
         previewValue: getField(obj, 'previewValue')?.toIntValue(),
       );
     } else if (typeName == 'HWDouble') {
+      final fixed = getField(obj, 'fixedValue')?.toDoubleValue();
+      if (fixed != null) return HWDouble.fixed(fixed);
       final defaultValue = getField(obj, 'defaultValue')?.toDoubleValue();
       return HWDouble(
         key,
@@ -679,6 +703,8 @@ class WidgetValueDecoder {
         previewValue: getField(obj, 'previewValue')?.toDoubleValue(),
       );
     } else if (typeName == 'HWBool') {
+      final fixed = getField(obj, 'fixedValue')?.toBoolValue();
+      if (fixed != null) return HWBool.fixed(fixed);
       final defaultValue = getField(obj, 'defaultValue')?.toBoolValue();
       return HWBool(
         key,
@@ -686,6 +712,8 @@ class WidgetValueDecoder {
         previewValue: getField(obj, 'previewValue')?.toBoolValue(),
       );
     } else if (typeName == 'HWDateTime') {
+      final fixed = getField(obj, 'fixedIso')?.toStringValue();
+      if (fixed != null) return HWDateTime.fixed(fixed);
       return HWDateTime(
         key,
         previewValue: getField(obj, 'previewIso')?.toStringValue(),
@@ -732,7 +760,7 @@ class WidgetValueDecoder {
         throw GeneratorError(
           'HWItemData cannot wrap the asset image "${inner.assetPath}". An '
           'asset ships with the app, so there is nothing to store per item; '
-          'show it with HWImage.asset instead.',
+          'show it with HWImage(HWImageData.asset(...)) instead.',
         );
       }
       return HWItemData(

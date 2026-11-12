@@ -1,19 +1,19 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
-const _small = HWText.fixed('small');
-const _medium = HWText.fixed('medium');
-const _large = HWText.fixed('large');
-const _extraLarge = HWText.fixed('xl');
-const _portrait = HWText.fixed('xlp');
-const _strip = HWText.fixed('strip');
-const _compact = HWText.fixed('compact');
-const _wide = HWText.fixed('wide');
-const _narrow = HWText.fixed('narrow');
-const _tall = HWText.fixed('tall');
-const _dashboard = HWText.fixed('dashboard');
-const _footerSmall = HWText.fixed('footer-small');
-const _footerLarge = HWText.fixed('footer-large');
+const _small = HWText(HWString.fixed('small'));
+const _medium = HWText(HWString.fixed('medium'));
+const _large = HWText(HWString.fixed('large'));
+const _extraLarge = HWText(HWString.fixed('xl'));
+const _portrait = HWText(HWString.fixed('xlp'));
+const _strip = HWText(HWString.fixed('strip'));
+const _compact = HWText(HWString.fixed('compact'));
+const _wide = HWText(HWString.fixed('wide'));
+const _narrow = HWText(HWString.fixed('narrow'));
+const _tall = HWText(HWString.fixed('tall'));
+const _dashboard = HWText(HWString.fixed('dashboard'));
+const _footerSmall = HWText(HWString.fixed('footer-small'));
+const _footerLarge = HWText(HWString.fixed('footer-large'));
 
 /// The widget minimum both axes of a grid are floored at unless a test says
 /// otherwise: the `minWidth` an Android configuration defaults to.
@@ -418,7 +418,10 @@ void main() {
           ),
           isFalse,
         );
-        expect(grid.rendersWidget(const HWText.fixed('nowhere')), isFalse);
+        expect(
+          grid.rendersWidget(const HWText(HWString.fixed('nowhere'))),
+          isFalse,
+        );
       });
 
       test('a range an earlier one covers is never rendered', () {

@@ -51,7 +51,7 @@ struct GreetingHomeWidgetEntryView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      Text("Hello")
+      Text(verbatim: "Hello")
         .font(.caption)
       Text(entry.data.name ?? "")
         .font(.title).fontWeight(.bold)

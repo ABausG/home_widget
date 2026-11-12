@@ -14,9 +14,9 @@ HWSizedBox.expand(
     children: [
       HWRow(
         children: [
-          HWText.fixed('Left'),
+          HWText(HWString.fixed('Left')),
           HWSizedBox(width: 16),
-          HWText.fixed('Right'),
+          HWText(HWString.fixed('Right')),
         ],
       ),
       HWSizedBox(height: 8),
@@ -25,12 +25,12 @@ HWSizedBox.expand(
         child: HWSizedBox(
           width: 80,
           height: 40,
-          child: HWText.fixed('80 x 40'),
+          child: HWText(HWString.fixed('80 x 40')),
         ),
       ),
       HWBoolConditional(
         data: HWBool('showDetail'),
-        whenTrue: HWText.fixed('Detail'),
+        whenTrue: HWText(HWString.fixed('Detail')),
         whenFalse: HWSizedBox.shrink(),
       ),
     ],

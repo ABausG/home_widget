@@ -1,58 +1,56 @@
 ---
 title: HWText
-description: Render fixed or data-bound text.
+description: Render constant or data-bound text.
 ---
 
 # HWText
 
-Renders a string, either hardcoded or bound to a widget data field. Every constructor accepts an optional [`HWTextStyle`](/generator/styling/hw-text-style) and `HWTextAlign`.
+Renders a string, a number, or a date. The value is a data type: a stored field that your app saves at runtime, or a fixed value written into the schema. Every constructor accepts an optional [`HWTextStyle`](/generator/styling/hw-text-style) and `HWTextAlign`.
 
 ## Constructors
 
-### HWText.fixed
-
-`const HWText.fixed(String content, {HWTextStyle? style, HWTextAlign? textAlign})`
-
-Hardcoded literal — the value is baked into the generated native code.
-
-```dart
-HWText.fixed('Hello World')
-```
-
-### HWText (data-bound)
+### HWText
 
 `const HWText(HWDataType data, {HWTextStyle? style, HWTextAlign? textAlign})`
 
-Reads the value from widget storage at runtime. Add the matching field to the entry by using it here or via [`HWDataOnly`](/generator/widgets/hw-data-only).
+Renders the value of a data type. A stored type such as `HWString('greeting')` reads from widget storage at runtime; add the matching field to the entry by using it here or via [`HWDataOnly`](/generator/widgets/hw-data-only).
 
 ```dart
 HWText(HWString('greeting'))
 ```
 
-A number or a date bound this way is formatted for the device locale: `HWText(HWInt('count'))` is the same as `HWText.number(HWInt('count'))`, and `HWText(HWDateTime('lastSync'))` the same as `HWText.dateTime(HWDateTime('lastSync'))`. See [Formatting](/generator/formatting).
+For constant text, use `HWString.fixed`. The value is baked into the generated native code and creates no data field.
 
-### HWText.localized
+```dart
+HWText(HWString.fixed('Hello World'))
+```
 
-`const HWText.localized(Map<String, String> content, {HWTextStyle? style, HWTextAlign? textAlign})`
-
-Text translated at build time. `content` maps locale tag to text and must cover
+For text translated at build time, use `HWString.localizedFixed`. It maps locale tag to text and must cover
 every entry of `supportedLocales`, including the widget's `defaultLocale`. It
 creates no data field and cannot be overridden at runtime — it ships as a
 platform string resource and is resolved by the OS.
 
 ```dart
-HWText.localized({'en': 'Greeting', 'de': 'Begrüßung', 'pt-BR': 'Saudação'})
+HWText(
+  HWString.localizedFixed({
+    'en': 'Greeting',
+    'de': 'Begrüßung',
+    'pt-BR': 'Saudação',
+  }),
+)
 ```
 
-Requires a `localization:` block on the annotation. For text your app can change
+This requires a `localization:` block on the annotation. For text your app can change
 per locale at runtime, bind `HWString.localized` instead — see
 [Localization](/generator/localization).
+
+A number or a date passed to the default constructor is formatted for the device locale: `HWText(HWInt('count'))` is the same as `HWText.number(HWInt('count'))`, and `HWText(HWDateTime('lastSync'))` the same as `HWText.dateTime(HWDateTime('lastSync'))`. See [Formatting](/generator/formatting).
 
 ### HWText.number
 
 `const HWText.number(HWDataType<num> data, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
 
-Renders a data-bound number formatted for the device locale — grouping and
+Renders a number formatted for the device locale — grouping and
 decimal separators, percentages, currencies, compact forms. `data` must be an
 `HWInt` or `HWDouble`, optionally wrapped in `HWTimedData`, `HWJson` or, inside
 a [list item](/generator/lists), `HWItemData`.
@@ -61,22 +59,18 @@ a [list item](/generator/lists), `HWItemData`.
 HWText.number(HWDouble('total'), format: HWNumberFormat.currency(currency: HWCurrency.code('EUR')))
 ```
 
-### HWText.fixedNumber
-
-`const HWText.fixedNumber(num value, {HWNumberFormat format = const HWNumberFormat.decimal(), HWTextStyle? style, HWTextAlign? textAlign})`
-
-The same for a hardcoded number. The value is baked into the generated code, the
+For a constant number, pass `HWInt.fixed` or `HWDouble.fixed`. The value is baked into the generated code, the
 formatting still happens on the device.
 
 ```dart
-HWText.fixedNumber(10000)
+HWText.number(HWInt.fixed(10000))
 ```
 
 ### HWText.dateTime
 
 `const HWText.dateTime(HWDataType<DateTime> data, {HWDateFormat format = HWDateFormat.defaultFormat, HWTimeZone timeZone = HWTimeZone.local, HWTextStyle? style, HWTextAlign? textAlign})`
 
-Renders an [`HWDateTime`](/generator/data) field in the device's locale and,
+Renders an [`HWDateTime`](/generator/data) value in the device's locale and,
 by default, the device's time zone. `data` must be an `HWDateTime`, optionally
 wrapped in `HWTimedData`, `HWJson` or, inside a [list item](/generator/lists),
 `HWItemData`. Pass `timeZone` to show a fixed or
@@ -86,13 +80,21 @@ per-record zone instead — see [Time zones](/generator/formatting#time-zones).
 HWText.dateTime(HWDateTime('lastSync'), format: HWDateFormat.yMMMd)
 ```
 
+For a constant date, pass `HWDateTime.fixed` a UTC ISO 8601 string:
+
+```dart
+HWText.dateTime(HWDateTime.fixed('2026-09-22T10:00:00Z'), format: HWDateFormat.yMMMd)
+```
+
+A fixed value creates no stored field and cannot be wrapped in `HWTimedData`, `HWJson` or `HWItemData`. See [Fixed values](/generator/data#fixed-values).
+
 All three are covered in detail on [Formatting](/generator/formatting).
 
 ### Styled example
 
 ```dart
-HWText.fixed(
-  '46',
+HWText(
+  HWString.fixed('46'),
   style: HWRoleTextStyle(
     role: HWTextStyleRole.title,
     color: HWDefaultColor(HWColorRole.contentPrimary),
@@ -105,19 +107,16 @@ HWText.fixed(
 
 | Name           | Type            | Default      | Description                                                  |
 | -------------- | --------------- | ------------ | ------------------------------------------------------------ |
-| `content`      | `String`        | **required** _(`.fixed`)_ | Hardcoded text.                                |
-| `content`      | `Map<String, String>` | **required** _(`.localized`)_ | Locale tag → text, resolved by the OS. |
-| `data`         | `HWDataType`    | **required** _(default ctor)_ | Field whose value is rendered.             |
-| `data`         | `HWDataType<num>` | **required** _(`.number`)_ | Number field to format — `HWInt` / `HWDouble`, optionally wrapped. |
-| `value`        | `num`           | **required** _(`.fixedNumber`)_ | Hardcoded number to format.                |
-| `data`         | `HWDataType<DateTime>` | **required** _(`.dateTime`)_ | `HWDateTime` field to format, optionally wrapped. |
-| `format`       | `HWNumberFormat` | `HWNumberFormat.decimal()` _(`.number`, `.fixedNumber`)_ | How the number is rendered — see [Formatting](/generator/formatting). |
+| `data`         | `HWDataType`    | **required** _(default ctor)_ | Value that is rendered: a stored field, `HWString.fixed` or `HWString.localizedFixed`. |
+| `data`         | `HWDataType<num>` | **required** _(`.number`)_ | Number to format — `HWInt` / `HWDouble`, fixed or stored, optionally wrapped. |
+| `data`         | `HWDataType<DateTime>` | **required** _(`.dateTime`)_ | `HWDateTime` to format, fixed or stored, optionally wrapped. |
+| `format`       | `HWNumberFormat` | `HWNumberFormat.decimal()` _(`.number`)_ | How the number is rendered — see [Formatting](/generator/formatting). |
 | `format`       | `HWDateFormat`  | `HWDateFormat.defaultFormat` _(`.dateTime`)_ | How the date is rendered — see [Formatting](/generator/formatting). |
 | `timeZone`     | `HWTimeZone`    | `HWTimeZone.local` _(`.dateTime`)_ | Zone the date is displayed in — see [Time zones](/generator/formatting#time-zones). |
 | `style`        | `HWTextStyle?`  | `null`       | Font, weight, color — see [`HWTextStyle`](/generator/styling/hw-text-style). |
 | `textAlign`    | `HWTextAlign?`  | `null`       | Multi-line text alignment.                                   |
 
-Exactly one of `content` (via `.fixed` or `.localized`), `value` (via `.fixedNumber`) or `data` (via the default, `.number` or `.dateTime` constructor) is supplied — the constructor you call enforces this.
+The type of `data` decides whether the value is stored or constant. A `.fixed` value is written into the generated code and adds no `saveData` or `getData` parameter.
 
 ## Platform mapping
 

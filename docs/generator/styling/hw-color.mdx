@@ -20,8 +20,8 @@ description: Color values for HomeWidget — fixed ARGB, light/dark themed, and 
 A literal ARGB color packed into a 32-bit integer.
 
 ```dart
-HWText.fixed(
-  'Fixed Color',
+HWText(
+  HWString.fixed('Fixed Color'),
   style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
 )
 ```
@@ -52,8 +52,8 @@ HomeWidgetAndroidConfiguration(
 A semantic color tied to the system's widget palette. Useful when you want the widget to follow Apple's and Google's defaults instead of hardcoding values.
 
 ```dart
-HWText.fixed(
-  'Primary',
+HWText(
+  HWString.fixed('Primary'),
   style: HWTextStyle(color: HWDefaultColor(HWColorRole.contentPrimary)),
 )
 ```

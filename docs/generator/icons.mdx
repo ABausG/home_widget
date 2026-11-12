@@ -10,7 +10,7 @@ without you touching Xcode or an Android `res/` folder. `home_widget_generator` 
 `home_widget_cli` do the rest at generation time.
 
 ```dart
-HWIcon.fixed(Icons.favorite, size: 24)
+HWIcon(HWIconData.fixed(Icons.favorite), size: 24)
 ```
 
 <Info>
@@ -21,12 +21,16 @@ This page covers icons on a **generated** widget. Rendering an icon glyph from a
 
 ## Fixed icons
 
-`HWIcon.fixed` takes any `IconData` constant known at generation time — Material, Cupertino, or one
-from any other icon font package:
+`HWIconData.fixed` takes any `IconData` constant known at generation time — Material, Cupertino, or one
+from any other icon font package. It creates no data field and no enum:
 
 ```dart
-HWIcon.fixed(Icons.favorite, size: 24, color: HWDefaultColor(HWColorRole.contentPrimary))
-HWIcon.fixed(CupertinoIcons.heart_fill, size: 20)
+HWIcon(
+  HWIconData.fixed(Icons.favorite),
+  size: 24,
+  color: HWDefaultColor(HWColorRole.contentPrimary),
+)
+HWIcon(HWIconData.fixed(CupertinoIcons.heart_fill), size: 20)
 ```
 
 ## Runtime icons
@@ -116,19 +120,19 @@ Directional icons mirror in a right-to-left layout exactly as they do in Flutter
 `IconData.matchTextDirection` is set — `Icons.arrow_back`, `Icons.arrow_forward`,
 `Icons.format_list_bulleted` — is drawn flipped horizontally when the widget sits in a right-to-left
 layout, and left alone otherwise. The flag is read off the `IconData` itself, so there is nothing to
-declare: it applies to an `HWIcon.fixed` and to every icon of an `HWIconData` alike, and only the
+declare: it applies to an `HWIconData.fixed` and to every icon of an `HWIconData` alike, and only the
 directional ones among a list are mirrored.
 
 What counts as a right-to-left layout follows each platform's own rules. Android reads the app's
 locale, so a per-app or device language such as Arabic flips the widget. On iOS a widget extension
 takes its layout direction from the languages **its own bundle** is localized for, exactly like an
 app: an extension localized only for English stays left-to-right under an Arabic system. Ship
-right-to-left translations through [`HWText.localized`](/generator/localization) and the mirror
+right-to-left translations through [`HWString.localizedFixed`](/generator/localization) and the mirror
 follows.
 
 <Info>
 Need to switch between icons from **different** families at runtime — say a filled vs. an outline
-icon set — rather than between icons in one family? Pick between two `HWIcon.fixed` branches with
+icon set — rather than between icons in one family? Pick between two `HWIcon(HWIconData.fixed(...))` branches with
 [`HWConditional`](/generator/widgets/hw-conditional) instead; `HWIconData` itself only ever picks
 among icons that already share a family.
 </Info>

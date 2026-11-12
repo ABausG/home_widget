@@ -10,7 +10,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 
 const variableTestWidget = HWColoredBox(
   color: HWColor.fixed(0xFFFF0000),
-  child: HWText.fixed('textData'),
+  child: HWText(HWString.fixed('textData')),
 );
 
 @HomeWidget(
@@ -24,7 +24,7 @@ const variableTestWidget = HWColoredBox(
       crossAxisAlignment: .stretch,
       children: [
         variableTestWidget,
-        HWText.fixed('Some other'),
+        HWText(HWString.fixed('Some other')),
         variableTestWidget,
       ],
     ),
@@ -51,7 +51,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         crossAxisAlignment: HWCrossAxisAlignment.baseline,
         children: [
           HWText(HWInt('streak'), style: HWTextStyle(fontSize: 34)),
-          HWText.fixed('days', style: HWTextStyle(fontSize: 12)),
+          HWText(HWString.fixed('days'), style: HWTextStyle(fontSize: 12)),
         ],
       ),
       HWRow(
@@ -62,14 +62,14 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             padding: .all(2),
             child: HWText(HWString('label')),
           ),
-          HWText.fixed('·'),
-          HWImage.asset('assets/logo.png', width: 16, height: 16),
+          HWText(HWString.fixed('·')),
+          HWImage(HWImageData.asset('assets/logo.png'), width: 16, height: 16),
         ],
       ),
       HWRow(
         crossAxisAlignment: HWCrossAxisAlignment.start,
         mainAxisAlignment: HWMainAxisAlignment.center,
-        children: [HWText.fixed('top')],
+        children: [HWText(HWString.fixed('top'))],
       ),
     ],
   ),
@@ -119,7 +119,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         height: 64,
         semanticLabel: 'Avatar',
       ),
-      HWImage.asset('assets/logo.png', fit: HWImageFit.cover),
+      HWImage(HWImageData.asset('assets/logo.png'), fit: HWImageFit.cover),
       HWImage(
         HWTimedData(HWImageData('slide')),
         width: 32,
@@ -129,7 +129,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       HWDataExists(
         data: HWJson('contact', HWImageData('avatar')),
         whenPresent: HWImage(HWJson('contact', HWImageData('avatar')), width: 24),
-        whenAbsent: HWText.fixed('no avatar'),
+        whenAbsent: HWText(HWString.fixed('no avatar')),
       ),
       HWImage(HWTimedData(HWJson('slot', HWImageData('picture'))), width: 24),
     ],
@@ -186,8 +186,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           maximumFractionDigits: 3,
         ),
       ),
-      HWText.fixedNumber(25000),
-      HWText.fixedNumber(0.42, format: HWNumberFormat.percent()),
+      HWText.number(HWInt.fixed(25000)),
+      HWText.number(HWDouble.fixed(0.42), format: HWNumberFormat.percent()),
     ],
   ),
 )
@@ -238,7 +238,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           HWDateTime('cancelledAt'),
           format: HWDateFormat.Hm,
         ),
-        whenAbsent: HWText.fixed('active'),
+        whenAbsent: HWText(HWString.fixed('active')),
       ),
     ],
   ),
@@ -258,7 +258,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   widgetUrl: 'cliTest://widget',
   android: HomeWidgetAndroidConfiguration(),
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
-  widget: HWText.fixed('Tap me'),
+  widget: HWText(HWString.fixed('Tap me')),
 )
 class SharedUrl {}
 ''',
@@ -279,7 +279,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     groupId: 'group.com.example.cliTest',
     widgetUrl: 'cliTest://ios',
   ),
-  widget: HWText.fixed('Tap me'),
+  widget: HWText(HWString.fixed('Tap me')),
 )
 class PlatformUrl {}
 ''',
@@ -297,7 +297,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   widgetUrl: 'cliTest://widget?section=main&homeWidget',
   android: HomeWidgetAndroidConfiguration(),
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
-  widget: HWText.fixed('Tap me'),
+  widget: HWText(HWString.fixed('Tap me')),
 )
 class ExplicitUrl {}
 ''',
@@ -317,8 +317,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.cliTest'),
   widget: HWColumn(
     children: [
-      HWText.fixed(
-        'Headline',
+      HWText(
+        HWString.fixed('Headline'),
         style: HWTextStyle(fontFamily: 'Chewy', fontSize: 18),
       ),
       HWText(
@@ -329,7 +329,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           italic: true,
         ),
       ),
-      HWIcon.fixed(Icons.favorite, size: 32),
+      HWIcon(HWIconData.fixed(Icons.favorite), size: 32),
       HWIcon(
         HWIconData(
           'mood',
@@ -379,7 +379,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     medium: HWRow(
       children: [
         HWText(HWString('headline')),
-        HWText.fixed(' · '),
+        HWText(HWString.fixed(' · ')),
         HWText(HWInt('streak')),
       ],
     ),
@@ -395,7 +395,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         HWText(HWString('headline')),
         HWText(HWString('label')),
         HWText(HWInt('streak')),
-        HWText.fixed('portrait'),
+        HWText(HWString.fixed('portrait')),
       ],
     ),
     accessoryCircular: HWText(HWInt('streak')),
@@ -435,7 +435,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         medium: HWRow(
           children: [
             HWText(HWString('headline')),
-            HWText.fixed(' · '),
+            HWText(HWString.fixed(' · ')),
             HWText(HWInt('streak')),
           ],
         ),
@@ -464,7 +464,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
                 HWText(HWString('headline')),
                 HWText(HWString('label')),
                 HWText(HWInt('streak')),
-                HWText.fixed('dashboard'),
+                HWText(HWString.fixed('dashboard')),
               ],
             ),
           ),
@@ -547,7 +547,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             HWText(HWString('unit', defaultValue: '°C')),
           ],
         ),
-        whenEmpty: HWText.fixed('No forecast yet'),
+        whenEmpty: HWText(HWString.fixed('No forecast yet')),
       ),
       HWRow.builder(
         'scores',
@@ -566,7 +566,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
           ),
         ),
       ),
-      HWRow.builder('dots', maxItems: 3, item: HWText.fixed('·')),
+      HWRow.builder('dots', maxItems: 3, item: HWText(HWString.fixed('·'))),
     ],
   ),
 )
@@ -607,13 +607,13 @@ import 'package:home_widget_generator/home_widget_generator.dart';
                 height: 24,
                 fit: HWImageFit.cover,
               ),
-              whenAbsent: HWText.fixed('?'),
+              whenAbsent: HWText(HWString.fixed('?')),
             ),
             HWText(HWItemData(HWString('name', previewValue: 'Ada'))),
             HWImage(HWItemData(HWImageData('badge')), width: 12, height: 12),
           ],
         ),
-        whenEmpty: HWText.fixed('No contacts yet'),
+        whenEmpty: HWText(HWString.fixed('No contacts yet')),
       ),
     ],
   ),
@@ -667,7 +667,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
                 width: 16,
                 height: 16,
               ),
-              whenAbsent: HWText.fixed('-'),
+              whenAbsent: HWText(HWString.fixed('-')),
             ),
             HWText.number(
               HWTimedData(
@@ -690,7 +690,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             ),
           ],
         ),
-        whenEmpty: HWText.fixed('No hourly forecast'),
+        whenEmpty: HWText(HWString.fixed('No hourly forecast')),
       ),
       HWColumn.builder(
         'alerts',
@@ -732,7 +732,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
         ),
       ),
     ),
-    whenEmpty: HWText.fixed('Nothing scheduled'),
+    whenEmpty: HWText(HWString.fixed('Nothing scheduled')),
   ),
 )
 class TimedListOnly {}

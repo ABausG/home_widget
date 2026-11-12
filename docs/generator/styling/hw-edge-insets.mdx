@@ -29,21 +29,21 @@ description: Padding values used by HWPadding and other layout widgets.
 ```dart
 HWPadding(
   padding: HWEdgeInsets.all(8.0),
-  child: HWText.fixed('Hello World'),
+  child: HWText(HWString.fixed('Hello World')),
 )
 ```
 
 ```dart
 HWPadding(
   padding: HWEdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
-  child: HWText.fixed('Hello World'),
+  child: HWText(HWString.fixed('Hello World')),
 )
 ```
 
 ```dart
 HWPadding(
   padding: HWEdgeInsets.only(left: 16.0, top: 8.0),
-  child: HWText.fixed('Hello World'),
+  child: HWText(HWString.fixed('Hello World')),
 )
 ```
 

@@ -133,8 +133,8 @@ import 'package:home_widget_generator/home_widget_generator.dart';
       crossAxisAlignment: HWCrossAxisAlignment.start,
       mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
       children: [
-        HWText.fixed(
-          'Dashboard',
+        HWText(
+          HWString.fixed('Dashboard'),
           style: HWRoleTextStyle(role: HWTextStyleRole.caption),
         ),
         HWText(

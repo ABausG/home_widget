@@ -18,7 +18,7 @@ WidgetSpec _spec({
 void main() {
   group('WidgetSpec.effectiveWidgetTree', () {
     test('returns provided widgetTree when set and not HWDataOnly', () {
-      final tree = HWText.fixed('hello');
+      final tree = HWText(HWString.fixed('hello'));
       final spec = _spec(widgetTree: tree);
       expect(identical(spec.effectiveWidgetTree, tree), isTrue);
     });
@@ -67,16 +67,22 @@ void main() {
       final spec = _spec(
         widgetTree: const HWColumn(
           children: [
-            HWText.fixed('a', style: HWTextStyle(fontFamily: 'Chewy')),
-            HWText.fixed(
-              'b',
+            HWText(
+              HWString.fixed('a'),
+              style: HWTextStyle(fontFamily: 'Chewy'),
+            ),
+            HWText(
+              HWString.fixed('b'),
               style: HWTextStyle(
                 fontFamily: 'Chewy',
                 fontWeight: HWFontWeight.bold,
               ),
             ),
-            HWText.fixed('c', style: HWTextStyle(fontFamily: 'Chewy')),
-            HWText.fixed('d'),
+            HWText(
+              HWString.fixed('c'),
+              style: HWTextStyle(fontFamily: 'Chewy'),
+            ),
+            HWText(HWString.fixed('d')),
           ],
         ),
       );
@@ -88,7 +94,10 @@ void main() {
     });
 
     test('fontVariants is empty for a widget in the platform font', () {
-      expect(_spec(widgetTree: const HWText.fixed('a')).fontVariants, isEmpty);
+      expect(
+        _spec(widgetTree: const HWText(HWString.fixed('a'))).fontVariants,
+        isEmpty,
+      );
     });
 
     test('iconCodePoints unions the tree and every icon field', () {
@@ -115,7 +124,7 @@ void main() {
           HWTimedData(mood),
           HWJson('profile', mood),
         ],
-        widgetTree: const HWText.fixed('a'),
+        widgetTree: const HWText(HWString.fixed('a')),
       );
 
       expect(spec.iconFields, hasLength(3));
@@ -618,7 +627,7 @@ void main() {
     test('a JSON leaf nothing renders needs no locale helpers at all', () {
       final spec = _spec(
         dataFields: const [HWJson('profile', leaf)],
-        widgetTree: const HWText.fixed('no greeting here'),
+        widgetTree: const HWText(HWString.fixed('no greeting here')),
       );
 
       // It is still a localized string of the widget, it is just never read
@@ -761,7 +770,7 @@ void main() {
       );
       final spec = _spec(
         dataFields: const [HWJson('profile', previewed)],
-        widgetTree: const HWText.fixed('no greeting here'),
+        widgetTree: const HWText(HWString.fixed('no greeting here')),
       );
 
       // Nothing displays the leaf, but the preview factory still resolves the
@@ -778,7 +787,7 @@ void main() {
     test('an image a widget renders names the decoder', () {
       for (final tree in const <HWImage>[
         HWImage(HWImageData('avatar')),
-        HWImage.asset('assets/logo.png'),
+        HWImage(HWImageData.asset('assets/logo.png')),
         HWImage(HWTimedData(HWImageData('avatar'))),
         HWImage(HWJson('contact', HWImageData('avatar'))),
       ]) {
@@ -793,7 +802,7 @@ void main() {
     test('an image field nothing renders names nothing', () {
       final spec = _spec(
         dataFields: const [HWImageData('avatar')],
-        widgetTree: const HWText.fixed('no image here'),
+        widgetTree: const HWText(HWString.fixed('no image here')),
       );
       expect(spec.nativeHelpers, isEmpty);
     });
@@ -1178,7 +1187,7 @@ void main() {
         ['hwFormatLocale', 'hwFormatDecimal'],
       );
       expect(
-        namesOf(_spec(widgetTree: const HWText.fixedNumber(1))),
+        namesOf(_spec(widgetTree: const HWText.number(HWInt.fixed(1)))),
         ['hwFormatLocale', 'hwFormatDecimal'],
       );
       expect(
@@ -1216,8 +1225,8 @@ void main() {
         dataFields: const [HWDateTime('when')],
         widgetTree: const HWDataExists(
           data: HWDateTime('when'),
-          whenPresent: HWText.fixed('soon'),
-          whenAbsent: HWText.fixed('never'),
+          whenPresent: HWText(HWString.fixed('soon')),
+          whenAbsent: HWText(HWString.fixed('never')),
         ),
       );
       expect(namesOf(spec), ['hwParseIsoDate']);
@@ -1231,7 +1240,7 @@ void main() {
               padding: HWEdgeInsets.all(4),
               child: HWDataExists(
                 data: HWString('label'),
-                whenPresent: HWText.fixed('none'),
+                whenPresent: HWText(HWString.fixed('none')),
                 whenAbsent: HWText(HWInt('count')),
               ),
             ),
@@ -1242,7 +1251,7 @@ void main() {
 
       final adaptive = _spec(
         widgetTree: const HWAdaptive(
-          ios: HWText.fixed('x'),
+          ios: HWText(HWString.fixed('x')),
           android: HWText(HWDateTime('when')),
         ),
       );
@@ -1260,7 +1269,7 @@ void main() {
     test('a number that never reaches a text needs no helpers', () {
       final spec = _spec(
         dataFields: const [HWInt('count')],
-        widgetTree: const HWText.fixed('static'),
+        widgetTree: const HWText(HWString.fixed('static')),
       );
       expect(spec.nativeHelpers, isEmpty);
     });
@@ -1331,9 +1340,12 @@ void main() {
             HWDataExists(
               data: HWImageData('avatar'),
               whenPresent: HWImage(HWImageData('avatar')),
-              whenAbsent: HWText.fixed('none'),
+              whenAbsent: HWText(HWString.fixed('none')),
             ),
-            HWText.fixed('styled', style: HWTextStyle(fontFamily: 'Chewy')),
+            HWText(
+              HWString.fixed('styled'),
+              style: HWTextStyle(fontFamily: 'Chewy'),
+            ),
             HWIcon.glyph(0xE88A, font: HWIconFont(family: 'MaterialIcons')),
           ],
         ),
@@ -1377,7 +1389,7 @@ void main() {
       ]) {
         final spec = _spec(
           dataFields: [const HWString('label'), field],
-          widgetTree: const HWText.fixed('static'),
+          widgetTree: const HWText(HWString.fixed('static')),
         );
         expect(namesOf(spec), ['hwParseIsoDate'], reason: '$field');
       }
@@ -1386,7 +1398,7 @@ void main() {
     test('a date field the widget never renders still has to be parsed', () {
       final spec = _spec(
         dataFields: const [HWDateTime('when')],
-        widgetTree: const HWText.fixed('static'),
+        widgetTree: const HWText(HWString.fixed('static')),
       );
       expect(namesOf(spec), ['hwParseIsoDate']);
     });
@@ -1645,7 +1657,7 @@ void main() {
         ),
         'widget tree': _spec(
           dataFields: const [HWString('title')],
-          widgetTree: const HWText.fixed('other'),
+          widgetTree: const HWText(HWString.fixed('other')),
         ),
         'preview instant': _spec(
           dataFields: const [
@@ -1727,7 +1739,7 @@ void main() {
       WidgetSpec specFor(HomeWidgetAndroidConfiguration android) => WidgetSpec(
             data: HomeWidget(name: 'T', android: android),
             className: 'T',
-            widgetTree: const HWText.fixed('x'),
+            widgetTree: const HWText(HWString.fixed('x')),
           );
 
       expect(
@@ -1748,7 +1760,7 @@ void main() {
           android: HomeWidgetAndroidConfiguration(),
         ),
         className: 'T',
-        widgetTree: const HWText.fixed('x'),
+        widgetTree: const HWText(HWString.fixed('x')),
       );
 
       // The digest this widget had before the declared sizes joined the hash:
@@ -1781,12 +1793,15 @@ void main() {
 
   group('WidgetSpec.sizeAdaptives', () {
     test('is empty for a tree without one', () {
-      expect(_spec(widgetTree: HWText.fixed('hi')).sizeAdaptives, isEmpty);
+      expect(
+        _spec(widgetTree: HWText(HWString.fixed('hi'))).sizeAdaptives,
+        isEmpty,
+      );
     });
 
     test('collects every instance in document order, nested ones included', () {
-      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
-      final first = HWSizeAdaptive(small: HWText.fixed('first'));
+      final inner = HWSizeAdaptive(small: HWText(HWString.fixed('inner')));
+      final first = HWSizeAdaptive(small: HWText(HWString.fixed('first')));
       final second = HWSizeAdaptive(small: inner);
 
       final spec = _spec(
@@ -1797,8 +1812,8 @@ void main() {
     });
 
     test('an HWAdaptive contributes only the branch its platform emits', () {
-      final onIos = HWSizeAdaptive(small: HWText.fixed('i'));
-      final onAndroid = HWSizeAdaptive(small: HWText.fixed('a'));
+      final onIos = HWSizeAdaptive(small: HWText(HWString.fixed('i')));
+      final onAndroid = HWSizeAdaptive(small: HWText(HWString.fixed('a')));
       final spec = _adaptiveSpec(
         adaptive: HWAdaptive(ios: onIos, android: onAndroid),
       );
@@ -1815,10 +1830,10 @@ void main() {
     });
 
     test('a nested site sees only what its enclosing slot renders', () {
-      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final inner = HWSizeAdaptive(small: HWText(HWString.fixed('inner')));
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
+          small: HWText(HWString.fixed('s')),
           large: inner,
         ),
       );
@@ -1832,8 +1847,8 @@ void main() {
     test('an Android site never sees an accessory family', () {
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          accessoryCircular: HWText.fixed('c'),
+          small: HWText(HWString.fixed('s')),
+          accessoryCircular: HWText(HWString.fixed('c')),
         ),
         iOS: const HomeWidgetIOSConfiguration(
           groupId: 'group.test',
@@ -1859,8 +1874,8 @@ void main() {
     test('is false when every reachable family renders one layout', () {
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          accessoryCircular: HWText.fixed('c'),
+          small: HWText(HWString.fixed('s')),
+          accessoryCircular: HWText(HWString.fixed('c')),
         ),
       );
 
@@ -1870,8 +1885,8 @@ void main() {
     test('is true once two reachable families render differently', () {
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          large: HWText.fixed('l'),
+          small: HWText(HWString.fixed('s')),
+          large: HWText(HWString.fixed('l')),
         ),
       );
 
@@ -1882,10 +1897,10 @@ void main() {
       final spec = _adaptiveSpec(
         adaptive: HWAdaptive(
           ios: HWSizeAdaptive(
-            small: HWText.fixed('s'),
-            large: HWText.fixed('l'),
+            small: HWText(HWString.fixed('s')),
+            large: HWText(HWString.fixed('l')),
           ),
-          android: HWText.fixed('a'),
+          android: HWText(HWString.fixed('a')),
         ),
       );
 
@@ -1912,7 +1927,7 @@ void main() {
   group('WidgetSpec.androidSizeTable', () {
     test('defaults to the cell footprint of every system family', () {
       final spec = _adaptiveSpec(
-        adaptive: HWSizeAdaptive(small: HWText.fixed('s')),
+        adaptive: HWSizeAdaptive(small: HWText(HWString.fixed('s'))),
       );
 
       expect(spec.androidSizeTable, {
@@ -1929,15 +1944,15 @@ void main() {
         adaptive: HWColumn(
           children: [
             HWSizeAdaptive(
-              small: HWText.fixed('s'),
-              medium: HWText.fixed('m'),
+              small: HWText(HWString.fixed('s')),
+              medium: HWText(HWString.fixed('m')),
               androidSizes: const {
                 HWWidgetFamily.systemMedium: HWSize(200, 100),
               },
             ),
             HWSizeAdaptive(
-              small: HWText.fixed('s2'),
-              large: HWText.fixed('l'),
+              small: HWText(HWString.fixed('s2')),
+              large: HWText(HWString.fixed('l')),
               androidSizes: const {
                 HWWidgetFamily.systemLarge: HWSize(200, 200),
               },
@@ -2126,8 +2141,8 @@ void main() {
     test('the no-fit fallback is the smallest declared area, not small', () {
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          medium: HWText.fixed('m'),
+          small: HWText(HWString.fixed('s')),
+          medium: HWText(HWString.fixed('m')),
           androidSizes: const {HWWidgetFamily.systemMedium: HWSize(60, 60)},
         ),
         android: const HomeWidgetAndroidConfiguration(
@@ -2142,8 +2157,8 @@ void main() {
     test('an override pulls a family into range', () {
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          large: HWText.fixed('l'),
+          small: HWText(HWString.fixed('s')),
+          large: HWText(HWString.fixed('l')),
           androidSizes: const {HWWidgetFamily.systemLarge: HWSize(90, 90)},
         ),
         android: const HomeWidgetAndroidConfiguration(
@@ -2158,8 +2173,8 @@ void main() {
     test('an override pushes a family out of range', () {
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
-          small: HWText.fixed('s'),
-          medium: HWText.fixed('m'),
+          small: HWText(HWString.fixed('s')),
+          medium: HWText(HWString.fixed('m')),
           androidSizes: const {HWWidgetFamily.systemMedium: HWSize(600, 600)},
         ),
         android: const HomeWidgetAndroidConfiguration(
@@ -2231,7 +2246,7 @@ void main() {
             small: _s,
             androidSizeRanges: [_stripRange],
           ),
-          android: HWText.fixed('a'),
+          android: HWText(HWString.fixed('a')),
         ),
       );
 
@@ -2283,9 +2298,9 @@ void main() {
       const style = HWTextStyle(fontFamily: 'Chewy');
       final spec = _adaptiveSpec(
         adaptive: const HWSizeAdaptive(
-          small: HWText.fixed('s', style: style),
-          medium: HWText.fixed('m', style: style),
-          large: HWText.fixed('l', style: style),
+          small: HWText(HWString.fixed('s'), style: style),
+          medium: HWText(HWString.fixed('m'), style: style),
+          large: HWText(HWString.fixed('l'), style: style),
           androidSizeRanges: [_stripRange, _dashboardRange],
         ),
       );
@@ -2358,10 +2373,10 @@ void main() {
 
   group('the Android size range walk', () {
     test('descends into a range child, which belongs to no slot', () {
-      final inner = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final inner = HWSizeAdaptive(small: HWText(HWString.fixed('inner')));
       final range = HWAndroidSizeRange(maxHeight: 120, child: inner);
       final outer = HWSizeAdaptive(
-        small: HWText.fixed('s'),
+        small: HWText(HWString.fixed('s')),
         androidSizeRanges: [range],
       );
       final spec = _adaptiveSpec(adaptive: outer);
@@ -2377,7 +2392,7 @@ void main() {
     });
 
     test('a range child written into a slot too is one place', () {
-      final shared = HWSizeAdaptive(small: HWText.fixed('inner'));
+      final shared = HWSizeAdaptive(small: HWText(HWString.fixed('inner')));
       final spec = _adaptiveSpec(
         adaptive: HWSizeAdaptive(
           small: shared,
@@ -2410,7 +2425,7 @@ void main() {
         const HWColumn(
           children: [
             forecast,
-            HWAdaptive(ios: events, android: HWText.fixed('none')),
+            HWAdaptive(ios: events, android: HWText(HWString.fixed('none'))),
           ],
         ),
       );
@@ -2524,7 +2539,11 @@ void main() {
 
     test('a builder whose item reads no item field makes an untimed list', () {
       final spec = _listSpec(
-        const HWRow.builder('dots', maxItems: 4, item: HWText.fixed('dot')),
+        const HWRow.builder(
+          'dots',
+          maxItems: 4,
+          item: HWText(HWString.fixed('dot')),
+        ),
       );
 
       final group = spec.listDataGroups.single;
@@ -2936,11 +2955,11 @@ void main() {
   });
 }
 
-const _s = HWText.fixed('s');
-const _m = HWText.fixed('m');
-const _l = HWText.fixed('l');
-const _strip = HWText.fixed('strip');
-const _dashboard = HWText.fixed('dashboard');
+const _s = HWText(HWString.fixed('s'));
+const _m = HWText(HWString.fixed('m'));
+const _l = HWText(HWString.fixed('l'));
+const _strip = HWText(HWString.fixed('strip'));
+const _dashboard = HWText(HWString.fixed('dashboard'));
 const _stripRange = HWAndroidSizeRange(maxHeight: 120, child: _strip);
 const _dashboardRange = HWAndroidSizeRange(
   minWidth: 400,
@@ -2990,5 +3009,6 @@ WidgetSpec _adaptiveSpec({
     WidgetSpec(
       data: HomeWidget(name: 'Adaptive', android: android, iOS: iOS),
       className: 'Adaptive',
-      widgetTree: adaptive ?? HWSizeAdaptive(small: HWText.fixed('s')),
+      widgetTree:
+          adaptive ?? HWSizeAdaptive(small: HWText(HWString.fixed('s'))),
     );

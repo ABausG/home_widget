@@ -20,12 +20,12 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   widget: HWColumn(
     crossAxisAlignment: HWCrossAxisAlignment.start,
     children: [
-      HWText.fixed(
-        'Tap me',
+      HWText(
+        HWString.fixed('Tap me'),
         style: HWRoleTextStyle(role: HWTextStyleRole.caption),
       ),
-      HWText.fixed(
-        'Opens the app',
+      HWText(
+        HWString.fixed('Opens the app'),
         style: HWRoleTextStyle(
           role: HWTextStyleRole.title,
           fontWeight: HWFontWeight.bold,

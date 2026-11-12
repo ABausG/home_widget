@@ -26,19 +26,23 @@ const from_code_point = IconData(0xe003, fontFamily: 'MaterialIcons');
 
 @HomeWidget(
   name: 'FixedIcon',
-  widget: HWIcon.fixed(Icons.wb_sunny, size: 32, semanticLabel: 'Sunny'),
+  widget: HWIcon(
+    HWIconData.fixed(Icons.wb_sunny),
+    size: 32,
+    semanticLabel: 'Sunny',
+  ),
 )
 class FixedIcon {}
 
 @HomeWidget(
   name: 'PackageIcon',
-  widget: HWIcon.fixed(CupertinoIcons.sun_max),
+  widget: HWIcon(HWIconData.fixed(CupertinoIcons.sun_max)),
 )
 class PackageIcon {}
 
 @HomeWidget(
   name: 'NotAnIcon',
-  widget: HWIcon.fixed('Icons.wb_sunny'),
+  widget: HWIcon(HWIconData.fixed('Icons.wb_sunny')),
 )
 class NotAnIcon {}
 
@@ -96,7 +100,7 @@ class BoundIcon {}
 
 @HomeWidget(
   name: 'DirectionalIcon',
-  widget: HWIcon.fixed(Icons.arrow_back),
+  widget: HWIcon(HWIconData.fixed(Icons.arrow_back)),
 )
 class DirectionalIcon {}
 
@@ -197,8 +201,8 @@ class IconlessData {}
 
 @HomeWidget(
   name: 'FamilyText',
-  widget: HWText.fixed(
-    'Hello',
+  widget: HWText(
+    HWString.fixed('Hello'),
     style: HWTextStyle(
       fontFamily: 'Chewy',
       package: 'my_fonts',
@@ -210,8 +214,8 @@ class FamilyText {}
 
 @HomeWidget(
   name: 'InheritedFamilyText',
-  widget: HWText.fixed(
-    'Hello',
+  widget: HWText(
+    HWString.fixed('Hello'),
     style: HWTextStyle(
       italic: true,
       baseStyle: HWRoleTextStyle.caption(fontFamily: 'Chewy'),
@@ -273,7 +277,7 @@ void main() {
     throw StateError('Expected a GeneratorError for $name');
   }
 
-  group('HWIcon.fixed', () {
+  group('HWIconData.fixed', () {
     test('decodes a Flutter icon to its glyph and font', () {
       final icon = widgetOf('FixedIcon') as HWIcon;
       expect(icon.codePoint, isNotNull);
@@ -306,7 +310,7 @@ void main() {
     test('rejects anything that is not an icon', () {
       expect(
         errorOf('NotAnIcon').message,
-        contains('Could not decode HWIcon.fixed'),
+        contains('Could not decode HWIconData.fixed'),
       );
     });
 

@@ -2,7 +2,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:test/test.dart';
 
 void main() {
-  const leaf = HWText.fixed('leaf');
+  const leaf = HWText(HWString.fixed('leaf'));
   const ios = HWText(HWString('ios'));
   const android = HWText(HWString('android'));
 
@@ -55,7 +55,7 @@ void main() {
   group('HWWidget Glance room', () {
     const spread = HWColumn(
       mainAxisAlignment: HWMainAxisAlignment.spaceBetween,
-      children: [HWText.fixed('a')],
+      children: [HWText(HWString.fixed('a'))],
     );
     const color = HWFixedColor(0xFF00FF00);
 
@@ -70,7 +70,7 @@ void main() {
 
       const row = HWRow(
         mainAxisAlignment: HWMainAxisAlignment.center,
-        children: [HWText.fixed('a')],
+        children: [HWText(HWString.fixed('a'))],
       );
       expect(roomIn(row, HWAxis.horizontal), ['defaultWeight()']);
       expect(roomIn(row, HWAxis.vertical), ['fillMaxWidth()']);
