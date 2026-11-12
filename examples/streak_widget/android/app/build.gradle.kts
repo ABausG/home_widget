@@ -1,5 +1,5 @@
 plugins {
-  id("org.jetbrains.kotlin.plugin.compose") version "2.4.0"
+  id("org.jetbrains.kotlin.plugin.compose") version "2.4.20"
   id("com.android.application")
   // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
   id("dev.flutter.flutter-gradle-plugin")

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:streak_widget/src/home_widget/streak.home_widget.dart';
 import 'package:streak_widget/src/streak_schedule.dart';
 import 'package:streak_widget/src/streak_status.dart';
