@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:generator_basics/src/home_widget/adaptive_greeting.home_widget.dart';
 import 'package:generator_basics/src/home_widget/basic_creation.home_widget.dart';
 import 'package:generator_basics/src/home_widget/conditional_status.home_widget.dart';
@@ -16,6 +15,7 @@ import 'package:generator_basics/src/home_widget/themed_counter.home_widget.dart
 import 'package:generator_basics/src/home_widget/week_forecast.home_widget.dart';
 import 'package:generator_basics/src/home_widget/widget_link.home_widget.dart';
 import 'package:generator_basics/src/widget_section.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const MainApp());

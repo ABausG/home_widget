@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
@@ -1066,9 +1066,9 @@ void main() {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: ColoredBox(color: Colors.red)),
-          Expanded(child: ColoredBox(color: Colors.green)),
-          Expanded(child: ColoredBox(color: Colors.blue)),
+          Expanded(child: ColoredBox(color: Color(0xFFF44336))),
+          Expanded(child: ColoredBox(color: Color(0xFF4CAF50))),
+          Expanded(child: ColoredBox(color: Color(0xFF2196F3))),
         ],
       ),
     );

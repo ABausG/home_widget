@@ -1,6 +1,6 @@
 import 'package:configurable_widget/main.dart';
-import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AndroidConfigurationPage extends StatefulWidget {
   const AndroidConfigurationPage({super.key, required this.widgetId});
