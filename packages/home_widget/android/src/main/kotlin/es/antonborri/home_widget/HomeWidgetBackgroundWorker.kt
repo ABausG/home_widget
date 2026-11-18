@@ -52,7 +52,7 @@ class HomeWidgetBackgroundWorker(private val context: Context, workerParams: Wor
     }
 
     val data = inputData.getString(DATA_KEY) ?: ""
-    val args = listOf(handle, data)
+    val args = listOf(handle, data, HomeWidgetPlugin.getHandle(context))
 
     synchronized(serviceStarted) {
       if (!serviceStarted.get()) {

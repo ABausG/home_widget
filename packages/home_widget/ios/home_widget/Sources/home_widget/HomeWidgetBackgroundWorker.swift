@@ -45,13 +45,15 @@ public struct HomeWidgetBackgroundWorker {
   /// and has not registered a callback since, the engine is started from the dispatcher an
   /// earlier registration stored in the AppGroup.
   static public func run(url: URL?, appGroup: String, key: String?) async {
-    guard let callback = callbackHandle(in: UserDefaults.init(suiteName: appGroup), key: key)
-    else {
+    let preferences = UserDefaults.init(suiteName: appGroup)
+    guard let callback = callbackHandle(in: preferences, key: key) else {
       logMissingCallback(appGroup: appGroup)
       return
     }
     guard await MainActor.run(body: { startEngineIfNeeded(appGroup: appGroup) }) else {
-      logMissingCallback(appGroup: appGroup)
+      NSLog(
+        "home_widget: Could not start the background engine for \(appGroup). "
+          + "Open the app and call HomeWidget.registerInteractivityCallback again.")
       return
     }
 
@@ -65,7 +67,8 @@ public struct HomeWidgetBackgroundWorker {
       }
     }
 
-    await sendEvent(url: url, callback: callback)
+    await sendEvent(
+      url: url, callback: callback, defaultCallback: callbackHandle(in: preferences, key: nil))
   }
 
   private static func logMissingCallback(appGroup: String) {
@@ -110,12 +113,12 @@ public struct HomeWidgetBackgroundWorker {
   /// entrypoint of the app instead.
   @discardableResult
   static func setupEngine(dispatcher: Int64, requiresCallback: Bool = false) -> Bool {
-    let backgroundEngine = FlutterEngine(
-      name: "home_widget_background", project: nil, allowHeadlessExecution: true)
     let flutterCallbackInfo = FlutterCallbackCache.lookupCallbackInformation(dispatcher)
     if requiresCallback && flutterCallbackInfo == nil {
       return false
     }
+    let backgroundEngine = FlutterEngine(
+      name: "home_widget_background", project: nil, allowHeadlessExecution: true)
     engine = backgroundEngine
 
     channel = FlutterMethodChannel(
@@ -123,9 +126,15 @@ public struct HomeWidgetBackgroundWorker {
       codec: FlutterStandardMethodCodec.sharedInstance()
     )
 
-    _ = backgroundEngine.run(
-      withEntrypoint: flutterCallbackInfo?.callbackName,
-      libraryURI: flutterCallbackInfo?.callbackLibraryPath)
+    guard
+      backgroundEngine.run(
+        withEntrypoint: flutterCallbackInfo?.callbackName,
+        libraryURI: flutterCallbackInfo?.callbackLibraryPath)
+    else {
+      engine = nil
+      channel = nil
+      return false
+    }
     if let registerPlugins = registerPlugins {
       isRegisteringPlugins = true
       registerPlugins(backgroundEngine)
@@ -152,13 +161,15 @@ public struct HomeWidgetBackgroundWorker {
     }
   }
 
-  static func sendEvent(url: URL?, callback: Int64) async {
+  static func sendEvent(url: URL?, callback: Int64, defaultCallback: Int64?) async {
     guard let _channel = channel else {
       return
     }
     await withCheckedContinuation { continuation in
       DispatchQueue.main.async {
-        _channel.invokeMethod("", arguments: [callback, url?.absoluteString]) { _ in
+        _channel.invokeMethod(
+          "", arguments: [callback, url?.absoluteString, defaultCallback]
+        ) { _ in
           continuation.resume()
         }
       }
