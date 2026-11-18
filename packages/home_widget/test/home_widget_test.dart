@@ -853,6 +853,27 @@ void main() {
       await second.cancel();
     });
 
+    test(
+      'does not decode an initial launch another listener received',
+      () async {
+        launchUri = 'homeWidget://known/initial';
+        emitClicksOnListen(const []);
+
+        final events = <Object>[];
+        final first = HomeWidget.launches(
+          decodeHost,
+        ).listen(events.add, onError: events.add);
+        addTearDown(first.cancel);
+        final second = HomeWidget.launches<String>(
+          (uri) => throw const FormatException('bad'),
+        ).listen(events.add, onError: events.add);
+        addTearDown(second.cancel);
+        await pumpEventQueue();
+
+        expect(events, ['/initial']);
+      },
+    );
+
     test('reports a failed initial read and keeps going with clicks', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(

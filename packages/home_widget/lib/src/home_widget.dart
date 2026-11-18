@@ -356,6 +356,7 @@ class HomeWidget {
     var cancelled = false;
 
     void emit(Uri uri, {bool initial = false}) {
+      if (initial && _initialLaunchDelivered) return;
       try {
         final launch = decode(uri);
         if (launch == null) return;
