@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
@@ -939,6 +939,27 @@ void main() {
       await second.cancel();
     });
 
+    test(
+      'does not decode an initial launch another listener received',
+      () async {
+        launchUri = 'homeWidget://known/initial';
+        emitClicksOnListen(const []);
+
+        final events = <Object>[];
+        final first = HomeWidget.launches(
+          decodeHost,
+        ).listen(events.add, onError: events.add);
+        addTearDown(first.cancel);
+        final second = HomeWidget.launches<String>(
+          (uri) => throw const FormatException('bad'),
+        ).listen(events.add, onError: events.add);
+        addTearDown(second.cancel);
+        await pumpEventQueue();
+
+        expect(events, ['/initial']);
+      },
+    );
+
     test('reports a failed initial read and keeps going with clicks', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
@@ -1152,9 +1173,9 @@ void main() {
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: ColoredBox(color: Colors.red)),
-          Expanded(child: ColoredBox(color: Colors.green)),
-          Expanded(child: ColoredBox(color: Colors.blue)),
+          Expanded(child: ColoredBox(color: Color(0xFFF44336))),
+          Expanded(child: ColoredBox(color: Color(0xFF4CAF50))),
+          Expanded(child: ColoredBox(color: Color(0xFF2196F3))),
         ],
       ),
     );

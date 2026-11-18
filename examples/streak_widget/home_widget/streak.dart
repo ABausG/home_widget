@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _pending = HWColor.fixed(0xE0AFAFAF);
 const _completed = HWColor.fixed(0xE0FF9600);

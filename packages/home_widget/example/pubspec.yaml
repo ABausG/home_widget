@@ -5,7 +5,7 @@ publish_to: 'none'
 
 environment:
   sdk: '>=3.10.0 <4.0.0'
-  flutter: '>=3.38.1'
+  flutter: '>=3.47.0'
 
 resolution: workspace
 
@@ -22,10 +22,11 @@ dependencies:
   workmanager: ^0.5.2
   home_widget:
   cupertino_icons: ^1.0.6
+  material_ui: ^1.1.0
 
 dev_dependencies:
   flutter_lints: ^5.0.0
-  device_info_plus: ^9.0.3
+  device_info_plus: ^13.2.0
   integration_test:
     sdk: flutter
   flutter_test:

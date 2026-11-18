@@ -647,7 +647,8 @@ Box(modifier = GlanceModifier.fillMaxSize()) {
         expect(
           kotlin(
             const HWSizedBox.expand(
-                child: HWImage(HWImageData('a'), width: 48)),
+              child: HWImage(HWImageData('a'), width: 48),
+            ),
           ),
           contains('modifier = GlanceModifier.width(48.0.dp).fillMaxHeight(),'),
         );
