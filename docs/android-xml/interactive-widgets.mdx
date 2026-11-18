@@ -7,14 +7,11 @@ description: How to create interactive Widgets with home_widget and Android XML 
 
 Follow the necessary steps to set up everything on the Flutter Side as described [here](/features/interactive-widgets#flutter-setup).
 
-1. Add the necessary Receiver and Service to your `AndroidManifest.xml` file
+1. Add the necessary Receiver to your `AndroidManifest.xml` file
     ```xml
-   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="true">
-        <intent-filter>
-            <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
-        </intent-filter>
-    </receiver>
+   <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"  android:exported="false" />
     ```
+   The receiver does not have to be exported and needs no intent-filter: `HomeWidgetBackgroundIntent.getBroadcast` addresses it by its class, and the launcher sends that `PendingIntent` as your app. With `android:exported="true"` any app on the device can send it a broadcast and run your callback with a Uri of its choice, so change an existing entry to `false`.
 2. Add a `HomeWidgetBackgroundIntent.getBroadcast` PendingIntent to the View you want to add a click listener to
     ```kotlin
     val backgroundIntent = HomeWidgetBackgroundIntent.getBroadcast(

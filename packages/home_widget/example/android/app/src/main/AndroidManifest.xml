@@ -56,11 +56,7 @@
 
         <!-- Used for Background Work -->
         <receiver android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
-            </intent-filter>
-        </receiver>
+            android:exported="false" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

@@ -11,13 +11,18 @@ Future<void> callbackDispatcher() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   backgroundChannel.setMethodCallHandler((call) async {
-    final args = call.arguments;
+    final args = call.arguments as List<Object?>;
 
     final callback =
-        PluginUtilities.getCallbackFromHandle(
-              CallbackHandle.fromRawHandle(args[0] as int),
-            )
-            as FutureOr<void> Function(Uri?);
+        _lookUpCallback(args[0]) ??
+        (args.length > 2 ? _lookUpCallback(args[2]) : null);
+    if (callback == null) {
+      debugPrint(
+        'home_widget: The registered interactivity callback could not be '
+        'found. Call HomeWidget.registerInteractivityCallback in the app again.',
+      );
+      return;
+    }
 
     final rawUri = args[1] as String?;
 
@@ -30,4 +35,14 @@ Future<void> callbackDispatcher() async {
   });
 
   await backgroundChannel.invokeMethod('HomeWidget.backgroundInitialized');
+}
+
+FutureOr<void> Function(Uri?)? _lookUpCallback(Object? rawHandle) {
+  if (rawHandle is! int || rawHandle == 0) {
+    return null;
+  }
+  return PluginUtilities.getCallbackFromHandle(
+        CallbackHandle.fromRawHandle(rawHandle),
+      )
+      as FutureOr<void> Function(Uri?)?;
 }
