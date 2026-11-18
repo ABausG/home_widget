@@ -450,19 +450,25 @@ class HomeWidget {
     FutureOr<void> Function(Uri?) callback, {
     String? key,
     String? appGroupId,
-  }) {
-    final dispatcherHandle = ui.PluginUtilities.getCallbackHandle(
-      callbackDispatcher,
-    )?.toRawHandle();
+  }) async {
     final callbackHandle = ui.PluginUtilities.getCallbackHandle(
       callback,
     )?.toRawHandle();
-    if (dispatcherHandle == null || callbackHandle == null) {
+    if (callbackHandle == null) {
       throw ArgumentError.value(
         callback,
         'callback',
         "must be a top-level or static function annotated with @pragma('vm:entry-point'). "
             'Closures and instance methods cannot run in the background engine',
+      );
+    }
+    final dispatcherHandle = ui.PluginUtilities.getCallbackHandle(
+      callbackDispatcher,
+    )?.toRawHandle();
+    if (dispatcherHandle == null) {
+      throw StateError(
+        'The home_widget callback dispatcher has no callback handle, so the '
+        'background engine cannot be started',
       );
     }
     final args = <dynamic>[

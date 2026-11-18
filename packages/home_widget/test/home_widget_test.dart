@@ -657,11 +657,10 @@ void main() {
       expect(HomeWidget.groupId, previousGroupId);
     });
 
-    test('throws an ArgumentError for a closure', () {
-      expect(
-        () => HomeWidget.registerInteractivityCallback((_) {}),
-        throwsArgumentError,
-      );
+    test('completes with an ArgumentError for a closure', () async {
+      final future = HomeWidget.registerInteractivityCallback((_) async {});
+
+      await expectLater(future, throwsArgumentError);
       expect(passedArguments.isCompleted, isFalse);
     });
   });
