@@ -466,12 +466,14 @@ class HomeWidget {
     final dispatcherHandle = ui.PluginUtilities.getCallbackHandle(
       callbackDispatcher,
     )?.toRawHandle();
+    // coverage:ignore-start
     if (dispatcherHandle == null) {
       throw StateError(
         'The home_widget callback dispatcher has no callback handle, so the '
         'background engine cannot be started',
       );
     }
+    // coverage:ignore-end
     final args = <dynamic>[
       dispatcherHandle,
       callbackHandle,
