@@ -2088,8 +2088,10 @@ String _podsXcconfigName(String widgetClassName) =>
 ///   plugins, the extension target gets the same package product. A project
 ///   Flutter created with the package can still integrate its plugins through
 ///   CocoaPods, so [pluginInSwiftPackage] says whether that package holds
-///   `home_widget`: `false` rules this out, and `null`, for a package that
-///   was not generated yet, trusts the app target.
+///   `home_widget`: `false` rules this out. `null`, for a package that was
+///   not generated yet, keeps the CocoaPods target of an extension that has
+///   one in the `Podfile`, which [hasPodfileTarget] says, trusts the app
+///   target otherwise, and warns either way.
 /// - Otherwise, with [hasPodfile], the extension gets a CocoaPods target,
 ///   which the caller writes into the `Podfile`. CocoaPods configures a
 ///   target through the `.xcconfig` its configurations are based on, and
@@ -2110,12 +2112,14 @@ Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
   required String intentFileName,
   required bool interactive,
   required bool hasPodfile,
+  bool hasPodfileTarget = false,
   bool? pluginInSwiftPackage,
 }) async {
   final projectName = xcodeProjectName(pbxprojFile);
   final projectDir = _projectDirOf(pbxprojFile);
   final ids = _InteractivityIds(widgetClassName, intentFileName);
   var linkage = WidgetPluginLinkage.none;
+  var unknownPackage = false;
   var podConfigurations = const <String>[];
   var podsIncludeVersion = false;
 
@@ -2137,8 +2141,17 @@ Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
       runnerTargetId: runner.id,
     );
 
-    if (pluginInSwiftPackage != false &&
-        _linksPluginPackage(editor.project, runner)) {
+    final runnerLinksPackage = _linksPluginPackage(editor.project, runner);
+    var viaSwiftPackage = pluginInSwiftPackage != false && runnerLinksPackage;
+    if (pluginInSwiftPackage == null && runnerLinksPackage) {
+      final keepsCocoaPods = hasPodfile &&
+          hasPodfileTarget &&
+          !_linksPluginPackage(editor.project, target);
+      viaSwiftPackage = !keepsCocoaPods;
+      unknownPackage = true;
+    }
+
+    if (viaSwiftPackage) {
       linkage = WidgetPluginLinkage.swiftPackage;
       _linkPluginPackage(editor, ids, widgetClassName);
       _restoreVersionXcconfig(editor, widgetClassName, ids);
@@ -2176,6 +2189,17 @@ Future<WidgetPluginLinkage> syncWidgetInteractivityInXcodeProject({
     }
   } else if (podsXcconfig.existsSync()) {
     await podsXcconfig.delete();
+  }
+  if (unknownPackage) {
+    final through = linkage == WidgetPluginLinkage.cocoaPods
+        ? 'keeps linking it through CocoaPods'
+        : 'links it through Swift Package Manager, as Runner does';
+    logger.warn(
+      'Warning: ios/Flutter/ephemeral/Packages/$_pluginPackageProduct/'
+      'Package.swift is missing, so whether the app gets home_widget through '
+      'Swift Package Manager or CocoaPods is unknown. $widgetClassName '
+      '$through until then. Run `flutter pub get` and generate again.',
+    );
   }
   return linkage;
 }

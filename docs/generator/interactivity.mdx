@@ -274,6 +274,8 @@ The intent calls into `home_widget`, so the widget extension has to link it. How
 
 When the project has neither, `generate` warns that it could not link the plugin. Build the app once and generate again.
 
+Whether the package holds `home_widget` is read from `ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift`, which Flutter writes on `flutter pub get`. While that file is missing, such as right after a fresh clone, `generate` warns and keeps the linkage the extension already has: its package product, or its target in the `Podfile`. An extension that is not linked yet follows the app target. Run `flutter pub get` and generate again to settle it.
+
 ### App delegate
 
 `ios/Runner/AppDelegate.swift` gets `import home_widget` and this block in `application(_:didFinishLaunchingWithOptions:)`:

@@ -20,6 +20,12 @@ RegExp _podfileTargetPattern(String widgetClassName) => RegExp(
       multiLine: true,
     );
 
+/// Whether [podfile] exists and has a target for the widget extension
+/// [widgetClassName].
+bool podfileHasWidgetTarget(File podfile, String widgetClassName) =>
+    podfile.existsSync() &&
+    _podfileTargetPattern(widgetClassName).hasMatch(podfile.readAsStringSync());
+
 /// Ensures [podfile] has a target for the widget extension [widgetClassName]
 /// that links the `home_widget` plugin.
 ///

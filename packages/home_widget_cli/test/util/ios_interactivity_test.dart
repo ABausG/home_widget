@@ -312,6 +312,33 @@ end
     });
   });
 
+  group('podfileHasWidgetTarget', () {
+    late File podfile;
+
+    setUp(() {
+      podfile = File(p.join(iosDir.path, 'Podfile'));
+    });
+
+    test('is false without a Podfile', () {
+      expect(podfileHasWidgetTarget(podfile, _widget), isFalse);
+    });
+
+    test('is false for a Podfile without the target', () {
+      podfile.writeAsStringSync(_podfile);
+
+      expect(podfileHasWidgetTarget(podfile, _widget), isFalse);
+    });
+
+    test('is true for a Podfile with the target, edited or not', () async {
+      podfile.writeAsStringSync(_podfile);
+      await ensurePodfileWidgetTarget(podfile, _widget);
+      expect(podfileHasWidgetTarget(podfile, _widget), isTrue);
+
+      podfile.writeAsStringSync('target "$_widget" do\nend\n');
+      expect(podfileHasWidgetTarget(podfile, _widget), isTrue);
+    });
+  });
+
   group('removePodfileWidgetTarget', () {
     late File podfile;
 

@@ -161,6 +161,7 @@ void main() {
   Future<WidgetPluginLinkage> sync({
     bool interactive = true,
     bool hasPodfile = false,
+    bool hasPodfileTarget = false,
     bool? pluginInSwiftPackage,
   }) =>
       syncWidgetInteractivityInXcodeProject(
@@ -169,6 +170,7 @@ void main() {
         intentFileName: _intent,
         interactive: interactive,
         hasPodfile: hasPodfile,
+        hasPodfileTarget: hasPodfileTarget,
         pluginInSwiftPackage: pluginInSwiftPackage,
       );
 
@@ -395,6 +397,74 @@ void main() {
       expect(linkage, WidgetPluginLinkage.cocoaPods);
       expectNothingOf([_packageProductId, _packageBuildFileId]);
       expect(podsXcconfig.existsSync(), isTrue);
+    });
+  });
+
+  group('a plugin package not generated yet', () {
+    const missing = 'Warning: ios/Flutter/ephemeral/Packages/'
+        'FlutterGeneratedPluginSwiftPackage/Package.swift is missing, so '
+        'whether the app gets home_widget through Swift Package Manager or '
+        'CocoaPods is unknown. CounterHomeWidget';
+    const rerun = 'until then. Run `flutter pub get` and generate again.';
+
+    setUp(() async {
+      await scaffold(_withRunnerPackage(flavoredPbxproj(const [])));
+    });
+
+    test('keeps the CocoaPods target of an extension that has one', () async {
+      expect(
+        await sync(hasPodfile: true, pluginInSwiftPackage: false),
+        WidgetPluginLinkage.cocoaPods,
+      );
+      final wired = read();
+      final xcconfig = podsXcconfig.readAsStringSync();
+      verifyNever(() => mockLogger.warn(any()));
+
+      final linkage = await sync(hasPodfile: true, hasPodfileTarget: true);
+
+      expect(linkage, WidgetPluginLinkage.cocoaPods);
+      expect(read(), wired);
+      expect(podsXcconfig.readAsStringSync(), xcconfig);
+      verify(
+        () => mockLogger.warn('$missing keeps linking it through CocoaPods '
+            '$rerun'),
+      ).called(1);
+    });
+
+    test('keeps the package of an extension that links it', () async {
+      expect(
+        await sync(hasPodfile: true, pluginInSwiftPackage: true),
+        WidgetPluginLinkage.swiftPackage,
+      );
+      final wired = read();
+
+      final linkage = await sync(hasPodfile: true, hasPodfileTarget: true);
+
+      expect(linkage, WidgetPluginLinkage.swiftPackage);
+      expect(read(), wired);
+      expect(podsXcconfig.existsSync(), isFalse);
+      verify(
+        () => mockLogger.warn('$missing links it through Swift Package '
+            'Manager, as Runner does $rerun'),
+      ).called(1);
+    });
+
+    test('links a new extension the way Runner does', () async {
+      final linkage = await sync(hasPodfile: true);
+
+      expect(linkage, WidgetPluginLinkage.swiftPackage);
+      expectPackageLinked();
+      verify(
+        () => mockLogger.warn('$missing links it through Swift Package '
+            'Manager, as Runner does $rerun'),
+      ).called(1);
+    });
+
+    test('says nothing once a known package decides it', () async {
+      await sync(hasPodfile: true, pluginInSwiftPackage: true);
+      await sync(hasPodfile: true, pluginInSwiftPackage: false);
+
+      verifyNever(() => mockLogger.warn(any()));
     });
   });
 

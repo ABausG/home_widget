@@ -1065,6 +1065,39 @@ $dependencies
       );
     });
 
+    test('keeps the CocoaPods wiring until the package manifest exists',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      await generate();
+      final withTarget = podfileFile.readAsStringSync();
+      expect(withTarget, contains(podfileWidgetTarget('CounterHomeWidget')));
+      linkPluginPackageIntoRunner();
+
+      await generate();
+
+      expect(podfileFile.readAsStringSync(), withTarget);
+      expect(podsXcconfigFile.existsSync(), isTrue);
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf(
+              contains('Package.swift is missing'),
+              contains('keeps linking it through CocoaPods'),
+            ),
+          ),
+        ),
+      ).called(1);
+
+      writePackageManifest(
+        '        .package(name: "home_widget", '
+        'path: "../.packages/home_widget")',
+      );
+      await generate();
+
+      expect(podfileFile.readAsStringSync(), podfile);
+      expect(podsXcconfigFile.existsSync(), isFalse);
+    });
+
     test('registers the plugins in the app delegate', () async {
       podfileFile.writeAsStringSync(podfile);
 

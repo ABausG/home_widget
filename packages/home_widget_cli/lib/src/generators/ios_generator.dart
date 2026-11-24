@@ -614,6 +614,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
       intentFileName: intentFileName,
       interactive: interactive,
       hasPodfile: podfile.existsSync(),
+      hasPodfileTarget: podfileHasWidgetTarget(podfile, widgetClassName),
       pluginInSwiftPackage: _pluginInSwiftPackage(iosDir),
     );
 
