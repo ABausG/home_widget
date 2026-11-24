@@ -113,6 +113,17 @@ final RegExp _superLaunchPattern = RegExp(
   multiLine: true,
 );
 
+/// The first `return super.application(...)` of [content] that no comment
+/// holds, with offsets into [content] as it is.
+RegExpMatch? _firstOutsideComments(String content) {
+  final comments = _swiftComment.allMatches(content).toList();
+  return _superLaunchPattern.allMatches(content).where((launch) {
+    return !comments.any(
+      (comment) => launch.start >= comment.start && launch.start < comment.end,
+    );
+  }).firstOrNull;
+}
+
 /// Ensures the app delegate in [iosDir] registers the app's plugins with the
 /// engine the plugin runs a widget interaction in.
 ///
@@ -144,8 +155,7 @@ Future<void> ensureAppDelegatePluginRegistrant(
     return;
   }
 
-  final launch =
-      content == null ? null : _superLaunchPattern.firstMatch(content);
+  final launch = content == null ? null : _firstOutsideComments(content);
   if (content == null || launch == null) {
     logger.warn(
       'Warning: Could not add the plugin registration for widget '

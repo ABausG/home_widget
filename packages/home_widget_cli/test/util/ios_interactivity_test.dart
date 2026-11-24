@@ -457,6 +457,32 @@ end
       expect(result, _patchedImplicitEngineAppDelegate);
     });
 
+    test('registers ahead of the live return, not one a comment holds',
+        () async {
+      const comment = '''
+/*
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+*/
+''';
+      String withComment(String delegate) =>
+          delegate.replaceFirst('@main', '$comment@main');
+
+      final result = await ensure(withComment(_appDelegate));
+
+      expect(result, withComment(_patchedAppDelegate));
+
+      await ensureAppDelegatePluginRegistrant(iosDir);
+
+      expect(appDelegate.readAsStringSync(), withComment(_patchedAppDelegate));
+      verify(() => mockLogger.detail(any())).called(1);
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
     test('is idempotent', () async {
       final first = await ensure(_appDelegate);
       await ensureAppDelegatePluginRegistrant(iosDir);
