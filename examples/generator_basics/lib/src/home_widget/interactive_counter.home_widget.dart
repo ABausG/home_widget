@@ -239,11 +239,17 @@ final class InteractiveCounterIncrementInteraction extends InteractiveCounterInt
   String toString() => 'InteractiveCounterIncrementInteraction(step: $step)';
 }
 
+Future<void> _$interactiveCounterInteractionEntryPointLastRun = Future<void>.value();
+
 @pragma('vm:entry-point')
-Future<void> _$interactiveCounterInteractionEntryPoint(Uri? uri) async {
+Future<void> _$interactiveCounterInteractionEntryPoint(Uri? uri) {
   InteractiveCounterHomeWidget._$interactivityRegistered = true;
-  final interaction = uri == null ? null : InteractiveCounterInteraction.fromUri(uri);
-  if (interaction != null) await _$interaction.onInteractiveCounterInteraction(interaction);
+  final run = _$interactiveCounterInteractionEntryPointLastRun.then((_) async {
+    final interaction = uri == null ? null : InteractiveCounterInteraction.fromUri(uri);
+    if (interaction != null) await _$interaction.onInteractiveCounterInteraction(interaction);
+  });
+  _$interactiveCounterInteractionEntryPointLastRun = run.then<void>((_) {}, onError: (Object _) {});
+  return run;
 }
 
 /// Whether [uri] is the URL [url] with any payload: scheme, authority, path

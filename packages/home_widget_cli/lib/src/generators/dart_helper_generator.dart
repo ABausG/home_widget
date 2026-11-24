@@ -1592,14 +1592,27 @@ sealed class $interaction {
   /// It is the one function looked up by name, so it alone needs the
   /// entry-point pragma. It only runs once the function is registered, so the
   /// `saveData` and `updateWidget` of [handler] skip registering again.
+  ///
+  /// The plugin does not wait for a run before it starts the next, so each
+  /// tap is chained onto the last: runs of one widget never overlap, and
+  /// start in the order of the taps. A run that throws fails the call it was
+  /// started by, not the ones after it.
   String _interactionEntryPoint(InteractionHandler handler) {
     final call = '$_interactionLibrary.${handler.reference}(interaction)';
+    final entryPoint = _interactionEntryPointName;
+    final lastRun = '${entryPoint}LastRun';
     return '''
+Future<void> $lastRun = Future<void>.value();
+
 @pragma('vm:entry-point')
-Future<void> $_interactionEntryPointName(Uri? uri) async {
+Future<void> $entryPoint(Uri? uri) {
   ${spec.className}HomeWidget._\$interactivityRegistered = true;
-  final interaction = uri == null ? null : ${spec.interactionClassName}.fromUri(uri);
-  if (interaction != null) await $call;
+  final run = $lastRun.then((_) async {
+    final interaction = uri == null ? null : ${spec.interactionClassName}.fromUri(uri);
+    if (interaction != null) await $call;
+  });
+  $lastRun = run.then<void>((_) {}, onError: (Object _) {});
+  return run;
 }
 ''';
   }

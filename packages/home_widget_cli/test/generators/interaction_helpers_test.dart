@@ -299,7 +299,7 @@ void main() {
       expect(
         _generate(),
         contains(
-          'Future<void> _\$counterInteractionEntryPoint(Uri? uri) async {\n'
+          'Future<void> _\$counterInteractionEntryPoint(Uri? uri) {\n'
           '  CounterHomeWidget._\$interactivityRegistered = true;\n',
         ),
       );
@@ -741,13 +741,22 @@ void main() {
       expect(
         output,
         contains(
+          'Future<void> _\$counterInteractionEntryPointLastRun = '
+          'Future<void>.value();\n'
+          '\n'
           "@pragma('vm:entry-point')\n"
-          'Future<void> _\$counterInteractionEntryPoint(Uri? uri) async {\n'
+          'Future<void> _\$counterInteractionEntryPoint(Uri? uri) {\n'
           '  CounterHomeWidget._\$interactivityRegistered = true;\n'
-          '  final interaction = uri == null ? null : '
+          '  final run = _\$counterInteractionEntryPointLastRun.then((_) '
+          'async {\n'
+          '    final interaction = uri == null ? null : '
           'CounterInteraction.fromUri(uri);\n'
-          '  if (interaction != null) await '
+          '    if (interaction != null) await '
           '_\$interaction.onCounterInteraction(interaction);\n'
+          '  });\n'
+          '  _\$counterInteractionEntryPointLastRun = '
+          'run.then<void>((_) {}, onError: (Object _) {});\n'
+          '  return run;\n'
           '}\n',
         ),
       );
@@ -770,7 +779,7 @@ void main() {
       expect(
         output,
         contains(
-          '  if (interaction != null) await '
+          '    if (interaction != null) await '
           '_\$interaction.Handlers.onTap(interaction);\n',
         ),
       );
@@ -778,6 +787,50 @@ void main() {
   });
 
   group('the generated helper, run', () {
+    test('runs overlapping taps one after another, past a failing one',
+        () async {
+      final output = await _runHelper(
+        'null',
+        handler: r'''
+async {
+    print('start $interaction');
+    final count = (HomeWidget.saved['count'] as int?) ?? 0;
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    if (interaction is CounterResetInteraction) throw StateError('reset');
+    HomeWidget.saved['count'] = count + 1;
+    print('end $interaction');
+  }''',
+        program: r'''
+Future<void> main() async {
+  final increment = const CounterIncrementInteraction().toUri();
+  final reset = const CounterResetInteraction().toUri();
+  final runs = [
+    _$counterInteractionEntryPoint(increment),
+    _$counterInteractionEntryPoint(reset),
+    _$counterInteractionEntryPoint(increment),
+    _$counterInteractionEntryPoint(null),
+  ];
+  final results = await Future.wait([
+    for (final run in runs)
+      run.then((_) => 'done', onError: (Object error) => 'failed $error'),
+  ]);
+  print(results.join(', '));
+  print('count ${HomeWidget.saved['count']}');
+}
+''',
+      );
+
+      expect(output, [
+        'start CounterIncrementInteraction(step: 1)',
+        'end CounterIncrementInteraction(step: 1)',
+        'start CounterResetInteraction()',
+        'start CounterIncrementInteraction(step: 1)',
+        'end CounterIncrementInteraction(step: 1)',
+        'done, failed Bad state: reset, done, done',
+        'count 2',
+      ]);
+    });
+
     test('saves although registering throws a MissingPluginException',
         () async {
       final output = await _runHelper(
@@ -923,14 +976,16 @@ void main() {
 /// both with [both], and runs on [platform], a `TargetPlatform` value, or on
 /// the web with [web].
 ///
-/// Saves twice and updates once, letting each implicit registration settle,
-/// then registers explicitly, and prints one line per step.
+/// The interaction function runs [handler], a function body, and the
+/// program is [program], or by default [_registeringProgram].
 Future<List<String>> _runHelper(
   String registerError, {
   bool androidOnly = false,
   bool both = false,
   String platform = 'iOS',
   bool web = false,
+  String handler = 'async {}',
+  String? program,
 }) async {
   final generated = _generate(
     android: androidOnly || both,
@@ -1013,27 +1068,12 @@ class HomeWidget {
 }
 
 class _\$interaction {
-  static Future<void> onCounterInteraction(Object interaction) async {}
+  static Future<void> onCounterInteraction(Object interaction) $handler
 }
 
 Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 10));
 
-Future<void> main() async {
-  await CounterHomeWidget.saveData(count: 3);
-  await settle();
-  await CounterHomeWidget.saveData(count: 4);
-  await settle();
-  await CounterHomeWidget.updateWidget();
-  await settle();
-  print('saved \${(await CounterHomeWidget.getData()).count}');
-  print('registrations \${HomeWidget.registrations}');
-  try {
-    print('explicit \${await CounterHomeWidget.registerInteractivity()}');
-  } catch (error) {
-    print('explicit \$error');
-  }
-  print('registrations \${HomeWidget.registrations}');
-}
+${program ?? _registeringProgram}
 ''');
 
   final result = await Process.run(Platform.resolvedExecutable, [file.path]);
@@ -1042,3 +1082,24 @@ Future<void> main() async {
   }
   return const LineSplitter().convert((result.stdout as String).trim());
 }
+
+/// Saves twice and updates once, letting each implicit registration settle,
+/// then registers explicitly, and prints one line per step.
+const _registeringProgram = r'''
+Future<void> main() async {
+  await CounterHomeWidget.saveData(count: 3);
+  await settle();
+  await CounterHomeWidget.saveData(count: 4);
+  await settle();
+  await CounterHomeWidget.updateWidget();
+  await settle();
+  print('saved ${(await CounterHomeWidget.getData()).count}');
+  print('registrations ${HomeWidget.registrations}');
+  try {
+    print('explicit ${await CounterHomeWidget.registerInteractivity()}');
+  } catch (error) {
+    print('explicit $error');
+  }
+  print('registrations ${HomeWidget.registrations}');
+}
+''';

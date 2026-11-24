@@ -183,6 +183,8 @@ Read state inside the function, from `getData()` or from your own storage, as th
 final count = (await CounterHomeWidget.getData()).count ?? 0;
 ```
 
+The function runs for one tap of a widget at a time: a tap that arrives while it is still running waits for it, and taps are handled in the order they came in. Reading, changing and saving a value, as the counter does, is safe without a lock of your own.
+
 ## What runs where
 
 **Android.** The button is a Glance `clickable` that runs the plugin's `HomeWidgetInteractivityAction`. The action sends a broadcast to the plugin's `HomeWidgetBackgroundReceiver`, and the plugin runs the function in a background Flutter engine.
