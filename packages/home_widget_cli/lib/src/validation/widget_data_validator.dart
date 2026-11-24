@@ -1,4 +1,6 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart'
+    show spellFixedValue;
 
 import '../models/widget_spec.dart';
 import '../util/logger.dart';
@@ -244,21 +246,7 @@ String _describeImage(HWImageData image) {
   return 'asset "${image.assetPath}" of package "$package"';
 }
 
-/// [value], a fixed value, the way a schema writes it.
-String _spellFixed(HWDataType<dynamic> value) => switch (value) {
-      HWLocalizedString() => 'HWString.localizedFixed',
-      HWString(:final fixedValue) => 'HWString.fixed("$fixedValue")',
-      HWDateTime(:final fixedIso) => 'HWDateTime.fixed("$fixedIso")',
-      HWImageData(:final assetPath) => 'HWImageData.asset("$assetPath")',
-      HWIconData() => 'HWIconData.fixed',
-      HWInt(:final fixedValue) => 'HWInt.fixed($fixedValue)',
-      HWDouble(:final fixedValue) => 'HWDouble.fixed($fixedValue)',
-      HWBool(:final fixedValue) => 'HWBool.fixed($fixedValue)',
-      // Never fixed: a wrapper has no constant form.
-      // coverage:ignore-start
-      HWJson() || HWTimedData() || HWItemData() => '${value.runtimeType}',
-      // coverage:ignore-end
-    };
+String _spellFixed(HWDataType<dynamic> value) => spellFixedValue(value);
 
 /// Rejects a fixed value that declares nothing where it stands, and one whose
 /// content cannot be rendered.

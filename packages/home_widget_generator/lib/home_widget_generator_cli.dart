@@ -10,6 +10,7 @@ export 'src/generator_error.dart';
 export 'src/parser/widget_tree_parser.dart';
 export 'src/parser/widget_value_decoder.dart';
 export 'src/utils/apply_swift_modifier.dart';
+export 'src/utils/fixed_spelling.dart';
 export 'src/utils/fnv_hash.dart';
 export 'src/utils/inject_glance_modifier.dart';
 export 'src/utils/string_literals.dart';

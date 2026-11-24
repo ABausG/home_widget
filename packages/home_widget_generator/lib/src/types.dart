@@ -5,6 +5,7 @@ import 'formats.dart';
 import 'generator_error.dart';
 import 'native_helpers.dart';
 import 'utils/content_hash.dart';
+import 'utils/fixed_spelling.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
 
@@ -2073,24 +2074,24 @@ class HWIconData extends HWDataType<int> {
   String androidToString({
     required String outerValue,
     required String innerValue,
-  }) {
-    throw GeneratorError(
-      'HWIconData cannot be rendered as text. Use HWIcon to display the icon '
-      'stored under "$key".',
-    );
-  }
+  }) =>
+      throw _notText;
 
   /// Always throws: a codepoint is not meaningful display text.
   ///
   /// Reachable when an icon is bound to a text widget, e.g.
   /// `HWText(HWIconData('mood', icons: [...]))`.
   @override
-  String iosToString({required String outerValue, required String innerValue}) {
-    throw GeneratorError(
-      'HWIconData cannot be rendered as text. Use HWIcon to display the icon '
-      'stored under "$key".',
-    );
-  }
+  String iosToString({
+    required String outerValue,
+    required String innerValue,
+  }) =>
+      throw _notText;
+
+  GeneratorError get _notText => GeneratorError(
+        'HWIconData cannot be rendered as text. Use HWIcon to display '
+        '${isFixed ? spellFixedValue(this) : 'the icon stored under "$key"'}.',
+      );
 
   /// Compatible with another declaration of the same key offering the same
   /// icons out of the same font.

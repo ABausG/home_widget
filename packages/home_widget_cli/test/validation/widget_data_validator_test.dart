@@ -2785,6 +2785,19 @@ void main() {
       );
     });
 
+    test('spells a fixed value read outside a builder as written', () {
+      expect(
+        () => validateWidgetData(
+          _spec(const HWText(HWItemData(HWString.fixed('x')))),
+        ),
+        _throwsMessage(
+          'Widget "T": HWItemData(HWString.fixed("x")) reads the item a '
+          'builder is rendering, so it only works inside the item of an '
+          'HWColumn.builder or HWRow.builder.',
+        ),
+      );
+    });
+
     test('rejects one read by whenEmpty or data-only outside the item', () {
       final trees = <HWWidget, String>{
         const HWRow.builder(

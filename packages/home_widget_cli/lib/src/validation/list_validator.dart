@@ -41,6 +41,7 @@ void _validateItemReadScope(WidgetSpec spec) {
 
 /// [read] the way a schema writes it, e.g. `HWItemData(HWString('label'))`.
 String _spellItemRead(HWDataType<dynamic> read) => switch (read) {
+      _ when read.isFixed => _spellFixed(read),
       HWTimedData(:final data) => 'HWTimedData(${_spellItemRead(data)})',
       HWItemData(:final data) => 'HWItemData(${_spellItemRead(data)})',
       HWLocalizedString() => "HWString.localized('${read.key}')",
