@@ -130,7 +130,7 @@ The launch helpers call `HomeWidget.initialLaunch` and `HomeWidget.launches`, wh
 A URL belongs to a launch when all of these match the URL written in the schema:
 
 - the scheme, compared lower-cased,
-- the authority (host and port),
+- the authority (host and port), the host compared lower-cased,
 - the path,
 - the fragment,
 - every query parameter written into the URL itself.
@@ -143,10 +143,15 @@ One URL can extend another with a query parameter. The launch that writes more q
 @HomeWidget(
   name: 'Weather',
   widgetUrl: 'myapp://home',
-  widget: HWLink(
-    'settings',
-    url: 'myapp://home?tab=settings',
-    child: HWText(HWString.fixed('Settings')),
+  widget: HWColumn(
+    children: [
+      HWText(HWString.fixed('Home')),
+      HWLink(
+        'settings',
+        url: 'myapp://home?tab=settings',
+        child: HWText(HWString.fixed('Settings')),
+      ),
+    ],
   ),
   // ...
 )
@@ -192,12 +197,12 @@ A URL that already carries the parameter is passed through untouched, and the re
 The last line is a URL with a payload, here `widgetUrlData: [HWString('city')]`. Payload values go after the query parameters the URL already has and ahead of `homeWidget`. A payload entry cannot be named `homeWidget`, or like a query parameter written into the URL.
 
 <Info>
-The generator emits the URL string verbatim into the native code, but what the app receives is a parsed `Uri`, and `Uri.parse` lower-cases the scheme. A `widgetUrl` of `myApp://weather` therefore arrives as `myapp://weather?homeWidget`. Everything after the scheme keeps its casing. The launch helpers already match the lower-cased scheme, so they need no normalization of your own.
+The generator emits the URL string verbatim into the native code, but what the app receives is a parsed `Uri`, and `Uri.parse` lower-cases the scheme and the host. A `widgetUrl` of `myApp://Weather` therefore arrives as `myapp://weather?homeWidget`. The path, the query and the fragment keep their casing. The launch helpers already match the lower-cased scheme and host, so they need no normalization of your own.
 </Info>
 
 ## Without a `widgetUrl`
 
-Leaving `widgetUrl` off does not make the widget inert: tapping it still opens your app, matching what iOS does by default for a widget that declares no `widgetURL`. On Android the generator emits a plain `actionStartActivity<MainActivity>()` for that case. The app launches, but the intent carries no URL, so no tap is reported. The launch helpers are then generated only when the widget contains an [`HWLink`](/generator/widgets/hw-link), and report the links alone.
+Leaving `widgetUrl` off does not make the widget inert: tapping it still opens your app, matching what iOS does by default for a widget that declares no `widgetURL`. On Android the generator emits a plain `actionStartActivity<MainActivity>()` for that case. The app launches, but the intent carries no URL, so no tap is reported. An [`HWLink`](/generator/widgets/hw-link) that is the whole layout is the exception: the root of the Android widget then opens the link's URL, the padding around the widget included, as `.widgetURL(...)` does on iOS, and the tap arrives as the link's class. The launch helpers are then generated only when the widget contains an [`HWLink`](/generator/widgets/hw-link), and report the links alone.
 
 <Info>
 If you want to detect launches, to route to a screen, log the tap, or refresh on open, set a `widgetUrl`. That is what turns the tap into something the app can read.
