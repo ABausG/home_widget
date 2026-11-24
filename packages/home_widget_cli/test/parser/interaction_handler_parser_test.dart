@@ -313,11 +313,19 @@ Future<void> onTap($parameter) async {}
       }
 
       test('typed through a typedef of the generated class', () async {
+        await File(
+          p.join(project.root.path, 'lib', 'resolved_alias.home_widget.dart'),
+        ).writeAsString('''
+// dart format off
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+class CounterInteraction {}
+''');
         final spec = await parseCounter(
           'parameter_resolved_alias',
           onInteraction: 'onTap',
           handlers: '''
-class CounterInteraction {}
+import 'package:cli_test/resolved_alias.home_widget.dart';
 
 typedef Alias = CounterInteraction;
 
@@ -327,6 +335,52 @@ Future<void> onTap(@deprecated Alias? interaction) async {}
 
         expect(spec.interactionHandler?.name, 'onTap');
       });
+    });
+
+    test('rejects a class of the generated name it did not generate', () async {
+      await File(p.join(project.root.path, 'lib', 'lookalike.dart'))
+          .writeAsString('''
+// A class named like the generated one.
+class CounterInteraction {}
+''');
+
+      for (final (name, handlers) in [
+        (
+          'other_library',
+          '''
+import 'package:cli_test/lookalike.dart';
+
+Future<void> onTap(CounterInteraction interaction) async {}
+''',
+        ),
+        (
+          'own_library',
+          '''
+class CounterInteraction {}
+
+Future<void> onTap(CounterInteraction interaction) async {}
+''',
+        ),
+      ]) {
+        await expectLater(
+          parseCounter(
+            'lookalike_$name',
+            onInteraction: 'onTap',
+            handlers: handlers,
+          ),
+          _throwsMessage(
+            equals(
+              'Widget "Counter": onInteraction names onTap, whose parameter '
+              'is the CounterInteraction declared in '
+              '${name == 'own_library' ? 'package:cli_test/lookalike_own_library_handlers.dart' : 'package:cli_test/lookalike.dart'}, '
+              'which home_widget did not generate. It is called with the '
+              'CounterInteraction of the generated helper, so import that '
+              'and take it.',
+            ),
+          ),
+          reason: name,
+        );
+      }
     });
 
     group('rejects an onInteraction that is no constant', () {

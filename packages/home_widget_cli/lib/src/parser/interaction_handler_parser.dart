@@ -71,6 +71,17 @@ InteractionHandler? parseInteractionHandler({
   }
 
   final parameterType = parameters.single.type;
+  final parameterLibrary = parameterType.element?.library;
+  if (parameterType.element?.name == interactionClassName &&
+      parameterLibrary != null &&
+      !_isGenerated(parameterLibrary)) {
+    throw GeneratorError(
+      '$where names $reference, whose parameter is the $interactionClassName '
+      'declared in ${parameterLibrary.uri}, which home_widget did not '
+      'generate. It is called with the $interactionClassName of the '
+      'generated helper, so import that and take it.',
+    );
+  }
   if (!_takes(parameterType, interactionClassName)) {
     throw GeneratorError(
       '$where names $reference, whose parameter is a '
@@ -94,3 +105,11 @@ bool _takes(DartType type, String interactionClassName) =>
     type is InvalidType ||
     type.isDartCoreObject ||
     type.element?.name == interactionClassName;
+
+/// Whether [library] is a helper `home_widget_cli` generated, which its
+/// leading comments say.
+bool _isGenerated(LibraryElement library) =>
+    library.firstFragment.source.contents.data
+        .split('\n')
+        .takeWhile((line) => line.startsWith('//'))
+        .contains('// GENERATED CODE - DO NOT MODIFY BY HAND');
