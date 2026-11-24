@@ -36,6 +36,18 @@ void main() {
       expect(type.codegenSwiftDefaultLiteral(), '-9223372036854775808');
     });
 
+    test('HWInt writes a Dart default the web compiles', () {
+      expect(
+        const HWInt('test', defaultValue: 42).codegenDartDefaultLiteral(),
+        '42',
+      );
+      expect(
+        const HWInt('test', defaultValue: 9007199254740993)
+            .codegenDartDefaultLiteral(),
+        '(2097152 * 4294967296 + 1)',
+      );
+    });
+
     test('HWDouble returns correct types and default value', () {
       const type = HWDouble('test');
       expect(type.dartType, 'double');

@@ -68,6 +68,7 @@ sealed class HWDataType<T> {
     final value = defaultValue;
     if (value == null) return null;
     if (value is String) return "'${escapeDartStringLiteral(value)}'";
+    if (value is int) return dartIntLiteral(value);
     return '$value';
   }
 

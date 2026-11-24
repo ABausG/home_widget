@@ -22,6 +22,15 @@ String hwCodePointLiteral(int codePoint) =>
 String kotlinLongLiteral(int value) =>
     value == -9223372036854775808 ? 'Long.MIN_VALUE' : '${value}L';
 
+/// [value] as a constant Dart expression that also compiles to JavaScript,
+/// which rejects an integer literal a double cannot hold exactly: beyond
+/// 2^53 it is spelled as a sum of two parts that each fit.
+String dartIntLiteral(int value) {
+  const exact = 9007199254740992;
+  if (value >= -exact && value <= exact) return '$value';
+  return '(${value >> 32} * 4294967296 + ${value & 0xFFFFFFFF})';
+}
+
 /// Throws a [GeneratorError] when [codePoint] is no glyph a widget can be
 /// generated for, naming [source] as what holds it.
 ///
