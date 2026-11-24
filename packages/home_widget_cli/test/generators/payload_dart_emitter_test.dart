@@ -44,6 +44,13 @@ void main() {
       HWPayload('head', HWString('i')),
     ],
   );
+  final big = HWPayloadUrl.of(
+    'myapp://big',
+    const [
+      HWPayload('fixed', HWInt.fixed(9007199254740993)),
+      HWInt('smallest', defaultValue: -9223372036854775808),
+    ],
+  );
 
   group('classDeclaration', () {
     test('documents and names the class', () {
@@ -284,7 +291,8 @@ sealed class Launch {
 ${_declare(forecast, 'ForecastLink')}
 ${_declare(plain, 'PlainTap')}
 ${_declare(borderline, 'BorderlineLink')}
-${PayloadDartEmitter.helpers([forecast, plain, borderline])}
+${_declare(big, 'BigLink')}
+${PayloadDartEmitter.helpers([forecast, plain, borderline, big])}
 
 final since = DateTime.utc(2026, 9, 22, 10);
 
@@ -418,6 +426,50 @@ void main() {
         'since: 2026-09-22 10:00:00.000Z, other: null)',
       );
       expect(results[1], '275760-09-13 00:00:00.000Z');
+    });
+
+    test('keeps an int beyond 2^53 exact, in a form the web compiles', () {
+      final code = _declare(big, 'BigLink');
+      expect(
+        code,
+        contains(
+          'const BigLink({this.fixed = (2097152 * 4294967296 + 1), '
+          'this.smallest = (-2147483648 * 4294967296 + 0)});',
+        ),
+      );
+
+      final results = evaluate([
+        'const BigLink()',
+        "BigLink._\$fromUri(Uri.parse('myapp://big'))",
+      ]);
+      expect(
+        results,
+        everyElement(
+          'BigLink(fixed: 9007199254740993, '
+          'smallest: -9223372036854775808)',
+        ),
+      );
+
+      final script = File(p.join(tempDir.path, 'web.dart'))
+        ..writeAsStringSync('''
+abstract class Launch {
+  const Launch();
+  Uri toUri();
+}
+
+$code
+${PayloadDartEmitter.helpers([big])}
+
+void main() => print(BigLink._\$fromUri(Uri.parse('myapp://big')));
+''');
+      final result = Process.runSync(Platform.resolvedExecutable, [
+        'compile',
+        'js',
+        '-o',
+        p.join(tempDir.path, 'web.js'),
+        script.path,
+      ]);
+      expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
     });
 
     test('compiles with names its own code uses for locals', () {

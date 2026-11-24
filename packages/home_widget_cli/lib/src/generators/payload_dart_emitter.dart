@@ -209,10 +209,11 @@ DateTime? _\$payloadDateTime(String? value) {
       return 'DateTime.fromMillisecondsSinceEpoch($millis, isUtc: true)';
     }
     final value = entry.isFixed ? entry.fixedWireValue! : leaf.defaultValue;
-    if (entry.type == HWPayloadType.string) {
-      return "'${escapeDartStringLiteral('$value')}'";
-    }
-    return '$value';
+    return switch (entry.type!) {
+      HWPayloadType.string => "'${escapeDartStringLiteral('$value')}'",
+      HWPayloadType.int => dartIntLiteral(int.parse('$value')),
+      _ => '$value',
+    };
   }
 
   /// Whether the fallback of [entry] can be a constructor default, which a
