@@ -1258,8 +1258,7 @@ void main() {
       expect(spec.iosIgnoredLinks, isEmpty);
     });
 
-    test('a small slot link inside a column around the root stays ignored',
-        () {
+    test('a small slot link inside a column around the root stays ignored', () {
       final spec = linkSpec(
         const HWColumn(
           children: [
