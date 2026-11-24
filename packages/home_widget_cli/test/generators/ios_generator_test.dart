@@ -1130,6 +1130,78 @@ $dependencies
       expect(appDelegateFile.readAsStringSync(), patchedAppDelegate);
     });
 
+    test('replaces an intent it generated before', () async {
+      podfileFile.writeAsStringSync(podfile);
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          '// GENERATED CODE - DO NOT MODIFY BY HAND\n// old',
+        );
+
+      await generate();
+
+      expect(
+        intentFile.readAsStringSync(),
+        contains('struct CounterHomeWidgetIntent: AppIntent {'),
+      );
+      verifyNever(() => mockLogger.warn(any(that: contains('GENERATED'))));
+    });
+
+    test('deletes an intent it generated once the last button is gone',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          '// GENERATED CODE - DO NOT MODIFY BY HAND\n// old',
+        );
+
+      await generate(button: false);
+
+      expect(intentFile.existsSync(), isFalse);
+      verifyNever(() => mockLogger.warn(any(that: contains('GENERATED'))));
+    });
+
+    test('keeps a hand-written intent and warns instead of overwriting it',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      const handWritten = 'import AppIntents\n\nstruct Mine {}\n';
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(handWritten);
+
+      await generate();
+
+      expect(intentFile.readAsStringSync(), handWritten);
+      verify(
+        () => mockLogger.warn(
+          'Warning: ${intentFile.path} has no "// GENERATED CODE" '
+          'header, so it is left as it is. The buttons of Counter perform the '
+          'intent it declares; delete it to have that generated again.',
+        ),
+      ).called(1);
+    });
+
+    test('keeps a hand-written intent and warns instead of deleting it',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      const handWritten = 'import AppIntents\n\nstruct Mine {}\n';
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(handWritten);
+
+      await generate(button: false);
+
+      expect(intentFile.readAsStringSync(), handWritten);
+      verify(
+        () => mockLogger.warn(
+          'Warning: ${intentFile.path} has no "// GENERATED CODE" '
+          'header, so it is left as it is. No button of Counter uses it any '
+          'more; delete it if nothing else does.',
+        ),
+      ).called(1);
+    });
+
     test('touches nothing of it for a widget without buttons', () async {
       podfileFile.writeAsStringSync(podfile);
 

@@ -583,7 +583,20 @@ struct ${widgetClassName}Entry: TimelineEntry {
     final intentFile = File(p.join(extensionDir.path, intentFileName));
     final podfile = File(p.join(iosDir.path, 'Podfile'));
 
-    if (interactive) {
+    final existing =
+        intentFile.existsSync() ? await intentFile.readAsString() : null;
+    if (existing != null &&
+        !existing.trimLeft().startsWith('// GENERATED CODE')) {
+      final reason = interactive
+          ? 'The buttons of ${spec.data.name} perform the intent it '
+              'declares; delete it to have that generated again.'
+          : 'No button of ${spec.data.name} uses it any more; delete it if '
+              'nothing else does.';
+      logger.warn(
+        'Warning: ${intentFile.path} has no "// GENERATED CODE" header, so it '
+        'is left as it is. $reason',
+      );
+    } else if (interactive) {
       await intentFile.writeAsString(
         iosIntentSwiftTemplate(
           intentName: spec.iosIntentName,
@@ -591,7 +604,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
         ),
       );
       logger.detail('Generated: ${intentFile.path}');
-    } else if (intentFile.existsSync()) {
+    } else if (existing != null) {
       await intentFile.delete();
     }
 
