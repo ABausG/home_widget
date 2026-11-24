@@ -1388,7 +1388,7 @@ ${_flavorGuard('Future.value()')}    return HomeWidget.requestPinWidget(
     final decoders = spec.launchTargetsByMatchOrder
         .map((target) => '${target.className}._\$fromUri(uri)');
     return '''
-/// A tap on the ${spec.data.name} widget that opened the app.
+/// A tap on the ${spec.docName} widget that opened the app.
 sealed class $launch {
   const $launch();
 

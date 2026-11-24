@@ -1029,7 +1029,7 @@ class WidgetSpec {
         LaunchTarget(
           className: widgetTapClassName,
           url: widgetUrl!,
-          description: 'A tap on the ${data.name} widget itself.',
+          description: 'A tap on the $docName widget itself.',
         ),
       );
     }
@@ -1041,7 +1041,7 @@ class WidgetSpec {
         LaunchTarget(
           className: name,
           url: link.payloadUrl,
-          description: "A tap on the `${link.id}` link of the ${data.name} "
+          description: "A tap on the `${link.id}` link of the $docName "
               'widget.',
         ),
       );
@@ -1078,6 +1078,9 @@ class WidgetSpec {
         target,
     ];
   }
+
+  /// The widget's name on one line, the way a generated doc comment names it.
+  String get docName => data.name.trim().replaceAll(RegExp(r'\s+'), ' ');
 
   /// The class every [launchTargets] entry extends: `<WidgetClass>Launch`.
   String get launchClassName => '${className}Launch';

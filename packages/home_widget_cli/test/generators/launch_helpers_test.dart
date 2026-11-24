@@ -21,6 +21,7 @@ const _forecast = HWLink(
 );
 
 String _generate({
+  String name = 'Weather',
   String? widgetUrl,
   List<HWDataType<dynamic>> widgetUrlData = const [],
   HWWidget? tree,
@@ -31,7 +32,7 @@ String _generate({
     DartHelperGenerator(
       WidgetSpec(
         data: HomeWidget(
-          name: 'Weather',
+          name: name,
           widgetUrl: widgetUrl,
           widgetUrlData: widgetUrlData,
           android: android
@@ -120,6 +121,24 @@ void main() {
         ),
       );
       expect(output, contains('  Uri toUri();'));
+    });
+
+    test('names a widget whose name spans lines on one line', () {
+      final output = _generate(
+        name: ' Weather\n\tNow  ',
+        widgetUrl: 'myapp://weather',
+        tree: _history,
+      );
+
+      expect(
+        output,
+        allOf(
+          contains('/// A tap on the Weather Now widget that opened the app.'),
+          contains('/// A tap on the Weather Now widget itself.'),
+          contains('/// A tap on the `history` link of the Weather Now '
+              'widget.'),
+        ),
+      );
     });
 
     test('declares the tap on the widget only when a URL is set', () {
