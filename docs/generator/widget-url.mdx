@@ -135,7 +135,7 @@ A URL belongs to a launch when all of these match the URL written in the schema:
 - the fragment,
 - every query parameter written into the URL itself.
 
-The remaining query parameters are the payload. A payload value that is missing or cannot be read decodes to `null`, or to the field's default. Query parameters the launch does not know are ignored. A URL with malformed percent-encoding is no launch at all: `fromUri` answers `null` for it.
+The remaining query parameters are the payload. A payload value that is missing or cannot be read decodes to `null`, or to the field's default. Query parameters the launch does not know are ignored. A URL whose query does not decode as UTF-8, such as one with `%FF`, is no launch at all: `fromUri` answers `null` for it. A `%` not followed by two hex digits never gets that far, because `Uri.parse` already reads `%zz` as the text `%zz`.
 
 One URL can extend another with a query parameter. The launch that writes more query parameters into its URL is matched first, so `myapp://home?tab=settings` is tried before `myapp://home`:
 
