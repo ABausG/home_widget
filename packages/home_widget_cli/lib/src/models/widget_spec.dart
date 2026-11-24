@@ -1,6 +1,6 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart'
-    show HWLinkPayloadUrl, HWPayloadUrl;
+    show HWButtonPayloadUrl, HWLinkPayloadUrl, HWPayloadUrl;
 
 import '../util/fnv_hash.dart';
 import '../util/naming.dart';

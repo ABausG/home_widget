@@ -31,9 +31,6 @@ class HWButton extends HWSingleChildWidget {
   /// its payload. The format is internal to the generated code.
   static String urlOf(String id) => 'homewidget://interaction/$id';
 
-  /// The URL a tap is sent as, with the payload of [data].
-  HWPayloadUrl get payloadUrl => HWPayloadUrl.of(urlOf(id), data);
-
   /// The child's and every stored value of [data], which the widget has to
   /// read to send it.
   @override

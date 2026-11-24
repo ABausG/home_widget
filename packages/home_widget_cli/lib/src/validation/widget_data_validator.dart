@@ -1,6 +1,11 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart'
-    show HWLinkPayloadUrl, HWPayloadEntry, HWPayloadUrl, spellFixedValue;
+    show
+        HWButtonPayloadUrl,
+        HWLinkPayloadUrl,
+        HWPayloadEntry,
+        HWPayloadUrl,
+        spellFixedValue;
 
 import '../generators/payload_dart_emitter.dart';
 import '../models/widget_spec.dart';

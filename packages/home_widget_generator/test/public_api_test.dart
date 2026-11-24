@@ -44,7 +44,10 @@ const link = HWLink(
   child: HWText(HWString.fixed('Forecast')),
 );
 
+const button = HWButton('add', child: HWText(HWString.fixed('+')));
+
 Object? url = link.payloadUrl;
+Object? tap = button.payloadUrl;
 HWPayloadUrl? payloadUrl;
 HWPayloadEntry? entry;
 HWPayloadType? type;
@@ -53,7 +56,8 @@ HWPayloadType? type;
     expect(
       errors,
       unorderedEquals([
-        contains("'payloadUrl'"),
+        allOf(contains("'payloadUrl'"), contains("'HWLink'")),
+        allOf(contains("'payloadUrl'"), contains("'HWButton'")),
         contains("'HWPayloadUrl'"),
         contains("'HWPayloadEntry'"),
         contains("'HWPayloadType'"),
@@ -72,7 +76,10 @@ const link = HWLink(
   child: HWText(HWString.fixed('Forecast')),
 );
 
+const button = HWButton('add', child: HWText(HWString.fixed('+')));
+
 HWPayloadUrl url = link.payloadUrl;
+HWPayloadUrl tap = button.payloadUrl;
 HWPayloadEntry? entry;
 HWPayloadType? type;
 ''');
