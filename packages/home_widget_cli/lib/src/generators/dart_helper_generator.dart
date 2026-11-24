@@ -1595,8 +1595,9 @@ sealed class $interaction {
   ///
   /// The plugin does not wait for a run before it starts the next, so each
   /// tap is chained onto the last: runs of one widget never overlap, and
-  /// start in the order of the taps. A run that throws fails the call it was
-  /// started by, not the ones after it.
+  /// start in the order the plugin hands the taps over, which on iOS is not
+  /// the order of the taps while the engine is still starting. A run that
+  /// throws fails the call it was started by, not the ones after it.
   String _interactionEntryPoint(InteractionHandler handler) {
     final call = '$_interactionLibrary.${handler.reference}(interaction)';
     final entryPoint = _interactionEntryPointName;
