@@ -84,6 +84,7 @@ class _MyAppState extends State<MyApp> {
   final TextEditingController _messageController = TextEditingController();
 
   bool _isRequestPinWidgetSupported = false;
+  late final StreamSubscription<Uri?> _widgetClicks;
 
   @override
   void initState() {
@@ -91,17 +92,18 @@ class _MyAppState extends State<MyApp> {
     HomeWidget.setAppGroupId('YOUR_GROUP_ID');
     HomeWidget.registerInteractivityCallback(interactiveCallback);
     _checkPinability();
+    _widgetClicks = HomeWidget.widgetClicked.listen(_launchedFromWidget);
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _checkForWidgetLaunch();
-    HomeWidget.widgetClicked.listen(_launchedFromWidget);
   }
 
   @override
   void dispose() {
+    _widgetClicks.cancel();
     _titleController.dispose();
     _messageController.dispose();
     super.dispose();
