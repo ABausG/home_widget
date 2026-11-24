@@ -101,7 +101,7 @@ void main() {
       final swift = files['ios/GreetingHomeWidget/Widget.swift']!;
       for (final line in [
         'Text(verbatim: "Hi")',
-        'Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, '
+        'Text(hwFormatPercent(NSNumber(value: 3), minFraction: nil, '
             'maxFraction: nil))',
         'Text(hwFormatDecimal(NSNumber(value: 2.5), minFraction: nil, '
             'maxFraction: nil, grouping: true))',
@@ -126,7 +126,7 @@ void main() {
         contains('''
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Hi", style = TextStyle(color = GlanceTheme.colors.onSurface))
-                    Text(text = hwFormatPercent(3.0, null, null, hwFormatLocale(context)), style = TextStyle(color = GlanceTheme.colors.onSurface))
+                    Text(text = hwFormatPercent(3L, null, null, hwFormatLocale(context)), style = TextStyle(color = GlanceTheme.colors.onSurface))
                     Text(text = hwFormatDecimal(2.5, null, null, true, hwFormatLocale(context)), style = TextStyle(color = GlanceTheme.colors.onSurface))
                     Text(text = widgetData.label ?: "", style = TextStyle(color = GlanceTheme.colors.onSurface))
                 }'''),

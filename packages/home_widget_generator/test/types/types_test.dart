@@ -25,6 +25,17 @@ void main() {
       expect(typeWithDefault.defaultValue, 42);
     });
 
+    test('HWInt writes the smallest Long default and preview by name', () {
+      const type = HWInt(
+        'test',
+        defaultValue: -9223372036854775808,
+        previewValue: -9223372036854775808,
+      );
+      expect(type.codegenKotlinDefaultLiteral(), 'Long.MIN_VALUE');
+      expect(type.codegenKotlinPreviewLiteral(), 'Long.MIN_VALUE');
+      expect(type.codegenSwiftDefaultLiteral(), '-9223372036854775808');
+    });
+
     test('HWDouble returns correct types and default value', () {
       const type = HWDouble('test');
       expect(type.dartType, 'double');

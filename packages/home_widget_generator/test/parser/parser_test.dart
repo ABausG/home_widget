@@ -986,7 +986,7 @@ class TestWidget {}
       expect(texts[1].numberFormat, const HWNumberFormat.compact());
       expect(
         texts[0].toKotlin(0, dataExpr: 'd'),
-        contains('hwFormatDecimal(1234.0'),
+        contains('hwFormatDecimal(1234L'),
       );
     });
 

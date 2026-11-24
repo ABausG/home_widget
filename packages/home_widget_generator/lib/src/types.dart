@@ -830,11 +830,6 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
     return fixed == null ? super.kotlinAccess(dataExpr) : _kotlinLiteral(fixed);
   }
 
-  /// [value] as a literal both Swift and Kotlin read as a floating point
-  /// number, which Kotlin needs spelled out for whole numbers.
-  static String _doubleLiteral(num value) =>
-      value is int ? '$value.0' : '$value';
-
   /// Swift expression rendering [outerValue] — the nullable access expression
   /// for this value — with [format].
   ///
@@ -850,7 +845,7 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
     final fixed = fixedValue;
     if (fixed != null) {
       return format.swiftCall(
-        'NSNumber(value: ${_doubleLiteral(fixed)})',
+        'NSNumber(value: ${_swiftLiteral(fixed)})',
         dataExpr: dataExpr,
       );
     }
@@ -873,7 +868,7 @@ sealed class HWNumericDataType<T extends num> extends HWDataType<T> {
   }) {
     final fixed = fixedValue;
     if (fixed != null) {
-      return format.kotlinCall(_doubleLiteral(fixed), dataExpr: dataExpr);
+      return format.kotlinCall(_kotlinLiteral(fixed), dataExpr: dataExpr);
     }
     final fallback = codegenKotlinDefaultLiteral();
     if (fallback != null) {
@@ -929,7 +924,7 @@ class HWInt extends HWNumericDataType<int> {
         super('');
 
   @override
-  String _kotlinLiteral(int value) => '${value}L';
+  String _kotlinLiteral(int value) => kotlinLongLiteral(value);
 
   @override
   String _swiftLiteral(int value) => '$value';

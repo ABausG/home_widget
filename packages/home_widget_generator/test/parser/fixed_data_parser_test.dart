@@ -472,13 +472,13 @@ Text(String(UnicodeScalar(UInt32($hex))!))
       expect(column.toSwift(0, dataExpr: 'entry.data'), '''
 VStack(alignment: .center, spacing: 0) {
     Text(verbatim: "Hi")
-    Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, maxFraction: nil))
+    Text(hwFormatPercent(NSNumber(value: 3), minFraction: nil, maxFraction: nil))
     Text(hwFormatCompact(NSNumber(value: 2.5)))
 }''');
       expect(column.toKotlin(0, dataExpr: 'data'), '''
 Column(horizontalAlignment = Alignment.CenterHorizontally) {
     Text(text = "Hi", style = TextStyle(color = GlanceTheme.colors.onSurface))
-    Text(text = hwFormatPercent(3.0, null, null, hwFormatLocale(context)), style = TextStyle(color = GlanceTheme.colors.onSurface))
+    Text(text = hwFormatPercent(3L, null, null, hwFormatLocale(context)), style = TextStyle(color = GlanceTheme.colors.onSurface))
     Text(text = hwFormatCompact(2.5, hwFormatLocale(context)), style = TextStyle(color = GlanceTheme.colors.onSurface))
 }''');
       expect(column.nativeHelpers, {

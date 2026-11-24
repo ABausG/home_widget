@@ -17,6 +17,11 @@ String hwSizeLiteral(double size) =>
 String hwCodePointLiteral(int codePoint) =>
     '0x${codePoint.toRadixString(16).toUpperCase()}';
 
+/// [value] as a Kotlin `Long` literal; the smallest `Long` has no literal
+/// form, since Kotlin negates a literal that is already out of range.
+String kotlinLongLiteral(int value) =>
+    value == -9223372036854775808 ? 'Long.MIN_VALUE' : '${value}L';
+
 /// Throws a [GeneratorError] when [codePoint] is no glyph a widget can be
 /// generated for, naming [source] as what holds it.
 ///

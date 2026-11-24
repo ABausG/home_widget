@@ -135,7 +135,7 @@ void main() {
           ),
         );
 
-        expect(spec.previewContentHash, '06ad621b');
+        expect(spec.previewContentHash, '074eeec1');
         expect(spec.nativeHelpers, [
           HWNativeHelper.hwFormatLocale,
           HWNativeHelper.hwFormatPercent,

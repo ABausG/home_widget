@@ -103,7 +103,7 @@ struct NumberDateFormattingHomeWidgetEntryView: View {
           .font(.caption)
         Text(
           hwFormatDecimal(
-            NSNumber(value: 25000.0), minFraction: nil, maxFraction: nil, grouping: true)
+            NSNumber(value: 25000), minFraction: nil, maxFraction: nil, grouping: true)
         )
         .font(.caption)
         Text(verbatim: " points")

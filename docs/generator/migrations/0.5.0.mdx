@@ -43,6 +43,8 @@ HWText.fixedNumber(0.5, format: HWNumberFormat.percent()) // [!code --]
 HWText.number(HWDouble.fixed(0.5), format: HWNumberFormat.percent()) // [!code ++]
 ```
 
+`HWText.fixedNumber` wrote every number into the widget as a floating point literal, so a whole number above 2^53 rendered rounded: `9007199254740993` showed as `9007199254740992`. `HWInt.fixed` writes an integer literal and renders the exact value, the same as a stored `HWInt`.
+
 ## HWText.localized Became HWString.localizedFixed
 
 The locale map is unchanged and follows the same rules: it includes the default locale and has no placeholders.

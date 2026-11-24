@@ -806,7 +806,7 @@ void main() {
           '''
 VStack(alignment: .center, spacing: 0) {
     Text(verbatim: "Hi")
-    Text(hwFormatPercent(NSNumber(value: 3.0), minFraction: nil, maxFraction: nil))
+    Text(hwFormatPercent(NSNumber(value: 3), minFraction: nil, maxFraction: nil))
     Text(hwFormatDecimal(NSNumber(value: 2.5), minFraction: nil, maxFraction: nil, grouping: true))
     Text(NSLocalizedString("home_widget_greeting_widget_t_50bb5ce3", comment: ""))
     Text(String(UnicodeScalar(UInt32(0xE25B))!))
@@ -837,7 +837,7 @@ VStack(alignment: .center, spacing: 0) {
           allOf([
             contains('Text(text = "Hi", '),
             contains(
-              'hwFormatPercent(3.0, null, null, hwFormatLocale(context))',
+              'hwFormatPercent(3L, null, null, hwFormatLocale(context))',
             ),
             contains(
               'hwFormatDecimal(2.5, null, null, true, hwFormatLocale(context))',

@@ -2,6 +2,18 @@ import 'package:home_widget_generator/src/utils/string_literals.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('kotlinLongLiteral', () {
+    test('suffixes a whole number with L', () {
+      expect(kotlinLongLiteral(0), '0L');
+      expect(kotlinLongLiteral(-3), '-3L');
+      expect(kotlinLongLiteral(9223372036854775807), '9223372036854775807L');
+    });
+
+    test('names the smallest Long, which has no literal', () {
+      expect(kotlinLongLiteral(-9223372036854775808), 'Long.MIN_VALUE');
+    });
+  });
+
   group('escapeKotlinStringLiteral', () {
     test('escapes every character that would end or reinterpret the literal',
         () {

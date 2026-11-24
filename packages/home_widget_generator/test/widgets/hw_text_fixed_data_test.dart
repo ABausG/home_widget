@@ -69,9 +69,9 @@ void main() {
       test('HWInt.fixed in the default format', () {
         _expectEmit(
           const HWText.number(HWInt.fixed(1234)),
-          swift: 'Text(hwFormatDecimal(NSNumber(value: 1234.0), '
+          swift: 'Text(hwFormatDecimal(NSNumber(value: 1234), '
               'minFraction: nil, maxFraction: nil, grouping: true))',
-          kotlin: 'Text(text = hwFormatDecimal(1234.0, null, null, true, '
+          kotlin: 'Text(text = hwFormatDecimal(1234L, null, null, true, '
               'hwFormatLocale(context)), $_defaultStyleArg)',
           helpers: {HWNativeHelper.hwFormatDecimal},
         );
@@ -83,9 +83,9 @@ void main() {
             HWInt.fixed(3),
             format: HWNumberFormat.currency(currency: HWCurrency.code('EUR')),
           ),
-          swift: 'Text(hwFormatCurrency(NSNumber(value: 3.0), code: "EUR", '
+          swift: 'Text(hwFormatCurrency(NSNumber(value: 3), code: "EUR", '
               'decimals: nil))',
-          kotlin: 'Text(text = hwFormatCurrency(3.0, "EUR", null, '
+          kotlin: 'Text(text = hwFormatCurrency(3L, "EUR", null, '
               'hwFormatLocale(context)), $_defaultStyleArg)',
           helpers: {HWNativeHelper.hwFormatCurrency},
         );
@@ -94,10 +94,32 @@ void main() {
       test('a negative HWInt.fixed', () {
         _expectEmit(
           const HWText.number(HWInt.fixed(-3)),
-          swift: 'Text(hwFormatDecimal(NSNumber(value: -3.0), '
+          swift: 'Text(hwFormatDecimal(NSNumber(value: -3), '
               'minFraction: nil, maxFraction: nil, grouping: true))',
-          kotlin: 'Text(text = hwFormatDecimal(-3.0, null, null, true, '
+          kotlin: 'Text(text = hwFormatDecimal(-3L, null, null, true, '
               'hwFormatLocale(context)), $_defaultStyleArg)',
+          helpers: {HWNativeHelper.hwFormatDecimal},
+        );
+      });
+
+      test('an HWInt.fixed beyond 2^53 as an exact integer', () {
+        _expectEmit(
+          const HWText.number(HWInt.fixed(9007199254740993)),
+          swift: 'Text(hwFormatDecimal(NSNumber(value: 9007199254740993), '
+              'minFraction: nil, maxFraction: nil, grouping: true))',
+          kotlin: 'Text(text = hwFormatDecimal(9007199254740993L, null, null, '
+              'true, hwFormatLocale(context)), $_defaultStyleArg)',
+          helpers: {HWNativeHelper.hwFormatDecimal},
+        );
+      });
+
+      test('the smallest HWInt.fixed', () {
+        _expectEmit(
+          const HWText.number(HWInt.fixed(-9223372036854775808)),
+          swift: 'Text(hwFormatDecimal(NSNumber(value: -9223372036854775808), '
+              'minFraction: nil, maxFraction: nil, grouping: true))',
+          kotlin: 'Text(text = hwFormatDecimal(Long.MIN_VALUE, null, null, '
+              'true, hwFormatLocale(context)), $_defaultStyleArg)',
           helpers: {HWNativeHelper.hwFormatDecimal},
         );
       });
@@ -191,12 +213,12 @@ void main() {
 
         expect(
           whole.toSwift(0, dataExpr: 'entry.data'),
-          'Text(hwFormatDecimal(NSNumber(value: 3.0), minFraction: nil, '
+          'Text(hwFormatDecimal(NSNumber(value: 3), minFraction: nil, '
           'maxFraction: nil, grouping: true))',
         );
         expect(
           whole.toKotlin(0, dataExpr: 'data'),
-          'Text(text = hwFormatDecimal(3.0, null, null, true, '
+          'Text(text = hwFormatDecimal(3L, null, null, true, '
           'hwFormatLocale(context)), $_defaultStyleArg)',
         );
         expect(

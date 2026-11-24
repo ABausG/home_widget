@@ -872,16 +872,16 @@ void main() {
       expect(text.formatsNumber, isTrue);
     });
 
-    test('an int is emitted as a floating point literal on both platforms', () {
+    test('an int is emitted as an integer literal on both platforms', () {
       const text = HWText.number(HWInt.fixed(1234));
       expect(
         text.toSwift(0, dataExpr: 'entry.data'),
-        'Text(hwFormatDecimal(NSNumber(value: 1234.0), minFraction: nil, '
+        'Text(hwFormatDecimal(NSNumber(value: 1234), minFraction: nil, '
         'maxFraction: nil, grouping: true))',
       );
       expect(
         text.toKotlin(0, dataExpr: 'widgetData'),
-        'Text(text = hwFormatDecimal(1234.0, null, null, true, '
+        'Text(text = hwFormatDecimal(1234L, null, null, true, '
         'hwFormatLocale(context)), $defaultStyleArg)',
       );
     });
