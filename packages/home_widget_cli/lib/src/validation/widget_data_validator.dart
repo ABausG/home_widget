@@ -293,37 +293,56 @@ void _validateFixedData(WidgetSpec spec) {
         );
       }
     }
-    if (field is! HWDateTime) continue;
-    final iso = field.fixedIso;
-    if (iso == null) continue;
-    final parsed = field.fixedDateTime;
-    if (parsed == null) {
-      throw GeneratorError(
-        'Widget "${spec.data.name}": HWDateTime.fixed("$iso") is not an ISO '
-        '8601 date. $_isoDateExample',
-      );
+    if (field is HWDateTime) {
+      _validateFixedDateTime(field, subject: 'Widget "${spec.data.name}"');
     }
-    if (!parsed.isUtc) {
-      throw GeneratorError(
-        'Widget "${spec.data.name}": HWDateTime.fixed("$iso") names no time '
-        'zone, so which instant it means would depend on where it is read. '
-        'End it in Z or an offset such as +02:00. $_isoDateExample',
-      );
-    }
-    if (!isNativeIsoDate(_writtenFieldsIso(iso)) ||
-        !isNativeIsoDate(field.fixedNativeIso!)) {
-      throw GeneratorError(
-        'Widget "${spec.data.name}": HWDateTime.fixed("$iso") is not a date '
-        'the widget can read: a field is out of range, or the year is not '
-        'between 1 and 9999. $_isoDateExample',
-      );
-    }
+  }
+}
+
+/// Rejects [field] when it is a fixed instant the widget cannot read;
+/// [subject] starts the message.
+void _validateFixedDateTime(HWDateTime field, {required String subject}) {
+  final iso = field.fixedIso;
+  if (iso == null) return;
+  final parsed = field.fixedDateTime;
+  if (parsed == null) {
+    throw GeneratorError(
+      '$subject: HWDateTime.fixed("$iso") is not an ISO 8601 date. '
+      '$_isoDateExample',
+    );
+  }
+  if (!parsed.isUtc) {
+    throw GeneratorError(
+      '$subject: HWDateTime.fixed("$iso") names no time zone, so which instant '
+      'it means would depend on where it is read. End it in Z or an offset '
+      'such as +02:00. $_isoDateExample',
+    );
+  }
+  if (!isNativeIsoDate(_writtenFieldsIso(iso)) ||
+      !_isWrittenOffsetInRange(iso) ||
+      !isNativeIsoDate(field.fixedNativeIso!)) {
+    throw GeneratorError(
+      '$subject: HWDateTime.fixed("$iso") is not a date the widget can read: '
+      'a field is out of range, or the year is not between 1 and 9999. '
+      '$_isoDateExample',
+    );
   }
 }
 
 final RegExp _isoDateTimeFields = RegExp(
   r'^[+-]?(\d{4,6})-?(\d\d)-?(\d\d)[ T](\d\d)(?::?(\d\d)(?::?(\d\d))?)?',
 );
+
+final RegExp _isoOffset = RegExp(r'[+-](\d\d)(?::?(\d\d))?$');
+
+/// Whether the UTC offset [iso] ends with, if any, has at most 23 hours and
+/// 59 minutes, which [DateTime.parse] does not check.
+bool _isWrittenOffsetInRange(String iso) {
+  final match = _isoOffset.firstMatch(iso);
+  if (match == null) return true;
+  return int.parse(match.group(1)!) <= 23 &&
+      int.parse(match.group(2) ?? '0') <= 59;
+}
 
 /// The date and time fields of [iso], a UTC instant [DateTime.parse] reads,
 /// as written and before any rollover, in the spelling the widget reads.
