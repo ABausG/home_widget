@@ -24,9 +24,8 @@ dart pub global activate home_widget_cli
 
 Or add it as a dev dependency in your Flutter app and invoke it via `dart run`:
 
-```yaml
-dev_dependencies:
-  home_widget_cli: ^0.0.1
+```bash
+flutter pub add dev:home_widget_cli
 ```
 
 ## Usage
