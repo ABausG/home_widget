@@ -327,10 +327,15 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     groupId: 'group.com.example.cliTest',
     supportedFamilies: [HWWidgetFamily.systemMedium],
   ),
-  widget: HWLink(
-    'details',
-    url: 'cliTest://details',
-    child: HWText(HWString.fixed('Details')),
+  widget: HWColumn(
+    children: [
+      HWText(HWString.fixed('Summary')),
+      HWLink(
+        'details',
+        url: 'cliTest://details',
+        child: HWText(HWString.fixed('Details')),
+      ),
+    ],
   ),
 )
 class LinksOnly {}
