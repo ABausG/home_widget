@@ -27,9 +27,6 @@ class HWLink extends HWSingleChildWidget {
     required super.child,
   });
 
-  /// [url] with the payload of [data].
-  HWPayloadUrl get payloadUrl => HWPayloadUrl.of(url, data);
-
   /// The child's and every stored value of [data], which the widget has to
   /// read to send it.
   @override

@@ -1,4 +1,5 @@
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:test/test.dart';
 
 void main() {

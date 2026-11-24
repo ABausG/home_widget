@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:home_widget_cli/src/generators/payload_dart_emitter.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
+import 'package:home_widget_generator/home_widget_generator_cli.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 

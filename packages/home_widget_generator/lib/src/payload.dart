@@ -1,6 +1,13 @@
 import 'native_helpers.dart';
 import 'types.dart';
 import 'utils/string_literals.dart';
+import 'widgets/hw_widget.dart';
+
+/// The payload of an [HWLink], which only code generation reads.
+extension HWLinkPayloadUrl on HWLink {
+  /// [url] with the payload of [data].
+  HWPayloadUrl get payloadUrl => HWPayloadUrl.of(url, data);
+}
 
 /// The types a payload value can have.
 enum HWPayloadType {
