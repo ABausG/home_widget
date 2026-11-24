@@ -2219,7 +2219,19 @@ void _wireIntentFile(
   final runnerName = runner.string('name') ?? 'Runner';
 
   if (_widgetUsesSynchronizedGroup(project, widgetClassName)) {
-    final rootGroupId = target.strings('fileSystemSynchronizedGroups').first;
+    final rootGroupId = target
+        .strings('fileSystemSynchronizedGroups')
+        .where((id) => project.object(id)?.string('path') == widgetClassName)
+        .firstOrNull;
+    if (rootGroupId == null) {
+      logger.warn(
+        'Warning: $intentFileName could not be wired into the Xcode project: '
+        'no synchronized folder of $widgetClassName is the '
+        'ios/$widgetClassName folder. Add ios/$widgetClassName/'
+        '$intentFileName to the $runnerName target in Xcode.',
+      );
+      return;
+    }
     final title = 'Exceptions for "$widgetClassName" folder in '
         '"$runnerName" target';
     if (project.object(ids.runnerExceptionId) == null) {

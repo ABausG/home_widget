@@ -527,6 +527,68 @@ void main() {
       expectNothingOf(_interactivityIds);
       expect(_lineDifference(read(), scaffolded), _emptiedProductList);
     });
+
+    group('of a target with another folder ahead of its own', () {
+      final sharedGroupId = xcodeObjectId('fsgroup:Shared');
+
+      void addSharedFolder({bool own = true}) {
+        final editor = PbxprojEditor(read())
+          ..insertObjects('PBXFileSystemSynchronizedRootGroup', '''
+\t\t$sharedGroupId /* Shared */ = {
+\t\t\tisa = PBXFileSystemSynchronizedRootGroup;
+\t\t\tpath = Shared;
+\t\t\tsourceTree = "<group>";
+\t\t};
+''')
+          ..setArrayItems(_targetId, 'fileSystemSynchronizedGroups', [
+            '$sharedGroupId /* Shared */',
+            if (own) '$_rootGroupId /* $_widget */',
+          ]);
+        pbxprojFile.writeAsStringSync(editor.text);
+      }
+
+      test('excepts the intent from the folder of the extension', () async {
+        addSharedFolder();
+        expect(
+          project().object(_targetId)!.strings('fileSystemSynchronizedGroups'),
+          [sharedGroupId, _rootGroupId],
+        );
+
+        await sync();
+
+        final pbxproj = project();
+        expect(
+          pbxproj.object(_rootGroupId)!.strings('exceptions'),
+          contains(_runnerExceptionId),
+        );
+        expect(
+          pbxproj.object(sharedGroupId)!.strings('exceptions'),
+          isEmpty,
+        );
+      });
+
+      test('warns when none of its folders is that of the extension', () async {
+        addSharedFolder(own: false);
+        expect(
+          project().object(_targetId)!.strings('fileSystemSynchronizedGroups'),
+          [sharedGroupId],
+        );
+
+        await sync();
+
+        expect(
+          project().object(sharedGroupId)!.strings('exceptions'),
+          isEmpty,
+        );
+        verify(
+          () => mockLogger.warn(
+            'Warning: $_intent could not be wired into the Xcode project: no '
+            'synchronized folder of $_widget is the ios/$_widget folder. Add '
+            'ios/$_widget/$_intent to the Runner target in Xcode.',
+          ),
+        ).called(1);
+      });
+    });
   });
 
   group('CocoaPods', () {
