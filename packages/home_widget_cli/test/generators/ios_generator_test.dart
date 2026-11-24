@@ -1235,6 +1235,45 @@ $dependencies
       ).called(1);
     });
 
+    test('keeps a hand-written intent wired once the last button is gone',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      await generate();
+      final wiredPbxproj = pbxprojFile.readAsStringSync();
+      final wiredPodfile = podfileFile.readAsStringSync();
+      final xcconfig = podsXcconfigFile.readAsStringSync();
+      appDelegateFile.writeAsStringSync(appDelegate);
+      intentFile.writeAsStringSync('import home_widget\n\nstruct Mine {}\n');
+
+      await generate(button: false);
+
+      expect(
+        'CounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile;'
+            .allMatches(pbxprojFile.readAsStringSync()),
+        hasLength(2),
+      );
+      expect(pbxprojFile.readAsStringSync(), wiredPbxproj);
+      expect(podfileFile.readAsStringSync(), wiredPodfile);
+      expect(podsXcconfigFile.readAsStringSync(), xcconfig);
+      expect(appDelegateFile.readAsStringSync(), appDelegate);
+    });
+
+    test('warns when a hand-written intent cannot be linked to the plugin',
+        () async {
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('import home_widget\n\nstruct Mine {}\n');
+
+      await generate(button: false);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not link home_widget into CounterHomeWidget')),
+        ),
+      ).called(1);
+      expect(appDelegateFile.readAsStringSync(), appDelegate);
+    });
+
     test('touches nothing of it for a widget without buttons', () async {
       podfileFile.writeAsStringSync(podfile);
 

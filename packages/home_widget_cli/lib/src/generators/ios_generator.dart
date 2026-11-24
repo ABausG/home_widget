@@ -571,7 +571,9 @@ struct ${widgetClassName}Entry: TimelineEntry {
   /// links `home_widget` the way the project integrates plugins, and the app
   /// delegate registers the app's plugins with the engine a tap runs Dart in.
   /// The app delegate is the one thing left as it is when the last button
-  /// goes: other widgets, hand-written ones included, may rely on it.
+  /// goes: other widgets, hand-written ones included, may rely on it. A
+  /// hand-written intent stays wired into the targets and linked to the
+  /// plugin as long as it is there.
   Future<void> _syncInteractivity({
     required Directory iosDir,
     required Directory extensionDir,
@@ -585,8 +587,9 @@ struct ${widgetClassName}Entry: TimelineEntry {
 
     final existing =
         intentFile.existsSync() ? await intentFile.readAsString() : null;
-    if (existing != null &&
-        !existing.trimLeft().startsWith('// GENERATED CODE')) {
+    final handWritten =
+        existing != null && !existing.trimLeft().startsWith('// GENERATED CODE');
+    if (handWritten) {
       final reason = interactive
           ? 'The buttons of ${spec.data.name} perform the intent it '
               'declares; delete it to have that generated again.'
@@ -608,11 +611,12 @@ struct ${widgetClassName}Entry: TimelineEntry {
       await intentFile.delete();
     }
 
+    final wired = interactive || handWritten;
     final linkage = await syncWidgetInteractivityInXcodeProject(
       pbxprojFile: xcodeproj,
       widgetClassName: widgetClassName,
       intentFileName: intentFileName,
-      interactive: interactive,
+      interactive: wired,
       hasPodfile: podfile.existsSync(),
       hasPodfileTarget: podfileHasWidgetTarget(podfile, widgetClassName),
       pluginInSwiftPackage: _pluginInSwiftPackage(iosDir),
@@ -623,9 +627,8 @@ struct ${widgetClassName}Entry: TimelineEntry {
     } else {
       await removePodfileWidgetTarget(podfile, widgetClassName);
     }
-    if (!interactive) return;
 
-    if (linkage == WidgetPluginLinkage.none) {
+    if (wired && linkage == WidgetPluginLinkage.none) {
       logger.warn(
         'Warning: Could not link home_widget into $widgetClassName: the '
         'Xcode project links no FlutterGeneratedPluginSwiftPackage and has '
@@ -634,6 +637,8 @@ struct ${widgetClassName}Entry: TimelineEntry {
         'https://docs.page/abausg/home_widget/features/interactive-widgets',
       );
     }
+    if (!interactive) return;
+
     await ensureAppDelegatePluginRegistrant(
       iosDir,
       appDirectories: [
