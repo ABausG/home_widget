@@ -281,6 +281,35 @@ end
       ).called(1);
     });
 
+    test('warns about a target whose pod is commented out', () async {
+      const content = '''
+target 'CounterHomeWidget' do
+  # pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+  use_frameworks! # pod 'home_widget'
+end
+''';
+
+      final result = await ensure(content);
+
+      expect(result, content);
+      verify(
+        () => mockLogger.warn(any(that: contains("The target '$_widget'"))),
+      ).called(1);
+    });
+
+    test('adds a target next to one that is commented out', () async {
+      const content = '''
+# target 'CounterHomeWidget' do
+#   pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+# end
+''';
+
+      final result = await ensure(content);
+
+      expect(result, '$content\n$_widgetTarget');
+      verifyNever(() => mockLogger.warn(any()));
+    });
+
     test('reads a target that is never closed to the end of the file',
         () async {
       const withPod = '''
@@ -336,6 +365,12 @@ end
 
       podfile.writeAsStringSync('target "$_widget" do\nend\n');
       expect(podfileHasWidgetTarget(podfile, _widget), isTrue);
+    });
+
+    test('is false for a target that is commented out', () {
+      podfile.writeAsStringSync("# target '$_widget' do\n# end\n");
+
+      expect(podfileHasWidgetTarget(podfile, _widget), isFalse);
     });
   });
 

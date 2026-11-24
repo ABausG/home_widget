@@ -42,7 +42,8 @@ Future<void> ensurePodfileWidgetTarget(
     final rest = content.substring(existing.start);
     final end = RegExp(r'^[ \t]*end\b', multiLine: true).firstMatch(rest);
     final block = end == null ? rest : rest.substring(0, end.end);
-    if (!RegExp('''pod\\s+['"]home_widget['"]''').hasMatch(block)) {
+    final pod = RegExp('''^[ \\t]*pod\\s+['"]home_widget['"]''', multiLine: true);
+    if (!pod.hasMatch(block)) {
       logger.warn(
         "Warning: The target '$widgetClassName' in ${podfile.path} does not "
         "name the home_widget pod, which its buttons need. Add `pod "
