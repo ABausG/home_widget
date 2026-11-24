@@ -207,7 +207,8 @@ Each of these fails generation:
 - An `id` that is not ASCII letters and digits starting with a letter.
 - An `HWButton` inside another `HWButton`.
 - An `HWButton` inside an `HWLink`, or an `HWLink` inside an `HWButton`.
-- Two buttons with the same `id`, or with ids that generate the same class name, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `data`.
+- Two buttons with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `data`.
+- Two buttons whose ids differ only in letter case, such as `add` and `Add`, wherever they are. Both would generate the same class, but a tap sends the id as written.
 - A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.
 - An `onInteraction` function the generated code cannot call. See [The function](/generator/interactivity#the-function).
 

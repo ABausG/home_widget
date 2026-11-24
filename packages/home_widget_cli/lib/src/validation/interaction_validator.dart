@@ -86,6 +86,14 @@ void _validateButtonIds(
       'HWSizeAdaptive, where one of them renders at a time.',
     );
   }
+  if (other.id != button.id) {
+    throw GeneratorError(
+      '$widget: $ids, with ids that differ only in letter case. A tap sends '
+      'the id as written and the app tells the interactions apart by it, so '
+      'two spellings cannot be one button. Spell the id the same way in '
+      'both, or give them ids that differ in more than case.',
+    );
+  }
   throw GeneratorError(
     '$widget: $ids, but with different data. Both reach the app as the same '
     'interaction class, so give them the same data, or different ids.',

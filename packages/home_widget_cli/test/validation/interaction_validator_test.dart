@@ -582,7 +582,30 @@ void main() {
         _throwsMessage(
           contains(
             "HWButton('add') and HWButton('Add') both generate "
-            'CounterAddInteraction, but with different data.',
+            'CounterAddInteraction, with ids that differ only in letter case.',
+          ),
+        ),
+      );
+    });
+
+    test('differing only in case are told apart even with the same data', () {
+      final spec = _spec(
+        HWAdaptive(
+          ios: _button('add', data: const [HWInt('step')]),
+          android: _button('Add', data: const [HWInt('step')]),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        _throwsMessage(
+          equals(
+            'Widget "Counter": HWButton(\'add\') and HWButton(\'Add\') both '
+            'generate CounterAddInteraction, with ids that differ only in '
+            'letter case. A tap sends the id as written and the app tells the '
+            'interactions apart by it, so two spellings cannot be one button. '
+            'Spell the id the same way in both, or give them ids that differ '
+            'in more than case.',
           ),
         ),
       );
