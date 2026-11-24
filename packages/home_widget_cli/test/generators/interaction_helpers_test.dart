@@ -312,6 +312,19 @@ void main() {
       );
     });
 
+    test('name a widget whose name spans lines on one line in docs', () {
+      final output = _generate(name: 'Counter\n  Pro');
+
+      expect(
+        output,
+        allOf(
+          contains('/// A tap on a button of the Counter Pro widget.\n'),
+          contains('/// A tap on the `increment` button of the Counter Pro '
+              'widget.\n'),
+        ),
+      );
+    });
+
     test('run before saveData writes anything', () {
       final output = _generate();
 

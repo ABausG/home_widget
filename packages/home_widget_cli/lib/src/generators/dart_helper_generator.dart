@@ -1562,7 +1562,7 @@ ${_flavorGuard('false')}$androidGuard    try {
     final decoders =
         targets.map((target) => '${target.className}._\$fromUri(uri)');
     return '''
-/// A tap on a button of the ${spec.data.name} widget.
+/// A tap on a button of the ${spec.docName} widget.
 ///
 /// The fields of an interaction hold the values the widget was rendered with
 /// when it was tapped, which may be older than what the app has stored since.

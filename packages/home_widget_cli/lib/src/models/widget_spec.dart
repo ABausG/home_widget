@@ -1272,7 +1272,7 @@ class WidgetSpec {
           className: name,
           url: button.payloadUrl,
           description: "A tap on the `${button.id}` button of the "
-              '${data.name} widget.',
+              '$docName widget.',
         ),
       );
     }
