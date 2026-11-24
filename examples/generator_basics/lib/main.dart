@@ -67,7 +67,17 @@ class _HomePageState extends State<_HomePage> {
     unawaited(_loadDashboard());
     // saveData() and updateWidget() register the interaction function too, but
     // the widget can be placed and tapped before either of them ran.
-    unawaited(InteractiveCounterHomeWidget.registerInteractivity());
+    unawaited(
+      InteractiveCounterHomeWidget.registerInteractivity().catchError((
+        Object error,
+      ) {
+        debugPrint(
+          'The buttons of the Interactive Counter widget will not work: '
+          'registering them with home_widget failed: $error',
+        );
+        return false;
+      }),
+    );
     unawaited(_loadInteractiveCount());
   }
 
