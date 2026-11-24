@@ -402,6 +402,24 @@ void main() {
       expect(results, ['true', 'true', 'true', 'false', 'false', 'true']);
     });
 
+    test('reads a timestamp out of range like any unreadable value', () {
+      const url = 'myapp://forecast?tab=today&city=ok&at=8640000000000001'
+          '&since=-9223372036854775808#top';
+      final results = evaluate([
+        "ForecastLink._\$fromUri(Uri.parse('$url'))",
+        "ForecastLink._\$fromUri(Uri.parse('myapp://forecast?tab=today"
+            "&at=8640000000000000#top'))!.at",
+      ]);
+
+      expect(
+        results[0],
+        'ForecastLink(city: ok, town: O\'Hare \$1, count: null, days: 7, '
+        'ratio: 0.5, done: null, flag: true, at: null, '
+        'since: 2026-09-22 10:00:00.000Z, other: null)',
+      );
+      expect(results[1], '275760-09-13 00:00:00.000Z');
+    });
+
     test('compiles with names its own code uses for locals', () {
       final results = evaluate([
         "BorderlineLink._\$fromUri(BorderlineLink(uri: 'u', query: 2, "

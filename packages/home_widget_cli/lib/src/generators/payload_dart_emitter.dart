@@ -188,7 +188,8 @@ bool? _\$payloadBool(String? value) => switch (value) {
 
 DateTime? _\$payloadDateTime(String? value) {
   final millis = value == null ? null : int.tryParse(value);
-  return millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true);
+  if (millis == null || millis < -8640000000000000 || millis > 8640000000000000) return null;
+  return DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true);
 }
 ''');
     }
