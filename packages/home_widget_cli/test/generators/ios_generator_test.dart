@@ -871,6 +871,40 @@ void main() {
     expect(content, isNot(contains('hwLink(')));
   });
 
+  test('emits the small slot link of a padded size adaptive as widgetURL',
+      () async {
+    final spec = WidgetSpec(
+      data: HomeWidget(
+        name: 'PaddedAdaptiveWidget',
+        iOS: HomeWidgetIOSConfiguration(groupId: 'group.root'),
+      ),
+      className: 'PaddedAdaptiveWidget',
+      widgetTree: const HWPadding(
+        padding: HWEdgeInsets.all(4),
+        child: HWSizeAdaptive(
+          small: HWLink(
+            'history',
+            url: 'myapp://history',
+            child: HWText(HWString.fixed('History')),
+          ),
+          medium: HWText(HWString.fixed('Medium')),
+        ),
+      ),
+    );
+
+    await IosGenerator(spec: spec, projectRoot: tempDir).generate();
+
+    final content = File(
+      p.join(tempDir.path, 'ios/PaddedAdaptiveWidgetHomeWidget/Widget.swift'),
+    ).readAsStringSync();
+
+    expect(
+      content,
+      contains('.widgetURL(URL(string: "myapp://history?homeWidget"))'),
+    );
+    expect(content, isNot(contains('hwLink(')));
+  });
+
   test('emits no widgetURL when none is configured', () async {
     final spec = WidgetSpec(
       data: HomeWidget(

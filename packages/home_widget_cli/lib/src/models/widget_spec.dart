@@ -1099,33 +1099,36 @@ class WidgetSpec {
   /// false: [widget] itself, or the link the branch of an [HWAdaptive] or the
   /// child of a padding or a background is, which leave the tap area as it is.
   static HWLink? _wholeLayoutLink(HWWidget widget, {required bool ios}) =>
+      switch (_unwrapTapArea(widget, ios: ios)) {
+        final HWLink link => link,
+        _ => null,
+      };
+
+  /// [widget] without the [HWAdaptive] branches of the other platform and the
+  /// paddings and backgrounds around it, which leave the tap area as it is.
+  static HWWidget _unwrapTapArea(HWWidget widget, {required bool ios}) =>
       switch (widget) {
-        HWLink() => widget,
         HWAdaptive() =>
-          _wholeLayoutLink(ios ? widget.ios : widget.android, ios: ios),
+          _unwrapTapArea(ios ? widget.ios : widget.android, ios: ios),
         HWPadding(:final child) ||
         HWColoredBox(:final child) ||
         HWDecoratedBox(:final child) =>
-          _wholeLayoutLink(child, ios: ios),
-        _ => null,
+          _unwrapTapArea(child, ios: ios),
+        _ => widget,
       };
 
   /// The [HWLink]s iOS opens through `.widgetURL`: each is the whole layout
   /// of a family in [iosSingleTapFamilies] the widget can be shown in.
   ///
   /// That is the link the tree is as a whole, or the one the slot such a
-  /// family resolves to in an [HWSizeAdaptive] at the root is.
+  /// family resolves to in an [HWSizeAdaptive] the tree is as a whole is.
   List<HWLink> get iosWidgetUrlLinks {
     final singleTap = iosReachableFamilies.intersection(iosSingleTapFamilies);
     if (singleTap.isEmpty) return const [];
 
-    var root = effectiveWidgetTree;
-    final whole = _wholeLayoutLink(root, ios: true);
-    if (whole != null) {
-      return whole.swiftRendersNothing ? const [] : [whole];
-    }
-    while (root is HWAdaptive) {
-      root = root.ios;
+    final root = _unwrapTapArea(effectiveWidgetTree, ios: true);
+    if (root is HWLink) {
+      return root.swiftRendersNothing ? const [] : [root];
     }
     if (root is! HWSizeAdaptive) return const [];
 

@@ -1240,6 +1240,40 @@ void main() {
       expect(spec.androidWholeLayoutLink, forecast);
     });
 
+    test('padding around a size adaptive root keeps a small slot link whole',
+        () {
+      final spec = linkSpec(
+        const HWPadding(
+          padding: HWEdgeInsets.all(4),
+          child: HWColoredBox(
+            color: HWColor.fixed(0xFFFFFFFF),
+            child: HWSizeAdaptive(
+              small: history,
+              medium: HWText(HWString.fixed('medium')),
+            ),
+          ),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [history]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('a small slot link inside a column around the root stays ignored',
+        () {
+      final spec = linkSpec(
+        const HWColumn(
+          children: [
+            HWSizeAdaptive(
+              small: history,
+              medium: HWText(HWString.fixed('medium')),
+            ),
+          ],
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, isEmpty);
+      expect(spec.iosIgnoredLinks, [history]);
+    });
+
     test('a whole-layout link that renders nothing on iOS names none', () {
       final spec = linkSpec(
         const HWPadding(
