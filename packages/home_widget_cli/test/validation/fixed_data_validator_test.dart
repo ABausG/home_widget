@@ -299,6 +299,91 @@ void main() {
       }
     });
 
+    test('rejects a default or preview double that is not finite', () {
+      const end = 'which is not a finite number, so there is no literal to '
+          'write into the generated code. Use a finite value.';
+      final cases = <(HWWidget, String)>[
+        (
+          const HWText(HWDouble('ratio', defaultValue: double.nan)),
+          'Widget "T": HWDouble("ratio") has defaultValue NaN, $end',
+        ),
+        (
+          const HWText.number(
+            HWDouble('ratio', previewValue: double.infinity),
+          ),
+          'Widget "T": HWDouble("ratio") has previewValue Infinity, $end',
+        ),
+        (
+          const HWText(
+            HWTimedData(
+              HWJson(
+                'stats',
+                HWDouble('ratio', defaultValue: double.negativeInfinity),
+              ),
+            ),
+          ),
+          'Widget "T": HWDouble("ratio") has defaultValue -Infinity, $end',
+        ),
+        (
+          const HWColumn.builder(
+            'rows',
+            maxItems: 3,
+            item: HWText(
+              HWItemData(HWDouble('ratio', previewValue: double.nan)),
+            ),
+          ),
+          'Widget "T": HWDouble("ratio") of list "rows" has previewValue NaN, '
+              '$end',
+        ),
+        (
+          const HWColumn.builder(
+            'rows',
+            maxItems: 3,
+            item: HWText(
+              HWItemData(
+                HWDouble('ratio'),
+                previewValues: [1.5, double.infinity],
+              ),
+            ),
+          ),
+          'Widget "T": previewValues[1] of HWItemData "ratio" in list "rows" '
+              'is Infinity, $end',
+        ),
+      ];
+
+      for (final (tree, message) in cases) {
+        expect(
+          () => validateWidgetData(_spec(tree)),
+          _throwsMessage(message),
+          reason: message,
+        );
+      }
+    });
+
+    test('accepts finite default, preview and sample doubles', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWColumn(
+              children: [
+                HWText(
+                  HWDouble('ratio', defaultValue: 0.5, previewValue: 1e300),
+                ),
+                HWColumn.builder(
+                  'rows',
+                  maxItems: 3,
+                  item: HWText(
+                    HWItemData(HWDouble('share'), previewValues: [1, 2.5]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
     test('accepts every ISO 8601 spelling of a fixed instant with a zone', () {
       for (final iso in [
         '2026-09-22T10:00Z',

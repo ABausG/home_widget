@@ -37,6 +37,7 @@ const String reservedTimedDataName = 'timedData';
 void validateWidgetData(WidgetSpec spec) {
   validateLists(spec);
   _validateFixedData(spec);
+  _validateFiniteDoubles(spec);
 
   // `timedData` only collides with generated API surface when the spec
   // actually has time-based data (the `saveData(timedData: ...)` parameter,
@@ -298,6 +299,56 @@ void _validateFixedData(WidgetSpec spec) {
     }
   }
 }
+
+/// Rejects a default or preview number that is not finite, which has no
+/// literal in the generated code.
+void _validateFiniteDoubles(WidgetSpec spec) {
+  final subject = 'Widget "${spec.data.name}"';
+  for (final leaf in spec.dataLeaves) {
+    if (leaf is HWDouble) _validateFiniteDefaults(leaf, subject: subject);
+  }
+  for (final group in spec.listDataGroups) {
+    for (final field in group.fields) {
+      final data = field.data;
+      if (data is! HWDouble) continue;
+      final where = 'HWDouble("${data.key}") of list "${group.key}"';
+      _validateFiniteDefaults(data, subject: subject, field: where);
+      final values = field.previewValues ?? const <Object>[];
+      for (var index = 0; index < values.length; index++) {
+        final value = values[index];
+        if (value is! double || value.isFinite) continue;
+        throw GeneratorError(
+          '$subject: previewValues[$index] of HWItemData "${data.key}" in '
+          'list "${group.key}" is $value, $_notFinite',
+        );
+      }
+    }
+  }
+}
+
+/// Rejects a [HWDouble.defaultValue] or [HWDouble.previewValue] of [data]
+/// that is not finite; [subject] starts the message, and [field] names [data]
+/// in it.
+void _validateFiniteDefaults(
+  HWDouble data, {
+  required String subject,
+  String? field,
+}) {
+  for (final (name, value) in [
+    ('defaultValue', data.defaultValue),
+    ('previewValue', data.previewValue),
+  ]) {
+    if (value == null || value.isFinite) continue;
+    throw GeneratorError(
+      '$subject: ${field ?? 'HWDouble("${data.key}")'} has $name $value, '
+      '$_notFinite',
+    );
+  }
+}
+
+/// Ends the rejection of a number that is not finite.
+const String _notFinite = 'which is not a finite number, so there is no '
+    'literal to write into the generated code. Use a finite value.';
 
 /// Rejects [field] when it is a fixed instant the widget cannot read;
 /// [subject] starts the message.
