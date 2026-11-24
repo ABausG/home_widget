@@ -73,7 +73,8 @@ void validatePayload(
   }
 }
 
-/// Rejects a constant whose content cannot be written into a URL.
+/// Rejects a constant or default whose content cannot be written into a URL
+/// or the generated code.
 void _validateFixedPayloadValue(HWPayloadEntry entry, String owner) {
   final leaf = entry.leaf;
   if (leaf is HWDouble) {
@@ -84,24 +85,9 @@ void _validateFixedPayloadValue(HWPayloadEntry entry, String owner) {
         'value.',
       );
     }
+    _validateFiniteDefaults(leaf, subject: owner);
   }
-  if (leaf is! HWDateTime) return;
-  final iso = leaf.fixedIso;
-  if (iso == null) return;
-  final parsed = leaf.fixedDateTime;
-  if (parsed == null) {
-    throw GeneratorError(
-      '$owner: HWDateTime.fixed("$iso") is not an ISO 8601 date. '
-      '$_isoDateExample',
-    );
-  }
-  if (!parsed.isUtc) {
-    throw GeneratorError(
-      '$owner: HWDateTime.fixed("$iso") names no time zone, so which instant '
-      'it means would depend on where it is read. End it in Z or an offset '
-      'such as +02:00. $_isoDateExample',
-    );
-  }
+  if (leaf is HWDateTime) _validateFixedDateTime(leaf, subject: owner);
 }
 
 /// What [entry] holds, for the error rejecting its type.

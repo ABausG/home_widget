@@ -794,6 +794,54 @@ void main() {
       );
     });
 
+    test('rejects a fixed date the app cannot read back as written', () {
+      for (final iso in [
+        '2026-02-30T00:00:00Z',
+        '0000-01-01T00:00:00Z',
+        '10000-01-01T00:00:00Z',
+        '2026-01-01T12:00:00+01:99',
+        '2026-01-01T12:00:00+25:00',
+      ]) {
+        expect(
+          () => validate([HWPayload('day', HWDateTime.fixed(iso))]),
+          _throwsMessage(
+            equals(
+              'HWButton("rate"): HWDateTime.fixed("$iso") is not a date the '
+              'widget can read: a field is out of range, or the year is not '
+              'between 1 and 9999. Write the instant as e.g. '
+              '"2024-03-08T09:41:00Z".',
+            ),
+          ),
+          reason: iso,
+        );
+      }
+      expect(
+        () => validate(const [
+          HWPayload('day', HWDateTime.fixed('2026-01-01T12:00:00+01:00')),
+        ]),
+        returnsNormally,
+      );
+    });
+
+    test('rejects a default or preview number that is not finite', () {
+      expect(
+        () => validate(const [HWDouble('ratio', defaultValue: double.nan)]),
+        _throwsMessage(
+          equals(
+            'HWButton("rate"): HWDouble("ratio") has defaultValue NaN, which '
+            'is not a finite number, so there is no literal to write into the '
+            'generated code. Use a finite value.',
+          ),
+        ),
+      );
+      expect(
+        () => validate(const [
+          HWPayload('r', HWDouble('ratio', previewValue: double.infinity)),
+        ]),
+        _throwsMessage(contains('has previewValue Infinity')),
+      );
+    });
+
     test('rejects a name the generated class cannot carry', () {
       expect(
         () => validate(const [HWPayload('my-name', HWString('city'))]),
