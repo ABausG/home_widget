@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
+import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/file_system/physical_file_system.dart';
 import 'package:home_widget_cli/src/parser/schema_parser.dart';
 import 'package:path/path.dart' as p;
@@ -29,10 +30,19 @@ void main() {
         includedPaths: [file.path],
         resourceProvider: PhysicalResourceProvider.INSTANCE,
       );
+      addTearDown(collection.dispose);
 
       final specs = await parseSchemaFile(file.path, collection: collection);
 
       expect(specs.map((spec) => spec.className), [scenario.className]);
+      final unit = await collection
+          .contextFor(file.path)
+          .currentSession
+          .getResolvedUnit(file.path) as ResolvedUnitResult;
+      expect(
+        unit.diagnostics.map((diagnostic) => diagnostic.toString()),
+        isEmpty,
+      );
     });
   }
 }
