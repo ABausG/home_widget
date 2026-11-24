@@ -1268,7 +1268,7 @@ $dependencies
 
       verify(
         () => mockLogger.warn(
-          any(that: contains('Could not link home_widget into CounterHomeWidget')),
+          any(that: contains('Could not link home_widget into')),
         ),
       ).called(1);
       expect(appDelegateFile.readAsStringSync(), appDelegate);

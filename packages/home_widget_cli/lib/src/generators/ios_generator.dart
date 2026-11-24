@@ -587,8 +587,8 @@ struct ${widgetClassName}Entry: TimelineEntry {
 
     final existing =
         intentFile.existsSync() ? await intentFile.readAsString() : null;
-    final handWritten =
-        existing != null && !existing.trimLeft().startsWith('// GENERATED CODE');
+    final handWritten = existing != null &&
+        !existing.trimLeft().startsWith('// GENERATED CODE');
     if (handWritten) {
       final reason = interactive
           ? 'The buttons of ${spec.data.name} perform the intent it '
