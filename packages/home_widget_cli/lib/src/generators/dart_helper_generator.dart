@@ -1489,20 +1489,21 @@ sealed class $launch {
     final implicit = _hasDataFields
         ? '`saveData` and `updateWidget` do this themselves'
         : '`updateWidget` does this itself';
-    final androidOnly = hasIOS
-        ? ''
-        : '''
-  ///
-  /// Returns false without registering anywhere but on Android, the only
-  /// platform this widget is generated for.''';
-    final androidGuard = hasIOS
-        ? ''
-        : '''
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      _\$interactivityRegistered = true;
-      return false;
-    }
-''';
+    final platforms = [
+      if (spec.data.android != null) ('Android', 'android'),
+      if (hasIOS) ('iOS', 'iOS'),
+    ];
+    final generatedFor = platforms.length == 1
+        ? 'the only platform this widget is generated for'
+        : 'the platforms this widget is generated for';
+    final ios17 = hasIOS
+        ? '''
+  /// Returns false below iOS 17, where a widget cannot run code on a tap.
+'''
+        : '';
+    final names = platforms.map((platform) => platform.$1).join(' and ');
+    final supported =
+        platforms.map((platform) => 'TargetPlatform.${platform.$2}').join(', ');
     return '''
   static const String _\$interactionKey = '${escapeDartStringLiteral(spec.interactionKey)}';
 
@@ -1519,11 +1520,15 @@ sealed class $launch {
   /// starts as well: a widget can be placed and tapped before the app updated
   /// it, and its buttons do nothing until this ran once.
   ///
-  /// Returns false below iOS 17, where a widget cannot run code on a tap.
-  /// Any other error of the plugin, such as a platform without interactive
-  /// widgets, is thrown.$androidOnly
+  /// Returns false without calling the plugin anywhere but on
+  /// $names, $generatedFor.
+$ios17  /// Any other error of the plugin is thrown.
   static Future<bool?> registerInteractivity() async {
-${_flavorGuard('false')}$androidGuard    try {
+${_flavorGuard('false')}    if (kIsWeb || !const <TargetPlatform>{$supported}.contains(defaultTargetPlatform)) {
+      _\$interactivityRegistered = true;
+      return false;
+    }
+    try {
       final registered = await HomeWidget.registerInteractivityCallback(
         $_interactionEntryPointName,
         key: _\$interactionKey,$appGroupId

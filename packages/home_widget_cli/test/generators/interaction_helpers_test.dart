@@ -228,6 +228,11 @@ void main() {
         output,
         contains(
           '  static Future<bool?> registerInteractivity() async {\n'
+          '    if (kIsWeb || !const <TargetPlatform>{TargetPlatform.android, '
+          'TargetPlatform.iOS}.contains(defaultTargetPlatform)) {\n'
+          '      _\$interactivityRegistered = true;\n'
+          '      return false;\n'
+          '    }\n'
           '    try {\n'
           '      final registered = await '
           'HomeWidget.registerInteractivityCallback(\n'
@@ -472,12 +477,12 @@ void main() {
       expect(
         output,
         contains(
-          '  /// Returns false without registering anywhere but on Android, '
-          'the only\n'
-          '  /// platform this widget is generated for.\n'
+          '  /// Returns false without calling the plugin anywhere but on\n'
+          '  /// Android, the only platform this widget is generated for.\n'
+          '  /// Any other error of the plugin is thrown.\n'
           '  static Future<bool?> registerInteractivity() async {\n'
-          '    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) '
-          '{\n'
+          '    if (kIsWeb || !const <TargetPlatform>{TargetPlatform.android}'
+          '.contains(defaultTargetPlatform)) {\n'
           '      _\$interactivityRegistered = true;\n'
           '      return false;\n'
           '    }\n'
@@ -488,9 +493,28 @@ void main() {
         output,
         contains("import 'package:flutter/foundation.dart';"),
       );
+    });
+
+    test('leave registering to iOS without an Android configuration', () {
+      expect(
+        _generate(android: false),
+        contains(
+          '  /// Returns false without calling the plugin anywhere but on\n'
+          '  /// iOS, the only platform this widget is generated for.\n'
+          '  /// Returns false below iOS 17, where a widget cannot run code on '
+          'a tap.\n'
+          '  /// Any other error of the plugin is thrown.\n'
+          '  static Future<bool?> registerInteractivity() async {\n'
+          '    if (kIsWeb || !const <TargetPlatform>{TargetPlatform.iOS}'
+          '.contains(defaultTargetPlatform)) {\n',
+        ),
+      );
       expect(
         _generate(),
-        isNot(contains('defaultTargetPlatform')),
+        contains(
+          '  /// Returns false without calling the plugin anywhere but on\n'
+          '  /// Android and iOS, the platforms this widget is generated for.\n',
+        ),
       );
     });
   });
@@ -511,7 +535,7 @@ void main() {
         contains(
           '  static Future<bool?> registerInteractivity() async {\n'
           '    if (!_\$inDeclaredFlavor) return false;\n'
-          '    try {\n',
+          '    if (kIsWeb || ',
         ),
       );
       expect(
@@ -824,6 +848,56 @@ void main() {
       ]);
     });
 
+    test('never registers on the web or on desktop', () async {
+      for (final (platform, web) in const [
+        ('android', true),
+        ('macOS', false),
+        ('windows', false),
+        ('linux', false),
+      ]) {
+        final output = await _runHelper(
+          "MissingPluginException('No implementation found')",
+          both: true,
+          platform: platform,
+          web: web,
+        );
+
+        expect(
+          output,
+          ['saved 4', 'registrations 0', 'explicit false', 'registrations 0'],
+          reason: '$platform${web ? ' on the web' : ''}',
+        );
+      }
+    });
+
+    test('never registers an iOS-only widget on Android', () async {
+      final output = await _runHelper(
+        "MissingPluginException('No implementation found')",
+        platform: 'android',
+      );
+
+      expect(
+        output,
+        ['saved 4', 'registrations 0', 'explicit false', 'registrations 0'],
+      );
+    });
+
+    test('registers a widget of both platforms on either', () async {
+      for (final platform in const ['android', 'iOS']) {
+        final output = await _runHelper(
+          'null',
+          both: true,
+          platform: platform,
+        );
+
+        expect(
+          output,
+          ['saved 4', 'registrations 1', 'explicit true', 'registrations 2'],
+          reason: platform,
+        );
+      }
+    });
+
     test('registers an Android-only widget on Android', () async {
       final output = await _runHelper(
         'null',
@@ -845,19 +919,23 @@ void main() {
 /// against a stub of `package:home_widget` whose registration throws
 /// [registerError], a Dart expression, unless it is `null`.
 ///
-/// The widget is iOS-only, or Android-only when [androidOnly] is set, and
-/// runs on [platform], a `TargetPlatform` value.
+/// The widget is iOS-only, Android-only when [androidOnly] is set, or for
+/// both with [both], and runs on [platform], a `TargetPlatform` value, or on
+/// the web with [web].
 ///
 /// Saves twice and updates once, letting each implicit registration settle,
 /// then registers explicitly, and prints one line per step.
 Future<List<String>> _runHelper(
   String registerError, {
   bool androidOnly = false,
+  bool both = false,
   String platform = 'iOS',
+  bool web = false,
 }) async {
-  final generated =
-      (androidOnly ? _generate(iOS: false) : _generate(android: false))
-          .replaceAll(
+  final generated = _generate(
+    android: androidOnly || both,
+    iOS: !androidOnly,
+  ).replaceAll(
     RegExp(r"^import '.*'.*;$", multiLine: true),
     '',
   );
@@ -889,9 +967,9 @@ class MissingPluginException implements Exception {
 
 void debugPrint(String? message) => print('LOG \$message');
 
-enum TargetPlatform { android, iOS }
+enum TargetPlatform { android, fuchsia, iOS, linux, macOS, windows }
 
-const kIsWeb = false;
+const kIsWeb = $web;
 
 const defaultTargetPlatform = TargetPlatform.$platform;
 

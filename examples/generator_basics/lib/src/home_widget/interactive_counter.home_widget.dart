@@ -117,10 +117,15 @@ class InteractiveCounterHomeWidget {
   /// starts as well: a widget can be placed and tapped before the app updated
   /// it, and its buttons do nothing until this ran once.
   ///
+  /// Returns false without calling the plugin anywhere but on
+  /// Android and iOS, the platforms this widget is generated for.
   /// Returns false below iOS 17, where a widget cannot run code on a tap.
-  /// Any other error of the plugin, such as a platform without interactive
-  /// widgets, is thrown.
+  /// Any other error of the plugin is thrown.
   static Future<bool?> registerInteractivity() async {
+    if (kIsWeb || !const <TargetPlatform>{TargetPlatform.android, TargetPlatform.iOS}.contains(defaultTargetPlatform)) {
+      _$interactivityRegistered = true;
+      return false;
+    }
     try {
       final registered = await HomeWidget.registerInteractivityCallback(
         _$interactiveCounterInteractionEntryPoint,
