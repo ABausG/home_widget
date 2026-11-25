@@ -2,6 +2,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
 
+import 'dart:ui' show Color, ColorSpace;
 import 'package:home_widget/home_widget.dart';
 
 class ThemedCounterHomeWidget {
@@ -13,23 +14,33 @@ class ThemedCounterHomeWidget {
 
   static Future<void> saveData({
     int? count,
+    Color? accentLight,
+    Color? accentDark,
   }) {
     return Future.wait([
       if (count != null) HomeWidget.saveWidgetData<int>('${_$paramPrefix}.count', count, appGroupId: _$appGroupId),
+      if (accentLight != null) HomeWidget.saveWidgetData<int>('${_$paramPrefix}.accentLight', accentLight.withValues(colorSpace: ColorSpace.sRGB).toARGB32(), appGroupId: _$appGroupId),
+      if (accentDark != null) HomeWidget.saveWidgetData<int>('${_$paramPrefix}.accentDark', accentDark.withValues(colorSpace: ColorSpace.sRGB).toARGB32(), appGroupId: _$appGroupId),
     ]);
   }
 
   static Future<void> deleteData({
     bool count = false,
+    bool accentLight = false,
+    bool accentDark = false,
   }) {
     return Future.wait([
       if (count) HomeWidget.saveWidgetData('${_$paramPrefix}.count', null, appGroupId: _$appGroupId),
+      if (accentLight) HomeWidget.saveWidgetData('${_$paramPrefix}.accentLight', null, appGroupId: _$appGroupId),
+      if (accentDark) HomeWidget.saveWidgetData('${_$paramPrefix}.accentDark', null, appGroupId: _$appGroupId),
     ]);
   }
 
-  static Future<({int? count})> getData() async {
+  static Future<({int? count, Color? accentLight, Color? accentDark})> getData() async {
     return (
       count: await HomeWidget.getWidgetData<int>('${_$paramPrefix}.count', defaultValue: 0, appGroupId: _$appGroupId),
+      accentLight: _$color(await HomeWidget.getWidgetData<int>('${_$paramPrefix}.accentLight', defaultValue: 0xFF1D4ED8, appGroupId: _$appGroupId)),
+      accentDark: _$color(await HomeWidget.getWidgetData<int>('${_$paramPrefix}.accentDark', defaultValue: 0xFF93C5FD, appGroupId: _$appGroupId)),
     );
   }
 
@@ -97,3 +108,5 @@ class ThemedCounterHomeWidget {
     return info.iOSKind == 'ThemedCounterHomeWidget';
   }
 }
+
+Color? _$color(int? argb) => argb == null ? null : Color(argb);

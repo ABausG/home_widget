@@ -101,6 +101,7 @@
 		5B04942F4B082DEA405D9701 /* InteractiveCounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */; };
 		2E5C2E2E3C6C98572E02A264 /* InteractiveCounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */; };
 		B8F8F2618B9DA8365205A6D7 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 9580C7F115C3866656818B8B /* FlutterGeneratedPluginSwiftPackage */; };
+		8B0AC1C3858B1962EF5E58B5 /* hw_font_icons_materialicons.otf in Resources */ = {isa = PBXBuildFile; fileRef = AB4342A635AD4BEB95191C24 /* hw_font_icons_materialicons.otf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -534,6 +535,7 @@
 		76BA50A0353A8D7523D42006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A77294F389ED1DFCF0E72075 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
 		00624AE604CB6BF7383AC894 /* InteractiveCounterHomeWidgetIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractiveCounterHomeWidgetIntent.swift; sourceTree = "<group>"; };
+		AB4342A635AD4BEB95191C24 /* hw_font_icons_materialicons.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = hw_font_icons_materialicons.otf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -826,6 +828,7 @@
 				C3BC4830A85086A3DD12A496 /* Widget.swift */,
 				D08FD198BD15224338CFDCEE /* WidgetBundle.swift */,
 				1B18F59F8E8E2B2410E34EF9 /* Info.plist */,
+				AB4342A635AD4BEB95191C24 /* hw_font_icons_materialicons.otf */,
 			);
 			path = ThemedCounterHomeWidget;
 			sourceTree = "<group>";
@@ -1378,6 +1381,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8B0AC1C3858B1962EF5E58B5 /* hw_font_icons_materialicons.otf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

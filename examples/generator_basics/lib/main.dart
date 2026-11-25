@@ -279,13 +279,18 @@ class _HomePageState extends State<_HomePage> {
         ),
 
         // -------------------------------------------------------------------
-        // Themed Counter: single HWInt, increment & push.
+        // Themed Counter: HWInt count in a runtime accent color, with an icon
+        // and a caption per appearance.
         // -------------------------------------------------------------------
         WidgetSection(
           title: 'Themed Counter',
           description:
-              'An inline UI reading HWInt(\'count\'), with role-based styles '
-              'and a themed background that flips with the system appearance.',
+              'The count is drawn in an accent the app saves, one color for '
+              'light and one for dark mode. The sun or moon icon and the '
+              'caption follow the appearance too; on a Tinted or Clear iOS '
+              'Home Screen the caption has its own layout. On Android the '
+              'colors and the icon switch live, the caption at the next '
+              'widget update.',
           isInstalled: ThemedCounterHomeWidget.isInstalled,
           isRequestPinWidgetSupported:
               ThemedCounterHomeWidget.isRequestPinWidgetSupported,
@@ -302,6 +307,53 @@ class _HomePageState extends State<_HomePage> {
                   await ThemedCounterHomeWidget.updateWidget();
                 },
               ),
+            ),
+            FutureBuilder(
+              future: ThemedCounterHomeWidget.getData(),
+              builder: (context, snapshot) {
+                final data = snapshot.data;
+                if (data == null) {
+                  return const ListTile(title: Text('Loading…'));
+                }
+                return Column(
+                  children: [
+                    const ListTile(
+                      title: Text('Accent color'),
+                      subtitle: Text(
+                        'saveData(accentLight, accentDark) + updateWidget(). '
+                        'Each swatch saves a color for light and one for dark '
+                        'mode.',
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Wrap(
+                        alignment: WrapAlignment.center,
+                        children: [
+                          for (final (name, light, dark) in _accents)
+                            IconButton(
+                              icon: Icon(
+                                light == data.accentLight
+                                    ? Icons.check_circle
+                                    : Icons.circle,
+                                color: light,
+                              ),
+                              tooltip: name,
+                              onPressed: () async {
+                                await ThemedCounterHomeWidget.saveData(
+                                  accentLight: light,
+                                  accentDark: dark,
+                                );
+                                await ThemedCounterHomeWidget.updateWidget();
+                                if (mounted) setState(() {});
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -956,6 +1008,13 @@ class _HomePageState extends State<_HomePage> {
   }
 
   static const _topics = ['Widgets', 'Links', 'Launches'];
+
+  static const _accents = [
+    ('Blue', Color(0xFF1D4ED8), Color(0xFF93C5FD)),
+    ('Green', Color(0xFF15803D), Color(0xFF86EFAC)),
+    ('Rose', Color(0xFFBE123C), Color(0xFFFDA4AF)),
+    ('Amber', Color(0xFFB45309), Color(0xFFFCD34D)),
+  ];
 
   static const _weekForecast = [
     (WeekForecastConditionIcon.wbSunny, 21),

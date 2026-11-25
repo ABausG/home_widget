@@ -8,6 +8,9 @@ import 'package:home_widget_generator/home_widget_generator.dart';
 ///   runtime via `saveData(picture: ...)`. Until that happens the
 ///   `HWDataExists` branch shows a placeholder text — except in the widget
 ///   gallery, where `previewAsset: 'assets/dash.png'` stands in for it.
+///   `iosAccentedRendering: HWAccentedRendering.fullColor` keeps that picture
+///   in its own colors on a Tinted or Clear iOS Home Screen (iOS 18+), where
+///   images are otherwise flattened to the tint.
 /// - `HWImage(HWTimedData(HWImageData('slide')))` renders one image per
 ///   timestamp: the app hands `saveData(timedData: {...})` an `ImageProvider`
 ///   for each slot and the widget swaps them on its own.
@@ -44,6 +47,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
               height: 64,
               fit: HWImageFit.cover,
               semanticLabel: 'Picture saved by the app',
+              iosAccentedRendering: HWAccentedRendering.fullColor,
             ),
             whenAbsent: HWText(
               HWString.fixed('Open the app to pick an image'),

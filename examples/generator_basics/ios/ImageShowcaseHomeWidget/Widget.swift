@@ -79,8 +79,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
       Group {
         if hwImageExists(entry.data.picture) {
           if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
-            Image(uiImage: uiImage)
-              .resizable()
+            hwAccentedRendering(Image(uiImage: uiImage).resizable(), "fullColor")
               .aspectRatio(contentMode: .fill)
               .frame(width: 64.0, height: 64.0)
               .clipped()
@@ -268,6 +267,17 @@ struct ImageShowcaseContactJsonData {
       name: (values["name"] as? String) ?? "",
     )
   }
+}
+
+func hwAccentedRendering(_ image: Image, _ mode: String) -> AnyView {
+  guard #available(iOS 18.0, *) else { return AnyView(image) }
+  let modes: [String: WidgetAccentedRenderingMode] = [
+    "accented": .accented,
+    "desaturated": .desaturated,
+    "accentedDesaturated": .accentedDesaturated,
+    "fullColor": .fullColor,
+  ]
+  return AnyView(image.widgetAccentedRenderingMode(modes[mode]))
 }
 
 func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> UIImage? {

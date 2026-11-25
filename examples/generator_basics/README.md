@@ -15,8 +15,13 @@ small and each one demonstrates a different feature of the generator:
   the `large` column.
 - `simple_data.dart` – a data-only widget that exposes typed `saveData` /
   `getData` helpers on the Dart side.
-- `themed_counter.dart` – an inline UI that reads data, uses role-based colors
-  and a themed background.
+- `themed_counter.dart` – a counter that follows the system appearance: a
+  light/dark background, the count in an accent the app saves at runtime
+  (`HWAppearanceData` of two stored `HWColor`s), a sun or moon icon
+  (`HWAppearanceData` of fixed icons) and a caption with one layout per
+  appearance, including the iOS Tinted / Clear Home Screen
+  (`HWAppearanceAdaptive`). On Android the colors and the icon switch live,
+  the caption at the next widget update.
 - `conditional_status.dart` – a widget that branches on whether data is present
   using `HWDataExists` and `HWBoolConditional`.
 - `localized_greeting.dart` – translated body text and gallery entry via
@@ -38,7 +43,9 @@ small and each one demonstrates a different feature of the generator:
   pictures on a schedule, and an image read out of a JSON group
   (`HWImage(HWJson('contact', HWImageData('avatar')))`) so a name and a picture
   travel together. The runtime image sets `previewAsset` so the gallery shows
-  a picture before the app has saved one.
+  a picture before the app has saved one, and
+  `iosAccentedRendering: HWAccentedRendering.fullColor` so it keeps its colors
+  on a Tinted or Clear iOS Home Screen.
 - `number_date_formatting.dart` – locale-aware formatting: `HWText.number` with
   `HWNumberFormat.decimal` / `.percent` / `.compact`, a currency whose ISO code
   comes from data (`HWCurrency.data(HWString('currency'))`), a hardcoded but
