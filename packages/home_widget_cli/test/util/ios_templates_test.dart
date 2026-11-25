@@ -54,7 +54,7 @@ void main() {
     final out = iosWidgetSwiftTemplate(
       widgetClassName: 'LinkedHomeWidget',
       appGroupId: 'group.linked',
-      widgetUrl: 'myapp://linked?homeWidget',
+      widgetUrl: 'URL(string: "myapp://linked?homeWidget")',
       entryViewBody: '    Text("placeholder")',
     );
 

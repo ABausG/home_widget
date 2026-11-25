@@ -17,6 +17,8 @@ import '../util/exit_codes.dart';
 import '../util/logger.dart';
 import '../validation/asset_validator.dart';
 import '../validation/font_validator.dart';
+import '../validation/home_widget_version.dart';
+import '../validation/widget_data_validator.dart';
 
 /// Command that generates native widget code from annotated Dart schemas.
 class GenerateCommand extends Command<int> {
@@ -116,6 +118,8 @@ class GenerateCommand extends Command<int> {
       return ExitCodes.success;
     }
 
+    warnAboutSharedLaunchUrls([for (final item in specs) item.spec]);
+
     // Asset images are resolved against the project on disk, so this can only
     // run once the whole project root is known (unlike validateWidgetData,
     // which runs inside the parser). The Xcode project is checked here as well,
@@ -125,6 +129,7 @@ class GenerateCommand extends Command<int> {
       for (final item in specs) {
         validateAssets(item.spec, Directory.current);
         validateFonts(item.spec, Directory.current);
+        validateLaunchSupport(item.spec, Directory.current);
         await IosGenerator(spec: item.spec, projectRoot: Directory.current)
             .checkXcodeProject();
       }

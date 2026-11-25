@@ -62,6 +62,10 @@ final initial = await HomeWidget.initialLaunch(decodeLaunch);
 
 `initialLaunch` does not mark the initial launch as delivered, so a `launches` Stream listened to afterwards emits it again. Use one of the two for the initial launch, not both.
 
+<Info>
+Widgets generated with `home_widget_generator` get typed versions of both helpers. See [Widget Clicks](/generator/widget-url).
+</Info>
+
 ## Platform Setup
 
 In the following section you can learn how to add the necessary configurations to your native Widgets in order for clicks to be detectable by home_widget.

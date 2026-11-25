@@ -405,9 +405,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
         widgetClassName: widgetClassName,
         appGroupId: groupId,
         flavorAppGroupIds: flavorAppGroupIds,
-        widgetUrl: spec.iosWidgetUrl == null
-            ? null
-            : escapeSwiftStringLiteral(spec.iosWidgetUrl!),
+        widgetUrl: spec.iosWidgetUrl?.toSwift(dataExpr),
         // The redacted placeholder is built from the same sample data as the
         // gallery preview, with no store to read at build time. A widget that
         // re-resolves at render still re-reads there, so with live preview data

@@ -2,12 +2,36 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint
 
-import 'dart:async';
-import 'dart:io';
 import 'package:home_widget/home_widget.dart';
 
 class WidgetLinkHomeWidget {
   const WidgetLinkHomeWidget._();
+
+  static const String _$appGroupId = 'group.es.antonborri.generatorBasics';
+
+  static const String _$paramPrefix = 'home_widget.WidgetLink';
+
+  static Future<void> saveData({
+    String? topic,
+  }) {
+    return Future.wait([
+      if (topic != null) HomeWidget.saveWidgetData<String>('${_$paramPrefix}.topic', topic, appGroupId: _$appGroupId),
+    ]);
+  }
+
+  static Future<void> deleteData({
+    bool topic = false,
+  }) {
+    return Future.wait([
+      if (topic) HomeWidget.saveWidgetData('${_$paramPrefix}.topic', null, appGroupId: _$appGroupId),
+    ]);
+  }
+
+  static Future<({String? topic})> getData() async {
+    return (
+      topic: await HomeWidget.getWidgetData<String>('${_$paramPrefix}.topic', defaultValue: 'Widgets', appGroupId: _$appGroupId),
+    );
+  }
 
 
   static Future<bool?> updateWidget() {
@@ -73,86 +97,163 @@ class WidgetLinkHomeWidget {
     return info.iOSKind == 'WidgetLinkHomeWidget';
   }
 
-  /// The URL a tap on the widget opens the app with, as the app
-  /// will receive it.
-  ///
-  /// The configured `widgetUrl` carrying the `homeWidget` query
-  /// parameter, parsed — so its scheme is lower-cased, exactly like
-  /// the URL handed to the app.
-  static final Uri widgetUrl = Uri.parse('generatorBasics://link?homeWidget');
+  /// The tap on this widget the app was started by, or null when it was
+  /// started any other way.
+  static Future<WidgetLinkLaunch?> initialLaunch() => HomeWidget.initialLaunch(WidgetLinkLaunch.fromUri);
 
-  /// The URL the app was launched with by a tap on the widget, or null
-  /// when it was started any other way.
+  /// Every tap on this widget that opens the app.
   ///
-  /// Only the URL this widget opens on the platform the app is running
-  /// on is reported; a tap on any other widget is not.
-  static Future<Uri?> initiallyLaunchedFromWidget() async {
-    final uri = await HomeWidget.initiallyLaunchedFromHomeWidget();
-    if (uri == null || !_$matchesWidgetUrl(uri)) {
+  /// Emits the tap that started the app, if one did and no listener was handed
+  /// it yet, then every tap while the app runs. A tap is told by its URL: one
+  /// opening a URL this widget does not open is not reported, and another
+  /// widget opening the same URL is reported here too.
+  static Stream<WidgetLinkLaunch> launches() => HomeWidget.launches(WidgetLinkLaunch.fromUri);
+}
+
+/// A tap on the Widget Link widget that opened the app.
+sealed class WidgetLinkLaunch {
+  const WidgetLinkLaunch();
+
+  /// The launch [uri] stands for, or null when it is not a URL this widget
+  /// opens the app with, or is malformed.
+  ///
+  /// Of two launches whose URLs differ in their query parameters alone, the
+  /// one writing more of them is matched first. Query parameters the launch
+  /// does not know are ignored.
+  static WidgetLinkLaunch? fromUri(Uri uri) => WidgetLinkWidgetTap._$fromUri(uri) ?? WidgetLinkTopicLink._$fromUri(uri) ?? WidgetLinkSettingsLink._$fromUri(uri);
+
+  /// The URL the widget opens the app with for this launch.
+  Uri toUri();
+}
+
+/// A tap on the Widget Link widget itself.
+final class WidgetLinkWidgetTap extends WidgetLinkLaunch {
+  const WidgetLinkWidgetTap();
+
+  static final Uri _$url = Uri.parse('generatorBasics://link?homeWidget');
+
+  static WidgetLinkWidgetTap? _$fromUri(Uri uri) {
+    try {
+      if (!_$matchesPayloadUrl(uri, _$url)) return null;
+      return const WidgetLinkWidgetTap();
+    } on FormatException {
+      return null;
+    } on ArgumentError {
       return null;
     }
-    return uri;
   }
 
-  /// The URL of every tap on the widget while the app is running.
-  ///
-  /// A tap that started the app in the first place is not replayed here
-  /// — read [initiallyLaunchedFromWidget] for that one, or listen to
-  /// [launchedFromWidget] for both.
-  ///
-  /// Only the URL this widget opens on the platform the app is running
-  /// on is reported; a tap on any other widget is not.
-  static Stream<Uri> get widgetClicked =>
-      HomeWidget.widgetClicked
-          .where((uri) => uri != null && _$matchesWidgetUrl(uri))
-          .cast<Uri>();
+  @override
+  Uri toUri() => _$url;
 
-  /// Every tap on the widget, launch included.
-  ///
-  /// Yields the launch URL first when the app was started by a tap on
-  /// the widget, then every tap that follows while it runs. Taps landing
-  /// while the launch URL is still being read are kept, not dropped.
-  ///
-  /// Only the URL this widget opens on the platform the app is running
-  /// on is reported; a tap on any other widget is not.
-  static Stream<Uri> launchedFromWidget() async* {
-    final clicks = StreamController<Uri>();
-    final subscription = HomeWidget.widgetClicked.listen(
-      (uri) {
-        if (uri != null && _$matchesWidgetUrl(uri)) clicks.add(uri);
-      },
-      onDone: clicks.close,
-    );
+  @override
+  bool operator ==(Object other) => other is WidgetLinkWidgetTap;
+
+  @override
+  int get hashCode => (WidgetLinkWidgetTap).hashCode;
+
+  @override
+  String toString() => 'WidgetLinkWidgetTap()';
+}
+
+/// A tap on the `topic` link of the Widget Link widget.
+final class WidgetLinkTopicLink extends WidgetLinkLaunch {
+  const WidgetLinkTopicLink({this.topic = 'Widgets', this.position = 1});
+
+  final String topic;
+  final int position;
+
+  static final Uri _$url = Uri.parse('generatorBasics://topic?homeWidget');
+
+  static WidgetLinkTopicLink? _$fromUri(Uri uri) {
     try {
-      final initial = await HomeWidget.initiallyLaunchedFromHomeWidget();
-      if (initial != null && _$matchesWidgetUrl(initial)) yield initial;
-      yield* clicks.stream;
-    } finally {
-      await subscription.cancel();
-      await clicks.close();
+      if (!_$matchesPayloadUrl(uri, _$url)) return null;
+      final query = uri.queryParameters;
+      return WidgetLinkTopicLink(topic: query['topic'] ?? 'Widgets', position: _$payloadInt(query['position']) ?? 1);
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
     }
   }
 
-  /// Whether [uri] is the URL this platform's widget opens.
-  ///
-  /// Schemes are compared case-insensitively: the URL reaches the app parsed,
-  /// which lower-cases the scheme it was written with.
-  static bool _$matchesWidgetUrl(Uri uri) {
-    final url = _$platformWidgetUrl;
-    if (url == null) return false;
-    return _$lowerCaseScheme(uri) == _$lowerCaseScheme(url);
-  }
+  @override
+  Uri toUri() => _$payloadUri('generatorBasics://topic', {'topic': topic, 'position': position.toString()}, 'homeWidget', '');
 
-  /// The URL the widget opens on the platform the app is running on, or
-  /// null where it opens none.
-  static Uri? get _$platformWidgetUrl {
-    if (Platform.isAndroid) return widgetUrl;
-    if (Platform.isIOS) return widgetUrl;
-    return null;
-  }
+  @override
+  bool operator ==(Object other) => other is WidgetLinkTopicLink && other.topic == this.topic && other.position == this.position;
 
-  static String _$lowerCaseScheme(Uri uri) {
-    final text = uri.toString();
-    return uri.scheme.toLowerCase() + text.substring(uri.scheme.length);
-  }
+  @override
+  int get hashCode => Object.hashAll([WidgetLinkTopicLink, this.topic, this.position]);
+
+  @override
+  String toString() => 'WidgetLinkTopicLink(topic: $topic, position: $position)';
 }
+
+/// A tap on the `settings` link of the Widget Link widget.
+final class WidgetLinkSettingsLink extends WidgetLinkLaunch {
+  const WidgetLinkSettingsLink();
+
+  static final Uri _$url = Uri.parse('generatorBasics://settings?homeWidget');
+
+  static WidgetLinkSettingsLink? _$fromUri(Uri uri) {
+    try {
+      if (!_$matchesPayloadUrl(uri, _$url)) return null;
+      return const WidgetLinkSettingsLink();
+    } on FormatException {
+      return null;
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  @override
+  Uri toUri() => _$url;
+
+  @override
+  bool operator ==(Object other) => other is WidgetLinkSettingsLink;
+
+  @override
+  int get hashCode => (WidgetLinkSettingsLink).hashCode;
+
+  @override
+  String toString() => 'WidgetLinkSettingsLink()';
+}
+
+/// Whether [uri] is the URL [url] with any payload: scheme, authority, path
+/// and fragment are the same, and every query parameter of [url] is there.
+bool _$matchesPayloadUrl(Uri uri, Uri url) {
+  if (uri.scheme != url.scheme ||
+      uri.authority != url.authority ||
+      uri.path != url.path ||
+      uri.fragment != url.fragment) {
+    return false;
+  }
+  final query = uri.queryParametersAll;
+  for (final entry in url.queryParametersAll.entries) {
+    if (entry.key == 'homeWidget') continue;
+    final values = query[entry.key];
+    if (values == null || values.length != entry.value.length) return false;
+    for (var index = 0; index < values.length; index++) {
+      if (values[index] != entry.value[index]) return false;
+    }
+  }
+  return true;
+}
+
+/// [head] with every value of [payload] that is there appended as a query
+/// parameter, then [marker] and [fragment].
+Uri _$payloadUri(String head, Map<String, String?> payload, String marker, String fragment) {
+  final url = StringBuffer(head);
+  var separator = head.contains('?') ? '&' : '?';
+  payload.forEach((name, value) {
+    if (value == null) return;
+    url.write('$separator$name=${Uri.encodeComponent(value)}');
+    separator = '&';
+  });
+  if (marker.isNotEmpty) url.write('$separator$marker');
+  url.write(fragment);
+  return Uri.parse(url.toString());
+}
+
+int? _$payloadInt(String? value) => value == null ? null : int.tryParse(value);

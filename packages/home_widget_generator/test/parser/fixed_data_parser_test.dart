@@ -119,7 +119,7 @@ String? _fixedFormOf(HWDataType<dynamic> type) => switch (type) {
       HWDateTime() => 'date',
       HWImageData() => 'image',
       HWIconData() => 'icon',
-      HWJson() || HWTimedData() || HWItemData() => null,
+      HWJson() || HWTimedData() || HWItemData() || HWPayload() => null,
     };
 
 /// Whether the fixed form of [type] stays a data dependency of the widget
@@ -135,7 +135,7 @@ bool? _fixedFormIsDataDependency(HWDataType<dynamic> type) => switch (type) {
       HWDateTime() => false,
       HWImageData() => true,
       HWIconData() => false,
-      HWJson() || HWTimedData() || HWItemData() => null,
+      HWJson() || HWTimedData() || HWItemData() || HWPayload() => null,
     };
 
 /// One stored instance of every concrete data type.
@@ -151,6 +151,7 @@ const _everyDataType = <HWDataType<dynamic>>[
   HWJson('group', HWString('label')),
   HWTimedData(HWString('label')),
   HWItemData(HWString('label')),
+  HWPayload('name', HWString('label')),
 ];
 
 void main() {
@@ -228,6 +229,7 @@ void main() {
               isA<HWJson<dynamic>>(),
               isA<HWTimedData<dynamic>>(),
               isA<HWItemData<dynamic>>(),
+              isA<HWPayload<dynamic>>(),
             ),
           );
           continue;

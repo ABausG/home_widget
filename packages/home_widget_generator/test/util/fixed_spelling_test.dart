@@ -46,6 +46,10 @@ void main() {
         spellFixedValue(const HWItemData(HWString('name'))),
         startsWith('HWItemData'),
       );
+      expect(
+        spellFixedValue(const HWPayload('who', HWString('name'))),
+        startsWith('HWPayload'),
+      );
     });
   });
 }
