@@ -72,7 +72,7 @@ final class CounterDecrementInteraction extends CounterInteraction {
 }
 ```
 
-- `<WidgetClass><Id>Interaction` carries one field per entry of the button's `data`. The id is written in PascalCase.
+- `<WidgetClass><Id>Interaction` carries one field per entry of the button's `data`, or the combined fields when several buttons share the id. The id is written in PascalCase. See [Buttons sharing an id](#buttons-sharing-an-id).
 - Every class has value equality and a readable `toString`.
 - `fromUri` and `toUri` are what the generated code uses to pass a tap from the native widget to Dart. The format of the URL is internal. They are useful in [tests](/generator/interactivity#testing).
 
@@ -103,7 +103,7 @@ case CounterIncrementInteraction(:final step):
   await CounterHomeWidget.saveData(count: count + step);
 ```
 
-`data` follows exactly the rules of the `data` of an `HWLink`: stored `HWString`, `HWInt`, `HWDouble`, `HWBool` and `HWDateTime` values, `HWJson` leaves, `HWTimedData`, `HWItemData` inside a builder item, and `HWPayload(name, value)` to name a fixed value or rename a stored one. The fields are typed and nullable the same way. See [Sending data](/generator/widgets/hw-link#sending-data) on the `HWLink` page and [Payloads](/generator/data#payloads) for the allowed types, the naming rules and the nullability of the generated fields.
+For a single button, `data` follows exactly the rules of the `data` of an `HWLink`: stored `HWString`, `HWInt`, `HWDouble`, `HWBool` and `HWDateTime` values, `HWJson` leaves, `HWTimedData`, `HWItemData` inside a builder item, and `HWPayload(name, value)` to name a fixed value or rename a stored one. The fields are typed and nullable the same way. Only buttons can share an `id`; link ids stay unique because a link id names one URL. See [Sending data](/generator/widgets/hw-link#sending-data) on the `HWLink` page and [Payloads](/generator/data#payloads) for the allowed types, the naming rules and the nullability of the generated fields.
 
 A value the widget reads only for a payload is a stored field like any other. It appears in `saveData` and `getData` even when nothing displays it.
 
@@ -124,6 +124,104 @@ case CounterIncrementInteraction(:final count):
 ```
 
 Read state from `getData()` inside the function instead, as the example at the top does.
+
+## Buttons sharing an id
+
+Several `HWButton`s in one widget can use the same `id` anywhere in the widget tree: next to each other, in list rows, in conditional branches or in `HWSizeAdaptive` slots. Each button keeps its own `data`, and all of them reach `onInteraction` as the one generated class for that id.
+
+```dart
+@HomeWidget(
+  name: 'Water',
+  onInteraction: onWaterInteraction,
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(groupId: 'group.com.example.app'),
+  widget: HWColumn(
+    children: [
+      HWText.number(HWInt('total', defaultValue: 0)),
+      HWRow(
+        spacing: 12,
+        children: [
+          HWButton(
+            'logDrink',
+            data: [HWPayload('amount', HWInt.fixed(250))],
+            child: HWText(HWString.fixed('250 ml')),
+          ),
+          HWButton(
+            'logDrink',
+            data: [HWPayload('amount', HWInt.fixed(500))],
+            child: HWText(HWString.fixed('500 ml')),
+          ),
+        ],
+      ),
+    ],
+  ),
+)
+class Water {}
+```
+
+Both buttons share `WaterLogDrinkInteraction`:
+
+```dart
+final class WaterLogDrinkInteraction extends WaterInteraction {
+  const WaterLogDrinkInteraction({this.amount});
+
+  final int? amount;
+}
+```
+
+The handler still has one `case` for the id:
+
+```dart
+case WaterLogDrinkInteraction(:final amount):
+  await WaterHomeWidget.saveData(total: total + (amount ?? 0));
+```
+
+The class gets one field for every payload name any button of that id sends, in the order the names first appear in the widget tree. What the buttons send under a name decides the field's nullability and default:
+
+| Across the buttons of the id | Generated field |
+| --- | --- |
+| Every button sends it, all falling back on the same value | Non-nullable, with that value as the constructor default, such as `this.step = 5`. |
+| Every button sends it as a value that is never null, but the values differ | Nullable, with no default. |
+| At least one button sends it as a stored value without `defaultValue` | Nullable, with no default. |
+| At least one button does not send that name at all | Nullable, with no default. |
+
+A field is non-nullable only when every button of the id sends it as a fixed value or a stored value with a `defaultValue` written on that entry, and every button falls back on the same value. Each entry is judged by its own `defaultValue`, as for a single button.
+
+"The same value" is compared by value: `HWInt.fixed(5)` on one button and `HWInt('step', defaultValue: 5)` on another share the default `5`. Fixed `HWDateTime` values are the same when they name the same UTC millisecond.
+
+When every button sends the same fixed `HWDateTime` instant, the field is non-nullable and its constructor parameter is `required`, because a `DateTime` is not a constant; `fromUri` still falls back on that instant. When the instants differ, the field is nullable.
+
+The same holds when buttons mix fixed values, stored values without a default or different field names:
+
+```dart
+HWButton(
+  'logDrink',
+  data: [HWPayload('amount', HWInt.fixed(250))],
+  child: ...,
+)
+
+HWButton(
+  'logDrink',
+  data: [
+    HWPayload('amount', HWInt('customAmount')), // stored, no default
+    HWPayload('source', HWString.fixed('custom')), // only this button
+  ],
+  child: ...,
+)
+```
+
+```dart
+final class WaterLogDrinkInteraction extends WaterInteraction {
+  const WaterLogDrinkInteraction({this.amount, this.source});
+
+  final int? amount;
+  final String? source;
+}
+```
+
+`null` does not say which button was tapped: a button that does not send a name and one whose stored value is missing both produce `null`. To tell buttons apart, send a fixed value on each, such as `HWPayload('size', HWString.fixed('small'))`, or use different ids.
+
+A name has one type across all buttons of an id. Sending `amount` as an `HWInt` on one button and as an `HWString` or `HWDouble` on another is a generation error. An `HWInt` is not widened to a `double`; `HWDouble.fixed(250)` takes whole numbers, so use `HWDouble` on every button for a name that also carries fractions. To resolve a conflict, send the name as the same type on every button, send one of them under another name with `HWPayload`, or give the buttons different ids.
 
 ## Buttons in list rows
 
@@ -207,9 +305,9 @@ Each of these fails generation:
 - An `id` that is not ASCII letters and digits starting with a letter.
 - An `HWButton` inside another `HWButton`.
 - An `HWButton` inside an `HWLink`, or an `HWLink` inside an `HWButton`.
-- Two buttons with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `data`.
-- Two buttons whose ids differ only in letter case, such as `add` and `Add`, wherever they are. Both would generate the same class, but a tap sends the id as written.
-- A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.
+- Two buttons with different ids that generate the same class name, such as `add` and `Add`. Both would generate the same class, but a tap sends the id as written.
+- Buttons sharing an `id` that send a payload name as different types, such as an `HWInt` on one button and an `HWString` or `HWDouble` on another. See [Buttons sharing an id](#buttons-sharing-an-id).
+- A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid name, a name repeated within one button, or an `HWItemData` outside a builder item.
 - An `onInteraction` function the generated code cannot call. See [The function](/generator/interactivity#the-function).
 
 `onInteraction` on a widget without any `HWButton` is a warning.
