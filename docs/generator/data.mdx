@@ -198,7 +198,7 @@ HWTextStyle(
 )
 ```
 
-It creates no stored field of its own — each stored side is an independent parameter on the generated helper. It must always be the outermost wrapper (`HWAppearanceData(light: HWTimedData(...), dark: HWTimedData(...))`, never `HWTimedData(HWAppearanceData(...))`), and is not allowed in tap payloads. See [Appearance](/generator/appearance) for selection order, missing-variant fallbacks, and platform switching behavior.
+It creates no stored field of its own — each stored side is an independent parameter on the generated helper. It must always be the outermost wrapper (`HWAppearanceData(light: HWTimedData(...), dark: HWTimedData(...))`, never `HWTimedData(HWAppearanceData(...))`), and is not allowed in tap payloads or [`HWDataOnly`](/generator/widgets/hw-data-only) (list the stored fields of its sides instead). See [Appearance](/generator/appearance) for selection order, missing-variant fallbacks, and platform switching behavior.
 
 ## Image data
 

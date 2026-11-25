@@ -216,4 +216,6 @@ HWAppearanceData(light: HWColor.fixed(0xFF000000), dark: HWColor.fixed(0xFFFFFFF
 
 A pair of two `HWColor.fixed` colors renders as before on both platforms. On Android, a pair with an `HWDefaultColor` on one side rendered that side white. It now renders the role's color.
 
+On Android, a migrated `HWColor.themed` with a non-fixed side (such as `HWDefaultColor`) — like any `HWAppearanceData` color with a non-fixed side — needs `home_widget` 0.10.1 or newer; only a pair of two `HWColor.fixed` colors does not. When `pubspec.lock` resolves an older hosted version, generation fails with a message naming the widget and asking you to raise the constraint and run `flutter pub get`.
+
 [`HWColor`](/generator/styling/hw-color) is now a data type, and every color slot is typed `HWDataType<int>`. The constant forms `HWColor.fixed`, `HWFixedColor` and `HWDefaultColor` are unchanged. A color no longer emits code of its own: `toSwift`, `toKotlin` and `kotlinImports` are gone from `HWColor`.

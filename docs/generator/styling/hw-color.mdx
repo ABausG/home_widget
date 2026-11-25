@@ -134,12 +134,16 @@ When a stored color has no saved value, the widget resolves:
 | Slot | When no value is stored and no `defaultValue` is set |
 | --- | --- |
 | `HWTextStyle.color`, `HWIcon.color` | Default content color (`Color.primary` on iOS, `GlanceTheme.colors.onSurface` on Android). |
-| `HWColoredBox.color`, `HWBoxDecoration.color` | Transparent fill; layout stays unchanged. |
+| `HWColoredBox.color`, `HWBoxDecoration.color` | Transparent fill; layout stays unchanged (on Android, a box that also has a border shows the border color across the whole box — see below). |
 | `HWBoxBorder.color` | Transparent stroke; the border keeps its inset. |
 | `HomeWidgetAndroidConfiguration.backgroundColor` | Platform default widget background (`GlanceTheme.colors.widgetBackground`). |
 | `HomeWidgetIOSConfiguration.backgroundColor` | Platform default container background. |
 
-A stored transparent color (`const Color(0x00000000)` / `Colors.transparent`) is a value, not missing. Text, icons, and fills draw transparent; on iOS, a transparent widget `backgroundColor` shows a plain platter rather than the Home Screen wallpaper.
+A stored transparent color (`const Color(0x00000000)` / `Colors.transparent`) is a value, not missing. Text, icons, and fills draw transparent; on iOS, a transparent widget `backgroundColor` shows a plain platter rather than the Home Screen wallpaper. On Android, a key that holds a non-integer value (for example, a string saved by an older version of the app) reads as missing instead of breaking the widget.
+
+<Warning>
+On Android, an [`HWBoxDecoration`](/generator/styling/hw-box-decoration) with a border draws the border color across the whole box whenever nothing opaque covers the center — with no `color`, a transparent fill, or a stored fill that is missing. Give a stored fill an opaque `defaultValue` when the box also has a border.
+</Warning>
 
 ## Colors in JSON, timed data, and lists
 

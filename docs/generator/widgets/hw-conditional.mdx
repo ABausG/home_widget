@@ -11,7 +11,7 @@ description: Render one of two branches based on widget data.
 
 ### HWDataExists
 
-Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any stored [`HWDataType`](/generator/data), as well as an [`HWAppearanceData`](/generator/appearance#conditionals) whose `light` and `dark` sides are stored fields (true when the selected variant after the missing-variant chain has a value). For an [`HWImageData`](/generator/widgets/hw-image) it also checks that the saved picture is still there, so the `whenAbsent` placeholder shows instead of an empty gap.
+Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any stored [`HWDataType`](/generator/data), as well as an [`HWAppearanceData`](/generator/appearance#conditionals) whose `light` and `dark` sides are stored fields: each side counts as present the way a standalone `HWDataExists` on it would (a stored side while it is stored — a `defaultValue` on an unsaved `HWJson` leaf does not make it present; a constant side in `iosAccented` or `iosVibrant` is always present; an `HWImageData.asset` side is present when the asset exists). For a runtime [`HWImageData`](/generator/widgets/hw-image) it also checks that the saved picture is still there, so the `whenAbsent` placeholder shows instead of an empty gap.
 
 `HWDataExists({required HWDataType data, required HWWidget whenPresent, required HWWidget whenAbsent})`
 

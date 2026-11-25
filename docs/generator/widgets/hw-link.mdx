@@ -162,11 +162,11 @@ HWSizeAdaptive(
 )
 ```
 
-An `HWLink` that **is** the whole layout of such a family works: the root of the widget tree, or the slot that family resolves to in an `HWSizeAdaptive` at the root. The link may sit in the `ios` branch of an `HWAdaptive`, or inside an `HWPadding`, `HWColoredBox` or `HWDecoratedBox`, which do not change what can be tapped. It is emitted as `.widgetURL(...)` on iOS, and the tap arrives as the link's class. Combining it with a `widgetUrl` on the annotation is a generation error, because both claim the tap on the whole widget.
+An `HWLink` that **is** the whole layout of such a family works: the root of the widget tree, the slot that family resolves to in an [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive), any slot of an [`HWAppearanceAdaptive`](/generator/widgets/hw-appearance-adaptive), or either branch of an [`HWConditional`](/generator/widgets/hw-conditional) (`HWDataExists` or `HWBoolConditional`) at the root, including nested combinations of them. The link may also sit in the `ios` branch of an `HWAdaptive`, or inside an `HWPadding`, `HWColoredBox` or `HWDecoratedBox`, which do not change what can be tapped. It is emitted as `.widgetURL(...)` on iOS, and the tap arrives as the link's class. Combining it with a `widgetUrl` on the annotation is a generation error, because both claim the tap on the whole widget.
 
 ## Android
 
-- An `HWLink` that is the whole layout, found the same way through the `android` branch of an `HWAdaptive`, also covers the padding the generator puts around the widget, unless the widget sets a `widgetUrl`, which keeps that area.
+- An `HWLink` that is the whole layout at the root of the widget tree (optionally inside the `android` branch of an `HWAdaptive`, or inside an `HWPadding`, `HWColoredBox` or `HWDecoratedBox`) also covers the padding the generator puts around the widget, unless the widget sets a `widgetUrl`, which keeps that area.
 - With `HomeWidgetAndroidConfiguration(openAppOnTap: false)` nothing in the widget opens the app, links included. The generator warns when such a widget contains an `HWLink`.
 - When the generator finds no launcher activity, it warns and emits the links without a click action, as it does for `widgetUrl`. See [When no launcher activity is found](/generator/widget-url#when-no-launcher-activity-is-found).
 
@@ -187,7 +187,7 @@ Each of these fails generation:
 - A `url` that is empty, has no scheme, or holds a character a URL cannot hold unescaped, such as a space, a quote or a brace. Percent-encode it.
 - An `HWLink` inside another `HWLink`.
 - An `HWLink` inside an [`HWButton`](/generator/widgets/hw-button), or an `HWButton` inside an `HWLink`.
-- Two links with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or sides of an `HWAdaptive`. They then need the same `url` and the same `data`.
+- Two links with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or `HWAppearanceAdaptive`, or sides of an `HWAdaptive`. They then need the same `url` and the same `data`.
 - Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one that can produce a query parameter written into the other.
 - An `HWLink` that is the whole layout of an iOS single-tap family in a widget that also sets `widgetUrl`.
 - A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.

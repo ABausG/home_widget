@@ -127,7 +127,9 @@ The generated `GlanceAppWidget` overrides `providePreview` for you, built from t
 as the home-screen content. The plugin also registers that preview automatically: whenever a
 Flutter engine attaches, it re-renders and hands over the preview for any generated widget whose
 content changed since the last registration, using a fingerprint of the annotation, the device's
-locale, and — only where the preview reads live data — the values currently in storage. It also
+locale, and — only where the preview reads live data — the values currently in storage. For a
+widget that picks values or layouts by night mode on Android, the fingerprint also includes the
+current night mode, so the preview re-registers when the app starts in the other mode. It also
 re-registers a widget whose preview the system no longer holds, which is the case after an app
 update or a reboot. Android rate-limits preview updates to roughly **two per hour per widget**, so
 this only spends that budget when the gallery would otherwise show something else.

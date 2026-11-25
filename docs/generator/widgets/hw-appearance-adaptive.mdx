@@ -59,7 +59,7 @@ Slots follow the same [selection order](/generator/appearance#selection-order) a
 
 - `HWAppearanceAdaptive` composes with [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive), [`HWAdaptive`](/generator/widgets/hw-adaptive), and [`HWConditional`](/generator/widgets/hw-conditional) in either order.
 - [`HWLink`](/generator/widgets/hw-link) and [`HWButton`](/generator/widgets/hw-button) work inside any slot, and the same link id may appear in multiple slots.
-- On iOS, the layout switches live when the appearance changes. On Android, layout switches take effect at the next widget update — see [When the switch happens](/generator/appearance#when-the-switch-happens).
+- On iOS, the layout switches live between light and dark mode, and renders the matching slot on Tinted, Clear, and Lock Screen placements. On Android, layout switches take effect at the next widget update — see [When the switch happens](/generator/appearance#when-the-switch-happens).
 
 ## Platform mapping
 

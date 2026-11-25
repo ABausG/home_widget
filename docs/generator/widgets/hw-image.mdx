@@ -133,7 +133,7 @@ HWSizedBox.expand(
 Without a box around it, an image without `width` / `height` takes the size of its bitmap on Android, while on iOS it grows to the room it is offered, so give an image either its own size or a box to fill.
 
 <Warning>
-On iOS Lock Screen families (`accessoryCircular`, `accessoryRectangular`, `accessoryInline`), always give an `HWImage` a `width` or `height` (either axis is enough; the other is derived from the image's aspect ratio). An image with neither `width` nor `height` decodes up to a 1536 px cap, which exceeds WidgetKit's Lock Screen image limit (about 1069 × 432 px) and causes WidgetKit to reject the widget.
+On iOS Lock Screen families (`accessoryCircular`, `accessoryRectangular`, `accessoryInline`), the decoded image must stay within WidgetKit's Lock Screen image limit (roughly 1069 × 432 px) in both dimensions, or WidgetKit rejects the widget. Set the `width` or `height` that bounds the image — or both for extreme aspect ratios, since an unset axis is derived from the image's aspect ratio. An image with neither `width` nor `height` decodes up to a 1536 px cap and can exceed the limit.
 </Warning>
 
 ## Getting an image onto the widget
