@@ -39,9 +39,10 @@ class HWIcon extends HWWidget implements HWDataWidget {
   /// The edge length of the rendered glyph, in logical pixels.
   final double size;
 
-  /// The color the glyph is tinted in, or null for the platform's primary
-  /// content color.
-  final HWColor? color;
+  /// The color the glyph is tinted in, any color value, or null for the
+  /// platform's primary content color, which a stored color without a value
+  /// tints in too.
+  final HWDataType<int>? color;
 
   /// Accessibility description of the icon, or null for a decorative one.
   final String? semanticLabel;
@@ -175,12 +176,23 @@ class HWIcon extends HWWidget implements HWDataWidget {
 
   /// The color the glyph is tinted in: [color], or the platform's primary
   /// content color.
-  HWColor get effectiveColor =>
-      color ?? const HWDefaultColor(HWColorRole.contentPrimary);
+  HWDataType<int> get effectiveColor => color ?? hwDefaultContentColor;
 
   @override
-  Set<HWDataType<dynamic>> get dataDependencies =>
-      _dataDependenciesOf([if (data case final data?) data]);
+  Set<HWDataType<dynamic>> get dataDependencies => _dataDependenciesOf([
+        if (data case final data?) data,
+        if (color case final color?) color,
+      ]);
+
+  @override
+  Iterable<HWDataType<dynamic>> get ownValues => [
+        if (data case final data?) data,
+        effectiveColor,
+      ];
+
+  /// The icons [appearance] picks between.
+  static List<HWIconData> _sideIcons(HWAppearanceData<dynamic> appearance) =>
+      [for (final side in appearance.sides) iconLeafOf(side)!];
 
   /// Empty for a fixed icon that never went through the decoder, whose glyph
   /// and font are not known yet.
@@ -192,11 +204,28 @@ class HWIcon extends HWWidget implements HWDataWidget {
         iconFont: {codePoint},
       };
     }
-    final data = iconData;
-    return data == null || data.isFixed
+    final data = this.data;
+    if (data is HWAppearanceData) {
+      return {
+        iconFont: {for (final icon in _sideIcons(data)) ...icon.codePoints},
+      };
+    }
+    final icon = iconData;
+    return icon == null || icon.isFixed
         ? const {}
-        : {iconFont: data.codePoints};
+        : {iconFont: icon.codePoints};
   }
+
+  /// The glyphs an [HWAppearanceData] of icons can pick that mirror in a
+  /// right-to-left layout, or null for any other data form, which asks the
+  /// file-level `hwMirroredIcons` instead.
+  Set<int>? get _pickedMirroredCodePoints => switch (data) {
+        final HWAppearanceData<dynamic> appearance => {
+            for (final icon in _sideIcons(appearance))
+              ...icon.mirroredCodePoints,
+          },
+        _ => null,
+      };
 
   @override
   Set<HWNativeHelper> get renderHelpers => const {HWNativeHelper.hwBundledFont};
@@ -210,12 +239,15 @@ class HWIcon extends HWWidget implements HWDataWidget {
         'import androidx.glance.ImageProvider',
         'import androidx.glance.layout.size',
         'import es.antonborri.home_widget.HomeWidgetFonts',
-        ...effectiveColor.kotlinImports,
+        ...hwKotlinColorImports(
+          effectiveColor,
+          fallback: HWColorSlotDefault.content,
+        ),
       };
 
   @override
   Set<String> get swiftViewModifiers => {
-        ...effectiveColor.swiftViewModifiers,
+        ..._swiftViewModifiersOf(ownValues),
         if (_swiftMirrorCondition != null)
           '@Environment(\\.layoutDirection) var layoutDirection',
       };
@@ -235,7 +267,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
     final size =
         WidgetValueDecoder.getField(obj, 'size')?.toDoubleValue() ?? 24;
     final colorObj = WidgetValueDecoder.getField(obj, 'color');
-    final color = WidgetValueDecoder.decodeColor(colorObj);
+    final color =
+        WidgetValueDecoder.decodeColor(colorObj, slot: 'HWIcon.color');
     final semanticLabel =
         WidgetValueDecoder.getField(obj, 'semanticLabel')?.toStringValue();
     final fontResourcePrefix = decoder.fontResourcePrefix;
@@ -313,7 +346,7 @@ class HWIcon extends HWWidget implements HWDataWidget {
     return [
       '.font($font)',
       '.frame(width: $box, height: $box)',
-      '.foregroundColor(${effectiveColor.toSwift(indent, dataExpr: dataExpr)})',
+      '.foregroundColor(${hwSwiftColor(effectiveColor, dataExpr: dataExpr)})',
       if (semanticLabel != null)
         '.accessibilityLabel("${escapeSwiftStringLiteral(semanticLabel)}")'
       else
@@ -332,6 +365,10 @@ class HWIcon extends HWWidget implements HWDataWidget {
     const rightToLeft = 'layoutDirection == .rightToLeft';
     if (_mirrors) return rightToLeft;
     if (_glyph != null) return null;
+    if (_pickedMirroredCodePoints case final mirrored?) {
+      if (mirrored.isEmpty) return null;
+      return '$rightToLeft && [${_hexCodePoints(mirrored)}].contains(codePoint)';
+    }
     return '$rightToLeft && hwMirroredIcons.contains(codePoint)';
   }
 
@@ -383,7 +420,11 @@ class HWIcon extends HWWidget implements HWDataWidget {
         ? 'null'
         : '"${escapeKotlinStringLiteral(semanticLabel)}"';
     final resource = iconFont.androidResourceName(fontResourcePrefix);
-    final tint = effectiveColor.toKotlin(indent, dataExpr: dataExpr);
+    final tint = hwKotlinColor(
+      effectiveColor,
+      dataExpr: dataExpr,
+      fallback: HWColorSlotDefault.content,
+    );
     final sizeLiteral = hwSizeLiteral(size);
     return 'Image(modifier = GlanceModifier.size($sizeLiteral.dp), '
         'provider = ImageProvider('
@@ -401,8 +442,17 @@ class HWIcon extends HWWidget implements HWDataWidget {
   String get _kotlinMatchTextDirection {
     if (_mirrors) return ', matchTextDirection = true';
     if (_glyph != null) return '';
+    if (_pickedMirroredCodePoints case final mirrored?) {
+      if (mirrored.isEmpty) return '';
+      return ', matchTextDirection = codePoint in '
+          'setOf(${_hexCodePoints(mirrored)})';
+    }
     return ', matchTextDirection = codePoint in hwMirroredIcons';
   }
+
+  /// [codePoints] as sorted hexadecimal literals, which both platforms read.
+  static String _hexCodePoints(Set<int> codePoints) =>
+      (codePoints.toList()..sort()).map(hwCodePointLiteral).join(', ');
 
   @override
   String toKotlin(

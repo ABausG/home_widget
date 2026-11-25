@@ -52,6 +52,7 @@ class DartHelperGenerator {
         "import 'dart:io';",
       if (storesFiles && !hasTimedData && !spec.hasFlavors && handler == null)
         "import 'dart:typed_data';",
+      if (spec.hasColorFields) "import 'dart:ui' show Color, ColorSpace;",
       // An interactive widget logs through `debugPrint` and catches the
       // plugin's `PlatformException`.
       if (hasTimedData || handler != null)
@@ -245,6 +246,7 @@ ${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
       // through the same reader its JSON and timed spellings use.
       for (final field in spec.primitiveDataFields)
         if (field is HWDateTime) _dartReadFunction(field),
+      if (spec.hasColorFields) HWColor.dartDecodeFunction,
     };
     _appendSection(
       buffer,
@@ -2363,6 +2365,12 @@ bool? _readBool(Object? value) => value is bool ? value : null;
 ''');
     }
 
+    if (usedReaders.contains(HWColor.dartDecodeFunction)) {
+      buffer.write('''
+Color? ${HWColor.dartDecodeFunction}(int? argb) => argb == null ? null : Color(argb);
+''');
+    }
+
     // Anything that is not a readable ISO 8601 string comes back as null,
     // the same way the native `hwParseIsoDate` helper answers.
     if (usedReaders.contains('_readDateTime')) {
@@ -2417,6 +2425,8 @@ Map<String, String>? _readTranslations(Object? value) {
     // The stored value is a codepoint; the Dart API hands back the enum value
     // carrying it.
     if (field is HWIconData) return '_readInt';
+    // The stored value is an ARGB integer; the Dart API hands back a Color.
+    if (field is HWColor) return '_readInt';
     return '_readString';
   }
 

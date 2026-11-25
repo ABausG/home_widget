@@ -4,12 +4,23 @@ part of 'hw_widget.dart';
 ///
 /// Maps to SwiftUI `.background(...)` and Glance `Box(modifier = GlanceModifier.background(...))`.
 class HWColoredBox extends HWSingleChildWidget {
-  final HWColor color;
+  /// The color the box paints, any color value; while a stored one has no
+  /// value the box paints nothing and keeps its layout.
+  final HWDataType<int> color;
 
   const HWColoredBox({
     required super.child,
     required this.color,
   });
+
+  @override
+  Set<HWDataType<dynamic>> get dataDependencies => {
+        ...super.dataDependencies,
+        ..._dataDependenciesOf([color]),
+      };
+
+  @override
+  Iterable<HWDataType<dynamic>> get ownValues => [color];
 
   /// The background is injected into the child's own composable, so the child
   /// is still what the enclosing layout lays out.
@@ -18,8 +29,10 @@ class HWColoredBox extends HWSingleChildWidget {
         'import androidx.glance.layout.Box',
         'import androidx.compose.ui.graphics.Color',
         'import androidx.glance.background',
-        if (color is HWThemedColor)
-          'import androidx.glance.color.ColorProvider',
+        ...hwKotlinColorImports(
+          color,
+          fallback: HWColorSlotDefault.transparent,
+        ),
         ...child.kotlinImportsIn(enclosingLinearAxis),
       };
 
@@ -51,10 +64,8 @@ class HWColoredBox extends HWSingleChildWidget {
       );
 
   @override
-  Set<String> get swiftViewModifiers {
-    final modifiers = super.swiftViewModifiers;
-    return modifiers.union(color.swiftViewModifiers);
-  }
+  Set<String> get swiftViewModifiers =>
+      super.swiftViewModifiers.union(_swiftViewModifiersOf([color]));
 
   static HWColoredBox fromDartObject(
     DartObject obj,
@@ -65,7 +76,10 @@ class HWColoredBox extends HWSingleChildWidget {
         ? decoder.decodeRecursive(childField)
         : null;
 
-    final color = WidgetValueDecoder.decodeColor(obj.getField('color'));
+    final color = WidgetValueDecoder.decodeColor(
+      obj.getField('color'),
+      slot: 'HWColoredBox.color',
+    );
 
     if (color == null) {
       // coverage:ignore-start
@@ -90,9 +104,12 @@ class HWColoredBox extends HWSingleChildWidget {
   }) {
     final childCode =
         child.toSwift(indent, dataExpr: dataExpr, context: context);
-    final modifier =
-        '.background(${color.toSwift(indent, dataExpr: dataExpr)})';
-    return applySwiftModifier(childCode, modifier, indent);
+    final background = hwSwiftColor(
+      color,
+      dataExpr: dataExpr,
+      fallback: HWColorSlotDefault.transparent,
+    );
+    return applySwiftModifier(childCode, '.background($background)', indent);
   }
 
   @override
@@ -101,8 +118,12 @@ class HWColoredBox extends HWSingleChildWidget {
     required String dataExpr,
     HWEmitContext? context,
   }) {
-    final modifier =
-        'background(${color.toKotlin(indent, dataExpr: dataExpr)})';
+    final background = hwKotlinColor(
+      color,
+      dataExpr: dataExpr,
+      fallback: HWColorSlotDefault.transparent,
+    );
+    final modifier = 'background($background)';
 
     final childCode =
         child.toKotlin(indent, dataExpr: dataExpr, context: context);

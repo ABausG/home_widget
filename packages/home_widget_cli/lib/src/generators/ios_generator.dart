@@ -345,9 +345,14 @@ struct ${widgetClassName}Entry: TimelineEntry {
     final customBgColor = spec.data.iOS?.backgroundColor;
     final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
     final hasCustomBg = customBgColor != null;
-    final containerBackgroundModifier = hasCustomBg
-        ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
-        : '.applyContainerBackground()';
+    final hasOptionalBg =
+        customBgColor != null && !hwIsConstantColor(customBgColor);
+    final containerBackgroundModifier = switch (customBgColor) {
+      null => '.applyContainerBackground()',
+      final color => '.applyContainerBackground('
+          '${hasOptionalBg ? 'optional: ' : ''}'
+          '${hwSwiftColor(color, dataExpr: dataExpr)})',
+    };
 
     final viewBuffer = StringBuffer();
     if (reResolveAtRender) {
@@ -456,6 +461,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
           if (customBgColor != null) ...customBgColor.swiftViewModifiers,
         },
         hasCustomContainerBackground: hasCustomBg,
+        hasOptionalContainerBackground: hasOptionalBg,
         applyContentPadding: applyPadding,
       ),
     );

@@ -250,19 +250,20 @@ void _validateFixedData(WidgetSpec spec) {
     }
 
     if (widget is! HWText) continue;
-    final field = widget.dataType;
-    if (field is HWDouble) {
-      final value = field.fixedValue;
-      if (value != null && !value.isFinite) {
-        throw GeneratorError(
-          'Widget "${spec.data.name}": HWDouble.fixed($value) is not a finite '
-          'number, so there is no literal to write into the widget. Use a '
-          'finite value.',
-        );
+    for (final field in widget.dataType.readValues) {
+      if (field is HWDouble) {
+        final value = field.fixedValue;
+        if (value != null && !value.isFinite) {
+          throw GeneratorError(
+            'Widget "${spec.data.name}": HWDouble.fixed($value) is not a '
+            'finite number, so there is no literal to write into the widget. '
+            'Use a finite value.',
+          );
+        }
       }
-    }
-    if (field is HWDateTime) {
-      _validateFixedDateTime(field, subject: 'Widget "${spec.data.name}"');
+      if (field is HWDateTime) {
+        _validateFixedDateTime(field, subject: 'Widget "${spec.data.name}"');
+      }
     }
   }
 }
@@ -450,6 +451,11 @@ void _validateConditionalData(WidgetSpec spec) {
     if (widget is! HWDataExists) continue;
     final data = widget.data.unwrapped;
 
+    if (data is HWAppearanceData) {
+      _validateAppearanceExists(spec, data);
+      continue;
+    }
+
     if (data is HWImageData && data.isAsset) {
       throw GeneratorError(
         'Widget "${spec.data.name}": HWDataExists cannot test '
@@ -481,6 +487,36 @@ void _validateConditionalData(WidgetSpec spec) {
       'A localized string always has a value — its compiled default — so the '
       'check is always true and the whenAbsent branch is never rendered. Use a '
       'plain HWString if you want to switch on whether a value is present.',
+    );
+  }
+}
+
+/// Rejects an [HWDataExists] testing an [HWAppearanceData] whose `light` or
+/// `dark` side always has a value: every pick falls back to both of them, so
+/// the check would always be true.
+void _validateAppearanceExists(
+  WidgetSpec spec,
+  HWAppearanceData<dynamic> appearance,
+) {
+  for (final (name, side) in [
+    ('light', appearance.light),
+    ('dark', appearance.dark),
+  ]) {
+    final value = side.unwrapped;
+    final String? always = switch (value) {
+      HWLocalizedString(:final isConstant) => isConstant
+          ? 'HWString.localizedFixed'
+          : 'HWString.localized("${value.key}")',
+      _ when value.isFixed => _spellFixed(value),
+      _ => null,
+    };
+    if (always == null) continue;
+    throw GeneratorError(
+      'Widget "${spec.data.name}": HWDataExists cannot test an '
+      'HWAppearanceData whose $name side is $always. That side always has a '
+      'value, and every other side falls back to it, so the check is always '
+      'true and the whenAbsent branch is never rendered. Test stored fields '
+      'on both the light and the dark side.',
     );
   }
 }

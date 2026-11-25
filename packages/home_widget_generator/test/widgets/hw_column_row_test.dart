@@ -1462,8 +1462,10 @@ Row(verticalAlignment = Alignment.Top) {
           whenEmpty: HWText(
             HWString('hint'),
             style: HWTextStyle(
-              color:
-                  HWThemedColor(light: green, dark: HWFixedColor(0xFF000000)),
+              color: HWAppearanceData(
+                light: green,
+                dark: HWFixedColor(0xFF000000),
+              ),
             ),
           ),
         );
@@ -1484,7 +1486,7 @@ Row(verticalAlignment = Alignment.Top) {
         );
         expect(row.swiftViewModifiers, {
           '@Environment(\\.layoutDirection) var layoutDirection',
-          '@Environment(\\.colorScheme) var colorScheme',
+          '@Environment(\\.self) var hwEnvironment',
         });
       });
     });

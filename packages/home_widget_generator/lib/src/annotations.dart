@@ -1,7 +1,6 @@
 import 'types.dart';
 import 'utils/content_hash.dart';
 import 'utils/map_equals.dart';
-import 'widgets/hw_color.dart';
 import 'widgets/hw_size.dart';
 import 'widgets/hw_widget.dart';
 
@@ -120,7 +119,10 @@ class HomeWidgetAndroidConfiguration {
   ///
   /// Defaults to `HWDefaultColor(HWColorRole.defaultBackground)`.
   /// When not null, applies a `GlanceModifier.background(color)`.
-  final HWColor? backgroundColor;
+  ///
+  /// Any color value: a stored one without a value paints the platform's
+  /// default widget background.
+  final HWDataType<int>? backgroundColor;
 
   /// Whether to apply default content padding to the widget.
   ///
@@ -348,7 +350,10 @@ class HomeWidgetIOSConfiguration {
   final List<HWWidgetFamily>? supportedFamilies;
 
   /// The background color to be applied to the widget.
-  final HWColor? backgroundColor;
+  ///
+  /// Any color value: a stored one without a value leaves the system's own
+  /// widget background in place.
+  final HWDataType<int>? backgroundColor;
 
   /// Whether to apply default system content margin to the widget.
   ///

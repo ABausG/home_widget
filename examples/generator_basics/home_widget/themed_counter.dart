@@ -9,7 +9,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   name: 'Themed Counter',
   description: 'A counter with a themed background and role-based colors.',
   android: HomeWidgetAndroidConfiguration(
-    backgroundColor: HWColor.themed(
+    backgroundColor: HWAppearanceData(
       light: HWColor.fixed(0xFFEFF6FF),
       dark: HWColor.fixed(0xFF0B1220),
     ),
@@ -17,7 +17,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   iOS: HomeWidgetIOSConfiguration(
     groupId: 'group.es.antonborri.generatorBasics',
     supportedFamilies: [HWWidgetFamily.systemSmall],
-    backgroundColor: HWColor.themed(
+    backgroundColor: HWAppearanceData(
       light: HWColor.fixed(0xFFEFF6FF),
       dark: HWColor.fixed(0xFF0B1220),
     ),

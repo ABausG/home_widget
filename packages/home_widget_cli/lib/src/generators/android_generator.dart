@@ -74,9 +74,11 @@ class AndroidGenerator {
     // whenever one is emitted the generated file needs hwCurrentLocales
     // whether or not anything else already pulled it in.
     final fileNativeHelpers = spec.androidAutoUpdatePreview
-        ? resolveNativeHelpers(
-            [...nativeHelpers, HWNativeHelper.hwCurrentLocales],
-          )
+        ? kotlinNativeHelpers(
+            resolveNativeHelpers(
+              [...nativeHelpers, HWNativeHelper.hwCurrentLocales],
+            ),
+          ).toList()
         : nativeHelpers;
 
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
@@ -289,9 +291,12 @@ class AndroidGenerator {
 
     final rootModifiers = <String>[];
     if (bgColor != null) {
-      rootModifiers.add(
-        'background(${bgColor.toKotlin(0, dataExpr: hasDataFields ? "widgetData" : "null")})',
+      final background = hwKotlinColor(
+        bgColor,
+        dataExpr: widgetDataExpr,
+        fallback: HWColorSlotDefault.background,
       );
+      rootModifiers.add('background($background)');
     }
     if (applyPadding) {
       rootModifiers.add('padding(${androidRootContentPadding.toInt()}.dp)');
@@ -345,7 +350,9 @@ class AndroidGenerator {
       ]);
     }
     if (bgColor != null) {
-      layoutImports.addAll(bgColor.kotlinImports);
+      layoutImports.addAll(
+        hwKotlinColorImports(bgColor, fallback: HWColorSlotDefault.background),
+      );
       layoutImports.add('import androidx.glance.layout.Box');
     }
     if (applyPadding) {
@@ -865,7 +872,7 @@ class AndroidGenerator {
       HWString() ||
       HWImageData() =>
         '"${escapeKotlinStringLiteral(value as String)}"',
-      HWInt() => kotlinLongLiteral(value as int),
+      HWInt() || HWColor() => kotlinLongLiteral(value as int),
       HWDouble() => '${(value as num).toDouble()}',
       _ => '$value',
     };
@@ -1245,7 +1252,7 @@ class AndroidGenerator {
     if (type is HWIconData) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optInt("$key") else $fallback';
     }
-    if (type is HWInt) {
+    if (type is HWInt || type is HWColor) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optLong("$key") else $fallback';
     }
     if (type is HWDouble) {

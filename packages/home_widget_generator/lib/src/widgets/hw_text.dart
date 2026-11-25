@@ -37,7 +37,14 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
         dataType,
         if (numberFormat?.dataField case final currency?) currency,
         if (timeZone.dataField case final zone?) zone,
+        if (style?.effectiveColor case final color?) color,
       ]);
+
+  @override
+  Iterable<HWDataType<dynamic>> get ownValues => [
+        dataType,
+        if (style?.effectiveColor case final color?) color,
+      ];
 
   /// Whether rendering this text goes through the native number-formatting
   /// helper.
@@ -113,13 +120,10 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
       _kotlinRenderer.kotlinBaselineText;
 
   @override
-  Set<String> get swiftViewModifiers {
-    final modifiers = <String>{};
-    if (style != null) {
-      modifiers.addAll(style!.swiftViewModifiers);
-    }
-    return modifiers;
-  }
+  Set<String> get swiftViewModifiers => {
+        ...?style?.swiftViewModifiers,
+        ...dataType.swiftViewModifiers,
+      };
 
   const HWText(HWDataType<dynamic> data, {this.style, this.textAlign})
       : dataType = data,
@@ -200,6 +204,12 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
       defaultLocale: decoder.defaultLocale,
       resourcePrefix: decoder.resourcePrefix,
     );
+    if (dataType != null && dataType.leaf is HWColor) {
+      throw GeneratorError(
+        'HWText cannot render a color as text. Use it in a color slot, such '
+        'as HWText(..., style: HWTextStyle(color: ...)).',
+      );
+    }
     if (dataType != null) {
       if (dateFormat != null) {
         return HWText._formatted(
@@ -264,7 +274,11 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     }
 
     final outerValue = bound.swiftAccess(dataExpr);
-    final innerValue = '${outerValue.replaceAll('?.', '!.')}!';
+    // A picked value is unwrapped as a whole: forcing the optional chains of
+    // its sides would trap on a side the pick only falls back from.
+    final innerValue = bound is HWAppearanceData
+        ? '($outerValue)!'
+        : '${outerValue.replaceAll('?.', '!.')}!';
     return bound.iosToString(outerValue: outerValue, innerValue: innerValue);
   }
 
@@ -299,8 +313,11 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
     return bound.androidToString(outerValue: access, innerValue: access);
   }
 
+  /// The number [data] renders as: its leaf, or for an [HWAppearanceData]
+  /// the one the picked value renders as, whatever its sides are.
   static HWNumericDataType<num> _numberLeaf(HWDataType<dynamic> data) {
-    final leaf = numberLeafOf(data);
+    final leaf =
+        numberLeafOf(data is HWAppearanceData ? data.pickedLeaf : data);
     if (leaf == null) {
       // coverage:ignore-start
       throw GeneratorError(

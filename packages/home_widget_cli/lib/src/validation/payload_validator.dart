@@ -94,6 +94,8 @@ void _validateFixedPayloadValue(HWPayloadEntry entry, String owner) {
 String _describePayloadValue(HWPayloadEntry entry) => switch (entry.leaf) {
       final HWImageData image => 'an image (${_describeImage(image)})',
       HWIconData() => 'the icon "${entry.name}"',
+      HWColor() =>
+        entry.isFixed ? _spellFixed(entry.leaf) : 'the color "${entry.name}"',
       HWLocalizedString() => 'the localized string "${entry.name}"',
       // coverage:ignore-start
       final leaf => '${leaf.runtimeType}',

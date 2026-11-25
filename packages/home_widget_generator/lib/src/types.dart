@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 
+import 'appearance.dart';
 import 'fonts.dart';
 import 'formats.dart';
 import 'generator_error.dart';
@@ -8,6 +9,9 @@ import 'utils/content_hash.dart';
 import 'utils/fixed_spelling.dart';
 import 'utils/map_equals.dart';
 import 'utils/string_literals.dart';
+
+part 'types/hw_appearance_data.dart';
+part 'types/hw_color.dart';
 
 /// Base class for all data type descriptors used in @HomeWidget(data: {...}).
 sealed class HWDataType<T> {
@@ -124,6 +128,24 @@ sealed class HWDataType<T> {
 
   /// Swift expression applying widget JSON leaf defaults ([HWJson] only).
   String swiftReadExpr(String dataExpr) => swiftAccess(dataExpr);
+
+  /// Swift expression for this value as a side of an [HWAppearanceData]: the
+  /// value of [swiftType], an optional while it can be missing, its own
+  /// default already applied.
+  ///
+  /// Codegen-internal: consumed by `home_widget_cli`, not by app code.
+  String swiftVariantValue(String dataExpr) => swiftReadExpr(dataExpr);
+
+  /// The Kotlin counterpart of [swiftVariantValue].
+  String kotlinVariantValue(String dataExpr) => kotlinReadExpr(dataExpr);
+
+  /// The values a widget reading this one reads: this value itself, save for
+  /// an [HWAppearanceData], which reads its sides.
+  Iterable<HWDataType<dynamic>> get readValues => [this];
+
+  /// The declarations the generated SwiftUI view needs for this value to be
+  /// read, such as the environment an [HWAppearanceData] picks a side by.
+  Set<String> get swiftViewModifiers => const {};
 
   /// Kotlin literal representing [defaultValue] for generated native code,
   /// or null when there is no default.
@@ -1640,6 +1662,17 @@ class HWImageData extends HWDataType<String> {
     return asset == null ? null : '"${escapeSwiftStringLiteral(asset)}"';
   }
 
+  /// An asset is its asset key, which the decoder reads as one.
+  @override
+  String swiftVariantValue(String dataExpr) => isAsset
+      ? '"${escapeSwiftStringLiteral(effectiveAssetKey!)}"'
+      : super.swiftVariantValue(dataExpr);
+
+  @override
+  String kotlinVariantValue(String dataExpr) => isAsset
+      ? '"${escapeKotlinStringLiteral(effectiveAssetKey!)}"'
+      : super.kotlinVariantValue(dataExpr);
+
   /// Always throws: an image path is not meaningful display text.
   ///
   /// Reachable when an image is bound to a text widget, e.g.
@@ -2748,6 +2781,26 @@ class HWItemData<T> extends HWDataType<T> {
 
   @override
   String kotlinAccess(String dataExpr) => '${HWListLoop.item}.$key';
+
+  /// A localized field an item stores no text for resolves its translations,
+  /// as in [iosToString].
+  @override
+  String swiftVariantValue(String dataExpr) {
+    final HWDataType<dynamic> field = data;
+    final access = swiftAccess(dataExpr);
+    return field is HWLocalizedString
+        ? field._swiftFallbackRead(access)
+        : access;
+  }
+
+  @override
+  String kotlinVariantValue(String dataExpr) {
+    final HWDataType<dynamic> field = data;
+    final access = kotlinAccess(dataExpr);
+    return field is HWLocalizedString
+        ? field._kotlinFallbackRead(access)
+        : access;
+  }
 
   /// An item is read out of the decoded list the way a JSON leaf is.
   @override

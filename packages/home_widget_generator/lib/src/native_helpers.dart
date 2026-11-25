@@ -1250,6 +1250,142 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
     swiftImports: {'import SwiftUI'},
     dependencies: [HWNativeHelper.hwAssetFont],
     localeDependent: false,
+  ),
+
+  /// A stored color, a 32-bit ARGB value, as the color a slot paints with, or
+  /// null while nothing is stored.
+  ///
+  /// The value is read as its low 32 bits, so a color stored as a signed or as
+  /// an unsigned number reads the same.
+  hwColor(
+    swift: '''
+func hwColor(_ argb: Int?) -> Color? {
+  guard let argb else { return nil }
+  let value = UInt32(truncatingIfNeeded: argb)
+  return Color(
+    .sRGB,
+    red: Double((value >> 16) & 0xFF) / 255,
+    green: Double((value >> 8) & 0xFF) / 255,
+    blue: Double(value & 0xFF) / 255,
+    opacity: Double((value >> 24) & 0xFF) / 255)
+}''',
+    swiftImports: {'import SwiftUI'},
+    kotlin: '''
+private fun hwColor(argb: Long?) =
+    argb?.let { ColorProvider(day = Color(it.toInt()), night = Color(it.toInt())) }''',
+    kotlinImports: {
+      'import androidx.compose.ui.graphics.Color',
+      'import androidx.glance.color.ColorProvider',
+    },
+    localeDependent: false,
+  ),
+
+  /// Whether WidgetKit renders the widget in its accented mode: the Home
+  /// Screen set to Tinted or Clear.
+  ///
+  /// False below iOS 16, where the rendering mode does not exist.
+  hwIsAccented(
+    swift: '''
+func hwIsAccented(_ environment: EnvironmentValues) -> Bool {
+  if #available(iOS 16.0, *) {
+    return environment.widgetRenderingMode == .accented
+  }
+  return false
+}''',
+    swiftImports: {'import SwiftUI', 'import WidgetKit'},
+    localeDependent: false,
+  ),
+
+  /// Whether WidgetKit renders the widget in its vibrant mode: the Lock
+  /// Screen and StandBy.
+  ///
+  /// False below iOS 16, where the rendering mode does not exist.
+  hwIsVibrant(
+    swift: '''
+func hwIsVibrant(_ environment: EnvironmentValues) -> Bool {
+  if #available(iOS 16.0, *) {
+    return environment.widgetRenderingMode == .vibrant
+  }
+  return false
+}''',
+    swiftImports: {'import SwiftUI', 'import WidgetKit'},
+    localeDependent: false,
+  ),
+
+  /// [image] rendered the way [mode] — the name of a
+  /// `WidgetAccentedRenderingMode` — asks for while the Home Screen is set to
+  /// Tinted or Clear.
+  ///
+  /// `widgetAccentedRenderingMode` only exists from iOS 18, so below that the
+  /// image renders as it is.
+  hwAccentedRendering(
+    swift: '''
+func hwAccentedRendering(_ image: Image, _ mode: String) -> AnyView {
+  guard #available(iOS 18.0, *) else { return AnyView(image) }
+  let modes: [String: WidgetAccentedRenderingMode] = [
+    "accented": .accented,
+    "desaturated": .desaturated,
+    "accentedDesaturated": .accentedDesaturated,
+    "fullColor": .fullColor,
+  ]
+  return AnyView(image.widgetAccentedRenderingMode(modes[mode]))
+}''',
+    swiftImports: {'import SwiftUI', 'import WidgetKit'},
+    localeDependent: false,
+  ),
+
+  /// Whether the system shows the widget in its dark color scheme.
+  hwIsNight(
+    kotlin: '''
+private fun hwIsNight(context: Context): Boolean =
+    (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import android.content.res.Configuration',
+    },
+    localeDependent: false,
+  ),
+
+  /// The variant of an appearance-aware value the widget shows, or null when
+  /// none of the ones it may fall back to has a value.
+  ///
+  /// The rendering-mode variant comes first where it is given, then the one of
+  /// the current color scheme, then the other scheme's. Each variant is only
+  /// evaluated once the ones before it came up empty.
+  ///
+  /// Android, which has no rendering modes, picks through [hwDayNight].
+  hwAppearance(
+    swift: '''
+func hwAppearance<T>(
+  _ environment: EnvironmentValues,
+  light: @autoclosure () -> T?,
+  dark: @autoclosure () -> T?,
+  accented: @autoclosure () -> T? = nil,
+  vibrant: @autoclosure () -> T? = nil
+) -> T? {
+  if hwIsAccented(environment), let value = accented() { return value }
+  if hwIsVibrant(environment), let value = vibrant() { return value }
+  if environment.colorScheme == .dark { return dark() ?? light() }
+  return light() ?? dark()
+}''',
+    swiftImports: {'import SwiftUI'},
+    dependencies: [HWNativeHelper.hwIsAccented, HWNativeHelper.hwIsVibrant],
+    localeDependent: false,
+  ),
+
+  /// The variant of an appearance-aware value the widget shows on Android:
+  /// the one of the current night mode, then the other one, or null when
+  /// neither has a value.
+  ///
+  /// Each variant is only evaluated once the one before it came up empty.
+  hwDayNight(
+    kotlin: '''
+private inline fun <T> hwDayNight(context: Context, light: () -> T?, dark: () -> T?): T? =
+    if (hwIsNight(context)) dark() ?: light() else light() ?: dark()''',
+    kotlinImports: {'import android.content.Context'},
+    dependencies: [HWNativeHelper.hwIsNight],
+    localeDependent: false,
   );
 
   const HWNativeHelper({

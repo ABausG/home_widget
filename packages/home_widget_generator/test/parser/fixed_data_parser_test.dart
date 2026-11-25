@@ -28,6 +28,7 @@ const image = HWImageData.asset('assets/logo.png');
 const icon = HWIconData.fixed(Icons.wb_sunny);
 const directionalIcon = HWIconData.fixed(Icons.arrow_back);
 const notAnIcon = HWIconData.fixed('Icons.wb_sunny');
+const color = HWColor.fixed(0xFF112233);
 
 const storedString = HWString('label', defaultValue: 'Hi');
 const storedInteger = HWInt('count', defaultValue: 3);
@@ -119,7 +120,13 @@ String? _fixedFormOf(HWDataType<dynamic> type) => switch (type) {
       HWDateTime() => 'date',
       HWImageData() => 'image',
       HWIconData() => 'icon',
-      HWJson() || HWTimedData() || HWItemData() || HWPayload() => null,
+      HWColor() => 'color',
+      HWJson() ||
+      HWTimedData() ||
+      HWItemData() ||
+      HWPayload() ||
+      HWAppearanceData() =>
+        null,
     };
 
 /// Whether the fixed form of [type] stays a data dependency of the widget
@@ -135,7 +142,13 @@ bool? _fixedFormIsDataDependency(HWDataType<dynamic> type) => switch (type) {
       HWDateTime() => false,
       HWImageData() => true,
       HWIconData() => false,
-      HWJson() || HWTimedData() || HWItemData() || HWPayload() => null,
+      HWColor() => false,
+      HWJson() ||
+      HWTimedData() ||
+      HWItemData() ||
+      HWPayload() ||
+      HWAppearanceData() =>
+        null,
     };
 
 /// One stored instance of every concrete data type.
@@ -148,10 +161,12 @@ const _everyDataType = <HWDataType<dynamic>>[
   HWDateTime('at'),
   HWImageData('avatar'),
   HWIconData('mood', icons: []),
+  HWColor('accent'),
   HWJson('group', HWString('label')),
   HWTimedData(HWString('label')),
   HWItemData(HWString('label')),
   HWPayload('name', HWString('label')),
+  HWAppearanceData(light: HWString('light'), dark: HWString('dark')),
 ];
 
 void main() {
@@ -215,9 +230,10 @@ void main() {
       final covered = <Type>{};
       for (final type in _everyDataType) {
         covered.add(type.runtimeType);
+        // A selector is no field of its own: its sides are.
         expect(
           type.isDataDependency,
-          isTrue,
+          type is! HWAppearanceData,
           reason: 'a stored ${type.runtimeType} is no data dependency',
         );
         final name = _fixedFormOf(type);
@@ -230,6 +246,7 @@ void main() {
               isA<HWTimedData<dynamic>>(),
               isA<HWItemData<dynamic>>(),
               isA<HWPayload<dynamic>>(),
+              isA<HWAppearanceData<dynamic>>(),
             ),
           );
           continue;
@@ -238,9 +255,10 @@ void main() {
         final fixed = decoded(name);
         expect(fixed, isNotNull, reason: '$name does not decode');
         expect(fixed!.isFixed, isTrue, reason: '$name is not fixed');
+        // A constant color is a subtype of the stored one it stands for.
         expect(
-          fixed.runtimeType,
-          type.runtimeType,
+          type is HWColor ? fixed is HWColor : fixed.runtimeType,
+          type is HWColor ? isTrue : type.runtimeType,
           reason: '$name is not the fixed form of ${type.runtimeType}',
         );
         expect(

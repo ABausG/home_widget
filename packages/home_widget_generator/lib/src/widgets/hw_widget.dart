@@ -1,5 +1,6 @@
 import 'package:analyzer/dart/constant/value.dart';
 import '../annotations.dart';
+import '../appearance.dart';
 import '../fonts.dart';
 import '../formats.dart';
 import '../generator_error.dart';
@@ -37,6 +38,7 @@ part 'hw_link.dart';
 part 'hw_button.dart';
 part 'hw_conditional.dart';
 part 'hw_size_adaptive.dart';
+part 'hw_appearance_adaptive.dart';
 part 'hw_android_size_range.dart';
 part 'hw_android_size_grid.dart';
 
@@ -195,13 +197,20 @@ abstract interface class HWDataWidget {
 /// The values of [data] a widget reading them depends on.
 ///
 /// A fixed value is written into the widget and is not one, unless it owns a
-/// resource: see [HWDataType.isDataDependency].
+/// resource: see [HWDataType.isDataDependency]. An [HWAppearanceData] depends
+/// on each of its sides.
 Set<HWDataType<dynamic>> _dataDependenciesOf(
   Iterable<HWDataType<dynamic>> data,
 ) =>
     {
       for (final value in data)
-        if (value.isDataDependency) value,
+        for (final read in value.readValues)
+          if (read.isDataDependency) read,
+    };
+
+/// The declarations the generated SwiftUI view needs for [data] to be read.
+Set<String> _swiftViewModifiersOf(Iterable<HWDataType<dynamic>> data) => {
+      for (final value in data) ...value.swiftViewModifiers,
     };
 
 /// A widget that renders in a font file of its own.
@@ -226,6 +235,14 @@ sealed class HWWidget implements HWGeneratable {
   /// The set of data dependencies required by this widget.
   Set<HWDataType<dynamic>> get dataDependencies => {};
   // coverage:ignore-end
+
+  /// The values this one widget renders or tests, its children's left out:
+  /// constant ones included, and an [HWAppearanceData] as itself rather than
+  /// as its sides.
+  ///
+  /// What [nativeHelpers] gathers the [HWDataType.renderHelpers] of, so that a
+  /// color or a picked value brings the helpers it is rendered through.
+  Iterable<HWDataType<dynamic>> get ownValues => const [];
 
   /// The widgets this one renders, if any.
   ///
@@ -558,6 +575,9 @@ sealed class HWWidget implements HWGeneratable {
     for (final widget in descendants) {
       for (final dependency in widget.dataDependencies) {
         helpers.addAll(dependency.nativeHelpers);
+      }
+      for (final value in widget.ownValues) {
+        helpers.addAll(value.renderHelpers);
       }
       helpers.addAll(widget.renderHelpers);
     }

@@ -124,7 +124,9 @@ words:
     - homewidgetandroidconfiguration
     - homewidgetiosflavor
     - hwalignment
+    - hwappearancedata
     - hwcolorrole
+    - hwcolorthemed
     - hwcrossaxisalignment
     - hwfill
     - hwitemdata
@@ -217,6 +219,10 @@ words:
     - unmanaged
     - untinted
     - upsert
+    # runtime colors and appearance (WidgetKit rendering modes, Swift)
+    - AARRGGBB
+    - autoclosure
+    - desaturated
 ignoreWords:
     # generator localization docs/examples (German + Portuguese sample text)
     - Lokalisierte

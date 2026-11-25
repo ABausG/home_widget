@@ -1605,6 +1605,19 @@ void main() {
               data: [HWString('zone')],
               child: HWText(HWString.fixed('zone')),
             ),
+            HWAppearanceAdaptive(
+              light: HWImage(
+                HWImageData('avatar'),
+                iosAccentedRendering: HWAccentedRendering.fullColor,
+              ),
+              dark: HWColoredBox(
+                color: HWAppearanceData(
+                  light: HWColor('light'),
+                  dark: HWColor('dark'),
+                ),
+                child: HWText(HWString.fixed('dark')),
+              ),
+            ),
           ],
         ),
       );

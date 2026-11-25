@@ -20,6 +20,8 @@ A constant value is now a [data type](/generator/data#fixed-values) instead of a
 
 Parameters such as `style`, `textAlign`, `format`, `size`, `color`, `semanticLabel`, `width`, `height` and `fit` stay on the widget.
 
+`HWColor.themed` is removed in favor of `HWAppearanceData`, see [HWColor.themed Became HWAppearanceData](#hwcolorthemed-became-hwappearancedata).
+
 Taps that open the app are now reported as typed launches, which also covers the new [`HWLink`](/generator/widgets/hw-link). Three things changed for widgets that set a `widgetUrl`:
 
 - [Per-platform widget URLs are removed](#per-platform-widget-urls-removed).
@@ -202,3 +204,16 @@ if (launch is WeatherWidgetTap) _openWeather(); // [!code ++]
 ```
 
 Code that still needs the `Uri`, such as a router that takes one, reads it from the launch with `launch.toUri()`.
+
+## HWColor.themed Became HWAppearanceData
+
+`HWColor.themed` and `HWThemedColor` are removed. `HWAppearanceData` takes the same `light` and `dark` colors:
+
+```dart
+HWColor.themed(light: HWColor.fixed(0xFF000000), dark: HWColor.fixed(0xFFFFFFFF)) // [!code --]
+HWAppearanceData(light: HWColor.fixed(0xFF000000), dark: HWColor.fixed(0xFFFFFFFF)) // [!code ++]
+```
+
+A pair of two `HWColor.fixed` colors renders as before on both platforms. On Android, a pair with an `HWDefaultColor` on one side rendered that side white. It now renders the role's color.
+
+`HWColor` is now a data type, and every color slot is typed `HWDataType<int>`. The constant forms `HWColor.fixed`, `HWFixedColor` and `HWDefaultColor` are unchanged. A color no longer emits code of its own: `toSwift`, `toKotlin` and `kotlinImports` are gone from `HWColor`.

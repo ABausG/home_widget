@@ -40,7 +40,11 @@ abstract class HWConditional extends HWWidget implements HWDataWidget {
       };
 
   @override
+  Iterable<HWDataType<dynamic>> get ownValues => [data];
+
+  @override
   Set<String> get swiftViewModifiers => {
+        ...data.swiftViewModifiers,
         ...firstBranch.swiftViewModifiers,
         ...secondBranch.swiftViewModifiers,
       };
@@ -133,7 +137,9 @@ $pad}''';
           '${first.ascent(dataExpr)} else ${second.ascent(dataExpr)}',
       isBitmap: first.isBitmap || second.isBitmap,
       readsItem:
-          data.unwrapped is HWItemData || first.readsItem || second.readsItem,
+          data.readValues.any((value) => value.unwrapped is HWItemData) ||
+              first.readsItem ||
+              second.readsItem,
       kotlinImports: {...first.kotlinImports, ...second.kotlinImports},
       conflict: first.conflict ?? second.conflict,
     );
@@ -234,12 +240,22 @@ class HWDataExists extends HWConditional {
   /// a saved file still on disk, or an asset key that names an asset the app
   /// shipped with. [HWNativeHelper.hwImageExists] decides, on the same routing
   /// [HWNativeHelper.hwDecodeImage] renders through.
+  ///
+  /// An [HWAppearanceData] is present when the side it picks, falling back
+  /// the way it does, has a value; for images, one that exists.
   @override
   String conditionSwift({required String dataExpr}) {
-    final access = data.swiftAccess(dataExpr);
-    if (imageLeafOf(data) != null) {
-      return '${HWNativeHelper.hwImageExists.name}($access)';
+    final exists = HWNativeHelper.hwImageExists.name;
+    final data = this.data;
+    if (data is HWAppearanceData && imageLeafOf(data) != null) {
+      final picked = data.swiftPick((side) {
+        final path = side.swiftVariantValue(dataExpr);
+        return '($exists($path) ? $path : nil)';
+      });
+      return '$picked != nil';
     }
+    final access = data.swiftAccess(dataExpr);
+    if (imageLeafOf(data) != null) return '$exists($access)';
     return '$access != nil';
   }
 
@@ -247,10 +263,17 @@ class HWDataExists extends HWConditional {
   /// Kotlin helper reaches the app's assets through it.
   @override
   String conditionKotlin({required String dataExpr}) {
-    final access = data.kotlinAccess(dataExpr);
-    if (imageLeafOf(data) != null) {
-      return '${HWNativeHelper.hwImageExists.name}(context, $access)';
+    final exists = HWNativeHelper.hwImageExists.name;
+    final data = this.data;
+    if (data is HWAppearanceData && imageLeafOf(data) != null) {
+      final picked = data.kotlinPick(
+        (side) => '${side.kotlinVariantValue(dataExpr)}'
+            '.takeIf { $exists(context, it) }',
+      );
+      return '$picked != null';
     }
+    final access = data.kotlinAccess(dataExpr);
+    if (imageLeafOf(data) != null) return '$exists(context, $access)';
     return '$access != null';
   }
 }
@@ -284,7 +307,10 @@ class HWBoolConditional extends HWConditional {
       // coverage:ignore-end
     }
     // A fixed flag is left for the validator, which says why it is rejected.
-    if (!data.leaf.isFixed && _boolDefaultValue(data) == null) {
+    // The sides of an HWAppearanceData fall back on each other instead.
+    if (data is! HWAppearanceData &&
+        !data.leaf.isFixed &&
+        _boolDefaultValue(data) == null) {
       // coverage:ignore-start
       throw GeneratorError(
         'HWBool must have a non-null defaultValue for HWBoolConditional',
@@ -332,7 +358,12 @@ class HWBoolConditional extends HWConditional {
 
   /// Rejects a flag no condition can be emitted for: a fixed one, and a
   /// stored one without a default.
+  ///
+  /// An [HWAppearanceData] may pick between fixed flags — `light:
+  /// HWBool.fixed(false), dark: HWBool.fixed(true)` spells "is dark" — and a
+  /// side without a value falls back to the others, and to false.
   void _checkTestable() {
+    if (data is HWAppearanceData) return;
     final leaf = data.leaf;
     if (leaf is HWBool && leaf.isFixed) {
       throw GeneratorError(

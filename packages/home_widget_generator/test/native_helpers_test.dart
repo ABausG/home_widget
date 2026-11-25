@@ -28,7 +28,11 @@ void main() {
         if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper),
-          contains('private fun ${helper.name}('),
+          // A helper taking lambdas a composable reads in is inline, and a
+          // generic one names its type parameters before its own name.
+          contains(
+            RegExp('private (inline )?fun (<[^>]+> )?${helper.name}\\('),
+          ),
           reason: '${helper.name} Kotlin body',
         );
       }
@@ -36,23 +40,25 @@ void main() {
 
     test('is Swift file scope and Kotlin private top level', () {
       for (final helper in HWNativeHelper.values) {
-        expect(
-          swiftOf(helper).trimLeft(),
-          anyOf(
-            startsWith('func '),
-            // A helper keeping state of its own declares a private type for
-            // it first, and the function it is emitted as after that.
-            allOf(
-              startsWith('private final class '),
-              contains('\nfunc ${helper.name}('),
+        if (helper.swift != null) {
+          expect(
+            swiftOf(helper).trimLeft(),
+            anyOf(
+              startsWith('func '),
+              // A helper keeping state of its own declares a private type for
+              // it first, and the function it is emitted as after that.
+              allOf(
+                startsWith('private final class '),
+                contains('\nfunc ${helper.name}('),
+              ),
             ),
-          ),
-          reason: '${helper.name} Swift body',
-        );
+            reason: '${helper.name} Swift body',
+          );
+        }
         if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper).trimLeft(),
-          startsWith('private fun '),
+          anyOf(startsWith('private fun '), startsWith('private inline fun ')),
           reason: '${helper.name} Kotlin body',
         );
       }
@@ -259,6 +265,13 @@ void main() {
         HWNativeHelper.hwPayloadValue,
         HWNativeHelper.hwPayloadUrl,
         HWNativeHelper.hwLink,
+        HWNativeHelper.hwColor,
+        HWNativeHelper.hwIsAccented,
+        HWNativeHelper.hwIsVibrant,
+        HWNativeHelper.hwAccentedRendering,
+        HWNativeHelper.hwIsNight,
+        HWNativeHelper.hwAppearance,
+        HWNativeHelper.hwDayNight,
       };
       for (final helper in HWNativeHelper.values) {
         expect(

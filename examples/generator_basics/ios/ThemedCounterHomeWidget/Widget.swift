@@ -44,7 +44,7 @@ struct ThemedCounterHomeWidgetEntry: TimelineEntry {
 struct ThemedCounterHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
-  @Environment(\.colorScheme) var colorScheme
+  @Environment(\.self) var hwEnvironment
 
   var body: some View {
     VStack(alignment: .center, spacing: 0) {
@@ -61,11 +61,12 @@ struct ThemedCounterHomeWidgetEntryView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .applyContainerBackground(
-      (colorScheme == .dark
-        ? Color(
+      optional: hwAppearance(
+        hwEnvironment,
+        light: Color(red: 0.9372549019607843, green: 0.9647058823529412, blue: 1.0, opacity: 1.0),
+        dark: Color(
           red: 0.043137254901960784, green: 0.07058823529411765, blue: 0.12549019607843137,
-          opacity: 1.0)
-        : Color(red: 0.9372549019607843, green: 0.9647058823529412, blue: 1.0, opacity: 1.0)))
+          opacity: 1.0)))
   }
 }
 
@@ -84,11 +85,35 @@ struct ThemedCounterHomeWidget: Widget {
 
 extension View {
   @ViewBuilder
+  func applyContainerBackground() -> some View {
+    if #available(iOSApplicationExtension 17.0, *) {
+      self.containerBackground(.fill.tertiary, for: .widget)
+    } else if #available(iOSApplicationExtension 15.0, *) {
+      self.background()
+    } else {
+      self
+    }
+  }
+}
+
+extension View {
+  @ViewBuilder
   func applyContainerBackground<T: View>(_ backgroundView: T) -> some View {
     if #available(iOSApplicationExtension 17.0, *) {
       self.containerBackground(for: .widget) { backgroundView }
     } else {
       self.background(backgroundView)
+    }
+  }
+}
+
+extension View {
+  @ViewBuilder
+  func applyContainerBackground(optional backgroundColor: Color?) -> some View {
+    if let backgroundColor {
+      self.applyContainerBackground(backgroundColor)
+    } else {
+      self.applyContainerBackground()
     }
   }
 }
@@ -119,4 +144,31 @@ func hwFormatDecimal(
   if let minFraction { formatter.minimumFractionDigits = minFraction }
   if let maxFraction { formatter.maximumFractionDigits = maxFraction }
   return formatter.string(from: value) ?? value.stringValue
+}
+
+func hwIsAccented(_ environment: EnvironmentValues) -> Bool {
+  if #available(iOS 16.0, *) {
+    return environment.widgetRenderingMode == .accented
+  }
+  return false
+}
+
+func hwIsVibrant(_ environment: EnvironmentValues) -> Bool {
+  if #available(iOS 16.0, *) {
+    return environment.widgetRenderingMode == .vibrant
+  }
+  return false
+}
+
+func hwAppearance<T>(
+  _ environment: EnvironmentValues,
+  light: @autoclosure () -> T?,
+  dark: @autoclosure () -> T?,
+  accented: @autoclosure () -> T? = nil,
+  vibrant: @autoclosure () -> T? = nil
+) -> T? {
+  if hwIsAccented(environment), let value = accented() { return value }
+  if hwIsVibrant(environment), let value = vibrant() { return value }
+  if environment.colorScheme == .dark { return dark() ?? light() }
+  return light() ?? dark()
 }

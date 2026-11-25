@@ -77,7 +77,7 @@ String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
     final branches = switch (node) {
       HWConditional() => [node.firstBranch, node.secondBranch],
       HWAdaptive() => [node.ios, node.android],
-      HWSizeAdaptive() => node.childWidgets,
+      HWSizeAdaptive() || HWAppearanceAdaptive() => node.childWidgets,
       HWFlex(:final whenEmpty?) when item != null => [item, whenEmpty],
       _ => null,
     };

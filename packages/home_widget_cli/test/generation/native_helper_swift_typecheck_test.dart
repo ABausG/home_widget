@@ -71,6 +71,20 @@ func hwHelperSmokeDriver() {
   print(url as Any)
   _ = hwLink(url) { Text("Forecast") }
   _ = hwLink(URL(string: "myapp://history?homeWidget")) { Text("History") }
+
+  let environment = EnvironmentValues()
+  let stored: Int? = 0xFF6750A4
+  print(hwColor(stored) as Any)
+  print(hwColor(nil) as Any)
+  print(hwIsAccented(environment), hwIsVibrant(environment))
+  let picked: Color? = hwAppearance(
+    environment, light: hwColor(stored), dark: Color.primary,
+    accented: Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0), vibrant: nil)
+  print(picked as Any)
+  print(hwAppearance(environment, light: "light", dark: nil) ?? "")
+  print(hwAppearance(environment, light: count, dark: 2, vibrant: 3) as Any)
+  _ = hwAccentedRendering(Image(systemName: "star").resizable(), "fullColor")
+    .aspectRatio(contentMode: .fit)
 }
 ''';
 

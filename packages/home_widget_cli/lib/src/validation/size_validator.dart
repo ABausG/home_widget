@@ -116,7 +116,7 @@ _AndroidCells _androidCells(
           ]);
         }
       default:
-        for (final child in widget.childWidgets) {
+        for (final child in widget.androidChildWidgets) {
           walk(child, at);
         }
     }

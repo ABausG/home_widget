@@ -486,7 +486,9 @@ class WidgetSpec {
       children: [
         HWText(HWString.fixed(galleryName)),
         for (final field in [...primitiveDataFields, ...timedDataFields])
-          if (imageLeafOf(field) != null)
+          if (field.leaf is HWColor)
+            const HWDataOnly([])
+          else if (imageLeafOf(field) != null)
             HWImage(field)
           else if (iconLeafOf(field) != null)
             HWIcon.resolved(field, fontResourcePrefix: fontResourcePrefix)
@@ -568,7 +570,7 @@ class WidgetSpec {
       return;
     }
 
-    for (final child in widget.childWidgets) {
+    for (final child in widget.androidChildWidgets) {
       yield* _androidRendered(child, reachable);
     }
   }
@@ -654,7 +656,8 @@ class WidgetSpec {
             walk(child, visible, null, range);
           }
         default:
-          for (final child in widget.childWidgets) {
+          for (final child
+              in android ? widget.androidChildWidgets : widget.childWidgets) {
             walk(child, visible, enclosingSlot, enclosingRange);
           }
       }
@@ -1748,6 +1751,8 @@ class WidgetSpec {
         ...effectiveWidgetTree.nativeHelpers,
         for (final field in dataFields) ...field.nativeHelpers,
         if (hasWidgetUrl) ...widgetUrl!.nativeHelpers,
+        ...?data.android?.backgroundColor?.renderHelpers,
+        ...?data.iOS?.backgroundColor?.renderHelpers,
       ]);
 
   /// Image leaves of the untimed JSON groups.
@@ -1757,6 +1762,16 @@ class WidgetSpec {
   /// by the timestamp of the entry they belong to.
   List<JsonImageField> get timedJsonImageFields =>
       _jsonImages(timedJsonDataGroups);
+
+  /// Whether the app stores a color for this widget anywhere: a field, a JSON
+  /// leaf, a timed value or a list item field.
+  ///
+  /// Drives the `Color` import of the generated Dart helper.
+  bool get hasColorFields =>
+      dataFields.any((field) => field.leaf is HWColor) ||
+      listDataGroups.any(
+        (group) => group.fields.any((field) => field.leaf is HWColor),
+      );
 
   /// Whether any image reaches the widget through the generated `saveData`,
   /// wherever it is declared.

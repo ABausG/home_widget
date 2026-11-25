@@ -287,7 +287,7 @@ void main() {
           small: HWText(
             HWString.fixed('x'),
             style: HWTextStyle(
-              color: HWThemedColor(
+              color: HWAppearanceData(
                 light: HWFixedColor(0xFF000000),
                 dark: HWFixedColor(0xFFFFFFFF),
               ),
@@ -296,7 +296,7 @@ void main() {
         );
         expect(
           adaptive.swiftViewModifiers,
-          contains('@Environment(\\.colorScheme) var colorScheme'),
+          contains('@Environment(\\.self) var hwEnvironment'),
         );
       });
     });
