@@ -968,6 +968,7 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
           ],
         );
         expect(adaptive.childWidgets.length, 2);
+        expect(adaptive.iosChildWidgets, [adaptive.small]);
         expect(
           adaptive.dataDependencies.map((d) => d.key).toSet(),
           {'smallKey', 'stripKey'},

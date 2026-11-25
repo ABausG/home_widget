@@ -266,6 +266,31 @@ String _singleAxisForm(String call, GlanceSizeAxis axis) {
   };
 }
 
+/// The imports of the calls [injectGlanceModifier] leaves behind when a
+/// modifier sizing [injected] alone lands on a chain imported by
+/// [chainImports].
+///
+/// A call sizing both axes keeps the other axis in its single-axis form,
+/// `size(24.0.dp)` becoming `height(24.0.dp)`, which the chain itself never
+/// imported.
+Set<String> glanceSingleAxisImports(
+  Set<String> chainImports,
+  Set<GlanceSizeAxis> injected,
+) {
+  if (injected.isEmpty) return const {};
+  const layout = 'import androidx.glance.layout';
+  return {
+    for (final axis in GlanceSizeAxis.values)
+      if (!injected.contains(axis)) ...{
+        if (chainImports.contains('$layout.size')) '$layout.${axis.name}',
+        if (chainImports.contains('$layout.fillMaxSize'))
+          '$layout.fillMax${axis.suffix}',
+        if (chainImports.contains('$layout.wrapContentSize'))
+          '$layout.wrapContent${axis.suffix}',
+      },
+  };
+}
+
 /// Whether a call of [chain] fills both axes, which is what leaves an injected
 /// fill along one of them nothing to say.
 ///

@@ -137,17 +137,36 @@ void main() {
       );
       expect(
         accent.androidReadValue(store: 'prefs', key: 'k'),
-        'when (val hwStored = prefs.all["k"]) { '
-        'is Int -> hwStored.toLong(); is Long -> hwStored; '
-        'else -> 4284960932L }',
+        '(hwReadColor(prefs, "k") ?: 4284960932L)',
       );
       expect(
         accent.androidReadValue(store: 'prefs', key: 'k', preview: true),
-        endsWith('else -> 4278190080L }'),
+        '(hwReadColor(prefs, "k") ?: 4278190080L)',
       );
       expect(
         const HWColor('plain').androidReadValue(store: 'prefs', key: 'k'),
-        endsWith('else -> null }'),
+        'hwReadColor(prefs, "k")',
+      );
+    });
+
+    test('reads a key through hwReadColor, which tells Int and Long apart', () {
+      expect(accent.nativeHelpers, [HWNativeHelper.hwReadColor]);
+      expect(accent.timedNativeHelpers, isEmpty);
+      expect(accent.jsonNativeHelpers, isEmpty);
+      expect(const HWColor.fixed(0xFF000000).nativeHelpers, isEmpty);
+      expect(
+        const HWDefaultColor(HWColorRole.contentPrimary).nativeHelpers,
+        isEmpty,
+      );
+
+      final kotlin = HWNativeHelper.hwReadColor.kotlin!;
+      expect(kotlin, contains('prefs.getLong(key, 0L)'));
+      expect(kotlin, contains('prefs.getInt(key, 0).toLong()'));
+      expect(kotlin, isNot(contains('.all')));
+      expect(HWNativeHelper.hwReadColor.swift, isNull);
+      expect(
+        HWNativeHelper.hwReadColor.kotlinImports,
+        {'import android.content.SharedPreferences'},
       );
     });
 

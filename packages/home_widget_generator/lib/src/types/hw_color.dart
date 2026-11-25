@@ -93,15 +93,20 @@ class HWColor extends HWDataType<int> {
     required String key,
     bool preview = false,
   }) {
-    final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
-    // A Dart int is stored as an Int only while it fits 32 bits, and an opaque
-    // color does not. A value of any other kind, left by an older version of
-    // the app, counts as missing.
-    return 'when (val hwStored = $store.all["$key"]) { '
-        'is Int -> hwStored.toLong(); '
-        'is Long -> hwStored; '
-        'else -> $fallback }';
+    final read = '${HWNativeHelper.hwReadColor.name}($store, "$key")';
+    final fallback = codegenKotlinFallbackLiteral(preview: preview);
+    return fallback == null ? read : '($read ?: $fallback)';
   }
+
+  @override
+  List<HWNativeHelper> get nativeHelpers =>
+      isFixed ? const [] : const [HWNativeHelper.hwReadColor];
+
+  @override
+  List<HWNativeHelper> get timedNativeHelpers => const [];
+
+  @override
+  List<HWNativeHelper> get jsonNativeHelpers => const [];
 
   @override
   String iosReadValue({

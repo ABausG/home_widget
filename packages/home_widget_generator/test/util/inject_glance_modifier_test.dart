@@ -565,6 +565,41 @@ void main() {
     });
   });
 
+  group('glanceSingleAxisImports', () {
+    const layout = 'import androidx.glance.layout';
+
+    test('names the form a call sizing both axes is rewritten to', () {
+      expect(
+        glanceSingleAxisImports(
+          {'$layout.size', '$layout.fillMaxSize', '$layout.wrapContentSize'},
+          {GlanceSizeAxis.width},
+        ),
+        {
+          '$layout.height',
+          '$layout.fillMaxHeight',
+          '$layout.wrapContentHeight',
+        },
+      );
+      expect(
+        glanceSingleAxisImports({'$layout.size'}, {GlanceSizeAxis.height}),
+        {'$layout.width'},
+      );
+    });
+
+    test('is empty when nothing is left to rewrite', () {
+      expect(
+        glanceSingleAxisImports(
+            {'$layout.size'}, GlanceSizeAxis.values.toSet()),
+        isEmpty,
+      );
+      expect(glanceSingleAxisImports({'$layout.size'}, {}), isEmpty);
+      expect(
+        glanceSingleAxisImports({'$layout.width'}, {GlanceSizeAxis.width}),
+        isEmpty,
+      );
+    });
+  });
+
   group('wrapGlanceRootContent', () {
     test('wraps in centered Box with modifier chain', () {
       expect(

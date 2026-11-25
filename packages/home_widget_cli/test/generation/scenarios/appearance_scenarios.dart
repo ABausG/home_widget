@@ -256,10 +256,82 @@ final _rootImage = _schema(
   widget: 'HWImage(image)',
 );
 
+/// The fields of each item of a list picked by the appearance: a color, an
+/// image and a text.
+final _itemFields = _schema(
+  className: 'AppearanceItems',
+  widget: '''
+HWColumn.builder(
+  'rows',
+  maxItems: 3,
+  item: HWRow(children: [
+    HWImage(
+      HWAppearanceData(
+        light: HWItemData(HWImageData('dayIcon')),
+        dark: HWItemData(HWImageData('nightIcon')),
+      ),
+      width: 16,
+      height: 16,
+    ),
+    HWText(
+      HWAppearanceData(
+        light: HWItemData(HWString('dayLabel')),
+        dark: HWItemData(HWString('nightLabel', defaultValue: 'Night')),
+        iosAccented: HWString.fixed('Tinted'),
+      ),
+      style: HWTextStyle(
+        color: HWAppearanceData(
+          light: HWItemData(HWColor('dayTint')),
+          dark: HWItemData(HWColor('nightTint', defaultValue: 0xFFFFFFFF)),
+        ),
+      ),
+    ),
+  ]),
+)''',
+);
+
+/// A text whose every side is written into the widget.
+final _fixedText = _schema(
+  className: 'AppearanceFixedText',
+  widget: 'HWText(HWAppearanceData('
+      "light: HWString.fixed('**Day**'), "
+      "dark: HWString.fixed('**Night**'), "
+      "iosAccented: HWString.fixed('Tinted')))",
+);
+
+/// A box sizing one axis of two constant icons picked by the appearance, with
+/// nothing else in the widget sizing the other axis.
+String _oneAxisBox(String className, String axis) => _schema(
+      className: className,
+      widget: 'HWSizedBox($axis: 48, child: HWAppearanceAdaptive('
+          'light: HWIcon(HWIconData.fixed(Icons.wb_sunny)), '
+          'dark: HWIcon(HWIconData.fixed(Icons.nightlight_round))))',
+    );
+
 /// Build scenarios for values picked by the appearance, run on every platform
 /// integration test suite.
 final List<BuildScenario> appearanceBuildScenarios = [
   for (final (description, className, source) in [
+    (
+      'picks the fields of a list item by the appearance',
+      'AppearanceItems',
+      _itemFields
+    ),
+    (
+      'renders a text of constant appearance sides',
+      'AppearanceFixedText',
+      _fixedText
+    ),
+    (
+      'sizes the width alone of icons picked by the appearance',
+      'AppearanceIconWidth',
+      _oneAxisBox('AppearanceIconWidth', 'width')
+    ),
+    (
+      'sizes the height alone of icons picked by the appearance',
+      'AppearanceIconHeight',
+      _oneAxisBox('AppearanceIconHeight', 'height')
+    ),
     (
       'renders appearance values inside every wrapper',
       'AppearanceWrapped',

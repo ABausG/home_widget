@@ -249,7 +249,8 @@ void main() {
       );
       expect(
         text.toSwift(0, dataExpr: 'e'),
-        'Text(hwAppearance(hwEnvironment, light: "Light", dark: e.dark) ?? "")',
+        'Text(verbatim: hwAppearance(hwEnvironment, light: "Light", '
+        'dark: e.dark) ?? "")',
       );
       expect(
         text.toKotlin(0, dataExpr: 'w'),
@@ -298,9 +299,56 @@ void main() {
       );
       expect(
         flag.toSwift(0, dataExpr: 'e'),
-        'Text(hwAppearance(hwEnvironment, light: e.a, dark: e.g?.b) != nil '
+        'Text(verbatim: hwAppearance(hwEnvironment, light: e.a, '
+        'dark: e.g?.b) != nil '
         '? "\\((hwAppearance(hwEnvironment, light: e.a, dark: e.g?.b))!)" '
         ': "false")',
+      );
+    });
+
+    test('HWText shows fixed sides as written, and localized ones localized',
+        () {
+      const fixed = HWText(
+        HWAppearanceData<String>(
+          light: HWString.fixed('**Day**'),
+          dark: HWString.fixed('**Night**'),
+        ),
+      );
+      expect(
+        fixed.toSwift(0, dataExpr: 'e'),
+        'Text(verbatim: hwAppearance(hwEnvironment, light: "**Day**", '
+        'dark: "**Night**") ?? "")',
+      );
+
+      const localized = HWText(
+        HWAppearanceData<String>(
+          light: HWLocalizedString.fixed({'en': 'Day'}),
+          dark: HWString.fixed('Night'),
+        ),
+      );
+      expect(
+        localized.toSwift(0, dataExpr: 'e'),
+        allOf(
+          startsWith('Text(verbatim: hwAppearance(hwEnvironment, '
+              'light: NSLocalizedString("'),
+          endsWith('dark: "Night") ?? "")'),
+        ),
+      );
+
+      const flags = HWText(
+        HWAppearanceData<bool>(
+          light: HWBool.fixed(true),
+          dark: HWBool.fixed(false),
+        ),
+      );
+      expect(flags.toSwift(0, dataExpr: 'e'), startsWith('Text(verbatim: '));
+
+      const number = HWText(
+        HWAppearanceData<int>(light: HWInt.fixed(1), dark: HWInt.fixed(2)),
+      );
+      expect(
+        number.toSwift(0, dataExpr: 'e'),
+        isNot(contains('verbatim')),
       );
     });
 

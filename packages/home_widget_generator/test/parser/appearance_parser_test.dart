@@ -140,6 +140,25 @@ class ColorAsText {}
 class AppearanceAsText {}
 
 @HomeWidget(
+  name: 'AppearanceImagesAsText',
+  widget: HWText(
+    HWAppearanceData(light: HWImageData('a'), dark: HWImageData('b')),
+  ),
+)
+class AppearanceImagesAsText {}
+
+@HomeWidget(
+  name: 'AppearanceIconsAsText',
+  widget: HWText(
+    HWAppearanceData(
+      light: HWIconData.fixed(Icons.wb_sunny),
+      dark: HWIconData('mood', icons: [Icons.star]),
+    ),
+  ),
+)
+class AppearanceIconsAsText {}
+
+@HomeWidget(
   name: 'AppearanceCurrency',
   widget: HWText.number(
     HWInt('n'),
@@ -362,6 +381,23 @@ void main() {
           throwsGeneratorError(contains('cannot render a color as text')),
         );
       }
+    });
+
+    test('an appearance of pictures is not display text either', () {
+      expect(
+        () => widgetOf('AppearanceImagesAsText'),
+        throwsGeneratorError(
+          'HWImageData cannot be rendered as text. Use HWImage to display '
+          'the images this HWAppearanceData picks between.',
+        ),
+      );
+      expect(
+        () => widgetOf('AppearanceIconsAsText'),
+        throwsGeneratorError(
+          'HWIconData cannot be rendered as text. Use HWIcon to display '
+          'the icons this HWAppearanceData picks between.',
+        ),
+      );
     });
 
     test('reaches every color slot of a tree', () {

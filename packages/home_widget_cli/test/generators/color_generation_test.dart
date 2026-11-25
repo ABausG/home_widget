@@ -289,7 +289,7 @@ void main() {
           HWNativeHelper.hwColor,
         ]),
       );
-      expect(androidOnly.iosNativeHelpers, isEmpty);
+      expect(swiftNativeHelpers(androidOnly.iosNativeHelpers), isEmpty);
       expect(androidOnly.androidUsesPluginAppearance, isTrue);
 
       final iosOnly = _spec(
@@ -300,8 +300,80 @@ void main() {
           dark: HWDefaultColor(HWColorRole.contentPrimary),
         ),
       );
-      expect(iosOnly.androidNativeHelpers, isEmpty);
+      expect(
+        kotlinNativeHelpers(iosOnly.androidNativeHelpers),
+        [HWNativeHelper.hwReadColor],
+      );
       expect(iosOnly.androidUsesPluginAppearance, isFalse);
+    });
+
+    test('each platform declares the helpers of the widgets it renders',
+        () async {
+      const images = HWImage(
+        HWAppearanceData(light: HWImageData('day'), dark: HWImageData('night')),
+      );
+      final iosImage = _spec(
+        tree: const HWAdaptive(
+          ios: images,
+          android: HWText(HWString.fixed('a')),
+        ),
+      );
+      expect(
+        iosImage.androidNativeHelpers,
+        isNot(contains(HWNativeHelper.hwAppearanceImage)),
+      );
+      expect(iosImage.iosNativeHelpers, contains(HWNativeHelper.hwAppearance));
+      expect(iosImage.androidUsesPluginAppearance, isFalse);
+
+      final iosLayout = _spec(
+        tree: const HWAdaptive(
+          ios: HWAppearanceAdaptive(
+            light: HWText(HWString.fixed('a')),
+            dark: HWText(HWString.fixed('b')),
+          ),
+          android: HWText(HWString.fixed('a')),
+        ),
+      );
+      expect(
+        iosLayout.androidNativeHelpers,
+        isNot(contains(HWNativeHelper.hwIsNight)),
+      );
+      expect(iosLayout.iosNativeHelpers, contains(HWNativeHelper.hwIsNight));
+
+      final androidImage = _spec(
+        tree: const HWAdaptive(
+          ios: HWText(HWString.fixed('a')),
+          android: images,
+        ),
+      );
+      expect(
+        androidImage.androidNativeHelpers,
+        contains(HWNativeHelper.hwAppearanceImage),
+      );
+      expect(
+        androidImage.iosNativeHelpers,
+        isNot(contains(HWNativeHelper.hwAppearance)),
+      );
+
+      final accentedLayout = _spec(
+        tree: const HWAppearanceAdaptive(
+          light: HWText(HWString.fixed('a')),
+          dark: HWText(HWString.fixed('b')),
+          iosAccented: images,
+        ),
+      );
+      expect(
+        accentedLayout.androidNativeHelpers,
+        isNot(contains(HWNativeHelper.hwAppearanceImage)),
+      );
+      expect(
+        accentedLayout.androidNativeHelpers,
+        contains(HWNativeHelper.hwIsNight),
+      );
+      expect(
+        accentedLayout.iosNativeHelpers,
+        containsAll([HWNativeHelper.hwIsAccented, HWNativeHelper.hwAppearance]),
+      );
     });
   });
 }

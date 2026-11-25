@@ -275,9 +275,25 @@ void main() {
           allOf(
             contains("HWLink('open') is declared twice"),
             contains('unique within a widget'),
+            endsWith(
+              'across the branches of a conditional, the slots of an '
+              'HWSizeAdaptive or an HWAppearanceAdaptive, the sides of an '
+              'HWAdaptive, or the item and the whenEmpty of a list builder.',
+            ),
           ),
         ),
       );
+    });
+
+    test('may repeat across the slots of an HWAppearanceAdaptive', () {
+      final spec = _spec(
+        HWAppearanceAdaptive(
+          light: _link('open'),
+          dark: HWPadding(padding: HWEdgeInsets.all(4), child: _link('open')),
+        ),
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
     });
 
     test('cannot differ only in the case of their first letter', () {

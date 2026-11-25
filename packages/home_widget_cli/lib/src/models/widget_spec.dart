@@ -1762,22 +1762,24 @@ class WidgetSpec {
   /// nothing displays never drags a render helper in. Both are handed to
   /// [resolveNativeHelpers], which closes over their dependencies.
   ///
-  /// Each platform's `backgroundColor` is painted only by that platform, so its
-  /// helpers are only in [androidNativeHelpers] or [iosNativeHelpers].
-  List<HWNativeHelper> get nativeHelpers =>
-      resolveNativeHelpers(_sharedHelpers);
+  /// Each platform renders only its own widgets and paints only its own
+  /// `backgroundColor`, so what renders them is only in [androidNativeHelpers]
+  /// or [iosNativeHelpers].
+  List<HWNativeHelper> get nativeHelpers => resolveNativeHelpers(
+        _withFieldHelpers(effectiveWidgetTree.nativeHelpers),
+      );
 
-  /// [nativeHelpers] with what the Android `backgroundColor` paints through,
-  /// which is what the generated Kotlin declares.
+  /// The helpers the generated Kotlin declares: the reads of every field, and
+  /// what renders the widgets Android renders and its `backgroundColor`.
   List<HWNativeHelper> get androidNativeHelpers => resolveNativeHelpers([
-        ..._sharedHelpers,
+        ..._withFieldHelpers(effectiveWidgetTree.androidNativeHelpers),
         ...?data.android?.backgroundColor?.renderHelpers,
       ]);
 
-  /// [nativeHelpers] with what the iOS `backgroundColor` paints through, which
-  /// is what the generated Swift declares.
+  /// The helpers the generated Swift declares, as [androidNativeHelpers] for
+  /// the widgets iOS renders and its `backgroundColor`.
   List<HWNativeHelper> get iosNativeHelpers => resolveNativeHelpers([
-        ..._sharedHelpers,
+        ..._withFieldHelpers(effectiveWidgetTree.iosNativeHelpers),
         ...?data.iOS?.backgroundColor?.renderHelpers,
       ]);
 
@@ -1792,8 +1794,11 @@ class WidgetSpec {
             helper == HWNativeHelper.hwAppearanceImage,
       );
 
-  Iterable<HWNativeHelper> get _sharedHelpers => [
-        ...effectiveWidgetTree.nativeHelpers,
+  Iterable<HWNativeHelper> _withFieldHelpers(
+    Iterable<HWNativeHelper> treeHelpers,
+  ) =>
+      [
+        ...treeHelpers,
         for (final field in dataFields) ...field.nativeHelpers,
         if (hasWidgetUrl) ...widgetUrl!.nativeHelpers,
       ];

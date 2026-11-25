@@ -44,6 +44,9 @@ class HWAdaptive extends HWWidget {
   List<HWWidget> get androidChildWidgets => [android];
 
   @override
+  List<HWWidget> get iosChildWidgets => [ios];
+
+  @override
   Set<String> get kotlinImports => android.kotlinImports;
 
   @override

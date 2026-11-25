@@ -23,6 +23,12 @@ class _TapSite<T extends HWSingleChildWidget> {
       );
 }
 
+/// The places [_tapSites] tells apart as rendering one at a time, as an error
+/// lists them.
+const _exclusiveTapSites = 'across the branches of a conditional, the slots '
+    'of an HWSizeAdaptive or an HWAppearanceAdaptive, the sides of an '
+    'HWAdaptive, or the item and the whenEmpty of a list builder';
+
 /// How an error spells [target].
 String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
       HWLink(:final id) => "HWLink('$id')",

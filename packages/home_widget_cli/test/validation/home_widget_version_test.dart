@@ -291,6 +291,24 @@ void main() {
           ),
         ),
         appearanceSpec(storedColors, android: false),
+        appearanceSpec(
+          const HWAdaptive(
+            ios: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+            android: HWText(HWString.fixed('a')),
+          ),
+        ),
+        appearanceSpec(
+          const HWAppearanceAdaptive(
+            light: HWText(HWString.fixed('a')),
+            dark: HWText(HWString.fixed('b')),
+            iosAccented: storedColors,
+            iosVibrant: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
         WidgetSpec(
           data: const HomeWidget(
             name: 'Weather',

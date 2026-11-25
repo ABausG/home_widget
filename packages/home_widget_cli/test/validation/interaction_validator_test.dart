@@ -399,6 +399,8 @@ void main() {
             ),
             contains('A button id is unique within a widget'),
             contains('one of them renders at a time'),
+            contains('the slots of an HWSizeAdaptive or an '
+                'HWAppearanceAdaptive, the sides of an HWAdaptive'),
           ),
         ),
       );

@@ -82,8 +82,7 @@ void _validateButtonIds(
   if (!conflict.exclusive) {
     throw GeneratorError(
       '$widget: $ids. A button id is unique within a widget; it may only '
-      'repeat across the branches of a conditional or the slots of an '
-      'HWSizeAdaptive, where one of them renders at a time.',
+      'repeat where one of them renders at a time: $_exclusiveTapSites.',
     );
   }
   if (other.id != button.id) {

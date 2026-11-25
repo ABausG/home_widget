@@ -257,6 +257,13 @@ sealed class HWWidget implements HWGeneratable {
   /// Android branch alone there, and is what [androidDescendants] walks.
   List<HWWidget> get androidChildWidgets => childWidgets;
 
+  /// The widgets this one renders on iOS.
+  ///
+  /// [childWidgets] for everything but an [HWAdaptive], which renders its iOS
+  /// branch alone there, and an [HWSizeAdaptive], whose Android size ranges
+  /// SwiftUI never renders; what [iosDescendants] walks.
+  List<HWWidget> get iosChildWidgets => childWidgets;
+
   /// Whether this widget's Glance output is a `Text`, and so reports a text
   /// baseline to the horizontal `LinearLayout` a Glance `Row` becomes.
   ///
@@ -512,6 +519,16 @@ sealed class HWWidget implements HWGeneratable {
     }
   }
 
+  /// Every widget iOS renders in this subtree, [this] first, in render order.
+  ///
+  /// [descendants] walked through [iosChildWidgets].
+  Iterable<HWWidget> get iosDescendants sync* {
+    yield this;
+    for (final child in iosChildWidgets) {
+      yield* child.iosDescendants;
+    }
+  }
+
   /// The native functions displaying this one widget, before their own
   /// dependencies are resolved.
   ///
@@ -570,12 +587,27 @@ sealed class HWWidget implements HWGeneratable {
   /// Two things ask for one: reading a value back — every data dependency in
   /// the subtree, whether or not anything displays it — and rendering one,
   /// which each widget answers for itself through [renderHelpers].
-  Set<HWNativeHelper> get nativeHelpers {
+  Set<HWNativeHelper> get nativeHelpers => _nativeHelpersRendering(descendants);
+
+  /// [nativeHelpers] of the Glance output: the reads of every data dependency,
+  /// which the data class both platforms share declares, and the rendering of
+  /// the [androidDescendants] alone.
+  Set<HWNativeHelper> get androidNativeHelpers =>
+      _nativeHelpersRendering(androidDescendants);
+
+  /// [nativeHelpers] of the SwiftUI output, as [androidNativeHelpers] is of
+  /// the Glance one, rendering the [iosDescendants].
+  Set<HWNativeHelper> get iosNativeHelpers =>
+      _nativeHelpersRendering(iosDescendants);
+
+  Set<HWNativeHelper> _nativeHelpersRendering(Iterable<HWWidget> rendered) {
     final helpers = <HWNativeHelper>{};
     for (final widget in descendants) {
       for (final dependency in widget.dataDependencies) {
         helpers.addAll(dependency.nativeHelpers);
       }
+    }
+    for (final widget in rendered) {
       for (final value in widget.ownValues) {
         helpers.addAll(value.renderHelpers);
       }

@@ -339,6 +339,9 @@ class HWSizeAdaptive extends HWWidget {
       ];
 
   @override
+  List<HWWidget> get iosChildWidgets => providedSlots;
+
+  @override
   String get swiftFrameAlignment => _sharedSwiftFrameAlignment(providedSlots);
 
   /// Whether any slot asks the frame around the adaptive to clip: cutting the

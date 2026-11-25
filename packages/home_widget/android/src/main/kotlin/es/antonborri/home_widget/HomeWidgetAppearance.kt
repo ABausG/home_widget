@@ -8,7 +8,6 @@ import android.os.Build
 import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 import androidx.glance.layout.ContentScale
-import java.lang.ref.WeakReference
 
 /**
  * Lets a Glance widget follow the system switching between light and dark without an update.
@@ -30,15 +29,16 @@ object HomeWidgetAppearance {
   val switchesLive: Boolean
     get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-  private var cachedFor: WeakReference<Context>? = null
   private var cachedConfiguration: Configuration? = null
   private var cachedContexts: DayNight<Context>? = null
 
   /**
-   * A context of [context] set to the dark color scheme when [night] is true and to the light one
-   * otherwise, which what is resolved for that appearance resolves its resources against.
+   * A context in the configuration of [context], set to the dark color scheme when [night] is true
+   * and to the light one otherwise, which what is resolved for that appearance resolves its
+   * resources against.
    *
-   * Both are created once per configuration [context] is in, not per call.
+   * Both are created from the application context once per configuration, not per call, so the ones
+   * kept between calls never hold on to [context].
    */
   fun configurationContext(context: Context, night: Boolean): Context {
     val contexts = configurationContexts(context)
@@ -49,30 +49,28 @@ object HomeWidgetAppearance {
   private fun configurationContexts(context: Context): DayNight<Context> {
     val configuration = context.resources.configuration
     val cached = cachedContexts
-    if (cached != null && cachedFor?.get() === context && cachedConfiguration == configuration) {
-      return cached
-    }
+    if (cached != null && cachedConfiguration == configuration) return cached
+    val application = context.applicationContext ?: context
     val contexts =
         DayNight(
-            day = withNightMode(context, Configuration.UI_MODE_NIGHT_NO),
-            night = withNightMode(context, Configuration.UI_MODE_NIGHT_YES),
+            day = withNightMode(application, configuration, Configuration.UI_MODE_NIGHT_NO),
+            night = withNightMode(application, configuration, Configuration.UI_MODE_NIGHT_YES),
         )
-    cachedFor = WeakReference(context)
     cachedConfiguration = Configuration(configuration)
     cachedContexts = contexts
     return contexts
   }
 
-  private fun withNightMode(context: Context, mode: Int): Context {
-    val configuration = Configuration(context.resources.configuration)
-    configuration.uiMode = (configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
-    return context.createConfigurationContext(configuration)
+  private fun withNightMode(base: Context, configuration: Configuration, mode: Int): Context {
+    val override = Configuration(configuration)
+    override.uiMode = (override.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
+    return base.createConfigurationContext(override)
   }
 
   /**
    * An image showing [day] in the light color scheme and [night] in the dark one, scaled the way a
-   * Glance `Image` of [contentScale] scales its bitmap, and tinted by [tintDay] / [tintNight] when
-   * given, as ARGB colors.
+   * Glance `Image` of [contentScale] scales its bitmap, and tinted by the ARGB colors of [tint] in
+   * each scheme when given.
    *
    * The pair is a `RemoteViews` icon pair, which the launcher switches between itself. Its bitmaps
    * do not count towards the bitmap memory a widget may use, which only covers bitmaps set
@@ -85,8 +83,7 @@ object HomeWidgetAppearance {
       night: Bitmap,
       contentDescription: String?,
       contentScale: ContentScale,
-      tintDay: Int? = null,
-      tintNight: Int? = null,
+      tint: DayNight<Int>? = null,
   ): RemoteViews {
     val layout =
         when (contentScale) {
@@ -103,9 +100,7 @@ object HomeWidgetAppearance {
         Icon.createWithBitmap(night),
     )
     if (contentDescription != null) views.setContentDescription(image, contentDescription)
-    if (tintDay != null && tintNight != null) {
-      views.setColorInt(image, "setColorFilter", tintDay, tintNight)
-    }
+    if (tint != null) views.setColorInt(image, "setColorFilter", tint.day, tint.night)
     return views
   }
 

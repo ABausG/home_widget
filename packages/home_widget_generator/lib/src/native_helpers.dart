@@ -1310,6 +1310,23 @@ private fun hwColor(argb: Long?) =
     localeDependent: false,
   ),
 
+  /// The color stored under a preferences key, or null while none is.
+  ///
+  /// A Dart int is stored as an Int only while it fits 32 bits, and an opaque
+  /// color does not. A value of any other kind, left by an older version of
+  /// the app, counts as missing.
+  hwReadColor(
+    kotlin: '''
+private fun hwReadColor(prefs: SharedPreferences, key: String): Long? {
+    if (!prefs.contains(key)) return null
+    return runCatching { prefs.getLong(key, 0L) }
+        .recoverCatching { prefs.getInt(key, 0).toLong() }
+        .getOrNull()
+}''',
+    kotlinImports: {'import android.content.SharedPreferences'},
+    localeDependent: false,
+  ),
+
   /// Whether WidgetKit renders the widget in its accented mode: the Home
   /// Screen set to Tinted or Clear.
   ///
@@ -1483,8 +1500,12 @@ private fun HwAppearanceImage(
                     images.night,
                     contentDescription,
                     contentScale,
-                    tint?.getColor(HomeWidgetAppearance.configurationContext(context, night = false))?.toArgb(),
-                    tint?.getColor(HomeWidgetAppearance.configurationContext(context, night = true))?.toArgb(),
+                    tint?.let {
+                        HomeWidgetAppearance.DayNight(
+                            day = it.getColor(HomeWidgetAppearance.configurationContext(context, night = false)).toArgb(),
+                            night = it.getColor(HomeWidgetAppearance.configurationContext(context, night = true)).toArgb(),
+                        )
+                    },
                 ),
             modifier = size,
         )

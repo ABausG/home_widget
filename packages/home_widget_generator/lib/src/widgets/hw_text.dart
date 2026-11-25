@@ -210,6 +210,19 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
         'as HWText(..., style: HWTextStyle(color: ...)).',
       );
     }
+    if (dataType != null && dataType.unwrapped is HWAppearanceData) {
+      final (kind, widget, values) = switch (dataType.leaf) {
+        HWImageData() => ('HWImageData', 'HWImage', 'images'),
+        HWIconData() => ('HWIconData', 'HWIcon', 'icons'),
+        _ => (null, null, null),
+      };
+      if (kind != null) {
+        throw GeneratorError(
+          '$kind cannot be rendered as text. Use $widget to display the '
+          '$values this HWAppearanceData picks between.',
+        );
+      }
+    }
     if (dataType != null) {
       if (dateFormat != null) {
         return HWText._formatted(
@@ -240,8 +253,14 @@ class HWText extends HWWidget with HWFontWidget implements HWDataWidget {
 
   /// Whether the Swift `Text` is handed a fixed literal, which must not be
   /// read as a `LocalizedStringKey` (looked up and parsed as Markdown).
+  ///
+  /// A string or a flag picked by the appearance always is: its sides may all
+  /// be literals, and a localized side is already resolved to a `String`.
   bool get _swiftRendersVerbatim {
     final bound = dataType.unwrapped;
+    if (bound is HWAppearanceData) {
+      return bound.leaf is HWString || bound.leaf is HWBool;
+    }
     if (!bound.isFixed || bound is HWLocalizedString) return false;
     return bound is HWString || bound is HWBool;
   }

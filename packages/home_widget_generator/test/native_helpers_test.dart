@@ -293,6 +293,7 @@ void main() {
         HWNativeHelper.hwPayloadUrl,
         HWNativeHelper.hwLink,
         HWNativeHelper.hwColor,
+        HWNativeHelper.hwReadColor,
         HWNativeHelper.hwIsAccented,
         HWNativeHelper.hwIsVibrant,
         HWNativeHelper.hwAccentedRendering,
@@ -966,6 +967,8 @@ void main() {
         kotlin,
         contains('colorFilter = tint?.let { ColorFilter.tint(it) }'),
       );
+      expect(kotlin, contains('HomeWidgetAppearance.DayNight('));
+      expect(kotlin, isNot(contains('tint?.getColor')));
     });
   });
 
