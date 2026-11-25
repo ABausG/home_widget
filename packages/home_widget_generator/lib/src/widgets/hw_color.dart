@@ -20,8 +20,9 @@ const Set<String> hwDefaultContentColorKotlinImports = {
 /// app code.
 enum HWColorSlotDefault {
   /// The default content color, which text and icons render in.
+  ///
+  /// SwiftUI paints it itself for a `foregroundColor` of nil.
   content(
-    swift: 'Color.primary',
     kotlin: 'GlanceTheme.colors.onSurface',
     kotlinImports: hwDefaultContentColorKotlinImports,
   ),
@@ -39,22 +40,22 @@ enum HWColorSlotDefault {
   /// The platform's own widget background, which a widget's
   /// `backgroundColor` falls back to.
   ///
-  /// iOS keeps the system's container background instead of painting a
-  /// color, which the generated container background modifier decides.
+  /// iOS keeps the system's container background, which the generated
+  /// container background modifier leaves in place.
   background(
-    swift: 'Color(.systemBackground)',
     kotlin: 'GlanceTheme.colors.widgetBackground',
     kotlinImports: {'import androidx.glance.GlanceTheme'},
   );
 
   const HWColorSlotDefault({
-    required this.swift,
+    this.swift,
     required this.kotlin,
     required this.kotlinImports,
   });
 
-  /// The SwiftUI `Color` painted instead.
-  final String swift;
+  /// The SwiftUI `Color` painted instead, or null where SwiftUI decides what
+  /// shows without a color.
+  final String? swift;
 
   /// The Glance `ColorProvider` painted instead.
   final String kotlin;
@@ -86,16 +87,34 @@ String hwSwiftColorValue(HWDataType<dynamic> color, String dataExpr) {
 /// The SwiftUI `Color` a slot paints with for [color], falling back to
 /// [fallback] while the color has no value.
 ///
-/// With [fallback] null the expression stays an optional, for a slot such as
-/// `foregroundColor` that reads nil as its own default.
+/// Without a Swift color of [fallback] the expression stays an optional, for a
+/// slot such as `foregroundColor` that reads nil as its own default.
 String hwSwiftColor(
   HWDataType<dynamic> color, {
   required String dataExpr,
   HWColorSlotDefault? fallback,
 }) {
   final value = hwSwiftColorValue(color, dataExpr);
-  if (fallback == null || hwIsConstantColor(color)) return value;
-  return '($value ?? ${fallback.swift})';
+  final fallbackColor = fallback?.swift;
+  if (fallbackColor == null || hwIsConstantColor(color)) return value;
+  return '($value ?? $fallbackColor)';
+}
+
+/// Whether [color] has a value wherever iOS shows it: a constant color, or an
+/// [HWAppearanceData] whose every side is one.
+bool hwSwiftColorIsConstant(HWDataType<dynamic> color) =>
+    hwIsConstantColor(color) ||
+    (color is HWAppearanceData && color.sides.every(hwIsConstantColor));
+
+/// The SwiftUI `Color` [color] paints with, which is not an optional: [color]
+/// is one [hwSwiftColorIsConstant] holds for.
+String hwSwiftConstantColor(
+  HWDataType<dynamic> color, {
+  required String dataExpr,
+}) {
+  final value = hwSwiftColorValue(color, dataExpr);
+  if (color is! HWAppearanceData) return value;
+  return '($value ?? ${hwSwiftColorValue(color.light, dataExpr)})';
 }
 
 /// The Glance `ColorProvider` [color] paints with, nullable unless

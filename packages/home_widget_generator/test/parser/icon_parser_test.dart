@@ -500,7 +500,10 @@ void main() {
     test('rejects an icon bound to something else', () {
       expect(
         errorOf('IconlessData').message,
-        contains('HWIcon requires an HWIconData'),
+        allOf(
+          contains('HWIcon requires an HWIconData'),
+          contains('or an HWAppearanceData of them'),
+        ),
       );
     });
   });

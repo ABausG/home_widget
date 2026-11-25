@@ -35,12 +35,24 @@ abstract final class HWAppearanceChoice {
     HWNativeHelper.hwDayNight,
   };
 
-  /// The helpers a Swift or Kotlin layout choice calls.
-  static const Set<HWNativeHelper> layoutHelpers = {
-    HWNativeHelper.hwIsAccented,
-    HWNativeHelper.hwIsVibrant,
-    HWNativeHelper.hwIsNight,
+  /// The helpers picking a value calls on either platform, whatever kind of
+  /// value it is: [swiftValueHelpers] and [kotlinValueHelpers].
+  static const Set<HWNativeHelper> pickHelpers = {
+    ...swiftValueHelpers,
+    ...kotlinValueHelpers,
   };
+
+  /// The helpers a Swift or Kotlin layout choice calls, [accented] and
+  /// [vibrant] telling whether it has a variant for that rendering mode.
+  static Set<HWNativeHelper> layoutHelpers({
+    required bool accented,
+    required bool vibrant,
+  }) =>
+      {
+        if (accented) HWNativeHelper.hwIsAccented,
+        if (vibrant) HWNativeHelper.hwIsVibrant,
+        HWNativeHelper.hwIsNight,
+      };
 
   /// Swift expression for the variant shown, an optional of the variants'
   /// type, each variant an expression evaluated only when it is reached.

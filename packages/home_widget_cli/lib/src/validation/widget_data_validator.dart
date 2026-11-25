@@ -239,6 +239,14 @@ void _validateFixedData(WidgetSpec spec) {
   for (final widget in tree.descendants) {
     if (widget is HWDataOnly) {
       for (final data in widget.data) {
+        if (data is HWAppearanceData) {
+          throw GeneratorError(
+            'Widget "${spec.data.name}": HWDataOnly cannot declare an '
+            'HWAppearanceData. It picks between values rather than storing '
+            'one, so there is no field of its own to declare. List the stored '
+            'fields of its sides in HWDataOnly instead.',
+          );
+        }
         if (!data.isFixed) continue;
         throw GeneratorError(
           'Widget "${spec.data.name}": HWDataOnly cannot declare '

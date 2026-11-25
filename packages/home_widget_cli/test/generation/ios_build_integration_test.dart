@@ -1,10 +1,11 @@
 import 'package:test/test.dart';
 
 import 'helpers/build_scenario_runner.dart';
+import 'scenarios/appearance_scenarios.dart';
 import 'scenarios/shared_scenarios.dart';
 
 void main() {
-  final scenarios = [...sharedBuildScenarios];
+  final scenarios = [...sharedBuildScenarios, ...appearanceBuildScenarios];
 
   for (final scenario in scenarios) {
     test(

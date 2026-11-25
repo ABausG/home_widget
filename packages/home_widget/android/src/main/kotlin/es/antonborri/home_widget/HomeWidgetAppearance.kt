@@ -8,6 +8,7 @@ import android.os.Build
 import android.widget.RemoteViews
 import androidx.annotation.RequiresApi
 import androidx.glance.layout.ContentScale
+import java.lang.ref.WeakReference
 
 /**
  * Lets a Glance widget follow the system switching between light and dark without an update.
@@ -18,8 +19,9 @@ import androidx.glance.layout.ContentScale
  * icons, which the launcher picks between itself. Below Android 12 a widget keeps the appearance it
  * was rendered in until it is updated.
  *
- * Generated widgets build on this; the composables doing so are generated into the app, which has
- * the Compose compiler this plugin does not.
+ * This exists for the widgets `home_widget generate` writes: the code calling it is generated
+ * alongside it, and the composables building on it are generated into the app, which has the
+ * Compose compiler this plugin does not.
  */
 object HomeWidgetAppearance {
   /**
@@ -28,13 +30,41 @@ object HomeWidgetAppearance {
   val switchesLive: Boolean
     get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
+  private var cachedFor: WeakReference<Context>? = null
+  private var cachedConfiguration: Configuration? = null
+  private var cachedContexts: DayNight<Context>? = null
+
   /**
-   * [context] set to the dark color scheme when [night] is true and to the light one otherwise,
-   * which what is resolved for that appearance resolves its resources against.
+   * A context of [context] set to the dark color scheme when [night] is true and to the light one
+   * otherwise, which what is resolved for that appearance resolves its resources against.
+   *
+   * Both are created once per configuration [context] is in, not per call.
    */
-  fun context(context: Context, night: Boolean): Context {
+  fun configurationContext(context: Context, night: Boolean): Context {
+    val contexts = configurationContexts(context)
+    return if (night) contexts.night else contexts.day
+  }
+
+  @Synchronized
+  private fun configurationContexts(context: Context): DayNight<Context> {
+    val configuration = context.resources.configuration
+    val cached = cachedContexts
+    if (cached != null && cachedFor?.get() === context && cachedConfiguration == configuration) {
+      return cached
+    }
+    val contexts =
+        DayNight(
+            day = withNightMode(context, Configuration.UI_MODE_NIGHT_NO),
+            night = withNightMode(context, Configuration.UI_MODE_NIGHT_YES),
+        )
+    cachedFor = WeakReference(context)
+    cachedConfiguration = Configuration(configuration)
+    cachedContexts = contexts
+    return contexts
+  }
+
+  private fun withNightMode(context: Context, mode: Int): Context {
     val configuration = Configuration(context.resources.configuration)
-    val mode = if (night) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
     configuration.uiMode = (configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or mode
     return context.createConfigurationContext(configuration)
   }

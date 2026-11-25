@@ -298,7 +298,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
     // through and every one the declared fields are read back with to its
     // transitive closure, already ordered so each one is declared after what
     // it calls.
-    final nativeHelpers = swiftNativeHelpers(spec.nativeHelpers).toList();
+    final nativeHelpers = swiftNativeHelpers(spec.iosNativeHelpers).toList();
     // Whether a glyph mirrors in a right-to-left layout is a property of the
     // icon itself, so one widget-wide set answers for every icon field.
     final fileDeclarations = <String>[
@@ -346,12 +346,13 @@ struct ${widgetClassName}Entry: TimelineEntry {
     final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
     final hasCustomBg = customBgColor != null;
     final hasOptionalBg =
-        customBgColor != null && !hwIsConstantColor(customBgColor);
+        customBgColor != null && !hwSwiftColorIsConstant(customBgColor);
     final containerBackgroundModifier = switch (customBgColor) {
       null => '.applyContainerBackground()',
-      final color => '.applyContainerBackground('
-          '${hasOptionalBg ? 'optional: ' : ''}'
+      final color when hasOptionalBg => '.applyContainerBackground(optional: '
           '${hwSwiftColor(color, dataExpr: dataExpr)})',
+      final color => '.applyContainerBackground('
+          '${hwSwiftConstantColor(color, dataExpr: dataExpr)})',
     };
 
     final viewBuffer = StringBuffer();

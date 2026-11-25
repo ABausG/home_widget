@@ -372,9 +372,14 @@ String injectGlanceModifier(
   }
 
   final compMatch = RegExp(r'^[A-Z][a-zA-Z0-9_]*').firstMatch(trimmed);
-  if (compMatch != null) {
+  final argRange =
+      compMatch == null ? null : _argumentRange(trimmed, compMatch.end);
+  // Only a call is a composable: `HomeWidgetAppearance.pick(...)?.let { }`
+  // names an object, and is wrapped like any other `?.let`.
+  if (compMatch != null &&
+      (argRange != null ||
+          trimmed.substring(compMatch.end).trimLeft().startsWith('{'))) {
     final compName = compMatch.group(0);
-    final argRange = _argumentRange(trimmed, compMatch.end);
     final declared =
         argRange == null ? null : trimmed.substring(argRange.$1, argRange.$2);
     final callEnd = argRange == null ? compMatch.end : argRange.$2 + 1;

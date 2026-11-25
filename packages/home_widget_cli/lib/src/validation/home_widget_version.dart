@@ -48,6 +48,30 @@ void validateInteractionSupport(WidgetSpec spec, Directory projectRoot) {
   }
 }
 
+/// The first `home_widget` release with the `HomeWidgetAppearance` object and
+/// the `hw_appearance_image_*` layouts generated Android widgets switch their
+/// colors, images and icons with the appearance through.
+// Has to equal the release that ships them. That is only 0.10.1 while they ship
+// in one release with the launch helpers and the keyed callbacks.
+const String minimumAppearanceHomeWidgetVersion = '0.10.1';
+
+/// Fails when the Android widget of [spec] calls the plugin's appearance
+/// support and the app is pinned to a published `home_widget` that predates
+/// it.
+void validateAppearanceSupport(WidgetSpec spec, Directory projectRoot) {
+  if (!spec.androidUsesPluginAppearance) return;
+  try {
+    requireHomeWidgetVersion(
+      projectRoot,
+      minimum: minimumAppearanceHomeWidgetVersion,
+      feature: 'this widget picks a color, an image or an icon by the '
+          'appearance on Android',
+    );
+  } on GeneratorError catch (error) {
+    throw GeneratorError('Widget "${spec.data.name}": ${error.message}');
+  }
+}
+
 /// Fails when the app is pinned to a published `home_widget` older than
 /// [minimum], which [feature] needs.
 ///

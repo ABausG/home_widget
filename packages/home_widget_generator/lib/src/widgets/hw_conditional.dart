@@ -231,16 +231,15 @@ class HWDataExists extends HWConditional {
         ...super.dataDependencies,
       };
 
-  /// An image picked by the appearance is checked through the pick on
-  /// Android, which its value does not bring along: an image is otherwise
-  /// handed to the launcher as a pair.
+  /// Tested, not rendered: the value brings none of the helpers it is
+  /// rendered through.
+  @override
+  Iterable<HWDataType<dynamic>> get ownValues => const [];
+
   @override
   Set<HWNativeHelper> get renderHelpers => {
-        if (imageLeafOf(data) != null) ...{
-          HWNativeHelper.hwImageExists,
-          if (data is HWAppearanceData)
-            ...HWAppearanceChoice.kotlinValueHelpers,
-        },
+        if (imageLeafOf(data) != null) HWNativeHelper.hwImageExists,
+        if (data is HWAppearanceData) ...HWAppearanceChoice.pickHelpers,
       };
 
   /// An image counts as present when there is an image to display for it:
@@ -249,39 +248,61 @@ class HWDataExists extends HWConditional {
   /// [HWNativeHelper.hwDecodeImage] renders through.
   ///
   /// An [HWAppearanceData] is present when the side it picks, falling back
-  /// the way it does, has a value; for images, one that exists.
+  /// the way it does, is: each side the way it is on its own, a stored one
+  /// while it is stored, and a constant one always.
   @override
   String conditionSwift({required String dataExpr}) {
-    final exists = HWNativeHelper.hwImageExists.name;
     final data = this.data;
-    if (data is HWAppearanceData && imageLeafOf(data) != null) {
-      final picked = data.swiftPick((side) {
-        final path = side.swiftVariantValue(dataExpr);
-        return '($exists($path) ? $path : nil)';
-      });
+    if (data is HWAppearanceData) {
+      final picked = data.swiftPick(
+        (side) => _alwaysPresent(side)
+            ? 'true'
+            : '(${_swiftPresent(side, dataExpr)} ? true : nil)',
+      );
       return '$picked != nil';
     }
-    final access = data.swiftAccess(dataExpr);
-    if (imageLeafOf(data) != null) return '$exists($access)';
-    return '$access != nil';
+    return _swiftPresent(data, dataExpr);
   }
 
   /// [conditionSwift]'s rule, with the widget's `context` threaded in: the
   /// Kotlin helper reaches the app's assets through it.
   @override
   String conditionKotlin({required String dataExpr}) {
-    final exists = HWNativeHelper.hwImageExists.name;
     final data = this.data;
-    if (data is HWAppearanceData && imageLeafOf(data) != null) {
+    if (data is HWAppearanceData) {
       final picked = data.kotlinPick(
-        (side) => '${side.kotlinVariantValue(dataExpr)}'
-            '.takeIf { $exists(context, it) }',
+        (side) => _alwaysPresent(side)
+            ? 'true'
+            : 'true.takeIf { ${_kotlinPresent(side, dataExpr)} }',
       );
       return '$picked != null';
     }
-    final access = data.kotlinAccess(dataExpr);
-    if (imageLeafOf(data) != null) return '$exists(context, $access)';
-    return '$access != null';
+    return _kotlinPresent(data, dataExpr);
+  }
+
+  /// Whether [side] of an [HWAppearanceData] has a value wherever it is
+  /// picked: a constant one, save for an asset, which may not have shipped.
+  static bool _alwaysPresent(HWDataType<dynamic> side) =>
+      side.isFixed && imageLeafOf(side) == null;
+
+  static String _swiftPresent(HWDataType<dynamic> data, String dataExpr) {
+    if (imageLeafOf(data) == null) {
+      return '${data.swiftAccess(dataExpr)} != nil';
+    }
+    final path = data.isFixed
+        ? data.swiftVariantValue(dataExpr)
+        : data.swiftAccess(dataExpr);
+    return '${HWNativeHelper.hwImageExists.name}($path)';
+  }
+
+  static String _kotlinPresent(HWDataType<dynamic> data, String dataExpr) {
+    if (imageLeafOf(data) == null) {
+      return '${data.kotlinAccess(dataExpr)} != null';
+    }
+    final path = data.isFixed
+        ? data.kotlinVariantValue(dataExpr)
+        : data.kotlinAccess(dataExpr);
+    return '${HWNativeHelper.hwImageExists.name}(context, $path)';
   }
 }
 

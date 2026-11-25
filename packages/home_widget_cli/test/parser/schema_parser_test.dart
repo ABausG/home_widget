@@ -61,7 +61,8 @@ void main() {
         [const HWString('title'), const HWColor('bgLight')],
       );
       expect(spec.data.android!.backgroundColor, isA<HWAppearanceData<int>>());
-      expect(spec.nativeHelpers, contains(HWNativeHelper.hwColor));
+      expect(spec.androidNativeHelpers, contains(HWNativeHelper.hwColor));
+      expect(spec.iosNativeHelpers, contains(HWNativeHelper.hwColor));
     });
 
     test('parses minimal widget spec', () async {

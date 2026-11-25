@@ -133,6 +133,62 @@ void main() {
         ),
         _throwsMessage(contains('dark side is HWString.localizedFixed')),
       );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            _exists(
+              const HWAppearanceData<String>(
+                light: HWString('light'),
+                dark: HWTimedData(
+                  HWString.localized(
+                    'greeting',
+                    defaultTranslations: {'en': 'Hi'},
+                  ),
+                ),
+              ),
+            ),
+            localization: _localization,
+          ),
+        ),
+        _throwsMessage(contains('dark side is HWString.localized("greeting")')),
+      );
+    });
+
+    test('accepts a side with a default, tested for being stored', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            _exists(
+              const HWAppearanceData<String>(
+                light: HWJson('brand', HWString('name', defaultValue: 'x')),
+                dark: HWString('dark', defaultValue: 'y'),
+              ),
+            ),
+          ),
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('rejects an HWAppearanceData in HWDataOnly', () {
+      expect(
+        () => validateWidgetData(
+          _spec(
+            const HWDataOnly([
+              HWAppearanceData<int>(
+                light: HWColor('light'),
+                dark: HWColor('dark'),
+              ),
+            ]),
+          ),
+        ),
+        _throwsMessage(
+          'Widget "T": HWDataOnly cannot declare an HWAppearanceData. It '
+          'picks between values rather than storing one, so there is no field '
+          'of its own to declare. List the stored fields of its sides in '
+          'HWDataOnly instead.',
+        ),
+      );
     });
 
     test('checks the fixed sides of a text like fixed values', () {

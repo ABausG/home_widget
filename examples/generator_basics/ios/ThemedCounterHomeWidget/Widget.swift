@@ -61,12 +61,13 @@ struct ThemedCounterHomeWidgetEntryView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .applyContainerBackground(
-      optional: hwAppearance(
+      (hwAppearance(
         hwEnvironment,
         light: Color(red: 0.9372549019607843, green: 0.9647058823529412, blue: 1.0, opacity: 1.0),
         dark: Color(
           red: 0.043137254901960784, green: 0.07058823529411765, blue: 0.12549019607843137,
-          opacity: 1.0)))
+          opacity: 1.0))
+        ?? Color(red: 0.9372549019607843, green: 0.9647058823529412, blue: 1.0, opacity: 1.0)))
   }
 }
 
@@ -85,35 +86,11 @@ struct ThemedCounterHomeWidget: Widget {
 
 extension View {
   @ViewBuilder
-  func applyContainerBackground() -> some View {
-    if #available(iOSApplicationExtension 17.0, *) {
-      self.containerBackground(.fill.tertiary, for: .widget)
-    } else if #available(iOSApplicationExtension 15.0, *) {
-      self.background()
-    } else {
-      self
-    }
-  }
-}
-
-extension View {
-  @ViewBuilder
   func applyContainerBackground<T: View>(_ backgroundView: T) -> some View {
     if #available(iOSApplicationExtension 17.0, *) {
       self.containerBackground(for: .widget) { backgroundView }
     } else {
       self.background(backgroundView)
-    }
-  }
-}
-
-extension View {
-  @ViewBuilder
-  func applyContainerBackground(optional backgroundColor: Color?) -> some View {
-    if let backgroundColor {
-      self.applyContainerBackground(backgroundColor)
-    } else {
-      self.applyContainerBackground()
     }
   }
 }

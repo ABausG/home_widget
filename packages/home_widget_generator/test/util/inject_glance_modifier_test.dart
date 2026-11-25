@@ -541,6 +541,22 @@ void main() {
       );
     });
 
+    test('wraps a call on an object in a Box, not the object', () {
+      expect(
+        injectGlanceModifier(
+          'HomeWidgetAppearance.pick(context, { a }, { b })?.let { images ->\n'
+              '    HwAppearanceImage(modifier = GlanceModifier)\n'
+              '}',
+          'padding(4.dp)',
+        ),
+        'Box(modifier = GlanceModifier.padding(4.dp)) {\n'
+        '    HomeWidgetAppearance.pick(context, { a }, { b })?.let { images ->\n'
+        '        HwAppearanceImage(modifier = GlanceModifier)\n'
+        '    }\n'
+        '}',
+      );
+    });
+
     test('preserves leading indent on Column', () {
       expect(
         injectGlanceModifier('  Column {', 'fillMaxSize'),

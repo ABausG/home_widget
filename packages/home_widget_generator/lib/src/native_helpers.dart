@@ -1433,8 +1433,8 @@ private fun hwAppearanceColor(
 ): androidx.glance.unit.ColorProvider? {
     val day = light ?: dark ?: return null
     return ColorProvider(
-        day = day.getColor(HomeWidgetAppearance.context(context, night = false)),
-        night = (dark ?: day).getColor(HomeWidgetAppearance.context(context, night = true)),
+        day = day.getColor(HomeWidgetAppearance.configurationContext(context, night = false)),
+        night = (dark ?: day).getColor(HomeWidgetAppearance.configurationContext(context, night = true)),
     )
 }''',
     kotlinImports: {
@@ -1483,8 +1483,8 @@ private fun HwAppearanceImage(
                     images.night,
                     contentDescription,
                     contentScale,
-                    tint?.getColor(HomeWidgetAppearance.context(context, night = false))?.toArgb(),
-                    tint?.getColor(HomeWidgetAppearance.context(context, night = true))?.toArgb(),
+                    tint?.getColor(HomeWidgetAppearance.configurationContext(context, night = false))?.toArgb(),
+                    tint?.getColor(HomeWidgetAppearance.configurationContext(context, night = true))?.toArgb(),
                 ),
             modifier = size,
         )

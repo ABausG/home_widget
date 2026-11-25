@@ -250,5 +250,58 @@ void main() {
       expect(content, isNot(contains('optional backgroundColor')));
       expect(content, isNot(contains('func applyContainerBackground() ->')));
     });
+
+    test('iOS paints a pick between constant colors as a constant', () async {
+      final content = await swift(
+        _spec(
+          iosBackground: const HWAppearanceData<int>(
+            light: HWColor.fixed(0xFFFFFFFF),
+            dark: HWDefaultColor(HWColorRole.contentPrimary),
+          ),
+        ),
+      );
+      expect(
+        content,
+        contains(
+          '.applyContainerBackground((hwAppearance(hwEnvironment, '
+          'light: Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0), '
+          'dark: Color.primary) ?? '
+          'Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 1.0)))',
+        ),
+      );
+      expect(content, isNot(contains('optional backgroundColor')));
+      expect(content, isNot(contains('func applyContainerBackground() ->')));
+    });
+
+    test('each platform declares the helpers of its own background only',
+        () async {
+      final androidOnly = _spec(
+        tree: const HWText(HWString.fixed('a')),
+        androidBackground: const HWAppearanceData<int>(
+          light: HWColor('androidLight'),
+          dark: HWColor('androidDark'),
+        ),
+      );
+      expect(
+        androidOnly.androidNativeHelpers,
+        containsAll([
+          HWNativeHelper.hwAppearanceColor,
+          HWNativeHelper.hwColor,
+        ]),
+      );
+      expect(androidOnly.iosNativeHelpers, isEmpty);
+      expect(androidOnly.androidUsesPluginAppearance, isTrue);
+
+      final iosOnly = _spec(
+        tree: const HWText(HWString.fixed('a')),
+        androidBackground: const HWColor.fixed(0xFF000000),
+        iosBackground: const HWAppearanceData<int>(
+          light: HWColor('iosLight'),
+          dark: HWDefaultColor(HWColorRole.contentPrimary),
+        ),
+      );
+      expect(iosOnly.androidNativeHelpers, isEmpty);
+      expect(iosOnly.androidUsesPluginAppearance, isFalse);
+    });
   });
 }

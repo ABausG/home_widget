@@ -54,7 +54,8 @@ class AndroidGenerator {
     final previewNeedsLocaleArg =
         needsLocaleArg || _previewResolvesTranslations;
 
-    final nativeHelpers = kotlinNativeHelpers(spec.nativeHelpers).toList();
+    final nativeHelpers =
+        kotlinNativeHelpers(spec.androidNativeHelpers).toList();
 
     // Gallery strings do not count — the launcher resolves those on its own.
     // A formatted number or date is locale-dependent too, so a widget that only
@@ -899,9 +900,10 @@ class AndroidGenerator {
   ///
   /// Covers everything the preview renders from that is not fixed at generation
   /// time: [WidgetSpec.previewContentHash] for the annotation, the locale tags
-  /// for a language change, the stored data where the preview reads it, and the
-  /// modification time of every runtime image file that data points at, whose
-  /// path stays the same when its bytes are replaced.
+  /// for a language change, the night mode where the widget picks a value or a
+  /// layout by it as it renders, the stored data where the preview reads it,
+  /// and the modification time of every runtime image file that data points
+  /// at, whose path stays the same when its bytes are replaced.
   /// The Kotlin `hwMeasuredItemCounts` counting the items of every one of
   /// [builders], which is what tells a running widget that the room its item
   /// texts have is worth measuring again.
@@ -941,6 +943,8 @@ class AndroidGenerator {
     final parts = <String>[
       '"${spec.previewContentHash}"',
       'hwLocales.joinToString(",")',
+      if (spec.androidNativeHelpers.contains(HWNativeHelper.hwIsNight))
+        '${HWNativeHelper.hwIsNight.name}(context).toString()',
     ];
 
     if (spec.androidUsesLiveDataInPreview && hasDataFields) {

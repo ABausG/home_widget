@@ -119,6 +119,17 @@ class TextColor {}
 )
 class IconColor {}
 
+@HomeWidget(
+  name: 'SurrogateSide',
+  widget: HWIcon(
+    HWAppearanceData(
+      light: HWIconData.fixed(Icons.wb_sunny),
+      dark: HWIconData.fixed(IconData(0xD800, fontFamily: 'MaterialIcons')),
+    ),
+  ),
+)
+class SurrogateSide {}
+
 @HomeWidget(name: 'ColorAsText', widget: HWText(HWColor('accent')))
 class ColorAsText {}
 
@@ -438,6 +449,13 @@ void main() {
       expect(
         () => decoded('appearanceOfColorsAndText'),
         throwsGeneratorError(contains('(HWColor, HWString)')),
+      );
+    });
+
+    test('validates the glyph of a constant icon side', () {
+      expect(
+        () => widgetOf('SurrogateSide'),
+        throwsGeneratorError(contains('surrogate')),
       );
     });
 

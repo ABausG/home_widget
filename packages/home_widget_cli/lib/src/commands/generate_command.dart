@@ -131,6 +131,7 @@ class GenerateCommand extends Command<int> {
         validateFonts(item.spec, Directory.current);
         validateLaunchSupport(item.spec, Directory.current);
         validateInteractionSupport(item.spec, Directory.current);
+        validateAppearanceSupport(item.spec, Directory.current);
         await IosGenerator(spec: item.spec, projectRoot: Directory.current)
             .checkXcodeProject();
       }

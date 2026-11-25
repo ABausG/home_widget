@@ -79,6 +79,11 @@ void main() {
       );
     });
 
+    test('spells a negative value by its low 32 bits on Android', () {
+      expect(const HWFixedColor(-1).kotlinLiteral, 'Color(0xFFFFFFFF)');
+      expect(const HWFixedColor(0xFF6750A4).kotlinLiteral, 'Color(0xFF6750A4)');
+    });
+
     test('compares by value', () {
       expect(const HWFixedColor(1), const HWFixedColor(1));
       expect(const HWFixedColor(1), isNot(const HWFixedColor(2)));
@@ -130,13 +135,19 @@ void main() {
         const HWColor('plain').iosReadValue(store: 'defaults', key: 'k'),
         'defaults?.object(forKey: "k") as? Int',
       );
-      final kotlin = accent.androidReadValue(store: 'prefs', key: 'k');
-      expect(kotlin, contains('prefs.getInt("k", 0).toLong()'));
-      expect(kotlin, contains('prefs.getLong("k", 0L)'));
-      expect(kotlin, endsWith('else 4284960932L'));
+      expect(
+        accent.androidReadValue(store: 'prefs', key: 'k'),
+        'when (val hwStored = prefs.all["k"]) { '
+        'is Int -> hwStored.toLong(); is Long -> hwStored; '
+        'else -> 4284960932L }',
+      );
       expect(
         accent.androidReadValue(store: 'prefs', key: 'k', preview: true),
-        endsWith('else 4278190080L'),
+        endsWith('else -> 4278190080L }'),
+      );
+      expect(
+        const HWColor('plain').androidReadValue(store: 'prefs', key: 'k'),
+        endsWith('else -> null }'),
       );
     });
 
@@ -302,7 +313,8 @@ void main() {
 
   group('HWColorSlotDefault', () {
     test('names what each slot paints without a value', () {
-      expect(HWColorSlotDefault.content.swift, 'Color.primary');
+      expect(HWColorSlotDefault.content.swift, isNull);
+      expect(HWColorSlotDefault.transparent.swift, 'Color.clear');
       expect(
         HWColorSlotDefault.background.kotlin,
         'GlanceTheme.colors.widgetBackground',
@@ -311,7 +323,15 @@ void main() {
         HWColorSlotDefault.background.kotlinImports,
         {'import androidx.glance.GlanceTheme'},
       );
-      expect(HWColorSlotDefault.background.swift, 'Color(.systemBackground)');
+      expect(HWColorSlotDefault.background.swift, isNull);
+      expect(
+        hwSwiftColor(
+          const HWColor('a'),
+          dataExpr: 'e',
+          fallback: HWColorSlotDefault.content,
+        ),
+        'hwColor(e.a)',
+      );
     });
 
     test('hwIsConstantColor is only true for a fixed or role color', () {
@@ -329,6 +349,38 @@ void main() {
           ),
         ),
         isFalse,
+      );
+    });
+
+    test('a pick between constant colors is constant on iOS', () {
+      const pick = HWAppearanceData<int>(
+        light: HWColor.fixed(0xFF000000),
+        dark: HWDefaultColor(HWColorRole.contentPrimary),
+      );
+      expect(hwSwiftColorIsConstant(pick), isTrue);
+      expect(hwSwiftColorIsConstant(const HWColor.fixed(1)), isTrue);
+      expect(
+        hwSwiftColorIsConstant(
+          const HWAppearanceData<int>(
+            light: HWColor('a'),
+            dark: HWColor.fixed(1),
+          ),
+        ),
+        isFalse,
+      );
+      expect(
+        hwSwiftConstantColor(pick, dataExpr: 'e'),
+        '(hwAppearance(hwEnvironment, '
+        'light: Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0), '
+        'dark: Color.primary) ?? '
+        'Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1.0))',
+      );
+      expect(
+        hwSwiftConstantColor(
+          const HWDefaultColor(HWColorRole.contentPrimary),
+          dataExpr: 'e',
+        ),
+        'Color.primary',
       );
     });
   });

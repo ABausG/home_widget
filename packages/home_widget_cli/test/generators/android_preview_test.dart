@@ -887,6 +887,35 @@ void main() {
       );
     });
 
+    test('folds in the night mode where the widget picks by it', () async {
+      final picks = await generate(
+        _spec(
+          widget: const HWText(
+            HWAppearanceData<String>(
+              light: HWString.fixed('day'),
+              dark: HWString.fixed('night'),
+            ),
+          ),
+        ),
+      );
+      expect(picks, contains('      hwIsNight(context).toString(),\n'));
+
+      final pairs = await generate(
+        _spec(
+          widget: const HWText(
+            HWString.fixed('a'),
+            style: HWTextStyle(
+              color: HWAppearanceData<int>(
+                light: HWColor('day'),
+                dark: HWColor('night'),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(pairs, isNot(contains('hwIsNight(context).toString()')));
+    });
+
     test('the receiver forwards the fingerprint', () async {
       final receiver = await generateReceiver(
         _spec(widget: const HWText(HWString.fixed('hello'))),

@@ -1184,26 +1184,40 @@ class WidgetSpec {
   /// The [HWLink]s iOS opens through `.widgetURL`: each is the whole layout
   /// of a family in [iosSingleTapFamilies] the widget can be shown in.
   ///
-  /// That is the link the tree is as a whole, or the one the slot such a
-  /// family resolves to in an [HWSizeAdaptive] the tree is as a whole is.
+  /// That is the link the tree is as a whole, or the one a branch the tree
+  /// picks as a whole is: the slot such a family resolves to in an
+  /// [HWSizeAdaptive], any slot of an [HWAppearanceAdaptive] and either branch
+  /// of a conditional, each of which renders alone.
   List<HWLink> get iosWidgetUrlLinks {
     final singleTap = iosReachableFamilies.intersection(iosSingleTapFamilies);
     if (singleTap.isEmpty) return const [];
 
-    final root = _unwrapTapArea(effectiveWidgetTree, ios: true);
-    if (root is HWLink) {
-      return root.swiftRendersNothing ? const [] : [root];
-    }
-    if (root is! HWSizeAdaptive) return const [];
-
     final links = <HWLink>[];
-    for (final family in singleTap) {
-      final slot = root.resolve(family);
-      final link = slot == null ? null : _wholeLayoutLink(slot, ios: true);
-      if (link == null || link.swiftRendersNothing) continue;
-      if (links.any((other) => identical(other, link))) continue;
-      links.add(link);
+    void collect(HWWidget widget, Set<HWWidgetFamily> families) {
+      switch (_unwrapTapArea(widget, ios: true)) {
+        case final HWLink link:
+          if (link.swiftRendersNothing) return;
+          if (links.any((other) => identical(other, link))) return;
+          links.add(link);
+        case final HWSizeAdaptive adaptive:
+          for (final family in families) {
+            if (adaptive.resolve(family) case final slot?) {
+              collect(slot, {family});
+            }
+          }
+        case final HWAppearanceAdaptive adaptive:
+          for (final slot in adaptive.childWidgets) {
+            collect(slot, families);
+          }
+        case final HWConditional conditional:
+          collect(conditional.firstBranch, families);
+          collect(conditional.secondBranch, families);
+        default:
+          break;
+      }
     }
+
+    collect(effectiveWidgetTree, singleTap);
     return links;
   }
 
@@ -1747,13 +1761,42 @@ class WidgetSpec {
   /// is the one source of truth for what a generated file declares, so a field
   /// nothing displays never drags a render helper in. Both are handed to
   /// [resolveNativeHelpers], which closes over their dependencies.
-  List<HWNativeHelper> get nativeHelpers => resolveNativeHelpers([
+  ///
+  /// Each platform's `backgroundColor` is painted only by that platform, so its
+  /// helpers are only in [androidNativeHelpers] or [iosNativeHelpers].
+  List<HWNativeHelper> get nativeHelpers =>
+      resolveNativeHelpers(_sharedHelpers);
+
+  /// [nativeHelpers] with what the Android `backgroundColor` paints through,
+  /// which is what the generated Kotlin declares.
+  List<HWNativeHelper> get androidNativeHelpers => resolveNativeHelpers([
+        ..._sharedHelpers,
+        ...?data.android?.backgroundColor?.renderHelpers,
+      ]);
+
+  /// [nativeHelpers] with what the iOS `backgroundColor` paints through, which
+  /// is what the generated Swift declares.
+  List<HWNativeHelper> get iosNativeHelpers => resolveNativeHelpers([
+        ..._sharedHelpers,
+        ...?data.iOS?.backgroundColor?.renderHelpers,
+      ]);
+
+  /// Whether the generated Kotlin calls the plugin's `HomeWidgetAppearance`,
+  /// which only a color, an image or an icon picked by the appearance does
+  /// that is not a pair of two constant colors.
+  bool get androidUsesPluginAppearance =>
+      data.android != null &&
+      androidNativeHelpers.any(
+        (helper) =>
+            helper == HWNativeHelper.hwAppearanceColor ||
+            helper == HWNativeHelper.hwAppearanceImage,
+      );
+
+  Iterable<HWNativeHelper> get _sharedHelpers => [
         ...effectiveWidgetTree.nativeHelpers,
         for (final field in dataFields) ...field.nativeHelpers,
         if (hasWidgetUrl) ...widgetUrl!.nativeHelpers,
-        ...?data.android?.backgroundColor?.renderHelpers,
-        ...?data.iOS?.backgroundColor?.renderHelpers,
-      ]);
+      ];
 
   /// Image leaves of the untimed JSON groups.
   List<JsonImageField> get jsonImageFields => _jsonImages(jsonDataGroups);

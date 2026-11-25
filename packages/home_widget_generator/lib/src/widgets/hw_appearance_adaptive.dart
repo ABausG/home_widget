@@ -102,7 +102,10 @@ class HWAppearanceAdaptive extends HWWidget {
   List<HWWidget> get androidChildWidgets => [light, dark];
 
   @override
-  Set<HWNativeHelper> get renderHelpers => HWAppearanceChoice.layoutHelpers;
+  Set<HWNativeHelper> get renderHelpers => HWAppearanceChoice.layoutHelpers(
+        accented: iosAccented != null,
+        vibrant: iosVibrant != null,
+      );
 
   @override
   Set<String> get kotlinImports => kotlinImportsIn(null);

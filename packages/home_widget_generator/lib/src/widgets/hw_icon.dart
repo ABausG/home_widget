@@ -327,6 +327,13 @@ class HWIcon extends HWWidget implements HWDataWidget {
         matchTextDirection: data.fixedMatchTextDirection,
       );
     }
+    if (data is HWAppearanceData) {
+      for (final side in data.sides) {
+        if (iconLeafOf(side)?.fixedCodePoint case final codePoint?) {
+          hwValidateCodePoint(codePoint, 'This HWIcon');
+        }
+      }
+    }
     if (data != null && iconLeafOf(data) != null) {
       return HWIcon.resolved(
         data,
@@ -339,8 +346,8 @@ class HWIcon extends HWWidget implements HWDataWidget {
 
     throw GeneratorError(
       'Could not decode HWIcon. HWIcon requires an HWIconData, optionally '
-      'wrapped in HWJson or HWItemData and/or HWTimedData, got: '
-      '${dataObj?.type?.element?.name}',
+      'wrapped in HWJson or HWItemData and/or HWTimedData, or an '
+      'HWAppearanceData of them, got: ${dataObj?.type?.element?.name}',
     );
   }
 

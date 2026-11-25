@@ -1294,6 +1294,38 @@ void main() {
       expect(spec.iosIgnoredLinks, isEmpty);
     });
 
+    test('every slot of an appearance adaptive root opens through widgetURL',
+        () {
+      final spec = linkSpec(
+        const HWAppearanceAdaptive(
+          light: history,
+          dark: HWPadding(padding: HWEdgeInsets.all(4), child: forecast),
+          iosVibrant: HWSizeAdaptive(
+            small: history,
+            accessoryCircular: forecast,
+          ),
+        ),
+        families: const [
+          HWWidgetFamily.systemSmall,
+          HWWidgetFamily.accessoryCircular,
+        ],
+      );
+      expect(spec.iosWidgetUrlLinks, [history, forecast]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('either branch of a conditional root opens through widgetURL', () {
+      final spec = linkSpec(
+        const HWDataExists(
+          data: HWString('city'),
+          whenPresent: forecast,
+          whenAbsent: HWColumn(children: [history]),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [forecast]);
+      expect(spec.iosIgnoredLinks, [history]);
+    });
+
     test('a root that is neither a link nor size adaptive names none', () {
       final spec = linkSpec(const HWColumn(children: [history]));
       expect(spec.iosWidgetUrlLinks, isEmpty);

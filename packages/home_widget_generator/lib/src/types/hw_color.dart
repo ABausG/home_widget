@@ -95,11 +95,12 @@ class HWColor extends HWDataType<int> {
   }) {
     final fallback = codegenKotlinFallbackLiteral(preview: preview) ?? 'null';
     // A Dart int is stored as an Int only while it fits 32 bits, and an opaque
-    // color does not.
-    return 'if ($store.contains("$key")) '
-        '(try { $store.getInt("$key", 0).toLong() } '
-        'catch (_: ClassCastException) { $store.getLong("$key", 0L) }) '
-        'else $fallback';
+    // color does not. A value of any other kind, left by an older version of
+    // the app, counts as missing.
+    return 'when (val hwStored = $store.all["$key"]) { '
+        'is Int -> hwStored.toLong(); '
+        'is Long -> hwStored; '
+        'else -> $fallback }';
   }
 
   @override
@@ -196,10 +197,7 @@ class HWFixedColor extends HWColor {
   }
 
   /// The Compose `Color` literal of [value].
-  String get kotlinLiteral {
-    final hex = value.toRadixString(16).padLeft(8, '0').toUpperCase();
-    return 'Color(0x$hex)';
-  }
+  String get kotlinLiteral => 'Color(${hwArgbLiteral(value)})';
 }
 
 /// A color that maps to default system semantic colors based on the given role.

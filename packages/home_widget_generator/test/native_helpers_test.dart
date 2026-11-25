@@ -939,15 +939,15 @@ void main() {
       expect(
         kotlin,
         contains(
-          'day = day.getColor(HomeWidgetAppearance.context(context, '
-          'night = false))',
+          'day = day.getColor(HomeWidgetAppearance.configurationContext('
+          'context, night = false))',
         ),
       );
       expect(
         kotlin,
         contains(
-          'night = (dark ?: day).getColor(HomeWidgetAppearance.context('
-          'context, night = true))',
+          'night = (dark ?: day).getColor('
+          'HomeWidgetAppearance.configurationContext(context, night = true))',
         ),
       );
     });

@@ -159,6 +159,9 @@ void main() {
       );
       expect(item.swiftVariantValue('d'), contains('hwResolveLocalized('));
       expect(item.kotlinVariantValue('d'), contains('hwResolveLocalized('));
+      const timed = HWTimedData(item);
+      expect(timed.swiftVariantValue('d'), item.swiftVariantValue('d'));
+      expect(timed.kotlinVariantValue('d'), item.kotlinVariantValue('d'));
       const plain = HWItemData(HWString('label'));
       expect(plain.swiftVariantValue('d'), 'hwItem.label');
       expect(plain.kotlinVariantValue('d'), 'hwItem.label');
@@ -523,13 +526,14 @@ void main() {
       expect(
         exists.conditionSwift(dataExpr: 'e'),
         'hwAppearance(hwEnvironment, '
-        'light: (hwImageExists(e.a) ? e.a : nil), '
-        'dark: (hwImageExists("assets/b.png") ? "assets/b.png" : nil)) != nil',
+        'light: (hwImageExists(e.a) ? true : nil), '
+        'dark: (hwImageExists("assets/b.png") ? true : nil)) != nil',
       );
       expect(
         exists.conditionKotlin(dataExpr: 'w'),
-        'hwDayNight(context, { w.a.takeIf { hwImageExists(context, it) } }, '
-        '{ "assets/b.png".takeIf { hwImageExists(context, it) } }) != null',
+        'hwDayNight(context, '
+        '{ true.takeIf { hwImageExists(context, w.a) } }, '
+        '{ true.takeIf { hwImageExists(context, "assets/b.png") } }) != null',
       );
       expect(
         exists.swiftViewModifiers,
@@ -546,12 +550,105 @@ void main() {
       );
       expect(
         text.conditionSwift(dataExpr: 'e'),
-        'hwAppearance(hwEnvironment, light: e.a, dark: e.b) != nil',
+        'hwAppearance(hwEnvironment, light: (e.a != nil ? true : nil), '
+        'dark: (e.b != nil ? true : nil)) != nil',
       );
       expect(
         text.conditionKotlin(dataExpr: 'w'),
-        'hwDayNight(context, { w.a }, { w.b }) != null',
+        'hwDayNight(context, { true.takeIf { w.a != null } }, '
+        '{ true.takeIf { w.b != null } }) != null',
       );
+    });
+
+    test('HWDataExists counts a constant side as present', () {
+      const exists = HWDataExists(
+        data: HWAppearanceData<int>(
+          light: HWColor('a'),
+          dark: HWColor('b'),
+          iosAccented: HWColor.fixed(0xFFFFFFFF),
+          iosVibrant: HWDefaultColor(HWColorRole.contentPrimary),
+        ),
+        whenPresent: HWText(HWString.fixed('yes')),
+        whenAbsent: HWText(HWString.fixed('no')),
+      );
+      expect(
+        exists.conditionSwift(dataExpr: 'e'),
+        'hwAppearance(hwEnvironment, light: (e.a != nil ? true : nil), '
+        'dark: (e.b != nil ? true : nil), accented: true, vibrant: true) '
+        '!= nil',
+      );
+
+      const icon = HWDataExists(
+        data: HWAppearanceData<int>(
+          light: HWIconData.resolvedFixed(0xE430, iconFont: _font),
+          dark: HWIconData.resolved(
+            'b',
+            entries: [HWIconEntry('star', 0xE838)],
+            iconFont: _font,
+          ),
+        ),
+        whenPresent: HWText(HWString.fixed('yes')),
+        whenAbsent: HWText(HWString.fixed('no')),
+      );
+      expect(
+        icon.conditionKotlin(dataExpr: 'w'),
+        'hwDayNight(context, { true }, { true.takeIf { w.b != null } }) '
+        '!= null',
+      );
+    });
+
+    test('HWDataExists tests whether a side is stored, not its default', () {
+      const exists = HWDataExists(
+        data: HWAppearanceData<String>(
+          light: HWJson('g', HWString('a', defaultValue: 'x')),
+          dark: HWTimedData(HWString('b', defaultValue: 'y')),
+        ),
+        whenPresent: HWText(HWString.fixed('yes')),
+        whenAbsent: HWText(HWString.fixed('no')),
+      );
+      expect(
+        exists.conditionSwift(dataExpr: 'e'),
+        'hwAppearance(hwEnvironment, light: (e.g?.a != nil ? true : nil), '
+        'dark: (e.b != nil ? true : nil)) != nil',
+      );
+      expect(
+        exists.conditionKotlin(dataExpr: 'w'),
+        'hwDayNight(context, { true.takeIf { w.g?.a != null } }, '
+        '{ true.takeIf { w.b != null } }) != null',
+      );
+    });
+
+    test('HWDataExists brings the pick and nothing a color renders with', () {
+      for (final data in const <HWAppearanceData<int>>[
+        HWAppearanceData(light: HWColor('a'), dark: HWColor('b')),
+        HWAppearanceData(
+          light: HWIconData.resolved(
+            'a',
+            entries: [HWIconEntry('star', 0xE838)],
+            iconFont: _font,
+          ),
+          dark: HWIconData.resolvedFixed(0xE430, iconFont: _font),
+        ),
+      ]) {
+        final exists = HWDataExists(
+          data: data,
+          whenPresent: const HWText(HWString.fixed('yes')),
+          whenAbsent: const HWText(HWString.fixed('no')),
+        );
+        expect(
+          exists.nativeHelpers,
+          containsAll(HWAppearanceChoice.pickHelpers),
+        );
+        expect(
+          exists.nativeHelpers,
+          isNot(
+            anyOf(
+              contains(HWNativeHelper.hwColor),
+              contains(HWNativeHelper.hwAppearanceColor),
+            ),
+          ),
+        );
+      }
     });
 
     test('HWBoolConditional reads the picked flag, fixed sides included', () {
@@ -615,6 +712,21 @@ void main() {
         HWNativeHelper.hwIsNight,
       });
       expect(
+        const HWAppearanceAdaptive(
+          light: HWText(HWString('light')),
+          dark: HWText(HWString('dark')),
+        ).renderHelpers,
+        {HWNativeHelper.hwIsNight},
+      );
+      expect(
+        const HWAppearanceAdaptive(
+          light: HWText(HWString('light')),
+          dark: HWText(HWString('dark')),
+          iosVibrant: HWText(HWString('vibrant')),
+        ).renderHelpers,
+        {HWNativeHelper.hwIsVibrant, HWNativeHelper.hwIsNight},
+      );
+      expect(
         adaptive.swiftViewModifiers,
         contains(HWAppearanceChoice.swiftEnvironmentDeclaration),
       );
@@ -675,7 +787,10 @@ void main() {
       final kotlin = sized.toKotlin(0, dataExpr: 'w');
       expect(
         kotlin,
-        startsWith('if (hwDayNight(context, { w.a }, { w.b }) != null) {\n'),
+        startsWith(
+          'if (hwDayNight(context, { true.takeIf { w.a != null } }, '
+          '{ true.takeIf { w.b != null } }) != null) {\n',
+        ),
       );
       expect(
         RegExp(r'GlanceModifier\.fillMaxWidth\(\)\.height\(20\.0\.dp\)')

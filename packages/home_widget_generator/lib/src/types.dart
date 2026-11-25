@@ -2588,6 +2588,13 @@ class HWTimedData<T> extends HWDataType<T> {
   @override
   String swiftReadExpr(String dataExpr) => data.swiftReadExpr(dataExpr);
 
+  @override
+  String swiftVariantValue(String dataExpr) => data.swiftVariantValue(dataExpr);
+
+  @override
+  String kotlinVariantValue(String dataExpr) =>
+      data.kotlinVariantValue(dataExpr);
+
   /// The value is read out of the active timed entry, never out of a
   /// preferences key of its own.
   @override
