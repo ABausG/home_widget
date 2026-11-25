@@ -11,6 +11,28 @@ void main() {
       );
     });
 
+    test('injects into the branches, not into braces of the condition', () {
+      expect(
+        injectGlanceModifier(
+          'if (hwDayNight(context, { w.a }, { w.b }) != null) {\n'
+              '    Text("a")\n'
+              '} else if (pick({ w.c })) {\n'
+              '    Text("c")\n'
+              '} else {\n'
+              '    Text("b")\n'
+              '}',
+          'fillMaxSize()',
+        ),
+        'if (hwDayNight(context, { w.a }, { w.b }) != null) {\n'
+        '    Text(modifier = GlanceModifier.fillMaxSize(), "a")\n'
+        '} else if (pick({ w.c })) {\n'
+        '    Text(modifier = GlanceModifier.fillMaxSize(), "c")\n'
+        '} else {\n'
+        '    Text(modifier = GlanceModifier.fillMaxSize(), "b")\n'
+        '}',
+      );
+    });
+
     test('injects modifier into Column with brace body', () {
       expect(
         injectGlanceModifier('Column {', 'fillMaxSize'),

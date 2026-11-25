@@ -100,11 +100,17 @@ String hwSwiftColor(
 
 /// The Glance `ColorProvider` [color] paints with, nullable unless
 /// [_kotlinColorIsConstant].
+///
+/// An [HWAppearanceData] is one `ColorProvider` holding the color of either
+/// appearance, which the launcher switches between itself.
 String _kotlinColorValue(HWDataType<dynamic> color, String dataExpr) {
   if (color is HWAppearanceData) {
     final pair = _kotlinFixedPair(color);
     if (pair != null) return pair;
-    return color.kotlinPick((side) => _kotlinColorValue(side, dataExpr));
+    return HWAppearanceChoice.kotlinColor(
+      light: _kotlinColorValue(color.light, dataExpr),
+      dark: _kotlinColorValue(color.dark, dataExpr),
+    );
   }
   if (color is HWFixedColor) {
     return HWAppearanceChoice.kotlinColorPair(
@@ -121,11 +127,7 @@ String _kotlinColorValue(HWDataType<dynamic> color, String dataExpr) {
 String? _kotlinFixedPair(HWAppearanceData<dynamic> color) {
   final light = color.light;
   final dark = color.dark;
-  if (color.kotlinPicksAtRender ||
-      light is! HWFixedColor ||
-      dark is! HWFixedColor) {
-    return null;
-  }
+  if (light is! HWFixedColor || dark is! HWFixedColor) return null;
   return HWAppearanceChoice.kotlinColorPair(
     light: light.kotlinLiteral,
     dark: dark.kotlinLiteral,

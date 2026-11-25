@@ -174,17 +174,29 @@ class HWAppearanceData<T> extends HWDataType<T> {
   Set<String> get swiftViewModifiers =>
       const {HWAppearanceChoice.swiftEnvironmentDeclaration};
 
-  /// Whether Android picks a side when it renders, rather than handing the
-  /// launcher a pair to resolve: everything but two constant ARGB colors.
+  /// Whether Android renders this as a `ColorProvider` of two constant ARGB
+  /// colors, which the launcher resolves without a helper.
   ///
   /// Codegen-internal: consumed by the widgets and by `home_widget_cli`.
-  bool get kotlinPicksAtRender =>
-      !(light is HWFixedColor && dark is HWFixedColor);
+  bool get kotlinIsFixedColorPair =>
+      light is HWFixedColor && dark is HWFixedColor;
+
+  /// The Kotlin helpers rendering the value Android shows calls: a color
+  /// resolves both sides into one pair, an image or an icon is handed to the
+  /// launcher as a pair by the widget showing it, and any other value is
+  /// picked inside the box that widget renders in.
+  Set<HWNativeHelper> get _kotlinHelpers => switch (leaf) {
+        HWColor() => kotlinIsFixedColorPair
+            ? const {}
+            : HWAppearanceChoice.kotlinColorHelpers,
+        HWImageData() || HWIconData() => const {},
+        _ => HWAppearanceChoice.kotlinValueHelpers,
+      };
 
   @override
   Set<HWNativeHelper> get renderHelpers => {
         ...HWAppearanceChoice.swiftValueHelpers,
-        if (kotlinPicksAtRender) ...HWAppearanceChoice.kotlinValueHelpers,
+        ..._kotlinHelpers,
         for (final side in sides) ...side.renderHelpers,
       };
 

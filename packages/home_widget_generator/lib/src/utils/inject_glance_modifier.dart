@@ -31,7 +31,23 @@
 
 /// Matches the separator between two branches of an `if` chain, i.e. the
 /// `} else {` / `} else if (...) {` glue (the trailing `{` excluded).
-final _elseSeparator = RegExp(r'^\}\s*else\b[^{]*$', dotAll: true);
+final _elseSeparator = RegExp(r'^\}\s*else\b');
+
+/// The index of the `{` opening the next branch block at or after [from], or
+/// `-1`.
+///
+/// A condition in parentheses comes before it and may hold braces of its own,
+/// as the lambdas of a value picked by the appearance do, so the block opens
+/// after the parenthesis closing the condition.
+int _branchOpen(String code, int from) {
+  final paren = code.indexOf('(', from);
+  final brace = code.indexOf('{', from);
+  if (paren != -1 && (brace == -1 || paren < brace)) {
+    final condition = _argumentRange(code, paren);
+    if (condition != null) return code.indexOf('{', condition.$2 + 1);
+  }
+  return brace;
+}
 
 /// Returns the index of the `}` matching the `{` at [openIndex], or `-1`.
 ///
@@ -83,7 +99,7 @@ String? _injectIntoIfBranches(
   final buffer = StringBuffer();
 
   while (true) {
-    final open = code.indexOf('{', cursor);
+    final open = _branchOpen(code, cursor);
     if (open == -1) break;
 
     final close = _matchingBrace(code, open);
@@ -101,9 +117,7 @@ String? _injectIntoIfBranches(
     cursor = close;
 
     // Continue only while the blocks are chained by `else` / `else if`.
-    final nextOpen = code.indexOf('{', close);
-    if (nextOpen == -1) break;
-    if (!_elseSeparator.hasMatch(code.substring(close, nextOpen))) break;
+    if (!_elseSeparator.hasMatch(code.substring(close))) break;
   }
 
   if (buffer.isEmpty) return null;

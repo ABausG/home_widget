@@ -178,14 +178,17 @@ void main() {
       expect(
         content,
         contains(
-          'background((hwDayNight(context, { hwColor(widgetData.bgLight) }, '
-          '{ GlanceTheme.colors.widgetBackground }) ?: '
+          'background((hwAppearanceColor(context, hwColor(widgetData.bgLight), '
+          'GlanceTheme.colors.widgetBackground) ?: '
           'GlanceTheme.colors.widgetBackground))',
         ),
       );
-      expect(content, contains('private inline fun <T> hwDayNight('));
-      expect(content, contains('private fun hwIsNight('));
-      expect(content, contains('import android.content.res.Configuration'));
+      expect(content, contains('private fun hwAppearanceColor('));
+      expect(
+        content,
+        contains('import es.antonborri.home_widget.HomeWidgetAppearance'),
+      );
+      expect(content, isNot(contains('hwDayNight')));
       expect(content, contains('val bgLight: Long? = null,'));
     });
 

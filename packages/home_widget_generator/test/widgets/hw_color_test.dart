@@ -234,7 +234,7 @@ void main() {
         light: HWColor.fixed(0xFFFFFFFF),
         dark: HWColor.fixed(0xFF000000),
       );
-      expect(pair.kotlinPicksAtRender, isFalse);
+      expect(pair.kotlinIsFixedColorPair, isTrue);
       expect(
         hwKotlinColor(pair, dataExpr: 'd', fallback: _content),
         'ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFF000000))',
@@ -246,17 +246,17 @@ void main() {
       );
     });
 
-    test('a role on one side is picked as a provider, not as white', () {
+    test('a role on one side is resolved into the pair, not as white', () {
       const mixed = HWAppearanceData<int>(
         light: HWDefaultColor(HWColorRole.contentPrimary),
         dark: HWColor.fixed(0xFF000000),
       );
-      expect(mixed.kotlinPicksAtRender, isTrue);
+      expect(mixed.kotlinIsFixedColorPair, isFalse);
       final kotlin = hwKotlinColor(mixed, dataExpr: 'd', fallback: _content);
       expect(
         kotlin,
-        '(hwDayNight(context, { GlanceTheme.colors.onSurface }, '
-        '{ ColorProvider(day = Color(0xFF000000), night = Color(0xFF000000)) }) '
+        '(hwAppearanceColor(context, GlanceTheme.colors.onSurface, '
+        'ColorProvider(day = Color(0xFF000000), night = Color(0xFF000000))) '
         '?: GlanceTheme.colors.onSurface)',
       );
       expect(kotlin, isNot(contains('Color.White')));
@@ -267,7 +267,7 @@ void main() {
       );
       expect(
         mixed.renderHelpers,
-        {HWNativeHelper.hwAppearance, HWNativeHelper.hwDayNight},
+        {HWNativeHelper.hwAppearance, HWNativeHelper.hwAppearanceColor},
       );
     });
 
@@ -287,7 +287,7 @@ void main() {
       );
       expect(
         hwKotlinColor(stored, dataExpr: 'w', fallback: _transparent),
-        '(hwDayNight(context, { hwColor(w.light) }, { hwColor(w.dark) }) ?: '
+        '(hwAppearanceColor(context, hwColor(w.light), hwColor(w.dark)) ?: '
         'ColorProvider(day = Color.Transparent, night = Color.Transparent))',
       );
       expect(

@@ -817,7 +817,11 @@ void main() {
           '    ).joinToString("|")',
         ),
       );
-      expect(content, isNot(contains('lastModified()')));
+      final fingerprint = content.substring(
+        content.indexOf('fun previewFingerprint('),
+        content.indexOf('@Composable'),
+      );
+      expect(fingerprint, isNot(contains('lastModified()')));
     });
 
     test('leaves out the data when the preview does not read it', () async {

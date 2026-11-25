@@ -231,10 +231,17 @@ class HWDataExists extends HWConditional {
         ...super.dataDependencies,
       };
 
+  /// An image picked by the appearance is checked through the pick on
+  /// Android, which its value does not bring along: an image is otherwise
+  /// handed to the launcher as a pair.
   @override
-  Set<HWNativeHelper> get renderHelpers => imageLeafOf(data) == null
-      ? const {}
-      : const {HWNativeHelper.hwImageExists};
+  Set<HWNativeHelper> get renderHelpers => {
+        if (imageLeafOf(data) != null) ...{
+          HWNativeHelper.hwImageExists,
+          if (data is HWAppearanceData)
+            ...HWAppearanceChoice.kotlinValueHelpers,
+        },
+      };
 
   /// An image counts as present when there is an image to display for it:
   /// a saved file still on disk, or an asset key that names an asset the app

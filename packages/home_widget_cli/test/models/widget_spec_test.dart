@@ -1618,6 +1618,18 @@ void main() {
                 child: HWText(HWString.fixed('dark')),
               ),
             ),
+            HWImage(
+              HWAppearanceData(
+                light: HWImageData('avatar'),
+                dark: HWImageData.asset('assets/dark.png'),
+              ),
+            ),
+            HWText(
+              HWAppearanceData(
+                light: HWString.fixed('day'),
+                dark: HWString('zone'),
+              ),
+            ),
           ],
         ),
       );

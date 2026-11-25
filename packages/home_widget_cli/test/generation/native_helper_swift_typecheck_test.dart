@@ -52,6 +52,8 @@ func hwHelperSmokeDriver() {
 
   print(hwDecodeImage("/tmp/hw-does-not-exist.png", 100, 50) as Any)
   print(hwDecodeImage("assets/logo.png", nil, nil) as Any)
+  print(hwDecodeImage("assets/logo.png", nil, 32) as Any)
+  print(hwDecodeImage("assets/logo.png", 48, nil) as Any)
   print(hwImageExists(nil))
   print(hwImageExists(""))
   print(hwImageExists("/tmp/hw-does-not-exist.png"))

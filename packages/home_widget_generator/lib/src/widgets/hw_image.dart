@@ -159,13 +159,23 @@ class HWImage extends HWWidget implements HWDataWidget {
   Set<HWNativeHelper> get renderHelpers => {
         HWNativeHelper.hwDecodeImage,
         if (iosAccentedRendering != null) HWNativeHelper.hwAccentedRendering,
+        if (_kotlinPairs) ...HWAppearanceChoice.kotlinImageHelpers,
       };
+
+  /// Whether Android hands the launcher the bitmaps of both appearances, for
+  /// an [HWAppearanceData] of images.
+  bool get _kotlinPairs => dataType is HWAppearanceData;
 
   @override
   Set<String> get kotlinImports {
     final imports = <String>{
-      'import androidx.glance.Image',
-      'import androidx.glance.ImageProvider',
+      if (_kotlinPairs) ...{
+        ...HWAppearanceChoice.kotlinPairImports,
+        'import androidx.glance.GlanceModifier',
+      } else ...{
+        'import androidx.glance.Image',
+        'import androidx.glance.ImageProvider',
+      },
       'import androidx.glance.layout.ContentScale',
     };
     final modifiers = _kotlinModifiers;
@@ -405,9 +415,11 @@ class HWImage extends HWWidget implements HWDataWidget {
     final data = dataType;
     final int pictureIndent;
     if (data is HWAppearanceData) {
-      final picked =
-          data.kotlinPick((side) => _kotlinSideBitmap(side, dataExpr));
-      buffer.writeln('$pad$picked?.let { bitmap ->');
+      final pair = HWAppearanceChoice.kotlinPair(
+        light: _kotlinSideBitmap(data.light, dataExpr),
+        dark: _kotlinSideBitmap(data.dark, dataExpr),
+      );
+      buffer.writeln('$pad$pair?.let { bitmaps ->');
       pictureIndent = indent + 1;
     } else if (image.isAsset) {
       final asset = escapeKotlinStringLiteral(image.effectiveAssetKey!);
@@ -430,21 +442,35 @@ class HWImage extends HWWidget implements HWDataWidget {
     return buffer.toString();
   }
 
-  /// The Glance `Image` showing the decoded `bitmap`, [indent] levels deep.
+  /// The Glance `Image` showing the decoded `bitmap`, [indent] levels deep, or
+  /// the pair of the decoded `bitmaps` of either appearance.
   String _kotlinPicture(int indent) {
     final pad = '    ' * indent;
-    final buffer = StringBuffer();
-    buffer.writeln('${pad}Image(');
-    buffer.writeln('$pad    provider = ImageProvider(bitmap),');
-
     final semanticLabel = this.semanticLabel;
     final description = semanticLabel == null
         ? 'null'
         : '"${escapeKotlinStringLiteral(semanticLabel)}"';
+    final modifiers = _kotlinModifiers;
+
+    if (_kotlinPairs) {
+      final modifier = modifiers.map((m) => '.$m').join();
+      return '''
+$pad${HWNativeHelper.hwAppearanceImage.kotlinName}(
+$pad    modifier = GlanceModifier$modifier,
+$pad    size = GlanceModifier$modifier,
+$pad    context = context,
+$pad    images = bitmaps,
+$pad    contentDescription = $description,
+$pad    contentScale = ${_kotlinContentScale()},
+$pad)''';
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('${pad}Image(');
+    buffer.writeln('$pad    provider = ImageProvider(bitmap),');
     buffer.writeln('$pad    contentDescription = $description,');
     buffer.writeln('$pad    contentScale = ${_kotlinContentScale()},');
 
-    final modifiers = _kotlinModifiers;
     if (modifiers.isNotEmpty) {
       buffer.writeln(
         '$pad    modifier = GlanceModifier.${modifiers.join('.')},',

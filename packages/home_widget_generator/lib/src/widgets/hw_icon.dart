@@ -228,17 +228,29 @@ class HWIcon extends HWWidget implements HWDataWidget {
       };
 
   @override
-  Set<HWNativeHelper> get renderHelpers => const {HWNativeHelper.hwBundledFont};
+  Set<HWNativeHelper> get renderHelpers => {
+        HWNativeHelper.hwBundledFont,
+        if (_kotlinPairs) ...HWAppearanceChoice.kotlinImageHelpers,
+      };
+
+  /// Whether Android hands the launcher the glyphs of both appearances, for
+  /// an [HWAppearanceData] of icons.
+  bool get _kotlinPairs => data is HWAppearanceData;
 
   @override
   Set<String> get kotlinImports => {
         'import androidx.compose.ui.unit.dp',
-        'import androidx.glance.ColorFilter',
         'import androidx.glance.GlanceModifier',
-        'import androidx.glance.Image',
-        'import androidx.glance.ImageProvider',
         'import androidx.glance.layout.size',
         'import es.antonborri.home_widget.HomeWidgetFonts',
+        if (_kotlinPairs) ...{
+          ...HWAppearanceChoice.kotlinPairImports,
+          'import androidx.glance.layout.ContentScale',
+        } else ...{
+          'import androidx.glance.ColorFilter',
+          'import androidx.glance.Image',
+          'import androidx.glance.ImageProvider',
+        },
         ...hwKotlinColorImports(
           effectiveColor,
           fallback: HWColorSlotDefault.content,
@@ -426,10 +438,20 @@ class HWIcon extends HWWidget implements HWDataWidget {
       fallback: HWColorSlotDefault.content,
     );
     final sizeLiteral = hwSizeLiteral(size);
+    final bitmap = 'HomeWidgetFonts.iconBitmap(context, R.font.$resource, '
+        '$codePointExpr, ${sizeLiteral}f$_kotlinMatchTextDirection)';
+    if (_kotlinPairs) {
+      return '${HWNativeHelper.hwAppearanceImage.kotlinName}('
+          'modifier = GlanceModifier.size($sizeLiteral.dp), '
+          'size = GlanceModifier.size($sizeLiteral.dp), '
+          'context = context, '
+          'images = codePoints.map { codePoint -> $bitmap }, '
+          'contentDescription = $description, '
+          'contentScale = ContentScale.Fit, '
+          'tint = $tint)';
+    }
     return 'Image(modifier = GlanceModifier.size($sizeLiteral.dp), '
-        'provider = ImageProvider('
-        'HomeWidgetFonts.iconBitmap(context, R.font.$resource, '
-        '$codePointExpr, ${sizeLiteral}f$_kotlinMatchTextDirection)), '
+        'provider = ImageProvider($bitmap), '
         'contentDescription = $description, '
         'colorFilter = ColorFilter.tint($tint))';
   }
@@ -511,15 +533,26 @@ class HWIcon extends HWWidget implements HWDataWidget {
 
   /// The data form's Glance code: the glyph [glyph] writes at the indent it is
   /// handed, drawing `codePoint`, only while there is a stored one.
+  ///
+  /// An [HWAppearanceData] draws the `codePoints` of both appearances.
   String _kotlinSavedGlyph(
     int indent,
     String dataExpr,
     String Function(int indent) glyph,
   ) {
     final pad = '    ' * indent;
-    final access = _boundDataType.kotlinAccess(dataExpr);
+    final data = _boundDataType;
+    final (access, name) = data is HWAppearanceData
+        ? (
+            HWAppearanceChoice.kotlinPair(
+              light: data.light.kotlinVariantValue(dataExpr),
+              dark: data.dark.kotlinVariantValue(dataExpr),
+            ),
+            'codePoints',
+          )
+        : (data.kotlinAccess(dataExpr), 'codePoint');
     return '''
-$pad$access?.let { codePoint ->
+$pad$access?.let { $name ->
 ${glyph(indent + 1)}
 $pad}''';
   }

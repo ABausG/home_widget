@@ -65,9 +65,34 @@ void main() {
         logo.swiftViewModifiers,
         {HWAppearanceChoice.swiftEnvironmentDeclaration},
       );
+      expect(logo.renderHelpers, {HWNativeHelper.hwAppearance});
+    });
+
+    test('brings the Android helper its kind is rendered through', () {
       expect(
-        logo.renderHelpers,
+        const HWAppearanceData<String>(
+          light: HWString.fixed('a'),
+          dark: HWString('b'),
+        ).renderHelpers,
         {HWNativeHelper.hwAppearance, HWNativeHelper.hwDayNight},
+      );
+      expect(
+        const HWAppearanceData<int>(
+          light: HWColor('a'),
+          dark: HWDefaultColor(HWColorRole.contentPrimary),
+        ).renderHelpers,
+        {
+          HWNativeHelper.hwAppearance,
+          HWNativeHelper.hwAppearanceColor,
+          HWNativeHelper.hwColor,
+        },
+      );
+      expect(
+        const HWAppearanceData<int>(
+          light: HWColor.fixed(0xFF000000),
+          dark: HWColor.fixed(0xFFFFFFFF),
+        ).renderHelpers,
+        {HWNativeHelper.hwAppearance},
       );
     });
 
@@ -299,11 +324,37 @@ void main() {
       expect(
         kotlin,
         startsWith(
-          'hwDayNight(context, { w.logoLight?.let { path -> '
+          'HomeWidgetAppearance.pick(context, { w.logoLight?.let { path -> '
           'hwDecodeImage(context, path, null, 32.0) } }, '
           '{ w.logoDark?.let { path -> '
-          'hwDecodeImage(context, path, null, 32.0) } })?.let { bitmap ->',
+          'hwDecodeImage(context, path, null, 32.0) } })?.let { bitmaps ->',
         ),
+      );
+      expect(
+        kotlin,
+        contains(
+          '    HwAppearanceImage(\n'
+          '        modifier = GlanceModifier.height(32.0.dp),\n'
+          '        size = GlanceModifier.height(32.0.dp),\n'
+          '        context = context,\n'
+          '        images = bitmaps,\n'
+          '        contentDescription = null,\n'
+          '        contentScale = ContentScale.Fit,\n'
+          '    )',
+        ),
+      );
+      expect(image.renderHelpers, contains(HWNativeHelper.hwAppearanceImage));
+      expect(image.nativeHelpers, isNot(contains(HWNativeHelper.hwDayNight)));
+      expect(
+        image.kotlinImports,
+        containsAll([
+          'import es.antonborri.home_widget.HomeWidgetAppearance',
+          'import androidx.glance.GlanceModifier',
+        ]),
+      );
+      expect(
+        image.kotlinImports,
+        isNot(contains('import androidx.glance.Image')),
       );
       expect(
         image.dataDependencies,
@@ -327,9 +378,27 @@ void main() {
       expect(
         assetLight.toKotlin(0, dataExpr: 'w'),
         startsWith(
-          'hwDayNight(context, { hwDecodeImage(context, "assets/a.png", '
-          'null, null) }, ',
+          'HomeWidgetAppearance.pick(context, { hwDecodeImage(context, '
+          '"assets/a.png", null, null) }, ',
         ),
+      );
+      expect(
+        assetLight.toKotlin(0, dataExpr: 'w'),
+        contains('modifier = GlanceModifier,\n        size = GlanceModifier,'),
+      );
+      const sized = HWSizedBox(
+        width: 40,
+        height: 40,
+        child: HWImage(
+          HWAppearanceData<String>(
+            light: HWImageData('l'),
+            dark: HWImageData('d'),
+          ),
+        ),
+      );
+      expect(
+        sized.toKotlin(0, dataExpr: 'w'),
+        contains('size = GlanceModifier.fillMaxSize(),'),
       );
     });
 
@@ -392,7 +461,19 @@ void main() {
       final kotlin = icon.toKotlin(0, dataExpr: 'w');
       expect(
         kotlin,
-        contains('hwDayNight(context, { 0xE430 }, { 0xE5C4 })?.let'),
+        contains(
+          'HomeWidgetAppearance.pick(context, { 0xE430 }, { 0xE5C4 })'
+          '?.let { codePoints ->',
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          'HwAppearanceImage(modifier = GlanceModifier.size(24.dp), '
+          'size = GlanceModifier.size(24.dp), '
+          'context = context, images = codePoints.map { codePoint -> '
+          'HomeWidgetFonts.iconBitmap(',
+        ),
       );
       expect(
         kotlin,
@@ -400,10 +481,22 @@ void main() {
       );
       expect(
         kotlin,
-        contains('ColorFilter.tint((hwColor(w.tint) ?: '
-            'GlanceTheme.colors.onSurface))'),
+        contains('contentScale = ContentScale.Fit, '
+            'tint = (hwColor(w.tint) ?: GlanceTheme.colors.onSurface))'),
       );
       expect(icon.dataDependencies, {const HWColor('tint')});
+      expect(icon.renderHelpers, contains(HWNativeHelper.hwAppearanceImage));
+      expect(
+        icon.kotlinImports,
+        containsAll([
+          'import es.antonborri.home_widget.HomeWidgetAppearance',
+          'import androidx.glance.layout.ContentScale',
+        ]),
+      );
+      expect(
+        icon.kotlinImports,
+        isNot(contains('import androidx.glance.ColorFilter')),
+      );
 
       const plain = HWIcon(
         HWAppearanceData<int>(
@@ -563,6 +656,42 @@ void main() {
       expect(
         RegExp(r'padding\(top = 4\.0\.dp\)').allMatches(kotlin),
         hasLength(2),
+      );
+    });
+
+    test('a size on a condition over a pick reaches the branches', () {
+      const sized = HWSizedBox(
+        width: double.infinity,
+        height: 20,
+        child: HWDataExists(
+          data: HWAppearanceData<String>(
+            light: HWString('a'),
+            dark: HWString('b'),
+          ),
+          whenPresent: HWText(HWString.fixed('present')),
+          whenAbsent: HWText(HWString.fixed('absent')),
+        ),
+      );
+      final kotlin = sized.toKotlin(0, dataExpr: 'w');
+      expect(
+        kotlin,
+        startsWith('if (hwDayNight(context, { w.a }, { w.b }) != null) {\n'),
+      );
+      expect(
+        RegExp(r'GlanceModifier\.fillMaxWidth\(\)\.height\(20\.0\.dp\)')
+            .allMatches(kotlin),
+        hasLength(2),
+      );
+      expect(
+        const HWDataExists(
+          data: HWAppearanceData<String>(
+            light: HWImageData('a'),
+            dark: HWImageData('b'),
+          ),
+          whenPresent: HWText(HWString.fixed('present')),
+          whenAbsent: HWText(HWString.fixed('absent')),
+        ).nativeHelpers,
+        containsAll([HWNativeHelper.hwDayNight, HWNativeHelper.hwImageExists]),
       );
     });
 
