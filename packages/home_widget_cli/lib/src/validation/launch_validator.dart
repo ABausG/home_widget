@@ -195,6 +195,11 @@ String _differentLinkUrls(String widget, HWLink link, HWLink other) {
   }
   if (mine.hasSameBaseAs(theirs)) {
     final (name, value) = _differingQueryParameter(mine, theirs);
+    if (!asciiDataNamePattern.hasMatch(name)) {
+      return '$urls, so move the query parameter "$name" into data with an '
+          'HWPayload, named in ASCII letters and digits, or give the links '
+          'different ids.';
+    }
     return "$urls, so move the query parameter \"$name\" into data, e.g. "
         "HWPayload('$name', HWString.fixed('${escapeDartStringLiteral(value)}'))"
         ', or give the links different ids.';

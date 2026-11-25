@@ -491,6 +491,22 @@ void main() {
         );
         expect(
           () => validateWidgetData(
+            side('myapp://home?tab_id=settings', 'myapp://home?tab_id=profile'),
+          ),
+          _throwsMessage(
+            equals(
+              message(
+                'myapp://home?tab_id=settings',
+                'myapp://home?tab_id=profile',
+                ', so move the query parameter "tab_id" into data with an '
+                    'HWPayload, named in ASCII letters and digits, or give '
+                    'the links different ids.',
+              ),
+            ),
+          ),
+        );
+        expect(
+          () => validateWidgetData(
             side('myapp://home?tab=settings', 'myapp://home'),
           ),
           _throwsMessage(
@@ -690,6 +706,43 @@ void main() {
             contains('written into the URL of WeatherWidgetTap'),
           ),
         ),
+      );
+    });
+
+    test('are checked for collisions with the names of all of them together',
+        () {
+      final shared = [
+        _link('home', url: 'myapp://home', data: const [HWString('tab')]),
+        _link('home', url: 'myapp://home', data: const [HWString('page')]),
+      ];
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            HWColumn(
+              children: [
+                ...shared,
+                _link('detail', url: 'myapp://home?tab=settings&page=1'),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          contains('written into the URL of WeatherDetailLink'),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            HWColumn(
+              children: [
+                ...shared,
+                _link('detail', url: 'myapp://home?tab=settings&view=list'),
+              ],
+            ),
+          ),
+        ),
+        returnsNormally,
       );
     });
   });
