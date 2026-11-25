@@ -264,36 +264,56 @@ void main() {
   });
 
   group('link ids', () {
-    test('are unique within a layout', () {
+    test('may render together and send different data', () {
       final spec = _spec(
-        HWColumn(children: [_link('open'), _link('open')]),
+        HWRow(
+          children: [
+            _link(
+              'openTab',
+              url: 'myapp://home',
+              data: const [HWPayload('tab', HWString.fixed('settings'))],
+            ),
+            _link(
+              'openTab',
+              url: 'myapp://home',
+              data: const [HWPayload('tab', HWString.fixed('profile'))],
+            ),
+          ],
+        ),
       );
 
+      expect(() => validateWidgetData(spec), returnsNormally);
       expect(
-        () => validateWidgetData(spec),
-        _throwsMessage(
-          allOf(
-            contains("HWLink('open') is declared twice"),
-            contains('unique within a widget'),
-          ),
-        ),
+        spec.launchTargets.map((target) => target.className),
+        ['WeatherOpenTabLink'],
       );
     });
 
     test('cannot differ only in the case of their first letter', () {
-      final spec = _spec(
-        HWColumn(children: [_link('open'), _link('Open')]),
+      final together = _spec(
+        HWColumn(children: [_link('open'), _link('Open', url: 'myapp://open')]),
       );
-
-      expect(
-        () => validateWidgetData(spec),
-        _throwsMessage(
-          contains(
-            "HWLink('open') and HWLink('Open') both generate "
-            'WeatherOpenLink',
-          ),
+      final exclusive = _spec(
+        HWBoolConditional(
+          data: const HWBool('compact', defaultValue: false),
+          whenTrue: _link('open'),
+          whenFalse: _link('Open', url: 'myapp://open'),
         ),
       );
+
+      for (final spec in [together, exclusive]) {
+        expect(
+          () => validateWidgetData(spec),
+          _throwsMessage(
+            equals(
+              'Widget "Weather": HWLink(\'open\') and HWLink(\'Open\') both '
+              'generate the launch class WeatherOpenLink. Spell the id the '
+              'same way in both, or give them ids that differ in more than '
+              'case.',
+            ),
+          ),
+        );
+      }
     });
 
     test('may repeat across the slots of an HWSizeAdaptive', () {
@@ -360,13 +380,16 @@ void main() {
       final spec = _spec(
         HWDataExists(
           data: const HWString('s'),
-          whenPresent: _link('a'),
+          whenPresent: _link('a', data: const [HWPayload('n', HWInt('n'))]),
           whenAbsent: HWRow(
             children: [
               _link('a'),
               HWDataExists(
                 data: const HWString('q'),
-                whenPresent: _link('a'),
+                whenPresent: _link(
+                  'a',
+                  data: const [HWPayload('n', HWString('q'))],
+                ),
                 whenAbsent: _label,
               ),
             ],
@@ -376,7 +399,12 @@ void main() {
 
       expect(
         () => validateWidgetData(spec),
-        _throwsMessage(contains("HWLink('a') is declared twice")),
+        _throwsMessage(
+          contains(
+            'HWLink(\'a\') sends "n" as an HWString, where another '
+            "HWLink('a') sends it as an HWInt.",
+          ),
+        ),
       );
     });
 
@@ -394,30 +422,184 @@ void main() {
       expect(() => validateWidgetData(spec), returnsNormally);
     });
 
-    test('must open the same URL where they repeat', () {
+    group('must open the same url', () {
+      const prefix = 'Widget "Weather": HWLink(\'open\') opens "{second}", '
+          'where another HWLink(\'open\') opens "{first}". Links sharing an '
+          'id reach the app as one launch class matched by one url';
+
+      String message(String first, String second, String remedy) =>
+          prefix.replaceAll('{first}', first).replaceAll('{second}', second) +
+          remedy;
+
+      WidgetSpec side(String first, String second) => _spec(
+            HWRow(
+              children: [
+                _link('open', url: first),
+                _link('open', url: second),
+              ],
+            ),
+          );
+
+      test('written differently', () {
+        for (final (first, second) in [
+          ('myapp://home', 'myApp://home'),
+          ('myapp://home?a=1&b=2', 'myapp://home?b=2&a=1'),
+        ]) {
+          expect(
+            () => validateWidgetData(side(first, second)),
+            _throwsMessage(
+              equals(
+                message(
+                  first,
+                  second,
+                  ', and these two are the same URL written differently. '
+                  'Write the same url in both.',
+                ),
+              ),
+            ),
+          );
+        }
+      });
+
+      test('with other query parameters written into it', () {
+        expect(
+          () => validateWidgetData(
+            side('myapp://home?tab=settings', 'myapp://home?tab=profile'),
+          ),
+          _throwsMessage(
+            equals(
+              message(
+                'myapp://home?tab=settings',
+                'myapp://home?tab=profile',
+                ', so move the query parameter "tab" into data, e.g. '
+                    "HWPayload('tab', HWString.fixed('profile')), or give the "
+                    'links different ids.',
+              ),
+            ),
+          ),
+        );
+        expect(
+          () => validateWidgetData(
+            side('myapp://home?page=1', 'myapp://home?page=1&tab=it%27s'),
+          ),
+          _throwsMessage(
+            contains(
+              "move the query parameter \"tab\" into data, e.g. "
+              r"HWPayload('tab', HWString.fixed('it\'s'))",
+            ),
+          ),
+        );
+        expect(
+          () => validateWidgetData(
+            side('myapp://home?tab=settings', 'myapp://home'),
+          ),
+          _throwsMessage(
+            contains(
+              "HWPayload('tab', HWString.fixed('settings')), or give the "
+              'links different ids.',
+            ),
+          ),
+        );
+      });
+
+      test('otherwise', () {
+        expect(
+          () => validateWidgetData(side('myapp://a', 'myapp://b')),
+          _throwsMessage(
+            equals(
+              message(
+                'myapp://a',
+                'myapp://b',
+                ', so give them the same url, or different ids.',
+              ),
+            ),
+          ),
+        );
+      });
+
+      test('in exclusive branches too', () {
+        final spec = _spec(
+          HWSizeAdaptive(
+            medium: _link('open', url: 'myapp://a'),
+            large: _link('open', url: 'myapp://b'),
+          ),
+          families: const [
+            HWWidgetFamily.systemMedium,
+            HWWidgetFamily.systemLarge,
+          ],
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          _throwsMessage(
+            startsWith(
+              'Widget "Weather": HWLink(\'open\') opens "myapp://b", where '
+              'another HWLink(\'open\') opens "myapp://a".',
+            ),
+          ),
+        );
+      });
+
+      test('before they send a name as one type', () {
+        final spec = _spec(
+          HWColumn(
+            children: [
+              _link('open', data: const [HWPayload('n', HWInt('n'))]),
+              _link('open', data: const [HWPayload('n', HWString('s'))]),
+              _link('open', url: 'myapp://other'),
+            ],
+          ),
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          _throwsMessage(contains('opens "myapp://other"')),
+        );
+      });
+    });
+
+    test('must send a name as one type', () {
       final spec = _spec(
-        HWSizeAdaptive(
-          medium: _link('open', url: 'myapp://a'),
-          large: _link('open', url: 'myapp://b'),
+        HWRow(
+          children: [
+            _link('open', data: const [HWPayload('tab', HWInt.fixed(1))]),
+            _link('open', data: const [HWPayload('tab', HWDouble.fixed(1.5))]),
+          ],
         ),
-        families: const [
-          HWWidgetFamily.systemMedium,
-          HWWidgetFamily.systemLarge,
-        ],
       );
 
       expect(
         () => validateWidgetData(spec),
         _throwsMessage(
-          allOf(
-            contains("HWLink('open') is declared twice"),
-            contains('with a different url or data'),
+          equals(
+            'Widget "Weather": HWLink(\'open\') sends "tab" as an HWDouble, '
+            'where another HWLink(\'open\') sends it as an HWInt. Links '
+            'sharing an id reach the app as one class with one field per '
+            'name, so send "tab" as one type, send one of them under another '
+            'name, or give the links different ids and urls.',
           ),
         ),
       );
     });
 
-    test('must send data of the same shape where they repeat', () {
+    test('must send a name as one type in exclusive branches too', () {
+      final spec = _spec(
+        HWAdaptive(
+          ios: _link('open', data: const [HWPayload('n', HWBool('b'))]),
+          android: _link(
+            'open',
+            data: const [HWPayload('n', HWDateTime.fixed('2026-09-22T10:00Z'))],
+          ),
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        _throwsMessage(contains('sends "n" as an HWDateTime')),
+      );
+    });
+
+    test('may send different data where they repeat', () {
       WidgetSpec repeating(
         List<HWDataType<dynamic>> first,
         List<HWDataType<dynamic>> second,
@@ -433,16 +615,82 @@ void main() {
       const cases = <(List<HWDataType<dynamic>>, List<HWDataType<dynamic>>)>[
         ([HWString('city')], []),
         ([HWString('city')], [HWString('town')]),
-        ([HWString('city')], [HWPayload('city', HWInt('count'))]),
         ([HWInt('count')], [HWInt('count', defaultValue: 1)]),
       ];
       for (final (first, second) in cases) {
         expect(
           () => validateWidgetData(repeating(first, second)),
-          _throwsMessage(contains('with a different url or data')),
+          returnsNormally,
           reason: '$first / $second',
         );
       }
+    });
+
+    test('may share an id between the item and the header of a builder', () {
+      final spec = _spec(
+        HWColumn(
+          children: [
+            _link('open', url: 'myapp://todo'),
+            HWColumn.builder(
+              'todos',
+              maxItems: 3,
+              item: _link(
+                'open',
+                url: 'myapp://todo',
+                data: const [HWItemData(HWString('id'))],
+                child: const HWText(HWItemData(HWString('title'))),
+              ),
+            ),
+          ],
+        ),
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+      final target = spec.launchTargets.single;
+      expect(
+        target.fields.map((field) => (field.name, field.isNullable)),
+        [('id', true)],
+      );
+    });
+
+    test('are checked for collisions with every name any of them sends', () {
+      final shared = [
+        _link('home', url: 'myapp://home'),
+        _link('home', url: 'myapp://home', data: const [HWString('tab')]),
+      ];
+
+      expect(
+        () => validateWidgetData(
+          _spec(
+            HWColumn(
+              children: [
+                ...shared,
+                _link('settings', url: 'myapp://home?tab=settings'),
+              ],
+            ),
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('WeatherHomeLink sends a value named "tab"'),
+            contains('written into the URL of WeatherSettingsLink'),
+          ),
+        ),
+      );
+      expect(
+        () => validateWidgetData(
+          _spec(
+            HWColumn(children: shared),
+            widgetUrl: 'myapp://home?tab=settings',
+          ),
+        ),
+        _throwsMessage(
+          allOf(
+            contains('WeatherHomeLink sends a value named "tab"'),
+            contains('written into the URL of WeatherWidgetTap'),
+          ),
+        ),
+      );
     });
   });
 
@@ -1134,6 +1382,35 @@ void main() {
             'CounterHistoryLink ("myApp://history?tab=1") of widget "Counter"',
           ),
           contains('launches() of both report such a tap'),
+        ),
+      );
+    });
+
+    test('checks every name the links of one id send', () {
+      warnAboutSharedLaunchUrls([
+        named(
+          'Weather',
+          HWColumn(
+            children: [
+              _link('history', url: 'myapp://history?page=1'),
+              _link(
+                'history',
+                url: 'myapp://history?page=1',
+                data: const [HWString('tab')],
+              ),
+            ],
+          ),
+        ),
+        named('Counter', _link('history', url: 'myapp://history?tab=1')),
+      ]);
+
+      final message =
+          verify(() => mockLogger.warn(captureAny())).captured.single as String;
+      expect(
+        message,
+        allOf(
+          contains('WeatherHistoryLink ("myapp://history?page=1")'),
+          contains('CounterHistoryLink ("myapp://history?tab=1")'),
         ),
       );
     });

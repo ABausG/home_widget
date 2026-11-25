@@ -6,6 +6,7 @@ import 'package:home_widget_generator/home_widget_generator_cli.dart'
         HWPayloadEntry,
         HWPayloadType,
         HWPayloadUrl,
+        escapeDartStringLiteral,
         spellFixedValue;
 
 import '../generators/payload_dart_emitter.dart';

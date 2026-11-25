@@ -83,28 +83,11 @@ void _validateButtonIds(
         'both, or give them ids that differ in more than case.',
       );
     }
-    final sent = types.putIfAbsent(className, () => {});
-    for (final entry in button.payloadUrl.payload) {
-      final type = entry.type!;
-      final other = sent.putIfAbsent(entry.name, () => type);
-      if (other == type) continue;
-      throw GeneratorError(
-        "$widget: HWButton('${button.id}') sends \"${entry.name}\" as an "
-        "${_hwTypeName(type)}, where another HWButton('${button.id}') sends "
-        'it as an ${_hwTypeName(other)}. Buttons sharing an id reach the app '
-        'as one class with one field per name, so send "${entry.name}" as '
-        'one type, send one of them under another name, or give the buttons '
-        'different ids.',
-      );
-    }
+    _validateSharedPayloadTypes(
+      button,
+      button.payloadUrl.payload,
+      types.putIfAbsent(className, () => {}),
+      widget: widget,
+    );
   }
 }
-
-/// The data type a schema writes a value of [type] as.
-String _hwTypeName(HWPayloadType type) => switch (type) {
-      HWPayloadType.string => 'HWString',
-      HWPayloadType.int => 'HWInt',
-      HWPayloadType.double => 'HWDouble',
-      HWPayloadType.bool => 'HWBool',
-      HWPayloadType.dateTime => 'HWDateTime',
-    };

@@ -1150,6 +1150,70 @@ void main() {
       );
     });
 
+    test('merges the payloads of links sharing an id', () {
+      final spec = linkSpec(
+        const HWRow(
+          children: [
+            HWLink(
+              'openTab',
+              url: 'myapp://home',
+              data: [
+                HWPayload('tab', HWString.fixed('settings')),
+                HWPayload('source', HWString.fixed('row')),
+                HWPayload('since', HWDateTime.fixed('2026-09-22T10:00:00Z')),
+              ],
+              child: HWText(HWString.fixed('Settings')),
+            ),
+            forecast,
+            HWLink(
+              'openTab',
+              url: 'myapp://home',
+              data: [
+                HWPayload(
+                  'since',
+                  HWDateTime.fixed('2026-09-22T12:00:00+02:00'),
+                ),
+                HWPayload('tab', HWString.fixed('profile')),
+                HWPayload('source', HWString.fixed('row')),
+                HWPayload('page', HWInt.fixed(2)),
+              ],
+              child: HWText(HWString.fixed('Profile')),
+            ),
+          ],
+        ),
+      );
+
+      final targets = spec.launchTargets;
+      expect(
+        targets.map((target) => target.className),
+        ['WeatherOpenTabLink', 'WeatherForecastLink'],
+      );
+      final target = targets.first;
+      expect(target.url.url, 'myapp://home');
+      expect(
+        target.url.payload.map((entry) => entry.name),
+        ['tab', 'source', 'since', 'page'],
+      );
+      expect(
+        target.fields.map((field) => (field.name, field.fallback)),
+        [
+          ('tab', null),
+          ('source', "'row'"),
+          (
+            'since',
+            'DateTime.fromMillisecondsSinceEpoch('
+                '${DateTime.utc(2026, 9, 22, 10).millisecondsSinceEpoch}, '
+                'isUtc: true)',
+          ),
+          ('page', null),
+        ],
+      );
+      expect(
+        target.description,
+        'A tap on the `openTab` link of the Weather widget.',
+      );
+    });
+
     test('a link at the root of a small widget opens through widgetURL', () {
       final spec = linkSpec(history);
       expect(spec.iosWidgetUrlLinks, [history]);

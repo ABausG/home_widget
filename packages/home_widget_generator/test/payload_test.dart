@@ -247,45 +247,6 @@ void main() {
       expect(entry.swiftValue('data'), r'"a\"$b"');
       expect(entry.kotlinValue('data'), r'"a\"\$b"');
     });
-
-    test('compares shapes by name, type, nullability and fallback', () {
-      final base = entryOf(const HWInt('count', defaultValue: 1));
-      expect(
-        base.hasSameShapeAs(entryOf(const HWInt('count', defaultValue: 1))),
-        isTrue,
-      );
-      expect(
-        base.hasSameShapeAs(
-          entryOf(const HWPayload('count', HWInt('other', defaultValue: 1))),
-        ),
-        isTrue,
-      );
-      expect(base.hasSameShapeAs(entryOf(const HWInt('count'))), isFalse);
-      expect(
-        base.hasSameShapeAs(entryOf(const HWInt('count', defaultValue: 2))),
-        isFalse,
-      );
-      expect(
-        base.hasSameShapeAs(entryOf(const HWInt('total', defaultValue: 1))),
-        isFalse,
-      );
-      expect(
-        base.hasSameShapeAs(
-          entryOf(const HWDouble('count', defaultValue: 1)),
-        ),
-        isFalse,
-      );
-
-      final fixed = entryOf(const HWPayload('n', HWInt.fixed(1)));
-      expect(
-        fixed.hasSameShapeAs(entryOf(const HWPayload('n', HWInt.fixed(1)))),
-        isTrue,
-      );
-      expect(
-        fixed.hasSameShapeAs(entryOf(const HWPayload('n', HWInt.fixed(2)))),
-        isFalse,
-      );
-    });
   });
 
   group('HWPayloadUrl', () {

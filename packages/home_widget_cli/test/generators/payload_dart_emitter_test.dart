@@ -480,6 +480,44 @@ ${PayloadDartEmitter.helpers([waterFields])}''',
       ]);
     });
 
+    test('reads the fields of links sharing an id and url', () {
+      final tabFields = PayloadField.merge([
+        HWPayloadEntry.listOf(const [
+          HWPayload('tab', HWString.fixed('settings')),
+          HWPayload('page', HWInt.fixed(1)),
+        ]),
+        HWPayloadEntry.listOf(const [
+          HWPayload('tab', HWString.fixed('profile')),
+          HWPayload('page', HWInt.fixed(1)),
+        ]),
+      ]);
+      final tab = PayloadDartEmitter(
+        const HWPayloadUrl('myapp://home?view=list#top'),
+        fields: tabFields,
+      ).classDeclaration(
+        className: 'HomeTabLink',
+        superClass: 'Launch',
+        description: 'A tap.',
+      );
+
+      final results = evaluate(
+        [
+          "HomeTabLink._\$fromUri(Uri.parse('myapp://home?view=list&tab=profile&page=1&homeWidget#top'))",
+          "HomeTabLink._\$fromUri(Uri.parse('myapp://home?view=list&homeWidget#top'))",
+          "HomeTabLink(tab: 'settings').toUri()",
+        ],
+        classes: '''
+$tab
+${PayloadDartEmitter.helpers([tabFields])}''',
+      );
+
+      expect(results, [
+        'HomeTabLink(tab: profile, page: 1)',
+        'HomeTabLink(tab: null, page: 1)',
+        'myapp://home?view=list&tab=settings&page=1&homeWidget#top',
+      ]);
+    });
+
     test('answers null for malformed percent-encoding', () {
       final results = evaluate([
         "PlainTap._\$fromUri(Uri.parse('myapp://plain?homeWidget=1&city=%FF'))",
