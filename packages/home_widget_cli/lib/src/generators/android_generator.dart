@@ -49,8 +49,8 @@ class AndroidGenerator {
     // The Kotlin `locales` parameter and every argument passed to it have to be
     // gated on this one flag; two separately-spelled "equivalent" conditions
     // emit Kotlin that does not compile.
-    final needsLocaleArg = spec.resolvesLocalizedOnRead;
-    final needsResolver = spec.needsLocaleHelpers;
+    final needsLocaleArg = spec.androidResolvesLocalizedOnRead;
+    final needsResolver = spec.androidNeedsLocaleHelpers;
     final previewNeedsLocaleArg =
         needsLocaleArg || _previewResolvesTranslations;
 
@@ -63,7 +63,7 @@ class AndroidGenerator {
     // shows does not. The preview fingerprint's own locale read does not count
     // either: it only decides when the gallery preview is re-rendered, not
     // whether the running widget's content is stale.
-    final handlesLocaleChange = spec.rendersLocalizedContent ||
+    final handlesLocaleChange = spec.androidRendersLocalizedContent ||
         nativeHelpers.any((helper) => helper.localeDependent);
 
     // Flipping the system's 12-/24-hour setting changes no locale, so a widget
@@ -747,7 +747,7 @@ class AndroidGenerator {
     final fromJson = preview ? 'previewFromJson' : 'fromJson';
     String groupLocaleArg(JsonDataGroup group) =>
         preview && _previewResolvesLocalized(group) ? ', locales' : '';
-    final needsLocales = spec.resolvesLocalizedOnRead ||
+    final needsLocales = spec.androidResolvesLocalizedOnRead ||
         (preview && _previewResolvesTranslations);
     final localeParam = needsLocales ? ', locales: List<String>' : '';
     final hasTimedData = spec.hasTimedData;

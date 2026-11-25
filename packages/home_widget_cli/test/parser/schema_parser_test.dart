@@ -1170,7 +1170,7 @@ VStack(alignment: .center, spacing: 0) {
           ]),
         );
         expect(
-          spec.nativeHelpers,
+          spec.androidNativeHelpers,
           containsAll([
             HWNativeHelper.hwFormatPercent,
             HWNativeHelper.hwFormatDecimal,
@@ -1179,7 +1179,7 @@ VStack(alignment: .center, spacing: 0) {
           ]),
         );
         expect(
-          spec.nativeHelpers,
+          spec.androidNativeHelpers,
           isNot(contains(HWNativeHelper.hwParseIsoDate)),
         );
         expect(spec.iconCodePoints.values.single, hasLength(2));

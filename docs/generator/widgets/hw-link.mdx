@@ -187,7 +187,7 @@ Each of these fails generation:
 - A `url` that is empty, has no scheme, or holds a character a URL cannot hold unescaped, such as a space, a quote or a brace. Percent-encode it.
 - An `HWLink` inside another `HWLink`.
 - An `HWLink` inside an [`HWButton`](/generator/widgets/hw-button), or an `HWButton` inside an `HWLink`.
-- Two links with the same `id`, unless only one of them can render: in different branches of a conditional, slots of an `HWSizeAdaptive` or `HWAppearanceAdaptive`, or sides of an `HWAdaptive`. They then need the same `url` and the same `data`.
+- Two links with the same `id`, unless only one of them can render at a time: across the branches of a conditional, the slots of an `HWSizeAdaptive` or an `HWAppearanceAdaptive`, the sides of an `HWAdaptive`, or the `item` and the `whenEmpty` of a list builder. They then need the same `url` and the same `data`.
 - Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one that can produce a query parameter written into the other.
 - An `HWLink` that is the whole layout of an iOS single-tap family in a widget that also sets `widgetUrl`.
 - A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.

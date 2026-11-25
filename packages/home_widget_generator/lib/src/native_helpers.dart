@@ -1314,15 +1314,15 @@ private fun hwColor(argb: Long?) =
   ///
   /// A Dart int is stored as an Int only while it fits 32 bits, and an opaque
   /// color does not. A value of any other kind, left by an older version of
-  /// the app, counts as missing.
+  /// the app, counts as missing. Every default is a valid color, so the key is
+  /// read under two of them: only a stored value comes back as both, and a key
+  /// removed while it is read is missing rather than transparent black.
   hwReadColor(
     kotlin: '''
-private fun hwReadColor(prefs: SharedPreferences, key: String): Long? {
-    if (!prefs.contains(key)) return null
-    return runCatching { prefs.getLong(key, 0L) }
-        .recoverCatching { prefs.getInt(key, 0).toLong() }
-        .getOrNull()
-}''',
+private fun hwReadColor(prefs: SharedPreferences, key: String): Long? =
+    runCatching { prefs.getLong(key, 0L).takeIf { it == prefs.getLong(key, 1L) } }
+        .recoverCatching { prefs.getInt(key, 0).takeIf { it == prefs.getInt(key, 1) }?.toLong() }
+        .getOrNull()''',
     kotlinImports: {'import android.content.SharedPreferences'},
     localeDependent: false,
   ),

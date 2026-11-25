@@ -48,7 +48,7 @@ class IosGenerator {
         jsonGroups.isNotEmpty ||
         hasTimedData ||
         lists.isNotEmpty;
-    final needsEntryTimedEntries = spec.needsLocaleHelpers && hasTimedData;
+    final needsEntryTimedEntries = spec.iosNeedsLocaleHelpers && hasTimedData;
 
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
@@ -77,7 +77,7 @@ class IosGenerator {
     // Localized strings must be resolved at render time so a system language
     // change is picked up without waiting for a new timeline. Timeline entries
     // still carry a snapshot for WidgetKit, but the view re-reads.
-    final reResolveAtRender = spec.needsLocaleHelpers;
+    final reResolveAtRender = spec.iosNeedsLocaleHelpers;
 
     // What the gallery reads: its own defaults only where the widget opts into
     // live data, and the preview factories only where a field ships a sample.

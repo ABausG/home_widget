@@ -22,11 +22,12 @@ Parameters such as `style`, `textAlign`, `format`, `size`, `color`, `semanticLab
 
 `HWColor.themed` is removed in favor of `HWAppearanceData`, see [HWColor.themed Became HWAppearanceData](#hwcolorthemed-became-hwappearancedata).
 
-Taps that open the app are now reported as typed launches, which also covers the new [`HWLink`](/generator/widgets/hw-link). Three things changed for widgets that set a `widgetUrl`:
+Taps that open the app are now reported as typed launches, which also covers the new [`HWLink`](/generator/widgets/hw-link). Four things changed for widgets that set a `widgetUrl`:
 
 - [Per-platform widget URLs are removed](#per-platform-widget-urls-removed).
 - [The launch helpers need home_widget 0.10.1](#launch-helpers-need-a-plugin-update).
 - [The Uri launch helpers are removed](#uri-launch-helpers-removed).
+- [Whole-layout links in root conditionals and appearance slots claim the tap on single-tap iOS families](#whole-layout-links-in-root-conditionals-and-appearance-slots).
 
 ## HWText.fixed Became HWString.fixed
 
@@ -205,6 +206,18 @@ if (launch is WeatherWidgetTap) _openWeather(); // [!code ++]
 
 Code that still needs the `Uri`, such as a router that takes one, reads it from the launch with `launch.toUri()`.
 
+## Whole-Layout Links in Root Conditionals and Appearance Slots
+
+In single-tap iOS families (`systemSmall`, `accessoryCircular`, `accessoryRectangular`, and `accessoryInline`), an [`HWLink`](/generator/widgets/hw-link#small-widgets-on-ios) that is the whole layout of a branch of a root [`HWConditional`](/generator/widgets/hw-conditional) (`HWDataExists` or `HWBoolConditional`), or of a slot of a root [`HWAppearanceAdaptive`](/generator/widgets/hw-appearance-adaptive) (including nested combinations of them and `HWSizeAdaptive`), now opens through `.widgetURL(...)`. Before, such a link was emitted as an ordinary SwiftUI `Link`, which those families ignore (and the generator warned).
+
+This affects schemas that have such a link in a widget that can show in a single-tap iOS family and also set `widgetUrl` on `@HomeWidget`. Generation now fails because both claim the same tap:
+
+```text
+Widget "<Name>": HWLink('<id>') is the whole layout of a widget iOS renders as one tap area, where it takes the place of widgetUrl. Both would claim the same tap, so remove widgetUrl, or move the link into a larger layout.
+```
+
+Remove `widgetUrl` from `@HomeWidget` if the link should handle taps in those families, or move the link into a larger layout (such as a `systemMedium` or larger slot of an [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive)) if `widgetUrl` should stay.
+
 ## HWColor.themed Became HWAppearanceData
 
 `HWColor.themed` and `HWThemedColor` are removed. [`HWAppearanceData`](/generator/appearance) takes the same `light` and `dark` colors:
@@ -216,6 +229,6 @@ HWAppearanceData(light: HWColor.fixed(0xFF000000), dark: HWColor.fixed(0xFFFFFFF
 
 A pair of two `HWColor.fixed` colors renders as before on both platforms. On Android, a pair with an `HWDefaultColor` on one side rendered that side white. It now renders the role's color.
 
-On Android, a migrated `HWColor.themed` with a non-fixed side (such as `HWDefaultColor`) — like any `HWAppearanceData` color with a non-fixed side — needs `home_widget` 0.10.1 or newer; only a pair of two `HWColor.fixed` colors does not. When `pubspec.lock` resolves an older hosted version, generation fails with a message naming the widget and asking you to raise the constraint and run `flutter pub get`.
+When Android renders a migrated `HWColor.themed` with a non-fixed side (such as `HWDefaultColor`) — or any `HWAppearanceData` color with a non-fixed side — the widget needs `home_widget` 0.10.1 or newer; a pair of two `HWColor.fixed` colors, or a color used only on iOS (such as in `HomeWidgetIOSConfiguration.backgroundColor`, on the `ios` side of an `HWAdaptive`, or in an `iosAccented` or `iosVibrant` slot), does not. When `pubspec.lock` resolves an older hosted version, generation fails with a message naming the widget and asking you to raise the constraint and run `flutter pub get`.
 
 [`HWColor`](/generator/styling/hw-color) is now a data type, and every color slot is typed `HWDataType<int>`. The constant forms `HWColor.fixed`, `HWFixedColor` and `HWDefaultColor` are unchanged. A color no longer emits code of its own: `toSwift`, `toKotlin` and `kotlinImports` are gone from `HWColor`.

@@ -68,7 +68,7 @@ await BrandHomeWidget.updateWidget();
 ```
 
 <Info>
-A widget whose Android output picks a color, an image, or an icon by appearance needs `home_widget` 0.10.1 or newer — only a pair of two `HWColor.fixed` colors does not. When `pubspec.lock` resolves an older hosted `home_widget`, `home_widget generate` fails with a message naming the widget and asking you to raise the constraint.
+A widget that renders an `HWAppearanceData` color, image, or icon on Android needs `home_widget` 0.10.1 or newer — only a pair of two `HWColor.fixed` colors does not. An `HWAppearanceData` used only on iOS (in `HomeWidgetIOSConfiguration.backgroundColor`, on the `ios` side of an `HWAdaptive`, or in an `iosAccented` or `iosVibrant` slot of an `HWAppearanceAdaptive`) does not trigger this check. When `pubspec.lock` resolves an older hosted `home_widget`, `home_widget generate` fails with a message naming the widget and asking you to raise the constraint.
 </Info>
 
 ## Slots and selection order
@@ -108,6 +108,8 @@ Every data type works inside `HWAppearanceData`:
 - `HWString` (plain, `.fixed`, `.localized`, `.localizedFixed`)
 - `HWInt`, `HWDouble`, `HWBool`, and `HWDateTime` (stored and `.fixed`)
 
+On iOS, fixed text picked by `HWAppearanceData` renders exactly as written — it is not read as Markdown or looked up in the string catalog — while `HWString.localized` and `HWString.localizedFixed` sides still localize.
+
 Each side is an independent value: you can mix stored fields, constants, `HWJson` leaves, `HWItemData`, and `HWTimedData` across slots. For example, a bundled asset in `light`, a runtime image in `dark`, and a monochrome asset in `iosAccented`:
 
 ```dart
@@ -138,7 +140,7 @@ A brand with only one logo can save `logoLight` alone and dark mode will display
 
 `HWAppearanceData` can be passed to both [`HWConditional`](/generator/widgets/hw-conditional) widgets:
 
-- **`HWDataExists`** evaluates to `true` when the variant chosen after the missing-variant chain is present. Each side counts as present the way a standalone `HWDataExists` on it would: a stored side while it is stored (for example, a `defaultValue` on an unsaved `HWJson` leaf does not make it present), a constant side (only allowed in `iosAccented` or `iosVibrant`) is always present, and an asset image side (`HWImageData.asset`, likewise only in `iosAccented` or `iosVibrant`) is present when the asset exists. Because every pick falls back to both `light` and `dark`, giving either `light` or `dark` a value that is always present (a `.fixed` value, `HWImageData.asset`, `HWDefaultColor`, `HWString.localized`, or `HWString.localizedFixed`) is a generation error: `whenAbsent` could never render.
+- **`HWDataExists`** evaluates to `true` when the variant chosen after the missing-variant chain is present. Each side counts as present the way a standalone `HWDataExists` on it would: a stored side while it is stored, a constant side (only allowed in `iosAccented` or `iosVibrant`) is always present, and an asset image side (`HWImageData.asset`, likewise only in `iosAccented` or `iosVibrant`) is present when the asset exists. A top-level stored field with a `defaultValue` always counts as present — inside an `HWAppearanceData` just as in a plain `HWDataExists` — so a check with a `defaultValue` on `light` or `dark` never takes `whenAbsent`; by contrast, a `defaultValue` on an unsaved `HWJson` leaf does not make it present. Because every pick falls back to both `light` and `dark`, giving either `light` or `dark` a value that is always present (a `.fixed` value, `HWImageData.asset`, `HWDefaultColor`, `HWString.localized`, or `HWString.localizedFixed`) is a generation error: `whenAbsent` could never render.
 
 ```dart
 HWDataExists(
@@ -190,7 +192,7 @@ HWAppearanceData(
 - **Not in `HWDataOnly`:** passing an `HWAppearanceData` to [`HWDataOnly`](/generator/widgets/hw-data-only) is a generation error. List the stored fields of its sides in `HWDataOnly` instead.
 - **No tap payloads:** `HWAppearanceData` is not allowed in `HWLink.data`, `HWButton.data`, `widgetUrlData`, or `HWPayload`.
 - **No format settings:** `HWAppearanceData` is not allowed in `HWCurrency.data` or `HWTimeZone.data`. Use `HWAppearanceAdaptive` to pick between layouts with different formatting if needed.
-- **Colors are not text:** binding an `HWAppearanceData` of `HWColor` values to `HWText` is a generation error.
+- **Colors, images, and icons are not text:** binding an `HWAppearanceData` of `HWColor`, `HWImageData`, or `HWIconData` values to `HWText` is a generation error.
 
 ## `HWAppearanceAdaptive` vs `HWAppearanceData`
 

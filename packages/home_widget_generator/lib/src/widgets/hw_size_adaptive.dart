@@ -341,6 +341,22 @@ class HWSizeAdaptive extends HWWidget {
   @override
   List<HWWidget> get iosChildWidgets => providedSlots;
 
+  /// Every slot Glance can pick: the system families' and the ranges', or the
+  /// first slot written where no system family has one. A Lock Screen slot is
+  /// never emitted on Android otherwise.
+  @override
+  List<HWWidget> get androidChildWidgets {
+    final systemSlots = [
+      for (final family in HWWidgetFamily.values)
+        if (!family.isAccessory)
+          if (slotFor(family) case final slot?) slot,
+    ];
+    return [
+      ...systemSlots.isEmpty ? providedSlots.take(1) : systemSlots,
+      ...androidSizeRangeChildren,
+    ];
+  }
+
   @override
   String get swiftFrameAlignment => _sharedSwiftFrameAlignment(providedSlots);
 
@@ -390,7 +406,7 @@ class HWSizeAdaptive extends HWWidget {
   @override
   Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) => {
         if (_branchesOnAndroid) ..._kotlinWhenImports,
-        ...childWidgets
+        ...androidChildWidgets
             .expand((child) => child.kotlinImportsIn(enclosingLinearAxis)),
       };
 

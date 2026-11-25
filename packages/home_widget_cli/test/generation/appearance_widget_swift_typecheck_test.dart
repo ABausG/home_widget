@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 
 import 'helpers/build_scenario_runner.dart';
 import 'scenarios/appearance_scenarios.dart';
+import 'scenarios/platform_split_scenarios.dart';
 
 String? _unavailable() {
   try {
@@ -21,7 +22,10 @@ String? _unavailable() {
 void main() {
   final skip = _unavailable();
 
-  for (final scenario in appearanceBuildScenarios) {
+  for (final scenario in [
+    ...appearanceBuildScenarios,
+    ...platformSplitBuildScenarios,
+  ]) {
     test(
       'type-checks the generated Swift: ${scenario.description}',
       () => typecheckIosScenario(scenario),

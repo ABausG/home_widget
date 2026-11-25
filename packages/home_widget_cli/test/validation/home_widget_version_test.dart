@@ -238,6 +238,37 @@ void main() {
             dark: HWDefaultColor(HWColorRole.defaultBackground),
           ),
         ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            small: HWText(HWString.fixed('a')),
+            medium: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            accessoryRectangular: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            small: HWText(HWString.fixed('a')),
+            androidSizeRanges: [
+              HWAndroidSizeRange(
+                minWidth: 300,
+                child: HWImage(
+                  HWAppearanceData(
+                    light: HWImageData('l'),
+                    dark: HWImageData('d'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ]) {
         expect(
           () => validateAppearanceSupport(spec, tempDir),
@@ -305,6 +336,14 @@ void main() {
             dark: HWText(HWString.fixed('b')),
             iosAccented: storedColors,
             iosVibrant: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            small: HWText(HWString.fixed('a')),
+            accessoryRectangular: HWImage(
               HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
             ),
           ),

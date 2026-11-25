@@ -46,7 +46,7 @@ per locale at runtime, bind `HWString.localized` instead — see
 
 A number or a date passed to the default constructor is formatted for the device locale: `HWText(HWInt('count'))` is the same as `HWText.number(HWInt('count'))`, and `HWText(HWDateTime('lastSync'))` the same as `HWText.dateTime(HWDateTime('lastSync'))`. See [Formatting](/generator/formatting).
 
-Every constructor also accepts an [`HWAppearanceData`](/generator/appearance) of the matching type. Binding an [`HWColor`](/generator/styling/hw-color) (or an `HWAppearanceData` of colors) to `HWText` is a generation error — colors belong in a color slot such as `HWTextStyle(color: ...)`.
+Every constructor also accepts an [`HWAppearanceData`](/generator/appearance) of the matching type. Binding an [`HWColor`](/generator/styling/hw-color), [`HWImageData`](/generator/widgets/hw-image), or [`HWIconData`](/generator/widgets/hw-icon) — directly or inside an `HWAppearanceData` — to `HWText` is a generation error: colors belong in a color slot such as `HWTextStyle(color: ...)`, images in [`HWImage`](/generator/widgets/hw-image), and icons in [`HWIcon`](/generator/widgets/hw-icon).
 
 ### HWText.number
 

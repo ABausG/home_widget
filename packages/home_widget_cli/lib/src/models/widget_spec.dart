@@ -979,38 +979,44 @@ class WidgetSpec {
     ];
   }
 
-  /// Whether the generated native code reads the OS locale list, and so needs
-  /// the locale-resolution helpers.
+  /// Whether the generated Kotlin reads the OS locale list, and so needs the
+  /// locale-resolution helpers.
   ///
   /// Constants and gallery strings do not: they are platform resources,
   /// resolved by the OS. Everything else the widget matches itself — while
-  /// reading a stored translation map or at the render site of a JSON leaf —
-  /// which is what puts the locale reader in [nativeHelpers].
-  bool get needsLocaleHelpers =>
-      nativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
+  /// reading a stored translation map or at the render site of a JSON leaf
+  /// Android renders — which is what puts the locale reader in
+  /// [androidNativeHelpers].
+  bool get androidNeedsLocaleHelpers =>
+      androidNativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
 
-  /// Whether the generated native code reads a translation blob back out of
-  /// the preferences key of a data field, which only untimed keyed fields do.
-  bool get needsLocalizedRead =>
-      nativeHelpers.contains(HWNativeHelper.hwReadLocalized);
+  /// [androidNeedsLocaleHelpers] of the generated Swift, out of
+  /// [iosNativeHelpers].
+  bool get iosNeedsLocaleHelpers =>
+      iosNativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
 
-  /// Whether the generated native code reads a translation map out of the
-  /// timed entry that is active at render time.
-  bool get needsTimedLocalizedRead =>
-      nativeHelpers.contains(HWNativeHelper.hwReadTimedLocalized);
+  /// Whether the generated Kotlin reads a translation blob back out of the
+  /// preferences key of a data field, which only untimed keyed fields do.
+  bool get androidNeedsLocalizedRead =>
+      androidNativeHelpers.contains(HWNativeHelper.hwReadLocalized);
 
-  /// Whether reading the values of the generated data class resolves a
+  /// Whether the generated Kotlin reads a translation map out of the timed
+  /// entry that is active at render time.
+  bool get androidNeedsTimedLocalizedRead =>
+      androidNativeHelpers.contains(HWNativeHelper.hwReadTimedLocalized);
+
+  /// Whether reading the values of the generated Kotlin data class resolves a
   /// translation, and so has to be handed the OS locale list.
   ///
   /// Only Kotlin needs this: its `fromPreferences` takes the list as a
   /// parameter, while the Swift resolver reaches `Locale` on its own.
-  bool get resolvesLocalizedOnRead =>
-      needsLocalizedRead || needsTimedLocalizedRead;
+  bool get androidResolvesLocalizedOnRead =>
+      androidNeedsLocalizedRead || androidNeedsTimedLocalizedRead;
 
-  /// Whether the widget resolves any text itself, and so goes stale on a system
-  /// language change unless it re-renders.
-  bool get rendersLocalizedContent =>
-      constantLocalizedStrings.isNotEmpty || needsLocaleHelpers;
+  /// Whether the Android widget resolves any text itself, and so goes stale on
+  /// a system language change unless it re-renders.
+  bool get androidRendersLocalizedContent =>
+      constantLocalizedStrings.isNotEmpty || androidNeedsLocaleHelpers;
 
   /// The flavors the widget is generated for, in declaration order.
   ///
@@ -1752,25 +1758,19 @@ class WidgetSpec {
   List<HWImageData> get assetImageFields =>
       imageDataFields.where((f) => f.isAsset).toList();
 
-  /// Every native helper the generated widget sources have to declare, each
-  /// one after the helpers it calls.
+  /// Every native helper the generated Kotlin has to declare, each one after
+  /// the helpers it calls.
   ///
   /// The widget tree names the helpers it renders through — decoding a picture,
   /// formatting a number — and every declared field the helpers reading it back
-  /// — a date the widget never shows is still parsed into the data class. This
-  /// is the one source of truth for what a generated file declares, so a field
-  /// nothing displays never drags a render helper in. Both are handed to
-  /// [resolveNativeHelpers], which closes over their dependencies.
+  /// — a date the widget never shows is still parsed into the data class. Both
+  /// are handed to [resolveNativeHelpers], which closes over their
+  /// dependencies, so a field nothing displays never drags a render helper in.
   ///
-  /// Each platform renders only its own widgets and paints only its own
-  /// `backgroundColor`, so what renders them is only in [androidNativeHelpers]
-  /// or [iosNativeHelpers].
-  List<HWNativeHelper> get nativeHelpers => resolveNativeHelpers(
-        _withFieldHelpers(effectiveWidgetTree.nativeHelpers),
-      );
-
-  /// The helpers the generated Kotlin declares: the reads of every field, and
-  /// what renders the widgets Android renders and its `backgroundColor`.
+  /// Android renders only its own widgets and paints only its own
+  /// `backgroundColor`, so this and [iosNativeHelpers] are the one source of
+  /// truth for what each generated file declares and for every call the file
+  /// is allowed to make.
   List<HWNativeHelper> get androidNativeHelpers => resolveNativeHelpers([
         ..._withFieldHelpers(effectiveWidgetTree.androidNativeHelpers),
         ...?data.android?.backgroundColor?.renderHelpers,

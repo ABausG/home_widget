@@ -254,7 +254,9 @@ sealed class HWWidget implements HWGeneratable {
   /// The widgets this one renders on Android.
   ///
   /// [childWidgets] for everything but an [HWAdaptive], which renders its
-  /// Android branch alone there, and is what [androidDescendants] walks.
+  /// Android branch alone there, an [HWSizeAdaptive], whose Lock Screen slots
+  /// Glance never picks, and an [HWAppearanceAdaptive], which has no accented
+  /// or vibrant side there; what [androidDescendants] walks.
   List<HWWidget> get androidChildWidgets => childWidgets;
 
   /// The widgets this one renders on iOS.
@@ -329,7 +331,7 @@ sealed class HWWidget implements HWGeneratable {
       return choices.any((choice) => choice.kotlinRendersBitmapTextIn(context));
     }
     if (kotlinRendersBitmapText) return true;
-    return childWidgets
+    return androidChildWidgets
         .any((child) => child.kotlinRendersBitmapTextIn(context));
   }
 

@@ -160,8 +160,20 @@ void main() {
       );
 
       final kotlin = HWNativeHelper.hwReadColor.kotlin!;
-      expect(kotlin, contains('prefs.getLong(key, 0L)'));
-      expect(kotlin, contains('prefs.getInt(key, 0).toLong()'));
+      expect(
+        kotlin,
+        contains(
+          'prefs.getLong(key, 0L).takeIf { it == prefs.getLong(key, 1L) }',
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          'prefs.getInt(key, 0).takeIf { it == prefs.getInt(key, 1) }'
+          '?.toLong()',
+        ),
+      );
+      expect(kotlin, isNot(contains('prefs.contains(')));
       expect(kotlin, isNot(contains('.all')));
       expect(HWNativeHelper.hwReadColor.swift, isNull);
       expect(

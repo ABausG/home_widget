@@ -2788,7 +2788,9 @@ void main() {
       // The parser and the zone resolver come along without reading the
       // locale; the pattern formatter still translates month and weekday names.
       expect(
-        spec.nativeHelpers.where((h) => !h.localeDependent).map((h) => h.name),
+        spec.androidNativeHelpers
+            .where((h) => !h.localeDependent)
+            .map((h) => h.name),
         unorderedEquals(['hwParseIsoDate', 'hwResolveTimeZone']),
       );
 
@@ -2800,7 +2802,7 @@ void main() {
       );
       // An explicit pattern spells its own hour cycle out.
       expect(
-        spec.nativeHelpers.where((h) => h.hourCycleDependent),
+        spec.androidNativeHelpers.where((h) => h.hourCycleDependent),
         isEmpty,
       );
       expect(manifest.readAsStringSync(), isNot(contains('TIME_SET')));

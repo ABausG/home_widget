@@ -3,6 +3,7 @@ import 'package:test/test.dart';
 import 'helpers/build_scenario_runner.dart';
 import 'scenarios/android_scenarios.dart';
 import 'scenarios/appearance_scenarios.dart';
+import 'scenarios/platform_split_scenarios.dart';
 import 'scenarios/shared_scenarios.dart';
 
 void main() {
@@ -10,6 +11,7 @@ void main() {
     ...androidBuildScenarios,
     ...sharedBuildScenarios,
     ...appearanceBuildScenarios,
+    ...platformSplitBuildScenarios,
   ];
 
   for (final scenario in scenarios) {

@@ -15,6 +15,11 @@ import 'package:test/test.dart';
 import '../helpers/mock_logger.dart';
 import '../helpers/xcode_project.dart';
 
+/// The start of a SwiftUI view that reads its data again as it renders.
+const _reReadAtRender = '''
+  var body: some View {
+    let prefs''';
+
 const _localization = HomeWidgetLocalization(
   defaultLocale: 'en',
   supportedLocales: ['en', 'de', 'pt-BR'],
@@ -124,7 +129,7 @@ Future<String> _runGenerated(String dart, String body) async {
 
 /// One emitted helper's source, from [declaration] to the line closing it.
 ///
-/// The helpers come out in the order [WidgetSpec.nativeHelpers] resolves, so a
+/// The helpers come out in the order [resolveNativeHelpers] resolves, so a
 /// slice between two of them would pin that order rather than the body.
 String _helperBody(String source, String declaration) {
   final start = source.indexOf(declaration);
@@ -1848,6 +1853,113 @@ print(defaults.resolve('in'));
       expect(dart, isNot(contains('Translations')));
       expect(dart, isNot(contains('saveData')));
     });
+  });
+
+  group('a translation only one platform renders', () {
+    final item = HWColumn.builder(
+      'rows',
+      item: HWText(HWItemData<String>(_localized(key: 'label'))),
+    );
+    final leaf = HWText(_localizedLeaf());
+    const fixed = HWText(HWString.fixed('x'));
+
+    final iosOnly = {
+      'a list item': HWAdaptive(ios: item, android: fixed),
+      'a JSON leaf': HWAdaptive(ios: leaf, android: fixed),
+      'an accented slot': HWAppearanceAdaptive(
+        light: fixed,
+        dark: fixed,
+        iosAccented: leaf,
+      ),
+      'a vibrant slot': HWAppearanceAdaptive(
+        light: fixed,
+        dark: fixed,
+        iosVibrant: item,
+      ),
+    };
+    final androidOnly = {
+      'a list item': HWAdaptive(ios: fixed, android: item),
+      'a JSON leaf': HWAdaptive(ios: fixed, android: leaf),
+      'a size range': HWSizeAdaptive(
+        small: fixed,
+        androidSizeRanges: [HWAndroidSizeRange(minWidth: 300, child: leaf)],
+      ),
+    };
+
+    Future<String> kotlinOf(HWWidget widget, {required bool autoUpdate}) async {
+      final root = await _project();
+      await AndroidGenerator(
+        spec: _spec(
+          widget: widget,
+          android: HomeWidgetAndroidConfiguration(
+            packageName: 'com.example',
+            autoUpdatePreview: autoUpdate,
+          ),
+        ),
+        projectRoot: root,
+      ).generate();
+      return File(
+        p.join(
+          root.path,
+          'android/app/src/main/kotlin/com/example/GreetingHomeWidget.kt',
+        ),
+      ).readAsStringSync();
+    }
+
+    Future<String> swiftOf(HWWidget widget) async {
+      final root = await _project();
+      await IosGenerator(spec: _spec(widget: widget), projectRoot: root)
+          .generate();
+      return File(
+        p.join(root.path, 'ios', 'GreetingHomeWidget', 'Widget.swift'),
+      ).readAsStringSync();
+    }
+
+    for (final MapEntry(key: description, value: widget) in iosOnly.entries) {
+      test('Android calls no locale helper for $description only iOS shows',
+          () async {
+        final kotlin = await kotlinOf(widget, autoUpdate: false);
+        expect(kotlin, isNot(contains('hwCurrentLocales')));
+        expect(kotlin, isNot(contains('hwResolveLocalized')));
+
+        final previewed = await kotlinOf(widget, autoUpdate: true);
+        expect(
+          'val hwLocales = hwCurrentLocales(context)'
+              .allMatches(previewed)
+              .length,
+          1,
+          reason: 'only the preview fingerprint reads the locales',
+        );
+        expect(previewed, contains('private fun hwCurrentLocales('));
+        expect(previewed, isNot(contains('hwResolveLocalized')));
+
+        final swift = await swiftOf(widget);
+        expect(swift, contains('func hwCurrentLocales() -> [String]'));
+        expect(swift, contains('func hwResolveLocalized('));
+        expect(swift, contains(_reReadAtRender));
+      });
+    }
+
+    for (final MapEntry(key: description, value: widget)
+        in androidOnly.entries) {
+      test('iOS calls no locale helper for $description only Android shows',
+          () async {
+        for (final autoUpdate in [false, true]) {
+          final kotlin = await kotlinOf(widget, autoUpdate: autoUpdate);
+          expect(
+            'val hwLocales = hwCurrentLocales(context)'.allMatches(kotlin),
+            hasLength(autoUpdate ? 2 : 1),
+          );
+          expect(kotlin, contains('private fun hwCurrentLocales('));
+          expect(kotlin, contains('private fun hwResolveLocalized('));
+        }
+
+        final swift = await swiftOf(widget);
+        expect(swift, isNot(contains('hwCurrentLocales')));
+        expect(swift, isNot(contains('hwResolveLocalized')));
+        expect(swift, isNot(contains(_reReadAtRender)));
+      });
+    }
   });
 
   group('validation', () {

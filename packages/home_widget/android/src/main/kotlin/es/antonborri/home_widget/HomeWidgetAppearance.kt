@@ -29,8 +29,12 @@ object HomeWidgetAppearance {
   val switchesLive: Boolean
     get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-  private var cachedConfiguration: Configuration? = null
-  private var cachedContexts: DayNight<Context>? = null
+  private class ConfigurationContexts(
+      val configuration: Configuration,
+      val contexts: DayNight<Context>,
+  )
+
+  @Volatile private var cached: ConfigurationContexts? = null
 
   /**
    * A context in the configuration of [context], set to the dark color scheme when [night] is true
@@ -45,19 +49,16 @@ object HomeWidgetAppearance {
     return if (night) contexts.night else contexts.day
   }
 
-  @Synchronized
   private fun configurationContexts(context: Context): DayNight<Context> {
-    val configuration = context.resources.configuration
-    val cached = cachedContexts
-    if (cached != null && cachedConfiguration == configuration) return cached
+    val configuration = Configuration(context.resources.configuration)
+    cached?.let { if (it.configuration == configuration) return it.contexts }
     val application = context.applicationContext ?: context
     val contexts =
         DayNight(
             day = withNightMode(application, configuration, Configuration.UI_MODE_NIGHT_NO),
             night = withNightMode(application, configuration, Configuration.UI_MODE_NIGHT_YES),
         )
-    cachedConfiguration = Configuration(configuration)
-    cachedContexts = contexts
+    cached = ConfigurationContexts(configuration, contexts)
     return contexts
   }
 

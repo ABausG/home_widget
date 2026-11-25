@@ -195,5 +195,5 @@ Either side can be a stored `HWColor`, `HWColor.fixed`, `HWDefaultColor`, or a w
 
 ## Platform mapping
 
-- **iOS:** stored as a 32-bit ARGB `Int` in `UserDefaults` and converted to SwiftUI [`Color`](https://developer.apple.com/documentation/swiftui/color). `HWDefaultColor` maps to `Color.primary`, `Color.secondary`, `Color(.tertiaryLabel)`, `Color.accentColor`, and `Color.clear`.
-- **Android:** stored as a `Long` in `SharedPreferences` and converted to Glance [`ColorProvider`](https://developer.android.com/reference/kotlin/androidx/glance/color/ColorProvider). `HWDefaultColor` maps to [`GlanceTheme.colors`](https://developer.android.com/reference/kotlin/androidx/glance/GlanceTheme) (`onSurface`, `onSurfaceVariant`, `outline`, `primaryContainer`, and `widgetBackground`).
+- **iOS:** SwiftUI [`Color`](https://developer.apple.com/documentation/swiftui/color). `HWDefaultColor` maps to `Color.primary`, `Color.secondary`, `Color(.tertiaryLabel)`, `Color.accentColor`, and `Color.clear`.
+- **Android:** Glance [`ColorProvider`](https://developer.android.com/reference/kotlin/androidx/glance/color/ColorProvider). `HWDefaultColor` maps to [`GlanceTheme.colors`](https://developer.android.com/reference/kotlin/androidx/glance/GlanceTheme) (`onSurface`, `onSurfaceVariant`, `outline`, `primaryContainer`, and `widgetBackground`).

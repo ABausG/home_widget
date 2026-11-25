@@ -589,7 +589,9 @@ void main() {
     test('is empty when nothing is left to rewrite', () {
       expect(
         glanceSingleAxisImports(
-            {'$layout.size'}, GlanceSizeAxis.values.toSet()),
+          {'$layout.size'},
+          GlanceSizeAxis.values.toSet(),
+        ),
         isEmpty,
       );
       expect(glanceSingleAxisImports({'$layout.size'}, {}), isEmpty);
