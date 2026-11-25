@@ -11,13 +11,13 @@ description: Render one of two branches based on widget data.
 
 ### HWDataExists
 
-Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any [`HWDataType`](/generator/data). For an [`HWImageData`](/generator/widgets/hw-image) it also checks that the saved picture is still there, so the `whenAbsent` placeholder shows instead of an empty gap.
+Renders `whenPresent` if the data field has a value in the widget storage, otherwise `whenAbsent`. Works with any stored [`HWDataType`](/generator/data), as well as an [`HWAppearanceData`](/generator/appearance#conditionals) whose `light` and `dark` sides are stored fields (true when the selected variant after the missing-variant chain has a value). For an [`HWImageData`](/generator/widgets/hw-image) it also checks that the saved picture is still there, so the `whenAbsent` placeholder shows instead of an empty gap.
 
 `HWDataExists({required HWDataType data, required HWWidget whenPresent, required HWWidget whenAbsent})`
 
 ### HWBoolConditional
 
-Renders `whenTrue` if the boolean data field is `true`, otherwise `whenFalse`. The `data` must be an `HWBool` (or a JSON leaf of `HWBool`) **with a non-null `defaultValue`** so the condition is always defined.
+Renders `whenTrue` if the boolean data field is `true`, otherwise `whenFalse`. The `data` must be an `HWBool` (optionally wrapped in `HWJson`, `HWTimedData`, or `HWItemData`) **with a non-null `defaultValue`**, or an [`HWAppearanceData`](/generator/appearance#conditionals) of `HWBool` values (whose sides do not require a `defaultValue` and may use `HWBool.fixed`).
 
 `HWBoolConditional({required HWDataType data, required HWWidget whenTrue, required HWWidget whenFalse})`
 
@@ -41,7 +41,7 @@ HWDataExists(
 )
 ```
 
-The condition must be a stored field. A [fixed value](/generator/data#fixed-values) such as `HWBool.fixed(true)` or `HWString.fixed('x')` is a generation error as the `data` of either variant, because one branch could never render. To pin a branch while you work on a layout, give the stored `HWBool` a `defaultValue` and `previewValue`.
+The condition must be a stored field (or an `HWAppearanceData` as described above). A bare [fixed value](/generator/data#fixed-values) such as `HWBool.fixed(true)` or `HWString.fixed('x')` is a generation error as the `data` of either variant, because one branch could never render. To pin a branch while you work on a layout, give the stored `HWBool` a `defaultValue` and `previewValue`.
 
 ## Parameters
 
@@ -49,7 +49,7 @@ The condition must be a stored field. A [fixed value](/generator/data#fixed-valu
 
 | Name          | Type           | Default      | Description                                   |
 | ------------- | -------------- | ------------ | --------------------------------------------- |
-| `data`        | `HWDataType`   | **required** | Field whose presence is tested.               |
+| `data`        | `HWDataType`   | **required** | Field (or `HWAppearanceData`) whose presence is tested. |
 | `whenPresent` | `HWWidget`     | **required** | Rendered when the field has a value.          |
 | `whenAbsent`  | `HWWidget`     | **required** | Rendered when the field is `null`/missing.    |
 
@@ -57,7 +57,7 @@ The condition must be a stored field. A [fixed value](/generator/data#fixed-valu
 
 | Name        | Type           | Default      | Description                                              |
 | ----------- | -------------- | ------------ | -------------------------------------------------------- |
-| `data`      | `HWDataType`   | **required** | An `HWBool` (or `HWJson` with `HWBool` leaf) with a `defaultValue`. |
+| `data`      | `HWDataType`   | **required** | An `HWBool` (or wrapped `HWBool`) with a `defaultValue`, or an `HWAppearanceData` of `HWBool` values. |
 | `whenTrue`  | `HWWidget`     | **required** | Rendered when the value is `true`.                       |
 | `whenFalse` | `HWWidget`     | **required** | Rendered when the value is `false`.                      |
 

@@ -11,7 +11,7 @@ description: Background color, border and corner radius for HWDecoratedBox.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `color` | `HWColor?` | `null` | Background fill. See [HWColor](/generator/styling/hw-color). |
+| `color` | `HWDataType<int>?` | `null` | Background fill — any color value. While a stored color has no value, the fill draws transparent. See [`HWColor`](/generator/styling/hw-color). |
 | `border` | `HWBoxBorder?` | `null` | Border drawn around the child. |
 | `borderRadius` | `HWBorderRadius?` | `null` | Rounds the corners of the background and the border. |
 
@@ -42,7 +42,7 @@ A simple, single-color border.
 
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
-| `color` | `HWColor` | required | Stroke color. |
+| `color` | `HWDataType<int>` | required | Stroke color — any color value. While a stored color has no value, the border draws transparent and keeps its inset. See [`HWColor`](/generator/styling/hw-color). |
 | `thickness` | `double` | required | Stroke width. |
 
 ```dart

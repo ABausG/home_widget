@@ -11,9 +11,9 @@ underlying icon font gets onto the device and the constraints on the icon list.
 
 ## Constructor
 
-`const HWIcon(HWDataType<dynamic> icon, {double size = 24, HWColor? color, String? semanticLabel})`
+`const HWIcon(HWDataType<dynamic> icon, {double size = 24, HWDataType<int>? color, String? semanticLabel})`
 
-`icon` is an `HWIconData`, or an `HWJson` / `HWTimedData` wrapping one. A stored `HWIconData` displays an icon chosen at runtime; `HWIconData.fixed` displays a constant icon.
+`icon` is an `HWIconData`, optionally wrapped in `HWJson`, `HWItemData`, or `HWTimedData`, or an [`HWAppearanceData`](/generator/appearance) picking between icons from the same icon font. A stored `HWIconData` displays an icon chosen at runtime; `HWIconData.fixed` displays a constant icon.
 
 ### Runtime icon
 
@@ -49,9 +49,9 @@ A value that is not an `IconData` is a generation error. A fixed icon cannot be 
 
 | Name            | Type                  | Default              | Description                                                              |
 | --------------- | --------------------- | --------------------- | ------------------------------------------------------------------------ |
-| `icon`          | `HWDataType<dynamic>` | **required** | `HWIconData` or `HWIconData.fixed`, or an `HWJson` / `HWTimedData` wrapping a stored one, naming the icon to render. |
+| `icon`          | `HWDataType<dynamic>` | **required** | `HWIconData` or `HWIconData.fixed`, optionally wrapped in `HWJson`, `HWItemData`, `HWTimedData`, or `HWAppearanceData` (all sides must share one icon font). |
 | `size`          | `double`              | `24`                  | Glyph size in logical pixels.                                            |
-| `color`         | `HWColor?`            | `null`                | Tint applied to the glyph. `null` uses the platform's primary text color. See [HWColor](/generator/styling/hw-color). |
+| `color`         | `HWDataType<int>?`    | `null`                | Tint applied to the glyph — any color value. `null`, or a stored color with no value, uses the platform's primary content color. See [`HWColor`](/generator/styling/hw-color). |
 | `semanticLabel` | `String?`             | `null`                | Accessibility description, or `null` for a decorative icon.              |
 
 ## Icons at a JSON leaf or on a schedule

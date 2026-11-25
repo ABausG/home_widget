@@ -13,10 +13,12 @@ HWText(HWTimedData(HWInt('temperature')))
 HWText(HWTimedData(HWJson('weather', HWString('condition'))))
 ```
 
-Any `HWDataType` variant can be wrapped, including `HWJson` and a runtime `HWImageData` — the nested value is read from the entry active at the current time, exactly like reading from regular storage otherwise.
+Any stored `HWDataType` variant can be wrapped, including `HWColor`, `HWJson`, and a runtime `HWImageData` — the nested value is read from the entry active at the current time, exactly like reading from regular storage otherwise. A timed `HWColor` becomes a `Color?` field on the generated timed data class.
 
 <Warning>
-`HWTimedData` only belongs at the root of a data field. It cannot be nested inside another `HWTimedData`, and it cannot sit inside an `HWJson` — write `HWTimedData(HWJson('weather', ...))`, never `HWJson('weather', HWTimedData(...))`.
+`HWTimedData` only belongs at the root of a stored data field. It cannot be nested inside another `HWTimedData`, and it cannot sit inside an `HWJson` — write `HWTimedData(HWJson('weather', ...))`, never `HWJson('weather', HWTimedData(...))`.
+
+To vary a timed value by light/dark or iOS appearance, put [`HWAppearanceData`](/generator/appearance) on the outside: write `HWAppearanceData(light: HWTimedData(...), dark: HWTimedData(...))`, never `HWTimedData(HWAppearanceData(...))`.
 
 A JSON root also takes a single `HWTimedData` declaration. To reach a deeper value, nest the paths inside that one declaration — `HWTimedData(HWJson('weather', HWJson('wind', HWInt('speed'))))` — rather than wrapping the same root twice.
 </Warning>

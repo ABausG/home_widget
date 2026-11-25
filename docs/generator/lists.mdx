@@ -129,21 +129,22 @@ Everything **not** wrapped in `HWItemData` keeps its meaning inside an item. A r
 - `HWString`, plain or `.localized`
 - `HWInt`, `HWDouble` and `HWBool`
 - `HWDateTime`
+- [`HWColor`](/generator/styling/hw-color) (stored)
 - `HWIconData`
 - a runtime `HWImageData`, see [Images in items](#images-in-items)
 
-It rejects `HWImageData.asset`, since an asset ships with the app and there is nothing to store per item, and `HWJson`, since JSON objects inside an item aren't supported yet. It also rejects another `HWItemData` and `HWTimedData`: a time-based list is written `HWTimedData(HWItemData(...))`, see [Time-based lists](#time-based-lists).
+It rejects `HWImageData.asset` and every other fixed value (`HWString.fixed`, `HWColor.fixed`, `HWDefaultColor`, ...), since constants are the same in every item and there is nothing to store per item, and `HWJson`, since JSON objects inside an item aren't supported yet. It also rejects another `HWItemData`, `HWTimedData`, and `HWAppearanceData`: a time-based list is written `HWTimedData(HWItemData(...))` (see [Time-based lists](#time-based-lists)), and an appearance-aware item value is written `HWAppearanceData(light: HWItemData(...), dark: HWItemData(...))` (see [Appearance](/generator/appearance)).
 
 Each wrapped field keeps its own names for its default and its preview:
 
 | Wrapped field | Default | Preview |
 | --- | --- | --- |
-| `HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWIconData` | `defaultValue` | `previewValue` |
+| `HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWColor`, `HWIconData` | `defaultValue` | `previewValue` |
 | `HWDateTime` | none | `previewValue` |
 | `HWString.localized` | `defaultTranslations` | `previewTranslations` |
 | a runtime `HWImageData` | none | `previewAsset` |
 
-Anything that takes a data field accepts one inside an item: `HWText` (plain, `.number` and `.dateTime`), `HWImage`, `HWIcon`, `HWDataExists`, `HWBoolConditional`, `HWCurrency.data` and `HWTimeZone.data`. A per-item currency, for example:
+Anything that takes a data field accepts one inside an item: `HWText` (plain, `.number` and `.dateTime`), `HWImage`, `HWIcon`, color slots (`HWTextStyle.color`, `HWIcon.color`, `HWColoredBox`, `HWBoxDecoration`, `HWBoxBorder`), `HWDataExists`, `HWBoolConditional`, `HWCurrency.data` and `HWTimeZone.data`. A per-item currency, for example:
 
 ```dart
 HWText.number(
@@ -190,7 +191,7 @@ class WeatherForecastItem {
 ```
 
 - It has one nullable, optional member per item field, in the order the fields are first read. Leaving a member out is how an item says "use the default".
-- A member has the type the same field would have at the root: `String`, `int`, `double`, `bool`, `DateTime`, the icon enum, and `ImageProvider` for an image. A localized field is a plain `String`.
+- A member has the type the same field would have at the root: `String`, `int`, `double`, `bool`, `DateTime`, `Color` (from `dart:ui`), the icon enum, and `ImageProvider` for an image. A localized field is a plain `String`.
 - An item icon gets the usual [icon enum](/generator/data#icon-data), `<WidgetClass><FieldKey>Icon`. An item icon and a root or JSON icon with the same key share one enum holding the icons of both.
 - The generated Swift struct and Kotlin class have the same name.
 
@@ -275,6 +276,7 @@ HWText.number(HWItemData(HWInt('temperature', defaultValue: 0), previewValues: [
 Each entry is written the way the field's own `previewValue` is:
 
 - a `String`, `int`, `double` or `bool` for text, numbers and booleans
+- a 32-bit ARGB `int` (such as `0xFF6750A4`) for an `HWColor`
 - an ISO 8601 string for an `HWDateTime`, spelled `yyyy-MM-ddTHH:mm:ss` with an optional fraction and `Z` or an offset, e.g. `2026-09-22T10:00:00Z`
 - an `IconData` from the field's `icons` for an `HWIconData`
 - the path of a Flutter asset for a runtime `HWImageData`, like its `previewAsset`
@@ -484,7 +486,7 @@ Every error below stops generation before any file is written; the warnings at t
 - ```
   previewValues[<index>] of HWItemData "<field>" must be <kind>, got <type>.
   ```
-  An entry has the wrong type. `<kind>` names what the field takes: `an int`, `a number`, `a bool`, `a String`, `an ISO 8601 String`, `an IconData such as Icons.wb_sunny` or `the String path of a Flutter asset`.
+  An entry has the wrong type. `<kind>` names what the field takes: `an int`, `a number`, `a bool`, `a String`, `an ARGB int such as 0xFF6750A4`, `an ISO 8601 String`, `an IconData such as Icons.wb_sunny` or `the String path of a Flutter asset`.
 - ```
   previewValues[<index>] of HWItemData "<field>" is not one of its icons.
   ```

@@ -5,7 +5,7 @@ description: Paint a child with a solid background color.
 
 # HWColoredBox
 
-Paints its area with a single [`HWColor`](/generator/styling/hw-color) and renders a child on top. For backgrounds with a border or rounded corners use [`HWDecoratedBox`](/generator/widgets/hw-decorated-box).
+Paints its area with a single color and renders a child on top. For backgrounds with a border or rounded corners use [`HWDecoratedBox`](/generator/widgets/hw-decorated-box).
 
 ```dart
 HWSizedBox.expand(
@@ -17,14 +17,14 @@ HWSizedBox.expand(
           HWText(HWString.fixed('No Color')),
           HWText(
             HWString.fixed('Fixed Color'),
-            style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
+            style: HWTextStyle(color: HWColor.fixed(0xFFFF0000)),
           ),
           HWText(
-            HWString.fixed('Themed'),
+            HWString.fixed('Appearance'),
             style: HWTextStyle(
-              color: HWThemedColor(
-                light: HWFixedColor(0xFFFFFF00),
-                dark: HWFixedColor(0xFF00FFFF),
+              color: HWAppearanceData(
+                light: HWColor.fixed(0xFFFFFF00),
+                dark: HWColor.fixed(0xFF00FFFF),
               ),
             ),
           ),
@@ -35,14 +35,14 @@ HWSizedBox.expand(
 )
 ```
 
-The `color` accepts any `HWColor` — a fixed ARGB value, a themed light/dark pair, or a system role. See [`HWColor`](/generator/styling/hw-color).
+`color` accepts any color value: a stored [`HWColor`](/generator/styling/hw-color), `HWColor.fixed`, `HWDefaultColor`, a color wrapped in `HWJson`, `HWTimedData`, or `HWItemData`, or an [`HWAppearanceData`](/generator/appearance) of colors. When a stored color has no value and no `defaultValue`, the box draws transparent and keeps its layout.
 
 ## Parameters
 
-| Name    | Type        | Default      | Description                              |
-| ------- | ----------- | ------------ | ---------------------------------------- |
-| `child` | `HWWidget`  | **required** | The widget painted on top of the color.  |
-| `color` | `HWColor`   | **required** | The background color (fixed or themed).  |
+| Name    | Type              | Default      | Description                                                      |
+| ------- | ----------------- | ------------ | ---------------------------------------------------------------- |
+| `child` | `HWWidget`        | **required** | The widget painted on top of the color.                          |
+| `color` | `HWDataType<int>` | **required** | Any color value. See [`HWColor`](/generator/styling/hw-color).   |
 
 ## Platform mapping
 

@@ -40,7 +40,7 @@ The decoration covers all the room the box gets, like Flutter's `DecoratedBox`: 
 
 | Name           | Type              | Default | Description                                   |
 | -------------- | ----------------- | ------- | --------------------------------------------- |
-| `color`        | `HWColor?`        | `null`  | Background color.                             |
+| `color`        | `HWDataType<int>?` | `null`  | Background color — any color value. While a stored color has no value, the fill draws transparent. See [`HWColor`](/generator/styling/hw-color). |
 | `border`       | `HWBoxBorder?`    | `null`  | Border specification.                         |
 | `borderRadius` | `HWBorderRadius?` | `null`  | Corner radius of the background and border.   |
 
@@ -55,7 +55,7 @@ The decoration covers all the room the box gets, like Flutter's `DecoratedBox`: 
 | Name        | Type      | Default      | Description   |
 | ----------- | --------- | ------------ | ------------- |
 | `thickness` | `double`  | **required** | Border width. |
-| `color`     | `HWColor` | **required** | Border color. |
+| `color`     | `HWDataType<int>` | **required** | Border color — any color value. While a stored color has no value, the border draws transparent and keeps its inset. See [`HWColor`](/generator/styling/hw-color). |
 
 ## Platform mapping
 

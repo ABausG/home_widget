@@ -207,7 +207,7 @@ Code that still needs the `Uri`, such as a router that takes one, reads it from 
 
 ## HWColor.themed Became HWAppearanceData
 
-`HWColor.themed` and `HWThemedColor` are removed. `HWAppearanceData` takes the same `light` and `dark` colors:
+`HWColor.themed` and `HWThemedColor` are removed. [`HWAppearanceData`](/generator/appearance) takes the same `light` and `dark` colors:
 
 ```dart
 HWColor.themed(light: HWColor.fixed(0xFF000000), dark: HWColor.fixed(0xFFFFFFFF)) // [!code --]
@@ -216,4 +216,4 @@ HWAppearanceData(light: HWColor.fixed(0xFF000000), dark: HWColor.fixed(0xFFFFFFF
 
 A pair of two `HWColor.fixed` colors renders as before on both platforms. On Android, a pair with an `HWDefaultColor` on one side rendered that side white. It now renders the role's color.
 
-`HWColor` is now a data type, and every color slot is typed `HWDataType<int>`. The constant forms `HWColor.fixed`, `HWFixedColor` and `HWDefaultColor` are unchanged. A color no longer emits code of its own: `toSwift`, `toKotlin` and `kotlinImports` are gone from `HWColor`.
+[`HWColor`](/generator/styling/hw-color) is now a data type, and every color slot is typed `HWDataType<int>`. The constant forms `HWColor.fixed`, `HWFixedColor` and `HWDefaultColor` are unchanged. A color no longer emits code of its own: `toSwift`, `toKotlin` and `kotlinImports` are gone from `HWColor`.
