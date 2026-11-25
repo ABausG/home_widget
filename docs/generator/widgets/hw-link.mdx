@@ -231,7 +231,7 @@ final class TodosOpenLink extends TodosLaunch {
 
 A tap on a row arrives with that row's `id`, and a tap on `whenEmpty` (or a header link) arrives with `id == null`.
 
-`widgetUrl` and links with other ids still must not open a URL the app cannot tell apart from the shared one: neither the same scheme, host, path, fragment and written query parameters, nor a query parameter written into one URL that any payload name sent by any link of the shared id can produce.
+`widgetUrl` and links with other ids still must not open a URL the app cannot tell apart from the shared one. Generation fails when the two have the same scheme, host, path, fragment and written query parameters. It also fails when the values one of them sends can produce every query parameter written into the other that it does not write itself. For the shared id, that counts every name any of its links sends.
 
 ## Together with `widgetUrl`
 
