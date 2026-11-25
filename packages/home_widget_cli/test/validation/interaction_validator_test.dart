@@ -645,6 +645,22 @@ void main() {
       }
     });
 
+    test('may send a name as another type under another id', () {
+      final spec = _spec(
+        HWColumn(
+          children: [
+            _button('add', data: const [HWInt('step')]),
+            _button(
+              'rename',
+              data: const [HWPayload('step', HWString('title'))],
+            ),
+          ],
+        ),
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
     test('may share an id with a link', () {
       final spec = _spec(
         HWColumn(children: [_button('open'), _link('open')]),

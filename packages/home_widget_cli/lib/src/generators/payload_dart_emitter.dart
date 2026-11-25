@@ -117,12 +117,12 @@ final class $className extends $superClass {
     return buffer.toString();
   }
 
-  /// The file-level functions the classes of [emitters] call, each written
-  /// once and only where one of them calls it.
-  static String helpers(Iterable<PayloadDartEmitter> emitters) {
+  /// The file-level functions the classes of [fieldLists], the fields of each
+  /// class, call, each written once and only where one of them calls it.
+  static String helpers(Iterable<List<PayloadField>> fieldLists) {
     final types = <HWPayloadType>{
-      for (final emitter in emitters)
-        for (final field in emitter.fields) field.type,
+      for (final fields in fieldLists)
+        for (final field in fields) field.type,
     };
     final buffer = StringBuffer();
     buffer.write('''
@@ -147,7 +147,7 @@ bool $matcher(Uri uri, Uri url) {
   return true;
 }
 ''');
-    if (emitters.any((emitter) => emitter.fields.isNotEmpty)) {
+    if (fieldLists.any((fields) => fields.isNotEmpty)) {
       buffer.write('''
 
 /// [head] with every value of [payload] that is there appended as a query

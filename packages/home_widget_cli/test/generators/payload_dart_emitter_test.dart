@@ -15,8 +15,9 @@ String _declare(HWPayloadUrl url, String className) =>
       description: 'A tap.',
     );
 
-String _helpers(List<HWPayloadUrl> urls) =>
-    PayloadDartEmitter.helpers([...urls.map(PayloadDartEmitter.new)]);
+String _helpers(List<HWPayloadUrl> urls) => PayloadDartEmitter.helpers(
+      [for (final url in urls) PayloadField.listOf(url.payload)],
+    );
 
 void main() {
   final forecast = HWPayloadUrl.of(
@@ -56,19 +57,20 @@ void main() {
       HWInt('smallest', defaultValue: -9223372036854775808),
     ],
   );
+  final waterFields = PayloadField.merge([
+    HWPayloadEntry.listOf(const [
+      HWPayload('amount', HWInt.fixed(250)),
+      HWPayload('at', HWDateTime.fixed('2026-09-22T10:00:00Z')),
+    ]),
+    HWPayloadEntry.listOf(const [
+      HWPayload('amount', HWInt.fixed(500)),
+      HWPayload('at', HWDateTime.fixed('2026-09-22T12:00:00+02:00')),
+      HWPayload('source', HWString.fixed('custom')),
+    ]),
+  ]);
   final water = PayloadDartEmitter(
     const HWPayloadUrl('homewidget://interaction/logDrink'),
-    fields: PayloadField.merge([
-      HWPayloadEntry.listOf(const [
-        HWPayload('amount', HWInt.fixed(250)),
-        HWPayload('at', HWDateTime.fixed('2026-09-22T10:00:00Z')),
-      ]),
-      HWPayloadEntry.listOf(const [
-        HWPayload('amount', HWInt.fixed(500)),
-        HWPayload('at', HWDateTime.fixed('2026-09-22T12:00:00+02:00')),
-        HWPayload('source', HWString.fixed('custom')),
-      ]),
-    ]),
+    fields: waterFields,
   ).classDeclaration(
     className: 'WaterLogDrinkInteraction',
     superClass: 'Launch',
@@ -308,6 +310,23 @@ void main() {
       expect(code, contains('DateTime? _\$payloadDateTime(String? value)'));
     });
 
+    test('follows the fields of a class rather than its URL', () {
+      final fields = PayloadField.merge([
+        HWPayloadEntry.listOf(const [HWPayload('source', HWString('a'))]),
+        HWPayloadEntry.listOf(const [
+          HWPayload('amount', HWInt('b')),
+          HWPayload('at', HWDateTime('c')),
+        ]),
+      ]);
+      final code = PayloadDartEmitter.helpers([fields]);
+
+      expect(code, contains('Uri _\$payloadUri(String head, '));
+      expect(code, contains('int? _\$payloadInt(String? value)'));
+      expect(code, contains('DateTime? _\$payloadDateTime(String? value)'));
+      expect(code, isNot(contains('_\$payloadDouble')));
+      expect(code, isNot(contains('_\$payloadBool')));
+    });
+
     test('skips an entry of a type no payload can carry', () {
       final code = _helpers([
         HWPayloadUrl.of('myapp://a', const [HWImageData('avatar')]),
@@ -328,9 +347,16 @@ void main() {
       tempDir.deleteSync(recursive: true);
     });
 
-    /// Runs [statements], each an expression, against the classes of
-    /// [forecast] and [plain] and answers what each evaluates to, as text.
-    List<String> evaluate(List<String> statements) {
+    final launchClasses = '''
+${_declare(forecast, 'ForecastLink')}
+${_declare(plain, 'PlainTap')}
+${_declare(borderline, 'BorderlineLink')}
+${_declare(big, 'BigLink')}
+${_helpers([forecast, plain, borderline, big])}''';
+
+    /// Runs [statements], each an expression, against [classes], by default
+    /// [launchClasses], and answers what each evaluates to, as text.
+    List<String> evaluate(List<String> statements, {String? classes}) {
       final script = File(p.join(tempDir.path, 'launch.dart'));
       script.writeAsStringSync('''
 import 'dart:convert';
@@ -340,12 +366,7 @@ sealed class Launch {
   Uri toUri();
 }
 
-${_declare(forecast, 'ForecastLink')}
-${_declare(plain, 'PlainTap')}
-${_declare(borderline, 'BorderlineLink')}
-${_declare(big, 'BigLink')}
-$water
-${_helpers([forecast, plain, borderline, big])}
+${classes ?? launchClasses}
 
 final since = DateTime.utc(2026, 9, 22, 10);
 
@@ -433,14 +454,19 @@ void main() {
     });
 
     test('reads the fields of buttons sharing an id', () {
-      final results = evaluate([
-        "WaterLogDrinkInteraction._\$fromUri(Uri.parse('homewidget://interaction/logDrink?amount=500&at=1000&source=custom&homeWidget'))",
-        "WaterLogDrinkInteraction._\$fromUri(Uri.parse('homewidget://interaction/logDrink?homeWidget'))",
-        'WaterLogDrinkInteraction(amount: 250, at: since).toUri()',
-        'WaterLogDrinkInteraction._\$fromUri(WaterLogDrinkInteraction('
-            "amount: 500, at: since, source: 'custom').toUri()) == "
-            "WaterLogDrinkInteraction(amount: 500, at: since, source: 'custom')",
-      ]);
+      final results = evaluate(
+        [
+          "WaterLogDrinkInteraction._\$fromUri(Uri.parse('homewidget://interaction/logDrink?amount=500&at=1000&source=custom&homeWidget'))",
+          "WaterLogDrinkInteraction._\$fromUri(Uri.parse('homewidget://interaction/logDrink?homeWidget'))",
+          'WaterLogDrinkInteraction(amount: 250, at: since).toUri()',
+          'WaterLogDrinkInteraction._\$fromUri(WaterLogDrinkInteraction('
+              "amount: 500, at: since, source: 'custom').toUri()) == "
+              "WaterLogDrinkInteraction(amount: 500, at: since, source: 'custom')",
+        ],
+        classes: '''
+$water
+${PayloadDartEmitter.helpers([waterFields])}''',
+      );
 
       expect(results, [
         'WaterLogDrinkInteraction(amount: 500, '

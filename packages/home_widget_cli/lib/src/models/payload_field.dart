@@ -34,11 +34,10 @@ class PayloadField {
   /// The fields of a class every one of [payloads] is sent for, one per name
   /// in the order the names first appear.
   ///
-  /// A field takes the type of the first entry of its name, and an entry no
-  /// payload can carry is left out; the validator rejects both a name sent
-  /// as two types and such an entry. A field falls back only where every one
-  /// of [payloads] sends its name and all of them fall back on the same
-  /// value.
+  /// Expects every name to be sent as one type, which the validator makes
+  /// sure of; an entry no payload can carry is left out. A field falls back
+  /// only where every one of [payloads] sends its name and all of them fall
+  /// back on the same value.
   static List<PayloadField> merge(List<List<HWPayloadEntry>> payloads) {
     final sent = <String, List<HWPayloadEntry>>{};
     for (final payload in payloads) {
@@ -53,7 +52,8 @@ class PayloadField {
           name,
           entries,
           sentByAll: payloads.every(
-            (payload) => payload.any((entry) => entry.name == name),
+            (payload) => payload
+                .any((entry) => entry.type != null && entry.name == name),
           ),
         ),
     ];

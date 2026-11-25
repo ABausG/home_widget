@@ -157,6 +157,15 @@ void main() {
       );
     });
 
+    test('does not count an entry no payload can carry as sending a name', () {
+      final field = _single([
+        const [HWPayload('amount', HWInt.fixed(250))],
+        const [HWPayload('amount', HWImageData('avatar'))],
+      ]);
+
+      expect(field.isNullable, isTrue);
+    });
+
     test('orders the fields by where their names first appear', () {
       final fields = PayloadField.merge([
         _payload(const [HWInt('b')]),
@@ -165,15 +174,6 @@ void main() {
       ]);
 
       expect(fields.map((field) => field.name), ['b', 'c', 'a', 'd']);
-    });
-
-    test('takes the type of the first entry of a name', () {
-      final field = _single([
-        const [HWPayload('step', HWInt('a'))],
-        const [HWPayload('step', HWString('b'))],
-      ]);
-
-      expect(field.type, HWPayloadType.int);
     });
   });
 }
