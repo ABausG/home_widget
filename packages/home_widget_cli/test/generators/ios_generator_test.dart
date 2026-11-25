@@ -4,6 +4,8 @@ import 'package:home_widget_cli/src/generators/ios_generator.dart';
 import 'package:home_widget_cli/src/models/widget_spec.dart';
 import 'package:home_widget_cli/src/util/fnv_hash.dart';
 import 'package:home_widget_cli/src/util/font_resolver.dart';
+import 'package:home_widget_cli/src/util/ios_interactivity.dart';
+import 'package:home_widget_cli/src/util/pbxproj/pbxproj_editor.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as p;
@@ -835,6 +837,463 @@ void main() {
       content,
       contains('hwLink(URL(string: "myapp://forecast?homeWidget")) {'),
     );
+  });
+
+  group('buttons', () {
+    const podfile = '''
+target 'Runner' do
+  use_frameworks!
+end
+
+post_install do |installer|
+end
+''';
+    const appDelegate = '''
+import Flutter
+import UIKit
+
+@main
+@objc class AppDelegate: FlutterAppDelegate {
+  override func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    GeneratedPluginRegistrant.register(with: self)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+}
+''';
+
+    late MockLogger mockLogger;
+    late File pbxprojFile;
+    late File podfileFile;
+    late File appDelegateFile;
+    late File intentFile;
+    late File widgetFile;
+    late File podsXcconfigFile;
+
+    WidgetSpec counterSpec({bool button = true}) => WidgetSpec(
+          data: HomeWidget(
+            name: 'Counter',
+            iOS: HomeWidgetIOSConfiguration(groupId: 'group.counter'),
+          ),
+          className: 'Counter',
+          dataFields: const [HWInt('count')],
+          interactionHandler: button
+              ? const InteractionHandler(
+                  libraryUri: 'package:app/counter.dart',
+                  name: 'onCounterInteraction',
+                )
+              : null,
+          widgetTree: button
+              ? const HWButton('increment', child: HWText(HWInt('count')))
+              : const HWText(HWInt('count')),
+        );
+
+    Future<void> generate({bool button = true}) =>
+        IosGenerator(spec: counterSpec(button: button), projectRoot: tempDir)
+            .generate();
+
+    void linkPluginPackageIntoRunner() => pbxprojFile.writeAsStringSync(
+          (PbxprojEditor(pbxprojFile.readAsStringSync())
+                ..insertObjects('XCSwiftPackageProductDependency', '''
+\t\t78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */ = {
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tproductName = FlutterGeneratedPluginSwiftPackage;
+\t\t};
+''')
+                ..addArrayEntry(
+                  '97C146ED1CF9000F007C117D',
+                  'packageProductDependencies',
+                  '78A3181F2AECB46A00862997',
+                  comment: 'FlutterGeneratedPluginSwiftPackage',
+                ))
+              .text,
+        );
+
+    void writePackageManifest(String dependencies) => File(
+          p.join(
+            tempDir.path,
+            'ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage',
+            'Package.swift',
+          ),
+        )
+          ..parent.createSync(recursive: true)
+          ..writeAsStringSync('''
+// swift-tools-version: 5.9
+import PackageDescription
+
+let package = Package(
+    name: "FlutterGeneratedPluginSwiftPackage",
+    dependencies: [
+$dependencies
+    ]
+)
+''');
+
+    setUp(() {
+      mockLogger = useMockLogger();
+      final iosDir = p.join(tempDir.path, 'ios');
+      pbxprojFile = File(p.join(iosDir, 'Runner.xcodeproj/project.pbxproj'));
+      podfileFile = File(p.join(iosDir, 'Podfile'));
+      appDelegateFile = File(p.join(iosDir, 'Runner/AppDelegate.swift'))
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(appDelegate);
+      intentFile = File(
+        p.join(iosDir, 'CounterHomeWidget/CounterHomeWidgetIntent.swift'),
+      );
+      widgetFile = File(p.join(iosDir, 'CounterHomeWidget/Widget.swift'));
+      podsXcconfigFile = File(
+        p.join(iosDir, 'Flutter/HomeWidget-CounterHomeWidget.xcconfig'),
+      );
+    });
+
+    test('writes the intent and wraps the child in the button view', () async {
+      podfileFile.writeAsStringSync(podfile);
+
+      await generate();
+
+      final intent = intentFile.readAsStringSync();
+      expect(intent, contains('struct CounterHomeWidgetIntent: AppIntent {'));
+      expect(
+        intent,
+        contains(
+          'static let title: LocalizedStringResource = "Counter interaction"',
+        ),
+      );
+
+      final content = widgetFile.readAsStringSync();
+      expect(content, contains('import AppIntents'));
+      expect(content, contains('hwButton('));
+      expect(content, contains('struct HWButtonView<Content: View>: View {'));
+      expect(content, contains('intent: CounterHomeWidgetIntent('));
+      expect(
+        content,
+        contains('url: url, appGroup: CounterHomeWidgetFlavor.appGroupId,'),
+      );
+      expect(content, contains('key: "CounterHomeWidget")'));
+
+      final pbxproj = pbxprojFile.readAsStringSync();
+      expect(pbxproj, contains('path = CounterHomeWidgetIntent.swift;'));
+      expect(
+        'CounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile;'
+            .allMatches(pbxproj),
+        hasLength(2),
+      );
+    });
+
+    test('gives the extension a CocoaPods target in a Podfile project',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+
+      await generate();
+
+      expect(
+        podfileFile.readAsStringSync(),
+        podfile.replaceFirst(
+          'post_install do',
+          '${podfileWidgetTarget('CounterHomeWidget')}\npost_install do',
+        ),
+      );
+      expect(
+        podsXcconfigFile.readAsStringSync(),
+        contains('#include "HomeWidget.xcconfig"'),
+      );
+      verifyNever(
+        () => mockLogger.warn(any(that: contains('Could not link'))),
+      );
+    });
+
+    test('leaves the Podfile alone when Runner links the plugin package',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      linkPluginPackageIntoRunner();
+
+      await generate();
+
+      expect(podfileFile.readAsStringSync(), podfile);
+      expect(podsXcconfigFile.existsSync(), isFalse);
+      expect(
+        'productName = FlutterGeneratedPluginSwiftPackage;'
+            .allMatches(pbxprojFile.readAsStringSync()),
+        hasLength(2),
+      );
+      verifyNever(
+        () => mockLogger.warn(any(that: contains('Could not link'))),
+      );
+    });
+
+    test('links the plugin package whose manifest lists home_widget', () async {
+      podfileFile.writeAsStringSync(podfile);
+      linkPluginPackageIntoRunner();
+      writePackageManifest(
+        '        .package(name: "home_widget", '
+        'path: "../.packages/home_widget")',
+      );
+
+      await generate();
+
+      expect(podfileFile.readAsStringSync(), podfile);
+      expect(podsXcconfigFile.existsSync(), isFalse);
+      expect(
+        'productName = FlutterGeneratedPluginSwiftPackage;'
+            .allMatches(pbxprojFile.readAsStringSync()),
+        hasLength(2),
+      );
+    });
+
+    test('goes through CocoaPods when the package manifest lacks home_widget',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      linkPluginPackageIntoRunner();
+      writePackageManifest(
+        '        .package(name: "FlutterFramework", '
+        'path: "../.packages/FlutterFramework")',
+      );
+
+      await generate();
+
+      expect(
+        podfileFile.readAsStringSync(),
+        contains(podfileWidgetTarget('CounterHomeWidget')),
+      );
+      expect(podsXcconfigFile.existsSync(), isTrue);
+      expect(
+        'productName = FlutterGeneratedPluginSwiftPackage;'
+            .allMatches(pbxprojFile.readAsStringSync()),
+        hasLength(1),
+      );
+    });
+
+    test('keeps the CocoaPods wiring until the package manifest exists',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      await generate();
+      final withTarget = podfileFile.readAsStringSync();
+      expect(withTarget, contains(podfileWidgetTarget('CounterHomeWidget')));
+      linkPluginPackageIntoRunner();
+
+      await generate();
+
+      expect(podfileFile.readAsStringSync(), withTarget);
+      expect(podsXcconfigFile.existsSync(), isTrue);
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf(
+              contains('Package.swift is missing'),
+              contains('keeps linking it through CocoaPods'),
+            ),
+          ),
+        ),
+      ).called(1);
+
+      writePackageManifest(
+        '        .package(name: "home_widget", '
+        'path: "../.packages/home_widget")',
+      );
+      await generate();
+
+      expect(podfileFile.readAsStringSync(), podfile);
+      expect(podsXcconfigFile.existsSync(), isFalse);
+    });
+
+    test('registers the plugins in the app delegate', () async {
+      podfileFile.writeAsStringSync(podfile);
+
+      await generate();
+
+      final content = appDelegateFile.readAsStringSync();
+      expect(content, contains('import UIKit\nimport home_widget\n'));
+      expect(
+        content,
+        contains(
+          '    if #available(iOS 17, *) {\n'
+          '      HomeWidgetBackgroundWorker.setPluginRegistrantCallback '
+          '{ registry in\n'
+          '        GeneratedPluginRegistrant.register(with: registry)\n'
+          '      }\n'
+          '    }\n'
+          '    return super.application(',
+        ),
+      );
+    });
+
+    test('warns when the plugin cannot be linked either way', () async {
+      await generate();
+
+      expect(intentFile.existsSync(), isTrue);
+      expect(podfileFile.existsSync(), isFalse);
+      verify(
+        () => mockLogger.warn(
+          any(
+            that: allOf(
+              contains('Could not link home_widget into CounterHomeWidget'),
+              contains('no Podfile'),
+            ),
+          ),
+        ),
+      ).called(1);
+      expect(
+        appDelegateFile.readAsStringSync(),
+        contains('setPluginRegistrantCallback'),
+      );
+    });
+
+    test('takes the wiring out again once the last button is gone', () async {
+      podfileFile.writeAsStringSync(podfile);
+      await generate();
+      expect(intentFile.existsSync(), isTrue);
+      expect(podsXcconfigFile.existsSync(), isTrue);
+      final patchedAppDelegate = appDelegateFile.readAsStringSync();
+
+      await generate(button: false);
+
+      expect(intentFile.existsSync(), isFalse);
+      expect(podfileFile.readAsStringSync(), podfile);
+      expect(podsXcconfigFile.existsSync(), isFalse);
+      final content = widgetFile.readAsStringSync();
+      expect(content, isNot(contains('hwButton')));
+      expect(content, isNot(contains('HWButtonView')));
+      expect(content, isNot(contains('import AppIntents')));
+      expect(
+        pbxprojFile.readAsStringSync(),
+        isNot(contains('CounterHomeWidgetIntent.swift')),
+      );
+      expect(appDelegateFile.readAsStringSync(), patchedAppDelegate);
+    });
+
+    test('replaces an intent it generated before', () async {
+      podfileFile.writeAsStringSync(podfile);
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          '// GENERATED CODE - DO NOT MODIFY BY HAND\n// old',
+        );
+
+      await generate();
+
+      expect(
+        intentFile.readAsStringSync(),
+        contains('struct CounterHomeWidgetIntent: AppIntent {'),
+      );
+      verifyNever(() => mockLogger.warn(any(that: contains('GENERATED'))));
+    });
+
+    test('deletes an intent it generated once the last button is gone',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(
+          '// GENERATED CODE - DO NOT MODIFY BY HAND\n// old',
+        );
+
+      await generate(button: false);
+
+      expect(intentFile.existsSync(), isFalse);
+      verifyNever(() => mockLogger.warn(any(that: contains('GENERATED'))));
+    });
+
+    test('keeps a hand-written intent and warns instead of overwriting it',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      const handWritten = 'import AppIntents\n\nstruct Mine {}\n';
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(handWritten);
+
+      await generate();
+
+      expect(intentFile.readAsStringSync(), handWritten);
+      verify(
+        () => mockLogger.warn(
+          'Warning: ${intentFile.path} has no "// GENERATED CODE" '
+          'header, so it is left as it is. The buttons of Counter perform the '
+          'intent it declares; delete it to have that generated again.',
+        ),
+      ).called(1);
+    });
+
+    test('keeps a hand-written intent and warns instead of deleting it',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      const handWritten = 'import AppIntents\n\nstruct Mine {}\n';
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(handWritten);
+
+      await generate(button: false);
+
+      expect(intentFile.readAsStringSync(), handWritten);
+      verify(
+        () => mockLogger.warn(
+          'Warning: ${intentFile.path} has no "// GENERATED CODE" '
+          'header, so it is left as it is. No button of Counter uses it any '
+          'more; delete it if nothing else does.',
+        ),
+      ).called(1);
+    });
+
+    test('keeps a hand-written intent wired once the last button is gone',
+        () async {
+      podfileFile.writeAsStringSync(podfile);
+      await generate();
+      final wiredPbxproj = pbxprojFile.readAsStringSync();
+      final wiredPodfile = podfileFile.readAsStringSync();
+      final xcconfig = podsXcconfigFile.readAsStringSync();
+      appDelegateFile.writeAsStringSync(appDelegate);
+      intentFile.writeAsStringSync('import home_widget\n\nstruct Mine {}\n');
+
+      await generate(button: false);
+
+      expect(
+        'CounterHomeWidgetIntent.swift in Sources */ = {isa = PBXBuildFile;'
+            .allMatches(pbxprojFile.readAsStringSync()),
+        hasLength(2),
+      );
+      expect(pbxprojFile.readAsStringSync(), wiredPbxproj);
+      expect(podfileFile.readAsStringSync(), wiredPodfile);
+      expect(podsXcconfigFile.readAsStringSync(), xcconfig);
+      expect(appDelegateFile.readAsStringSync(), appDelegate);
+    });
+
+    test('warns when a hand-written intent cannot be linked to the plugin',
+        () async {
+      intentFile
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('import home_widget\n\nstruct Mine {}\n');
+
+      await generate(button: false);
+
+      verify(
+        () => mockLogger.warn(
+          any(that: contains('Could not link home_widget into')),
+        ),
+      ).called(1);
+      expect(appDelegateFile.readAsStringSync(), appDelegate);
+    });
+
+    test('touches nothing of it for a widget without buttons', () async {
+      podfileFile.writeAsStringSync(podfile);
+
+      await generate(button: false);
+
+      expect(intentFile.existsSync(), isFalse);
+      expect(podfileFile.readAsStringSync(), podfile);
+      expect(appDelegateFile.readAsStringSync(), appDelegate);
+      expect(podsXcconfigFile.existsSync(), isFalse);
+      final content = widgetFile.readAsStringSync();
+      expect(content, isNot(contains('hwButton')));
+      expect(content, isNot(contains('import AppIntents')));
+      expect(
+        pbxprojFile.readAsStringSync(),
+        isNot(contains('CounterHomeWidgetIntent.swift')),
+      );
+      verifyNever(
+        () => mockLogger.warn(any(that: contains('Could not link'))),
+      );
+    });
   });
 
   test('emits a padded link in the iOS branch of the root as widgetURL',

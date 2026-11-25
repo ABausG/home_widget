@@ -560,6 +560,15 @@ class HomeWidget {
   /// naming a value. Needs a [widgetUrl].
   final List<HWDataType<dynamic>> widgetUrlData;
 
+  /// The function a tap on an `HWButton` of the widget runs, without opening
+  /// the app.
+  ///
+  /// A top-level or static function taking the generated
+  /// `<WidgetClass>Interaction` and returning `Future<void>`, which the tap
+  /// waits for. It has to live in a library under `lib/`, which the generated
+  /// Dart imports.
+  final Function? onInteraction;
+
   /// The flavors the widget is generated for, each with its overrides.
   ///
   /// A present map is the exact set of flavors the widget exists in, so a
@@ -589,6 +598,7 @@ class HomeWidget {
     this.localization,
     this.widgetUrl,
     this.widgetUrlData = const [],
+    this.onInteraction,
     this.flavors,
     this.useLiveDataInPreview = true,
   });
@@ -606,6 +616,7 @@ class HomeWidget {
           localization == other.localization &&
           widgetUrl == other.widgetUrl &&
           _listEquals(widgetUrlData, other.widgetUrlData) &&
+          onInteraction == other.onInteraction &&
           mapEquals(flavors, other.flavors) &&
           useLiveDataInPreview == other.useLiveDataInPreview;
 
@@ -620,6 +631,7 @@ class HomeWidget {
       localization.hashCode ^
       widgetUrl.hashCode ^
       Object.hashAll(widgetUrlData) ^
+      onInteraction.hashCode ^
       _flavorsHash(flavors) ^
       useLiveDataInPreview.hashCode;
 }

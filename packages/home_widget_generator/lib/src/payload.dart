@@ -9,6 +9,12 @@ extension HWLinkPayloadUrl on HWLink {
   HWPayloadUrl get payloadUrl => HWPayloadUrl.of(url, data);
 }
 
+/// The payload of an [HWButton], which only code generation reads.
+extension HWButtonPayloadUrl on HWButton {
+  /// The URL a tap is sent as, with the payload of [data].
+  HWPayloadUrl get payloadUrl => HWPayloadUrl.of(HWButton.urlOf(id), data);
+}
+
 /// The types a payload value can have.
 enum HWPayloadType {
   string('String'),

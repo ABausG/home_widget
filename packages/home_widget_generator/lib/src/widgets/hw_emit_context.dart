@@ -110,6 +110,13 @@ class HWEmitContext {
   /// Always empty on Android.
   final List<HWLink> swiftWidgetUrlLinks;
 
+  /// The key the widget's interaction callback is registered under, which an
+  /// [HWButton] sends along on Android, or null to reach the callback
+  /// registered without one.
+  ///
+  /// Always null on iOS, where the generated intent carries it.
+  final String? interactionKey;
+
   const HWEmitContext({
     this.reachableFamilies,
     this.androidSizeTable,
@@ -118,6 +125,7 @@ class HWEmitContext {
     this.itemList,
     this.androidLaunchActivity,
     this.swiftWidgetUrlLinks = const [],
+    this.interactionKey,
   });
 
   /// This context, for a widget the Glance `Column` or `Row` running along
@@ -130,6 +138,7 @@ class HWEmitContext {
         itemList: itemList,
         androidLaunchActivity: androidLaunchActivity,
         swiftWidgetUrlLinks: swiftWidgetUrlLinks,
+        interactionKey: interactionKey,
       );
 
   /// This context, for the item of the builder over [list].
@@ -141,6 +150,7 @@ class HWEmitContext {
         itemList: list,
         androidLaunchActivity: androidLaunchActivity,
         swiftWidgetUrlLinks: swiftWidgetUrlLinks,
+        interactionKey: interactionKey,
       );
 
   /// This context, with a tap target opening [activity] on Android.
@@ -152,5 +162,6 @@ class HWEmitContext {
         itemList: itemList,
         androidLaunchActivity: activity,
         swiftWidgetUrlLinks: swiftWidgetUrlLinks,
+        interactionKey: interactionKey,
       );
 }

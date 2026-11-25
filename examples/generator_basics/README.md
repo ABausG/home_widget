@@ -58,6 +58,11 @@ small and each one demonstrates a different feature of the generator:
 - `widget_link.dart` – a `widgetUrl` and two `HWLink`s, so tapping the widget
   opens the app and the generated `launches()` helper reports what was tapped:
   the widget itself, or one of the links with the `data` it sends.
+- `interactive_counter.dart` – two `HWButton`s that change a count without
+  opening the app. A tap runs `onInteractiveCounterInteraction` from
+  [`lib/interactive_counter.dart`](lib/interactive_counter.dart) in the
+  background, which gets the tapped button as a generated
+  `InteractiveCounterInteraction`. Buttons need iOS 17.
 
 ## Generating the native code
 
@@ -81,3 +86,10 @@ Because `widget_link.dart` sets `widgetUrl` and uses `HWLink`, the CLI also adds
 the `es.antonborri.home_widget.action.LAUNCH` intent-filter to the launcher
 activity in that same manifest — that is what hands the URL to the app when the
 widget is tapped.
+
+Because `interactive_counter.dart` uses `HWButton`, the CLI also registers the
+plugin's `HomeWidgetBackgroundReceiver` in that manifest. On iOS it writes
+`InteractiveCounterHomeWidgetIntent.swift` into the widget's folder as a member
+of both the app and the extension target, links `home_widget` into the
+extension, and registers the app's plugins for background runs in
+`ios/Runner/AppDelegate.swift`.
