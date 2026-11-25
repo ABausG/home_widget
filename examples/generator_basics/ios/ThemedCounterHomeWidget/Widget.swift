@@ -49,7 +49,7 @@ struct ThemedCounterHomeWidgetEntryView: View {
   var body: some View {
     VStack(alignment: .center, spacing: 0) {
       Spacer(minLength: 0)
-      Text("Counter")
+      Text(verbatim: "Counter")
         .font(.caption).foregroundColor(Color.secondary)
       Text(
         hwFormatDecimal(

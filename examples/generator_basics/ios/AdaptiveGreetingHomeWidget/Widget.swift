@@ -40,7 +40,7 @@ struct AdaptiveGreetingHomeWidgetEntryView: View {
   var entry: Provider.Entry
 
   var body: some View {
-    Text("Hello iOS")
+    Text(verbatim: "Hello iOS")
       .font(.headline)
       .applyContainerBackground()
   }

@@ -306,14 +306,32 @@ void main() {
     });
 
     test('cannot be rendered as text', () {
-      final notText =
-          _throwsGeneratorError(contains('cannot be rendered as text'));
+      final notText = _throwsGeneratorError(
+        'HWIconData cannot be rendered as text. Use HWIcon to display the '
+        'icon stored under "mood".',
+      );
       expect(
         () => _mood().androidToString(outerValue: 'v', innerValue: 'v'),
         notText,
       );
       expect(
         () => _mood().iosToString(outerValue: 'v', innerValue: 'v'),
+        notText,
+      );
+    });
+
+    test('names a fixed icon as written when rendered as text', () {
+      const fixed = HWIconData.resolvedFixed(0xe87d, iconFont: _materialIcons);
+      final notText = _throwsGeneratorError(
+        'HWIconData cannot be rendered as text. Use HWIcon to display '
+        'HWIconData.fixed.',
+      );
+      expect(
+        () => fixed.androidToString(outerValue: 'v', innerValue: 'v'),
+        notText,
+      );
+      expect(
+        () => fixed.iosToString(outerValue: 'v', innerValue: 'v'),
         notText,
       );
     });

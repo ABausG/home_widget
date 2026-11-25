@@ -104,8 +104,8 @@ import 'package:material_ui/material_ui.dart';
             ),
           ],
         ),
-        whenEmpty: HWText.fixed(
-          'Open the app to load the forecast',
+        whenEmpty: HWText(
+          HWString.fixed('Open the app to load the forecast'),
           style: HWRoleTextStyle(
             role: HWTextStyleRole.caption,
             color: HWDefaultColor(HWColorRole.contentSecondary),

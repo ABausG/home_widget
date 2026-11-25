@@ -61,7 +61,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
     val hwPreviewData =
         NumberDateFormattingData.previewFromPreferences(HomeWidgetPlugin.getData(context))
     return listOf(
-            "f122fd67",
+            "63467081",
             hwLocales.joinToString(","),
             hwPreviewData.toString(),
         )
@@ -217,7 +217,7 @@ class NumberDateFormattingHomeWidget : GlanceAppWidget() {
                     ),
             )
             Text(
-                text = hwFormatDecimal(25000.0, null, null, true, hwFormatLocale(context)),
+                text = hwFormatDecimal(25000L, null, null, true, hwFormatLocale(context)),
                 style =
                     TextStyle(
                         color = GlanceTheme.colors.onSurface,

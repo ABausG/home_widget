@@ -386,7 +386,7 @@ void main() {
       final plainRoot = await _project();
       final plainManifest = await manifestAfter(
         plainRoot,
-        _spec(widget: HWText.fixed('Hello'), localization: null),
+        _spec(widget: HWText(HWString.fixed('Hello')), localization: null),
       );
       expect(receiverSource(plainRoot), isNot(contains('onReceive')));
       expect(plainManifest, isNot(contains('LOCALE_CHANGED')));
@@ -397,7 +397,7 @@ void main() {
       final galleryManifest = await manifestAfter(
         galleryRoot,
         _spec(
-          widget: HWText.fixed('Hello'),
+          widget: HWText(HWString.fixed('Hello')),
           localization: const HomeWidgetLocalization(
             defaultLocale: 'en',
             supportedLocales: ['en', 'de'],
@@ -699,7 +699,7 @@ void main() {
     test('writes gallery strings per locale', () async {
       final root = await _project();
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         description: 'Shows a greeting',
         localization: const HomeWidgetLocalization(
           defaultLocale: 'en',
@@ -729,7 +729,7 @@ void main() {
         () async {
       final root = await _project();
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         description: 'Base description',
         localization: const HomeWidgetLocalization(
           defaultLocale: 'en',
@@ -759,7 +759,7 @@ void main() {
     test('emits a description declared only by the localization map', () async {
       final root = await _project();
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         localization: const HomeWidgetLocalization(
           defaultLocale: 'en',
           supportedLocales: ['en', 'de'],
@@ -790,7 +790,7 @@ void main() {
     test('leaves an omitted gallery string untranslated', () async {
       final root = await _project();
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         name: 'MyAppName',
         description: 'Shows your recent activity',
         localization: const HomeWidgetLocalization(
@@ -811,14 +811,14 @@ void main() {
     test('rewrites its own entries but not the user\'s', () async {
       final root = await _project();
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         description: 'First',
         localization: null,
       );
       await AndroidGenerator(spec: spec, projectRoot: root).generate();
 
       final updated = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         description: 'Second',
         localization: null,
       );
@@ -840,7 +840,7 @@ void main() {
       );
       await AndroidGenerator(
         spec: _spec(
-          widget: const HWText.fixed('body'),
+          widget: const HWText(HWString.fixed('body')),
           localization: withFrench,
         ),
         projectRoot: root,
@@ -855,7 +855,7 @@ void main() {
       );
       await AndroidGenerator(
         spec: _spec(
-          widget: const HWText.fixed('body'),
+          widget: const HWText(HWString.fixed('body')),
           localization: withoutFrench,
         ),
         projectRoot: root,
@@ -887,7 +887,7 @@ void main() {
 
       await AndroidGenerator(
         spec: _spec(
-          widget: const HWText.fixed('body'),
+          widget: const HWText(HWString.fixed('body')),
           localization: const HomeWidgetLocalization(
             defaultLocale: 'en',
             supportedLocales: ['en', 'de'],
@@ -1124,14 +1124,14 @@ android {
 
     test('writes no catalog for a widget with nothing to translate', () async {
       final catalog = await generateCatalog(
-        _spec(widget: const HWText.fixed('body'), localization: null),
+        _spec(widget: const HWText(HWString.fixed('body')), localization: null),
       );
       expect(catalog, isEmpty);
     });
 
     test('carries translated gallery strings in the catalog', () async {
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         description: 'Shows a greeting',
         localization: const HomeWidgetLocalization(
           defaultLocale: 'en',
@@ -1161,7 +1161,7 @@ android {
     test('a default-locale gallery entry outranks the top-level text',
         () async {
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         description: 'Base description',
         localization: const HomeWidgetLocalization(
           defaultLocale: 'en',
@@ -1190,7 +1190,7 @@ android {
 
     test('emits a description declared only by the localization map', () async {
       final spec = _spec(
-        widget: const HWText.fixed('body'),
+        widget: const HWText(HWString.fixed('body')),
         localization: const HomeWidgetLocalization(
           defaultLocale: 'en',
           supportedLocales: ['en', 'de'],
@@ -1213,7 +1213,7 @@ android {
     test('keeps a plain literal when the gallery is not translated', () async {
       final swift = await generateSwift(
         _spec(
-          widget: const HWText.fixed('body'),
+          widget: const HWText(HWString.fixed('body')),
           description: 'Shows a greeting',
           localization: null,
         ),
@@ -1226,7 +1226,7 @@ android {
     test('looks gallery strings up once translations exist', () async {
       final swift = await generateSwift(
         _spec(
-          widget: const HWText.fixed('body'),
+          widget: const HWText(HWString.fixed('body')),
           description: 'Shows a greeting',
           localization: const HomeWidgetLocalization(
             defaultLocale: 'en',
@@ -1900,7 +1900,10 @@ print(defaults.resolve('in'));
       // Omitting the gallery maps entirely is fine.
       expect(
         () => validate(
-          _spec(widget: const HWText.fixed('body'), description: 'plain'),
+          _spec(
+            widget: const HWText(HWString.fixed('body')),
+            description: 'plain',
+          ),
         ),
         returnsNormally,
       );
@@ -1910,7 +1913,7 @@ print(defaults.resolve('in'));
       expect(
         () => validate(
           _spec(
-            widget: const HWText.fixed('body'),
+            widget: const HWText(HWString.fixed('body')),
             localization: const HomeWidgetLocalization(
               defaultLocale: 'en',
               supportedLocales: ['en', 'de'],
@@ -1926,7 +1929,7 @@ print(defaults.resolve('in'));
       expect(
         () => validate(
           _spec(
-            widget: const HWText.fixed('body'),
+            widget: const HWText(HWString.fixed('body')),
             localization: const HomeWidgetLocalization(
               defaultLocale: 'en',
               supportedLocales: ['en', 'de'],
@@ -1950,7 +1953,7 @@ print(defaults.resolve('in'));
       expect(
         () => validate(
           _spec(
-            widget: const HWText.fixed('body'),
+            widget: const HWText(HWString.fixed('body')),
             description: 'Shows a greeting',
             localization: const HomeWidgetLocalization(
               defaultLocale: 'en',
@@ -1964,7 +1967,7 @@ print(defaults.resolve('in'));
       expect(
         () => validate(
           _spec(
-            widget: const HWText.fixed('body'),
+            widget: const HWText(HWString.fixed('body')),
             localization: const HomeWidgetLocalization(
               defaultLocale: 'en',
               supportedLocales: ['en', 'de'],
@@ -1980,7 +1983,7 @@ print(defaults.resolve('in'));
       expect(
         () => validate(
           _spec(
-            widget: const HWText.fixed('body'),
+            widget: const HWText(HWString.fixed('body')),
             localization: const HomeWidgetLocalization(
               defaultLocale: 'en',
               supportedLocales: ['en', 'de'],
@@ -2090,7 +2093,7 @@ print(defaults.resolve('in'));
       expect(
         () => validate(
           _spec(
-            widget: const HWText.fixed('body'),
+            widget: const HWText(HWString.fixed('body')),
             localization: const HomeWidgetLocalization(
               defaultLocale: 'en',
               supportedLocales: ['en', 'de-CH-1901'],

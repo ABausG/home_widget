@@ -25,6 +25,29 @@ void main() {
       expect(typeWithDefault.defaultValue, 42);
     });
 
+    test('HWInt writes the smallest Long default and preview by name', () {
+      const type = HWInt(
+        'test',
+        defaultValue: -9223372036854775808,
+        previewValue: -9223372036854775808,
+      );
+      expect(type.codegenKotlinDefaultLiteral(), 'Long.MIN_VALUE');
+      expect(type.codegenKotlinPreviewLiteral(), 'Long.MIN_VALUE');
+      expect(type.codegenSwiftDefaultLiteral(), '-9223372036854775808');
+    });
+
+    test('HWInt writes a Dart default the web compiles', () {
+      expect(
+        const HWInt('test', defaultValue: 42).codegenDartDefaultLiteral(),
+        '42',
+      );
+      expect(
+        const HWInt('test', defaultValue: 9007199254740993)
+            .codegenDartDefaultLiteral(),
+        '(2097152 * 4294967296 + 1)',
+      );
+    });
+
     test('HWDouble returns correct types and default value', () {
       const type = HWDouble('test');
       expect(type.dartType, 'double');
@@ -1116,8 +1139,8 @@ void main() {
     });
 
     test('deduplicates in a data dependency set', () {
-      const a = HWImage.asset('assets/logo.png');
-      const b = HWImage.asset('assets/logo.png');
+      const a = HWImage(HWImageData.asset('assets/logo.png'));
+      const b = HWImage(HWImageData.asset('assets/logo.png'));
       final deps = <HWDataType<dynamic>>{
         ...a.dataDependencies,
         ...b.dataDependencies,

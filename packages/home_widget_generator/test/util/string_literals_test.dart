@@ -2,6 +2,42 @@ import 'package:home_widget_generator/src/utils/string_literals.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('kotlinLongLiteral', () {
+    test('suffixes a whole number with L', () {
+      expect(kotlinLongLiteral(0), '0L');
+      expect(kotlinLongLiteral(-3), '-3L');
+      expect(kotlinLongLiteral(9223372036854775807), '9223372036854775807L');
+    });
+
+    test('names the smallest Long, which has no literal', () {
+      expect(kotlinLongLiteral(-9223372036854775808), 'Long.MIN_VALUE');
+    });
+  });
+
+  group('dartIntLiteral', () {
+    test('writes a number a double holds exactly as itself', () {
+      expect(dartIntLiteral(0), '0');
+      expect(dartIntLiteral(9007199254740992), '9007199254740992');
+      expect(dartIntLiteral(-9007199254740992), '-9007199254740992');
+    });
+
+    test('splits a larger number into parts that each fit', () {
+      expect(dartIntLiteral(9007199254740993), '(2097152 * 4294967296 + 1)');
+      expect(
+        dartIntLiteral(-9007199254740993),
+        '(-2097153 * 4294967296 + 4294967295)',
+      );
+      expect(
+        dartIntLiteral(-9223372036854775808),
+        '(-2147483648 * 4294967296 + 0)',
+      );
+      expect(
+        dartIntLiteral(9223372036854775807),
+        '(2147483647 * 4294967296 + 4294967295)',
+      );
+    });
+  });
+
   group('escapeKotlinStringLiteral', () {
     test('escapes every character that would end or reinterpret the literal',
         () {

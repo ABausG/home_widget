@@ -33,7 +33,7 @@ const _pill = HWBoxDecoration(
 /// - `HWImage` and the caption are `HWTimedData`, so the app saves one entry
 ///   per 15 minute slot and the widget swaps Dash's mood on its own. A slot
 ///   saved without a caption shows none: `HWDataExists` leaves the pill out.
-/// - `HWIcon.fixed` draws the Material flame and snowflake.
+/// - `HWIconData.fixed` draws the Material flame and snowflake.
 /// - The streak number is set in Nunito Black, a font declared under
 ///   `flutter: fonts:`.
 /// - Nested `HWBoolConditional`s pick the color: grey while today's lesson is
@@ -78,8 +78,8 @@ const _pill = HWBoxDecoration(
                 whenTrue: HWRow(
                   spacing: 2,
                   children: [
-                    HWIcon.fixed(
-                      Icons.ac_unit,
+                    HWIcon(
+                      HWIconData.fixed(Icons.ac_unit),
                       size: 24,
                       color: _frozen,
                       semanticLabel: 'Streak frozen',
@@ -99,8 +99,8 @@ const _pill = HWBoxDecoration(
                   whenTrue: HWRow(
                     spacing: 2,
                     children: [
-                      HWIcon.fixed(
-                        Icons.local_fire_department,
+                      HWIcon(
+                        HWIconData.fixed(Icons.local_fire_department),
                         size: 24,
                         color: _completed,
                         semanticLabel: 'Lesson done',
@@ -117,8 +117,8 @@ const _pill = HWBoxDecoration(
                   whenFalse: HWRow(
                     spacing: 2,
                     children: [
-                      HWIcon.fixed(
-                        Icons.local_fire_department,
+                      HWIcon(
+                        HWIconData.fixed(Icons.local_fire_department),
                         size: 24,
                         color: _pending,
                         semanticLabel: 'Lesson not done yet',

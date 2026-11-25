@@ -111,7 +111,7 @@ struct SizeAdaptiveDashboardHomeWidgetEntryView: View {
       #if compiler(>=6.4)
         case .systemExtraLargePortrait:
           VStack(alignment: .leading, spacing: 0) {
-            Text("Dashboard")
+            Text(verbatim: "Dashboard")
               .font(.caption)
             Spacer(minLength: 0)
             Text(

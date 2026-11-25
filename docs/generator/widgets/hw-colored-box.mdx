@@ -14,13 +14,13 @@ HWSizedBox.expand(
     child: HWSizedBox.expand(
       child: HWColumn(
         children: [
-          HWText.fixed('No Color'),
-          HWText.fixed(
-            'Fixed Color',
+          HWText(HWString.fixed('No Color')),
+          HWText(
+            HWString.fixed('Fixed Color'),
             style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
           ),
-          HWText.fixed(
-            'Themed',
+          HWText(
+            HWString.fixed('Themed'),
             style: HWTextStyle(
               color: HWThemedColor(
                 light: HWFixedColor(0xFFFFFF00),

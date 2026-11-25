@@ -855,7 +855,7 @@ class AndroidGenerator {
       HWString() ||
       HWImageData() =>
         '"${escapeKotlinStringLiteral(value as String)}"',
-      HWInt() => '${value}L',
+      HWInt() => kotlinLongLiteral(value as int),
       HWDouble() => '${(value as num).toDouble()}',
       _ => '$value',
     };
@@ -970,7 +970,7 @@ class AndroidGenerator {
         ...spec.jsonImageFields,
         ...spec.timedJsonImageFields,
       ])
-        if (!field.image.isAsset)
+        if (!field.image.isFixed)
           '$dataExpr.${field.rootKey}?.${field.path.join('?.')}',
     ];
     final lists = [
@@ -1033,7 +1033,9 @@ class AndroidGenerator {
     if (defaultValue is String) {
       return '"${escapeKotlinStringLiteral(defaultValue)}"';
     }
-    if (defaultValue is int && field is! HWIconData) return '${defaultValue}L';
+    if (defaultValue is int && field is! HWIconData) {
+      return kotlinLongLiteral(defaultValue);
+    }
     return '$defaultValue';
   }
 
