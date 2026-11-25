@@ -384,23 +384,20 @@ void main() {
       HWWidgetFamily.systemLarge,
     ];
 
-    test('are unique within a layout', () {
+    test('may render together and send different data', () {
       final spec = _spec(
-        HWColumn(children: [_button('add'), _button('add')]),
+        HWColumn(
+          children: [
+            _button('add', data: const [HWPayload('step', HWInt.fixed(250))]),
+            _button('add', data: const [HWPayload('step', HWInt.fixed(500))]),
+          ],
+        ),
       );
 
+      expect(() => validateWidgetData(spec), returnsNormally);
       expect(
-        () => validateWidgetData(spec),
-        _throwsMessage(
-          allOf(
-            startsWith(
-              "Widget \"Counter\": HWButton('add') is declared twice. A "
-              'button id',
-            ),
-            contains('A button id is unique within a widget'),
-            contains('one of them renders at a time'),
-          ),
-        ),
+        spec.interactionTargets.map((target) => target.className),
+        ['CounterAddInteraction'],
       );
     });
 
@@ -412,12 +409,10 @@ void main() {
       expect(
         () => validateWidgetData(spec),
         _throwsMessage(
-          allOf(
-            contains(
-              "HWButton('increment') and HWButton('Increment') both generate "
-              'CounterIncrementInteraction.',
-            ),
-            contains('unique within a widget'),
+          startsWith(
+            "Widget \"Counter\": HWButton('increment') and "
+            "HWButton('Increment') both generate CounterIncrementInteraction, "
+            'with ids that differ only in letter case.',
           ),
         ),
       );
@@ -503,7 +498,7 @@ void main() {
       expect(() => validateWidgetData(spec), returnsNormally);
     });
 
-    test('cannot repeat inside one branch of a conditional', () {
+    test('may repeat inside one branch of a conditional', () {
       final spec = _spec(
         HWBoolConditional(
           data: const HWBool('compact', defaultValue: false),
@@ -512,18 +507,10 @@ void main() {
         ),
       );
 
-      expect(
-        () => validateWidgetData(spec),
-        _throwsMessage(
-          allOf(
-            contains("HWButton('add') is declared twice"),
-            contains('unique within a widget'),
-          ),
-        ),
-      );
+      expect(() => validateWidgetData(spec), returnsNormally);
     });
 
-    test('must send the same data across the slots of an HWSizeAdaptive', () {
+    test('may send different data across the slots of an HWSizeAdaptive', () {
       final spec = _spec(
         HWSizeAdaptive(
           medium: _button('add', data: const [HWInt('step')]),
@@ -533,21 +520,10 @@ void main() {
         android: false,
       );
 
-      expect(
-        () => validateWidgetData(spec),
-        _throwsMessage(
-          allOf(
-            startsWith(
-              "Widget \"Counter\": HWButton('add') is declared twice, but "
-              'with different data.',
-            ),
-            contains('the same interaction class'),
-          ),
-        ),
-      );
+      expect(() => validateWidgetData(spec), returnsNormally);
     });
 
-    test('must send data of the same shape where they repeat', () {
+    test('may send different data where they repeat', () {
       WidgetSpec repeating(
         List<HWDataType<dynamic>> first,
         List<HWDataType<dynamic>> second, {
@@ -564,16 +540,25 @@ void main() {
       const cases = <(List<HWDataType<dynamic>>, List<HWDataType<dynamic>>)>[
         ([HWInt('step')], []),
         ([HWInt('step')], [HWInt('size')]),
-        ([HWInt('step')], [HWPayload('step', HWString('city'))]),
         ([HWInt('step')], [HWInt('step', defaultValue: 1)]),
       ];
       for (final (first, second) in cases) {
         expect(
           () => validateWidgetData(repeating(first, second)),
-          _throwsMessage(contains('but with different data')),
+          returnsNormally,
           reason: '$first / $second',
         );
       }
+
+      expect(
+        () => validateWidgetData(
+          repeating(
+            const [HWInt('step')],
+            const [HWPayload('step', HWString('city'))],
+          ),
+        ),
+        _throwsMessage(contains('sends "step" as an HWString')),
+      );
 
       expect(
         () => validateWidgetData(
@@ -609,6 +594,55 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('must send a name as one type', () {
+      final spec = _spec(
+        HWColumn(
+          children: [
+            _button('add', data: const [HWPayload('step', HWInt.fixed(250))]),
+            _button(
+              'add',
+              data: const [HWPayload('step', HWString.fixed('large'))],
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        () => validateWidgetData(spec),
+        _throwsMessage(
+          equals(
+            'Widget "Counter": HWButton(\'add\') sends "step" as an HWString, '
+            'where another HWButton(\'add\') sends it as an HWInt. Buttons '
+            'sharing an id reach the app as one class with one field per '
+            'name, so send "step" as one type, send one of them under another '
+            'name, or give the buttons different ids.',
+          ),
+        ),
+      );
+    });
+
+    test('must send a name as one type in exclusive branches too', () {
+      const types = <HWDataType<dynamic>>[
+        HWDouble.fixed(0.5),
+        HWBool.fixed(true),
+        HWDateTime.fixed('2026-09-22T10:00:00Z'),
+      ];
+      for (final type in types) {
+        final spec = _spec(
+          HWAdaptive(
+            ios: _button('add', data: const [HWPayload('step', HWInt('a'))]),
+            android: _button('add', data: [HWPayload('step', type)]),
+          ),
+        );
+
+        expect(
+          () => validateWidgetData(spec),
+          _throwsMessage(contains("sends it as an HWInt. Buttons")),
+          reason: '$type',
+        );
+      }
     });
 
     test('may share an id with a link', () {

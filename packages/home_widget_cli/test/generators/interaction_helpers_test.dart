@@ -156,8 +156,8 @@ void main() {
         targets.first.description,
         'A tap on the `increment` button of the Counter widget.',
       );
-      expect(targets.first.url.payload.single.name, 'step');
-      expect(targets.last.url.payload, isEmpty);
+      expect(targets.first.fields.single.name, 'step');
+      expect(targets.last.fields, isEmpty);
     });
 
     test('share the class and the key named after the widget', () {
@@ -673,6 +673,51 @@ void main() {
           'CounterResetInteraction._\$fromUri(uri);',
         ),
       );
+    });
+
+    test('declares buttons sharing an id as one class of every field', () {
+      final output = _generate(
+        tree: const HWRow(
+          children: [
+            HWButton(
+              'increment',
+              data: [HWPayload('step', HWInt.fixed(250))],
+              child: HWText(HWString.fixed('250')),
+            ),
+            HWButton(
+              'increment',
+              data: [
+                HWPayload('step', HWInt('custom')),
+                HWPayload('source', HWString.fixed('custom')),
+              ],
+              child: HWText(HWString.fixed('Custom')),
+            ),
+          ],
+        ),
+        dataFields: const [HWInt('custom')],
+      );
+
+      expect(
+        'final class CounterIncrementInteraction'.allMatches(output),
+        hasLength(1),
+      );
+      expect(
+        output,
+        contains(
+          '  const CounterIncrementInteraction({this.step, this.source});\n'
+          '\n'
+          '  final int? step;\n'
+          '  final String? source;\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          "return CounterIncrementInteraction(step: _\$payloadInt(query['step']), "
+          "source: query['source']);",
+        ),
+      );
+      expect(output, contains('int? _\$payloadInt(String? value)'));
     });
 
     test('carries an item field of a builder', () {

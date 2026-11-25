@@ -58,44 +58,53 @@ void validateInteractions(WidgetSpec spec) {
   );
 }
 
-/// Rejects two buttons generating one interaction class unless they are the
-/// same target: only one of them can ever render, and both send the same
-/// payload.
+/// Rejects two buttons generating one interaction class under different ids,
+/// and buttons of one id sending a value of one name as different types.
+///
+/// Buttons sharing an id may render together and send different data: they
+/// reach the app as one class with a field per name any of them sends.
 void _validateButtonIds(
   WidgetSpec spec,
   List<_TapSite<HWButton>> sites,
   String widget,
 ) {
-  final conflict = _conflictingTapSites(
-    sites,
-    className: spec.buttonClassName,
-    payloadUrl: (button) => button.payloadUrl,
-  );
-  if (conflict == null) return;
-
-  final button = conflict.second.target;
-  final other = conflict.first.target;
-  final ids = other.id == button.id
-      ? "HWButton('${button.id}') is declared twice"
-      : "HWButton('${other.id}') and HWButton('${button.id}') both generate "
-          '${spec.buttonClassName(button)}';
-  if (!conflict.exclusive) {
-    throw GeneratorError(
-      '$widget: $ids. A button id is unique within a widget; it may only '
-      'repeat across the branches of a conditional or the slots of an '
-      'HWSizeAdaptive, where one of them renders at a time.',
-    );
+  final ids = <String, String>{};
+  final types = <String, Map<String, HWPayloadType>>{};
+  for (final site in sites) {
+    final button = site.target;
+    final className = spec.buttonClassName(button);
+    final id = ids.putIfAbsent(className, () => button.id);
+    if (id != button.id) {
+      throw GeneratorError(
+        "$widget: HWButton('$id') and HWButton('${button.id}') both generate "
+        '$className, with ids that differ only in letter case. A tap sends '
+        'the id as written and the app tells the interactions apart by it, so '
+        'two spellings cannot be one button. Spell the id the same way in '
+        'both, or give them ids that differ in more than case.',
+      );
+    }
+    final sent = types.putIfAbsent(className, () => {});
+    for (final entry in button.payloadUrl.payload) {
+      final type = entry.type!;
+      final other = sent.putIfAbsent(entry.name, () => type);
+      if (other == type) continue;
+      throw GeneratorError(
+        "$widget: HWButton('${button.id}') sends \"${entry.name}\" as an "
+        "${_hwTypeName(type)}, where another HWButton('${button.id}') sends "
+        'it as an ${_hwTypeName(other)}. Buttons sharing an id reach the app '
+        'as one class with one field per name, so send "${entry.name}" as '
+        'one type, send one of them under another name, or give the buttons '
+        'different ids.',
+      );
+    }
   }
-  if (other.id != button.id) {
-    throw GeneratorError(
-      '$widget: $ids, with ids that differ only in letter case. A tap sends '
-      'the id as written and the app tells the interactions apart by it, so '
-      'two spellings cannot be one button. Spell the id the same way in '
-      'both, or give them ids that differ in more than case.',
-    );
-  }
-  throw GeneratorError(
-    '$widget: $ids, but with different data. Both reach the app as the same '
-    'interaction class, so give them the same data, or different ids.',
-  );
 }
+
+/// The data type a schema writes a value of [type] as.
+String _hwTypeName(HWPayloadType type) => switch (type) {
+      HWPayloadType.string => 'HWString',
+      HWPayloadType.int => 'HWInt',
+      HWPayloadType.double => 'HWDouble',
+      HWPayloadType.bool => 'HWBool',
+      HWPayloadType.dateTime => 'HWDateTime',
+    };

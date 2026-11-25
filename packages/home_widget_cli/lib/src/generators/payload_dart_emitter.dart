@@ -1,5 +1,6 @@
-import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
+
+import '../models/payload_field.dart';
 
 /// Emits the Dart side of a payload: the class holding the values a tap sent,
 /// built from the URL native code wrote them into and written back into one.
@@ -8,11 +9,17 @@ import 'package:home_widget_generator/home_widget_generator_cli.dart';
 /// write, so the three stay in step: the values as query parameters under
 /// their names, percent-encoded, a date as its milliseconds since the epoch.
 class PayloadDartEmitter {
-  /// The URL the payload travels in.
+  /// The URL the payload travels in. Its payload is left to [fields].
   final HWPayloadUrl url;
 
-  /// Creates a [PayloadDartEmitter] for [url].
-  const PayloadDartEmitter(this.url);
+  /// The fields of the class, one per value a tap may send.
+  final List<PayloadField> fields;
+
+  /// Creates a [PayloadDartEmitter] for [url], with [fields] holding the
+  /// payload of every target the class stands for, or the payload of [url]
+  /// without them.
+  PayloadDartEmitter(this.url, {List<PayloadField>? fields})
+      : fields = fields ?? PayloadField.listOf(url.payload);
 
   /// The function matching a URL against the one a class stands for.
   static const String matcher = r'_$matchesPayloadUrl';
@@ -56,20 +63,19 @@ class PayloadDartEmitter {
     required String superClass,
     required String description,
   }) {
-    final payload = url.payload;
     final buffer = StringBuffer();
     buffer.write('''
 /// $description
 final class $className extends $superClass {
   const $className(${_constructorParameters()});
 ''');
-    if (payload.isNotEmpty) buffer.writeln();
-    for (final entry in payload) {
-      buffer.writeln('  final ${_fieldType(entry)} ${entry.name};');
+    if (fields.isNotEmpty) buffer.writeln();
+    for (final field in fields) {
+      buffer.writeln('  final ${_fieldType(field)} ${field.name};');
     }
 
     final arguments = [
-      for (final entry in payload) '${entry.name}: ${_decode(entry)}',
+      for (final field in fields) '${field.name}: ${_decode(field)}',
     ].join(', ');
     buffer.write('''
 
@@ -79,7 +85,7 @@ final class $className extends $superClass {
     try {
       if (!$matcher(uri, _\$url)) return null;
 ''');
-    if (payload.isEmpty) {
+    if (fields.isEmpty) {
       buffer.writeln('      return const $className();');
     } else {
       buffer.write('''
@@ -111,13 +117,12 @@ final class $className extends $superClass {
     return buffer.toString();
   }
 
-  /// The file-level functions the classes of [urls] call, each written once
-  /// and only where one of them calls it.
-  static String helpers(Iterable<HWPayloadUrl> urls) {
+  /// The file-level functions the classes of [emitters] call, each written
+  /// once and only where one of them calls it.
+  static String helpers(Iterable<PayloadDartEmitter> emitters) {
     final types = <HWPayloadType>{
-      for (final url in urls)
-        for (final entry in url.payload)
-          if (entry.type case final type?) type,
+      for (final emitter in emitters)
+        for (final field in emitter.fields) field.type,
     };
     final buffer = StringBuffer();
     buffer.write('''
@@ -142,7 +147,7 @@ bool $matcher(Uri uri, Uri url) {
   return true;
 }
 ''');
-    if (urls.any((url) => url.payload.isNotEmpty)) {
+    if (emitters.any((emitter) => emitter.fields.isNotEmpty)) {
       buffer.write('''
 
 /// [head] with every value of [payload] that is there appended as a query
@@ -196,68 +201,50 @@ DateTime? _\$payloadDateTime(String? value) {
     return buffer.toString();
   }
 
-  String _fieldType(HWPayloadEntry entry) =>
-      '${entry.type!.dartType}${entry.isNullable ? '?' : ''}';
+  String _fieldType(PayloadField field) =>
+      '${field.type.dartType}${field.isNullable ? '?' : ''}';
 
-  /// The Dart literal an entry that is never null falls back on: its constant
-  /// or its default value. Null for a nullable one.
-  String? _fallback(HWPayloadEntry entry) {
-    if (entry.isNullable) return null;
-    final leaf = entry.leaf;
-    if (leaf is HWDateTime) {
-      final millis = leaf.fixedDateTime!.toUtc().millisecondsSinceEpoch;
-      return 'DateTime.fromMillisecondsSinceEpoch($millis, isUtc: true)';
-    }
-    final value = entry.isFixed ? entry.fixedWireValue! : leaf.defaultValue;
-    return switch (entry.type!) {
-      HWPayloadType.string => "'${escapeDartStringLiteral('$value')}'",
-      HWPayloadType.int => dartIntLiteral(int.parse('$value')),
-      _ => '$value',
-    };
-  }
-
-  /// Whether the fallback of [entry] can be a constructor default, which a
+  /// Whether the fallback of [field] can be a constructor default, which a
   /// `DateTime` cannot: it has no const constructor.
-  bool _hasConstFallback(HWPayloadEntry entry) =>
-      !entry.isNullable && entry.type != HWPayloadType.dateTime;
+  bool _hasConstFallback(PayloadField field) =>
+      !field.isNullable && field.type != HWPayloadType.dateTime;
 
   String _constructorParameters() {
-    final payload = url.payload;
-    if (payload.isEmpty) return '';
+    if (fields.isEmpty) return '';
     final parameters = [
-      for (final entry in payload)
-        if (entry.isNullable)
-          'this.${entry.name}'
-        else if (_hasConstFallback(entry))
-          'this.${entry.name} = ${_fallback(entry)}'
+      for (final field in fields)
+        if (field.isNullable)
+          'this.${field.name}'
+        else if (_hasConstFallback(field))
+          'this.${field.name} = ${field.fallback}'
         else
-          'required this.${entry.name}',
+          'required this.${field.name}',
     ].join(', ');
     return '{$parameters}';
   }
 
-  /// The expression reading [entry] out of `query`, the decoded query
+  /// The expression reading [field] out of `query`, the decoded query
   /// parameters. A value that is missing or unreadable is null, or the
-  /// fallback of an entry that is never null.
-  String _decode(HWPayloadEntry entry) {
-    final raw = "query['${entry.name}']";
-    final read = switch (entry.type!) {
+  /// fallback of a field that is never null.
+  String _decode(PayloadField field) {
+    final raw = "query['${field.name}']";
+    final read = switch (field.type) {
       HWPayloadType.string => raw,
       HWPayloadType.int => '_\$payloadInt($raw)',
       HWPayloadType.double => '_\$payloadDouble($raw)',
       HWPayloadType.bool => '_\$payloadBool($raw)',
       HWPayloadType.dateTime => '_\$payloadDateTime($raw)',
     };
-    final fallback = _fallback(entry);
+    final fallback = field.fallback;
     return fallback == null ? read : '$read ?? $fallback';
   }
 
-  /// The expression for the text [entry] travels as, null while it holds no
+  /// The expression for the text [field] travels as, null while it holds no
   /// value.
-  String _encode(HWPayloadEntry entry) {
-    final access = entry.isNullable ? '${entry.name}?' : entry.name;
-    return switch (entry.type!) {
-      HWPayloadType.string => entry.name,
+  String _encode(PayloadField field) {
+    final access = field.isNullable ? '${field.name}?' : field.name;
+    return switch (field.type) {
+      HWPayloadType.string => field.name,
       HWPayloadType.dateTime =>
         '$access.toUtc().millisecondsSinceEpoch.toString()',
       _ => '$access.toString()',
@@ -265,37 +252,37 @@ DateTime? _\$payloadDateTime(String? value) {
   }
 
   String _toUri() {
-    if (url.payload.isEmpty) return '_\$url';
+    if (fields.isEmpty) return '_\$url';
     final entries = [
-      for (final entry in url.payload) "'${entry.name}': ${_encode(entry)}",
+      for (final field in fields) "'${field.name}': ${_encode(field)}",
     ].join(', ');
     return "$writer('${escapeDartStringLiteral(url.head)}', {$entries}, "
         "'${url.appendedMarker}', "
         "'${escapeDartStringLiteral(url.fragment)}')";
   }
 
-  /// What two instances compare [entry] by, read off [owner]: the value, and
+  /// What two instances compare [field] by, read off [owner]: the value, and
   /// for a date the millisecond it travels as, which is all `toUri` keeps.
-  String _identity(HWPayloadEntry entry, String owner) {
-    final field = '$owner.${entry.name}';
-    if (entry.type != HWPayloadType.dateTime) return field;
-    return '$field${entry.isNullable ? '?' : ''}.millisecondsSinceEpoch';
+  String _identity(PayloadField field, String owner) {
+    final access = '$owner.${field.name}';
+    if (field.type != HWPayloadType.dateTime) return access;
+    return '$access${field.isNullable ? '?' : ''}.millisecondsSinceEpoch';
   }
 
   String _equality(String className) => [
         'other is $className',
-        for (final entry in url.payload)
-          '${_identity(entry, 'other')} == ${_identity(entry, 'this')}',
+        for (final field in fields)
+          '${_identity(field, 'other')} == ${_identity(field, 'this')}',
       ].join(' && ');
 
   String _hashCode(String className) {
-    final payload = url.payload;
-    if (payload.isEmpty) return '($className).hashCode';
-    final fields = payload.map((entry) => _identity(entry, 'this')).join(', ');
-    return 'Object.hashAll([$className, $fields])';
+    if (fields.isEmpty) return '($className).hashCode';
+    final identities =
+        fields.map((field) => _identity(field, 'this')).join(', ');
+    return 'Object.hashAll([$className, $identities])';
   }
 
   String _description() => [
-        for (final entry in url.payload) '${entry.name}: \$${entry.name}',
+        for (final field in fields) '${field.name}: \$${field.name}',
       ].join(', ');
 }

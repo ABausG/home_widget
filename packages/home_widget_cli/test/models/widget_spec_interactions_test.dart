@@ -158,7 +158,47 @@ void main() {
 
       expect(target.url.url, HWButton.urlOf('increment'));
       expect(target.url.url, 'homewidget://interaction/increment');
-      expect(target.url.payload.single.name, 'step');
+      expect(target.url.payload, isEmpty);
+      expect(target.fields.single.name, 'step');
+      expect(target.fields.single.isNullable, isTrue);
+    });
+
+    test('merges the payloads of buttons sharing an id', () {
+      final spec = _spec(
+        const HWColumn(
+          children: [
+            HWButton(
+              'add',
+              data: [HWPayload('amount', HWInt.fixed(250))],
+              child: _label,
+            ),
+            _reset,
+            HWButton(
+              'add',
+              data: [
+                HWPayload('amount', HWInt.fixed(500)),
+                HWPayload('source', HWString.fixed('custom')),
+              ],
+              child: _label,
+            ),
+          ],
+        ),
+      );
+
+      final targets = spec.interactionTargets;
+      expect(
+        targets.map((target) => target.className),
+        ['CounterAddInteraction', 'CounterResetInteraction'],
+      );
+      expect(targets.first.url.url, 'homewidget://interaction/add');
+      expect(
+        targets.first.fields.map((field) => (field.name, field.fallback)),
+        [('amount', null), ('source', null)],
+      );
+      expect(
+        targets.first.description,
+        'A tap on the `add` button of the Counter widget.',
+      );
     });
 
     test('folds buttons sharing an id into one target', () {

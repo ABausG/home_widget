@@ -4,6 +4,7 @@ import 'package:home_widget_generator/home_widget_generator_cli.dart'
 
 import '../util/fnv_hash.dart';
 import '../util/naming.dart';
+import 'payload_field.dart';
 
 /// The dp of room the Android widget root takes around the tree when
 /// `android.applyContentPadding` is left on.
@@ -313,14 +314,17 @@ class LaunchTarget {
   });
 }
 
-/// A button of a widget, which the generated Dart hands the widget's
-/// interaction function as a class of its own.
+/// The buttons of a widget sharing an id, which the generated Dart hands the
+/// widget's interaction function as a class of its own.
 class InteractionTarget {
   /// The generated class, e.g. `CounterIncrementInteraction`.
   final String className;
 
-  /// The URL a tap is sent as, with the payload the class carries.
+  /// The URL a tap on any of the buttons is sent as, without a payload.
   final HWPayloadUrl url;
+
+  /// The fields of the class, holding what any of the buttons sends.
+  final List<PayloadField> fields;
 
   /// The sentence documenting the generated class.
   final String description;
@@ -329,6 +333,7 @@ class InteractionTarget {
   const InteractionTarget({
     required this.className,
     required this.url,
+    required this.fields,
     required this.description,
   });
 }
@@ -1259,24 +1264,26 @@ class WidgetSpec {
 
   /// One target per [HWButton] id, in document order.
   ///
-  /// Buttons sharing an id are one target; `validateWidgetData` makes sure
-  /// they send the same payload.
+  /// Buttons sharing an id are one target, whose fields hold what any of them
+  /// sends, as `PayloadField.merge` combines it; `validateWidgetData` makes
+  /// sure they send a name as one type.
   List<InteractionTarget> get interactionTargets {
-    final targets = <InteractionTarget>[];
-    final seen = <String>{};
+    final byClass = <String, List<HWButton>>{};
     for (final button in buttons) {
-      final name = buttonClassName(button);
-      if (!seen.add(name)) continue;
-      targets.add(
+      byClass.putIfAbsent(buttonClassName(button), () => []).add(button);
+    }
+    return [
+      for (final MapEntry(key: name, value: sharing) in byClass.entries)
         InteractionTarget(
           className: name,
-          url: button.payloadUrl,
-          description: "A tap on the `${button.id}` button of the "
+          url: HWPayloadUrl(HWButton.urlOf(sharing.first.id)),
+          fields: PayloadField.merge([
+            for (final button in sharing) button.payloadUrl.payload,
+          ]),
+          description: "A tap on the `${sharing.first.id}` button of the "
               '$docName widget.',
         ),
-      );
-    }
-    return targets;
+    ];
   }
 
   /// The class a tap on [button] reaches the app as:
