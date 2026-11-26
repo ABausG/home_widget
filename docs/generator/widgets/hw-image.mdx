@@ -95,6 +95,7 @@ HWImage(
 | `HWAccentedRendering.fullColor` | Keeps the image's original colors. Intended for photos and artwork. |
 
 - Applies on iOS 18 and later (verified on iOS 26.2; iOS 18 itself was not tested). Ignored on older iOS versions, has no effect on the Lock Screen, and is ignored on Android.
+- A widget that sets it needs Xcode 16 or newer to build, because the generated code refers to an API of the iOS 18 SDK.
 - Layout is unchanged compared to the same image without `iosAccentedRendering`.
 - For logos and icons, prefer supplying a tint-friendly monochrome silhouette through `HWAppearanceData(iosAccented: ...)` rather than forcing `fullColor`.
 

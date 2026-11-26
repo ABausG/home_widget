@@ -129,7 +129,7 @@ The generated launch helpers need `home_widget` 0.10.1 or newer.
 
 ## Links sharing an id
 
-Several `HWLink`s in one widget can use the same `id` anywhere in the widget tree: next to each other, in list rows, in conditional branches or in `HWSizeAdaptive` slots, as long as they open the same `url`. Each link keeps its own `data`, and all of them reach the app as the one generated launch class for that id.
+Several `HWLink`s in one widget can use the same `id` anywhere in the widget tree: next to each other, in list rows, in conditional branches or in `HWSizeAdaptive` or `HWAppearanceAdaptive` slots, as long as they open the same `url`. Each link keeps its own `data`, and all of them reach the app as the one generated launch class for that id.
 
 ```dart
 const _homeUrl = 'myapp://home';

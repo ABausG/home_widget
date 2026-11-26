@@ -58,7 +58,7 @@ Both `light` and `dark` are required. Every data field declared inside any slot 
 Slots follow the same [selection order](/generator/appearance#selection-order) as `HWAppearanceData`: on iOS, `iosAccented` and `iosVibrant` take precedence when provided, and otherwise `light` or `dark` is picked by color scheme. Because Tinted, Clear, and Lock Screen all report a dark color scheme on iOS, omitting `iosAccented` or `iosVibrant` renders the `dark` slot there. Unlike `HWAppearanceData`, there is no missing-variant fallback between slots because each slot is a layout, not a value.
 
 - `HWAppearanceAdaptive` composes with [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive), [`HWAdaptive`](/generator/widgets/hw-adaptive), and [`HWConditional`](/generator/widgets/hw-conditional) in either order.
-- [`HWLink`](/generator/widgets/hw-link) and [`HWButton`](/generator/widgets/hw-button) work inside any slot, and the same link id may appear in multiple slots.
+- [`HWLink`](/generator/widgets/hw-link) and [`HWButton`](/generator/widgets/hw-button) work inside any slot. An id may repeat across slots like anywhere else in the widget: see [Links sharing an id](/generator/widgets/hw-link#links-sharing-an-id), which need the same `url`, and [Buttons sharing an id](/generator/widgets/hw-button#buttons-sharing-an-id).
 - On iOS, the layout switches live between light and dark mode, and renders the matching slot on Tinted, Clear, and Lock Screen placements. On Android, layout switches take effect at the next widget update — see [When the switch happens](/generator/appearance#when-the-switch-happens).
 
 ## Platform mapping

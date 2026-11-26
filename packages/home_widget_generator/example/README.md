@@ -129,8 +129,8 @@ An inline UI demo: a centred two-line layout reading an `HWInt('count')` value t
 [Full source on GitHub](https://github.com/ABausG/home_widget/blob/main/examples/generator_basics/home_widget/themed_counter.dart)
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
-import 'package:material_ui/material_ui.dart';
 
 @HomeWidget(
   name: 'Themed Counter',
