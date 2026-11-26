@@ -114,15 +114,6 @@ class HWPayloadEntry {
     return '${HWNativeHelper.hwPayloadValue.name}'
         '(${value.kotlinReadExpr(dataExpr)})';
   }
-
-  /// Whether [other] is sent and read back the same way: under the same name,
-  /// as the same type, with the same nullability.
-  bool hasSameShapeAs(HWPayloadEntry other) =>
-      name == other.name &&
-      type == other.type &&
-      isNullable == other.isNullable &&
-      (isFixed ? fixedWireValue : leaf.defaultValue) ==
-          (other.isFixed ? other.fixedWireValue : other.leaf.defaultValue);
 }
 
 /// A URL a tap opens the app with, and the payload it carries.
