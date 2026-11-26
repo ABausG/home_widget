@@ -230,7 +230,7 @@ HWIcon(HWIconData.fixed(Icons.favorite), size: 40) // [!code ++]
 
 ## Wrappers Around Conditional or Adaptive Widgets Apply per Branch on Android
 
-On Android, an `HWPadding`, `HWSizedBox`, `HWColoredBox`, `HWDecoratedBox`, `HWLink` or `HWButton` around an `HWBoolConditional`, `HWDataExists`, `HWSizeAdaptive` or `HWAdaptive` now applies to whichever branch is shown, as if it wrapped that branch directly, matching iOS. Three cases render differently:
+On Android, an `HWPadding`, `HWSizedBox`, `HWColoredBox`, `HWDecoratedBox`, `HWLink` or `HWButton` around an `HWBoolConditional`, `HWDataExists`, `HWSizeAdaptive` or `HWAdaptive` now applies to whichever branch is shown, as if it wrapped that branch directly, matching iOS. An `HWDecoratedBox` with a border is the exception: it wraps the whole conditional or adaptive widget as before, so its border is still drawn around a branch that renders nothing. Three cases render differently:
 
 - When the shown branch is an `HWColoredBox` or `HWDecoratedBox`, an `HWPadding` around the conditional or adaptive widget used to paint the padding in that branch's color. The padding now stays unpainted, the same as wrapping the decoration directly. To keep the padding painted, move the `HWPadding` inside the `HWColoredBox` or `HWDecoratedBox`.
 - A branch that renders nothing — an [`HWDataOnly`](/generator/widgets/hw-data-only), or an `HWBoolConditional` or `HWDataExists` whose shown branch is one — used to leave the wrapper behind on its own: an `HWSizedBox(width: 48)` still took up `48`, an `HWColoredBox` still painted its color and an `HWLink` or `HWButton` still left an empty tap area. Now nothing is rendered for that branch, the same as wrapping an `HWDataOnly` directly.
