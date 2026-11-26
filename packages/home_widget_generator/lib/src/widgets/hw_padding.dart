@@ -15,8 +15,8 @@ class HWPadding extends HWSingleChildWidget {
   ///
   /// Glance pads a view inside its own bounds, so a decoration the child's
   /// composable paints — the one a size put around it would reach — would
-  /// cover the padding it was given; Flutter leaves the gap around a
-  /// decoration empty.
+  /// cover the padding it was given, and an icon would shrink its glyph to
+  /// make room for it; Flutter leaves the gap around either empty.
   bool get _kotlinBoxes =>
       !child.kotlinPaddingAddsRoom &&
       child._sizedInside(null, null, glance: true) != null;

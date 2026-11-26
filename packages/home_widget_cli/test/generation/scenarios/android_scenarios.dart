@@ -4,6 +4,28 @@ import 'build_scenario.dart';
 /// suite (not yet validated on iOS).
 const List<BuildScenario> androidBuildScenarios = [
   BuildScenario(
+    description: 'sizes one axis of a choice at the widget root',
+    className: 'OneAxisChoice',
+    widgetSource: '''
+import 'package:flutter/material.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'One Axis Choice',
+  android: HomeWidgetAndroidConfiguration(),
+  widget: HWSizedBox(
+    width: 48,
+    child: HWBoolConditional(
+      data: HWBool('flag', defaultValue: true),
+      whenTrue: HWIcon(HWIconData.fixed(Icons.favorite)),
+      whenFalse: HWSizedBox.expand(child: HWText(HWString.fixed('-'))),
+    ),
+  ),
+)
+class OneAxisChoice {}
+''',
+  ),
+  BuildScenario(
     description: 'simple color widget',
     className: 'SimpleColor',
     widgetSource: '''

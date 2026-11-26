@@ -532,6 +532,216 @@ class FontAndIcons {}
     fontFamilies: {'Chewy': 'assets/fonts/Chewy-Regular.ttf'},
   ),
   BuildScenario(
+    description: 'gives icons room in paddings, sized boxes and taps',
+    className: 'IconRoom',
+    widgetSource: '''
+import 'package:cli_test/icon_room_interaction.dart';
+import 'package:flutter/material.dart';
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+const fixed = HWIcon(HWIconData.fixed(Icons.favorite), size: 24);
+const stored = HWIcon(
+  HWIconData('mood', icons: [Icons.wb_sunny, Icons.cloud]),
+  size: 24,
+);
+const tinted = HWIcon(
+  HWIconData.fixed(Icons.star),
+  size: 24,
+  color: HWFixedColor(0xFFE53935),
+);
+const flagged = HWBoolConditional(
+  data: HWBool('flag', defaultValue: true),
+  whenTrue: fixed,
+  whenFalse: HWText(HWString.fixed('-')),
+);
+const noted = HWDataExists(
+  data: HWString('note'),
+  whenPresent: stored,
+  whenAbsent: tinted,
+);
+const bySize = HWSizeAdaptive(
+  small: HWText(HWString.fixed('-')),
+  medium: fixed,
+);
+const byPlatform = HWAdaptive(ios: tinted, android: stored);
+
+@HomeWidget(
+  name: 'Icon Room',
+  onInteraction: onIconRoomInteraction,
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.cliTest',
+    supportedFamilies: [HWWidgetFamily.systemSmall, HWWidgetFamily.systemMedium],
+  ),
+  widget: HWColumn(
+    children: [
+      HWStack(
+        children: [
+          HWPadding(padding: HWEdgeInsets.all(8), child: flagged),
+          HWPadding(padding: HWEdgeInsets.all(8), child: noted),
+          HWSizedBox(width: 48, child: flagged),
+          HWSizedBox(height: 48, child: noted),
+          HWSizedBox(
+            width: 48,
+            height: 48,
+            child: HWPadding(padding: HWEdgeInsets.all(8), child: flagged),
+          ),
+          HWSizedBox(width: 48, child: bySize),
+          HWSizedBox(height: 48, child: byPlatform),
+          HWPadding(padding: HWEdgeInsets.all(8), child: byPlatform),
+          HWPadding(
+            padding: HWEdgeInsets.all(4),
+            child: HWSizedBox(width: 48, child: fixed),
+          ),
+        ],
+      ),
+      HWAlign(
+        alignment: HWAlignment.bottomEnd,
+        child: HWStack(
+          children: [
+            HWSizedBox(
+              width: 48,
+              height: 48,
+              child: HWColoredBox(
+                color: HWColor.fixed(0xFF90CAF9),
+                child: flagged,
+              ),
+            ),
+            HWSizedBox(
+              width: 48,
+              child: HWDecoratedBox(
+                decoration: HWBoxDecoration(
+                  color: HWColor.fixed(0xFF90CAF9),
+                  borderRadius: HWBorderRadius.circular(8),
+                ),
+                child: noted,
+              ),
+            ),
+            HWSizedBox(
+              width: 48,
+              height: 48,
+              child: HWDecoratedBox(
+                decoration: HWBoxDecoration(
+                  border: HWBoxBorder(
+                    thickness: 2,
+                    color: HWColor.fixed(0xFF000000),
+                  ),
+                ),
+                child: flagged,
+              ),
+            ),
+            HWColoredBox(
+              color: HWColor.fixed(0xFF90CAF9),
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: noted),
+            ),
+            HWLink('flagged', url: 'cliTest://flagged', child: flagged),
+            HWButton(
+              'noted',
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: noted),
+            ),
+            HWSizedBox(
+              width: 48,
+              child: HWAlign(child: HWText(HWString.fixed('-'))),
+            ),
+            HWSizedBox(
+              height: 48,
+              child: HWSizedBox.expand(child: HWText(HWString.fixed('-'))),
+            ),
+          ],
+        ),
+      ),
+      HWRow(
+        spacing: 4,
+        children: [
+          HWPadding(padding: HWEdgeInsets.all(8), child: fixed),
+          HWSizedBox(width: 48, child: fixed),
+          HWSizedBox(height: 48, child: fixed),
+          HWSizedBox(width: 48, height: 48, child: fixed),
+          HWSizedBox(width: 48, height: 48, child: HWAlign(child: fixed)),
+          HWLink(
+            'fixed',
+            url: 'cliTest://fixed',
+            child: HWPadding(padding: HWEdgeInsets.all(8), child: fixed),
+          ),
+          HWButton(
+            'fixed',
+            child: HWPadding(padding: HWEdgeInsets.all(8), child: fixed),
+          ),
+        ],
+      ),
+      HWRow(
+        spacing: 4,
+        children: [
+          HWPadding(padding: HWEdgeInsets.all(8), child: stored),
+          HWSizedBox(width: 48, child: stored),
+          HWSizedBox(height: 48, child: stored),
+          HWSizedBox(width: 48, height: 48, child: stored),
+          HWSizedBox(width: 48, height: 48, child: HWAlign(child: stored)),
+          HWSizedBox(
+            width: 48,
+            child: HWLink('stored', url: 'cliTest://stored', child: stored),
+          ),
+          HWSizedBox(
+            height: 48,
+            child: HWButton('stored', child: stored),
+          ),
+        ],
+      ),
+      HWRow(
+        spacing: 4,
+        children: [
+          HWPadding(padding: HWEdgeInsets.all(8), child: tinted),
+          HWSizedBox(width: 48, child: tinted),
+          HWSizedBox(height: 48, child: tinted),
+          HWSizedBox(width: 48, height: 48, child: tinted),
+          HWSizedBox(width: double.infinity, child: tinted),
+          HWSizedBox(width: 48, height: 48, child: HWAlign(child: tinted)),
+          HWColoredBox(
+            color: HWColor.fixed(0xFF90CAF9),
+            child: HWLink(
+              'tinted',
+              url: 'cliTest://tinted',
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: tinted),
+            ),
+          ),
+          HWButton(
+            'tinted',
+            child: HWSizedBox(
+              width: 48,
+              height: 48,
+              child: HWPadding(padding: HWEdgeInsets.all(4), child: tinted),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+)
+class IconRoom {}
+''',
+    files: {
+      'lib/icon_room_interaction.dart': '''
+import 'package:cli_test/src/home_widget/widget.home_widget.dart';
+
+Future<void> onIconRoomInteraction(IconRoomInteraction interaction) async {
+  await IconRoomHomeWidget.updateWidget();
+}
+''',
+      'lib/main.dart': '''
+import 'package:cli_test/src/home_widget/widget.home_widget.dart';
+import 'package:flutter/widgets.dart';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  IconRoomHomeWidget.registerInteractivity();
+  runApp(const SizedBox());
+}
+''',
+    },
+    hasLinks: true,
+    hasButtons: true,
+  ),
+  BuildScenario(
     description: 'renders size-adaptive content per family',
     className: 'SizeAdaptive',
     widgetSource: '''

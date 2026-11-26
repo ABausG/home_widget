@@ -230,6 +230,18 @@ class HWIcon extends HWWidget implements HWDataWidget {
   @override
   bool get kotlinPaddingAddsRoom => false;
 
+  /// On Glance, this icon in the middle of a `Box` of its own, which takes the
+  /// size in place of the `Image`: Glance scales the glyph to fit whatever
+  /// box the `Image` is given, and a padding put on it is taken out of that
+  /// box. SwiftUI's frame already centers the glyph.
+  @override
+  HWWidget? _sizedInside(
+    double? width,
+    double? height, {
+    required bool glance,
+  }) =>
+      glance ? HWStack(alignment: HWAlignment.center, children: [this]) : null;
+
   /// Decodes an [HWIcon] from an analyzer constant.
   static HWIcon fromDartObject(DartObject obj, WidgetValueDecoder decoder) {
     final size =
