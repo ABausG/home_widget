@@ -141,7 +141,7 @@ An `HWItemData` goes inside it: `HWPayload('id', HWItemData(HWString('uuid')))`.
 A name is the query parameter and the field of the generated class, so it has to:
 
 - consist of ASCII letters and digits and start with a letter,
-- be unique within one link or `widgetUrlData`,
+- be unique within one link, one button or `widgetUrlData`,
 - differ from `homeWidget` and from every query parameter already written into the URL,
 - differ from the members the generated class has: `toUri`, `fromUri`, `hashCode`, `toString`, `runtimeType` and `noSuchMethod`,
 - differ from the Dart names the generated class refers to, such as `String`, `int`, `double`, `bool`, `DateTime`, `Uri` and `Object`, and from the name of the generated class itself.
@@ -163,6 +163,8 @@ A date in a payload is an instant with millisecond precision: it arrives as a UT
 A fixed `HWDateTime` has no constructor default, because a `DateTime` is not a constant: its parameter is `required`.
 
 A value that is missing from the URL or cannot be read decodes to `null`, or to the default of a non-nullable field.
+
+Links sharing an `id` and `url`, and buttons sharing an `id`, share one class whose fields combine what each of them sends; see [Links sharing an id](/generator/widgets/hw-link#links-sharing-an-id) and [Buttons sharing an id](/generator/widgets/hw-button#buttons-sharing-an-id).
 
 The values are the ones the widget was rendered with. See [`HWLink`](/generator/widgets/hw-link) and [Widget Clicks](/generator/widget-url) for the generated classes and how the app reads them.
 

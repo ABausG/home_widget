@@ -168,7 +168,8 @@ ${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
       for (final target in launchTargets) {
         _appendSection(
           buffer,
-          PayloadDartEmitter(target.url).classDeclaration(
+          PayloadDartEmitter(target.url, fields: target.fields)
+              .classDeclaration(
             className: target.className,
             superClass: spec.launchClassName,
             description: target.description,
@@ -182,7 +183,8 @@ ${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
       for (final target in interactionTargets) {
         _appendSection(
           buffer,
-          PayloadDartEmitter(target.url).classDeclaration(
+          PayloadDartEmitter(target.url, fields: target.fields)
+              .classDeclaration(
             className: target.className,
             superClass: spec.interactionClassName,
             description: target.description,
@@ -196,8 +198,8 @@ ${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
       _appendSection(
         buffer,
         PayloadDartEmitter.helpers([
-          for (final target in launchTargets) target.url,
-          for (final target in interactionTargets) target.url,
+          for (final target in launchTargets) target.fields,
+          for (final target in interactionTargets) target.fields,
         ]),
       );
     }

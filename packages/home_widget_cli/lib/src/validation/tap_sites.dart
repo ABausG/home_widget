@@ -8,26 +8,8 @@ class _TapSite<T extends HWSingleChildWidget> {
   /// Whether the target sits in the item of a list builder.
   final bool inItem;
 
-  /// The choices made on the way down to the target: each widget rendering
-  /// one of several subtrees, with the index of the one the target is in.
-  final List<(HWWidget, int)> choices;
-
-  const _TapSite(this.target, {required this.inItem, required this.choices});
-
-  /// Whether this target and [other] can never render together, because some
-  /// widget above both renders the subtree of one or of the other.
-  bool excludes(_TapSite<T> other) => choices.any(
-        (mine) => other.choices.any(
-          (theirs) => identical(mine.$1, theirs.$1) && mine.$2 != theirs.$2,
-        ),
-      );
+  const _TapSite(this.target, {required this.inItem});
 }
-
-/// The places [_tapSites] tells apart as rendering one at a time, as an error
-/// lists them.
-const _exclusiveTapSites = 'across the branches of a conditional, the slots '
-    'of an HWSizeAdaptive or an HWAppearanceAdaptive, the sides of an '
-    'HWAdaptive, or the item and the whenEmpty of a list builder';
 
 /// How an error spells [target].
 String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
@@ -48,8 +30,7 @@ String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
   final buttons = <_TapSite<HWButton>>[];
 
   void walk(
-    HWWidget node,
-    List<(HWWidget, int)> choices, {
+    HWWidget node, {
     required bool inItem,
     required HWSingleChildWidget? enclosing,
   }) {
@@ -71,11 +52,11 @@ String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
         );
       }
       if (target is HWLink) {
-        links.add(_TapSite(target, inItem: inItem, choices: choices));
+        links.add(_TapSite(target, inItem: inItem));
       } else if (target is HWButton) {
-        buttons.add(_TapSite(target, inItem: inItem, choices: choices));
+        buttons.add(_TapSite(target, inItem: inItem));
       }
-      walk(target.child, choices, inItem: inItem, enclosing: target);
+      walk(target.child, inItem: inItem, enclosing: target);
       return;
     }
 
@@ -95,7 +76,6 @@ String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
         walked.add(branch);
         walk(
           branch,
-          [...choices, (node, index)],
           inItem: inItem || (item != null && index == 0),
           enclosing: enclosing,
         );
@@ -106,56 +86,51 @@ String _spellTapTarget(HWSingleChildWidget target) => switch (target) {
     for (final child in node.childWidgets) {
       walk(
         child,
-        choices,
         inItem: inItem || identical(child, item),
         enclosing: enclosing,
       );
     }
   }
 
-  walk(spec.effectiveWidgetTree, const [], inItem: false, enclosing: null);
+  walk(spec.effectiveWidgetTree, inItem: false, enclosing: null);
   return (links: links, buttons: buttons);
 }
 
-/// Whether [a] and [b] are the same URL with a payload of the same shape.
-bool _samePayloadUrl(HWPayloadUrl a, HWPayloadUrl b) {
-  if (a.url != b.url || a.payload.length != b.payload.length) return false;
-  final theirs = {for (final entry in b.payload) entry.name: entry};
-  return a.payload.every((entry) {
-    final other = theirs[entry.name];
-    return other != null && entry.hasSameShapeAs(other);
-  });
+/// Rejects [target] sending a value of [payload] under a name an earlier
+/// target of its id sends as another type, adding the types it sends to
+/// [sent], the types of the earlier ones by name.
+///
+/// Targets sharing an id reach the app as one class with one field per name.
+void _validateSharedPayloadTypes(
+  HWSingleChildWidget target,
+  List<HWPayloadEntry> payload,
+  Map<String, HWPayloadType> sent, {
+  required String widget,
+}) {
+  final (kind, remedy) = switch (target) {
+    HWLink() => ('Links', 'give the links different ids and urls'),
+    _ => ('Buttons', 'give the buttons different ids'),
+  };
+  final spelled = _spellTapTarget(target);
+  for (final entry in payload) {
+    final type = entry.type!;
+    final other = sent.putIfAbsent(entry.name, () => type);
+    if (other == type) continue;
+    throw GeneratorError(
+      '$widget: $spelled sends "${entry.name}" as an ${_hwTypeName(type)}, '
+      'where another $spelled sends it as an ${_hwTypeName(other)}. $kind '
+      'sharing an id reach the app as one class with one field per name, so '
+      'send "${entry.name}" as one type, send one of them under another name, '
+      'or $remedy.',
+    );
+  }
 }
 
-/// The first two of [sites] generating one class without being the same
-/// target, or null when every class is generated once.
-///
-/// [className] names the class a target generates. Two targets are the same
-/// when only one of them can ever render and both carry the same payload;
-/// `exclusive` is false when the two can render together, and true when only
-/// their payloads differ. A target is checked against every earlier one of
-/// its class.
-({_TapSite<T> first, _TapSite<T> second, bool exclusive})?
-    _conflictingTapSites<T extends HWSingleChildWidget>(
-  List<_TapSite<T>> sites, {
-  required String Function(T target) className,
-  required HWPayloadUrl Function(T target) payloadUrl,
-}) {
-  final seen = <String, List<_TapSite<T>>>{};
-  for (final site in sites) {
-    final earlier = seen.putIfAbsent(className(site.target), () => []);
-    for (final existing in earlier) {
-      final exclusive = existing.excludes(site);
-      if (exclusive &&
-          _samePayloadUrl(
-            payloadUrl(existing.target),
-            payloadUrl(site.target),
-          )) {
-        continue;
-      }
-      return (first: existing, second: site, exclusive: exclusive);
-    }
-    earlier.add(site);
-  }
-  return null;
-}
+/// The data type a schema writes a value of [type] as.
+String _hwTypeName(HWPayloadType type) => switch (type) {
+      HWPayloadType.string => 'HWString',
+      HWPayloadType.int => 'HWInt',
+      HWPayloadType.double => 'HWDouble',
+      HWPayloadType.bool => 'HWBool',
+      HWPayloadType.dateTime => 'HWDateTime',
+    };

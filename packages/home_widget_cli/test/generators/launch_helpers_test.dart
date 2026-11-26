@@ -341,6 +341,95 @@ void main() {
     });
   });
 
+  group('links sharing an id', () {
+    const tree = HWRow(
+      children: [
+        HWLink(
+          'openTab',
+          url: 'myapp://home',
+          data: [
+            HWPayload('tab', HWString.fixed('settings')),
+            HWPayload('source', HWString.fixed('row')),
+          ],
+          child: HWText(HWString.fixed('Settings')),
+        ),
+        HWLink(
+          'openTab',
+          url: 'myapp://home',
+          data: [
+            HWPayload('tab', HWString.fixed('profile')),
+            HWPayload('source', HWString.fixed('row')),
+            HWPayload('page', HWInt.fixed(2)),
+          ],
+          child: HWText(HWString.fixed('Profile')),
+        ),
+      ],
+    );
+
+    test('are one class with a field per name any of them sends', () {
+      final output = _generate(tree: tree);
+
+      expect('final class WeatherOpenTabLink'.allMatches(output), hasLength(1));
+      expect(
+        output,
+        contains(
+          '/// A tap on the `openTab` link of the Weather widget.\n'
+          'final class WeatherOpenTabLink extends WeatherLaunch {\n'
+          "  const WeatherOpenTabLink({this.tab, this.source = 'row', "
+          'this.page});\n'
+          '\n'
+          '  final String? tab;\n'
+          '  final String source;\n'
+          '  final int? page;\n',
+        ),
+      );
+      expect(
+        output,
+        contains(
+          '  static WeatherLaunch? fromUri(Uri uri) => '
+          'WeatherOpenTabLink._\$fromUri(uri);',
+        ),
+      );
+      expect('int? _\$payloadInt('.allMatches(output), hasLength(1));
+    });
+
+    test('decode what each of them opens and back', () {
+      final output = _generate(tree: tree);
+      final model = output.substring(
+        output.indexOf('/// A tap on the Weather widget that opened the app.'),
+      );
+      final tempDir = Directory.systemTemp.createTempSync('launch_model');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      final script = File(p.join(tempDir.path, 'launch.dart'))
+        ..writeAsStringSync('''
+import 'dart:convert';
+
+$model
+
+void main() {
+  print(jsonEncode([
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://home?tab=settings&source=row&homeWidget'))}',
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://home?tab=profile&source=row&page=2&homeWidget'))}',
+    '\${WeatherLaunch.fromUri(Uri.parse('myapp://home?homeWidget'))}',
+    '\${const WeatherOpenTabLink(tab: 'profile', page: 2).toUri()}',
+  ]));
+}
+''');
+
+      final result = Process.runSync(
+        Platform.resolvedExecutable,
+        ['run', script.path],
+      );
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+      expect(jsonDecode((result.stdout as String).trim().split('\n').last), [
+        'WeatherOpenTabLink(tab: settings, source: row, page: null)',
+        'WeatherOpenTabLink(tab: profile, source: row, page: 2)',
+        'WeatherOpenTabLink(tab: null, source: row, page: null)',
+        'myapp://home?tab=profile&source=row&page=2&homeWidget',
+      ]);
+    });
+  });
+
   group('Uri launch helpers', () {
     test('are no longer generated', () {
       final output = _generate(

@@ -142,38 +142,90 @@ void _validateUrlPayload(
   );
 }
 
-/// Rejects two links generating one launch class unless they are the same
-/// target: only one of them can ever render, and both open the same URL with
-/// the same payload.
+/// Rejects two links generating one launch class under different ids or with
+/// different urls, and links of one id sending a value of one name as
+/// different types.
+///
+/// Links sharing an id and url may render together and send different data:
+/// they reach the app as one class with a field per name any of them sends.
 void _validateLinkIds(
   WidgetSpec spec,
   List<_TapSite<HWLink>> sites,
   String widget,
 ) {
-  final conflict = _conflictingTapSites(
-    sites,
-    className: spec.linkClassName,
-    payloadUrl: (link) => link.payloadUrl,
-  );
-  if (conflict == null) return;
+  final firstLinks = <String, HWLink>{};
+  for (final site in sites) {
+    final link = site.target;
+    final className = spec.linkClassName(link);
+    final other = firstLinks.putIfAbsent(className, () => link);
+    if (other.id != link.id) {
+      throw GeneratorError(
+        "$widget: HWLink('${other.id}') and HWLink('${link.id}') both "
+        'generate the launch class $className. Spell the id the same way in '
+        'both, or give them ids that differ in more than case.',
+      );
+    }
+    if (other.url != link.url) {
+      throw GeneratorError(_differentLinkUrls(widget, link, other));
+    }
+  }
 
-  final link = conflict.second.target;
-  final other = conflict.first.target;
-  final ids = other.id == link.id
-      ? "HWLink('${link.id}') is declared twice"
-      : "HWLink('${other.id}') and HWLink('${link.id}') both generate "
-          '${spec.linkClassName(link)}';
-  if (!conflict.exclusive) {
-    throw GeneratorError(
-      '$widget: $ids. A link id is unique within a widget; it may only '
-      'repeat where one of them renders at a time: $_exclusiveTapSites.',
+  final types = <String, Map<String, HWPayloadType>>{};
+  for (final site in sites) {
+    final link = site.target;
+    _validateSharedPayloadTypes(
+      link,
+      link.payloadUrl.payload,
+      types.putIfAbsent(spec.linkClassName(link), () => {}),
+      widget: widget,
     );
   }
-  throw GeneratorError(
-    '$widget: $ids, but with a different url or data. Both reach the app '
-    'as the same launch class, so give them the same url and the same '
-    'data, or different ids.',
-  );
+}
+
+/// The error for [link] opening another url than [other] of its id.
+String _differentLinkUrls(String widget, HWLink link, HWLink other) {
+  final urls = "$widget: HWLink('${link.id}') opens \"${link.url}\", where "
+      "another HWLink('${link.id}') opens \"${other.url}\". Links sharing an "
+      'id reach the app as one launch class matched by one url';
+  final mine = HWPayloadUrl(link.url);
+  final theirs = HWPayloadUrl(other.url);
+  if (mine.hasSameStaticUrlAs(theirs)) {
+    return '$urls, and these two are the same URL written differently. Write '
+        'the same url in both.';
+  }
+  if (mine.hasSameBaseAs(theirs)) {
+    final (name, value) = _differingQueryParameter(mine, theirs);
+    if (!asciiDataNamePattern.hasMatch(name)) {
+      return '$urls, so move the query parameter "$name" into data with an '
+          'HWPayload, named in ASCII letters and digits, or give the links '
+          'different ids.';
+    }
+    return "$urls, so move the query parameter \"$name\" into data, e.g. "
+        "HWPayload('$name', HWString.fixed('${escapeDartStringLiteral(value)}'))"
+        ', or give the links different ids.';
+  }
+  return '$urls, so give them the same url, or different ids.';
+}
+
+/// The first query parameter written into [a] or [b] that the other lacks or
+/// writes with other values, with its first value in the URL writing it,
+/// [a] where both do.
+(String, String) _differingQueryParameter(HWPayloadUrl a, HWPayloadUrl b) {
+  final mine = a.staticQuery;
+  final theirs = b.staticQuery;
+  for (final (query, other) in [(mine, theirs), (theirs, mine)]) {
+    for (final MapEntry(key: name, value: values) in query.entries) {
+      final otherValues = other[name];
+      if (otherValues == null ||
+          otherValues.length != values.length ||
+          values.indexed.any((value) => otherValues[value.$1] != value.$2)) {
+        return (name, values.first);
+      }
+    }
+  }
+  // coverage:ignore-start
+  throw StateError('${a.url} and ${b.url} write the same query parameters.');
+  // coverage:ignore-end
 }
 
 /// Rejects two launch targets whose URLs the app could not tell apart.

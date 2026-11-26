@@ -4,6 +4,7 @@ import 'package:home_widget_generator/home_widget_generator_cli.dart'
 
 import '../util/fnv_hash.dart';
 import '../util/naming.dart';
+import 'payload_field.dart';
 
 /// The dp of room the Android widget root takes around the tree when
 /// `android.applyContentPadding` is left on.
@@ -293,14 +294,19 @@ class ListPreviewAsset {
   });
 }
 
-/// Something a tap on a widget opens the app with, which the generated Dart
-/// hands the app as a class of its own.
+/// Something a tap on a widget opens the app with, the widget itself or the
+/// links sharing an id, which the generated Dart hands the app as a class of
+/// its own.
 class LaunchTarget {
   /// The generated class, e.g. `WeatherWidgetTap` or `WeatherForecastLink`.
   final String className;
 
-  /// The URL the tap opens, with the payload the class carries.
+  /// The URL the tap opens, with one payload entry per name any of the links
+  /// sends: the first one sending it.
   final HWPayloadUrl url;
+
+  /// The fields of the class, holding what any of the links sends.
+  final List<PayloadField> fields;
 
   /// The sentence documenting the generated class.
   final String description;
@@ -309,18 +315,22 @@ class LaunchTarget {
   const LaunchTarget({
     required this.className,
     required this.url,
+    required this.fields,
     required this.description,
   });
 }
 
-/// A button of a widget, which the generated Dart hands the widget's
-/// interaction function as a class of its own.
+/// The buttons of a widget sharing an id, which the generated Dart hands the
+/// widget's interaction function as a class of its own.
 class InteractionTarget {
   /// The generated class, e.g. `CounterIncrementInteraction`.
   final String className;
 
-  /// The URL a tap is sent as, with the payload the class carries.
+  /// The URL a tap on any of the buttons is sent as, without a payload.
   final HWPayloadUrl url;
+
+  /// The fields of the class, holding what any of the buttons sends.
+  final List<PayloadField> fields;
 
   /// The sentence documenting the generated class.
   final String description;
@@ -329,6 +339,7 @@ class InteractionTarget {
   const InteractionTarget({
     required this.className,
     required this.url,
+    required this.fields,
     required this.description,
   });
 }
@@ -1092,8 +1103,9 @@ class WidgetSpec {
   /// Everything a tap can open the app with: the widget's own URL first, then
   /// one target per [HWLink] id in document order.
   ///
-  /// Links sharing an id are one target; `validateWidgetData` makes sure they
-  /// open the same URL with the same payload.
+  /// Links sharing an id are one target, whose fields hold what any of them
+  /// sends, as `PayloadField.merge` combines it; `validateWidgetData` makes
+  /// sure they open the same URL and send a name as one type.
   List<LaunchTarget> get launchTargets {
     final targets = <LaunchTarget>[];
     if (hasWidgetUrl) {
@@ -1101,20 +1113,32 @@ class WidgetSpec {
         LaunchTarget(
           className: widgetTapClassName,
           url: widgetUrl!,
+          fields: PayloadField.listOf(widgetUrl!.payload),
           description: 'A tap on the $docName widget itself.',
         ),
       );
     }
-    final seen = <String>{};
+    final byClass = <String, List<HWLink>>{};
     for (final link in links) {
-      final name = linkClassName(link);
-      if (!seen.add(name)) continue;
+      byClass.putIfAbsent(linkClassName(link), () => []).add(link);
+    }
+    for (final MapEntry(key: name, value: sharing) in byClass.entries) {
+      final payloads = [for (final link in sharing) link.payloadUrl.payload];
+      final sent = <String>{};
       targets.add(
         LaunchTarget(
           className: name,
-          url: link.payloadUrl,
-          description: "A tap on the `${link.id}` link of the $docName "
-              'widget.',
+          url: HWPayloadUrl(
+            sharing.first.url,
+            payload: [
+              for (final payload in payloads)
+                for (final entry in payload)
+                  if (sent.add(entry.name)) entry,
+            ],
+          ),
+          fields: PayloadField.merge(payloads),
+          description: "A tap on the `${sharing.first.id}` link of the "
+              '$docName widget.',
         ),
       );
     }
@@ -1282,24 +1306,26 @@ class WidgetSpec {
 
   /// One target per [HWButton] id, in document order.
   ///
-  /// Buttons sharing an id are one target; `validateWidgetData` makes sure
-  /// they send the same payload.
+  /// Buttons sharing an id are one target, whose fields hold what any of them
+  /// sends, as `PayloadField.merge` combines it; `validateWidgetData` makes
+  /// sure they send a name as one type.
   List<InteractionTarget> get interactionTargets {
-    final targets = <InteractionTarget>[];
-    final seen = <String>{};
+    final byClass = <String, List<HWButton>>{};
     for (final button in buttons) {
-      final name = buttonClassName(button);
-      if (!seen.add(name)) continue;
-      targets.add(
+      byClass.putIfAbsent(buttonClassName(button), () => []).add(button);
+    }
+    return [
+      for (final MapEntry(key: name, value: sharing) in byClass.entries)
         InteractionTarget(
           className: name,
-          url: button.payloadUrl,
-          description: "A tap on the `${button.id}` button of the "
+          url: HWPayloadUrl(HWButton.urlOf(sharing.first.id)),
+          fields: PayloadField.merge([
+            for (final button in sharing) button.payloadUrl.payload,
+          ]),
+          description: "A tap on the `${sharing.first.id}` button of the "
               '$docName widget.',
         ),
-      );
-    }
-    return targets;
+    ];
   }
 
   /// The class a tap on [button] reaches the app as:

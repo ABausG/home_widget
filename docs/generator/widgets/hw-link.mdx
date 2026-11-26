@@ -123,9 +123,115 @@ WeatherHomeWidget.launches().listen((launch) => switch (launch) {
 });
 ```
 
-The switch is exhaustive, so a link added later is a compile error until the app handles it. See [Widget Clicks](/generator/widget-url#reading-taps-in-the-app) for the launch helpers and the matching rules.
+The switch is exhaustive, so a link with a new id added later is a compile error until the app handles it. See [Widget Clicks](/generator/widget-url#reading-taps-in-the-app) for the launch helpers and the matching rules.
 
 The generated launch helpers need `home_widget` 0.10.1 or newer.
+
+## Links sharing an id
+
+Several `HWLink`s in one widget can use the same `id` anywhere in the widget tree: next to each other, in list rows, in conditional branches or in `HWSizeAdaptive` slots, as long as they open the same `url`. Each link keeps its own `data`, and all of them reach the app as the one generated launch class for that id.
+
+```dart
+const _homeUrl = 'myapp://home';
+
+@HomeWidget(
+  name: 'Weather',
+  android: HomeWidgetAndroidConfiguration(),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.app',
+    supportedFamilies: [HWWidgetFamily.systemMedium],
+  ),
+  widget: HWRow(
+    spacing: 16,
+    children: [
+      HWLink(
+        'openTab',
+        url: _homeUrl,
+        data: [HWPayload('tab', HWString.fixed('settings'))],
+        child: HWText(HWString.fixed('Settings')),
+      ),
+      HWLink(
+        'openTab',
+        url: _homeUrl,
+        data: [HWPayload('tab', HWString.fixed('profile'))],
+        child: HWText(HWString.fixed('Profile')),
+      ),
+    ],
+  ),
+)
+class Weather {}
+```
+
+Both links share `WeatherOpenTabLink`:
+
+```dart
+final class WeatherOpenTabLink extends WeatherLaunch {
+  const WeatherOpenTabLink({this.tab});
+
+  final String? tab;
+}
+```
+
+The app handles both taps in one branch of the launch switch:
+
+```dart
+WeatherHomeWidget.launches().listen((launch) => switch (launch) {
+  WeatherOpenTabLink(:final tab) => _openTab(tab),
+});
+```
+
+Every link sharing an id has to write the exact same `url` text, character for character. `myapp://home` and `myApp://home`, or `myapp://home?a=1&b=2` and `myapp://home?b=2&a=1`, are different texts and fail generation even though they describe the same URL. Keep the shared URL in a `const` (such as `_homeUrl` above) so every link spells it the same way.
+
+Putting the varying value into the URL instead of `data` under one id, such as `myapp://home?tab=settings` on one `HWLink('openTab', ...)` and `myapp://home?tab=profile` on another, is a generation error. Links of one id share one launch class matched by one URL, so move `tab` into `data` (as `HWPayload('tab', HWString.fixed('settings'))` and `HWPayload('tab', HWString.fixed('profile'))`), or give the links different ids so each gets its own launch class.
+
+The class gets one field for every payload name any link of that id sends, in the order the names first appear in the widget tree. What the links send under a name decides the field's nullability and default:
+
+| Across the links of the id | Generated field |
+| --- | --- |
+| Every link sends it, all falling back on the same value | Non-nullable, with that value as the constructor default, such as `this.days = 7`. |
+| Every link sends it as a value that is never null, but the values differ | Nullable, with no default. |
+| At least one link sends it as a stored value without `defaultValue` | Nullable, with no default. |
+| At least one link does not send that name at all | Nullable, with no default. |
+
+A field is non-nullable only when every link of the id sends it as a fixed value or a stored value with a `defaultValue` written on that entry, and every link falls back on the same value. Values are compared by value: `HWPayload('days', HWInt.fixed(7))` on one link and `HWInt('days', defaultValue: 7)` on another share the default `7`. When every link sends the same fixed `HWDateTime` instant (the same UTC millisecond), the field is non-nullable and its constructor parameter is `required`, because a `DateTime` is not a constant; `fromUri` still falls back on that instant. When the instants differ, the field is nullable.
+
+`null` does not say which link was tapped: a link that does not send a name and one whose stored value is missing both arrive as `null`. To tell links apart, send a fixed value on each, or use different ids and URLs.
+
+A name has one type across all links of an id, including links in different branches of a conditional, `HWSizeAdaptive` or `HWAdaptive`. Sending a name as an `HWInt` on one link and as an `HWString` or `HWDouble` on another is a generation error (`HWInt` is not widened to `double`). To resolve a conflict, send the name as one type on every link, send one of them under another name with `HWPayload`, or give the links different ids and URLs.
+
+This also works with list builders: an `item` link sending `HWItemData(...)` and a header or `whenEmpty` link with the same id and `url` sending no `data` reach the app as one class with a nullable field:
+
+```dart
+const _todoUrl = 'myapp://todo';
+
+HWColumn.builder(
+  'todos',
+  maxItems: 5,
+  item: HWLink(
+    'open',
+    url: _todoUrl,
+    data: [HWItemData(HWString('id'))],
+    child: HWText(HWItemData(HWString('title'))),
+  ),
+  whenEmpty: HWLink(
+    'open',
+    url: _todoUrl,
+    child: HWText(HWString.fixed('Add a todo')),
+  ),
+)
+```
+
+```dart
+final class TodosOpenLink extends TodosLaunch {
+  const TodosOpenLink({this.id});
+
+  final String? id;
+}
+```
+
+A tap on a row arrives with that row's `id`, and a tap on `whenEmpty` (or a header link) arrives with `id == null`.
+
+`widgetUrl` and links with other ids still must not open a URL the app cannot tell apart from the shared one. Generation fails when the two have the same scheme, host, path, fragment and written query parameters. It also fails when the values one of them sends can produce every query parameter written into the other that it does not write itself. For the shared id, that counts every name any of its links sends.
 
 ## Together with `widgetUrl`
 
@@ -187,10 +293,12 @@ Each of these fails generation:
 - A `url` that is empty, has no scheme, or holds a character a URL cannot hold unescaped, such as a space, a quote or a brace. Percent-encode it.
 - An `HWLink` inside another `HWLink`.
 - An `HWLink` inside an [`HWButton`](/generator/widgets/hw-button), or an `HWButton` inside an `HWLink`.
-- Two links with the same `id`, unless only one of them can render at a time: across the branches of a conditional, the slots of an `HWSizeAdaptive` or an `HWAppearanceAdaptive`, the sides of an `HWAdaptive`, or the `item` and the `whenEmpty` of a list builder. They then need the same `url` and the same `data`.
-- Two links, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one that can produce a query parameter written into the other.
+- Two links with different ids that generate the same launch class name, such as `openTab` and `OpenTab`.
+- Links sharing an `id` whose `url` texts differ, including two spellings of the same URL such as `myapp://home` and `myApp://home`, or `?a=1&b=2` and `?b=2&a=1`.
+- Links sharing an `id` that send a payload name as different types, such as an `HWInt` on one link and an `HWString` or `HWDouble` on another. See [Links sharing an id](#links-sharing-an-id).
+- Two links with different ids, or a link and `widgetUrl`, whose URLs the app cannot tell apart: the same scheme, host, path, fragment and written query parameters, or a `data` value of one (including any name any link of a shared id sends) that can produce a query parameter written into the other.
 - An `HWLink` that is the whole layout of an iOS single-tap family in a widget that also sets `widgetUrl`.
-- A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid or repeated name, or an `HWItemData` outside a builder item.
+- A `data` entry that breaks the [payload rules](/generator/data#payloads): a type that cannot be sent, a fixed value without `HWPayload`, an invalid name, a name repeated within one link, or an `HWItemData` outside a builder item.
 
 ## Platform mapping
 
