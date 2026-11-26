@@ -101,8 +101,6 @@ class HWSizedBox extends HWWidget {
       if (childImports.contains('$layout.size')) '$layout.${left.name}',
       if (childImports.contains('$layout.fillMaxSize'))
         '$layout.fillMax${left.suffix}',
-      if (childImports.contains('$layout.wrapContentSize'))
-        '$layout.wrapContent${left.suffix}',
     };
   }
 

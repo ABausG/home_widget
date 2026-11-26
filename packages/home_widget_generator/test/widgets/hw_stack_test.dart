@@ -553,6 +553,18 @@ Box(modifier = GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopSta
           );
         });
 
+        test('fills the stack as the Android side of an HWAdaptive', () {
+          const stack = HWStack(
+            fit: HWStackFit.expand,
+            children: [HWAdaptive(ios: _a, android: cover)],
+          );
+          expect(
+            stack.toKotlin(0, dataExpr: 'data'),
+            const HWStack(fit: HWStackFit.expand, children: [cover])
+                .toKotlin(0, dataExpr: 'data'),
+          );
+        });
+
         test('keeps the size it sets itself, placed by the alignment', () {
           expect(
             const HWStack(
