@@ -159,9 +159,9 @@ final class CounterIncrementInteraction extends CounterInteraction {
 }
 ```
 
-The class name is the widget class, the button id in PascalCase, and `Interaction`. Each entry of a button's `data` becomes one typed field. Handle the classes with a `switch`: it is exhaustive, so a button added to the schema later does not compile until the function handles it.
+The class name is the widget class, the button id in PascalCase, and `Interaction`. Each entry of a button's `data` becomes one typed field. Several buttons can share an id and send different data; they share the class. Handle the classes with a `switch`: it is exhaustive, so a button with a new id added to the schema later does not compile until the function handles it.
 
-See [`HWButton`](/generator/widgets/hw-button) for `data`, buttons in list rows and the validation rules.
+See [`HWButton`](/generator/widgets/hw-button) for `data`, buttons sharing an id, buttons in list rows and the validation rules.
 
 ## Rendered values and state
 

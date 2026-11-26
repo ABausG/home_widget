@@ -4,6 +4,7 @@ import 'package:home_widget_generator/home_widget_generator_cli.dart'
         HWButtonPayloadUrl,
         HWLinkPayloadUrl,
         HWPayloadEntry,
+        HWPayloadType,
         HWPayloadUrl,
         spellFixedValue;
 

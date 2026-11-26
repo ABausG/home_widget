@@ -1,6 +1,7 @@
 import 'package:dart_style/dart_style.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 import 'package:home_widget_generator/home_widget_generator_cli.dart';
+import '../models/payload_field.dart';
 import '../models/widget_spec.dart';
 import '../util/naming.dart';
 import 'payload_dart_emitter.dart';
@@ -181,7 +182,8 @@ ${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
       for (final target in interactionTargets) {
         _appendSection(
           buffer,
-          PayloadDartEmitter(target.url).classDeclaration(
+          PayloadDartEmitter(target.url, fields: target.fields)
+              .classDeclaration(
             className: target.className,
             superClass: spec.interactionClassName,
             description: target.description,
@@ -195,8 +197,9 @@ ${_flavorGuard('Future.value(false)')}    $_ensureInteractivity();
       _appendSection(
         buffer,
         PayloadDartEmitter.helpers([
-          for (final target in launchTargets) target.url,
-          for (final target in interactionTargets) target.url,
+          for (final target in launchTargets)
+            PayloadField.listOf(target.url.payload),
+          for (final target in interactionTargets) target.fields,
         ]),
       );
     }
