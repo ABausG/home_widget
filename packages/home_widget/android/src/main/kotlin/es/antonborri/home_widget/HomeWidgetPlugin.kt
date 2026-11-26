@@ -10,6 +10,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.Bundle
+import androidx.core.os.BundleCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -30,13 +35,22 @@ class HomeWidgetPlugin :
     MethodCallHandler,
     ActivityAware,
     EventChannel.StreamHandler,
-    PluginRegistry.NewIntentListener {
+    PluginRegistry.NewIntentListener,
+    ActivityPluginBinding.OnSaveInstanceStateListener {
   private lateinit var channel: MethodChannel
   private lateinit var eventChannel: EventChannel
   private lateinit var context: Context
 
   private var activity: Activity? = null
   private var receiver: BroadcastReceiver? = null
+
+  private var launchIntent: Intent? = null
+  private var launching = false
+  private var activityLifecycle: Lifecycle? = null
+  private val launchObserver = LifecycleEventObserver { _, event ->
+    if (event == Lifecycle.Event.ON_RESUME) launching = false
+  }
+
   private val doubleLongPrefix: String = "home_widget.double."
 
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -161,11 +175,9 @@ class HomeWidgetPlugin :
         result.success(true)
       }
       "initiallyLaunchedFromHomeWidget" -> {
-        return if (
-            activity?.intent?.action?.equals(HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) ==
-                true
-        ) {
-          result.success(activity?.intent?.data?.toString() ?: "")
+        val intent = launchIntent
+        return if (intent?.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
+          result.success(intent.data?.toString() ?: "")
         } else {
           result.success(null)
         }
@@ -348,6 +360,9 @@ class HomeWidgetPlugin :
 
     const val TRIGGERED_FROM_HOME_WIDGET = "triggeredFromHomeWidget"
 
+    private const val SAVED_STATE_KEY = "es.antonborri.home_widget.savedState"
+    private const val LAUNCH_INTENT_KEY = "es.antonborri.home_widget.launchIntent"
+
     private fun callbackHandleKey(key: String?): String =
         if (key == null) CALLBACK_HANDLE else "$CALLBACK_HANDLE.$key"
 
@@ -387,22 +402,53 @@ class HomeWidgetPlugin :
 
   override fun onAttachedToActivity(binding: ActivityPluginBinding) {
     activity = binding.activity
+    launchIntent =
+        binding.activity.intent?.takeIf {
+          it.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY == 0
+        }
+    stopObservingLaunch()
+    activityLifecycle = (binding.activity as? LifecycleOwner)?.lifecycle
+    launching = activityLifecycle != null
+    activityLifecycle?.addObserver(launchObserver)
     binding.addOnNewIntentListener(this)
+    binding.addOnSaveStateListener(this)
   }
 
   override fun onDetachedFromActivityForConfigChanges() {
     unregisterReceiver()
+    stopObservingLaunch()
     activity = null
   }
 
   override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
     activity = binding.activity
     binding.addOnNewIntentListener(this)
+    binding.addOnSaveStateListener(this)
+  }
+
+  override fun onSaveInstanceState(bundle: Bundle) {
+    bundle.putBoolean(SAVED_STATE_KEY, true)
+    if (activity?.isChangingConfigurations == true) {
+      bundle.putParcelable(LAUNCH_INTENT_KEY, launchIntent)
+    }
+  }
+
+  override fun onRestoreInstanceState(bundle: Bundle?) {
+    if (bundle?.getBoolean(SAVED_STATE_KEY) != true) return
+    launchIntent = BundleCompat.getParcelable(bundle, LAUNCH_INTENT_KEY, Intent::class.java)
   }
 
   override fun onDetachedFromActivity() {
     unregisterReceiver()
+    stopObservingLaunch()
+    launchIntent = null
     activity = null
+  }
+
+  private fun stopObservingLaunch() {
+    activityLifecycle?.removeObserver(launchObserver)
+    activityLifecycle = null
+    launching = false
   }
 
   override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -435,7 +481,14 @@ class HomeWidgetPlugin :
   }
 
   override fun onNewIntent(intent: Intent): Boolean {
-    receiver?.onReceive(context, intent)
-    return receiver != null
+    val receiver = receiver
+    if (receiver == null) {
+      if (launching && intent.action == HomeWidgetLaunchIntent.HOME_WIDGET_LAUNCH_ACTION) {
+        launchIntent = intent
+      }
+      return false
+    }
+    receiver.onReceive(context, intent)
+    return true
   }
 }
