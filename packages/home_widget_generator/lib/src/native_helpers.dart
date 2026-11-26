@@ -983,7 +983,18 @@ private fun hwDecodeImage(
     heightDp: Double?,
 ): Bitmap? {
     val file = if (path.startsWith("/")) File(path) else null
-    val key = listOf(path, file?.lastModified(), file?.length(), widthDp, heightDp).joinToString("|")
+    val metrics = context.resources.displayMetrics
+    val key =
+        listOf(
+            path,
+            file?.lastModified(),
+            file?.length(),
+            widthDp,
+            heightDp,
+            metrics.density,
+            metrics.widthPixels,
+            metrics.heightPixels,
+        ).joinToString("|")
     synchronized(hwDecodedImages) { hwDecodedImages[key]?.get()?.let { return it } }
 
     fun decode(options: BitmapFactory.Options): Bitmap? =
@@ -997,7 +1008,6 @@ private fun hwDecodeImage(
 
     fun sampleSize(bounds: BitmapFactory.Options): Int {
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
-        val metrics = context.resources.displayMetrics
         val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
         val widthPx = widthDp?.let { (it * metrics.density).toInt() }
         val heightPx = heightDp?.let { (it * metrics.density).toInt() }

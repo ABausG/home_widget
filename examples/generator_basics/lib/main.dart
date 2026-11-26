@@ -288,9 +288,10 @@ class _HomePageState extends State<_HomePage> {
               'The count is drawn in an accent the app saves, one color for '
               'light and one for dark mode. The sun or moon icon and the '
               'caption follow the appearance too; on a Tinted or Clear iOS '
-              'Home Screen the caption has its own layout. On Android the '
-              'colors and the icon switch live, the caption at the next '
-              'widget update.',
+              'Home Screen the caption has its own layout. On Android 12 and '
+              'newer the colors and the icon switch live and the caption at '
+              'the next widget update; on older Android versions all of them '
+              'change at the next widget update.',
           isInstalled: ThemedCounterHomeWidget.isInstalled,
           isRequestPinWidgetSupported:
               ThemedCounterHomeWidget.isRequestPinWidgetSupported,

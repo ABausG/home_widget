@@ -915,10 +915,16 @@ void main() {
       );
       expect(
         kotlin,
-        contains(
-          'listOf(path, file?.lastModified(), file?.length(), widthDp, '
-          'heightDp).joinToString("|")',
-        ),
+        allOf([
+          contains('file?.lastModified(),'),
+          contains('file?.length(),'),
+          contains('widthDp,'),
+          contains('heightDp,'),
+          contains('metrics.density,'),
+          contains('metrics.widthPixels,'),
+          contains('metrics.heightPixels,'),
+          contains(').joinToString("|")'),
+        ]),
       );
       expect(
         kotlin,

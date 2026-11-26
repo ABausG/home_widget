@@ -90,8 +90,8 @@ HWImage(
 | --- | --- |
 | `null` (unset) | System default: flat silhouette in the tint color. |
 | `HWAccentedRendering.accented` | Flat silhouette in the tint color (matches unset). |
-| `HWAccentedRendering.desaturated` | Grayscale in the tint color. |
-| `HWAccentedRendering.accentedDesaturated` | Desaturated and tinted (matches `desaturated` in testing on iOS 26.2). |
+| `HWAccentedRendering.desaturated` | The image's brightness becomes its opacity, drawn in the color of the widget's default (non-accented) content. |
+| `HWAccentedRendering.accentedDesaturated` | The image's brightness becomes its opacity, drawn in the accent (tint) color. In testing on iOS 26.2 it looked the same as `desaturated`. |
 | `HWAccentedRendering.fullColor` | Keeps the image's original colors. Intended for photos and artwork. |
 
 - Applies on iOS 18 and later (verified on iOS 26.2; iOS 18 itself was not tested). Ignored on older iOS versions, has no effect on the Lock Screen, and is ignored on Android.

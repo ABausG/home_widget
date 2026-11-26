@@ -20,8 +20,9 @@ small and each one demonstrates a different feature of the generator:
   (`HWAppearanceData` of two stored `HWColor`s), a sun or moon icon
   (`HWAppearanceData` of fixed icons) and a caption with one layout per
   appearance, including the iOS Tinted / Clear Home Screen
-  (`HWAppearanceAdaptive`). On Android the colors and the icon switch live,
-  the caption at the next widget update.
+  (`HWAppearanceAdaptive`). On Android 12 and newer the colors and the icon
+  switch live and the caption at the next widget update; on older Android
+  versions all of them change at the next widget update.
 - `conditional_status.dart` – a widget that branches on whether data is present
   using `HWDataExists` and `HWBoolConditional`.
 - `localized_greeting.dart` – translated body text and gallery entry via
