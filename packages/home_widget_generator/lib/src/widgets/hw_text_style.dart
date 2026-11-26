@@ -103,7 +103,11 @@ class HWAndroidFont {
 class HWTextStyle implements HWGeneratable {
   final double? fontSize;
   final HWFontWeight? fontWeight;
-  final HWColor? color;
+
+  /// The color text in this style renders in, any color value, or null for
+  /// the default content color; a stored one without a value renders in the
+  /// default content color too.
+  final HWDataType<int>? color;
   final bool? italic;
   final bool? underline;
   final bool? lineThrough;
@@ -235,7 +239,7 @@ class HWTextStyle implements HWGeneratable {
       effectiveFontSize ?? hwDefaultFontSize;
 
   /// The color text in this style renders in, or null for the platform default.
-  HWColor? get effectiveColor => _resolve().color;
+  HWDataType<int>? get effectiveColor => _resolve().color;
 
   /// How Android renders text in this style, as [HWAndroidFont] resolves it.
   ///
@@ -335,9 +339,9 @@ class HWTextStyle implements HWGeneratable {
       parts.add('.fontWeight(${_swiftFontWeight(resolved.fontWeight!)})');
     }
 
-    if (resolved.color != null) {
+    if (resolved.color case final color?) {
       parts.add(
-        '.foregroundColor(${resolved.color!.toSwift(indent, dataExpr: dataExpr)})',
+        '.foregroundColor(${hwSwiftColor(color, dataExpr: dataExpr)})',
       );
     }
 
@@ -438,7 +442,7 @@ class HWKotlinBaselineText {
 /// family it names.
 class HWGlanceTextRenderer extends HWKotlinTextRenderer {
   /// The color the text renders in, or null for [hwDefaultContentColor].
-  final HWColor? color;
+  final HWDataType<int>? color;
 
   final double? fontSize;
   final HWFontWeight? fontWeight;
@@ -469,7 +473,7 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
   Set<String> get kotlinImports => {
         'import androidx.glance.text.Text',
         'import androidx.glance.text.TextStyle',
-        ...(color?.kotlinImports ?? hwDefaultContentColorKotlinImports),
+        ..._kotlinTintImports(color),
         if (fontSize != null) 'import androidx.compose.ui.unit.sp',
         if (fontWeight != null) 'import androidx.glance.text.FontWeight',
         if (italic) 'import androidx.glance.text.FontStyle',
@@ -481,9 +485,8 @@ class HWGlanceTextRenderer extends HWKotlinTextRenderer {
 
   /// The `TextStyle(...)` the Glance `Text` is styled with.
   String styleExpression(int indent, {required String dataExpr}) {
-    final tint = color ?? hwDefaultContentColor;
     final args = <String>[
-      'color = ${tint.toKotlin(indent, dataExpr: dataExpr)}',
+      'color = ${_kotlinTint(color, dataExpr)}',
       if (fontSize case final size?) 'fontSize = ${hwSizeLiteral(size)}.sp',
       if (fontWeight case final weight?)
         'fontWeight = ${_kotlinFontWeight(weight)}',
@@ -567,7 +570,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
 
   /// The color the mask is tinted in, or null for [hwDefaultContentColor]: an
   /// untinted mask renders white on white.
-  final HWColor? color;
+  final HWDataType<int>? color;
 
   final bool italic;
   final bool underline;
@@ -593,7 +596,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
         'import androidx.glance.LocalSize',
         'import es.antonborri.home_widget.HomeWidgetFonts',
         if (textAlign != null) 'import androidx.glance.text.TextAlign',
-        ...(color?.kotlinImports ?? hwDefaultContentColorKotlinImports),
+        ..._kotlinTintImports(color),
       };
 
   /// Whether the bitmap is as wide as the text has room for.
@@ -658,8 +661,7 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
   }) {
     final pad = '    ' * indent;
     final typeface = _typefaceExpression;
-    final tint =
-        (color ?? hwDefaultContentColor).toKotlin(indent, dataExpr: dataExpr);
+    final tint = _kotlinTint(color, dataExpr);
     final hash = boundsKey(text, itemList: itemList);
     final key = itemList == null ? hash : '$hash-\$${HWListLoop.index}';
 
@@ -710,6 +712,19 @@ class HWBitmapTextRenderer extends HWKotlinTextRenderer {
     return buffer.toString();
   }
 }
+
+/// The Glance color text renders in for [color], [hwDefaultContentColor] when
+/// it names none or has no value.
+String _kotlinTint(HWDataType<int>? color, String dataExpr) => hwKotlinColor(
+      color ?? hwDefaultContentColor,
+      dataExpr: dataExpr,
+      fallback: HWColorSlotDefault.content,
+    );
+
+/// The imports [_kotlinTint] needs for [color].
+Set<String> _kotlinTintImports(HWDataType<int>? color) => color == null
+    ? hwDefaultContentColorKotlinImports
+    : hwKotlinColorImports(color, fallback: HWColorSlotDefault.content);
 
 /// U+001F, spelled [String.fromCharCode] rather than written out: it separates
 /// the parts [HWBitmapTextRenderer.boundsKey] digests, so that a text ending

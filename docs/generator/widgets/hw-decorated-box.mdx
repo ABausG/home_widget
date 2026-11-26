@@ -21,7 +21,7 @@ HWDecoratedBox(
 )
 ```
 
-`HWBoxBorder` requires `thickness` and `color`. The border is drawn inside the box, like Flutter's default `BorderSide.strokeAlignInside`: SwiftUI strokes it with `strokeBorder`, and Glance, which has no stroke, gets an inside-border approximation.
+`HWBoxBorder` requires `thickness` and `color`. The border is drawn inside the box, like Flutter's default `BorderSide.strokeAlignInside`: SwiftUI strokes it with `strokeBorder`, and Glance, which has no stroke, gets an inside-border approximation. On Android, that means a decoration with a border draws the border color across the whole box whenever nothing opaque covers the center — with no `color`, a transparent fill, or a stored fill that is missing. Give a stored fill an opaque `defaultValue` when the box also has a border.
 
 `borderRadius` rounds the background and the border alike, with or without either of the two. Like Flutter's `DecoratedBox`, it does not clip the child.
 
@@ -40,7 +40,7 @@ The decoration covers all the room the box gets, like Flutter's `DecoratedBox`: 
 
 | Name           | Type              | Default | Description                                   |
 | -------------- | ----------------- | ------- | --------------------------------------------- |
-| `color`        | `HWColor?`        | `null`  | Background color.                             |
+| `color`        | `HWDataType<int>?` | `null`  | Background color — any color value. While a stored color has no value, the fill draws transparent — except on Android when a border is also set, where the border color fills the box unless an opaque color covers the center (give the stored fill a `defaultValue`). See [`HWColor`](/generator/styling/hw-color). |
 | `border`       | `HWBoxBorder?`    | `null`  | Border specification.                         |
 | `borderRadius` | `HWBorderRadius?` | `null`  | Corner radius of the background and border.   |
 
@@ -55,7 +55,7 @@ The decoration covers all the room the box gets, like Flutter's `DecoratedBox`: 
 | Name        | Type      | Default      | Description   |
 | ----------- | --------- | ------------ | ------------- |
 | `thickness` | `double`  | **required** | Border width. |
-| `color`     | `HWColor` | **required** | Border color. |
+| `color`     | `HWDataType<int>` | **required** | Border color — any color value. While a stored color has no value, the border draws transparent and keeps its inset. See [`HWColor`](/generator/styling/hw-color). |
 
 ## Platform mapping
 

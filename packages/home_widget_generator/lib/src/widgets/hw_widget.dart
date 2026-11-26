@@ -1,5 +1,6 @@
 import 'package:analyzer/dart/constant/value.dart';
 import '../annotations.dart';
+import '../appearance.dart';
 import '../fonts.dart';
 import '../formats.dart';
 import '../generator_error.dart';
@@ -37,6 +38,7 @@ part 'hw_link.dart';
 part 'hw_button.dart';
 part 'hw_conditional.dart';
 part 'hw_size_adaptive.dart';
+part 'hw_appearance_adaptive.dart';
 part 'hw_android_size_range.dart';
 part 'hw_android_size_grid.dart';
 
@@ -195,13 +197,20 @@ abstract interface class HWDataWidget {
 /// The values of [data] a widget reading them depends on.
 ///
 /// A fixed value is written into the widget and is not one, unless it owns a
-/// resource: see [HWDataType.isDataDependency].
+/// resource: see [HWDataType.isDataDependency]. An [HWAppearanceData] depends
+/// on each of its sides.
 Set<HWDataType<dynamic>> _dataDependenciesOf(
   Iterable<HWDataType<dynamic>> data,
 ) =>
     {
       for (final value in data)
-        if (value.isDataDependency) value,
+        for (final read in value.readValues)
+          if (read.isDataDependency) read,
+    };
+
+/// The declarations the generated SwiftUI view needs for [data] to be read.
+Set<String> _swiftViewModifiersOf(Iterable<HWDataType<dynamic>> data) => {
+      for (final value in data) ...value.swiftViewModifiers,
     };
 
 /// A widget that renders in a font file of its own.
@@ -227,6 +236,14 @@ sealed class HWWidget implements HWGeneratable {
   Set<HWDataType<dynamic>> get dataDependencies => {};
   // coverage:ignore-end
 
+  /// The values this one widget renders or tests, its children's left out:
+  /// constant ones included, and an [HWAppearanceData] as itself rather than
+  /// as its sides.
+  ///
+  /// What [nativeHelpers] gathers the [HWDataType.renderHelpers] of, so that a
+  /// color or a picked value brings the helpers it is rendered through.
+  Iterable<HWDataType<dynamic>> get ownValues => const [];
+
   /// The widgets this one renders, if any.
   ///
   /// Recurses the same way [dataDependencies] does, branches of a conditional
@@ -237,8 +254,17 @@ sealed class HWWidget implements HWGeneratable {
   /// The widgets this one renders on Android.
   ///
   /// [childWidgets] for everything but an [HWAdaptive], which renders its
-  /// Android branch alone there, and is what [androidDescendants] walks.
+  /// Android branch alone there, an [HWSizeAdaptive], whose Lock Screen slots
+  /// Glance never picks, and an [HWAppearanceAdaptive], which has no accented
+  /// or vibrant side there; what [androidDescendants] walks.
   List<HWWidget> get androidChildWidgets => childWidgets;
+
+  /// The widgets this one renders on iOS.
+  ///
+  /// [childWidgets] for everything but an [HWAdaptive], which renders its iOS
+  /// branch alone there, and an [HWSizeAdaptive], whose Android size ranges
+  /// SwiftUI never renders; what [iosDescendants] walks.
+  List<HWWidget> get iosChildWidgets => childWidgets;
 
   /// Whether this widget's Glance output is a `Text`, and so reports a text
   /// baseline to the horizontal `LinearLayout` a Glance `Row` becomes.
@@ -305,7 +331,7 @@ sealed class HWWidget implements HWGeneratable {
       return choices.any((choice) => choice.kotlinRendersBitmapTextIn(context));
     }
     if (kotlinRendersBitmapText) return true;
-    return childWidgets
+    return androidChildWidgets
         .any((child) => child.kotlinRendersBitmapTextIn(context));
   }
 
@@ -495,6 +521,16 @@ sealed class HWWidget implements HWGeneratable {
     }
   }
 
+  /// Every widget iOS renders in this subtree, [this] first, in render order.
+  ///
+  /// [descendants] walked through [iosChildWidgets].
+  Iterable<HWWidget> get iosDescendants sync* {
+    yield this;
+    for (final child in iosChildWidgets) {
+      yield* child.iosDescendants;
+    }
+  }
+
   /// The native functions displaying this one widget, before their own
   /// dependencies are resolved.
   ///
@@ -553,11 +589,29 @@ sealed class HWWidget implements HWGeneratable {
   /// Two things ask for one: reading a value back — every data dependency in
   /// the subtree, whether or not anything displays it — and rendering one,
   /// which each widget answers for itself through [renderHelpers].
-  Set<HWNativeHelper> get nativeHelpers {
+  Set<HWNativeHelper> get nativeHelpers => _nativeHelpersRendering(descendants);
+
+  /// [nativeHelpers] of the Glance output: the reads of every data dependency,
+  /// which the data class both platforms share declares, and the rendering of
+  /// the [androidDescendants] alone.
+  Set<HWNativeHelper> get androidNativeHelpers =>
+      _nativeHelpersRendering(androidDescendants);
+
+  /// [nativeHelpers] of the SwiftUI output, as [androidNativeHelpers] is of
+  /// the Glance one, rendering the [iosDescendants].
+  Set<HWNativeHelper> get iosNativeHelpers =>
+      _nativeHelpersRendering(iosDescendants);
+
+  Set<HWNativeHelper> _nativeHelpersRendering(Iterable<HWWidget> rendered) {
     final helpers = <HWNativeHelper>{};
     for (final widget in descendants) {
       for (final dependency in widget.dataDependencies) {
         helpers.addAll(dependency.nativeHelpers);
+      }
+    }
+    for (final widget in rendered) {
+      for (final value in widget.ownValues) {
+        helpers.addAll(value.renderHelpers);
       }
       helpers.addAll(widget.renderHelpers);
     }

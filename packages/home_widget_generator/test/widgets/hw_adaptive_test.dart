@@ -25,6 +25,28 @@ void main() {
           {'iosK', 'androidK'},
         );
       });
+
+      test('each platform renders, and calls the helpers of, its own branch',
+          () {
+        const adaptive = HWAdaptive(
+          ios: HWText(HWString('iosK'), style: HWTextStyle(fontSize: 12)),
+          android: HWAppearanceAdaptive(
+            light: HWText(HWString('androidK')),
+            dark: HWText(HWString.fixed('night')),
+          ),
+        );
+        expect(adaptive.iosChildWidgets, [adaptive.ios]);
+        expect(adaptive.iosDescendants, [adaptive, adaptive.ios]);
+        expect(
+          adaptive.androidNativeHelpers,
+          contains(HWNativeHelper.hwIsNight),
+        );
+        expect(
+          adaptive.iosNativeHelpers,
+          isNot(contains(HWNativeHelper.hwIsNight)),
+        );
+        expect(adaptive.nativeHelpers, contains(HWNativeHelper.hwIsNight));
+      });
     });
 
     group('iOS (SwiftUI)', () {
@@ -65,13 +87,14 @@ void main() {
       });
 
       test(
-        'swiftViewModifiers propagate from ios when themed color needs colorScheme',
+        'swiftViewModifiers propagate from ios when a color needs the '
+        'environment',
         () {
           const adaptive = HWAdaptive(
             ios: HWText(
               HWString.fixed('x'),
               style: HWTextStyle(
-                color: HWThemedColor(
+                color: HWAppearanceData(
                   light: HWFixedColor(0xFF000000),
                   dark: HWFixedColor(0xFFFFFFFF),
                 ),
@@ -81,7 +104,7 @@ void main() {
           );
           expect(
             adaptive.swiftViewModifiers,
-            contains('@Environment(\\.colorScheme) var colorScheme'),
+            contains('@Environment(\\.self) var hwEnvironment'),
           );
         },
       );

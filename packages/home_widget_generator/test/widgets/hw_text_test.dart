@@ -237,12 +237,13 @@ void main() {
       });
 
       test(
-        'swiftViewModifiers: include colorScheme when color is HWThemedColor',
+        'swiftViewModifiers: include the environment when the color is an '
+        'HWAppearanceData',
         () {
           final node = HWText(
             HWString.fixed('Hi'),
             style: const HWTextStyle(
-              color: HWThemedColor(
+              color: HWAppearanceData(
                 light: HWFixedColor(0xFF000000),
                 dark: HWFixedColor(0xFFFFFFFF),
               ),
@@ -250,7 +251,7 @@ void main() {
           );
           expect(
             node.swiftViewModifiers,
-            contains('@Environment(\\.colorScheme) var colorScheme'),
+            contains('@Environment(\\.self) var hwEnvironment'),
           );
         },
       );

@@ -497,7 +497,9 @@ class WidgetSpec {
       children: [
         HWText(HWString.fixed(galleryName)),
         for (final field in [...primitiveDataFields, ...timedDataFields])
-          if (imageLeafOf(field) != null)
+          if (field.leaf is HWColor)
+            const HWDataOnly([])
+          else if (imageLeafOf(field) != null)
             HWImage(field)
           else if (iconLeafOf(field) != null)
             HWIcon.resolved(field, fontResourcePrefix: fontResourcePrefix)
@@ -579,7 +581,7 @@ class WidgetSpec {
       return;
     }
 
-    for (final child in widget.childWidgets) {
+    for (final child in widget.androidChildWidgets) {
       yield* _androidRendered(child, reachable);
     }
   }
@@ -665,7 +667,8 @@ class WidgetSpec {
             walk(child, visible, null, range);
           }
         default:
-          for (final child in widget.childWidgets) {
+          for (final child
+              in android ? widget.androidChildWidgets : widget.childWidgets) {
             walk(child, visible, enclosingSlot, enclosingRange);
           }
       }
@@ -987,38 +990,44 @@ class WidgetSpec {
     ];
   }
 
-  /// Whether the generated native code reads the OS locale list, and so needs
-  /// the locale-resolution helpers.
+  /// Whether the generated Kotlin reads the OS locale list, and so needs the
+  /// locale-resolution helpers.
   ///
   /// Constants and gallery strings do not: they are platform resources,
   /// resolved by the OS. Everything else the widget matches itself — while
-  /// reading a stored translation map or at the render site of a JSON leaf —
-  /// which is what puts the locale reader in [nativeHelpers].
-  bool get needsLocaleHelpers =>
-      nativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
+  /// reading a stored translation map or at the render site of a JSON leaf
+  /// Android renders — which is what puts the locale reader in
+  /// [androidNativeHelpers].
+  bool get androidNeedsLocaleHelpers =>
+      androidNativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
 
-  /// Whether the generated native code reads a translation blob back out of
-  /// the preferences key of a data field, which only untimed keyed fields do.
-  bool get needsLocalizedRead =>
-      nativeHelpers.contains(HWNativeHelper.hwReadLocalized);
+  /// [androidNeedsLocaleHelpers] of the generated Swift, out of
+  /// [iosNativeHelpers].
+  bool get iosNeedsLocaleHelpers =>
+      iosNativeHelpers.contains(HWNativeHelper.hwCurrentLocales);
 
-  /// Whether the generated native code reads a translation map out of the
-  /// timed entry that is active at render time.
-  bool get needsTimedLocalizedRead =>
-      nativeHelpers.contains(HWNativeHelper.hwReadTimedLocalized);
+  /// Whether the generated Kotlin reads a translation blob back out of the
+  /// preferences key of a data field, which only untimed keyed fields do.
+  bool get androidNeedsLocalizedRead =>
+      androidNativeHelpers.contains(HWNativeHelper.hwReadLocalized);
 
-  /// Whether reading the values of the generated data class resolves a
+  /// Whether the generated Kotlin reads a translation map out of the timed
+  /// entry that is active at render time.
+  bool get androidNeedsTimedLocalizedRead =>
+      androidNativeHelpers.contains(HWNativeHelper.hwReadTimedLocalized);
+
+  /// Whether reading the values of the generated Kotlin data class resolves a
   /// translation, and so has to be handed the OS locale list.
   ///
   /// Only Kotlin needs this: its `fromPreferences` takes the list as a
   /// parameter, while the Swift resolver reaches `Locale` on its own.
-  bool get resolvesLocalizedOnRead =>
-      needsLocalizedRead || needsTimedLocalizedRead;
+  bool get androidResolvesLocalizedOnRead =>
+      androidNeedsLocalizedRead || androidNeedsTimedLocalizedRead;
 
-  /// Whether the widget resolves any text itself, and so goes stale on a system
-  /// language change unless it re-renders.
-  bool get rendersLocalizedContent =>
-      constantLocalizedStrings.isNotEmpty || needsLocaleHelpers;
+  /// Whether the Android widget resolves any text itself, and so goes stale on
+  /// a system language change unless it re-renders.
+  bool get androidRendersLocalizedContent =>
+      constantLocalizedStrings.isNotEmpty || androidNeedsLocaleHelpers;
 
   /// The flavors the widget is generated for, in declaration order.
   ///
@@ -1205,26 +1214,40 @@ class WidgetSpec {
   /// The [HWLink]s iOS opens through `.widgetURL`: each is the whole layout
   /// of a family in [iosSingleTapFamilies] the widget can be shown in.
   ///
-  /// That is the link the tree is as a whole, or the one the slot such a
-  /// family resolves to in an [HWSizeAdaptive] the tree is as a whole is.
+  /// That is the link the tree is as a whole, or the one a branch the tree
+  /// picks as a whole is: the slot such a family resolves to in an
+  /// [HWSizeAdaptive], any slot of an [HWAppearanceAdaptive] and either branch
+  /// of a conditional, each of which renders alone.
   List<HWLink> get iosWidgetUrlLinks {
     final singleTap = iosReachableFamilies.intersection(iosSingleTapFamilies);
     if (singleTap.isEmpty) return const [];
 
-    final root = _unwrapTapArea(effectiveWidgetTree, ios: true);
-    if (root is HWLink) {
-      return root.swiftRendersNothing ? const [] : [root];
-    }
-    if (root is! HWSizeAdaptive) return const [];
-
     final links = <HWLink>[];
-    for (final family in singleTap) {
-      final slot = root.resolve(family);
-      final link = slot == null ? null : _wholeLayoutLink(slot, ios: true);
-      if (link == null || link.swiftRendersNothing) continue;
-      if (links.any((other) => identical(other, link))) continue;
-      links.add(link);
+    void collect(HWWidget widget, Set<HWWidgetFamily> families) {
+      switch (_unwrapTapArea(widget, ios: true)) {
+        case final HWLink link:
+          if (link.swiftRendersNothing) return;
+          if (links.any((other) => identical(other, link))) return;
+          links.add(link);
+        case final HWSizeAdaptive adaptive:
+          for (final family in families) {
+            if (adaptive.resolve(family) case final slot?) {
+              collect(slot, {family});
+            }
+          }
+        case final HWAppearanceAdaptive adaptive:
+          for (final slot in adaptive.childWidgets) {
+            collect(slot, families);
+          }
+        case final HWConditional conditional:
+          collect(conditional.firstBranch, families);
+          collect(conditional.secondBranch, families);
+        default:
+          break;
+      }
     }
+
+    collect(effectiveWidgetTree, singleTap);
     return links;
   }
 
@@ -1761,20 +1784,50 @@ class WidgetSpec {
   List<HWImageData> get assetImageFields =>
       imageDataFields.where((f) => f.isAsset).toList();
 
-  /// Every native helper the generated widget sources have to declare, each
-  /// one after the helpers it calls.
+  /// Every native helper the generated Kotlin has to declare, each one after
+  /// the helpers it calls.
   ///
   /// The widget tree names the helpers it renders through — decoding a picture,
   /// formatting a number — and every declared field the helpers reading it back
-  /// — a date the widget never shows is still parsed into the data class. This
-  /// is the one source of truth for what a generated file declares, so a field
-  /// nothing displays never drags a render helper in. Both are handed to
-  /// [resolveNativeHelpers], which closes over their dependencies.
-  List<HWNativeHelper> get nativeHelpers => resolveNativeHelpers([
-        ...effectiveWidgetTree.nativeHelpers,
+  /// — a date the widget never shows is still parsed into the data class. Both
+  /// are handed to [resolveNativeHelpers], which closes over their
+  /// dependencies, so a field nothing displays never drags a render helper in.
+  ///
+  /// Android renders only its own widgets and paints only its own
+  /// `backgroundColor`, so this and [iosNativeHelpers] are the one source of
+  /// truth for what each generated file declares and for every call the file
+  /// is allowed to make.
+  List<HWNativeHelper> get androidNativeHelpers => resolveNativeHelpers([
+        ..._withFieldHelpers(effectiveWidgetTree.androidNativeHelpers),
+        ...?data.android?.backgroundColor?.renderHelpers,
+      ]);
+
+  /// The helpers the generated Swift declares, as [androidNativeHelpers] for
+  /// the widgets iOS renders and its `backgroundColor`.
+  List<HWNativeHelper> get iosNativeHelpers => resolveNativeHelpers([
+        ..._withFieldHelpers(effectiveWidgetTree.iosNativeHelpers),
+        ...?data.iOS?.backgroundColor?.renderHelpers,
+      ]);
+
+  /// Whether the generated Kotlin calls the plugin's `HomeWidgetAppearance`,
+  /// which only a color, an image or an icon picked by the appearance does
+  /// that is not a pair of two constant colors.
+  bool get androidUsesPluginAppearance =>
+      data.android != null &&
+      androidNativeHelpers.any(
+        (helper) =>
+            helper == HWNativeHelper.hwAppearanceColor ||
+            helper == HWNativeHelper.hwAppearanceImage,
+      );
+
+  Iterable<HWNativeHelper> _withFieldHelpers(
+    Iterable<HWNativeHelper> treeHelpers,
+  ) =>
+      [
+        ...treeHelpers,
         for (final field in dataFields) ...field.nativeHelpers,
         if (hasWidgetUrl) ...widgetUrl!.nativeHelpers,
-      ]);
+      ];
 
   /// Image leaves of the untimed JSON groups.
   List<JsonImageField> get jsonImageFields => _jsonImages(jsonDataGroups);
@@ -1783,6 +1836,16 @@ class WidgetSpec {
   /// by the timestamp of the entry they belong to.
   List<JsonImageField> get timedJsonImageFields =>
       _jsonImages(timedJsonDataGroups);
+
+  /// Whether the app stores a color for this widget anywhere: a field, a JSON
+  /// leaf, a timed value or a list item field.
+  ///
+  /// Drives the `Color` import of the generated Dart helper.
+  bool get hasColorFields =>
+      dataFields.any((field) => field.leaf is HWColor) ||
+      listDataGroups.any(
+        (group) => group.fields.any((field) => field.leaf is HWColor),
+      );
 
   /// Whether any image reaches the widget through the generated `saveData`,
   /// wherever it is declared.

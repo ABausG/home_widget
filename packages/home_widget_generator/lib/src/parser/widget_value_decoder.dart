@@ -92,6 +92,8 @@ class WidgetValueDecoder {
       return HWBoolConditional.fromDartObject(object!, this);
     } else if (typeName == 'HWSizeAdaptive') {
       return HWSizeAdaptive.fromDartObject(object!, this);
+    } else if (typeName == 'HWAppearanceAdaptive') {
+      return HWAppearanceAdaptive.fromDartObject(object!, this);
     }
 
     // coverage:ignore-start
@@ -137,26 +139,168 @@ class WidgetValueDecoder {
     return null;
   }
 
-  static HWColor? decodeColor(DartObject? obj) {
+  /// Decodes the color written into [slot], or null when [obj] is absent.
+  ///
+  /// Throws a [GeneratorError] naming [slot] when [obj] is something other
+  /// than a color: an [HWColor] in any of its forms, wrapped in an [HWJson],
+  /// [HWTimedData] or [HWItemData], or an [HWAppearanceData] picking one.
+  static HWDataType<int>? decodeColor(
+    DartObject? obj, {
+    required String slot,
+  }) {
     if (obj == null || obj.isNull) return null;
 
-    final typeName = obj.type?.element?.name;
-    if (typeName == 'HWFixedColor') {
-      final value = obj.getField('value')?.toIntValue();
-      if (value != null) return HWFixedColor(value);
-    } else if (typeName == 'HWThemedColor') {
-      final light = decodeColor(obj.getField('light'));
-      final dark = decodeColor(obj.getField('dark'));
-      if (light != null && dark != null) {
-        return HWThemedColor(light: light, dark: dark);
-      }
-    } else if (typeName == 'HWDefaultColor') {
-      final roleEnum = decodeEnum(obj.getField('role'), HWColorRole.values);
-      if (roleEnum != null) return HWDefaultColor(roleEnum);
+    final color = decodeDataType(obj);
+    if (color != null && color.readValues.every((v) => v.leaf is HWColor)) {
+      return _asColor(color);
     }
+    final got = color == null
+        ? obj.type?.element?.name
+        : color is HWAppearanceData
+            ? 'an HWAppearanceData of ${_kindName(color.leaf)} values'
+            : _kindName(color.leaf);
+    throw GeneratorError(
+      '$slot takes a color — HWColor("key"), HWColor.fixed(0xAARRGGBB), '
+      'HWDefaultColor(role), or an HWAppearanceData of colors — got $got.',
+    );
+  }
 
+  /// [color], a decoded color whose wrappers carry no type argument, rebuilt
+  /// with the one a color slot is typed with.
+  static HWDataType<int> _asColor(HWDataType<dynamic> color) => switch (color) {
+        final HWColor color => color,
+        HWJson(:final key, :final child) => HWJson<int>(key, _asColor(child)),
+        HWTimedData(:final data) => HWTimedData<int>(_asColor(data)),
+        HWItemData(:final data, :final previewValues) =>
+          HWItemData<int>(_asColor(data), previewValues: previewValues),
+        final HWAppearanceData<dynamic> appearance => HWAppearanceData<int>(
+            light: _asColor(appearance.light),
+            dark: _asColor(appearance.dark),
+            iosAccented: appearance.iosAccented == null
+                ? null
+                : _asColor(appearance.iosAccented!),
+            iosVibrant: appearance.iosVibrant == null
+                ? null
+                : _asColor(appearance.iosVibrant!),
+          ),
+        // coverage:ignore-start
+        _ => throw GeneratorError('Not a color: ${color.runtimeType}'),
+        // coverage:ignore-end
+      };
+
+  /// The kind of value [leaf] is, the way a schema names it: `HWString` for
+  /// any string, `HWColor` for any color.
+  static String _kindName(HWDataType<dynamic> leaf) => switch (leaf) {
+        HWString() => 'HWString',
+        HWColor() => 'HWColor',
+        _ => '${leaf.runtimeType}',
+      };
+
+  /// Decodes an [HWColor] in any of its forms, or null when [typeName] names
+  /// none of them.
+  static HWColor? _decodeColorValue(DartObject obj, String? typeName) {
+    switch (typeName) {
+      case 'HWFixedColor':
+        final value = getField(obj, 'value')?.toIntValue();
+        return value == null ? null : HWFixedColor(value);
+      case 'HWDefaultColor':
+        final role = decodeEnum(getField(obj, 'role'), HWColorRole.values);
+        return role == null ? null : HWDefaultColor(role);
+      case 'HWColor':
+        final key = getField(obj, 'key')?.toStringValue();
+        if (key == null) return null; // coverage:ignore-line
+        return HWColor(
+          key,
+          defaultValue: getField(obj, 'defaultValue')?.toIntValue(),
+          previewValue: getField(obj, 'previewValue')?.toIntValue(),
+        );
+    }
     return null;
   }
+
+  /// Decodes an [HWAppearanceData], checking that every side is a value of
+  /// one kind and none is another [HWAppearanceData].
+  static HWAppearanceData<dynamic>? _decodeAppearanceData(
+    DartObject obj, {
+    String? defaultLocale,
+    String? resourcePrefix,
+  }) {
+    HWDataType<dynamic>? side(String name) {
+      final sideObj = getField(obj, name);
+      if (sideObj == null || sideObj.isNull) return null;
+      if (sideObj.type?.element?.name == 'HWAppearanceData') {
+        throw GeneratorError(
+          'An HWAppearanceData cannot be the $name side of another one. Put '
+          'every variant into one HWAppearanceData(light: ..., dark: ..., '
+          'iosAccented: ..., iosVibrant: ...).',
+        );
+      }
+      final decoded = decodeDataType(
+        sideObj,
+        defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
+      );
+      if (decoded == null) {
+        // coverage:ignore-start
+        throw GeneratorError(
+          'The $name side of HWAppearanceData could not be read as a data '
+          'type: ${sideObj.type?.element?.name}.',
+        );
+        // coverage:ignore-end
+      }
+      return decoded;
+    }
+
+    final light = side('light');
+    final dark = side('dark');
+    if (light == null || dark == null) return null; // coverage:ignore-line
+    final appearance = HWAppearanceData<dynamic>(
+      light: light,
+      dark: dark,
+      iosAccented: side('iosAccented'),
+      iosVibrant: side('iosVibrant'),
+    );
+
+    final kinds = {
+      for (final value in appearance.sides) _kindName(value.leaf),
+    };
+    if (kinds.length > 1) {
+      throw GeneratorError(
+        'The sides of an HWAppearanceData hold different kinds of values '
+        '(${kinds.join(', ')}). Every side is shown in the same place, so they '
+        'all have to be of one kind.',
+      );
+    }
+
+    final fonts = {
+      for (final value in appearance.sides)
+        if (iconLeafOf(value)?.iconFont case final font?) font,
+    };
+    if (fonts.length > 1) {
+      throw GeneratorError(
+        'The icon sides of an HWAppearanceData come from more than one font '
+        '(${fonts.join(' and ')}). An HWIcon draws whichever side it picks out '
+        'of one font file, so they all have to share it.',
+      );
+    }
+    return appearance;
+  }
+
+  /// The error for an [HWAppearanceData] naming the setting of [owner], which
+  /// is how a value is formatted rather than a value that is shown.
+  static GeneratorError _appearanceSetting(String owner) => GeneratorError(
+        '$owner.data cannot be an HWAppearanceData: it names how a value is '
+        'formatted, not a value that is shown. Pass a stored field, or pick '
+        'between whole layouts with HWAppearanceAdaptive.',
+      );
+
+  /// The error for an [HWAppearanceData] written inside [wrapper], which
+  /// has to go inside each of its sides instead.
+  static GeneratorError _appearanceInside(String wrapper) => GeneratorError(
+        'HWAppearanceData cannot sit inside $wrapper: it picks between whole '
+        'values, so it is always the outermost wrapper. Write '
+        'HWAppearanceData(light: $wrapper(...), dark: $wrapper(...)) instead.',
+      );
 
   static DartObject? getField(DartObject obj, String name) {
     var field = obj.getField(name);
@@ -179,7 +323,10 @@ class WidgetValueDecoder {
     final fontSize = getField(obj, 'fontSize')?.toDoubleValue();
     final fontWeight =
         decodeEnum(getField(obj, 'fontWeight'), HWFontWeight.values);
-    final color = decodeColor(getField(obj, 'color'));
+    final color = decodeColor(
+      getField(obj, 'color'),
+      slot: '${typeName ?? 'HWTextStyle'}.color',
+    );
     final italic = getField(obj, 'italic')?.toBoolValue();
     final underline = getField(obj, 'underline')?.toBoolValue();
     final lineThrough = getField(obj, 'lineThrough')?.toBoolValue();
@@ -431,7 +578,10 @@ class WidgetValueDecoder {
     if (obj == null || obj.isNull) return null;
 
     return HWBoxDecoration(
-      color: decodeColor(getField(obj, 'color')),
+      color: decodeColor(
+        getField(obj, 'color'),
+        slot: 'HWBoxDecoration.color',
+      ),
       border: decodeBoxBorder(getField(obj, 'border')),
       borderRadius: decodeBorderRadius(getField(obj, 'borderRadius')),
     );
@@ -459,7 +609,8 @@ class WidgetValueDecoder {
   static HWBoxBorder? decodeBoxBorder(DartObject? obj) {
     if (obj == null || obj.isNull) return null;
 
-    final color = decodeColor(getField(obj, 'color'));
+    final color =
+        decodeColor(getField(obj, 'color'), slot: 'HWBoxBorder.color');
     if (color == null) return null;
 
     return HWBoxBorder(
@@ -571,6 +722,7 @@ class WidgetValueDecoder {
           throw GeneratorError('HWCurrency.data has no data');
           // coverage:ignore-end
         }
+        if (data is HWAppearanceData) throw _appearanceSetting('HWCurrency');
         return HWDataCurrency(data);
     }
     throw GeneratorError('Unknown currency type: $typeName');
@@ -601,6 +753,7 @@ class WidgetValueDecoder {
           throw GeneratorError('HWTimeZone.data has no data');
           // coverage:ignore-end
         }
+        if (data is HWAppearanceData) throw _appearanceSetting('HWTimeZone');
         return HWDataTimeZone(data);
     }
     throw GeneratorError('Unknown time zone type: $typeName');
@@ -672,6 +825,16 @@ class WidgetValueDecoder {
       return decodeIconData(obj);
     }
 
+    if (_decodeColorValue(obj, typeName) case final color?) return color;
+
+    if (typeName == 'HWAppearanceData') {
+      return _decodeAppearanceData(
+        obj,
+        defaultLocale: defaultLocale,
+        resourcePrefix: resourcePrefix,
+      );
+    }
+
     final key = getField(obj, 'key')?.toStringValue();
     if (key == null) return null;
 
@@ -734,8 +897,13 @@ class WidgetValueDecoder {
       );
     } else if (typeName == 'HWTimedData') {
       final dataObj = getField(obj, 'data');
-      if (dataObj != null && dataObj.type?.element?.name == 'HWTimedData') {
-        throw GeneratorError('HWTimedData cannot be nested inside HWTimedData');
+      switch (dataObj?.type?.element?.name) {
+        case 'HWTimedData':
+          throw GeneratorError(
+            'HWTimedData cannot be nested inside HWTimedData',
+          );
+        case 'HWAppearanceData':
+          throw _appearanceInside('HWTimedData');
       }
       final inner = decodeDataType(
         dataObj,
@@ -763,6 +931,8 @@ class WidgetValueDecoder {
             'HWItemData cannot wrap another HWItemData. A field reads the item '
             'of the builder it sits in, so wrap it in HWItemData once.',
           );
+        case 'HWAppearanceData':
+          throw _appearanceInside('HWItemData');
       }
       final inner = decodeDataType(
         dataObj,
@@ -796,6 +966,8 @@ class WidgetValueDecoder {
             'on its own, inside the item of an HWColumn.builder or '
             'HWRow.builder.',
           );
+        case 'HWAppearanceData':
+          throw _appearanceInside('HWJson');
       }
       final child = decodeDataType(
         childObj,
@@ -810,7 +982,8 @@ class WidgetValueDecoder {
           child is! HWDateTime &&
           child is! HWJson &&
           child is! HWImageData &&
-          child is! HWIconData) {
+          child is! HWIconData &&
+          child is! HWColor) {
         return null;
       }
       return HWJson(key, child);
@@ -843,6 +1016,13 @@ class WidgetValueDecoder {
         throw GeneratorError(
           'Entry $index of the data of $owner could not be read as a data '
           'type: ${entry?.type?.element?.name}.',
+        );
+      }
+      if (value is HWAppearanceData) {
+        throw GeneratorError(
+          'Entry $index of the data of $owner is an HWAppearanceData. A tap '
+          'sends one value, not one that depends on how the widget is shown: '
+          'send a stored field of its own instead.',
         );
       }
       return value;
@@ -910,6 +1090,7 @@ class WidgetValueDecoder {
       HWDouble() => entry.toDoubleValue() ?? entry.toIntValue()?.toDouble(),
       HWBool() => entry.toBoolValue(),
       HWIconData() => decodeIconCodePoint(entry),
+      HWColor() => entry.toIntValue(),
       _ => entry.toStringValue(),
     };
     if (value == null) {
@@ -931,6 +1112,7 @@ class WidgetValueDecoder {
         HWDouble() => 'a number',
         HWBool() => 'a bool',
         HWIconData() => 'an IconData such as Icons.wb_sunny',
+        HWColor() => 'an ARGB int such as 0xFF6750A4',
         HWDateTime() => 'an ISO 8601 String',
         HWImageData() => 'the String path of a Flutter asset',
         _ => 'a String',

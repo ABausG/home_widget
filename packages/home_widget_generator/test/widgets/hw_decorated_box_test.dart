@@ -158,16 +158,16 @@ void main() {
         );
       });
 
-      test('themed colors contribute colorScheme environment', () {
+      test('appearance-aware colors contribute the environment', () {
         const node = HWDecoratedBox(
           decoration: HWBoxDecoration(
-            color: HWThemedColor(
+            color: HWAppearanceData(
               light: HWFixedColor(0xFFFFFFFF),
               dark: HWFixedColor(0xFF000000),
             ),
             border: HWBoxBorder(
               thickness: 1,
-              color: HWThemedColor(
+              color: HWAppearanceData(
                 light: HWFixedColor(0xFF111111),
                 dark: HWFixedColor(0xFFEEEEEE),
               ),
@@ -178,8 +178,42 @@ void main() {
 
         expect(
           node.swiftViewModifiers,
-          contains('@Environment(\\.colorScheme) var colorScheme'),
+          contains('@Environment(\\.self) var hwEnvironment'),
         );
+      });
+
+      test('stored fill and border are fields painting nothing without a value',
+          () {
+        const node = HWDecoratedBox(
+          decoration: HWBoxDecoration(
+            color: HWColor('fill'),
+            border: HWBoxBorder(thickness: 2, color: HWColor('stroke')),
+          ),
+          child: HWText(HWString.fixed('Theme')),
+        );
+        expect(
+          node.dataDependencies,
+          containsAll([const HWColor('fill'), const HWColor('stroke')]),
+        );
+        expect(
+          node.ownValues,
+          [const HWColor('fill'), const HWColor('stroke')],
+        );
+        final swift = node.toSwift(0, dataExpr: 'data');
+        expect(
+          swift,
+          contains('.background((hwColor(data.fill) ?? Color.clear))'),
+        );
+        expect(
+          swift,
+          contains(
+            '.strokeBorder((hwColor(data.stroke) ?? Color.clear), '
+            'lineWidth: 2.0)',
+          ),
+        );
+        final kotlin = node.toKotlin(0, dataExpr: 'data');
+        expect(kotlin, contains('background((hwColor(data.stroke) ?: '));
+        expect(kotlin, contains('background((hwColor(data.fill) ?: '));
       });
     });
 

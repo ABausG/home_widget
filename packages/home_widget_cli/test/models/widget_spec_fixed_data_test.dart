@@ -118,7 +118,10 @@ void main() {
         const HWText.dateTime(HWDateTime.fixed('2026-09-22T10:00:00Z')),
       );
 
-      expect(spec.nativeHelpers, contains(HWNativeHelper.hwParseIsoDate));
+      expect(
+        spec.androidNativeHelpers,
+        contains(HWNativeHelper.hwParseIsoDate),
+      );
     });
 
     group('previewContentHash', () {
@@ -136,7 +139,7 @@ void main() {
         );
 
         expect(spec.previewContentHash, '074eeec1');
-        expect(spec.nativeHelpers, [
+        expect(spec.androidNativeHelpers, [
           HWNativeHelper.hwFormatLocale,
           HWNativeHelper.hwFormatPercent,
         ]);

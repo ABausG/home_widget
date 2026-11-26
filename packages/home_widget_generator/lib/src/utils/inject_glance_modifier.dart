@@ -31,7 +31,23 @@
 
 /// Matches the separator between two branches of an `if` chain, i.e. the
 /// `} else {` / `} else if (...) {` glue (the trailing `{` excluded).
-final _elseSeparator = RegExp(r'^\}\s*else\b[^{]*$', dotAll: true);
+final _elseSeparator = RegExp(r'^\}\s*else\b');
+
+/// The index of the `{` opening the next branch block at or after [from], or
+/// `-1`.
+///
+/// A condition in parentheses comes before it and may hold braces of its own,
+/// as the lambdas of a value picked by the appearance do, so the block opens
+/// after the parenthesis closing the condition.
+int _branchOpen(String code, int from) {
+  final paren = code.indexOf('(', from);
+  final brace = code.indexOf('{', from);
+  if (paren != -1 && (brace == -1 || paren < brace)) {
+    final condition = _argumentRange(code, paren);
+    if (condition != null) return code.indexOf('{', condition.$2 + 1);
+  }
+  return brace;
+}
 
 /// Returns the index of the `}` matching the `{` at [openIndex], or `-1`.
 ///
@@ -83,7 +99,7 @@ String? _injectIntoIfBranches(
   final buffer = StringBuffer();
 
   while (true) {
-    final open = code.indexOf('{', cursor);
+    final open = _branchOpen(code, cursor);
     if (open == -1) break;
 
     final close = _matchingBrace(code, open);
@@ -101,9 +117,7 @@ String? _injectIntoIfBranches(
     cursor = close;
 
     // Continue only while the blocks are chained by `else` / `else if`.
-    final nextOpen = code.indexOf('{', close);
-    if (nextOpen == -1) break;
-    if (!_elseSeparator.hasMatch(code.substring(close, nextOpen))) break;
+    if (!_elseSeparator.hasMatch(code.substring(close))) break;
   }
 
   if (buffer.isEmpty) return null;
@@ -252,6 +266,31 @@ String _singleAxisForm(String call, GlanceSizeAxis axis) {
   };
 }
 
+/// The imports of the calls [injectGlanceModifier] leaves behind when a
+/// modifier sizing [injected] alone lands on a chain imported by
+/// [chainImports].
+///
+/// A call sizing both axes keeps the other axis in its single-axis form,
+/// `size(24.0.dp)` becoming `height(24.0.dp)`, which the chain itself never
+/// imported.
+Set<String> glanceSingleAxisImports(
+  Set<String> chainImports,
+  Set<GlanceSizeAxis> injected,
+) {
+  if (injected.isEmpty) return const {};
+  const layout = 'import androidx.glance.layout';
+  return {
+    for (final axis in GlanceSizeAxis.values)
+      if (!injected.contains(axis)) ...{
+        if (chainImports.contains('$layout.size')) '$layout.${axis.name}',
+        if (chainImports.contains('$layout.fillMaxSize'))
+          '$layout.fillMax${axis.suffix}',
+        if (chainImports.contains('$layout.wrapContentSize'))
+          '$layout.wrapContent${axis.suffix}',
+      },
+  };
+}
+
 /// Whether a call of [chain] fills both axes, which is what leaves an injected
 /// fill along one of them nothing to say.
 ///
@@ -358,9 +397,14 @@ String injectGlanceModifier(
   }
 
   final compMatch = RegExp(r'^[A-Z][a-zA-Z0-9_]*').firstMatch(trimmed);
-  if (compMatch != null) {
+  final argRange =
+      compMatch == null ? null : _argumentRange(trimmed, compMatch.end);
+  // Only a call is a composable: `HomeWidgetAppearance.pick(...)?.let { }`
+  // names an object, and is wrapped like any other `?.let`.
+  if (compMatch != null &&
+      (argRange != null ||
+          trimmed.substring(compMatch.end).trimLeft().startsWith('{'))) {
     final compName = compMatch.group(0);
-    final argRange = _argumentRange(trimmed, compMatch.end);
     final declared =
         argRange == null ? null : trimmed.substring(argRange.$1, argRange.$2);
     final callEnd = argRange == null ? compMatch.end : argRange.$2 + 1;

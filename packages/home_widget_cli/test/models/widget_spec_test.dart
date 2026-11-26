@@ -617,9 +617,9 @@ void main() {
         widgetTree: const HWText(HWJson('profile', leaf)),
       );
 
-      expect(spec.needsLocaleHelpers, isTrue);
-      expect(spec.needsLocalizedRead, isFalse);
-      expect(spec.rendersLocalizedContent, isTrue);
+      expect(spec.androidNeedsLocaleHelpers, isTrue);
+      expect(spec.androidNeedsLocalizedRead, isFalse);
+      expect(spec.androidRendersLocalizedContent, isTrue);
       // A JSON leaf is never a data field of its own.
       expect(spec.keyedLocalizedStrings, isEmpty);
     });
@@ -633,18 +633,18 @@ void main() {
       // It is still a localized string of the widget, it is just never read
       // against a locale: the group is stored and decoded as it is.
       expect(spec.jsonLocalizedStrings, const [leaf]);
-      expect(spec.nativeHelpers, isEmpty);
-      expect(spec.needsLocaleHelpers, isFalse);
-      expect(spec.needsLocalizedRead, isFalse);
-      expect(spec.rendersLocalizedContent, isFalse);
+      expect(spec.androidNativeHelpers, isEmpty);
+      expect(spec.androidNeedsLocaleHelpers, isFalse);
+      expect(spec.androidNeedsLocalizedRead, isFalse);
+      expect(spec.androidRendersLocalizedContent, isFalse);
     });
 
     test('a plain JSON leaf pulls in nothing', () {
       final spec = _spec(dataFields: const [HWJson('profile', HWString('a'))]);
 
       expect(spec.jsonLocalizedStrings, isEmpty);
-      expect(spec.needsLocaleHelpers, isFalse);
-      expect(spec.rendersLocalizedContent, isFalse);
+      expect(spec.androidNeedsLocaleHelpers, isFalse);
+      expect(spec.androidRendersLocalizedContent, isFalse);
     });
 
     test('surfaces a timed localized field without keying it', () {
@@ -656,13 +656,13 @@ void main() {
       // must stay out of the generated code...
       expect(spec.localizedStrings, isEmpty);
       expect(spec.keyedLocalizedStrings, isEmpty);
-      expect(spec.needsLocalizedRead, isFalse);
+      expect(spec.androidNeedsLocalizedRead, isFalse);
       // ...while the resolver, the locale argument and the re-render on a
       // language change are all still needed.
-      expect(spec.needsTimedLocalizedRead, isTrue);
-      expect(spec.resolvesLocalizedOnRead, isTrue);
-      expect(spec.needsLocaleHelpers, isTrue);
-      expect(spec.rendersLocalizedContent, isTrue);
+      expect(spec.androidNeedsTimedLocalizedRead, isTrue);
+      expect(spec.androidResolvesLocalizedOnRead, isTrue);
+      expect(spec.androidNeedsLocaleHelpers, isTrue);
+      expect(spec.androidRendersLocalizedContent, isTrue);
     });
 
     test('surfaces a localized leaf of a timed JSON group', () {
@@ -677,28 +677,28 @@ void main() {
       // reads a stored translation map for it.
       expect(spec.jsonLocalizedStrings, isEmpty);
       expect(spec.timedLocalizedStrings, isEmpty);
-      expect(spec.needsTimedLocalizedRead, isFalse);
-      expect(spec.resolvesLocalizedOnRead, isFalse);
-      expect(spec.needsLocaleHelpers, isTrue);
-      expect(spec.rendersLocalizedContent, isTrue);
+      expect(spec.androidNeedsTimedLocalizedRead, isFalse);
+      expect(spec.androidResolvesLocalizedOnRead, isFalse);
+      expect(spec.androidNeedsLocaleHelpers, isTrue);
+      expect(spec.androidRendersLocalizedContent, isTrue);
     });
 
     test('an untimed keyed string keeps driving the per-key read', () {
       final spec = _spec(dataFields: const [top, HWTimedData(HWInt('count'))]);
 
       expect(spec.keyedLocalizedStrings, const [top]);
-      expect(spec.needsLocalizedRead, isTrue);
-      expect(spec.needsTimedLocalizedRead, isFalse);
-      expect(spec.resolvesLocalizedOnRead, isTrue);
+      expect(spec.androidNeedsLocalizedRead, isTrue);
+      expect(spec.androidNeedsTimedLocalizedRead, isFalse);
+      expect(spec.androidResolvesLocalizedOnRead, isTrue);
     });
 
     test('a plain timed field pulls in nothing', () {
       final spec = _spec(dataFields: const [HWTimedData(HWString('label'))]);
 
       expect(spec.allLocalizedStrings, isEmpty);
-      expect(spec.needsLocaleHelpers, isFalse);
-      expect(spec.resolvesLocalizedOnRead, isFalse);
-      expect(spec.rendersLocalizedContent, isFalse);
+      expect(spec.androidNeedsLocaleHelpers, isFalse);
+      expect(spec.androidResolvesLocalizedOnRead, isFalse);
+      expect(spec.androidRendersLocalizedContent, isFalse);
     });
 
     test('a constant string resolves through the OS, not through a helper', () {
@@ -714,13 +714,13 @@ void main() {
         widgetTree: const HWText(constant),
       );
 
-      expect(spec.needsLocaleHelpers, isFalse);
-      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.androidNeedsLocaleHelpers, isFalse);
+      expect(spec.androidNativeHelpers, isEmpty);
     });
 
     test('a keyed string resolves to the whole localization closure', () {
       final spec = _spec(dataFields: const [top]);
-      expect(spec.nativeHelpers.toSet(), {
+      expect(spec.androidNativeHelpers.toSet(), {
         HWNativeHelper.hwCurrentLocales,
         HWNativeHelper.hwResolveLocalized,
         HWNativeHelper.hwLocalizedEntries,
@@ -732,7 +732,7 @@ void main() {
 
     test('a timed keyed string reads the entry instead of a key', () {
       final spec = _spec(dataFields: const [HWTimedData(top)]);
-      expect(spec.nativeHelpers.toSet(), {
+      expect(spec.androidNativeHelpers.toSet(), {
         HWNativeHelper.hwCurrentLocales,
         HWNativeHelper.hwResolveLocalized,
         HWNativeHelper.hwLocalizedEntries,
@@ -750,14 +750,14 @@ void main() {
         _spec(
           dataFields: const [HWJson('profile', leaf)],
           widgetTree: const HWText(HWJson('profile', leaf)),
-        ).nativeHelpers.toSet(),
+        ).androidNativeHelpers.toSet(),
         expected,
       );
       expect(
         _spec(
           dataFields: const [HWTimedData(HWJson('profile', leaf))],
           widgetTree: const HWText(HWTimedData(HWJson('profile', leaf))),
-        ).nativeHelpers.toSet(),
+        ).androidNativeHelpers.toSet(),
         expected,
       );
     });
@@ -775,11 +775,52 @@ void main() {
 
       // Nothing displays the leaf, but the preview factory still resolves the
       // sample text while decoding the group.
-      expect(spec.nativeHelpers.toSet(), {
+      expect(spec.androidNativeHelpers.toSet(), {
         HWNativeHelper.hwCurrentLocales,
         HWNativeHelper.hwResolveLocalized,
       });
-      expect(spec.needsLocaleHelpers, isTrue);
+      expect(spec.androidNeedsLocaleHelpers, isTrue);
+      expect(spec.iosNeedsLocaleHelpers, isTrue);
+    });
+
+    test('each platform reads the locales for what it renders alone', () {
+      const item = HWColumn.builder(
+        'rows',
+        item: HWText(HWItemData<String>(leaf)),
+      );
+      const json = HWText(HWJson('profile', leaf));
+      const fixed = HWText(HWString.fixed('x'));
+
+      WidgetSpec specOf(HWWidget tree) => _spec(
+            dataFields: tree.dataDependencies.toList(),
+            widgetTree: tree,
+          );
+
+      for (final tree in const <HWWidget>[
+        HWAdaptive(ios: item, android: fixed),
+        HWAdaptive(ios: json, android: fixed),
+        HWAppearanceAdaptive(light: fixed, dark: fixed, iosAccented: json),
+        HWAppearanceAdaptive(light: fixed, dark: fixed, iosVibrant: item),
+      ]) {
+        final spec = specOf(tree);
+        expect(spec.androidNeedsLocaleHelpers, isFalse);
+        expect(spec.androidRendersLocalizedContent, isFalse);
+        expect(spec.iosNeedsLocaleHelpers, isTrue);
+      }
+
+      for (final tree in const <HWWidget>[
+        HWAdaptive(ios: fixed, android: item),
+        HWAdaptive(ios: fixed, android: json),
+        HWSizeAdaptive(
+          small: fixed,
+          androidSizeRanges: [HWAndroidSizeRange(minWidth: 300, child: json)],
+        ),
+      ]) {
+        final spec = specOf(tree);
+        expect(spec.androidNeedsLocaleHelpers, isTrue);
+        expect(spec.androidRendersLocalizedContent, isTrue);
+        expect(spec.iosNeedsLocaleHelpers, isFalse);
+      }
     });
   });
 
@@ -795,7 +836,7 @@ void main() {
           dataFields: [tree.dataType],
           widgetTree: tree,
         );
-        expect(spec.nativeHelpers, [HWNativeHelper.hwDecodeImage]);
+        expect(spec.androidNativeHelpers, [HWNativeHelper.hwDecodeImage]);
       }
     });
 
@@ -804,7 +845,7 @@ void main() {
         dataFields: const [HWImageData('avatar')],
         widgetTree: const HWText(HWString.fixed('no image here')),
       );
-      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.androidNativeHelpers, isEmpty);
     });
 
     test('the decoder does not make the widget locale-dependent', () {
@@ -1026,7 +1067,7 @@ void main() {
       expect(spec.widgetUrl, isNotNull);
       expect(spec.hasWidgetUrl, isFalse);
       expect(spec.launchTargets, isEmpty);
-      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.androidNativeHelpers, isEmpty);
     });
 
     test('the homeWidget parameter is appended on both platforms', () {
@@ -1054,7 +1095,7 @@ void main() {
         ['city', 'days'],
       );
       expect(
-        spec.nativeHelpers,
+        spec.androidNativeHelpers,
         containsAll([
           HWNativeHelper.hwPayloadUrl,
           HWNativeHelper.hwPayloadValue,
@@ -1358,6 +1399,38 @@ void main() {
       expect(spec.iosIgnoredLinks, isEmpty);
     });
 
+    test('every slot of an appearance adaptive root opens through widgetURL',
+        () {
+      final spec = linkSpec(
+        const HWAppearanceAdaptive(
+          light: history,
+          dark: HWPadding(padding: HWEdgeInsets.all(4), child: forecast),
+          iosVibrant: HWSizeAdaptive(
+            small: history,
+            accessoryCircular: forecast,
+          ),
+        ),
+        families: const [
+          HWWidgetFamily.systemSmall,
+          HWWidgetFamily.accessoryCircular,
+        ],
+      );
+      expect(spec.iosWidgetUrlLinks, [history, forecast]);
+      expect(spec.iosIgnoredLinks, isEmpty);
+    });
+
+    test('either branch of a conditional root opens through widgetURL', () {
+      final spec = linkSpec(
+        const HWDataExists(
+          data: HWString('city'),
+          whenPresent: forecast,
+          whenAbsent: HWColumn(children: [history]),
+        ),
+      );
+      expect(spec.iosWidgetUrlLinks, [forecast]);
+      expect(spec.iosIgnoredLinks, [history]);
+    });
+
     test('a root that is neither a link nor size adaptive names none', () {
       final spec = linkSpec(const HWColumn(children: [history]));
       expect(spec.iosWidgetUrlLinks, isEmpty);
@@ -1481,16 +1554,16 @@ void main() {
     });
   });
 
-  group('WidgetSpec.nativeHelpers', () {
+  group('WidgetSpec.androidNativeHelpers', () {
     List<String> namesOf(WidgetSpec spec) =>
-        spec.nativeHelpers.map((h) => h.name).toList();
+        spec.androidNativeHelpers.map((h) => h.name).toList();
 
     test('a widget with no numbers and no dates needs none', () {
       final spec = _spec(
         dataFields: const [HWString('label')],
         widgetTree: const HWText(HWString('label')),
       );
-      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.androidNativeHelpers, isEmpty);
     });
 
     test('a decimal number pulls in the locale helper it calls', () {
@@ -1587,14 +1660,14 @@ void main() {
         dataFields: const [HWInt('count')],
         widgetTree: const HWText(HWString.fixed('static')),
       );
-      expect(spec.nativeHelpers, isEmpty);
+      expect(spec.androidNativeHelpers, isEmpty);
     });
 
     test('every helper comes after the ones it calls', () {
       final spec = _spec(
         dataFields: const [HWInt('count'), HWDateTime('when')],
       );
-      final ordered = spec.nativeHelpers;
+      final ordered = spec.androidNativeHelpers;
       for (var i = 0; i < ordered.length; i++) {
         for (final dependency in ordered[i].dependencies) {
           expect(
@@ -1669,11 +1742,36 @@ void main() {
               data: [HWString('zone')],
               child: HWText(HWString.fixed('zone')),
             ),
+            HWAppearanceAdaptive(
+              light: HWImage(
+                HWImageData('avatar'),
+                iosAccentedRendering: HWAccentedRendering.fullColor,
+              ),
+              dark: HWColoredBox(
+                color: HWAppearanceData(
+                  light: HWColor('light'),
+                  dark: HWColor('dark'),
+                ),
+                child: HWText(HWString.fixed('dark')),
+              ),
+            ),
+            HWImage(
+              HWAppearanceData(
+                light: HWImageData('avatar'),
+                dark: HWImageData.asset('assets/dark.png'),
+              ),
+            ),
+            HWText(
+              HWAppearanceData(
+                light: HWString.fixed('day'),
+                dark: HWString('zone'),
+              ),
+            ),
           ],
         ),
       );
 
-      final ordered = spec.nativeHelpers;
+      final ordered = spec.androidNativeHelpers;
       expect(ordered.toSet(), HWNativeHelper.values.toSet());
       expect(ordered, hasLength(HWNativeHelper.values.length));
       for (var i = 0; i < ordered.length; i++) {
@@ -3188,10 +3286,10 @@ void main() {
       expect(spec.allLocalizedStrings, const [label]);
       expect(spec.localizedStrings, isEmpty);
       expect(spec.keyedLocalizedStrings, isEmpty);
-      expect(spec.needsLocaleHelpers, isTrue);
-      expect(spec.needsLocalizedRead, isFalse);
-      expect(spec.rendersLocalizedContent, isTrue);
-      expect(spec.nativeHelpers.toSet(), {
+      expect(spec.androidNeedsLocaleHelpers, isTrue);
+      expect(spec.androidNeedsLocalizedRead, isFalse);
+      expect(spec.androidRendersLocalizedContent, isTrue);
+      expect(spec.androidNativeHelpers.toSet(), {
         HWNativeHelper.hwCurrentLocales,
         HWNativeHelper.hwResolveLocalized,
       });
@@ -3212,8 +3310,8 @@ void main() {
 
       expect(spec.allLocalizedStrings, const [label]);
       expect(spec.timedLocalizedStrings, isEmpty);
-      expect(spec.needsTimedLocalizedRead, isFalse);
-      expect(spec.resolvesLocalizedOnRead, isFalse);
+      expect(spec.androidNeedsTimedLocalizedRead, isFalse);
+      expect(spec.androidResolvesLocalizedOnRead, isFalse);
     });
 
     test('an item date nothing renders still pulls in the parser', () {
@@ -3225,7 +3323,10 @@ void main() {
         ),
       );
 
-      expect(spec.nativeHelpers, contains(HWNativeHelper.hwParseIsoDate));
+      expect(
+        spec.androidNativeHelpers,
+        contains(HWNativeHelper.hwParseIsoDate),
+      );
     });
 
     test('hasPreviewValues counts a list with sample items', () {

@@ -28,31 +28,64 @@ void main() {
         if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper),
-          contains('private fun ${helper.name}('),
+          // A helper taking lambdas a composable reads in is inline, and a
+          // generic one names its type parameters before its own name.
+          contains(
+            RegExp('private (inline )?fun (<[^>]+> )?${helper.kotlinName}\\('),
+          ),
           reason: '${helper.name} Kotlin body',
         );
       }
     });
 
+    test('names a composable like a type, anything else by its own name', () {
+      for (final helper in HWNativeHelper.values) {
+        if (helper.composable) {
+          expect(helper.kotlinName, matches(RegExp('^[A-Z]')));
+          expect(helper.kotlinName.toLowerCase(), helper.name.toLowerCase());
+          expect(
+            kotlinOf(helper),
+            startsWith('@Composable\nprivate fun ${helper.kotlinName}('),
+            reason: helper.name,
+          );
+        } else {
+          expect(helper.kotlinName, helper.name);
+        }
+      }
+      expect(HWNativeHelper.hwAppearanceImage.kotlinName, 'HwAppearanceImage');
+    });
+
     test('is Swift file scope and Kotlin private top level', () {
       for (final helper in HWNativeHelper.values) {
-        expect(
-          swiftOf(helper).trimLeft(),
-          anyOf(
-            startsWith('func '),
-            // A helper keeping state of its own declares a private type for
-            // it first, and the function it is emitted as after that.
-            allOf(
-              startsWith('private final class '),
-              contains('\nfunc ${helper.name}('),
+        if (helper.swift != null) {
+          expect(
+            swiftOf(helper).trimLeft(),
+            anyOf(
+              startsWith('func '),
+              // A helper keeping state of its own declares a private type for
+              // it first, and the function it is emitted as after that.
+              allOf(
+                startsWith('private final class '),
+                contains('\nfunc ${helper.name}('),
+              ),
             ),
-          ),
-          reason: '${helper.name} Swift body',
-        );
+            reason: '${helper.name} Swift body',
+          );
+        }
         if (helper.kotlin == null) continue;
         expect(
           kotlinOf(helper).trimLeft(),
-          startsWith('private fun '),
+          anyOf(
+            startsWith('private fun '),
+            startsWith('private inline fun '),
+            startsWith('@Composable\nprivate fun '),
+            // A helper keeping state of its own declares it first, and the
+            // function it is emitted as after that.
+            allOf(
+              startsWith('private val '),
+              contains('\nprivate fun ${helper.kotlinName}('),
+            ),
+          ),
           reason: '${helper.name} Kotlin body',
         );
       }
@@ -208,7 +241,7 @@ void main() {
           );
           expect(
             kotlinOf(helper),
-            isNot(contains('${other.name}(')),
+            isNot(contains('${other.kotlinName}(')),
             reason: '${helper.name} calls ${other.name} undeclared (Kotlin)',
           );
         }
@@ -259,6 +292,16 @@ void main() {
         HWNativeHelper.hwPayloadValue,
         HWNativeHelper.hwPayloadUrl,
         HWNativeHelper.hwLink,
+        HWNativeHelper.hwColor,
+        HWNativeHelper.hwReadColor,
+        HWNativeHelper.hwIsAccented,
+        HWNativeHelper.hwIsVibrant,
+        HWNativeHelper.hwAccentedRendering,
+        HWNativeHelper.hwIsNight,
+        HWNativeHelper.hwAppearance,
+        HWNativeHelper.hwDayNight,
+        HWNativeHelper.hwAppearanceColor,
+        HWNativeHelper.hwAppearanceImage,
       };
       for (final helper in HWNativeHelper.values) {
         expect(
@@ -825,6 +868,26 @@ void main() {
       expect(kotlinOf(helper), contains('inSampleSize = sampleSize(bounds)'));
     });
 
+    test('sizes an undeclared axis by the aspect ratio, not the flat cap', () {
+      final swift = swiftOf(helper);
+      expect(swift, contains('kCGImagePropertyPixelWidth'));
+      expect(swift, contains('kCGImagePropertyOrientation'));
+      expect(
+        swift,
+        contains(
+          'let targetWidth = widthPx ?? heightPx.map { \$0 * aspect } '
+          '?? fallback',
+        ),
+      );
+      expect(
+        swift,
+        contains(
+          'let targetHeight = heightPx ?? widthPx.map { \$0 / aspect } '
+          '?? fallback',
+        ),
+      );
+    });
+
     test('reads an unusable source as no image', () {
       expect(swiftOf(helper), contains('-> UIImage?'));
       expect(kotlinOf(helper), contains('catch (_: Exception)'));
@@ -836,11 +899,82 @@ void main() {
         'import android.content.Context',
         'import android.graphics.Bitmap',
         'import android.graphics.BitmapFactory',
+        'import java.io.File',
+        'import java.lang.ref.WeakReference',
       });
+    });
+
+    test('hands a bitmap out again while anything still holds it', () {
+      final kotlin = kotlinOf(helper);
+      expect(
+        kotlin,
+        startsWith(
+          'private val hwDecodedImages = '
+          'mutableMapOf<String, WeakReference<Bitmap>>()',
+        ),
+      );
+      expect(
+        kotlin,
+        allOf([
+          contains('file?.lastModified(),'),
+          contains('file?.length(),'),
+          contains('widthDp,'),
+          contains('heightDp,'),
+          contains('metrics.density,'),
+          contains('metrics.widthPixels,'),
+          contains('metrics.heightPixels,'),
+          contains(').joinToString("|")'),
+        ]),
+      );
+      expect(
+        kotlin,
+        contains('hwDecodedImages[key]?.get()?.let { return it }'),
+      );
+      expect(kotlin, contains('hwDecodedImages[key] = WeakReference(bitmap)'));
+      expect(kotlin, contains('removeAll { it.get() == null }'));
     });
 
     test('depends on nothing', () {
       expect(helper.dependencies, isEmpty);
+    });
+  });
+
+  group('the appearance helpers', () {
+    test('resolve each side of a color in its own appearance', () {
+      final kotlin = kotlinOf(HWNativeHelper.hwAppearanceColor);
+      expect(kotlin, contains('val day = light ?: dark ?: return null'));
+      expect(
+        kotlin,
+        contains(
+          'day = day.getColor(HomeWidgetAppearance.configurationContext('
+          'context, night = false))',
+        ),
+      );
+      expect(
+        kotlin,
+        contains(
+          'night = (dark ?: day).getColor('
+          'HomeWidgetAppearance.configurationContext(context, night = true))',
+        ),
+      );
+    });
+
+    test('hand an image pair to the launcher only where it differs', () {
+      final kotlin = kotlinOf(HWNativeHelper.hwAppearanceImage);
+      expect(
+        kotlin,
+        contains(
+          'if (images.day === images.night || '
+          'Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {',
+        ),
+      );
+      expect(kotlin, contains('HomeWidgetAppearance.image('));
+      expect(
+        kotlin,
+        contains('colorFilter = tint?.let { ColorFilter.tint(it) }'),
+      );
+      expect(kotlin, contains('HomeWidgetAppearance.DayNight('));
+      expect(kotlin, isNot(contains('tint?.getColor')));
     });
   });
 

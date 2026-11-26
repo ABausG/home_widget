@@ -289,6 +289,17 @@ void main() {
       );
     });
 
+    test('may repeat across the slots of an HWAppearanceAdaptive', () {
+      final spec = _spec(
+        HWAppearanceAdaptive(
+          light: _link('open'),
+          dark: HWPadding(padding: HWEdgeInsets.all(4), child: _link('open')),
+        ),
+      );
+
+      expect(() => validateWidgetData(spec), returnsNormally);
+    });
+
     test('cannot differ only in the case of their first letter', () {
       final together = _spec(
         HWColumn(children: [_link('open'), _link('Open', url: 'myapp://open')]),

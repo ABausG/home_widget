@@ -1,55 +1,96 @@
 ---
 title: HWColor
-description: Color values for HomeWidget — fixed ARGB, light/dark themed, and semantic system roles.
+description: Runtime stored colors, fixed ARGB values, and semantic system color roles.
 ---
 
 # HWColor
 
-`HWColor` is the base type for every color the generator emits. It is `sealed`/abstract — pick one of the variants below.
+`HWColor` is a [data type](/generator/data) for colors. Your app can supply a color at runtime — for example, a white-label brand accent — or bake in a constant ARGB value or a semantic system role.
+
+```dart
+@HomeWidget(
+  name: 'Brand',
+  android: HomeWidgetAndroidConfiguration(
+    backgroundColor: HWColor('surface', defaultValue: 0xFFFFFFFF),
+  ),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.app',
+    backgroundColor: HWColor('surface', defaultValue: 0xFFFFFFFF),
+  ),
+  widget: HWText(
+    HWString('headline', defaultValue: 'Welcome'),
+    style: HWTextStyle(
+      color: HWColor('accent', defaultValue: 0xFF6750A4),
+    ),
+  ),
+)
+class Brand {}
+```
+
+To pick different colors for light mode, dark mode, or iOS Tinted, Clear, and Lock Screen appearances, wrap colors in [`HWAppearanceData`](/generator/appearance).
+
+`HWColor.themed` and `HWThemedColor` were removed in 0.5.0; see [Migration to 0.5.0](/generator/migrations/0.5.0#hwcolorthemed-became-hwappearancedata).
 
 ## Variants
 
-| Variant | Constructor | Description |
-| --- | --- | --- |
-| `HWFixedColor` | `HWColor.fixed(int value)` | A single ARGB color (e.g. `0xFFFF0000`). |
-| `HWThemedColor` | `HWColor.themed({light, dark})` | Resolves to `light` or `dark` based on the system color scheme. |
-| `HWDefaultColor` | `HWDefaultColor(HWColorRole role)` | A semantic system color picked via [HWColorRole](#hwcolorrole). |
+| Variant | Constructor | Stored field | Description |
+| --- | --- | --- | --- |
+| `HWColor` | `HWColor(String key, {int? defaultValue, int? previewValue})` | yes (`Color?`) | A color your app saves at runtime. `defaultValue` and `previewValue` are 32-bit ARGB integers. |
+| `HWColor.fixed` | `HWColor.fixed(int value)` | no | A constant 32-bit ARGB color (e.g. `0xFF6750A4`). `HWFixedColor(value)` is the same type. |
+| `HWDefaultColor` | `HWDefaultColor(HWColorRole role)` | no | A semantic system color picked via [`HWColorRole`](#hwcolorrole). |
 
-## HWColor.fixed
+## Runtime colors
 
-A literal ARGB color packed into a 32-bit integer.
+Declare a stored color with a storage key, an optional `defaultValue`, and an optional `previewValue` for the [widget gallery](/generator/previews). Both defaults are written as 32-bit `0xAARRGGBB` integers, the same way `HWColor.fixed` spells a color:
 
 ```dart
 HWText(
-  HWString.fixed('Fixed Color'),
-  style: HWTextStyle(color: HWFixedColor(0xFFFF0000)),
-)
-```
-
-Background colors on the widget configuration take an `HWColor` directly:
-
-```dart
-HomeWidgetAndroidConfiguration(
-  backgroundColor: HWColor.fixed(0xFF0000FF),
-)
-```
-
-## HWColor.themed
-
-Two `HWColor`s — one for light mode, one for dark mode. Either side may itself be any `HWColor`.
-
-```dart
-HomeWidgetAndroidConfiguration(
-  backgroundColor: HWColor.themed(
-    light: HWColor.fixed(0xFFFF00FF),
-    dark: HWColor.fixed(0xFF00FF00),
+  HWString('headline'),
+  style: HWTextStyle(
+    color: HWColor(
+      'accent',
+      defaultValue: 0xFF6750A4,
+      previewValue: 0xFF00897B,
+    ),
   ),
 )
 ```
 
-## HWDefaultColor
+### Saving and reading colors
 
-A semantic color tied to the system's widget palette. Useful when you want the widget to follow Apple's and Google's defaults instead of hardcoding values.
+In the generated Dart helper, every stored color uses Flutter's `Color` from `dart:ui`:
+
+```dart
+await BrandHomeWidget.saveData(
+  accent: const Color(0xFF6750A4),
+  surface: const Color(0xFFF6F2FF),
+);
+await BrandHomeWidget.updateWidget();
+
+final data = await BrandHomeWidget.getData(); // ({Color? accent, Color? surface, ...})
+await BrandHomeWidget.deleteData(accent: true);
+```
+
+- Colors are stored as 32-bit ARGB integers. Wide-gamut colors are converted to 8-bit sRGB before saving.
+- `getData()` returns `Color?` and applies `defaultValue` when nothing is stored, matching other data types.
+- `deleteData(accent: true)` removes the stored color so the slot falls back to `defaultValue` (or the slot default).
+
+## Constant colors
+
+### HWColor.fixed
+
+A constant 32-bit ARGB color written into the generated widget. It creates no stored field and adds no parameter to `saveData` or `getData`.
+
+```dart
+HWText(
+  HWString.fixed('Fixed Color'),
+  style: HWTextStyle(color: HWColor.fixed(0xFFFF0000)),
+)
+```
+
+### HWDefaultColor
+
+A semantic color tied to the system's widget palette, so the widget follows the platform's light/dark and Material You themes without hardcoding values. It creates no stored field.
 
 ```dart
 HWText(
@@ -58,17 +99,101 @@ HWText(
 )
 ```
 
-### HWColorRole
+#### HWColorRole
 
 | Role | Description |
 | --- | --- |
 | `contentPrimary` | Primary foreground content. |
 | `contentSecondary` | Secondary, less emphasized content. |
-| `contentTertiary` | Tertiary / decorative content. |
-| `contentAccent` | Accent / tint color. |
-| `defaultBackground` | The default widget background. |
+| `contentTertiary` | Tertiary or decorative content. |
+| `contentAccent` | Accent or tint color. |
+| `defaultBackground` | Default widget background. |
+
+## Color slots
+
+Every color slot is typed `HWDataType<int>` and accepts any color value: a stored `HWColor`, `HWColor.fixed`, `HWDefaultColor`, a color wrapped in `HWJson`, `HWTimedData`, or `HWItemData`, or an [`HWAppearanceData`](/generator/appearance) of colors.
+
+- [`HWTextStyle.color`](/generator/styling/hw-text-style) and `HWRoleTextStyle.color`
+- [`HWIcon.color`](/generator/widgets/hw-icon)
+- [`HWColoredBox.color`](/generator/widgets/hw-colored-box)
+- [`HWBoxDecoration.color`](/generator/styling/hw-box-decoration) and `HWBoxBorder.color`
+- [`HomeWidgetAndroidConfiguration.backgroundColor`](/generator/annotation#homewidgetandroidconfiguration)
+- [`HomeWidgetIOSConfiguration.backgroundColor`](/generator/annotation#homewidgetiosconfiguration)
+
+Passing a non-color data type (such as `HWInt` or `HWString`) to a color slot is a generation error naming the slot and the type it received. A color cannot be rendered as text (`HWText(HWColor('accent'))`) and cannot be sent in a [tap payload](/generator/data#payloads).
+
+## Missing values
+
+When a stored color has no saved value, the widget resolves:
+
+1. Stored value (skipped in previews when `useLiveDataInPreview: false`)
+2. `previewValue` (widget gallery preview only)
+3. `defaultValue`
+4. The slot's own default:
+
+| Slot | When no value is stored and no `defaultValue` is set |
+| --- | --- |
+| `HWTextStyle.color`, `HWIcon.color` | Default content color (`Color.primary` on iOS, `GlanceTheme.colors.onSurface` on Android). |
+| `HWColoredBox.color`, `HWBoxDecoration.color` | Transparent fill; layout stays unchanged (on Android, a box that also has a border shows the border color across the whole box — see below). |
+| `HWBoxBorder.color` | Transparent stroke; the border keeps its inset. |
+| `HomeWidgetAndroidConfiguration.backgroundColor` | Platform default widget background (`GlanceTheme.colors.widgetBackground`). |
+| `HomeWidgetIOSConfiguration.backgroundColor` | Platform default container background. |
+
+A stored transparent color (`const Color(0x00000000)` / `Colors.transparent`) is a value, not missing. Text, icons, and fills draw transparent; on iOS, a transparent widget `backgroundColor` shows a plain platter rather than the Home Screen wallpaper. On Android, a key that holds a non-integer value (for example, a string saved by an older version of the app) reads as missing instead of breaking the widget.
+
+<Warning>
+On Android, an [`HWBoxDecoration`](/generator/styling/hw-box-decoration) with a border draws the border color across the whole box whenever nothing opaque covers the center — with no `color`, a transparent fill, or a stored fill that is missing. Give a stored fill an opaque `defaultValue` when the box also has a border.
+</Warning>
+
+## Colors in JSON, timed data, and lists
+
+A stored `HWColor` works inside the data wrappers like any other stored type:
+
+```dart
+// JSON group: BrandJsonData carries `final Color? accent`
+HWColoredBox(
+  color: HWJson('brand', HWColor('accent', defaultValue: 0xFF6750A4)),
+  child: HWText(HWString.fixed('Brand')),
+)
+
+// Time-based schedule: generated TimedData carries `final Color? phase`
+HWColoredBox(
+  color: HWTimedData(HWColor('phase')),
+  child: HWText(HWString.fixed('Phase')),
+)
+
+// List item: generated item class carries `final Color? tint`
+HWRow.builder(
+  'chips',
+  maxItems: 4,
+  item: HWColoredBox(
+    color: HWItemData(
+      HWColor('tint'),
+      previewValues: [0xFF6750A4, 0xFF00897B],
+    ),
+    child: HWText(HWItemData(HWString('label'))),
+  ),
+)
+```
+
+In each generated class (JSON group, timed entry, or list item), the field is typed `Color?`. Wrapping a constant color (`HWColor.fixed` or `HWDefaultColor`) in `HWJson`, `HWTimedData`, or `HWItemData`, or declaring it in `HWDataOnly`, is a generation error.
+
+## Light, dark, and iOS appearances
+
+Wrap colors in [`HWAppearanceData`](/generator/appearance) to switch colors by system appearance:
+
+```dart
+HWTextStyle(
+  color: HWAppearanceData(
+    light: HWColor('accentLight', defaultValue: 0xFF6750A4),
+    dark: HWColor('accentDark', defaultValue: 0xFFD0BCFF),
+  ),
+)
+```
+
+Either side can be a stored `HWColor`, `HWColor.fixed`, `HWDefaultColor`, or a wrapped stored color.
 
 ## Platform mapping
 
-- iOS — resolves to SwiftUI [`Color`](https://developer.apple.com/documentation/swiftui/color) values such as `Color.primary` and `Color.accentColor`.
-- Android — resolves to Glance [`ColorProvider`](https://developer.android.com/reference/kotlin/androidx/glance/color/ColorProvider) and [`GlanceTheme.colors`](https://developer.android.com/reference/kotlin/androidx/glance/GlanceTheme).
+- **iOS:** SwiftUI [`Color`](https://developer.apple.com/documentation/swiftui/color). `HWDefaultColor` maps to `Color.primary`, `Color.secondary`, `Color(.tertiaryLabel)`, `Color.accentColor`, and `Color.clear`.
+- **Android:** Glance [`ColorProvider`](https://developer.android.com/reference/kotlin/androidx/glance/color/ColorProvider). `HWDefaultColor` maps to [`GlanceTheme.colors`](https://developer.android.com/reference/kotlin/androidx/glance/GlanceTheme) (`onSurface`, `onSurfaceVariant`, `outline`, `primaryContainer`, and `widgetBackground`).

@@ -124,18 +124,20 @@ class AdaptiveGreeting {}
 
 ## Themed Counter
 
-An inline UI demo: a centred two-line layout reading an `HWInt('count')` value. Showcases role-based text styles (`HWRoleTextStyle`), role-based colors (`HWDefaultColor`) and a themed background that flips with the system appearance.
+An inline UI demo: a centred two-line layout reading an `HWInt('count')` value that follows the system appearance. The background is an `HWAppearanceData` of two fixed colors, the count is drawn in an accent the app saves at runtime (an `HWAppearanceData` of two stored `HWColor`s), the icon is a sun in light and a moon in dark mode, and the caption is an `HWAppearanceAdaptive` with one layout per appearance, including the iOS Tinted / Clear Home Screen. On Android 12 and newer the colors and the icon switch live and the caption at the next widget update.
 
 [Full source on GitHub](https://github.com/ABausG/home_widget/blob/main/examples/generator_basics/home_widget/themed_counter.dart)
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:home_widget_generator/home_widget_generator.dart';
 
 @HomeWidget(
   name: 'Themed Counter',
-  description: 'A counter with a themed background and role-based colors.',
+  description:
+      'A counter in an accent color the app picks, themed per appearance.',
   android: HomeWidgetAndroidConfiguration(
-    backgroundColor: HWColor.themed(
+    backgroundColor: HWAppearanceData(
       light: HWColor.fixed(0xFFEFF6FF),
       dark: HWColor.fixed(0xFF0B1220),
     ),
@@ -143,7 +145,7 @@ import 'package:home_widget_generator/home_widget_generator.dart';
   iOS: HomeWidgetIOSConfiguration(
     groupId: 'group.es.antonborri.generatorBasics',
     supportedFamilies: [HWWidgetFamily.systemSmall],
-    backgroundColor: HWColor.themed(
+    backgroundColor: HWAppearanceData(
       light: HWColor.fixed(0xFFEFF6FF),
       dark: HWColor.fixed(0xFF0B1220),
     ),
@@ -152,19 +154,54 @@ import 'package:home_widget_generator/home_widget_generator.dart';
     child: HWColumn(
       mainAxisAlignment: HWMainAxisAlignment.center,
       crossAxisAlignment: HWCrossAxisAlignment.center,
+      spacing: 4,
       children: [
-        HWText(
-          HWString.fixed('Counter'),
-          style: HWRoleTextStyle(
-            role: HWTextStyleRole.caption,
-            color: HWDefaultColor(HWColorRole.contentSecondary),
-          ),
+        HWRow(
+          mainAxisAlignment: HWMainAxisAlignment.center,
+          crossAxisAlignment: HWCrossAxisAlignment.center,
+          spacing: 4,
+          children: [
+            HWIcon(
+              HWAppearanceData(
+                light: HWIconData.fixed(Icons.light_mode),
+                dark: HWIconData.fixed(Icons.dark_mode),
+              ),
+              size: 14,
+              color: HWDefaultColor(HWColorRole.contentSecondary),
+            ),
+            HWAppearanceAdaptive(
+              light: HWText(
+                HWString.fixed('Light mode'),
+                style: HWRoleTextStyle(
+                  role: HWTextStyleRole.caption,
+                  color: HWDefaultColor(HWColorRole.contentSecondary),
+                ),
+              ),
+              dark: HWText(
+                HWString.fixed('Dark mode'),
+                style: HWRoleTextStyle(
+                  role: HWTextStyleRole.caption,
+                  color: HWDefaultColor(HWColorRole.contentSecondary),
+                ),
+              ),
+              iosAccented: HWText(
+                HWString.fixed('Tinted / Clear'),
+                style: HWRoleTextStyle(
+                  role: HWTextStyleRole.caption,
+                  color: HWDefaultColor(HWColorRole.contentSecondary),
+                ),
+              ),
+            ),
+          ],
         ),
         HWText(
           HWInt('count', defaultValue: 0),
           style: HWRoleTextStyle(
             role: HWTextStyleRole.title,
-            color: HWDefaultColor(HWColorRole.contentPrimary),
+            color: HWAppearanceData(
+              light: HWColor('accentLight', defaultValue: 0xFF1D4ED8),
+              dark: HWColor('accentDark', defaultValue: 0xFF93C5FD),
+            ),
             fontWeight: HWFontWeight.bold,
           ),
         ),
@@ -182,7 +219,11 @@ class ThemedCounter {}
 Drive it from your app:
 
 ```dart
-await ThemedCounterHomeWidget.saveData(count: 42);
+await ThemedCounterHomeWidget.saveData(
+  count: 42,
+  accentLight: const Color(0xFFB45309),
+  accentDark: const Color(0xFFFCD34D),
+);
 await ThemedCounterHomeWidget.updateWidget();
 ```
 

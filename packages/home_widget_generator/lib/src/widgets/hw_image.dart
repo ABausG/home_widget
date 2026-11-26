@@ -14,6 +14,25 @@ enum HWImageFit {
   fill,
 }
 
+/// How iOS renders an [HWImage] while the Home Screen is set to Tinted or
+/// Clear, where the system tints the widget's content.
+///
+/// Maps to SwiftUI's `widgetAccentedRenderingMode(_:)`, which iOS 18 and later
+/// apply; earlier versions and Android ignore it.
+enum HWAccentedRendering {
+  /// The image is drawn in the accent tint, the system default.
+  accented,
+
+  /// The image is drawn desaturated, in shades of gray.
+  desaturated,
+
+  /// The image is drawn desaturated and then tinted.
+  accentedDesaturated,
+
+  /// The image keeps its colors, for photos and artwork.
+  fullColor,
+}
+
 /// An image widget for use in widgetBuilder.
 ///
 /// A runtime image is supplied as an `ImageProvider` through the generated
@@ -60,6 +79,10 @@ class HWImage extends HWWidget implements HWDataWidget {
   /// Accessibility description of the image, or null for a decorative image.
   final String? semanticLabel;
 
+  /// How iOS renders the image on a Home Screen set to Tinted or Clear, or
+  /// null for the system default, which flattens it to the tint.
+  final HWAccentedRendering? iosAccentedRendering;
+
   /// Whether the Glance `Image` fills the width of the `Box` around it.
   final bool _kotlinFillsWidth;
 
@@ -70,13 +93,15 @@ class HWImage extends HWWidget implements HWDataWidget {
   ///
   /// [image] is an [HWImageData], optionally wrapped in an [HWJson] to read it
   /// from a JSON group or an [HWItemData] to read it from a list item, and/or
-  /// an [HWTimedData] to make it time-based.
+  /// an [HWTimedData] to make it time-based, or an [HWAppearanceData] picking
+  /// one of several by the system appearance.
   const HWImage(
     HWDataType<dynamic> image, {
     this.width,
     this.height,
     this.fit = HWImageFit.contain,
     this.semanticLabel,
+    this.iosAccentedRendering,
   })  : data = image,
         _kotlinFillsWidth = false,
         _kotlinFillsHeight = false;
@@ -91,6 +116,7 @@ class HWImage extends HWWidget implements HWDataWidget {
         height = image.height,
         fit = image.fit,
         semanticLabel = image.semanticLabel,
+        iosAccentedRendering = image.iosAccentedRendering,
         _kotlinFillsWidth = width,
         _kotlinFillsHeight = height;
 
@@ -115,7 +141,14 @@ class HWImage extends HWWidget implements HWDataWidget {
   }
 
   @override
-  Set<HWDataType<dynamic>> get dataDependencies => {dataType};
+  Set<HWDataType<dynamic>> get dataDependencies =>
+      _dataDependenciesOf([dataType]);
+
+  @override
+  Iterable<HWDataType<dynamic>> get ownValues => [dataType];
+
+  @override
+  Set<String> get swiftViewModifiers => dataType.swiftViewModifiers;
 
   /// A picture sits in the middle of a box larger than it is, which is what
   /// Flutter's `Image` and Glance's `fitCenter` do with it.
@@ -123,13 +156,26 @@ class HWImage extends HWWidget implements HWDataWidget {
   String get swiftFrameAlignment => '.center';
 
   @override
-  Set<HWNativeHelper> get renderHelpers => const {HWNativeHelper.hwDecodeImage};
+  Set<HWNativeHelper> get renderHelpers => {
+        HWNativeHelper.hwDecodeImage,
+        if (iosAccentedRendering != null) HWNativeHelper.hwAccentedRendering,
+        if (_kotlinPairs) ...HWAppearanceChoice.kotlinImageHelpers,
+      };
+
+  /// Whether Android hands the launcher the bitmaps of both appearances, for
+  /// an [HWAppearanceData] of images.
+  bool get _kotlinPairs => dataType is HWAppearanceData;
 
   @override
   Set<String> get kotlinImports {
     final imports = <String>{
-      'import androidx.glance.Image',
-      'import androidx.glance.ImageProvider',
+      if (_kotlinPairs) ...{
+        ...HWAppearanceChoice.kotlinPairImports,
+        'import androidx.glance.GlanceModifier',
+      } else ...{
+        'import androidx.glance.Image',
+        'import androidx.glance.ImageProvider',
+      },
       'import androidx.glance.layout.ContentScale',
     };
     final modifiers = _kotlinModifiers;
@@ -193,6 +239,10 @@ class HWImage extends HWWidget implements HWDataWidget {
         HWImageFit.contain;
     final semanticLabel =
         WidgetValueDecoder.getField(obj, 'semanticLabel')?.toStringValue();
+    final iosAccentedRendering = WidgetValueDecoder.decodeEnum(
+      WidgetValueDecoder.getField(obj, 'iosAccentedRendering'),
+      HWAccentedRendering.values,
+    );
 
     final dataObj = WidgetValueDecoder.getField(obj, 'data');
     final data = WidgetValueDecoder.decodeDataType(dataObj);
@@ -203,14 +253,35 @@ class HWImage extends HWWidget implements HWDataWidget {
         height: height,
         fit: fit,
         semanticLabel: semanticLabel,
+        iosAccentedRendering: iosAccentedRendering,
       );
     }
 
     throw GeneratorError(
       'Could not decode HWImage. HWImage requires an HWImageData, optionally '
-      'wrapped in HWJson or HWItemData and/or HWTimedData, got: '
-      '${dataObj?.type?.element?.name}',
+      'wrapped in HWJson or HWItemData and/or HWTimedData, or an '
+      'HWAppearanceData of them, got: ${dataObj?.type?.element?.name}',
     );
+  }
+
+  /// The Swift `UIImage?` the image of [side] decodes to.
+  String _swiftSideImage(HWDataType<dynamic> side, String dataExpr) {
+    final sizeArgs = '${width ?? 'nil'}, ${height ?? 'nil'}';
+    final decode = HWNativeHelper.hwDecodeImage.name;
+    final image = imageLeafOf(side)!;
+    final path = side.swiftVariantValue(dataExpr);
+    if (image.isAsset) return '$decode($path, $sizeArgs)';
+    return '$path.flatMap { $decode(\$0, $sizeArgs) }';
+  }
+
+  /// The Kotlin `Bitmap?` the image of [side] decodes to.
+  String _kotlinSideBitmap(HWDataType<dynamic> side, String dataExpr) {
+    final sizeArgs = '${width ?? 'null'}, ${height ?? 'null'}';
+    final decode = HWNativeHelper.hwDecodeImage.name;
+    final image = imageLeafOf(side)!;
+    final path = side.kotlinVariantValue(dataExpr);
+    if (image.isAsset) return '$decode(context, $path, $sizeArgs)';
+    return '$path?.let { path -> $decode(context, path, $sizeArgs) }';
   }
 
   @override
@@ -225,7 +296,11 @@ class HWImage extends HWWidget implements HWDataWidget {
     final image = imageData;
     final sizeArgs = '${width ?? 'nil'}, ${height ?? 'nil'}';
     final decode = HWNativeHelper.hwDecodeImage.name;
-    if (image.isAsset) {
+    final data = dataType;
+    if (data is HWAppearanceData) {
+      final picked = data.swiftPick((side) => _swiftSideImage(side, dataExpr));
+      buffer.writeln('${pad}if let uiImage = $picked {');
+    } else if (image.isAsset) {
       final asset = escapeSwiftStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
         '${pad}if let uiImage = $decode("$asset", $sizeArgs) {',
@@ -237,8 +312,15 @@ class HWImage extends HWWidget implements HWDataWidget {
         'let uiImage = $decode(path, $sizeArgs) {',
       );
     }
-    buffer.writeln('$pad    Image(uiImage: uiImage)');
-    buffer.writeln('$pad        .resizable()');
+    if (iosAccentedRendering case final rendering?) {
+      buffer.writeln(
+        '$pad    ${HWNativeHelper.hwAccentedRendering.name}('
+        'Image(uiImage: uiImage).resizable(), "${rendering.name}")',
+      );
+    } else {
+      buffer.writeln('$pad    Image(uiImage: uiImage)');
+      buffer.writeln('$pad        .resizable()');
+    }
 
     switch (fit) {
       case HWImageFit.contain:
@@ -330,8 +412,16 @@ class HWImage extends HWWidget implements HWDataWidget {
     final image = imageData;
     final sizeArgs = '${width ?? 'null'}, ${height ?? 'null'}';
     final decode = HWNativeHelper.hwDecodeImage.name;
+    final data = dataType;
     final int pictureIndent;
-    if (image.isAsset) {
+    if (data is HWAppearanceData) {
+      final pair = HWAppearanceChoice.kotlinPair(
+        light: _kotlinSideBitmap(data.light, dataExpr),
+        dark: _kotlinSideBitmap(data.dark, dataExpr),
+      );
+      buffer.writeln('$pad$pair?.let { bitmaps ->');
+      pictureIndent = indent + 1;
+    } else if (image.isAsset) {
       final asset = escapeKotlinStringLiteral(image.effectiveAssetKey!);
       buffer.writeln(
         '$pad$decode(context, "$asset", $sizeArgs)'
@@ -352,21 +442,35 @@ class HWImage extends HWWidget implements HWDataWidget {
     return buffer.toString();
   }
 
-  /// The Glance `Image` showing the decoded `bitmap`, [indent] levels deep.
+  /// The Glance `Image` showing the decoded `bitmap`, [indent] levels deep, or
+  /// the pair of the decoded `bitmaps` of either appearance.
   String _kotlinPicture(int indent) {
     final pad = '    ' * indent;
-    final buffer = StringBuffer();
-    buffer.writeln('${pad}Image(');
-    buffer.writeln('$pad    provider = ImageProvider(bitmap),');
-
     final semanticLabel = this.semanticLabel;
     final description = semanticLabel == null
         ? 'null'
         : '"${escapeKotlinStringLiteral(semanticLabel)}"';
+    final modifiers = _kotlinModifiers;
+
+    if (_kotlinPairs) {
+      final modifier = modifiers.map((m) => '.$m').join();
+      return '''
+$pad${HWNativeHelper.hwAppearanceImage.kotlinName}(
+$pad    modifier = GlanceModifier$modifier,
+$pad    size = GlanceModifier$modifier,
+$pad    context = context,
+$pad    images = bitmaps,
+$pad    contentDescription = $description,
+$pad    contentScale = ${_kotlinContentScale()},
+$pad)''';
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln('${pad}Image(');
+    buffer.writeln('$pad    provider = ImageProvider(bitmap),');
     buffer.writeln('$pad    contentDescription = $description,');
     buffer.writeln('$pad    contentScale = ${_kotlinContentScale()},');
 
-    final modifiers = _kotlinModifiers;
     if (modifiers.isNotEmpty) {
       buffer.writeln(
         '$pad    modifier = GlanceModifier.${modifiers.join('.')},',

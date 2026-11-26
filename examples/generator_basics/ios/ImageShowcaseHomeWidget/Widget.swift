@@ -79,8 +79,7 @@ struct ImageShowcaseHomeWidgetEntryView: View {
       Group {
         if hwImageExists(entry.data.picture) {
           if let path = entry.data.picture, let uiImage = hwDecodeImage(path, 64.0, 64.0) {
-            Image(uiImage: uiImage)
-              .resizable()
+            hwAccentedRendering(Image(uiImage: uiImage).resizable(), "fullColor")
               .aspectRatio(contentMode: .fill)
               .frame(width: 64.0, height: 64.0)
               .clipped()
@@ -270,6 +269,17 @@ struct ImageShowcaseContactJsonData {
   }
 }
 
+func hwAccentedRendering(_ image: Image, _ mode: String) -> AnyView {
+  guard #available(iOS 18.0, *) else { return AnyView(image) }
+  let modes: [String: WidgetAccentedRenderingMode] = [
+    "accented": .accented,
+    "desaturated": .desaturated,
+    "accentedDesaturated": .accentedDesaturated,
+    "fullColor": .fullColor,
+  ]
+  return AnyView(image.widgetAccentedRenderingMode(modes[mode]))
+}
+
 func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> UIImage? {
   func assetFile(_ asset: String) -> String? {
     let appBundleURL = Bundle.main.bundleURL
@@ -288,8 +298,18 @@ func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> U
   let displayScale = UITraitCollection.current.displayScale
   let scale = displayScale > 0 ? displayScale : 3
   let fallback = CGFloat(1536)
-  let targetWidth = widthPt.map { CGFloat($0) * scale } ?? fallback
-  let targetHeight = heightPt.map { CGFloat($0) * scale } ?? fallback
+  let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+  let pixelWidth = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
+  let pixelHeight = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
+  let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+  let rotated = (5...8).contains(orientation)
+  let sourceWidth = CGFloat(rotated ? pixelHeight : pixelWidth)
+  let sourceHeight = CGFloat(rotated ? pixelWidth : pixelHeight)
+  let aspect = sourceWidth > 0 && sourceHeight > 0 ? sourceWidth / sourceHeight : 1
+  let widthPx = widthPt.map { CGFloat($0) * scale }
+  let heightPx = heightPt.map { CGFloat($0) * scale }
+  let targetWidth = widthPx ?? heightPx.map { $0 * aspect } ?? fallback
+  let targetHeight = heightPx ?? widthPx.map { $0 / aspect } ?? fallback
   let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
   guard maxPixelSize > 0 else { return nil }
   let options: [CFString: Any] = [

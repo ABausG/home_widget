@@ -15,19 +15,34 @@ void main() {
         expect(result, contains('Color(red:'));
       });
 
-      test('HWThemedColor: swiftViewModifiers for colorScheme', () {
+      test('HWAppearanceData: picks a side by the environment', () {
         final node = HWColoredBox(
-          color: HWThemedColor(
+          color: HWAppearanceData(
             light: HWFixedColor(0xFF0000FF),
             dark: HWFixedColor(0xFFFF00FF),
           ),
           child: HWText(HWString.fixed('y')),
         );
         final result = node.toSwift(0, dataExpr: 'data');
-        expect(result, contains('colorScheme == .dark'));
+        expect(result, contains('.background((hwAppearance(hwEnvironment, '));
+        expect(result, contains(' ?? Color.clear)'));
         expect(
           node.swiftViewModifiers,
-          contains('@Environment(\\.colorScheme) var colorScheme'),
+          contains('@Environment(\\.self) var hwEnvironment'),
+        );
+      });
+
+      test('a stored color is a data field painting nothing without a value',
+          () {
+        const node = HWColoredBox(
+          color: HWColor('swatch'),
+          child: HWText(HWString.fixed('y')),
+        );
+        expect(node.dataDependencies, contains(const HWColor('swatch')));
+        expect(node.nativeHelpers, contains(HWNativeHelper.hwColor));
+        expect(
+          node.toSwift(0, dataExpr: 'data'),
+          contains('.background((hwColor(data.swatch) ?? Color.clear))'),
         );
       });
 
@@ -87,19 +102,39 @@ void main() {
         expect(result, contains('Color(0xFFFF0000)'));
       });
 
-      test('HWThemedColor: kotlinImports include ColorProvider', () {
+      test('HWAppearanceData of two fixed colors stays one ColorProvider', () {
         final node = HWColoredBox(
-          color: HWThemedColor(
+          color: HWAppearanceData(
             light: HWFixedColor(0xFF111111),
             dark: HWFixedColor(0xFFEEEEEE),
           ),
           child: HWText(HWString.fixed('t')),
         );
         final result = node.toKotlin(0, dataExpr: 'data');
-        expect(result, contains('ColorProvider'));
+        expect(
+          result,
+          contains(
+            'background(ColorProvider(day = Color(0xFF111111), '
+            'night = Color(0xFFEEEEEE)))',
+          ),
+        );
         expect(
           node.kotlinImports,
           contains('import androidx.glance.color.ColorProvider'),
+        );
+      });
+
+      test('a stored color falls back to transparent', () {
+        const node = HWColoredBox(
+          color: HWColor('swatch'),
+          child: HWText(HWString.fixed('t')),
+        );
+        expect(
+          node.toKotlin(0, dataExpr: 'widgetData'),
+          contains(
+            'background((hwColor(widgetData.swatch) ?: ColorProvider(day = '
+            'Color.Transparent, night = Color.Transparent)))',
+          ),
         );
       });
 

@@ -1,0 +1,283 @@
+---
+title: Appearance
+description: Adapt widget values and layouts to light mode, dark mode, and iOS Tinted, Clear, and Lock Screen appearances with HWAppearanceData and HWAppearanceAdaptive.
+---
+
+# Appearance
+
+Adapt widget data and layouts to how the system is displaying the widget: light mode, dark mode, and on iOS the Tinted, Clear (Liquid Glass), Lock Screen, and StandBy styles.
+
+Use `HWAppearanceData` when only a value changes (a brand color, logo, icon, or label) and [`HWAppearanceAdaptive`](/generator/widgets/hw-appearance-adaptive) when the widget layout itself needs to change. Both share the same four slots and selection order.
+
+```dart
+import 'package:home_widget_generator/home_widget_generator.dart';
+
+@HomeWidget(
+  name: 'Brand',
+  android: HomeWidgetAndroidConfiguration(
+    backgroundColor: HWAppearanceData(
+      light: HWColor('surfaceLight', defaultValue: 0xFFFFFFFF),
+      dark: HWColor('surfaceDark', defaultValue: 0xFF141218),
+    ),
+  ),
+  iOS: HomeWidgetIOSConfiguration(
+    groupId: 'group.com.example.app',
+    backgroundColor: HWAppearanceData(
+      light: HWColor('surfaceLight', defaultValue: 0xFFFFFFFF),
+      dark: HWColor('surfaceDark', defaultValue: 0xFF141218),
+    ),
+  ),
+  widget: HWColumn(
+    children: [
+      HWImage(
+        HWAppearanceData(
+          light: HWImageData('logoLight'),
+          dark: HWImageData('logoDark'),
+          iosAccented: HWImageData.asset('assets/logo_mono.png'),
+        ),
+        height: 32,
+      ),
+      HWText(
+        HWString('headline', defaultValue: 'Welcome'),
+        style: HWTextStyle(
+          color: HWAppearanceData(
+            light: HWColor('accentLight', defaultValue: 0xFF6750A4),
+            dark: HWColor('accentDark', defaultValue: 0xFFD0BCFF),
+          ),
+        ),
+      ),
+    ],
+  ),
+)
+class Brand {}
+```
+
+In Dart, each stored side is an ordinary field on the generated helper:
+
+```dart
+await BrandHomeWidget.saveData(
+  logoLight: const NetworkImage('https://example.com/logo-light.png'),
+  logoDark: const NetworkImage('https://example.com/logo-dark.png'),
+  accentLight: const Color(0xFF6750A4),
+  accentDark: const Color(0xFFD0BCFF),
+  surfaceLight: const Color(0xFFFFFFFF),
+  surfaceDark: const Color(0xFF141218),
+  headline: 'Hello',
+);
+await BrandHomeWidget.updateWidget();
+```
+
+<Info>
+A widget that renders an `HWAppearanceData` color, image, or icon on Android needs `home_widget` 0.10.1 or newer — only a pair of two `HWColor.fixed` colors does not. An `HWAppearanceData` used only on iOS (in `HomeWidgetIOSConfiguration.backgroundColor`, on the `ios` side of an `HWAdaptive`, or in an `iosAccented` or `iosVibrant` slot of an `HWAppearanceAdaptive`) does not trigger this check. When `pubspec.lock` resolves an older hosted `home_widget`, `home_widget generate` fails with a message naming the widget and asking you to raise the constraint.
+</Info>
+
+## Slots and selection order
+
+Both `HWAppearanceData` and `HWAppearanceAdaptive` accept the same four slots:
+
+| Slot | Required | Platforms | When it is shown |
+| --- | --- | --- | --- |
+| `light` | yes | iOS, Android | Light mode. |
+| `dark` | yes | iOS, Android | Dark mode. |
+| `iosAccented` | no | iOS only | Home Screen set to **Tinted** (iOS 18+) or **Clear / Liquid Glass** (iOS 26+) — WidgetKit's `.accented` rendering mode. Ignored on Android. |
+| `iosVibrant` | no | iOS only | **Lock Screen** and **StandBy** — WidgetKit's `.vibrant` rendering mode (iOS 16+; StandBy was not tested). Ignored on Android. |
+
+### Selection order
+
+1. On iOS, the rendering-mode slot wins first if provided: `iosAccented` on a Tinted or Clear Home Screen, `iosVibrant` on the Lock Screen or in StandBy.
+2. Otherwise, `light` or `dark` is picked from the widget's color scheme.
+3. On Android, only `light` and `dark` are used; `iosAccented` and `iosVibrant` are ignored.
+
+<Info>
+On iOS, a widget cannot tell Tinted and Clear (Liquid Glass) apart, and every sub-variant of both — whether the system is in light or dark mode — reports the `accented` rendering mode and a dark color scheme. One `iosAccented` slot covers both light and dark Tinted/Clear styles, and if you omit `iosAccented`, the `dark` side is shown there. Lock Screen widgets likewise report a dark color scheme in both light and dark system modes, so omitting `iosVibrant` shows `dark`.
+</Info>
+
+## `HWAppearanceData`
+
+`const HWAppearanceData<T>({required HWDataType<T> light, required HWDataType<T> dark, HWDataType<T>? iosAccented, HWDataType<T>? iosVibrant})`
+
+`HWAppearanceData` selects one data value from its slots. It is a selector, not a stored field of its own — each stored side becomes an independent field on the generated helper (`saveData`, `getData`, `deleteData`), or on its JSON group, timed entry, or list item class.
+
+### Supported data types
+
+Every data type works inside `HWAppearanceData`:
+
+- [`HWColor`](/generator/styling/hw-color) (stored, `HWColor.fixed`, `HWDefaultColor`)
+- [`HWImageData`](/generator/widgets/hw-image) (runtime and `.asset`)
+- [`HWIconData`](/generator/widgets/hw-icon) (runtime and `.fixed`)
+- `HWString` (plain, `.fixed`, `.localized`, `.localizedFixed`)
+- `HWInt`, `HWDouble`, `HWBool`, and `HWDateTime` (stored and `.fixed`)
+
+On iOS, fixed text picked by `HWAppearanceData` renders exactly as written — it is not read as Markdown or looked up in the string catalog — while `HWString.localized` and `HWString.localizedFixed` sides still localize.
+
+Each side is an independent value: you can mix stored fields, constants, `HWJson` leaves, `HWItemData`, and `HWTimedData` across slots. For example, a bundled asset in `light`, a runtime image in `dark`, and a monochrome asset in `iosAccented`:
+
+```dart
+HWImage(
+  HWAppearanceData(
+    light: HWImageData.asset('assets/logo_light.png'),
+    dark: HWImageData('logoDark'),
+    iosAccented: HWImageData.asset('assets/logo_mono.png'),
+  ),
+  height: 32,
+)
+```
+
+In the [widget gallery preview](/generator/previews), each side resolves its own `previewValue`, `previewAsset`, or `previewTranslations`.
+
+### Missing-variant fallback
+
+When the selected side of an `HWAppearanceData` has no value (never saved, deleted, or an image file that cannot be read), the widget falls back in order:
+
+1. Selected rendering-mode side (`iosAccented` or `iosVibrant`, iOS only, if provided)
+2. Current color-scheme side (`light` or `dark`)
+3. Other color-scheme side (`dark` or `light`)
+4. What the widget renders for a missing value of that type (nothing for an image or icon, the [slot default](/generator/styling/hw-color#missing-values) for a color, `false` for an `HWBool`, empty text for text, numbers, or dates)
+
+A brand with only one logo can save `logoLight` alone and dark mode will display it automatically.
+
+### Conditionals
+
+`HWAppearanceData` can be passed to both [`HWConditional`](/generator/widgets/hw-conditional) widgets:
+
+- **`HWDataExists`** evaluates to `true` when the variant chosen after the missing-variant chain is present. Each side counts as present the way a standalone `HWDataExists` on it would: a stored side while it is stored, a constant side (only allowed in `iosAccented` or `iosVibrant`) is always present, and an asset image side (`HWImageData.asset`, likewise only in `iosAccented` or `iosVibrant`) is present when the asset exists. A top-level stored field with a `defaultValue` always counts as present — inside an `HWAppearanceData` just as in a plain `HWDataExists` — so a check with a `defaultValue` on `light` or `dark` never takes `whenAbsent`; by contrast, a `defaultValue` on an unsaved `HWJson` leaf does not make it present. Because every pick falls back to both `light` and `dark`, giving either `light` or `dark` a value that is always present (a `.fixed` value, `HWImageData.asset`, `HWDefaultColor`, `HWString.localized`, or `HWString.localizedFixed`) is a generation error: `whenAbsent` could never render.
+
+```dart
+HWDataExists(
+  data: HWAppearanceData(
+    light: HWImageData('logoLight'),
+    dark: HWImageData('logoDark'),
+  ),
+  whenPresent: HWImage(
+    HWAppearanceData(
+      light: HWImageData('logoLight'),
+      dark: HWImageData('logoDark'),
+    ),
+    height: 32,
+  ),
+  whenAbsent: HWText(HWString('brandName')),
+)
+```
+
+- **`HWBoolConditional`** reads the selected variant from an `HWAppearanceData` of `HWBool` values, falling back across sides and to `false` when no side has a value. Unlike a standalone `HWBool`, sides here do not require a `defaultValue` and may use `HWBool.fixed`:
+
+```dart
+HWBoolConditional(
+  data: HWAppearanceData(
+    light: HWBool.fixed(false),
+    dark: HWBool.fixed(true),
+  ),
+  whenTrue: HWText(HWString.fixed('Dark mode')),
+  whenFalse: HWText(HWString.fixed('Light mode')),
+)
+```
+
+### Nesting rules and generation errors
+
+- **Always outermost:** `HWAppearanceData` picks between whole values, so it cannot sit inside `HWJson`, `HWTimedData`, `HWItemData`, or another `HWAppearanceData`. Put the wrapper inside each side instead:
+
+```dart
+// Valid
+HWAppearanceData(
+  light: HWTimedData(HWColor('phaseLight')),
+  dark: HWTimedData(HWColor('phaseDark')),
+)
+
+// Generation error
+// HWTimedData(HWAppearanceData(light: HWColor('phaseLight'), dark: HWColor('phaseDark')))
+```
+
+- **Matching kinds:** every side must hold the same kind of value (for example, all colors or all strings). Mixing kinds such as `HWString` and `HWInt` is a generation error.
+- **One icon font:** for `HWIconData` sides, all sides must come from the same icon font family. Mixing icon fonts across sides is a generation error.
+- **Not in `HWDataOnly`:** passing an `HWAppearanceData` to [`HWDataOnly`](/generator/widgets/hw-data-only) is a generation error. List the stored fields of its sides in `HWDataOnly` instead.
+- **No tap payloads:** `HWAppearanceData` is not allowed in `HWLink.data`, `HWButton.data`, `widgetUrlData`, or `HWPayload`.
+- **No format settings:** `HWAppearanceData` is not allowed in `HWCurrency.data` or `HWTimeZone.data`. Use `HWAppearanceAdaptive` to pick between layouts with different formatting if needed.
+- **Colors, images, and icons are not text:** binding an `HWAppearanceData` of `HWColor`, `HWImageData`, or `HWIconData` values to `HWText` is a generation error.
+
+## `HWAppearanceAdaptive` vs `HWAppearanceData`
+
+[`HWAppearanceAdaptive`](/generator/widgets/hw-appearance-adaptive) takes a whole widget subtree per slot instead of a single data value:
+
+```dart
+HWAppearanceAdaptive(
+  light: HWDecoratedBox(
+    decoration: HWBoxDecoration(
+      color: HWColor('badgeLight', defaultValue: 0xFFEDE7F6),
+      borderRadius: HWBorderRadius.circular(8),
+    ),
+    child: HWPadding(
+      padding: HWEdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: HWText(HWString('status')),
+    ),
+  ),
+  dark: HWDecoratedBox(
+    decoration: HWBoxDecoration(
+      color: HWColor('badgeDark', defaultValue: 0xFF311B92),
+      borderRadius: HWBorderRadius.circular(8),
+    ),
+    child: HWPadding(
+      padding: HWEdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: HWText(HWString('status')),
+    ),
+  ),
+  iosAccented: HWText(HWString('status')),
+)
+```
+
+- Prefer **`HWAppearanceData`** when the layout stays the same and only a color, image, icon, or value changes. It avoids duplicating the widget tree, falls back automatically when one variant is missing, and on Android 12+ colors, images, and icons switch live.
+- Use **`HWAppearanceAdaptive`** when the layout itself must change — for example, removing a filled badge on an iOS Tinted/Clear Home Screen or simplifying content for the Lock Screen. Layout slots have no missing-variant fallback, and on Android layout switches take effect at the next widget update.
+
+## When the switch happens
+
+"Live" means a placed widget updates when the user toggles dark mode with no app process running and without calling `updateWidget()`.
+
+### iOS
+
+Every `HWAppearanceData` type and every `HWAppearanceAdaptive` layout switches **live** between light and dark mode (verified on iOS 26.2), and renders the matching slot on Tinted, Clear, and Lock Screen placements. Updating an image file stored under an existing key still requires calling `updateWidget()` to reload the widget.
+
+### Android
+
+On Android, toggling dark mode does not re-run widget code: the launcher re-inflates the existing layout under the new configuration, so only resources that carry a day/night pair switch live, while text, conditions, and layouts keep the branch rendered at the last update.
+
+| What changes | Android 12+ (API 31+) | Below Android 12 |
+| --- | --- | --- |
+| Colors in `HWAppearanceData` (fixed, stored, system role, or mixed; including `HWJson`, `HWTimedData`, and `HWItemData` sides) in any color slot | Live | Next widget update (not tested) |
+| `HWImage` with `HWAppearanceData` | Live | Next widget update (not tested) |
+| `HWIcon` with `HWAppearanceData` (glyph and tint) | Live | Next widget update (not tested) |
+| Text, numbers, and dates in `HWAppearanceData` | Next widget update | Next widget update (not tested) |
+| `HWBoolConditional` and `HWDataExists` over `HWAppearanceData` | Next widget update | Next widget update (not tested) |
+| `HWAppearanceAdaptive` layouts | Next widget update | Next widget update (not tested) |
+
+Keep these Android details in mind:
+
+- **Nothing triggers that update automatically.** Android sends no broadcast to widgets when dark mode is toggled. Non-live values update when your app calls `updateWidget()`, when a scheduled [`HWTimedData`](/generator/timed-data) entry fires, or when Android's periodic `updatePeriodMillis` runs.
+- **What your app can do:** use `HWAppearanceData` for colors, images, and icons wherever possible so they switch live on Android 12+. If your widget depends on appearance-switched text, conditionals, or `HWAppearanceAdaptive` layouts, call `updateWidget()` when your app launches or resumes, or rely on scheduled updates.
+- **System role colors inside `HWAppearanceData`:** a system role (`HWDefaultColor`) on one side of an `HWAppearanceData` resolves its light and dark colors when the widget renders. A wallpaper (Material You) palette change reaches it at the next widget update; a standalone `HWDefaultColor` stays live for wallpaper changes as well.
+- **Taps:** [`HWLink`](/generator/widgets/hw-link) and [`HWButton`](/generator/widgets/hw-button) inside `HWAppearanceAdaptive` slots or around `HWAppearanceData` values fire their own actions normally.
+- **Gallery previews:** on Android 15+, a widget that picks values or layouts by night mode re-registers its [gallery preview](/generator/previews#registering-the-preview-on-android) when the app starts in the other mode.
+- **Not tested on Android:** devices below Android 12, third-party launchers, scheduled automatic dark mode, gallery previews in dark mode, and custom-font text switching to dark after an update.
+
+## Designing for iOS Tinted and Clear (Liquid Glass)
+
+When the user sets their iOS Home Screen to **Tinted** (iOS 18+) or **Clear / Liquid Glass** (iOS 26+):
+
+- **Stored and fixed colors do not show.** The system replaces text, icons, and solid fills with the Home Screen tint.
+- **Text inside a filled box disappears.** Because both the fill and the text are flattened to the same tint color, a pill or badge with a solid background turns into a solid tinted rectangle.
+- **Hierarchy relies on opacity and borders.** `HWDefaultColor(HWColorRole.contentSecondary)` keeps its reduced opacity in Tinted and Clear modes.
+- **Widget backgrounds are replaced.** `HomeWidgetIOSConfiguration.backgroundColor` is replaced by the system's tinted or glass platter material.
+
+To make a widget look right in Tinted and Clear modes:
+
+1. Supply a tint-friendly monochrome silhouette logo in `HWAppearanceData(iosAccented: ...)`.
+2. Use [`HWAppearanceAdaptive(iosAccented: ...)`](/generator/widgets/hw-appearance-adaptive) to drop filled containers behind text, or switch them to an outlined box or plain text.
+3. For photos and artwork that should not be flattened to the tint, set `iosAccentedRendering` on [`HWImage`](/generator/widgets/hw-image#ios-tinted-and-clear-rendering) (for example, `HWAccentedRendering.fullColor` or `HWAccentedRendering.desaturated`).
+
+### Minimum iOS versions
+
+| Feature | Minimum iOS | Notes |
+| --- | --- | --- |
+| `light` and `dark` slots | iOS 14+ | Works on all WidgetKit versions, including below iOS 16. |
+| `iosAccented` and `iosVibrant` slots | iOS 16+ | Below iOS 16, widgets fall back to `light` / `dark`. Rendering on iOS 16.4 was not tested; verified on iOS 26.2. |
+| Tinted Home Screen and `HWImage.iosAccentedRendering` | iOS 18+ | Below iOS 18, `iosAccentedRendering` is ignored. iOS 18 itself was not tested; verified on iOS 26.2. |
+| Clear (Liquid Glass) Home Screen | iOS 26+ | Uses the same `iosAccented` slot as Tinted. |
+| StandBy (`iosVibrant`) | iOS 17+ | Uses `iosVibrant`; StandBy rendering was not tested. |

@@ -194,6 +194,184 @@ void main() {
     });
   });
 
+  group('validateAppearanceSupport', () {
+    WidgetSpec appearanceSpec(
+      HWWidget widget, {
+      HWDataType<int>? backgroundColor,
+      bool android = true,
+    }) =>
+        WidgetSpec(
+          data: HomeWidget(
+            name: 'Weather',
+            android: android
+                ? HomeWidgetAndroidConfiguration(
+                    backgroundColor: backgroundColor,
+                  )
+                : null,
+            iOS: const HomeWidgetIOSConfiguration(groupId: 'group.example'),
+          ),
+          className: 'Weather',
+          widgetTree: widget,
+        );
+
+    const storedColors = HWText(
+      HWString.fixed('a'),
+      style: HWTextStyle(
+        color: HWAppearanceData(light: HWColor('l'), dark: HWColor('d')),
+      ),
+    );
+
+    test('rejects a hosted home_widget without HomeWidgetAppearance', () {
+      lock('0.10.0');
+
+      for (final spec in [
+        appearanceSpec(storedColors),
+        appearanceSpec(
+          const HWImage(
+            HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+          ),
+        ),
+        appearanceSpec(
+          const HWText(HWString.fixed('a')),
+          backgroundColor: const HWAppearanceData(
+            light: HWColor.fixed(0xFFFFFFFF),
+            dark: HWDefaultColor(HWColorRole.defaultBackground),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            small: HWText(HWString.fixed('a')),
+            medium: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            accessoryRectangular: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            small: HWText(HWString.fixed('a')),
+            androidSizeRanges: [
+              HWAndroidSizeRange(
+                minWidth: 300,
+                child: HWImage(
+                  HWAppearanceData(
+                    light: HWImageData('l'),
+                    dark: HWImageData('d'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ]) {
+        expect(
+          () => validateAppearanceSupport(spec, tempDir),
+          throwsA(
+            isA<GeneratorError>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                startsWith(
+                  'Widget "Weather": this widget picks a color, an image or '
+                  'an icon by the appearance on Android',
+                ),
+                contains(
+                  'home_widget $minimumAppearanceHomeWidgetVersion or newer',
+                ),
+                contains('resolves home_widget 0.10.0'),
+              ),
+            ),
+          ),
+        );
+      }
+    });
+
+    test('accepts the release with HomeWidgetAppearance', () {
+      lock(minimumAppearanceHomeWidgetVersion);
+
+      expect(
+        () => validateAppearanceSupport(appearanceSpec(storedColors), tempDir),
+        returnsNormally,
+      );
+    });
+
+    test('does not apply where Kotlin does not call the plugin', () {
+      lock('0.10.0');
+
+      for (final spec in [
+        appearanceSpec(
+          const HWText(
+            HWString.fixed('a'),
+            style: HWTextStyle(
+              color: HWAppearanceData(
+                light: HWColor.fixed(0xFF000000),
+                dark: HWColor.fixed(0xFFFFFFFF),
+              ),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWText(
+            HWAppearanceData(light: HWString('l'), dark: HWString('d')),
+          ),
+        ),
+        appearanceSpec(storedColors, android: false),
+        appearanceSpec(
+          const HWAdaptive(
+            ios: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+            android: HWText(HWString.fixed('a')),
+          ),
+        ),
+        appearanceSpec(
+          const HWAppearanceAdaptive(
+            light: HWText(HWString.fixed('a')),
+            dark: HWText(HWString.fixed('b')),
+            iosAccented: storedColors,
+            iosVibrant: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        appearanceSpec(
+          const HWSizeAdaptive(
+            small: HWText(HWString.fixed('a')),
+            accessoryRectangular: HWImage(
+              HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+            ),
+          ),
+        ),
+        WidgetSpec(
+          data: const HomeWidget(
+            name: 'Weather',
+            android: HomeWidgetAndroidConfiguration(),
+            iOS: HomeWidgetIOSConfiguration(
+              groupId: 'group.example',
+              backgroundColor: HWAppearanceData(
+                light: HWColor('l'),
+                dark: HWColor('d'),
+              ),
+            ),
+          ),
+          className: 'Weather',
+          widgetTree: const HWText(HWString.fixed('a')),
+        ),
+      ]) {
+        expect(
+          () => validateAppearanceSupport(spec, tempDir),
+          returnsNormally,
+        );
+      }
+    });
+  });
+
   group('requireHomeWidgetVersion', () {
     void require() => requireHomeWidgetVersion(
           tempDir,

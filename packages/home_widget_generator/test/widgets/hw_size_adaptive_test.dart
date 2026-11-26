@@ -287,7 +287,7 @@ void main() {
           small: HWText(
             HWString.fixed('x'),
             style: HWTextStyle(
-              color: HWThemedColor(
+              color: HWAppearanceData(
                 light: HWFixedColor(0xFF000000),
                 dark: HWFixedColor(0xFFFFFFFF),
               ),
@@ -296,7 +296,7 @@ void main() {
         );
         expect(
           adaptive.swiftViewModifiers,
-          contains('@Environment(\\.colorScheme) var colorScheme'),
+          contains('@Environment(\\.self) var hwEnvironment'),
         );
       });
     });
@@ -968,9 +968,57 @@ Column(horizontalAlignment = Alignment.CenterHorizontally) {
           ],
         );
         expect(adaptive.childWidgets.length, 2);
+        expect(adaptive.iosChildWidgets, [adaptive.small]);
+        expect(
+          adaptive.androidChildWidgets,
+          [adaptive.small, adaptive.androidSizeRangeChildren.single],
+        );
         expect(
           adaptive.dataDependencies.map((d) => d.key).toSet(),
           {'smallKey', 'stripKey'},
+        );
+      });
+
+      test('Android walks the slots Glance can pick, never a Lock Screen one',
+          () {
+        const images = HWImage(
+          HWAppearanceData(light: HWImageData('l'), dark: HWImageData('d')),
+        );
+        const accessory = HWSizeAdaptive(
+          small: HWText(HWString.fixed('a')),
+          accessoryRectangular: images,
+        );
+        expect(accessory.androidChildWidgets, [accessory.small]);
+        expect(accessory.iosChildWidgets, [accessory.small, images]);
+        expect(
+          accessory.androidNativeHelpers,
+          isNot(contains(HWNativeHelper.hwAppearanceImage)),
+        );
+        expect(
+          accessory.kotlinImports,
+          isNot(contains(contains('HomeWidgetAppearance'))),
+        );
+        expect(
+          accessory.toKotlin(0, dataExpr: 'data'),
+          isNot(contains('HomeWidgetAppearance')),
+        );
+
+        const system = HWSizeAdaptive(
+          small: HWText(HWString.fixed('a')),
+          medium: images,
+          accessoryRectangular: HWText(HWString.fixed('b')),
+        );
+        expect(system.androidChildWidgets, [system.small, images]);
+        expect(
+          system.androidNativeHelpers,
+          contains(HWNativeHelper.hwAppearanceImage),
+        );
+
+        const accessoryOnly = HWSizeAdaptive(accessoryRectangular: images);
+        expect(accessoryOnly.androidChildWidgets, [images]);
+        expect(
+          accessoryOnly.androidNativeHelpers,
+          contains(HWNativeHelper.hwAppearanceImage),
         );
       });
 

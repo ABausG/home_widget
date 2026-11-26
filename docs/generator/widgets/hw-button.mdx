@@ -127,7 +127,7 @@ Read state from `getData()` inside the function instead, as the example at the t
 
 ## Buttons sharing an id
 
-Several `HWButton`s in one widget can use the same `id` anywhere in the widget tree: next to each other, in list rows, in conditional branches or in `HWSizeAdaptive` slots. Each button keeps its own `data`, and all of them reach `onInteraction` as the one generated class for that id.
+Several `HWButton`s in one widget can use the same `id` anywhere in the widget tree: next to each other, in list rows, in conditional branches or in `HWSizeAdaptive` or `HWAppearanceAdaptive` slots. Each button keeps its own `data`, and all of them reach `onInteraction` as the one generated class for that id.
 
 ```dart
 @HomeWidget(

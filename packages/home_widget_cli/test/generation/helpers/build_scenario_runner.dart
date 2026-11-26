@@ -283,6 +283,77 @@ Future<void> runIosBuildScenario(BuildScenario scenario) async {
   }
 }
 
+/// Generates the widget code for [scenario] inside a fresh iOS-only Flutter
+/// project and type-checks the widget extension's Swift with `swiftc`: what an
+/// Xcode build compiles of it, in seconds rather than the minutes of
+/// [runIosBuildScenario].
+Future<void> typecheckIosScenario(BuildScenario scenario) async {
+  final project = await TestFlutterProject.create(includeAndroid: false);
+  await _generate(project, scenario);
+
+  final extensionDir = Directory(
+    p.join(project.root.path, 'ios', '${scenario.className}HomeWidget'),
+  );
+  final sources = [
+    for (final entity in extensionDir.listSync())
+      if (entity is File && entity.path.endsWith('.swift')) entity.path,
+  ];
+  const target = ['-target', 'arm64-apple-ios14.0-simulator'];
+
+  // The button intent calls into the plugin, which only an Xcode build of the
+  // app links: a module declaring what it calls stands in for it.
+  final modules = Directory(p.join(project.root.path, 'hw_swift_modules'))
+    ..createSync();
+  final stub = File(p.join(modules.path, 'home_widget.swift'))
+    ..writeAsStringSync(_homeWidgetModuleStub);
+  final stubResult = await Process.run('xcrun', [
+    '-sdk',
+    'iphonesimulator',
+    'swiftc',
+    '-emit-module',
+    '-parse-as-library',
+    '-module-name',
+    'home_widget',
+    ...target,
+    '-emit-module-path',
+    p.join(modules.path, 'home_widget.swiftmodule'),
+    stub.path,
+  ]);
+  if (stubResult.exitCode != 0) {
+    fail('swiftc failed on the module stub:\n${stubResult.stderr}');
+  }
+
+  final result = await Process.run('xcrun', [
+    '-sdk',
+    'iphonesimulator',
+    'swiftc',
+    '-typecheck',
+    '-parse-as-library',
+    '-application-extension',
+    ...target,
+    '-I',
+    modules.path,
+    ...sources,
+  ]);
+
+  if (result.exitCode != 0) {
+    fail(
+      'swiftc failed:\n${result.stdout}\n${result.stderr}\n'
+      'Swift generated:\n'
+      '${File(p.join(extensionDir.path, 'Widget.swift')).readAsStringSync()}',
+    );
+  }
+}
+
+/// The part of the plugin's Swift API the generated button intent calls.
+const _homeWidgetModuleStub = '''
+import Foundation
+
+public enum HomeWidgetBackgroundWorker {
+  public static func run(url: URL?, appGroup: String, key: String?) async {}
+}
+''';
+
 Future<void> _generate(
   TestFlutterProject project,
   BuildScenario scenario,

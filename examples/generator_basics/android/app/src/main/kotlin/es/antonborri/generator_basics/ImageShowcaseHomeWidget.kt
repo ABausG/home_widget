@@ -39,6 +39,7 @@ import es.antonborri.home_widget.HomeWidgetGlanceState
 import es.antonborri.home_widget.HomeWidgetGlanceStateDefinition
 import es.antonborri.home_widget.HomeWidgetPlugin
 import java.io.File
+import java.lang.ref.WeakReference
 import java.util.Locale
 
 class ImageShowcaseHomeWidget : GlanceAppWidget() {
@@ -316,12 +317,34 @@ private fun hwCurrentLocales(context: Context): List<String> {
   return tags
 }
 
+private val hwDecodedImages = mutableMapOf<String, WeakReference<Bitmap>>()
+
 private fun hwDecodeImage(
     context: Context,
     path: String,
     widthDp: Double?,
     heightDp: Double?,
 ): Bitmap? {
+  val file = if (path.startsWith("/")) File(path) else null
+  val metrics = context.resources.displayMetrics
+  val key =
+      listOf(
+              path,
+              file?.lastModified(),
+              file?.length(),
+              widthDp,
+              heightDp,
+              metrics.density,
+              metrics.widthPixels,
+              metrics.heightPixels,
+          )
+          .joinToString("|")
+  synchronized(hwDecodedImages) {
+    hwDecodedImages[key]?.get()?.let {
+      return it
+    }
+  }
+
   fun decode(options: BitmapFactory.Options): Bitmap? =
       if (path.startsWith("/")) {
         BitmapFactory.decodeFile(path, options)
@@ -333,7 +356,6 @@ private fun hwDecodeImage(
 
   fun sampleSize(bounds: BitmapFactory.Options): Int {
     if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
-    val metrics = context.resources.displayMetrics
     val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
     val widthPx = widthDp?.let { (it * metrics.density).toInt() }
     val heightPx = heightDp?.let { (it * metrics.density).toInt() }
@@ -360,19 +382,25 @@ private fun hwDecodeImage(
     return sampleSize
   }
 
-  return try {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    decode(bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-      null
-    } else {
-      decode(
-          BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds) },
-      )
-    }
-  } catch (_: Exception) {
-    null
+  val bitmap =
+      try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        decode(bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+          null
+        } else {
+          decode(
+              BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds) },
+          )
+        }
+      } catch (_: Exception) {
+        null
+      } ?: return null
+  synchronized(hwDecodedImages) {
+    hwDecodedImages.values.removeAll { it.get() == null }
+    hwDecodedImages[key] = WeakReference(bitmap)
   }
+  return bitmap
 }
 
 private fun hwImageExists(context: Context, path: String?): Boolean {

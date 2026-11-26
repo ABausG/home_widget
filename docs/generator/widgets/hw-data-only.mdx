@@ -15,6 +15,8 @@ Combine it with a visible widget tree using [`HWColumn`](/generator/widgets/hw-c
 
 Inside the `item` of a [list builder](/generator/lists), `HWDataOnly([HWItemData(HWString('id'))])` declares item fields that are saved and read back but never shown.
 
+Every entry must be a stored field: constant values (such as `HWString.fixed`, `HWColor.fixed`, or `HWDefaultColor`) and [`HWAppearanceData`](/generator/appearance) are generation errors. For appearance-aware data, list the stored fields of its sides in `HWDataOnly` instead.
+
 ## Parameters
 
 | Name   | Type                | Default      | Description                                       |

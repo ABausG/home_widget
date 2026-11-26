@@ -914,14 +914,21 @@ private fun hwReadTimedLocalized(
   /// Both platforms cap how much memory a widget may use while rendering, so a
   /// full-resolution photo is downsampled rather than decoded whole. The target
   /// is the image's declared size in pixels. An axis the widget declares no
-  /// size for follows the source's aspect ratio on Android, or — with neither
-  /// axis declared — falls back to the screen's shorter side, which no widget
-  /// exceeds; WidgetKit has no equivalent reading available inside an
-  /// extension, so a flat cap of the same order stands in for it. ImageIO
-  /// scales to the exact bound, `BitmapFactory` to a power-of-two step.
+  /// size for follows the source's aspect ratio. With neither axis declared,
+  /// Android falls back to the screen's shorter side, which no widget exceeds;
+  /// WidgetKit has no equivalent reading available inside an extension, so a
+  /// flat cap of the same order stands in for it. ImageIO scales to the exact
+  /// bound, `BitmapFactory` to a power-of-two step.
   ///
   /// A missing file, an unreadable one or a key naming no asset is null, never
   /// a throw at render time.
+  ///
+  /// On Android a decoded bitmap is handed out again while anything still
+  /// holds it — every size of a responsive widget, both variants of a
+  /// light/dark layout, the next update — keyed by the file's path,
+  /// modification time and length and the size asked for. A `RemoteViews`
+  /// counts one bitmap once towards the memory a widget may use, however often
+  /// it is shown.
   hwDecodeImage(
     swift: r'''
 func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> UIImage? {
@@ -941,8 +948,18 @@ func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> U
   let displayScale = UITraitCollection.current.displayScale
   let scale = displayScale > 0 ? displayScale : 3
   let fallback = CGFloat(1536)
-  let targetWidth = widthPt.map { CGFloat($0) * scale } ?? fallback
-  let targetHeight = heightPt.map { CGFloat($0) * scale } ?? fallback
+  let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+  let pixelWidth = (properties?[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue ?? 0
+  let pixelHeight = (properties?[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue ?? 0
+  let orientation = (properties?[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+  let rotated = (5...8).contains(orientation)
+  let sourceWidth = CGFloat(rotated ? pixelHeight : pixelWidth)
+  let sourceHeight = CGFloat(rotated ? pixelWidth : pixelHeight)
+  let aspect = sourceWidth > 0 && sourceHeight > 0 ? sourceWidth / sourceHeight : 1
+  let widthPx = widthPt.map { CGFloat($0) * scale }
+  let heightPx = heightPt.map { CGFloat($0) * scale }
+  let targetWidth = widthPx ?? heightPx.map { $0 * aspect } ?? fallback
+  let targetHeight = heightPx ?? widthPx.map { $0 / aspect } ?? fallback
   let maxPixelSize = Int(max(targetWidth, targetHeight).rounded())
   guard maxPixelSize > 0 else { return nil }
   let options: [CFString: Any] = [
@@ -957,12 +974,29 @@ func hwDecodeImage(_ path: String, _ widthPt: Double?, _ heightPt: Double?) -> U
   return UIImage(cgImage: thumbnail, scale: scale, orientation: .up)
 }''',
     kotlin: r'''
+private val hwDecodedImages = mutableMapOf<String, WeakReference<Bitmap>>()
+
 private fun hwDecodeImage(
     context: Context,
     path: String,
     widthDp: Double?,
     heightDp: Double?,
 ): Bitmap? {
+    val file = if (path.startsWith("/")) File(path) else null
+    val metrics = context.resources.displayMetrics
+    val key =
+        listOf(
+            path,
+            file?.lastModified(),
+            file?.length(),
+            widthDp,
+            heightDp,
+            metrics.density,
+            metrics.widthPixels,
+            metrics.heightPixels,
+        ).joinToString("|")
+    synchronized(hwDecodedImages) { hwDecodedImages[key]?.get()?.let { return it } }
+
     fun decode(options: BitmapFactory.Options): Bitmap? =
         if (path.startsWith("/")) {
             BitmapFactory.decodeFile(path, options)
@@ -974,7 +1008,6 @@ private fun hwDecodeImage(
 
     fun sampleSize(bounds: BitmapFactory.Options): Int {
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return 1
-        val metrics = context.resources.displayMetrics
         val fallback = minOf(metrics.widthPixels, metrics.heightPixels)
         val widthPx = widthDp?.let { (it * metrics.density).toInt() }
         val heightPx = heightDp?.let { (it * metrics.density).toInt() }
@@ -997,7 +1030,7 @@ private fun hwDecodeImage(
         return sampleSize
     }
 
-    return try {
+    val bitmap = try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         decode(bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
@@ -1009,12 +1042,19 @@ private fun hwDecodeImage(
         }
     } catch (_: Exception) {
         null
+    } ?: return null
+    synchronized(hwDecodedImages) {
+        hwDecodedImages.values.removeAll { it.get() == null }
+        hwDecodedImages[key] = WeakReference(bitmap)
     }
+    return bitmap
 }''',
     kotlinImports: {
       'import android.content.Context',
       'import android.graphics.Bitmap',
       'import android.graphics.BitmapFactory',
+      'import java.io.File',
+      'import java.lang.ref.WeakReference',
     },
     swiftImports: {'import ImageIO'},
     localeDependent: false,
@@ -1250,6 +1290,254 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
     swiftImports: {'import SwiftUI'},
     dependencies: [HWNativeHelper.hwAssetFont],
     localeDependent: false,
+  ),
+
+  /// A stored color, a 32-bit ARGB value, as the color a slot paints with, or
+  /// null while nothing is stored.
+  ///
+  /// The value is read as its low 32 bits, so a color stored as a signed or as
+  /// an unsigned number reads the same.
+  hwColor(
+    swift: '''
+func hwColor(_ argb: Int?) -> Color? {
+  guard let argb else { return nil }
+  let value = UInt32(truncatingIfNeeded: argb)
+  return Color(
+    .sRGB,
+    red: Double((value >> 16) & 0xFF) / 255,
+    green: Double((value >> 8) & 0xFF) / 255,
+    blue: Double(value & 0xFF) / 255,
+    opacity: Double((value >> 24) & 0xFF) / 255)
+}''',
+    swiftImports: {'import SwiftUI'},
+    kotlin: '''
+private fun hwColor(argb: Long?) =
+    argb?.let { ColorProvider(day = Color(it.toInt()), night = Color(it.toInt())) }''',
+    kotlinImports: {
+      'import androidx.compose.ui.graphics.Color',
+      'import androidx.glance.color.ColorProvider',
+    },
+    localeDependent: false,
+  ),
+
+  /// The color stored under a preferences key, or null while none is.
+  ///
+  /// A Dart int is stored as an Int only while it fits 32 bits, and an opaque
+  /// color does not. A value of any other kind, left by an older version of
+  /// the app, counts as missing. Every default is a valid color, so the key is
+  /// read under two of them: only a stored value comes back as both, and a key
+  /// removed while it is read is missing rather than transparent black.
+  hwReadColor(
+    kotlin: '''
+private fun hwReadColor(prefs: SharedPreferences, key: String): Long? =
+    runCatching { prefs.getLong(key, 0L).takeIf { it == prefs.getLong(key, 1L) } }
+        .recoverCatching { prefs.getInt(key, 0).takeIf { it == prefs.getInt(key, 1) }?.toLong() }
+        .getOrNull()''',
+    kotlinImports: {'import android.content.SharedPreferences'},
+    localeDependent: false,
+  ),
+
+  /// Whether WidgetKit renders the widget in its accented mode: the Home
+  /// Screen set to Tinted or Clear.
+  ///
+  /// False below iOS 16, where the rendering mode does not exist.
+  hwIsAccented(
+    swift: '''
+func hwIsAccented(_ environment: EnvironmentValues) -> Bool {
+  if #available(iOS 16.0, *) {
+    return environment.widgetRenderingMode == .accented
+  }
+  return false
+}''',
+    swiftImports: {'import SwiftUI', 'import WidgetKit'},
+    localeDependent: false,
+  ),
+
+  /// Whether WidgetKit renders the widget in its vibrant mode: the Lock
+  /// Screen and StandBy.
+  ///
+  /// False below iOS 16, where the rendering mode does not exist.
+  hwIsVibrant(
+    swift: '''
+func hwIsVibrant(_ environment: EnvironmentValues) -> Bool {
+  if #available(iOS 16.0, *) {
+    return environment.widgetRenderingMode == .vibrant
+  }
+  return false
+}''',
+    swiftImports: {'import SwiftUI', 'import WidgetKit'},
+    localeDependent: false,
+  ),
+
+  /// [image] rendered the way [mode] — the name of a
+  /// `WidgetAccentedRenderingMode` — asks for while the Home Screen is set to
+  /// Tinted or Clear.
+  ///
+  /// `widgetAccentedRenderingMode` only exists from iOS 18, so below that the
+  /// image renders as it is.
+  hwAccentedRendering(
+    swift: '''
+func hwAccentedRendering(_ image: Image, _ mode: String) -> AnyView {
+  guard #available(iOS 18.0, *) else { return AnyView(image) }
+  let modes: [String: WidgetAccentedRenderingMode] = [
+    "accented": .accented,
+    "desaturated": .desaturated,
+    "accentedDesaturated": .accentedDesaturated,
+    "fullColor": .fullColor,
+  ]
+  return AnyView(image.widgetAccentedRenderingMode(modes[mode]))
+}''',
+    swiftImports: {'import SwiftUI', 'import WidgetKit'},
+    localeDependent: false,
+  ),
+
+  /// Whether the system shows the widget in its dark color scheme.
+  hwIsNight(
+    kotlin: '''
+private fun hwIsNight(context: Context): Boolean =
+    (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import android.content.res.Configuration',
+    },
+    localeDependent: false,
+  ),
+
+  /// The variant of an appearance-aware value the widget shows, or null when
+  /// none of the ones it may fall back to has a value.
+  ///
+  /// The rendering-mode variant comes first where it is given, then the one of
+  /// the current color scheme, then the other scheme's. Each variant is only
+  /// evaluated once the ones before it came up empty.
+  ///
+  /// Android, which has no rendering modes, picks through [hwDayNight].
+  hwAppearance(
+    swift: '''
+func hwAppearance<T>(
+  _ environment: EnvironmentValues,
+  light: @autoclosure () -> T?,
+  dark: @autoclosure () -> T?,
+  accented: @autoclosure () -> T? = nil,
+  vibrant: @autoclosure () -> T? = nil
+) -> T? {
+  if hwIsAccented(environment), let value = accented() { return value }
+  if hwIsVibrant(environment), let value = vibrant() { return value }
+  if environment.colorScheme == .dark { return dark() ?? light() }
+  return light() ?? dark()
+}''',
+    swiftImports: {'import SwiftUI'},
+    dependencies: [HWNativeHelper.hwIsAccented, HWNativeHelper.hwIsVibrant],
+    localeDependent: false,
+  ),
+
+  /// The variant of an appearance-aware value the widget shows on Android:
+  /// the one of the current night mode, then the other one, or null when
+  /// neither has a value.
+  ///
+  /// Each variant is only evaluated once the one before it came up empty.
+  hwDayNight(
+    kotlin: '''
+private inline fun <T> hwDayNight(context: Context, light: () -> T?, dark: () -> T?): T? =
+    if (hwIsNight(context)) dark() ?: light() else light() ?: dark()''',
+    kotlinImports: {'import android.content.Context'},
+    dependencies: [HWNativeHelper.hwIsNight],
+    localeDependent: false,
+  ),
+
+  /// The color of a light/dark pair as a `ColorProvider` the launcher
+  /// switches between itself, or null when neither side has a value.
+  ///
+  /// Each side is resolved in the configuration of its own appearance, so a
+  /// system role on either side takes the color it has there. A side without
+  /// a value falls back to the other one.
+  hwAppearanceColor(
+    kotlin: '''
+private fun hwAppearanceColor(
+    context: Context,
+    light: androidx.glance.unit.ColorProvider?,
+    dark: androidx.glance.unit.ColorProvider?,
+): androidx.glance.unit.ColorProvider? {
+    val day = light ?: dark ?: return null
+    return ColorProvider(
+        day = day.getColor(HomeWidgetAppearance.configurationContext(context, night = false)),
+        night = (dark ?: day).getColor(HomeWidgetAppearance.configurationContext(context, night = true)),
+    )
+}''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import androidx.glance.color.ColorProvider',
+      'import es.antonborri.home_widget.HomeWidgetAppearance',
+    },
+    localeDependent: false,
+  ),
+
+  /// An `Image` of the bitmaps a light/dark pair holds, which the launcher
+  /// switches between itself when they differ: a `RemoteViews` icon pair,
+  /// whose bitmaps do not count towards a widget's bitmap memory.
+  ///
+  /// `tint` is resolved to a color per appearance for the pair. The pair sits
+  /// in a `Box` carrying `modifier`, sized by `size`, the image's own size: a
+  /// bare `AndroidRemoteViews` takes all the room a stack offers it.
+  hwAppearanceImage(
+    kotlin: '''
+@Composable
+private fun HwAppearanceImage(
+    modifier: GlanceModifier,
+    size: GlanceModifier,
+    context: Context,
+    images: HomeWidgetAppearance.DayNight<Bitmap>,
+    contentDescription: String?,
+    contentScale: ContentScale,
+    tint: androidx.glance.unit.ColorProvider? = null,
+) {
+    if (images.day === images.night || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+        Image(
+            provider = ImageProvider(images.day),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale,
+            colorFilter = tint?.let { ColorFilter.tint(it) },
+        )
+        return
+    }
+    Box(modifier = modifier) {
+        AndroidRemoteViews(
+            remoteViews =
+                HomeWidgetAppearance.image(
+                    context,
+                    images.day,
+                    images.night,
+                    contentDescription,
+                    contentScale,
+                    tint?.let {
+                        HomeWidgetAppearance.DayNight(
+                            day = it.getColor(HomeWidgetAppearance.configurationContext(context, night = false)).toArgb(),
+                            night = it.getColor(HomeWidgetAppearance.configurationContext(context, night = true)).toArgb(),
+                        )
+                    },
+                ),
+            modifier = size,
+        )
+    }
+}''',
+    kotlinImports: {
+      'import android.content.Context',
+      'import android.graphics.Bitmap',
+      'import android.os.Build',
+      'import androidx.compose.runtime.Composable',
+      'import androidx.compose.ui.graphics.toArgb',
+      'import androidx.glance.ColorFilter',
+      'import androidx.glance.GlanceModifier',
+      'import androidx.glance.Image',
+      'import androidx.glance.ImageProvider',
+      'import androidx.glance.appwidget.AndroidRemoteViews',
+      'import androidx.glance.layout.Box',
+      'import androidx.glance.layout.ContentScale',
+      'import es.antonborri.home_widget.HomeWidgetAppearance',
+    },
+    composable: true,
+    localeDependent: false,
   );
 
   const HWNativeHelper({
@@ -1260,8 +1548,19 @@ func hwFont(_ family: String, _ weight: Int, _ italic: Bool, _ size: CGFloat) ->
     this.dependencies = const [],
     this.localeDependent = true,
     this.hourCycleDependent = false,
+    this.composable = false,
   })  : _kotlinImports = kotlinImports,
         _swiftImports = swiftImports;
+
+  /// Whether the Kotlin body is a composable, which is named like a type:
+  /// [kotlinName].
+  final bool composable;
+
+  /// The name the Kotlin body declares and generated code calls it by: [name],
+  /// capitalized for a [composable], which is how the code injecting a
+  /// modifier into a call recognizes one.
+  String get kotlinName =>
+      composable ? '${name[0].toUpperCase()}${name.substring(1)}' : name;
 
   /// The iOS body, or null when the helper has no iOS counterpart.
   final String? swift;

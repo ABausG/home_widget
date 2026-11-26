@@ -49,12 +49,13 @@ class AndroidGenerator {
     // The Kotlin `locales` parameter and every argument passed to it have to be
     // gated on this one flag; two separately-spelled "equivalent" conditions
     // emit Kotlin that does not compile.
-    final needsLocaleArg = spec.resolvesLocalizedOnRead;
-    final needsResolver = spec.needsLocaleHelpers;
+    final needsLocaleArg = spec.androidResolvesLocalizedOnRead;
+    final needsResolver = spec.androidNeedsLocaleHelpers;
     final previewNeedsLocaleArg =
         needsLocaleArg || _previewResolvesTranslations;
 
-    final nativeHelpers = kotlinNativeHelpers(spec.nativeHelpers).toList();
+    final nativeHelpers =
+        kotlinNativeHelpers(spec.androidNativeHelpers).toList();
 
     // Gallery strings do not count — the launcher resolves those on its own.
     // A formatted number or date is locale-dependent too, so a widget that only
@@ -62,7 +63,7 @@ class AndroidGenerator {
     // shows does not. The preview fingerprint's own locale read does not count
     // either: it only decides when the gallery preview is re-rendered, not
     // whether the running widget's content is stale.
-    final handlesLocaleChange = spec.rendersLocalizedContent ||
+    final handlesLocaleChange = spec.androidRendersLocalizedContent ||
         nativeHelpers.any((helper) => helper.localeDependent);
 
     // Flipping the system's 12-/24-hour setting changes no locale, so a widget
@@ -74,9 +75,11 @@ class AndroidGenerator {
     // whenever one is emitted the generated file needs hwCurrentLocales
     // whether or not anything else already pulled it in.
     final fileNativeHelpers = spec.androidAutoUpdatePreview
-        ? resolveNativeHelpers(
-            [...nativeHelpers, HWNativeHelper.hwCurrentLocales],
-          )
+        ? kotlinNativeHelpers(
+            resolveNativeHelpers(
+              [...nativeHelpers, HWNativeHelper.hwCurrentLocales],
+            ),
+          ).toList()
         : nativeHelpers;
 
     final androidAppDir = Directory(p.join(projectRoot.path, 'android', 'app'));
@@ -289,9 +292,12 @@ class AndroidGenerator {
 
     final rootModifiers = <String>[];
     if (bgColor != null) {
-      rootModifiers.add(
-        'background(${bgColor.toKotlin(0, dataExpr: hasDataFields ? "widgetData" : "null")})',
+      final background = hwKotlinColor(
+        bgColor,
+        dataExpr: widgetDataExpr,
+        fallback: HWColorSlotDefault.background,
       );
+      rootModifiers.add('background($background)');
     }
     if (applyPadding) {
       rootModifiers.add('padding(${androidRootContentPadding.toInt()}.dp)');
@@ -345,7 +351,9 @@ class AndroidGenerator {
       ]);
     }
     if (bgColor != null) {
-      layoutImports.addAll(bgColor.kotlinImports);
+      layoutImports.addAll(
+        hwKotlinColorImports(bgColor, fallback: HWColorSlotDefault.background),
+      );
       layoutImports.add('import androidx.glance.layout.Box');
     }
     if (applyPadding) {
@@ -739,7 +747,7 @@ class AndroidGenerator {
     final fromJson = preview ? 'previewFromJson' : 'fromJson';
     String groupLocaleArg(JsonDataGroup group) =>
         preview && _previewResolvesLocalized(group) ? ', locales' : '';
-    final needsLocales = spec.resolvesLocalizedOnRead ||
+    final needsLocales = spec.androidResolvesLocalizedOnRead ||
         (preview && _previewResolvesTranslations);
     final localeParam = needsLocales ? ', locales: List<String>' : '';
     final hasTimedData = spec.hasTimedData;
@@ -865,7 +873,7 @@ class AndroidGenerator {
       HWString() ||
       HWImageData() =>
         '"${escapeKotlinStringLiteral(value as String)}"',
-      HWInt() => kotlinLongLiteral(value as int),
+      HWInt() || HWColor() => kotlinLongLiteral(value as int),
       HWDouble() => '${(value as num).toDouble()}',
       _ => '$value',
     };
@@ -892,9 +900,10 @@ class AndroidGenerator {
   ///
   /// Covers everything the preview renders from that is not fixed at generation
   /// time: [WidgetSpec.previewContentHash] for the annotation, the locale tags
-  /// for a language change, the stored data where the preview reads it, and the
-  /// modification time of every runtime image file that data points at, whose
-  /// path stays the same when its bytes are replaced.
+  /// for a language change, the night mode where the widget picks a value or a
+  /// layout by it as it renders, the stored data where the preview reads it,
+  /// and the modification time of every runtime image file that data points
+  /// at, whose path stays the same when its bytes are replaced.
   /// The Kotlin `hwMeasuredItemCounts` counting the items of every one of
   /// [builders], which is what tells a running widget that the room its item
   /// texts have is worth measuring again.
@@ -934,6 +943,8 @@ class AndroidGenerator {
     final parts = <String>[
       '"${spec.previewContentHash}"',
       'hwLocales.joinToString(",")',
+      if (spec.androidNativeHelpers.contains(HWNativeHelper.hwIsNight))
+        '${HWNativeHelper.hwIsNight.name}(context).toString()',
     ];
 
     if (spec.androidUsesLiveDataInPreview && hasDataFields) {
@@ -1245,7 +1256,7 @@ class AndroidGenerator {
     if (type is HWIconData) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optInt("$key") else $fallback';
     }
-    if (type is HWInt) {
+    if (type is HWInt || type is HWColor) {
       return 'if ($objExpr.has("$key") && !$objExpr.isNull("$key")) $objExpr.optLong("$key") else $fallback';
     }
     if (type is HWDouble) {

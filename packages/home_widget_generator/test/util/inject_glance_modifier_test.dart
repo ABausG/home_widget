@@ -11,6 +11,28 @@ void main() {
       );
     });
 
+    test('injects into the branches, not into braces of the condition', () {
+      expect(
+        injectGlanceModifier(
+          'if (hwDayNight(context, { w.a }, { w.b }) != null) {\n'
+              '    Text("a")\n'
+              '} else if (pick({ w.c })) {\n'
+              '    Text("c")\n'
+              '} else {\n'
+              '    Text("b")\n'
+              '}',
+          'fillMaxSize()',
+        ),
+        'if (hwDayNight(context, { w.a }, { w.b }) != null) {\n'
+        '    Text(modifier = GlanceModifier.fillMaxSize(), "a")\n'
+        '} else if (pick({ w.c })) {\n'
+        '    Text(modifier = GlanceModifier.fillMaxSize(), "c")\n'
+        '} else {\n'
+        '    Text(modifier = GlanceModifier.fillMaxSize(), "b")\n'
+        '}',
+      );
+    });
+
     test('injects modifier into Column with brace body', () {
       expect(
         injectGlanceModifier('Column {', 'fillMaxSize'),
@@ -519,10 +541,63 @@ void main() {
       );
     });
 
+    test('wraps a call on an object in a Box, not the object', () {
+      expect(
+        injectGlanceModifier(
+          'HomeWidgetAppearance.pick(context, { a }, { b })?.let { images ->\n'
+              '    HwAppearanceImage(modifier = GlanceModifier)\n'
+              '}',
+          'padding(4.dp)',
+        ),
+        'Box(modifier = GlanceModifier.padding(4.dp)) {\n'
+        '    HomeWidgetAppearance.pick(context, { a }, { b })?.let { images ->\n'
+        '        HwAppearanceImage(modifier = GlanceModifier)\n'
+        '    }\n'
+        '}',
+      );
+    });
+
     test('preserves leading indent on Column', () {
       expect(
         injectGlanceModifier('  Column {', 'fillMaxSize'),
         '  Column(modifier = GlanceModifier.fillMaxSize) {',
+      );
+    });
+  });
+
+  group('glanceSingleAxisImports', () {
+    const layout = 'import androidx.glance.layout';
+
+    test('names the form a call sizing both axes is rewritten to', () {
+      expect(
+        glanceSingleAxisImports(
+          {'$layout.size', '$layout.fillMaxSize', '$layout.wrapContentSize'},
+          {GlanceSizeAxis.width},
+        ),
+        {
+          '$layout.height',
+          '$layout.fillMaxHeight',
+          '$layout.wrapContentHeight',
+        },
+      );
+      expect(
+        glanceSingleAxisImports({'$layout.size'}, {GlanceSizeAxis.height}),
+        {'$layout.width'},
+      );
+    });
+
+    test('is empty when nothing is left to rewrite', () {
+      expect(
+        glanceSingleAxisImports(
+          {'$layout.size'},
+          GlanceSizeAxis.values.toSet(),
+        ),
+        isEmpty,
+      );
+      expect(glanceSingleAxisImports({'$layout.size'}, {}), isEmpty);
+      expect(
+        glanceSingleAxisImports({'$layout.width'}, {GlanceSizeAxis.width}),
+        isEmpty,
       );
     });
   });

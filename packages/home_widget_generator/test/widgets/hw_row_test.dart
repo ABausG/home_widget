@@ -24,7 +24,7 @@ void main() {
             HWText(
               HWString.fixed('x'),
               style: HWTextStyle(
-                color: HWThemedColor(
+                color: HWAppearanceData(
                   light: HWFixedColor(0xFF000000),
                   dark: HWFixedColor(0xFFFFFFFF),
                 ),
@@ -35,7 +35,7 @@ void main() {
         );
         expect(
           row.swiftViewModifiers.any(
-            (e) => e.contains('colorScheme'),
+            (e) => e.contains('hwEnvironment'),
           ),
           isTrue,
         );

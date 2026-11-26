@@ -29,7 +29,7 @@ void main() {
           child: HWText(
             HWString('k'),
             style: HWTextStyle(
-              color: HWThemedColor(
+              color: HWAppearanceData(
                 light: HWFixedColor(0xFF000000),
                 dark: HWFixedColor(0xFFFFFFFF),
               ),
@@ -39,7 +39,7 @@ void main() {
         expect(box.dataDependencies, contains(const HWString('k')));
         expect(box.childWidgets, hasLength(1));
         expect(
-          box.swiftViewModifiers.any((e) => e.contains('colorScheme')),
+          box.swiftViewModifiers.any((e) => e.contains('hwEnvironment')),
           isTrue,
         );
         expect(
@@ -1292,6 +1292,59 @@ void main() {
           const HWSizedBox(child: HWText(HWString.fixed('a'))).kotlinImports,
           isNot(contains('import androidx.glance.GlanceModifier')),
         );
+      });
+
+      test('imports the axis a size of the child is left sizing', () {
+        const icon = HWIcon.glyph(0xE87D, font: _materialIcons);
+        const night = HWIcon.glyph(0xE3A8, font: _materialIcons);
+        const byAppearance = HWAppearanceAdaptive(light: icon, dark: night);
+        for (final (box, context, kept) in [
+          (const HWSizedBox(width: 48, child: icon), null, 'height'),
+          (const HWSizedBox(height: 48, child: icon), null, 'width'),
+          (const HWSizedBox(width: 48, child: byAppearance), null, 'height'),
+          (const HWSizedBox(height: 48, child: byAppearance), null, 'width'),
+          (
+            const HWSizedBox(width: double.infinity, child: icon),
+            inRow,
+            'height',
+          ),
+          (
+            const HWSizedBox(
+              width: 48,
+              child: HWAdaptive(ios: icon, android: night),
+            ),
+            null,
+            'height',
+          ),
+          (
+            const HWSizedBox(
+              height: 48,
+              child: HWSizeAdaptive(small: icon, medium: byAppearance),
+            ),
+            null,
+            'width',
+          ),
+          (
+            const HWSizedBox(
+              height: 48,
+              child: HWBoolConditional(
+                data: HWBool('night', defaultValue: false),
+                whenTrue: night,
+                whenFalse: icon,
+              ),
+            ),
+            null,
+            'width',
+          ),
+        ]) {
+          final code = box.toKotlin(0, dataExpr: 'data', context: context);
+          expect(code, contains('.$kept(24.dp)'), reason: '$box');
+          expect(
+            box.kotlinImportsIn(context?.enclosingLinearAxis),
+            contains('import androidx.glance.layout.$kept'),
+            reason: '$box',
+          );
+        }
       });
 
       test('a stack collects the imports of each branch the box sizes', () {

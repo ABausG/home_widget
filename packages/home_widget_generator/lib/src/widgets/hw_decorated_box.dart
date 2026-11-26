@@ -3,7 +3,9 @@ part of 'hw_widget.dart';
 /// A box decoration with an optional background color, border and corner
 /// radius.
 class HWBoxDecoration {
-  final HWColor? color;
+  /// The fill, any color value; while a stored one has no value the box is
+  /// not filled.
+  final HWDataType<int>? color;
   final HWBoxBorder? border;
 
   /// The rounding of the corners of both the background and the border, or
@@ -19,15 +21,21 @@ class HWBoxDecoration {
   /// The corner radius in logical pixels, 0 for square corners.
   double get _radius => borderRadius?.radius ?? 0.0;
 
+  /// The colors the decoration paints with, the fill's first.
+  List<HWDataType<int>> get colors => [
+        if (color case final color?) color,
+        if (border case final border?) border.color,
+      ];
+
   Set<String> get kotlinImports => {
-        if (color != null) ...color!.kotlinImports,
-        if (border != null) ...border!.kotlinImports,
+        for (final color in colors)
+          ...hwKotlinColorImports(
+            color,
+            fallback: HWColorSlotDefault.transparent,
+          ),
       };
 
-  Set<String> get swiftViewModifiers => {
-        if (color != null) ...color!.swiftViewModifiers,
-        if (border != null) ...border!.swiftViewModifiers,
-      };
+  Set<String> get swiftViewModifiers => _swiftViewModifiersOf(colors);
 }
 
 /// The rounding of the corners of an [HWBoxDecoration].
@@ -49,16 +57,15 @@ class HWBorderRadius {
 /// insets a fill by [thickness] inside a `Box` of the border color.
 class HWBoxBorder {
   final double thickness;
-  final HWColor color;
+
+  /// The color the border is stroked in, any color value; while a stored one
+  /// has no value the border is not drawn and still insets the child.
+  final HWDataType<int> color;
 
   const HWBoxBorder({
     required this.thickness,
     required this.color,
   });
-
-  Set<String> get kotlinImports => color.kotlinImports;
-
-  Set<String> get swiftViewModifiers => color.swiftViewModifiers;
 }
 
 /// A widget that decorates its child with a background color and/or border.
@@ -72,6 +79,15 @@ class HWDecoratedBox extends HWSingleChildWidget {
     required super.child,
     required this.decoration,
   });
+
+  @override
+  Set<HWDataType<dynamic>> get dataDependencies => {
+        ...super.dataDependencies,
+        ..._dataDependenciesOf(decoration.colors),
+      };
+
+  @override
+  Iterable<HWDataType<dynamic>> get ownValues => decoration.colors;
 
   /// Without a border the decoration is injected into the child's own
   /// composable, so the child is still what the enclosing layout lays out; a
@@ -214,20 +230,21 @@ class HWDecoratedBox extends HWSingleChildWidget {
     final radius = decoration._radius;
 
     if (color != null) {
+      final fill = _swiftColor(color, dataExpr);
       final String backgroundModifier;
       if (radius > 0) {
         backgroundModifier =
-            '.background(RoundedRectangle(cornerRadius: $radius).fill(${color.toSwift(indent, dataExpr: dataExpr)}))';
+            '.background(RoundedRectangle(cornerRadius: $radius).fill($fill))';
       } else {
-        backgroundModifier =
-            '.background(${color.toSwift(indent, dataExpr: dataExpr)})';
+        backgroundModifier = '.background($fill)';
       }
       viewCall = applySwiftModifier(viewCall, backgroundModifier, indent);
     }
 
     if (border != null) {
+      final stroke = _swiftColor(border.color, dataExpr);
       final overlayModifier =
-          '.overlay(RoundedRectangle(cornerRadius: $radius).strokeBorder(${border.color.toSwift(indent, dataExpr: dataExpr)}, lineWidth: ${border.thickness}))';
+          '.overlay(RoundedRectangle(cornerRadius: $radius).strokeBorder($stroke, lineWidth: ${border.thickness}))';
       viewCall = applySwiftModifier(viewCall, overlayModifier, indent);
     }
 
@@ -252,7 +269,7 @@ class HWDecoratedBox extends HWSingleChildWidget {
       return injectGlanceModifier(
         childCode,
         [
-          'background(${color.toKotlin(indent, dataExpr: dataExpr)})',
+          'background(${_kotlinColor(color, dataExpr)})',
           if (radius > 0) 'cornerRadius($radius.dp)',
         ].join('.'),
       );
@@ -261,7 +278,7 @@ class HWDecoratedBox extends HWSingleChildWidget {
     final pad = '    ' * indent;
     final childPad = '    ' * (indent + 1);
     final innerPad = '    ' * (indent + 2);
-    final borderColor = border.color.toKotlin(indent, dataExpr: dataExpr);
+    final borderColor = _kotlinColor(border.color, dataExpr);
     final innerRadius = (radius - border.thickness).clamp(0.0, radius);
 
     final outerModifier = [
@@ -286,7 +303,7 @@ class HWDecoratedBox extends HWSingleChildWidget {
           '$pad}';
     }
 
-    final backgroundColor = color.toKotlin(indent, dataExpr: dataExpr);
+    final backgroundColor = _kotlinColor(color, dataExpr);
     final innerModifier = [
       ..._kotlinFillRoom.modifiers,
       'background($backgroundColor)',
@@ -302,4 +319,20 @@ class HWDecoratedBox extends HWSingleChildWidget {
         '$childPad}\n'
         '$pad}';
   }
+
+  /// The SwiftUI color a fill or a border paints with.
+  static String _swiftColor(HWDataType<int> color, String dataExpr) =>
+      hwSwiftColor(
+        color,
+        dataExpr: dataExpr,
+        fallback: HWColorSlotDefault.transparent,
+      );
+
+  /// The Glance color a fill or a border paints with.
+  static String _kotlinColor(HWDataType<int> color, String dataExpr) =>
+      hwKotlinColor(
+        color,
+        dataExpr: dataExpr,
+        fallback: HWColorSlotDefault.transparent,
+      );
 }

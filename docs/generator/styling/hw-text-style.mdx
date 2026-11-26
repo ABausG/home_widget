@@ -13,7 +13,7 @@ description: Text styling for HWText — font size, weight, color, decorations, 
 | --- | --- | --- | --- |
 | `fontSize` | `double?` | `null` | Point size on iOS, `sp` on Android. |
 | `fontWeight` | `HWFontWeight?` | `null` | One of `w100`–`w900`, `normal`, `bold`. |
-| `color` | `HWColor?` | `null` | Foreground color. Unset, text renders in the platform's primary content color (`Color.primary` on iOS, `GlanceTheme.colors.onSurface` on Android), so it follows light and dark mode. See [HWColor](/generator/styling/hw-color). |
+| `color` | `HWDataType<int>?` | `null` | Foreground color — any color value (`HWColor`, `HWColor.fixed`, `HWDefaultColor`, wrapped, or `HWAppearanceData`). Unset, it takes the color of `baseStyle` if that has one. With no color from either, or while a stored color has no value, text renders in the platform's primary content color (`Color.primary` on iOS, `GlanceTheme.colors.onSurface` on Android), so it follows light and dark mode. To drop a color inherited from `baseStyle`, set `HWDefaultColor(HWColorRole.contentPrimary)`. See [`HWColor`](/generator/styling/hw-color). |
 | `italic` | `bool?` | `null` | Italicizes the text. |
 | `underline` | `bool?` | `null` | Adds an underline decoration. |
 | `lineThrough` | `bool?` | `null` | Adds a strike-through decoration. |

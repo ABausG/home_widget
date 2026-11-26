@@ -1,114 +1,6 @@
-import 'hw_generatable.dart';
-
-/// Base class for all color representations in HomeWidget.
-abstract class HWColor implements HWGeneratable {
-  const HWColor();
-
-  const factory HWColor.fixed(int value) = HWFixedColor;
-
-  const factory HWColor.themed({
-    required HWColor light,
-    required HWColor dark,
-  }) = HWThemedColor;
-
-  @override
-  Set<String> get kotlinImports => {
-        'import androidx.compose.ui.graphics.Color',
-        'import androidx.glance.color.ColorProvider',
-      };
-
-  @override
-  Set<String> get swiftViewModifiers => {};
-}
-
-String _getRawKotlinColor(HWColor color) {
-  if (color is HWFixedColor) {
-    final hexString =
-        color.value.toRadixString(16).padLeft(8, '0').toUpperCase();
-    return 'Color(0x$hexString)';
-  } else if (color is HWThemedColor) {
-    // A themed color cannot perfectly map to a single raw Compose Color.
-    // Fallback to the light color to satisfy the compiler without crashing.
-    return _getRawKotlinColor(color.light);
-  }
-  return 'Color.White';
-}
-
-/// A fixed color defined by an ARGB integer value (e.g. `0xFFFF0000` for Red).
-class HWFixedColor extends HWColor {
-  final int value;
-
-  const HWFixedColor(this.value);
-
-  @override
-  String toSwift(int indent, {required String dataExpr}) {
-    final a = (value >> 24) & 0xFF;
-    final r = (value >> 16) & 0xFF;
-    final g = (value >> 8) & 0xFF;
-    final b = value & 0xFF;
-
-    return 'Color(red: ${r / 255.0}, green: ${g / 255.0}, blue: ${b / 255.0}, opacity: ${a / 255.0})';
-  }
-
-  @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    return HWThemedColor(light: this, dark: this)
-        .toKotlin(indent, dataExpr: dataExpr);
-  }
-}
-
-/// A color that adapts its output based on the system's light or dark mode.
-class HWThemedColor extends HWColor {
-  final HWColor light;
-  final HWColor dark;
-
-  const HWThemedColor({required this.light, required this.dark});
-
-  @override
-  Set<String> get kotlinImports => {
-        ...super.kotlinImports,
-        'import androidx.glance.color.ColorProvider',
-        ...light.kotlinImports,
-        ...dark.kotlinImports,
-      };
-
-  @override
-  Set<String> get swiftViewModifiers => {
-        ...super.swiftViewModifiers,
-        '@Environment(\\.colorScheme) var colorScheme',
-        ...light.swiftViewModifiers,
-        ...dark.swiftViewModifiers,
-      };
-
-  @override
-  String toSwift(int indent, {required String dataExpr}) {
-    // Note: requires `@Environment(\\.colorScheme) var colorScheme` in the generated View.
-    return '(colorScheme == .dark ? ${dark.toSwift(indent, dataExpr: dataExpr)} : ${light.toSwift(indent, dataExpr: dataExpr)})';
-  }
-
-  @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    return 'ColorProvider(day = ${_getRawKotlinColor(light)}, night = ${_getRawKotlinColor(dark)})';
-  }
-}
-
-/// The semantic roles for default system colors.
-enum HWColorRole {
-  /// Maps to `Color.primary` on iOS and `GlanceTheme.colors.onSurface` on Android.
-  contentPrimary,
-
-  /// Maps to `Color.secondary` on iOS and `GlanceTheme.colors.onSurfaceVariant` on Android.
-  contentSecondary,
-
-  /// Maps to `Color.tertiary` on iOS and `GlanceTheme.colors.outline` on Android.
-  contentTertiary,
-
-  /// Maps to `Color.accentColor` on iOS and `GlanceTheme.colors.primaryContainer` on Android.
-  contentAccent,
-
-  /// Maps to `Color.clear` on iOS and `GlanceTheme.colors.widgetBackground` on Android.
-  defaultBackground,
-}
+import '../appearance.dart';
+import '../native_helpers.dart';
+import '../types.dart';
 
 /// The color content renders in when nothing names one.
 ///
@@ -122,47 +14,171 @@ const Set<String> hwDefaultContentColorKotlinImports = {
   'import androidx.glance.GlanceTheme',
 };
 
-/// A color that maps to default system semantic colors based on the given role.
-class HWDefaultColor extends HWColor {
-  final HWColorRole role;
+/// What a color slot paints with while its color has no value.
+///
+/// Codegen-internal: consumed by the widgets and by `home_widget_cli`, not by
+/// app code.
+enum HWColorSlotDefault {
+  /// The default content color, which text and icons render in.
+  ///
+  /// SwiftUI paints it itself for a `foregroundColor` of nil.
+  content(
+    kotlin: 'GlanceTheme.colors.onSurface',
+    kotlinImports: hwDefaultContentColorKotlinImports,
+  ),
 
-  const HWDefaultColor(this.role);
+  /// Nothing: a fill or a border keeps its room but paints transparent.
+  transparent(
+    swift: 'Color.clear',
+    kotlin: 'ColorProvider(day = Color.Transparent, night = Color.Transparent)',
+    kotlinImports: {
+      'import androidx.compose.ui.graphics.Color',
+      'import androidx.glance.color.ColorProvider',
+    },
+  ),
 
-  @override
-  Set<String> get kotlinImports => {
-        ...super.kotlinImports,
-        'import androidx.glance.GlanceTheme',
-      };
+  /// The platform's own widget background, which a widget's
+  /// `backgroundColor` falls back to.
+  ///
+  /// iOS keeps the system's container background, which the generated
+  /// container background modifier leaves in place.
+  background(
+    kotlin: 'GlanceTheme.colors.widgetBackground',
+    kotlinImports: {'import androidx.glance.GlanceTheme'},
+  );
 
-  @override
-  String toSwift(int indent, {required String dataExpr}) {
-    switch (role) {
-      case HWColorRole.contentPrimary:
-        return 'Color.primary';
-      case HWColorRole.contentSecondary:
-        return 'Color.secondary';
-      case HWColorRole.contentTertiary:
-        return 'Color(.tertiaryLabel)';
-      case HWColorRole.contentAccent:
-        return 'Color.accentColor';
-      case HWColorRole.defaultBackground:
-        return 'Color.clear';
-    }
-  }
+  const HWColorSlotDefault({
+    this.swift,
+    required this.kotlin,
+    required this.kotlinImports,
+  });
 
-  @override
-  String toKotlin(int indent, {required String dataExpr}) {
-    switch (role) {
-      case HWColorRole.contentPrimary:
-        return 'GlanceTheme.colors.onSurface';
-      case HWColorRole.contentSecondary:
-        return 'GlanceTheme.colors.onSurfaceVariant';
-      case HWColorRole.contentTertiary:
-        return 'GlanceTheme.colors.outline';
-      case HWColorRole.contentAccent:
-        return 'GlanceTheme.colors.primaryContainer';
-      case HWColorRole.defaultBackground:
-        return 'GlanceTheme.colors.widgetBackground';
-    }
-  }
+  /// The SwiftUI `Color` painted instead, or null where SwiftUI decides what
+  /// shows without a color.
+  final String? swift;
+
+  /// The Glance `ColorProvider` painted instead.
+  final String kotlin;
+
+  /// The imports [kotlin] needs.
+  final Set<String> kotlinImports;
 }
+
+/// Whether [color] always has a value, so its emitted Swift expression is not
+/// an optional: a constant color, and nothing else.
+bool hwIsConstantColor(HWDataType<dynamic> color) =>
+    color is HWFixedColor || color is HWDefaultColor;
+
+/// The SwiftUI `Color` [color] paints with, an optional unless it is
+/// constant.
+///
+/// [color] is any color value — constant, stored, wrapped in an [HWJson],
+/// [HWTimedData] or [HWItemData], or an [HWAppearanceData] picking one;
+/// [dataExpr] is the expression the data class is reached through.
+String hwSwiftColorValue(HWDataType<dynamic> color, String dataExpr) {
+  if (color is HWAppearanceData) {
+    return color.swiftPick((side) => hwSwiftColorValue(side, dataExpr));
+  }
+  if (color is HWFixedColor) return color.swiftLiteral;
+  if (color is HWDefaultColor) return color.swiftLiteral;
+  return '${HWNativeHelper.hwColor.name}(${color.swiftReadExpr(dataExpr)})';
+}
+
+/// The SwiftUI `Color` a slot paints with for [color], falling back to
+/// [fallback] while the color has no value.
+///
+/// Without a Swift color of [fallback] the expression stays an optional, for a
+/// slot such as `foregroundColor` that reads nil as its own default.
+String hwSwiftColor(
+  HWDataType<dynamic> color, {
+  required String dataExpr,
+  HWColorSlotDefault? fallback,
+}) {
+  final value = hwSwiftColorValue(color, dataExpr);
+  final fallbackColor = fallback?.swift;
+  if (fallbackColor == null || hwIsConstantColor(color)) return value;
+  return '($value ?? $fallbackColor)';
+}
+
+/// Whether [color] has a value wherever iOS shows it: a constant color, or an
+/// [HWAppearanceData] whose every side is one.
+bool hwSwiftColorIsConstant(HWDataType<dynamic> color) =>
+    hwIsConstantColor(color) ||
+    (color is HWAppearanceData && color.sides.every(hwIsConstantColor));
+
+/// The SwiftUI `Color` [color] paints with, which is not an optional: [color]
+/// is one [hwSwiftColorIsConstant] holds for.
+String hwSwiftConstantColor(
+  HWDataType<dynamic> color, {
+  required String dataExpr,
+}) {
+  final value = hwSwiftColorValue(color, dataExpr);
+  if (color is! HWAppearanceData) return value;
+  return '($value ?? ${hwSwiftColorValue(color.light, dataExpr)})';
+}
+
+/// The Glance `ColorProvider` [color] paints with, nullable unless
+/// [_kotlinColorIsConstant].
+///
+/// An [HWAppearanceData] is one `ColorProvider` holding the color of either
+/// appearance, which the launcher switches between itself.
+String _kotlinColorValue(HWDataType<dynamic> color, String dataExpr) {
+  if (color is HWAppearanceData) {
+    final pair = _kotlinFixedPair(color);
+    if (pair != null) return pair;
+    return HWAppearanceChoice.kotlinColor(
+      light: _kotlinColorValue(color.light, dataExpr),
+      dark: _kotlinColorValue(color.dark, dataExpr),
+    );
+  }
+  if (color is HWFixedColor) {
+    return HWAppearanceChoice.kotlinColorPair(
+      light: color.kotlinLiteral,
+      dark: color.kotlinLiteral,
+    );
+  }
+  if (color is HWDefaultColor) return color.kotlinLiteral;
+  return '${HWNativeHelper.hwColor.name}(${color.kotlinReadExpr(dataExpr)})';
+}
+
+/// The `ColorProvider` of the two constant colors [color] picks between, or
+/// null when one of its sides is not a constant ARGB color.
+String? _kotlinFixedPair(HWAppearanceData<dynamic> color) {
+  final light = color.light;
+  final dark = color.dark;
+  if (light is! HWFixedColor || dark is! HWFixedColor) return null;
+  return HWAppearanceChoice.kotlinColorPair(
+    light: light.kotlinLiteral,
+    dark: dark.kotlinLiteral,
+  );
+}
+
+/// Whether the Glance expression for [color] is never null.
+bool _kotlinColorIsConstant(HWDataType<dynamic> color) =>
+    hwIsConstantColor(color) ||
+    (color is HWAppearanceData && _kotlinFixedPair(color) != null);
+
+/// The Glance `ColorProvider` a slot paints with for [color], falling back to
+/// [fallback] while the color has no value.
+String hwKotlinColor(
+  HWDataType<dynamic> color, {
+  required String dataExpr,
+  required HWColorSlotDefault fallback,
+}) {
+  final value = _kotlinColorValue(color, dataExpr);
+  if (_kotlinColorIsConstant(color)) return value;
+  return '($value ?: ${fallback.kotlin})';
+}
+
+/// The Kotlin imports [hwKotlinColor] needs for [color], besides those of the
+/// helpers it calls.
+Set<String> hwKotlinColorImports(
+  HWDataType<dynamic> color, {
+  required HWColorSlotDefault fallback,
+}) =>
+    {
+      ...HWAppearanceChoice.kotlinColorPairImports,
+      if (color.readValues.any((value) => value is HWDefaultColor))
+        'import androidx.glance.GlanceTheme',
+      if (!_kotlinColorIsConstant(color)) ...fallback.kotlinImports,
+    };

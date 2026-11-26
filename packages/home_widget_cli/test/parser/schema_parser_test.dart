@@ -34,6 +34,37 @@ void main() {
       return specs.first;
     }
 
+    test('a stored background color is a data field of the widget', () async {
+      const source = '''
+        import 'package:home_widget_generator/home_widget_generator.dart';
+
+        @HomeWidget(
+          name: 'Background',
+          android: HomeWidgetAndroidConfiguration(
+            backgroundColor: HWAppearanceData(
+              light: HWColor('bgLight'),
+              dark: HWDefaultColor(HWColorRole.defaultBackground),
+            ),
+          ),
+          iOS: HomeWidgetIOSConfiguration(
+            groupId: 'group.test',
+            backgroundColor: HWColor('bgLight'),
+          ),
+          widget: HWText(HWString('title')),
+        )
+        class BackgroundWidget {}
+      ''';
+
+      final spec = await parseSourceInTempFile(source);
+      expect(
+        spec!.dataFields,
+        [const HWString('title'), const HWColor('bgLight')],
+      );
+      expect(spec.data.android!.backgroundColor, isA<HWAppearanceData<int>>());
+      expect(spec.androidNativeHelpers, contains(HWNativeHelper.hwColor));
+      expect(spec.iosNativeHelpers, contains(HWNativeHelper.hwColor));
+    });
+
     test('parses minimal widget spec', () async {
       const source = '''
         import 'package:home_widget_generator/home_widget_generator.dart';
@@ -1139,7 +1170,7 @@ VStack(alignment: .center, spacing: 0) {
           ]),
         );
         expect(
-          spec.nativeHelpers,
+          spec.androidNativeHelpers,
           containsAll([
             HWNativeHelper.hwFormatPercent,
             HWNativeHelper.hwFormatDecimal,
@@ -1148,7 +1179,7 @@ VStack(alignment: .center, spacing: 0) {
           ]),
         );
         expect(
-          spec.nativeHelpers,
+          spec.androidNativeHelpers,
           isNot(contains(HWNativeHelper.hwParseIsoDate)),
         );
         expect(spec.iconCodePoints.values.single, hasLength(2));

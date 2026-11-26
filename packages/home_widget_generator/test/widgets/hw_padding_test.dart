@@ -15,7 +15,7 @@ void main() {
           child: HWText(
             HWString('k'),
             style: HWTextStyle(
-              color: HWThemedColor(
+              color: HWAppearanceData(
                 light: HWFixedColor(0xFF000000),
                 dark: HWFixedColor(0xFFFFFFFF),
               ),
@@ -25,7 +25,7 @@ void main() {
         expect(bound.dataDependencies, contains(const HWString('k')));
         expect(bound.childWidgets, hasLength(1));
         expect(
-          bound.swiftViewModifiers.any((e) => e.contains('colorScheme')),
+          bound.swiftViewModifiers.any((e) => e.contains('hwEnvironment')),
           isTrue,
         );
       });

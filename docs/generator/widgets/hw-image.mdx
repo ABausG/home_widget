@@ -9,9 +9,9 @@ Renders an image — either one your app saves at runtime, or a Flutter asset th
 
 ## Constructor
 
-`const HWImage(HWDataType<dynamic> image, {double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel})`
+`const HWImage(HWDataType<dynamic> image, {double? width, double? height, HWImageFit fit = HWImageFit.contain, String? semanticLabel, HWAccentedRendering? iosAccentedRendering})`
 
-`image` is an `HWImageData`, or an `HWJson` / `HWTimedData` wrapping one. A stored `HWImageData('key')` shows a picture your app saves at runtime; `HWImageData.asset` shows a Flutter asset.
+`image` is an `HWImageData`, optionally wrapped in `HWJson`, `HWItemData`, or `HWTimedData`, or an [`HWAppearanceData`](/generator/appearance) picking between images by system appearance. A stored `HWImageData('key')` shows a picture your app saves at runtime; `HWImageData.asset` shows a Flutter asset.
 
 ### Runtime image
 
@@ -61,15 +61,60 @@ Asset paths are validated when you run `home_widget generate`: an app asset must
 
 ## Parameters
 
-| Name            | Type          | Default              | Description                                                     |
-| --------------- | ------------- | --------------------- | ----------------------------------------------------------------|
-| `image`         | `HWDataType<dynamic>` | **required** | `HWImageData` or `HWImageData.asset`, or an `HWJson` / `HWTimedData` wrapping a stored one, naming the image to render. |
-| `width`         | `double?`     | `null`                | Fixed width in logical pixels, or size from the layout.         |
-| `height`        | `double?`     | `null`                | Fixed height in logical pixels, or size from the layout.        |
-| `fit`           | `HWImageFit`  | `HWImageFit.contain`  | How the image is inscribed into its bounds.                     |
-| `semanticLabel` | `String?`     | `null`                | Accessibility description, or `null` for a decorative image.    |
+| Name                   | Type                   | Default              | Description                                                                                                                                |
+| ---------------------- | ---------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `image`                | `HWDataType<dynamic>`  | **required**         | `HWImageData` or `HWImageData.asset`, optionally wrapped in `HWJson`, `HWItemData`, `HWTimedData`, or `HWAppearanceData`.                  |
+| `width`                | `double?`              | `null`               | Fixed width in logical pixels, or size from the layout.                                                                                    |
+| `height`               | `double?`              | `null`               | Fixed height in logical pixels, or size from the layout.                                                                                   |
+| `fit`                  | `HWImageFit`           | `HWImageFit.contain` | How the image is inscribed into its bounds.                                                                                                |
+| `semanticLabel`        | `String?`              | `null`               | Accessibility description, or `null` for a decorative image.                                                                               |
+| `iosAccentedRendering` | `HWAccentedRendering?` | `null`               | How iOS renders the image on a Tinted or Clear Home Screen (iOS 18+). See [iOS Tinted and Clear rendering](#ios-tinted-and-clear-rendering). |
 
 `HWImageFit` has three values: `contain` (scale down to fit, preserving aspect ratio), `cover` (fill the bounds, preserving aspect ratio and clipping the overflow), and `fill` (stretch to the bounds, ignoring aspect ratio).
+
+## iOS Tinted and Clear rendering
+
+When an iOS Home Screen is set to Tinted (iOS 18+) or Clear / Liquid Glass (iOS 26+), WidgetKit flattens images to a silhouette in the tint color by default. Set `iosAccentedRendering` to control how the image renders there:
+
+```dart
+HWImage(
+  HWImageData('photo'),
+  width: 64,
+  height: 64,
+  fit: HWImageFit.cover,
+  iosAccentedRendering: HWAccentedRendering.fullColor,
+)
+```
+
+| Value | Appearance in Tinted / Clear mode |
+| --- | --- |
+| `null` (unset) | System default: flat silhouette in the tint color. |
+| `HWAccentedRendering.accented` | Flat silhouette in the tint color (matches unset). |
+| `HWAccentedRendering.desaturated` | The image's brightness becomes its opacity, drawn in the color of the widget's default (non-accented) content. |
+| `HWAccentedRendering.accentedDesaturated` | The image's brightness becomes its opacity, drawn in the accent (tint) color. In testing on iOS 26.2 it looked the same as `desaturated`. |
+| `HWAccentedRendering.fullColor` | Keeps the image's original colors. Intended for photos and artwork. |
+
+- Applies on iOS 18 and later (verified on iOS 26.2; iOS 18 itself was not tested). Ignored on older iOS versions, has no effect on the Lock Screen, and is ignored on Android.
+- A widget that sets it needs Xcode 16 or newer to build, because the generated code refers to an API of the iOS 18 SDK.
+- Layout is unchanged compared to the same image without `iosAccentedRendering`.
+- For logos and icons, prefer supplying a tint-friendly monochrome silhouette through `HWAppearanceData(iosAccented: ...)` rather than forcing `fullColor`.
+
+## Images per appearance
+
+Wrap `HWImageData` values in [`HWAppearanceData`](/generator/appearance) to display different images for light mode, dark mode, and iOS Tinted, Clear, or Lock Screen appearances:
+
+```dart
+HWImage(
+  HWAppearanceData(
+    light: HWImageData('logoLight'),
+    dark: HWImageData('logoDark'),
+    iosAccented: HWImageData.asset('assets/logo_mono.png'),
+  ),
+  height: 32,
+)
+```
+
+Each stored side becomes its own `ImageProvider?` parameter in `saveData`, missing variants fall back to the other scheme, and images switch live on iOS and Android 12+. See [Appearance](/generator/appearance) for selection order, fallback rules, and platform behavior.
 
 ## Filling a box
 
@@ -87,6 +132,10 @@ HWSizedBox.expand(
 - An axis the image sizes itself through `width` / `height` keeps that size.
 
 Without a box around it, an image without `width` / `height` takes the size of its bitmap on Android, while on iOS it grows to the room it is offered, so give an image either its own size or a box to fill.
+
+<Warning>
+On iOS Lock Screen families (`accessoryCircular`, `accessoryRectangular`, `accessoryInline`), the decoded image must stay within WidgetKit's Lock Screen image limit (roughly 1069 × 432 px) in both dimensions, or WidgetKit rejects the widget. Set the `width` or `height` that bounds the image — or both for extreme aspect ratios, since an unset axis is derived from the image's aspect ratio. An image with neither `width` nor `height` decodes up to a 1536 px cap and can exceed the limit.
+</Warning>
 
 ## Getting an image onto the widget
 

@@ -65,15 +65,25 @@ class HWSizedBox extends HWWidget {
 
     final modifiers = _kotlinModifiers(enclosingLinearAxis);
     final child = _kotlinChild;
+    if (child == null) {
+      return {
+        if (modifiers.isNotEmpty) 'import androidx.glance.GlanceModifier',
+        for (final modifier in modifiers) ..._kotlinModifierImports(modifier),
+        'import androidx.glance.layout.Spacer',
+      };
+    }
+    final childImports = child.kotlinImportsIn(_childAxis(enclosingLinearAxis));
     return {
-      if (modifiers.isNotEmpty) 'import androidx.glance.GlanceModifier',
-      for (final modifier in modifiers) ..._kotlinModifierImports(modifier),
-      if (child == null)
-        'import androidx.glance.layout.Spacer'
-      else ...{
-        if (modifiers.isNotEmpty) 'import androidx.glance.layout.Box',
-        ...child.kotlinImportsIn(_childAxis(enclosingLinearAxis)),
+      if (modifiers.isNotEmpty) ...{
+        'import androidx.glance.GlanceModifier',
+        'import androidx.glance.layout.Box',
+        ...glanceSingleAxisImports(childImports, {
+          if (width != null) GlanceSizeAxis.width,
+          if (height != null) GlanceSizeAxis.height,
+        }),
       },
+      for (final modifier in modifiers) ..._kotlinModifierImports(modifier),
+      ...childImports,
     };
   }
 

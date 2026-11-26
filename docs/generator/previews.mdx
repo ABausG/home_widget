@@ -64,10 +64,7 @@ With the user's data not yet saved, the launcher's widget picker shows "Berlin",
 instead of "Nowhere", "No forecast" and "0" — a far more convincing preview of what the widget looks
 like once it is placed.
 
-`HWString`, `HWInt`, `HWDouble` and `HWBool` all take `previewValue` the same way `defaultValue`
-works. `HWDateTime`, `HWImageData` and `HWString.localized` each have their own shape, covered
-below. `HWTimedData` and `HWJson` have no preview of their own — the preview shown is the one
-carried by the type they wrap or the leaf they address.
+`HWString`, `HWInt`, `HWDouble`, `HWBool`, and `HWColor` (as a 32-bit ARGB int, e.g. `0xFF6750A4`) all take `previewValue` the same way `defaultValue` works. `HWDateTime`, `HWImageData` and `HWString.localized` each have their own shape, covered below. `HWTimedData`, `HWJson`, and `HWAppearanceData` have no preview of their own — the preview shown is the one carried by the types they wrap or select.
 
 A fixed value (`HWString.fixed`, `HWString.localizedFixed`, `HWInt.fixed` and the other `.fixed` forms) takes no preview value: it is compiled into the
 widget, so it already previews as itself.
@@ -130,7 +127,9 @@ The generated `GlanceAppWidget` overrides `providePreview` for you, built from t
 as the home-screen content. The plugin also registers that preview automatically: whenever a
 Flutter engine attaches, it re-renders and hands over the preview for any generated widget whose
 content changed since the last registration, using a fingerprint of the annotation, the device's
-locale, and — only where the preview reads live data — the values currently in storage. It also
+locale, and — only where the preview reads live data — the values currently in storage. For a
+widget that picks values or layouts by night mode on Android, the fingerprint also includes the
+current night mode, so the preview re-registers when the app starts in the other mode. It also
 re-registers a widget whose preview the system no longer holds, which is the case after an app
 update or a reboot. Android rate-limits preview updates to roughly **two per hour per widget**, so
 this only spends that budget when the gallery would otherwise show something else.

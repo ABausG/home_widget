@@ -263,12 +263,12 @@ class TestWidget {}
       expect(text.toSwift(0, dataExpr: 'data'), contains('data.title'));
     });
 
-    test('parses HWColoredBox and HWThemedColor', () async {
+    test('parses HWColoredBox and an HWAppearanceData of colors', () async {
       final code = '''
 @HomeWidget(
   name: 'TestWidget',
   widget: HWColoredBox(
-    color: HWThemedColor(
+    color: HWAppearanceData(
       light: HWFixedColor(0xFFFF0000),
       dark: HWFixedColor(0xFF00FF00),
     ),
@@ -280,12 +280,10 @@ class TestWidget {}
       final widget = await parseCode(code);
       expect(widget, isA<HWColoredBox>());
       final box = widget as HWColoredBox;
-      expect(box.color, isA<HWThemedColor>());
-      final themedColor = box.color as HWThemedColor;
-      expect(themedColor.light, isA<HWFixedColor>());
-      expect((themedColor.light as HWFixedColor).value, 0xFFFF0000);
-      expect(themedColor.dark, isA<HWFixedColor>());
-      expect((themedColor.dark as HWFixedColor).value, 0xFF00FF00);
+      expect(box.color, isA<HWAppearanceData<int>>());
+      final appearance = box.color as HWAppearanceData<int>;
+      expect(appearance.light, const HWFixedColor(0xFFFF0000));
+      expect(appearance.dark, const HWFixedColor(0xFF00FF00));
 
       expect(box.child, isA<HWText>());
       expect(

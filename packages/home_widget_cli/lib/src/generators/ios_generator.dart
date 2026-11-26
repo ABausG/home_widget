@@ -48,7 +48,7 @@ class IosGenerator {
         jsonGroups.isNotEmpty ||
         hasTimedData ||
         lists.isNotEmpty;
-    final needsEntryTimedEntries = spec.needsLocaleHelpers && hasTimedData;
+    final needsEntryTimedEntries = spec.iosNeedsLocaleHelpers && hasTimedData;
 
     final iosDir = Directory(p.join(projectRoot.path, 'ios'));
     if (!iosDir.existsSync()) {
@@ -77,7 +77,7 @@ class IosGenerator {
     // Localized strings must be resolved at render time so a system language
     // change is picked up without waiting for a new timeline. Timeline entries
     // still carry a snapshot for WidgetKit, but the view re-reads.
-    final reResolveAtRender = spec.needsLocaleHelpers;
+    final reResolveAtRender = spec.iosNeedsLocaleHelpers;
 
     // What the gallery reads: its own defaults only where the widget opts into
     // live data, and the preview factories only where a field ships a sample.
@@ -298,7 +298,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
     // through and every one the declared fields are read back with to its
     // transitive closure, already ordered so each one is declared after what
     // it calls.
-    final nativeHelpers = swiftNativeHelpers(spec.nativeHelpers).toList();
+    final nativeHelpers = swiftNativeHelpers(spec.iosNativeHelpers).toList();
     // Whether a glyph mirrors in a right-to-left layout is a property of the
     // icon itself, so one widget-wide set answers for every icon field.
     final fileDeclarations = <String>[
@@ -345,9 +345,15 @@ struct ${widgetClassName}Entry: TimelineEntry {
     final customBgColor = spec.data.iOS?.backgroundColor;
     final applyPadding = spec.data.iOS?.applyContentPadding ?? true;
     final hasCustomBg = customBgColor != null;
-    final containerBackgroundModifier = hasCustomBg
-        ? '.applyContainerBackground(${customBgColor.toSwift(2, dataExpr: dataExpr)})'
-        : '.applyContainerBackground()';
+    final hasOptionalBg =
+        customBgColor != null && !hwSwiftColorIsConstant(customBgColor);
+    final containerBackgroundModifier = switch (customBgColor) {
+      null => '.applyContainerBackground()',
+      final color when hasOptionalBg => '.applyContainerBackground(optional: '
+          '${hwSwiftColor(color, dataExpr: dataExpr)})',
+      final color => '.applyContainerBackground('
+          '${hwSwiftConstantColor(color, dataExpr: dataExpr)})',
+    };
 
     final viewBuffer = StringBuffer();
     if (reResolveAtRender) {
@@ -456,6 +462,7 @@ struct ${widgetClassName}Entry: TimelineEntry {
           if (customBgColor != null) ...customBgColor.swiftViewModifiers,
         },
         hasCustomContainerBackground: hasCustomBg,
+        hasOptionalContainerBackground: hasOptionalBg,
         applyContentPadding: applyPadding,
       ),
     );

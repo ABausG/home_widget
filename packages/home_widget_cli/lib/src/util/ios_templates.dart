@@ -81,6 +81,7 @@ String iosWidgetSwiftTemplate({
   String? supportedFamiliesProperty,
   Set<String>? swiftViewModifiers,
   bool hasCustomContainerBackground = false,
+  bool hasOptionalContainerBackground = false,
   bool applyContentPadding = true,
   String? header,
 }) {
@@ -228,7 +229,8 @@ struct $widgetClassName: Widget {
 
 ''');
 
-  if (includesContainerBackground && !hasCustomContainerBackground) {
+  if (includesContainerBackground &&
+      (!hasCustomContainerBackground || hasOptionalContainerBackground)) {
     buffer.write('''
 extension View {
   @ViewBuilder
@@ -255,6 +257,22 @@ extension View {
       self.containerBackground(for: .widget) { backgroundView }
     } else {
       self.background(backgroundView)
+    }
+  }
+}
+
+''');
+  }
+
+  if (includesContainerBackground && hasOptionalContainerBackground) {
+    buffer.write('''
+extension View {
+  @ViewBuilder
+  func applyContainerBackground(optional backgroundColor: Color?) -> some View {
+    if let backgroundColor {
+      self.applyContainerBackground(backgroundColor)
+    } else {
+      self.applyContainerBackground()
     }
   }
 }

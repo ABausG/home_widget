@@ -34,16 +34,20 @@ The generated Dart helper exposes typed setters for each declared field, e.g. `s
 | `HWDouble`  | `HWDouble(key, {defaultValue, previewValue})` | `double`            | Double / float value.                                                                        |
 | `HWBool`    | `HWBool(key, {defaultValue, previewValue})` | `bool`               | Boolean value.                                                                               |
 | `HWDateTime`| `HWDateTime(key, {previewValue})`          | `DateTime`            | A point in time, stored as an ISO-8601 UTC string. Rendered in the device's locale and time zone — see [Formatting](/generator/formatting). |
+| `HWColor`   | `HWColor(key, {defaultValue, previewValue})` | `Color`             | A 32-bit ARGB color supplied at runtime. See [Color data](#color-data) and [`HWColor`](/generator/styling/hw-color). |
 | `HWString.fixed` | `HWString.fixed(value)` | none | Constant text written into the widget. No stored field. See [Fixed values](#fixed-values). |
 | `HWString.localizedFixed` | `HWString.localizedFixed(translations)` | none | Constant text translated at build time, one entry per supported locale. No stored field. See [Fixed values](#fixed-values). |
 | `HWInt.fixed` | `HWInt.fixed(value)` | none | Constant integer. No stored field. |
 | `HWDouble.fixed` | `HWDouble.fixed(value)` | none | Constant double. No stored field. |
 | `HWBool.fixed` | `HWBool.fixed(value)` | none | Constant boolean. No stored field. |
 | `HWDateTime.fixed` | `HWDateTime.fixed(isoString)` | none | Constant point in time, given as an ISO 8601 string that names its zone. No stored field. |
+| `HWColor.fixed` | `HWColor.fixed(argb)` | none | Constant 32-bit ARGB color. No stored field. See [`HWColor`](/generator/styling/hw-color). |
+| `HWDefaultColor` | `HWDefaultColor(role)` | none | Semantic system color role. No stored field. See [`HWColor`](/generator/styling/hw-color#hwdefaultcolor). |
 | `HWIconData.fixed` | `HWIconData.fixed(icon)` | none | Constant icon. No stored field. |
 | `HWJson`    | `HWJson(key, child)`                       | `Map<String, dynamic>`| Stored as a JSON string. Wraps another `HWDataType` to address a nested leaf (e.g. `HWJson('user', HWString('name'))`). |
 | `HWImageData` | `HWImageData(key, {previewAsset})` / `HWImageData.asset(path, {package})` | `ImageProvider`  | An image, saved at runtime or bundled as a Flutter asset. See [Image data](#image-data) below. |
 | `HWIconData` | `HWIconData(key, {required icons, defaultValue, previewValue})` | generated icon enum | An icon chosen from a fixed set, rendered with [`HWIcon`](/generator/widgets/hw-icon). See [Icon data](#icon-data) below. |
+| `HWAppearanceData` | `HWAppearanceData({required light, required dark, iosAccented, iosVibrant})` | none (each stored side is its own field) | Picks one of several data values by system appearance (light, dark, iOS Tinted/Clear, Lock Screen). See [Appearance-aware data](#appearance-aware-data) and [Appearance](/generator/appearance). |
 | `HWItemData` | `HWItemData(data, {previewValues})` | the wrapped type's, on the generated item class | Wraps another type to read a field of the list item a builder is rendering, taking its key and the applicable default and preview. See [List items](#list-items) below. |
 | `HWPayload` | `HWPayload(name, value)` | the wrapped type's, on the generated launch class | Names a value a tap sends to the app. Only valid as an entry of a payload. See [Payloads](#payloads) below. |
 
@@ -74,8 +78,9 @@ A fixed value is written into the generated native code. It creates no stored fi
 | `HWString` | `HWString.localizedFixed({'en': 'Hello', 'de': 'Hallo'})` | Translated at build time. Needs a `localization:` block and must include the default locale. See [Localization](/generator/localization). |
 | `HWInt` | `HWInt.fixed(3)` | Formatted on the device when shown with `HWText.number`. |
 | `HWDouble` | `HWDouble.fixed(2.5)` | Formatted on the device when shown with `HWText.number`. A value that is not finite (`double.infinity`, `double.nan`) is a generation error. |
-| `HWBool` | `HWBool.fixed(true)` | Shown with `HWText`. Cannot be the condition of `HWBoolConditional` or `HWDataExists` (see below). |
+| `HWBool` | `HWBool.fixed(true)` | Shown with `HWText`. Cannot be the condition of `HWBoolConditional` or `HWDataExists` on its own (allowed on the sides of an `HWAppearanceData` in `HWBoolConditional`). |
 | `HWDateTime` | `HWDateTime.fixed('2026-09-22T10:00:00Z')` | An ISO 8601 string that names its zone: `Z`, or an explicit offset such as `+02:00`. Formatted on the device, in its locale and the `timeZone` of `HWText.dateTime`. A string that does not parse, names no zone, has a field out of range such as February 30, or has a year outside 1 to 9999 is a generation error. |
+| `HWColor` | `HWColor.fixed(0xFF6750A4)`, `HWDefaultColor(HWColorRole.contentPrimary)` | Constant ARGB color or semantic system role. Accepted in any color slot; cannot be rendered as text. See [`HWColor`](/generator/styling/hw-color). |
 | `HWIconData` | `HWIconData.fixed(Icons.favorite)` | Takes any `IconData` constant. Anything else is a generation error. |
 | `HWImageData` | `HWImageData.asset('assets/logo.png', package: ...)` | A bundled Flutter asset. See [Image data](#image-data). |
 
@@ -115,8 +120,9 @@ HWLink(
 | `HWJson` with one of those types as its leaf | yes | Named after the leaf key. |
 | `HWItemData` around one of those types | inside a builder item | Sends the value of the row that was tapped. Not allowed in `widgetUrlData`. |
 | `HWTimedData` around one of those types | yes | Sends the value of the entry currently displayed. |
-| `HWImageData`, `HWIconData` | no | Generation error. |
+| `HWImageData`, `HWIconData`, `HWColor` | no | Generation error (stored and constant forms alike). |
 | `HWString.localized`, `HWString.localizedFixed` | no | Generation error. |
+| `HWAppearanceData` | no | Generation error. Send a stored field of its own instead. |
 
 A stored value a payload reads is a normal data field: it appears in `saveData` and `getData` even when no widget displays it.
 
@@ -170,7 +176,31 @@ When a `defaultValue` is provided it's used both in the generated Dart helper an
 
 A missing **number** follows the same rule: with no `defaultValue`, an `HWInt` or `HWDouble` bound to an `HWText` renders as empty text rather than as a formatted `0` — see [Missing values](/generator/formatting#missing-values).
 
-`HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWDateTime` and `HWIconData` also take a `previewValue` next to their default; `HWImageData` takes a `previewAsset` and `HWString.localized` takes `previewTranslations` instead. `HWJson` and `HWTimedData` declare none of their own — they preview through the type they wrap or the leaf they address. Each of these is a sample shown only in the widget gallery, never on the home screen. See [Previews](/generator/previews).
+`HWString`, `HWInt`, `HWDouble`, `HWBool`, `HWDateTime`, `HWColor`, and `HWIconData` also take a `previewValue` next to their default; `HWImageData` takes a `previewAsset` and `HWString.localized` takes `previewTranslations` instead. `HWJson`, `HWTimedData`, and `HWAppearanceData` declare none of their own — they preview through the types they wrap or select. Each of these is a sample shown only in the widget gallery, never on the home screen. See [Previews](/generator/previews).
+
+## Color data
+
+`HWColor` represents a color used in any color slot (`HWTextStyle.color`, `HWIcon.color`, `HWColoredBox.color`, `HWBoxDecoration.color`, `HWBoxBorder.color`, and the Android/iOS `backgroundColor` configs).
+
+- `HWColor('accent', defaultValue: 0xFF6750A4, previewValue: 0xFF00897B)` — a stored runtime color. In Dart, `saveData` and `getData` pass Flutter's `Color` from `dart:ui`, stored as a 32-bit ARGB integer.
+- `HWColor.fixed(0xFF6750A4)` and `HWDefaultColor(HWColorRole.contentPrimary)` — constant forms with no stored field.
+
+Stored colors work inside `HWJson`, `HWTimedData`, `HWItemData`, and `HWAppearanceData`. A color cannot be rendered as text (`HWText`) or sent in a tap payload. See [`HWColor`](/generator/styling/hw-color) for slot defaults and full details.
+
+## Appearance-aware data
+
+`HWAppearanceData` picks one of several values of the same kind based on how the system is displaying the widget: `light` and `dark` on both platforms, plus optional `iosAccented` (iOS Tinted and Clear Home Screen) and `iosVibrant` (iOS Lock Screen and StandBy) slots.
+
+```dart
+HWTextStyle(
+  color: HWAppearanceData(
+    light: HWColor('accentLight', defaultValue: 0xFF6750A4),
+    dark: HWColor('accentDark', defaultValue: 0xFFD0BCFF),
+  ),
+)
+```
+
+It creates no stored field of its own — each stored side is an independent parameter on the generated helper. It must always be the outermost wrapper (`HWAppearanceData(light: HWTimedData(...), dark: HWTimedData(...))`, never `HWTimedData(HWAppearanceData(...))`), and is not allowed in tap payloads or [`HWDataOnly`](/generator/widgets/hw-data-only) (list the stored fields of its sides instead). See [Appearance](/generator/appearance) for selection order, missing-variant fallbacks, and platform switching behavior.
 
 ## Image data
 
@@ -273,4 +303,4 @@ HWRow.builder(
 )
 ```
 
-It wraps an `HWString` (plain or localized), `HWInt`, `HWDouble`, `HWBool`, `HWDateTime`, `HWIconData` or runtime `HWImageData`, and takes its key from the type it wraps, along with the applicable default and preview — `defaultValue`/`previewValue` for most, `defaultTranslations`/`previewTranslations` for `HWString.localized`, and `previewAsset` with no default for a runtime `HWImageData`; see [`HWItemData`](/generator/lists#hwitemdata) for the full mapping. `previewValues` varies the sample from one gallery item to the next. The app saves the whole list through the generated helper, e.g. `saveData(forecast: [WeatherForecastItem(temperature: 21)])`. See [Lists](/generator/lists) for the generated item class, defaults, previews and the Android limits.
+It wraps an `HWString` (plain or localized), `HWInt`, `HWDouble`, `HWBool`, `HWDateTime`, `HWColor`, `HWIconData` or runtime `HWImageData`, and takes its key from the type it wraps, along with the applicable default and preview — `defaultValue`/`previewValue` for most, `defaultTranslations`/`previewTranslations` for `HWString.localized`, and `previewAsset` with no default for a runtime `HWImageData`; see [`HWItemData`](/generator/lists#hwitemdata) for the full mapping. `previewValues` varies the sample from one gallery item to the next. The app saves the whole list through the generated helper, e.g. `saveData(forecast: [WeatherForecastItem(temperature: 21)])`. See [Lists](/generator/lists) for the generated item class, defaults, previews and the Android limits.

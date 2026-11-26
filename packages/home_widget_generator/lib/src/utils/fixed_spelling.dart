@@ -10,9 +10,13 @@ String spellFixedValue(HWDataType<dynamic> value) => switch (value) {
       HWInt(:final fixedValue) => 'HWInt.fixed($fixedValue)',
       HWDouble(:final fixedValue) => 'HWDouble.fixed($fixedValue)',
       HWBool(:final fixedValue) => 'HWBool.fixed($fixedValue)',
+      HWFixedColor(:final value) => 'HWColor.fixed(${hwArgbLiteral(value)})',
+      HWDefaultColor(:final role) => 'HWDefaultColor(HWColorRole.${role.name})',
+      HWColor() ||
       HWJson() ||
       HWTimedData() ||
       HWItemData() ||
-      HWPayload() =>
+      HWPayload() ||
+      HWAppearanceData() =>
         '${value.runtimeType}',
     };

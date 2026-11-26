@@ -276,6 +276,17 @@ WidgetSpec? _extractWidgetSpec(ClassElement element, String filePath) {
       dataFields.add(entry.value);
     }
   }
+  // A stored background color is a field like any the tree reads.
+  for (final color in [
+    androidConfig?.backgroundColor,
+    iosConfig?.backgroundColor,
+  ]) {
+    for (final value in color?.readValues ?? const <HWDataType<dynamic>>[]) {
+      if (value.isDataDependency && !dataFields.contains(value)) {
+        dataFields.add(value);
+      }
+    }
+  }
 
   if (name == null) return null;
 
@@ -353,8 +364,10 @@ HomeWidgetAndroidConfiguration? _extractAndroidConfig(DartObject? obj) {
     ),
     updatePeriodMillis: obj.getField('updatePeriodMillis')?.toIntValue(),
     useGlanceTheme: obj.getField('useGlanceTheme')?.toBoolValue() ?? true,
-    backgroundColor:
-        WidgetValueDecoder.decodeColor(obj.getField('backgroundColor')),
+    backgroundColor: WidgetValueDecoder.decodeColor(
+      obj.getField('backgroundColor'),
+      slot: 'HomeWidgetAndroidConfiguration.backgroundColor',
+    ),
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,
     fillWidgetContent: obj.getField('fillWidgetContent')?.toBoolValue() ?? true,
@@ -382,6 +395,7 @@ HomeWidgetIOSConfiguration? _extractIosConfig(DartObject? obj) {
     supportedFamilies: families,
     backgroundColor: WidgetValueDecoder.decodeColor(
       obj.getField('backgroundColor'),
+      slot: 'HomeWidgetIOSConfiguration.backgroundColor',
     ),
     applyContentPadding:
         obj.getField('applyContentPadding')?.toBoolValue() ?? true,

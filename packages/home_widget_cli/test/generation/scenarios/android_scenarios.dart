@@ -26,9 +26,18 @@ import 'package:home_widget_generator/home_widget_generator.dart';
             HWText(
               HWString.fixed('Themed'),
               style: HWTextStyle(
-                color: HWThemedColor(
+                color: HWAppearanceData(
                   light: HWFixedColor(0xFFFFFF00),
                   dark: HWFixedColor(0xFF00FFFF),
+                ),
+              ),
+            ),
+            HWText(
+              HWString.fixed('Stored or role'),
+              style: HWTextStyle(
+                color: HWAppearanceData(
+                  light: HWColor('accent', defaultValue: 0xFF6750A4),
+                  dark: HWDefaultColor(HWColorRole.contentSecondary),
                 ),
               ),
             ),
