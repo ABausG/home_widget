@@ -7,7 +7,7 @@ description: Breaking changes and migration guide for home_widget_generator 0.5.
 
 Regenerate your widgets, then check the changes below.
 
-A constant value is now a [data type](/generator/data#fixed-values) instead of a widget constructor. The constructors `HWText.fixed`, `HWText.fixedNumber`, `HWText.localized`, `HWIcon.fixed` and `HWImage.asset` are removed. The rewrite is mechanical. The only change in the rendered widgets is that fixed text on iOS now shows exactly as written, see [Fixed Text Renders Verbatim on iOS](#fixed-text-renders-verbatim-on-ios).
+A constant value is now a [data type](/generator/data#fixed-values) instead of a widget constructor. The constructors `HWText.fixed`, `HWText.fixedNumber`, `HWText.localized`, `HWIcon.fixed` and `HWImage.asset` are removed. The rewrite is mechanical. The only rendered change from that rewrite is that fixed text on iOS now shows exactly as written, see [Fixed Text Renders Verbatim on iOS](#fixed-text-renders-verbatim-on-ios).
 
 | Removed | Replacement |
 | --- | --- |
@@ -25,6 +25,8 @@ Taps that open the app are now reported as typed launches, which also covers the
 - [Per-platform widget URLs are removed](#per-platform-widget-urls-removed).
 - [The launch helpers need home_widget 0.10.1](#launch-helpers-need-a-plugin-update).
 - [The Uri launch helpers are removed](#uri-launch-helpers-removed).
+
+On Android, [`HWIcon`](/generator/widgets/hw-icon) now always renders at its `size` instead of shrinking under padding or scaling to a sized box, see [Icons Render at Their Size on Android](#icons-render-at-their-size-on-android).
 
 ## HWText.fixed Became HWString.fixed
 
@@ -202,3 +204,34 @@ if (launch is WeatherWidgetTap) _openWeather(); // [!code ++]
 ```
 
 Code that still needs the `Uri`, such as a router that takes one, reads it from the launch with `launch.toUri()`.
+
+## Icons Render at Their Size on Android
+
+An [`HWIcon`](/generator/widgets/hw-icon) now always renders at its `size` (default `24`) on Android, matching iOS. A widget around it changes only the room around the glyph, and the glyph sits centered in any extra room.
+
+Three existing layouts render differently on Android after regenerating:
+
+- An [`HWPadding`](/generator/widgets/hw-padding) around an `HWIcon` used to be taken out of the icon's own box, shrinking the glyph (a `24` icon with a padding of `8` on every side rendered at `8`). The glyph now renders at `size` and the padding adds room around it. If an [`HWColoredBox`](/generator/widgets/hw-colored-box), [`HWDecoratedBox`](/generator/widgets/hw-decorated-box), [`HWLink`](/generator/widgets/hw-link) or [`HWButton`](/generator/widgets/hw-button) wraps that padding, its background or tap area now covers the padding plus the full glyph, so it is larger than before.
+- An [`HWSizedBox`](/generator/widgets/hw-sized-box) setting both `width` and `height`, or `HWSizedBox.expand` — also through an `HWColoredBox`, `HWDecoratedBox`, `HWLink`, `HWButton` or `HWPadding` — used to scale the glyph up or down to the box. The glyph now renders at `size` and sits centered. A fixed icon in a box sized along one axis only looks the same as before.
+- An icon read from stored data (`HWIcon(HWIconData('mood', icons: [...]))`) inside an `HWSizedBox`, or filling an [`HWRow`](/generator/widgets/hw-row) or [`HWColumn`](/generator/widgets/hw-column) through a `double.infinity` box, used to sit at the top start of the box. It is now centered.
+
+The same applies when an [`HWBoolConditional` / `HWDataExists`](/generator/widgets/hw-conditional), [`HWSizeAdaptive`](/generator/widgets/hw-size-adaptive) or [`HWAdaptive`](/generator/widgets/hw-adaptive) sits between the padding or sized box and the icon.
+
+If a widget relied on an `HWSizedBox` to size the icon, set `size` on the `HWIcon` instead — drop the box, or keep it for the extra room around the glyph:
+
+```dart
+HWSizedBox( // [!code --]
+  width: 40, // [!code --]
+  height: 40, // [!code --]
+  child: HWIcon(HWIconData.fixed(Icons.favorite)), // [!code --]
+) // [!code --]
+HWIcon(HWIconData.fixed(Icons.favorite), size: 40) // [!code ++]
+```
+
+## Wrappers Around Conditional or Adaptive Widgets Apply per Branch on Android
+
+On Android, an `HWPadding`, `HWSizedBox`, `HWColoredBox`, `HWDecoratedBox`, `HWLink` or `HWButton` around an `HWBoolConditional`, `HWDataExists`, `HWSizeAdaptive` or `HWAdaptive` now applies to whichever branch is shown, as if it wrapped that branch directly, matching iOS. An `HWDecoratedBox` with a border is the exception: it wraps the whole conditional or adaptive widget as before, so its border is still drawn around a branch that renders nothing. Three cases render differently:
+
+- When the shown branch is an `HWColoredBox` or `HWDecoratedBox`, an `HWPadding` around the conditional or adaptive widget used to paint the padding in that branch's color. The padding now stays unpainted, the same as wrapping the decoration directly. To keep the padding painted, move the `HWPadding` inside the `HWColoredBox` or `HWDecoratedBox`.
+- A branch that renders nothing — an [`HWDataOnly`](/generator/widgets/hw-data-only), or an `HWBoolConditional` or `HWDataExists` whose shown branch is one — used to leave the wrapper behind on its own: an `HWSizedBox(width: 48)` still took up `48`, an `HWColoredBox` still painted its color and an `HWLink` or `HWButton` still left an empty tap area. Now nothing is rendered for that branch, the same as wrapping an `HWDataOnly` directly.
+- An `HWSizedBox` around an `HWSizeAdaptive` or `HWAdaptive` now sizes an [`HWImage`](/generator/widgets/hw-image) or a bordered `HWDecoratedBox` in the shown slot to the box, as it already did around an `HWBoolConditional` or `HWDataExists`. Before, the image kept its own size and the bordered box hugged its content.

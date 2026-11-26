@@ -172,6 +172,118 @@ void main() {
         });
       });
 
+      group('around an icon', () {
+        const pad = 'padding(start = 8.0.dp, top = 8.0.dp, '
+            'end = 8.0.dp, bottom = 8.0.dp)';
+        const font = HWIconFont(family: 'MaterialIcons');
+        const icon = HWIcon.glyph(0xE88A, font: font, size: 32);
+        const glyph = 'Image(modifier = GlanceModifier.size(32.dp), '
+            'provider = ImageProvider(HomeWidgetFonts.iconBitmap(context, '
+            'R.font.hw_font_home_widget__icons_materialicons, 0xE88A, 32f)), '
+            'contentDescription = null, '
+            'colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface))';
+
+        test('puts the padding on a Box of its own around the glyph', () {
+          const padded = HWPadding(padding: HWEdgeInsets.all(8), child: icon);
+          expect(
+            padded.toKotlin(0, dataExpr: 'data'),
+            'Box(modifier = GlanceModifier.$pad) {\n'
+            '    $glyph\n'
+            '}',
+          );
+          expect(
+            padded.kotlinImports,
+            containsAll([
+              'import androidx.glance.GlanceModifier',
+              'import androidx.glance.layout.Box',
+              'import androidx.glance.layout.padding',
+              'import androidx.glance.layout.size',
+            ]),
+          );
+          expect(padded.kotlinPaddingAddsRoom, isTrue);
+          expect(padded.kotlinReportsBaseline, isFalse);
+        });
+
+        test('keeps the glyph of a tinted icon at its own size', () {
+          expect(
+            const HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWIcon.glyph(
+                0xE88A,
+                font: font,
+                size: 32,
+                color: HWColor.fixed(0xFFE53935),
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            startsWith(
+              'Box(modifier = GlanceModifier.$pad) {\n'
+              '    Image(modifier = GlanceModifier.size(32.dp), ',
+            ),
+          );
+        });
+
+        test('pads a stored icon around the check for its value', () {
+          const mood = HWIconData.resolved(
+            'mood',
+            entries: [HWIconEntry('wbSunny', 0xE88A)],
+            iconFont: font,
+          );
+          expect(
+            const HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWIcon(mood, size: 32),
+            ).toKotlin(0, dataExpr: 'data'),
+            startsWith(
+              'Box(modifier = GlanceModifier.$pad) {\n'
+              '    data.mood?.let { codePoint ->\n'
+              '        Image(modifier = GlanceModifier.size(32.dp), ',
+            ),
+          );
+        });
+
+        test('a decoration or a tap around the padding covers it too', () {
+          const black = 'ColorProvider(day = Color(0xFF000000), '
+              'night = Color(0xFF000000))';
+          expect(
+            const HWColoredBox(
+              color: HWColor.fixed(0xFF000000),
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: icon),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Box(modifier = GlanceModifier.background($black).$pad) {\n'
+            '    $glyph\n'
+            '}',
+          );
+          expect(
+            const HWButton(
+              'tap',
+              child: HWPadding(padding: HWEdgeInsets.all(8), child: icon),
+            ).toKotlin(0, dataExpr: 'data'),
+            allOf(
+              startsWith('Box(modifier = GlanceModifier.clickable('),
+              contains('.$pad) {\n    $glyph\n}'),
+            ),
+          );
+        });
+
+        test('a gap before it in a stack goes on the padding Box', () {
+          expect(
+            const HWRow(
+              spacing: 4,
+              children: [
+                icon,
+                HWPadding(padding: HWEdgeInsets.all(8), child: icon),
+              ],
+            ).toKotlin(0, dataExpr: 'data'),
+            contains(
+              '    Box(modifier = GlanceModifier.padding(start = 4.0.dp)'
+              '.$pad) {\n'
+              '        $glyph\n'
+              '    }\n',
+            ),
+          );
+        });
+      });
+
       test('a child rendering nothing leaves nothing to inset', () {
         const empty = HWPadding(
           padding: HWEdgeInsets.all(4),

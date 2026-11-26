@@ -3,6 +3,18 @@ import 'package:test/test.dart';
 
 const _materialIcons = HWIconFont(family: 'MaterialIcons');
 
+const _mood = HWIconData.resolved(
+  'mood',
+  entries: [HWIconEntry('wbSunny', 0xE88A)],
+  iconFont: _materialIcons,
+);
+
+/// The arguments of the `Image` drawing `0xE88A` after its modifier.
+const _glyph = 'provider = ImageProvider(HomeWidgetFonts.iconBitmap(context, '
+    'R.font.hw_font_home_widget__icons_materialicons, 0xE88A, 24f)), '
+    'contentDescription = null, '
+    'colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface))';
+
 void main() {
   group('HWSizedBox', () {
     const inRow = HWEmitContext(enclosingLinearAxis: HWAxis.horizontal);
@@ -839,17 +851,161 @@ void main() {
         expect(colored, isNot(contains('fillMaxSize()')));
       });
 
-      test('a box around an icon wins over the size it asks for', () {
-        final result = const HWSizedBox(
-          width: 80,
-          height: 40,
-          child: HWIcon.glyph(0xE88A, font: _materialIcons),
-        ).toKotlin(0, dataExpr: 'data');
+      test('a box around an icon centers the glyph at its own size', () {
         expect(
-          result,
-          contains('GlanceModifier.width(80.0.dp).height(40.0.dp)'),
+          const HWSizedBox(
+            width: 80,
+            height: 40,
+            child: HWIcon.glyph(0xE88A, font: _materialIcons),
+          ).toKotlin(0, dataExpr: 'data'),
+          'Box(modifier = GlanceModifier.width(80.0.dp).height(40.0.dp), '
+          'contentAlignment = Alignment.Center) {\n'
+          '    Image(modifier = GlanceModifier.size(24.dp), $_glyph\n'
+          '}',
         );
-        expect(result, isNot(contains('size(')));
+      });
+
+      test('a box sizing one axis of an icon leaves the other to it', () {
+        expect(
+          const HWSizedBox(
+            width: 80,
+            child: HWIcon.glyph(0xE88A, font: _materialIcons),
+          ).toKotlin(0, dataExpr: 'data'),
+          'Box(modifier = GlanceModifier.width(80.0.dp), '
+          'contentAlignment = Alignment.Center) {\n'
+          '    Image(modifier = GlanceModifier.size(24.dp), $_glyph\n'
+          '}',
+        );
+        expect(
+          const HWSizedBox(
+            height: 80,
+            child: HWIcon.glyph(0xE88A, font: _materialIcons),
+          ).toKotlin(0, dataExpr: 'data'),
+          'Box(modifier = GlanceModifier.height(80.0.dp), '
+          'contentAlignment = Alignment.Center) {\n'
+          '    Image(modifier = GlanceModifier.size(24.dp), $_glyph\n'
+          '}',
+        );
+      });
+
+      test('a box around a stored icon centers it while there is one', () {
+        expect(
+          const HWSizedBox(width: 80, child: HWIcon(_mood))
+              .toKotlin(0, dataExpr: 'data'),
+          'Box(modifier = GlanceModifier.width(80.0.dp), '
+          'contentAlignment = Alignment.Center) {\n'
+          '    data.mood?.let { codePoint ->\n'
+          '        Image(modifier = GlanceModifier.size(24.dp), '
+          'provider = ImageProvider(HomeWidgetFonts.iconBitmap(context, '
+          'R.font.hw_font_home_widget__icons_materialicons, codePoint, 24f, '
+          'matchTextDirection = codePoint in hwMirroredIcons)), '
+          'contentDescription = null, '
+          'colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface))\n'
+          '    }\n'
+          '}',
+        );
+      });
+
+      test('a weight along a row centers an icon in the room it takes', () {
+        expect(
+          const HWSizedBox(
+            width: double.infinity,
+            child: HWIcon.glyph(0xE88A, font: _materialIcons),
+          ).toKotlin(0, dataExpr: 'data', context: inRow),
+          'Box(modifier = GlanceModifier.defaultWeight(), '
+          'contentAlignment = Alignment.Center) {\n'
+          '    Image(modifier = GlanceModifier.size(24.dp), $_glyph\n'
+          '}',
+        );
+      });
+
+      test('a box around a padded icon fills the padding Box with its own', () {
+        expect(
+          const HWSizedBox(
+            width: 80,
+            child: HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWIcon.glyph(0xE88A, font: _materialIcons),
+            ),
+          ).toKotlin(0, dataExpr: 'data'),
+          'Box(modifier = GlanceModifier.width(80.0.dp).padding(start = 8.0.dp, '
+          'top = 8.0.dp, end = 8.0.dp, bottom = 8.0.dp)) {\n'
+          '    Box(modifier = GlanceModifier.fillMaxWidth(), '
+          'contentAlignment = Alignment.Center) {\n'
+          '        Image(modifier = GlanceModifier.size(24.dp), $_glyph\n'
+          '    }\n'
+          '}',
+        );
+      });
+
+      test('imports the Box centering an icon', () {
+        expect(
+          const HWSizedBox(
+            width: 80,
+            child: HWIcon.glyph(0xE88A, font: _materialIcons),
+          ).kotlinImports,
+          containsAll(<String>[
+            'import androidx.glance.layout.Box',
+            'import androidx.glance.layout.Alignment',
+            'import androidx.glance.layout.width',
+            'import androidx.glance.Image',
+          ]),
+        );
+      });
+
+      test('imports the call a size of the child on both axes turns into', () {
+        const text = HWText(HWString.fixed('a'));
+        expect(
+          const HWSizedBox(width: 48, child: HWAlign(child: text))
+              .toKotlin(0, dataExpr: 'data'),
+          contains('GlanceModifier.width(48.0.dp).fillMaxHeight()'),
+        );
+        expect(
+          const HWSizedBox(width: 48, child: HWAlign(child: text))
+              .kotlinImports,
+          contains('import androidx.glance.layout.fillMaxHeight'),
+        );
+        expect(
+          const HWSizedBox(height: 48, child: HWSizedBox.expand(child: text))
+              .kotlinImports,
+          contains('import androidx.glance.layout.fillMaxWidth'),
+        );
+        expect(
+          const HWSizedBox(
+            width: 48,
+            child: HWBoolConditional(
+              data: HWBool('flag', defaultValue: true),
+              whenTrue: HWSizedBox.expand(child: text),
+              whenFalse: text,
+            ),
+          ).kotlinImports,
+          contains('import androidx.glance.layout.fillMaxHeight'),
+        );
+        expect(
+          const HWSizedBox(width: 48, height: 48, child: HWAlign(child: text))
+              .kotlinImports,
+          isNot(contains('import androidx.glance.layout.fillMaxHeight')),
+        );
+      });
+
+      test('a choice around text keeps the size on each branch', () {
+        expect(
+          const HWSizedBox(
+            width: 48,
+            child: HWBoolConditional(
+              data: HWBool('flag', defaultValue: true),
+              whenTrue: HWText(HWString.fixed('a')),
+              whenFalse: HWText(HWString.fixed('b')),
+            ),
+          ).toKotlin(0, dataExpr: 'data'),
+          'if (data.flag == true) {\n'
+          '    Text(modifier = GlanceModifier.width(48.0.dp), text = "a", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
+          '} else {\n'
+          '    Text(modifier = GlanceModifier.width(48.0.dp), text = "b", '
+          'style = TextStyle(color = GlanceTheme.colors.onSurface))\n'
+          '}',
+        );
       });
 
       test('a weight the outer box takes wins the axis too', () {

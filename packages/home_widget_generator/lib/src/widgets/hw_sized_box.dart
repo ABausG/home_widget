@@ -58,13 +58,19 @@ class HWSizedBox extends HWWidget {
 
   /// Nothing while this box renders nothing: neither the `Spacer` a gap asking
   /// for no room would be nor the modifiers around a child rendering nothing
-  /// are emitted.
+  /// are emitted. Around a choice, those of this box around each widget it
+  /// picks from, as [toKotlin] emits it.
   @override
   Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
     if (kotlinRendersNothing) return const {};
+    if (_kotlinChoices(null) case final choices?) {
+      return _kotlinImportsOfChoices(choices, enclosingLinearAxis);
+    }
 
     final modifiers = _kotlinModifiers(enclosingLinearAxis);
     final child = _kotlinChild;
+    final childImports =
+        child?.kotlinImportsIn(_childAxis(enclosingLinearAxis)) ?? const {};
     return {
       if (modifiers.isNotEmpty) 'import androidx.glance.GlanceModifier',
       for (final modifier in modifiers) ..._kotlinModifierImports(modifier),
@@ -72,8 +78,29 @@ class HWSizedBox extends HWWidget {
         'import androidx.glance.layout.Spacer'
       else ...{
         if (modifiers.isNotEmpty) 'import androidx.glance.layout.Box',
-        ...child.kotlinImportsIn(_childAxis(enclosingLinearAxis)),
+        ...childImports,
+        ..._kotlinSingleAxisImports(childImports),
       },
+    };
+  }
+
+  /// The imports of the calls a size of the child's along both axes turns into
+  /// once this box sizes one of them, which leaves the child's call sizing the
+  /// other one alone.
+  Set<String> _kotlinSingleAxisImports(Set<String> childImports) {
+    final GlanceSizeAxis left;
+    if (width != null && height == null) {
+      left = GlanceSizeAxis.height;
+    } else if (height != null && width == null) {
+      left = GlanceSizeAxis.width;
+    } else {
+      return const {};
+    }
+    const layout = 'import androidx.glance.layout';
+    return {
+      if (childImports.contains('$layout.size')) '$layout.${left.name}',
+      if (childImports.contains('$layout.fillMaxSize'))
+        '$layout.fillMax${left.suffix}',
     };
   }
 
@@ -389,6 +416,10 @@ class HWSizedBox extends HWWidget {
     HWEmitContext? context,
   }) {
     if (kotlinRendersNothing) return '';
+    if (_kotlinChoiceAround(indent, dataExpr: dataExpr, context: context)
+        case final choice?) {
+      return choice;
+    }
 
     final modifiers = _kotlinModifiers(context?.enclosingLinearAxis);
     final child = _kotlinChild;

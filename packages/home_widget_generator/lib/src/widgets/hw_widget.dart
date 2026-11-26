@@ -50,12 +50,17 @@ sealed class HWSingleChildWidget extends HWWidget {
   Set<String> get kotlinImports => kotlinImportsIn(null);
 
   /// None when [child] renders nothing: this wrapper emits no Glance code of
-  /// its own around it either.
+  /// its own around it either. Around a choice, those of this wrapper around
+  /// each widget it picks from, as [toKotlin] emits it.
   @override
-  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) =>
-      child.kotlinRendersNothing
-          ? const {}
-          : _kotlinImportsAroundChild(enclosingLinearAxis);
+  Set<String> kotlinImportsIn(HWAxis? enclosingLinearAxis) {
+    if (_kotlinChoices(null) case final choices?) {
+      return _kotlinImportsOfChoices(choices, enclosingLinearAxis);
+    }
+    return child.kotlinRendersNothing
+        ? const {}
+        : _kotlinImportsAroundChild(enclosingLinearAxis);
+  }
 
   /// The imports of the Glance code this wrapper puts around [child]'s, laid
   /// out inside a `Column` or `Row` running along [enclosingLinearAxis].
@@ -141,15 +146,19 @@ sealed class HWSingleChildWidget extends HWWidget {
   /// Nothing when [child] renders nothing, which is what
   /// [kotlinRendersNothing] answers for this wrapper: the modifier or `Box` of
   /// its own would otherwise render where the model says nothing does.
+  ///
+  /// Around a choice, this wrapper around each widget it picks from, so that
+  /// each of them decides on its own where the modifier goes.
   @override
   String toKotlin(
     int indent, {
     required String dataExpr,
     HWEmitContext? context,
-  }) =>
-      child.kotlinRendersNothing
-          ? ''
-          : _kotlinAroundChild(indent, dataExpr: dataExpr, context: context);
+  }) {
+    if (child.kotlinRendersNothing) return '';
+    return _kotlinChoiceAround(indent, dataExpr: dataExpr, context: context) ??
+        _kotlinAroundChild(indent, dataExpr: dataExpr, context: context);
+  }
 
   /// The Glance code this wrapper puts around [child]'s, which renders
   /// something.
@@ -325,8 +334,8 @@ sealed class HWWidget implements HWGeneratable {
       const HWKotlinRoom();
 
   /// This widget with the size of an [HWSizedBox] around it, [width] by
-  /// [height], pushed inside it down to the decorations it paints, or null
-  /// when there is none for the size to reach.
+  /// [height], pushed inside it down to the decorations it paints and the
+  /// icons it centers, or null when there is none for the size to reach.
   ///
   /// Flutter paints a decoration over all the room its box gives it, and a
   /// decoration, a padding or a conditional passes tight constraints on. The
@@ -400,6 +409,33 @@ sealed class HWWidget implements HWGeneratable {
   /// The imports [_kotlinChoice] needs itself, besides those of the widgets it
   /// picks from.
   Set<String> get _kotlinChoiceImports => const {};
+
+  /// This widget's Glance code with each of [_kotlinChoices] emitted in full
+  /// where it sits, or null when it renders one widget of its own.
+  String? _kotlinChoiceAround(
+    int indent, {
+    required String dataExpr,
+    required HWEmitContext? context,
+  }) =>
+      _kotlinChoice(
+        indent,
+        dataExpr: dataExpr,
+        context: context,
+        emit: (widget, indent) =>
+            widget.toKotlin(indent, dataExpr: dataExpr, context: context),
+      );
+
+  /// The imports [_kotlinChoiceAround] needs, [choices] laid out inside a
+  /// Glance `Column` or `Row` running along [enclosingLinearAxis].
+  Set<String> _kotlinImportsOfChoices(
+    List<HWWidget> choices,
+    HWAxis? enclosingLinearAxis,
+  ) =>
+      {
+        ..._kotlinChoiceImports,
+        for (final choice in choices)
+          ...choice.kotlinImportsIn(enclosingLinearAxis),
+      };
 
   /// This widget's Glance code as a child of a Glance `Column` or `Row`, laid
   /// out through [slot] in the [context] the stack emits its children in.

@@ -294,7 +294,7 @@ void main() {
       expect(
         const HWPadding(padding: HWEdgeInsets.all(4), child: icon)
             .kotlinPaddingAddsRoom,
-        isFalse,
+        isTrue,
       );
     });
 

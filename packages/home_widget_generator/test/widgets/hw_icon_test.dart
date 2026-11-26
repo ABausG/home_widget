@@ -537,6 +537,272 @@ void main() {
       );
     });
 
+    group('inside a wrapper giving it room', () {
+      const icon = HWIcon.glyph(0xE88A, font: _materialIcons, size: 32);
+      const glyph = 'Image(modifier = GlanceModifier.size(32.dp), '
+          'provider = ImageProvider(HomeWidgetFonts.iconBitmap(context, '
+          'R.font.hw_font_home_widget__icons_materialicons, 0xE88A, 32f)), '
+          'contentDescription = null, '
+          'colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurface))';
+      const context = HWEmitContext(androidLaunchActivity: 'MainActivity');
+
+      test('is placed by an align without a Box of its own', () {
+        expect(
+          const HWAlign(child: icon).toKotlin(0, dataExpr: 'data'),
+          'Box(modifier = GlanceModifier.fillMaxSize(), '
+          'contentAlignment = Alignment.Center) {\n'
+          '    $glyph\n'
+          '}',
+        );
+      });
+
+      test('a sized link or button makes the centering Box tappable', () {
+        expect(
+          const HWSizedBox(
+            width: 64,
+            child: HWLink('open', url: 'app://open', child: icon),
+          ).toKotlin(0, dataExpr: 'data', context: context),
+          allOf(
+            startsWith(
+              'Box(modifier = GlanceModifier.width(64.0.dp).clickable(',
+            ),
+            contains('contentAlignment = Alignment.Center) {\n    $glyph\n}'),
+          ),
+        );
+        expect(
+          const HWSizedBox(
+            height: 64,
+            child: HWButton('tap', child: icon),
+          ).toKotlin(0, dataExpr: 'data'),
+          allOf(
+            startsWith(
+              'Box(modifier = GlanceModifier.height(64.0.dp).clickable(',
+            ),
+            contains('contentAlignment = Alignment.Center) {\n    $glyph\n}'),
+          ),
+        );
+      });
+
+      test('a tap alone still goes on the glyph itself', () {
+        expect(
+          const HWButton('tap', child: icon).toKotlin(0, dataExpr: 'data'),
+          startsWith('Image(modifier = GlanceModifier.clickable('),
+        );
+      });
+
+      test('a bordered box fills the room it leaves with the centering Box',
+          () {
+        expect(
+          const HWSizedBox(
+            width: 64,
+            height: 64,
+            child: HWDecoratedBox(
+              decoration: HWBoxDecoration(
+                border: HWBoxBorder(
+                  thickness: 2,
+                  color: HWColor.fixed(0xFF000000),
+                ),
+              ),
+              child: icon,
+            ),
+          ).toKotlin(0, dataExpr: 'data'),
+          matches(
+            RegExp(
+              r'Box\(modifier = GlanceModifier\.fillMaxSize\(\), '
+              r'contentAlignment = Alignment\.Center\) \{\n'
+              '\\s*${RegExp.escape(glyph)}\n',
+            ),
+          ),
+        );
+      });
+
+      test('leaves the SwiftUI output as it is', () {
+        expect(
+          const HWSizedBox(width: 64, child: icon)
+              .toSwift(0, dataExpr: 'entry.data'),
+          endsWith('.frame(width: 64.0, alignment: .center)'),
+        );
+        expect(
+          const HWPadding(padding: HWEdgeInsets.all(8), child: icon)
+              .toSwift(0, dataExpr: 'entry.data'),
+          endsWith(
+            '.padding(EdgeInsets(top: 8.0, leading: 8.0, bottom: 8.0, '
+            'trailing: 8.0))',
+          ),
+        );
+      });
+
+      group('picked by a choice', () {
+        const pad = 'padding(start = 8.0.dp, top = 8.0.dp, '
+            'end = 8.0.dp, bottom = 8.0.dp)';
+        const text = 'text = "-", '
+            'style = TextStyle(color = GlanceTheme.colors.onSurface))';
+        const flag = HWBool('flag', defaultValue: true);
+        const conditional = HWBoolConditional(
+          data: flag,
+          whenTrue: icon,
+          whenFalse: HWText(HWString.fixed('-')),
+        );
+
+        test('a padding goes on a Box around the icon branch alone', () {
+          expect(
+            const HWPadding(padding: HWEdgeInsets.all(8), child: conditional)
+                .toKotlin(0, dataExpr: 'data'),
+            'if (data.flag == true) {\n'
+            '    Box(modifier = GlanceModifier.$pad) {\n'
+            '        $glyph\n'
+            '    }\n'
+            '} else {\n'
+            '    Text(modifier = GlanceModifier.$pad, $text\n'
+            '}',
+          );
+        });
+
+        test('a box centers the glyph of the icon branch', () {
+          expect(
+            const HWSizedBox(width: 48, height: 48, child: conditional)
+                .toKotlin(0, dataExpr: 'data'),
+            'if (data.flag == true) {\n'
+            '    Box(modifier = GlanceModifier.width(48.0.dp).height(48.0.dp), '
+            'contentAlignment = Alignment.Center) {\n'
+            '        $glyph\n'
+            '    }\n'
+            '} else {\n'
+            '    Text(modifier = GlanceModifier.width(48.0.dp).height(48.0.dp), '
+            '$text\n'
+            '}',
+          );
+        });
+
+        test('a box reaches the icon through a decoration of the choice', () {
+          const black = 'ColorProvider(day = Color(0xFF000000), '
+              'night = Color(0xFF000000))';
+          expect(
+            const HWSizedBox(
+              width: 48,
+              child: HWColoredBox(
+                color: HWColor.fixed(0xFF000000),
+                child: conditional,
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            startsWith(
+              'if (data.flag == true) {\n'
+              '    Box(modifier = GlanceModifier.width(48.0.dp)'
+              '.background($black), contentAlignment = Alignment.Center) {\n'
+              '        $glyph\n',
+            ),
+          );
+          expect(
+            const HWSizedBox(
+              width: 48,
+              height: 48,
+              child:
+                  HWPadding(padding: HWEdgeInsets.all(8), child: conditional),
+            ).toKotlin(0, dataExpr: 'data'),
+            startsWith(
+              'if (data.flag == true) {\n'
+              '    Box(modifier = GlanceModifier.width(48.0.dp).height(48.0.dp)'
+              '.$pad) {\n'
+              '        Box(modifier = GlanceModifier.fillMaxSize(), '
+              'contentAlignment = Alignment.Center) {\n'
+              '            $glyph\n',
+            ),
+          );
+        });
+
+        test('both branches of a stored icon keep their glyph size', () {
+          expect(
+            const HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWDataExists(
+                data: HWString('note'),
+                whenPresent: HWIcon(_mood, size: 32),
+                whenAbsent: icon,
+              ),
+            ).toKotlin(0, dataExpr: 'data'),
+            allOf(
+              contains(
+                'if (data.note != null) {\n'
+                '    Box(modifier = GlanceModifier.$pad) {\n'
+                '        data.mood?.let { codePoint ->\n',
+              ),
+              contains(
+                '} else {\n'
+                '    Box(modifier = GlanceModifier.$pad) {\n'
+                '        $glyph\n'
+                '    }\n'
+                '}',
+              ),
+            ),
+          );
+        });
+
+        test('each slot of a size-adaptive widget is sized on its own', () {
+          const adaptive = HWSizedBox(
+            width: 48,
+            child: HWSizeAdaptive(
+              small: HWText(HWString.fixed('-')),
+              medium: icon,
+            ),
+          );
+          expect(
+            adaptive.toKotlin(0, dataExpr: 'data'),
+            contains(
+              '    DpSize(250.dp, 110.dp) -> {\n'
+              '        Box(modifier = GlanceModifier.width(48.0.dp), '
+              'contentAlignment = Alignment.Center) {\n'
+              '            $glyph\n'
+              '        }\n'
+              '    }\n',
+            ),
+          );
+          expect(
+            adaptive.kotlinImports,
+            containsAll(<String>[
+              'import androidx.glance.LocalSize',
+              'import androidx.glance.layout.Alignment',
+              'import androidx.glance.layout.width',
+            ]),
+          );
+        });
+
+        test('the Android side of an adaptive widget is sized as itself', () {
+          expect(
+            const HWSizedBox(
+              height: 48,
+              child: HWAdaptive(ios: icon, android: icon),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Box(modifier = GlanceModifier.height(48.0.dp), '
+            'contentAlignment = Alignment.Center) {\n'
+            '    $glyph\n'
+            '}',
+          );
+          expect(
+            const HWPadding(
+              padding: HWEdgeInsets.all(8),
+              child: HWAdaptive(ios: icon, android: icon),
+            ).toKotlin(0, dataExpr: 'data'),
+            'Box(modifier = GlanceModifier.$pad) {\n'
+            '    $glyph\n'
+            '}',
+          );
+        });
+
+        test('imports what each branch needs around it', () {
+          expect(
+            const HWPadding(padding: HWEdgeInsets.all(8), child: conditional)
+                .kotlinImports,
+            containsAll(<String>[
+              'import androidx.glance.GlanceModifier',
+              'import androidx.glance.layout.Box',
+              'import androidx.glance.layout.padding',
+              'import androidx.glance.text.Text',
+            ]),
+          );
+        });
+      });
+    });
+
     test('imports what the call needs', () {
       expect(
         const HWIcon(_mood).kotlinImports,
